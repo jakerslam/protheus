@@ -254,6 +254,21 @@ fn main() {
             let exit = protheus_ops_core::tool_response_compactor_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "trit-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::trit_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "request-envelope-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::request_envelope_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "autonomy-receipt-schema-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::autonomy_receipt_schema_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "local-runtime-partitioner" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);

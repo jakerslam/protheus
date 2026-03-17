@@ -1,213 +1,113 @@
-type Trit = -1 | 0 | 1;
+#!/usr/bin/env node
+'use strict';
 
-type TritLabel = 'pain' | 'unknown' | 'ok';
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-type MajorityOptions = {
-  weights?: unknown[];
-  tie_breaker?: 'unknown' | 'pain' | 'ok' | 'first_non_zero';
-};
+const { createOpsLaneBridge } = require('../runtime/lib/rust_lane_bridge.ts');
 
-type PropagateOptions = {
-  mode?: 'strict' | 'cautious' | 'permissive';
-};
+const TRIT_PAIN = -1;
+const TRIT_UNKNOWN = 0;
+const TRIT_OK = 1;
 
-const TRIT_PAIN: Trit = -1;
-const TRIT_UNKNOWN: Trit = 0;
-const TRIT_OK: Trit = 1;
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'trit', 'trit-kernel');
 
-const POSITIVE_WORDS = new Set([
-  'ok',
-  'pass',
-  'allow',
-  'approved',
-  'healthy',
-  'up',
-  'true',
-  'success',
-  'green',
-  'ready'
-]);
-
-const NEGATIVE_WORDS = new Set([
-  'pain',
-  'fail',
-  'failed',
-  'error',
-  'blocked',
-  'deny',
-  'denied',
-  'critical',
-  'false',
-  'down',
-  'red'
-]);
-
-const NEUTRAL_WORDS = new Set([
-  'unknown',
-  'neutral',
-  'pending',
-  'n_a',
-  'none',
-  'unset'
-]);
-
-function normalizeToken(value: unknown): string {
-  return String(value == null ? '' : value)
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function normalizeWeight(value: unknown, fallback = 1): number {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return n;
-}
-
-function normalizeTrit(value: unknown): Trit {
-  if (value === TRIT_PAIN || value === TRIT_UNKNOWN || value === TRIT_OK) {
-    return value as Trit;
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `trit_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `trit_kernel_${command}_failed`);
+    return { ok: false, error: message || `trit_kernel_${command}_failed` };
   }
-  const n = Number(value);
-  if (Number.isFinite(n)) {
-    if (n > 0) return TRIT_OK;
-    if (n < 0) return TRIT_PAIN;
-    return TRIT_UNKNOWN;
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `trit_kernel_${command}_bridge_failed`
+      : `trit_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
   }
-  const token = normalizeToken(value);
-  if (POSITIVE_WORDS.has(token)) return TRIT_OK;
-  if (NEGATIVE_WORDS.has(token)) return TRIT_PAIN;
-  if (NEUTRAL_WORDS.has(token)) return TRIT_UNKNOWN;
-  return TRIT_UNKNOWN;
+  return payloadOut;
 }
 
-function tritLabel(value: unknown): TritLabel {
-  const trit = normalizeTrit(value);
-  if (trit === TRIT_PAIN) return 'pain';
-  if (trit === TRIT_OK) return 'ok';
-  return 'unknown';
+function normalizeTrit(value) {
+  const out = invoke('normalize', { value });
+  return Number(out.trit || 0);
 }
 
-function tritFromLabel(value: unknown): Trit {
-  return normalizeTrit(value);
+function tritLabel(value) {
+  const out = invoke('label', { value });
+  return String(out.label || 'unknown');
 }
 
-function invertTrit(value: unknown): Trit {
-  const trit = normalizeTrit(value);
-  if (trit === TRIT_PAIN) return TRIT_OK;
-  if (trit === TRIT_OK) return TRIT_PAIN;
-  return TRIT_UNKNOWN;
+function tritFromLabel(value) {
+  const out = invoke('from-label', { value });
+  return Number(out.trit || 0);
 }
 
-function majorityTrit(values: unknown[], opts: MajorityOptions = {}): Trit {
-  const rows = Array.isArray(values) ? values : [];
-  if (!rows.length) return TRIT_UNKNOWN;
-  const weights = Array.isArray(opts.weights) ? opts.weights : [];
-  let painWeight = 0;
-  let unknownWeight = 0;
-  let okWeight = 0;
-
-  for (let i = 0; i < rows.length; i += 1) {
-    const trit = normalizeTrit(rows[i]);
-    const weight = normalizeWeight(weights[i], 1);
-    if (trit === TRIT_PAIN) painWeight += weight;
-    else if (trit === TRIT_OK) okWeight += weight;
-    else unknownWeight += weight;
-  }
-
-  if (painWeight > okWeight && painWeight > unknownWeight) return TRIT_PAIN;
-  if (okWeight > painWeight && okWeight > unknownWeight) return TRIT_OK;
-  if (unknownWeight > painWeight && unknownWeight > okWeight) return TRIT_UNKNOWN;
-
-  const tieBreaker = String(opts.tie_breaker || 'unknown');
-  if (tieBreaker === 'pain') return TRIT_PAIN;
-  if (tieBreaker === 'ok') return TRIT_OK;
-  if (tieBreaker === 'first_non_zero') {
-    const first = rows.map(normalizeTrit).find((row) => row !== TRIT_UNKNOWN);
-    return first == null ? TRIT_UNKNOWN : first;
-  }
-  return TRIT_UNKNOWN;
+function invertTrit(value) {
+  const out = invoke('invert', { value });
+  return Number(out.trit || 0);
 }
 
-function consensusTrit(values: unknown[]): Trit {
-  const rows = Array.isArray(values) ? values.map(normalizeTrit) : [];
-  if (!rows.length) return TRIT_UNKNOWN;
-  const nonZero = rows.filter((row) => row !== TRIT_UNKNOWN);
-  if (!nonZero.length) return TRIT_UNKNOWN;
-  const hasPain = nonZero.some((row) => row === TRIT_PAIN);
-  const hasOk = nonZero.some((row) => row === TRIT_OK);
-  if (hasPain && hasOk) return TRIT_UNKNOWN;
-  return hasPain ? TRIT_PAIN : TRIT_OK;
+function majorityTrit(values, opts = {}) {
+  const out = invoke('majority', {
+    values: Array.isArray(values) ? values : [],
+    weights: Array.isArray(opts.weights) ? opts.weights : [],
+    tie_breaker: opts.tie_breaker || 'unknown'
+  });
+  return Number(out.trit || 0);
 }
 
-function propagateTrit(parent: unknown, child: unknown, opts: PropagateOptions = {}): Trit {
-  const p = normalizeTrit(parent);
-  const c = normalizeTrit(child);
-  const mode = String(opts.mode || 'cautious');
-
-  if (mode === 'strict') {
-    if (p === TRIT_PAIN || c === TRIT_PAIN) return TRIT_PAIN;
-    if (p === TRIT_OK && c === TRIT_OK) return TRIT_OK;
-    return TRIT_UNKNOWN;
-  }
-
-  if (mode === 'permissive') {
-    if (p === TRIT_OK || c === TRIT_OK) return TRIT_OK;
-    if (p === TRIT_PAIN && c === TRIT_PAIN) return TRIT_PAIN;
-    return TRIT_UNKNOWN;
-  }
-
-  if (c === TRIT_PAIN) return TRIT_PAIN;
-  if (p === TRIT_PAIN && c === TRIT_UNKNOWN) return TRIT_PAIN;
-  if (p === TRIT_OK && c === TRIT_OK) return TRIT_OK;
-  if (p === TRIT_OK && c === TRIT_UNKNOWN) return TRIT_UNKNOWN;
-  if (p === TRIT_UNKNOWN && c === TRIT_OK) return TRIT_OK;
-  return TRIT_UNKNOWN;
+function consensusTrit(values) {
+  const out = invoke('consensus', { values: Array.isArray(values) ? values : [] });
+  return Number(out.trit || 0);
 }
 
-function serializeTrit(value: unknown): '-1' | '0' | '1' {
-  const trit = normalizeTrit(value);
-  if (trit === TRIT_PAIN) return '-1';
-  if (trit === TRIT_OK) return '1';
-  return '0';
+function propagateTrit(parent, child, opts = {}) {
+  const out = invoke('propagate', {
+    parent,
+    child,
+    mode: opts.mode || 'cautious'
+  });
+  return Number(out.trit || 0);
 }
 
-function parseSerializedTrit(value: unknown): Trit {
-  const token = String(value == null ? '' : value).trim();
-  if (token === '-1' || token === '-') return TRIT_PAIN;
-  if (token === '1' || token === '+') return TRIT_OK;
-  return TRIT_UNKNOWN;
+function serializeTrit(value) {
+  const out = invoke('serialize', { value });
+  return String(out.serialized || '0');
 }
 
-function serializeTritVector(values: unknown[]) {
-  const rows = Array.isArray(values) ? values : [];
-  const digits = rows.map((row) => {
-    const trit = normalizeTrit(row);
-    if (trit === TRIT_PAIN) return '-';
-    if (trit === TRIT_OK) return '+';
-    return '0';
-  }).join('');
-  return {
-    schema_id: 'balanced_trit_vector',
-    schema_version: '1.0.0',
-    encoding: 'balanced_ternary_sign',
-    digits,
-    values: rows.map(serializeTrit)
-  };
+function parseSerializedTrit(value) {
+  const out = invoke('parse-serialized', { value });
+  return Number(out.trit || 0);
 }
 
-function parseTritVector(payload: unknown): Trit[] {
-  if (Array.isArray(payload)) return payload.map(parseSerializedTrit);
-  if (!payload || typeof payload !== 'object') return [];
-  const src = payload as { digits?: unknown; values?: unknown };
-  if (Array.isArray(src.values)) return src.values.map(parseSerializedTrit);
-  const digits = String(src.digits || '');
-  if (!digits) return [];
-  return digits.split('').map((char) => parseSerializedTrit(char));
+function serializeTritVector(values) {
+  const out = invoke('serialize-vector', { values: Array.isArray(values) ? values : [] });
+  return out.vector && typeof out.vector === 'object' ? out.vector : null;
 }
 
-export {
+function parseTritVector(payload) {
+  const out = invoke('parse-vector', { payload });
+  return Array.isArray(out.values) ? out.values.map((row) => Number(row || 0)) : [];
+}
+
+module.exports = {
   TRIT_PAIN,
   TRIT_UNKNOWN,
   TRIT_OK,

@@ -1,196 +1,107 @@
-const crypto = require('crypto');
+#!/usr/bin/env node
+'use strict';
 
-type EnvelopePayloadInput = {
-  source?: unknown;
-  action?: unknown;
-  ts?: unknown;
-  nonce?: unknown;
-  files?: unknown;
-  kid?: unknown;
-};
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-type EnvelopePayload = {
-  source: string;
-  action: string;
-  kid: string;
-  ts: number;
-  nonce: string;
-  files: string[];
-};
+const { createOpsLaneBridge } = require('../runtime/lib/rust_lane_bridge.ts');
 
-function normalizeLower(v: unknown): string {
-  return String(v || '').trim().toLowerCase();
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'request_envelope', 'request-envelope-kernel');
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function normalizeKeyId(v: unknown): string {
-  const raw = String(v || '').trim().toLowerCase();
-  if (!raw) return '';
-  return raw.replace(/[^a-z0-9._-]/g, '').slice(0, 40);
-}
-
-function secretKeyEnvVarName(kid: unknown): string {
-  const keyId = normalizeKeyId(kid);
-  if (!keyId) return '';
-  return `REQUEST_GATE_SECRET_${keyId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
-}
-
-function normalizeFiles(files: unknown): string[] {
-  const arr = Array.isArray(files) ? files : [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of arr) {
-    const f = String(raw || '').trim().replace(/\\/g, '/');
-    if (!f) continue;
-    if (seen.has(f)) continue;
-    seen.add(f);
-    out.push(f);
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `request_envelope_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `request_envelope_kernel_${command}_failed`);
+    return { ok: false, error: message || `request_envelope_kernel_${command}_failed` };
   }
-  out.sort((a, b) => a.localeCompare(b));
-  return out;
-}
-
-function envelopePayload({ source, action, ts, nonce, files, kid }: EnvelopePayloadInput): EnvelopePayload {
-  const src = normalizeLower(source) || 'local';
-  const act = normalizeLower(action) || 'apply';
-  const tsNum = Number.isFinite(Number(ts)) ? Math.floor(Number(ts)) : Math.floor(Date.now() / 1000);
-  const nonceVal = String(nonce || '').trim() || crypto.randomBytes(12).toString('hex');
-  const fileList = normalizeFiles(files);
-  const keyId = normalizeKeyId(kid);
-  return {
-    source: src,
-    action: act,
-    kid: keyId,
-    ts: tsNum,
-    nonce: nonceVal,
-    files: fileList
-  };
-}
-
-function canonicalEnvelopeString(payload: EnvelopePayloadInput): string {
-  const p = envelopePayload(payload || {});
-  return [
-    'v1',
-    `source=${p.source}`,
-    `action=${p.action}`,
-    `kid=${p.kid || ''}`,
-    `ts=${p.ts}`,
-    `nonce=${p.nonce}`,
-    `files=${p.files.join(',')}`
-  ].join('|');
-}
-
-function signEnvelope(payload: EnvelopePayloadInput, secret: unknown): string {
-  const key = String(secret || '');
-  if (!key) return '';
-  return crypto
-    .createHmac('sha256', key)
-    .update(canonicalEnvelopeString(payload), 'utf8')
-    .digest('hex');
-}
-
-function safeEqualHex(a: unknown, b: unknown): boolean {
-  const ax = String(a || '').trim().toLowerCase();
-  const bx = String(b || '').trim().toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(ax) || !/^[a-f0-9]{64}$/.test(bx)) return false;
-  return crypto.timingSafeEqual(Buffer.from(ax, 'hex'), Buffer.from(bx, 'hex'));
-}
-
-function verifyEnvelope({ source, action, ts, nonce, files, kid, signature, secret, maxSkewSec = 900, nowSec }: EnvelopePayloadInput & { signature?: unknown; secret?: unknown; maxSkewSec?: unknown; nowSec?: unknown }) {
-  const key = String(secret || '').trim();
-  if (!key) return { ok: false, reason: 'secret_missing' as const };
-
-  const payload = envelopePayload({ source, action, ts, nonce, files, kid });
-  if (!Number.isFinite(Number(payload.ts)) || Number(payload.ts) <= 0) {
-    return { ok: false, reason: 'timestamp_invalid' as const };
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `request_envelope_kernel_${command}_bridge_failed`
+      : `request_envelope_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
   }
-
-  const now = Number.isFinite(Number(nowSec)) ? Math.floor(Number(nowSec)) : Math.floor(Date.now() / 1000);
-  const maxSkew = Math.max(30, Number(maxSkewSec || 900));
-  const skew = Math.abs(now - Number(payload.ts));
-  if (skew > maxSkew) {
-    return { ok: false, reason: 'timestamp_skew' as const, skew_sec: skew, max_skew_sec: maxSkew };
-  }
-
-  const expected = signEnvelope(payload, key);
-  const provided = String(signature || '').trim().toLowerCase();
-  if (!safeEqualHex(expected, provided)) {
-    return { ok: false, reason: 'signature_mismatch' as const };
-  }
-
-  return { ok: true, reason: 'ok' as const, skew_sec: skew };
+  return payloadOut;
 }
 
-function stampGuardEnv(
-  baseEnv: Record<string, unknown>,
-  { source = 'local', action = 'apply', files = [], secret, ts, nonce, kid }: {
-    source?: string;
-    action?: string;
-    files?: unknown[];
-    secret?: unknown;
-    ts?: unknown;
-    nonce?: unknown;
-    kid?: unknown;
-  } = {}
-): Record<string, unknown> {
-  const env = { ...(baseEnv || {}) };
-  const src = normalizeLower(source) || 'local';
-  const act = normalizeLower(action) || 'apply';
-  const keyId = normalizeKeyId(kid != null ? kid : env.REQUEST_KEY_ID);
-  env.REQUEST_SOURCE = src;
-  env.REQUEST_ACTION = act;
-  if (keyId) env.REQUEST_KEY_ID = keyId;
-
-  const keyFromKid = keyId ? String(env[secretKeyEnvVarName(keyId)] || '').trim() : '';
-  const key = String(
-    secret != null
-      ? secret
-      : keyFromKid || env.REQUEST_GATE_SECRET || ''
-  ).trim();
-  if (!key) return env;
-
-  const payload = envelopePayload({ source: src, action: act, ts, nonce, files, kid: keyId });
-  env.REQUEST_TS = String(payload.ts);
-  env.REQUEST_NONCE = payload.nonce;
-  env.REQUEST_SIG = signEnvelope(payload, key);
-  return env;
+function envelopePayload(input = {}) {
+  const out = invoke('envelope-payload', input && typeof input === 'object' ? input : {});
+  return out.payload && typeof out.payload === 'object' ? out.payload : null;
 }
 
-function verifySignedEnvelopeFromEnv({
-  env = process.env,
-  files = [],
-  secret,
-  maxSkewSec = 900,
-  nowSec
-}: {
-  env?: Record<string, unknown>;
-  files?: string[];
-  secret?: unknown;
-  maxSkewSec?: number;
-  nowSec?: number;
-} = {}) {
-  const e = env || {};
-  const keyId = normalizeKeyId(e.REQUEST_KEY_ID);
-  const keyFromKid = keyId ? String(e[secretKeyEnvVarName(keyId)] || '').trim() : '';
-  const key = String(
-    secret != null
-      ? secret
-      : keyFromKid || e.REQUEST_GATE_SECRET || ''
-  ).trim();
-  return verifyEnvelope({
-    source: e.REQUEST_SOURCE,
-    action: e.REQUEST_ACTION,
-    kid: keyId,
-    ts: e.REQUEST_TS,
-    nonce: e.REQUEST_NONCE,
-    files,
-    signature: e.REQUEST_SIG,
-    secret: key,
+function canonicalEnvelopeString(payload = {}) {
+  const out = invoke('canonical-string', payload && typeof payload === 'object' ? payload : {});
+  return String(out.canonical || '');
+}
+
+function signEnvelope(payload = {}, secret) {
+  const out = invoke('sign', {
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    secret
+  });
+  return String(out.signature || '');
+}
+
+function verifyEnvelope(input = {}) {
+  return invoke('verify', input && typeof input === 'object' ? input : {});
+}
+
+function stampGuardEnv(baseEnv = {}, { source = 'local', action = 'apply', files = [], secret, ts, nonce, kid } = {}) {
+  const out = invoke('stamp-env', {
+    baseEnv: baseEnv && typeof baseEnv === 'object' ? baseEnv : {},
+    source,
+    action,
+    files: Array.isArray(files) ? files : [],
+    secret,
+    ts,
+    nonce,
+    kid
+  });
+  return out.env && typeof out.env === 'object' ? out.env : { ...(baseEnv || {}) };
+}
+
+function verifySignedEnvelopeFromEnv({ env = process.env, files = [], secret, maxSkewSec = 900, nowSec } = {}) {
+  return invoke('verify-from-env', {
+    env: env && typeof env === 'object' ? env : {},
+    files: Array.isArray(files) ? files : [],
+    secret,
     maxSkewSec,
     nowSec
   });
 }
 
-export {
+function normalizeFiles(files) {
+  const out = invoke('normalize-files', { files: Array.isArray(files) ? files : [] });
+  return Array.isArray(out.files) ? out.files : [];
+}
+
+function normalizeKeyId(value) {
+  const out = invoke('normalize-key-id', { value });
+  return String(out.kid || '');
+}
+
+function secretKeyEnvVarName(kid) {
+  const out = invoke('secret-key-env-var-name', { kid });
+  return String(out.env_var || '');
+}
+
+module.exports = {
   envelopePayload,
   canonicalEnvelopeString,
   signEnvelope,
