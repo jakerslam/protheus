@@ -63,6 +63,24 @@ fn extract_top1_snapshot_metrics_reads_runtime_snapshot_shape() {
 }
 
 #[test]
+fn extract_runtime_metrics_prefers_p50_when_available() {
+    let runtime = json!({
+        "metrics": {
+            "cold_start_p50_ms": 12.3,
+            "cold_start_p95_ms": 55.0,
+            "idle_rss_p50_mb": 4.2,
+            "idle_rss_p95_mb": 8.9,
+            "full_install_total_mb": 33.1
+        }
+    });
+
+    assert_eq!(
+        extract_runtime_metrics(&runtime),
+        Some((12.3, 4.2, 33.1))
+    );
+}
+
+#[test]
 fn runtime_metrics_falls_back_to_top1_snapshot_when_runtime_floor_state_is_missing() {
     let root = tempdir().expect("tempdir");
     let benchmark_snapshot = root.path().join(TOP1_BENCHMARK_SNAPSHOT_REL);

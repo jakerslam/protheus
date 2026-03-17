@@ -147,13 +147,14 @@ This regenerates:
 Sources:
 - Live control-plane run: `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
 - Snapshot/reference baseline: `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
+- Headline runtime metrics use median (`p50`) values from multi-sample probes; `p95/p99` remain in the JSON report for tail-latency diagnostics.
 
 | Metric | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) | Snapshot/Reference |
 |---|---:|---:|---:|---:|
-| Cold start | 318.3 ms | 304.2 ms | 58.8 ms | 74.5 ms |
-| Idle memory | 8.3 MB | 1.4 MB | 1.4 MB | 22.1 MB |
+| Cold start | 5.3 ms | 2.0 ms | 2.0 ms | 74.5 ms |
+| Idle memory | 9.8 MB | 1.4 MB | 1.4 MB | 22.1 MB |
 | Install size (full) | 11.9 MB | 0.7 MB | 0.5 MB | 126.4 MB |
-| Throughput | 1,552.4 ops/sec | 2,711.1 ops/sec | 3,390.3 ops/sec | 7,420.0 ops/sec |
+| Throughput | 12,171.4 ops/sec | 12,561.0 ops/sec | 12,530.3 ops/sec | 7,420.0 ops/sec |
 
 | Capability Counter | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) |
 |---|---:|---:|---:|
@@ -171,9 +172,9 @@ External baseline (OpenFang public table):
 
 | Project | Install Size (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **InfRing (rich)** | **11.9** | **318.3 ms** | **8.3** | **1,552.4** | **0.4** | **83** | 6 | 3 |
-| **InfRing (pure)** | **0.7** | **304.2 ms** | **1.4** | **2,711.1** | **0.4** | **83** | 0 | 0 |
-| **InfRing (tiny-max)** | **0.5** | **58.8 ms** | **1.4** | **3,390.3** | **0.3** | **83** | 0 | 0 |
+| **InfRing (rich)** | **11.9** | **5.3 ms** | **9.8** | **12,171.4** | **0.4** | **83** | 6 | 3 |
+| **InfRing (pure)** | **0.7** | **2.0 ms** | **1.4** | **12,561.0** | **0.4** | **83** | 0 | 0 |
+| **InfRing (tiny-max)** | **0.5** | **2.0 ms** | **1.4** | **12,530.3** | **0.3** | **83** | 0 | 0 |
 | OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
 | OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
 | LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
@@ -203,10 +204,10 @@ Tiny-max is the smallest full agentic OS artifact shipped in this repo today and
 
 ```text
 Cold Start Time (lower is better)
-InfRing (tiny-max) ############################################  58.8 ms
+InfRing (tiny-max) ############################################  2.0 ms
+InfRing (pure)     ############################################  2.0 ms
+InfRing (rich)     ############################################  5.3 ms
 OpenFang   ###########################################-  180.0 ms
-InfRing (pure) #########################################---  304.2 ms
-InfRing (rich) #########################################---  318.3 ms
 OpenHands  ###############################-------------  1.3 sec
 LangGraph  #################---------------------------  2.5 sec
 CrewAI     ############--------------------------------  3.0 sec
@@ -217,7 +218,7 @@ AutoGen    #-------------------------------------------  4.0 sec
 Idle Memory Usage (lower is better)
 InfRing (pure)     ############################################  1.4 MB
 InfRing (tiny-max) ############################################  1.4 MB
-InfRing (rich)     ###########################################-  8.3 MB
+InfRing (rich)     ###########################################-  9.8 MB
 OpenFang   #####################################-------  40.0 MB
 OpenHands  ####################------------------------  150.0 MB
 LangGraph  ##############------------------------------  180.0 MB
@@ -249,9 +250,9 @@ CrewAI     #-------------------------------------------  1
 
 ```text
 Throughput (ops/sec, higher is better)
-InfRing (tiny-max) ############################################  3,390.3
-InfRing (pure)     ############################----------------  2,711.1
-InfRing (rich)     #-------------------------------------------  1,552.4
+InfRing (pure)     ############################################  12,561.0
+InfRing (tiny-max) ###########################################-  12,530.3
+InfRing (rich)     ##########################################--  12,171.4
 OpenFang   n/p
 OpenHands  n/p
 LangGraph  n/p
