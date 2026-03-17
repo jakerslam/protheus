@@ -135,6 +135,7 @@ pub mod strategy_resolver;
 pub mod success_criteria_kernel;
 pub mod substrate_plane;
 pub mod supply_chain_provenance_v2;
+pub mod symbiosis_coherence_kernel;
 pub mod swarm_runtime;
 pub mod top1_assurance;
 pub mod v8_kernel;
