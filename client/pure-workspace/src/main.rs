@@ -57,9 +57,8 @@ fn parse_bool(raw: Option<&str>, default: bool) -> bool {
     match raw.map(|v| v.trim().to_ascii_lowercase()) {
         Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
         Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        Some(v) if v.is_empty() => default,
-        Some(_) => default,
         None => default,
+        Some(_) => default,
     }
 }
 
@@ -265,6 +264,21 @@ fn run_conduit(args: &[String]) -> i32 {
     run_daemon(action.as_str(), &passthrough)
 }
 
+fn daemon_passthrough_args(args: &[String], default_subcommand: Option<&str>) -> Vec<String> {
+    let mut passthrough = args.to_vec();
+    if passthrough.is_empty() {
+        if let Some(default_value) = default_subcommand {
+            passthrough.push(default_value.to_string());
+        }
+    }
+    passthrough
+}
+
+fn run_daemon_passthrough(command: &str, args: &[String], default_subcommand: Option<&str>) -> i32 {
+    let passthrough = daemon_passthrough_args(args, default_subcommand);
+    run_daemon(command, &passthrough)
+}
+
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     let cmd = args
@@ -292,43 +306,27 @@ fn main() {
             std::process::exit(code);
         }
         "think" => {
-            let code = run_daemon("think", &args[1..]);
+            let code = run_daemon_passthrough("think", &args[1..], None);
             std::process::exit(code);
         }
         "research" => {
-            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
-            if passthrough.is_empty() {
-                passthrough.push("status".to_string());
-            }
-            let code = run_daemon("research", &passthrough);
+            let code = run_daemon_passthrough("research", &args[1..], Some("status"));
             std::process::exit(code);
         }
         "memory" => {
-            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
-            if passthrough.is_empty() {
-                passthrough.push("status".to_string());
-            }
-            let code = run_daemon("memory", &passthrough);
+            let code = run_daemon_passthrough("memory", &args[1..], Some("status"));
             std::process::exit(code);
         }
         "orchestration" => {
-            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
-            if passthrough.is_empty() {
-                passthrough.push("help".to_string());
-            }
-            let code = run_daemon("orchestration", &passthrough);
+            let code = run_daemon_passthrough("orchestration", &args[1..], Some("help"));
             std::process::exit(code);
         }
         "swarm-runtime" | "swarm" => {
-            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
-            if passthrough.is_empty() {
-                passthrough.push("status".to_string());
-            }
-            let code = run_daemon("swarm-runtime", &passthrough);
+            let code = run_daemon_passthrough("swarm-runtime", &args[1..], Some("status"));
             std::process::exit(code);
         }
         "capability-profile" => {
-            let code = run_daemon("capability-profile", &args[1..]);
+            let code = run_daemon_passthrough("capability-profile", &args[1..], None);
             std::process::exit(code);
         }
         "benchmark-ping" => {}
