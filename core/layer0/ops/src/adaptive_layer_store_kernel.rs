@@ -215,7 +215,7 @@ fn runtime_adaptive_rel_allowed(rel: &str) -> bool {
     matches!(rel, "sensory/eyes/catalog.json" | "sensory/eyes/focus_triggers.json")
 }
 
-fn resolve_adaptive_path(root: &Path, payload: &Map<String, Value>, target_path: &str) -> Result<(PathBuf, String), String> {
+pub(crate) fn resolve_adaptive_path(root: &Path, payload: &Map<String, Value>, target_path: &str) -> Result<(PathBuf, String), String> {
     let raw = target_path.trim();
     if raw.is_empty() {
         return Err("adaptive_store: target must be file path under adaptive/".to_string());
@@ -364,7 +364,7 @@ fn read_json_with_hash(file_path: &Path) -> (bool, Value, Option<String>) {
     }
 }
 
-fn canonical_hash(value: &Value) -> String {
+pub(crate) fn canonical_hash(value: &Value) -> String {
     let raw = serde_json::to_string(value).unwrap_or_else(|_| "null".to_string());
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
@@ -703,7 +703,7 @@ fn resolve_path_command(root: &Path, payload: &Map<String, Value>) -> Result<Val
     }))
 }
 
-fn read_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+pub(crate) fn read_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let fallback = payload.get("fallback").cloned().unwrap_or(Value::Null);
     let target = clean_text(payload.get("target_path"), 520);
     let (abs, rel) = resolve_adaptive_path(root, payload, &target)?;
@@ -718,7 +718,7 @@ fn read_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
     }))
 }
 
-fn ensure_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+pub(crate) fn ensure_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let target = clean_text(payload.get("target_path"), 520);
     let default_value = payload.get("default_value").cloned().unwrap_or_else(|| json!({}));
     let meta = payload
@@ -771,7 +771,7 @@ fn ensure_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Valu
     Ok(result)
 }
 
-fn set_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+pub(crate) fn set_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let target = clean_text(payload.get("target_path"), 520);
     let value = payload.get("value").cloned().unwrap_or(Value::Null);
     let meta = payload

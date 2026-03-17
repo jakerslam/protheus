@@ -25,6 +25,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
     println!("  protheus-ops directive-kernel <status|dashboard|prime-sign|derive|supersede|compliance-check|bridge-rsi|migrate> [flags]");
     println!("  protheus-ops action-envelope-kernel <create|classify|auto-classify|requires-approval|detect-irreversible|generate-id> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops action-receipts-kernel <now-iso|append-jsonl|with-receipt-contract|write-contract-receipt> [--payload-base64=<base64_json>]");
     println!("  protheus-ops success-criteria-kernel <status|parse-rows|evaluate> [flags]");
     println!("  protheus-ops success-criteria-compiler-kernel <compile-rows|compile-proposal|to-action-spec-rows> [--payload-base64=<base64_json>]");
     println!("  protheus-ops outcome-fitness-kernel <load-policy|normalize-threshold-overrides|normalize-ranking-weights|normalize-proposal-type-threshold-offsets|normalize-promotion-policy-overrides|normalize-value-currency-policy-overrides|normalize-proposal-type-key|normalize-value-currency-token|proposal-type-threshold-offsets-for> [--payload-base64=<base64_json>]");
@@ -33,9 +34,13 @@ pub(super) fn print_usage() {
     println!("  protheus-ops trit-kernel <normalize|label|from-label|invert|majority|consensus|propagate|serialize|parse-serialized|serialize-vector|parse-vector> [--payload-base64=<base64_json>]");
     println!("  protheus-ops request-envelope-kernel <envelope-payload|canonical-string|sign|verify|stamp-env|verify-from-env|normalize-files|normalize-key-id|secret-key-env-var-name> [--payload-base64=<base64_json>]");
     println!("  protheus-ops autonomy-receipt-schema-kernel <to-success-criteria-record|with-success-criteria-verification|normalize-receipt|success-criteria-from-receipt> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops quorum-validator-kernel <evaluate> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops mutation-provenance-kernel <load-policy|normalize-meta|enforce|record-audit> [--payload-base64=<base64_json>]");
     println!("  protheus-ops ops-domain-conduit-runner-kernel <parse-argv|build-pass-args|build-run-options|prepare-run> [--payload-base64=<base64_json>]");
     println!("  protheus-ops local-runtime-partitioner <status|init|reset> [--workspace-root=<path>] [--confirm=RESET_LOCAL]");
     println!("  protheus-ops strategy-store-kernel <paths|default-state|default-draft|normalize-mode|normalize-execution-mode|normalize-profile|validate-profile|normalize-queue-item|recommend-mode|read-state|ensure-state|set-state|upsert-profile|intake-signal|materialize-from-queue|touch-profile-usage|evaluate-gc-candidates|gc-profiles> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops habit-store-kernel <default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops reflex-store-kernel <default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops strategy-campaign-scheduler-kernel <normalize-campaigns|annotate-priority|build-decomposition-plans> [--payload-base64=<base64_json>]");
     println!("  protheus-ops queued-backlog-kernel <ensure-dir|read-json|write-json-atomic|append-jsonl|read-jsonl|resolve-path|stable-hash|load-policy> [--payload-base64=<base64_json>]");
     println!("  protheus-ops upgrade-lane-kernel <status|record> [--payload-base64=<base64_json>]");
