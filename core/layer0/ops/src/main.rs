@@ -244,6 +244,11 @@ fn main() {
             let exit = protheus_ops_core::outcome_fitness_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "training-conduit-schema-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::training_conduit_schema_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "local-runtime-partitioner" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);
