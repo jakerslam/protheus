@@ -1605,6 +1605,10 @@ fn op_dispatch(root: &Path, op: &str, args: Option<&Value>) -> Result<Value, Str
     }
 }
 
+pub fn invoke(root: &Path, op: &str, args: Option<&Value>) -> Result<Value, String> {
+    op_dispatch(root, op, args)
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let cmd = argv
         .first()
