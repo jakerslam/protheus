@@ -179,6 +179,11 @@ fn main() {
             let exit = protheus_ops_core::adaptive_layer_store_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "focus-trigger-store-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::focus_trigger_store_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "symbiosis-coherence-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::symbiosis_coherence_kernel::run(&cwd, &rest);
@@ -267,6 +272,11 @@ fn main() {
         "autonomy-receipt-schema-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::autonomy_receipt_schema_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "ops-domain-conduit-runner-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::ops_domain_conduit_runner_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "local-runtime-partitioner" => {

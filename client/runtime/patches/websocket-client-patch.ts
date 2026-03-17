@@ -16,14 +16,13 @@
   const RECONNECT_BASE_DELAY = 250;    // ms
   const RECONNECT_MAX_DELAY = 5000;    // ms
   const MAX_RECONNECT_ATTEMPTS = 100;  // high limit
+  const MAX_PENDING_SENDS = 200;
   const EVENT_BUFFER_WARNING = 400;    // warn when approaching buffer limit
   
   const DEBUG = location.search.includes('ws_debug=1');
   
   // Track last event ID for replay
   let lastEventId = parseInt(sessionStorage.getItem('ws_last_event_id')) || 0;
-  let eventSeqCounter = 0;
-  
   // Store original WebSocket
   const OriginalWebSocket = window.WebSocket;
   
@@ -37,18 +36,46 @@
       this.ws = null;
       this.reconnectAttempts = 0;
       this.shouldReconnect = true;
-      this.eventBuffer = [];
+      this.pendingSends = [];
       this.connectedResolvers = [];
+      this.reconnectTimer = null;
+      this.eventTarget = document.createElement('div');
+      this.onopen = null;
+      this.onmessage = null;
+      this.onclose = null;
+      this.onerror = null;
       
       // Connect immediately
       this.connect();
-      
-      // Return a proxy that behaves like native WebSocket
-      return this.createProxy();
+    }
+
+    addEventListener(...args) {
+      return this.eventTarget.addEventListener(...args);
+    }
+
+    removeEventListener(...args) {
+      return this.eventTarget.removeEventListener(...args);
+    }
+
+    dispatchEvent(event) {
+      const dispatched = this.eventTarget.dispatchEvent(event);
+      const handler = this[`on${event && event.type}`];
+      if (typeof handler === 'function') {
+        handler.call(this, event);
+      }
+      return dispatched;
+    }
+
+    get readyState() {
+      return this.ws?.readyState ?? OriginalWebSocket.CLOSED;
     }
     
     connect() {
       if (!this.shouldReconnect) return;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
       
       log('INFO', `Connecting to ${this.url}...`);
       
@@ -68,6 +95,7 @@
           
           // Subscribe to chat stream with last_event_id
           this.subscribe();
+          this.flushPendingSends();
           
           // Re-dispatch open event
           this.dispatchEvent(new Event('open'));
@@ -181,7 +209,10 @@
       
       log('INFO', `Reconnecting in ${delay.toFixed(0)}ms (attempt #${this.reconnectAttempts})...`);
       
-      setTimeout(() => this.connect(), delay);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        this.connect();
+      }, delay);
     }
     
     triggerResync() {
@@ -212,47 +243,26 @@
         });
     }
     
-    createProxy() {
-      const self = this;
-      const eventTarget = document.createElement('div');
-      
-      return new Proxy({}, {
-        get(target, prop) {
-          // EventTarget methods
-          if (['addEventListener', 'removeEventListener', 'dispatchEvent'].includes(prop)) {
-            return (...args) => eventTarget[prop](...args);
-          }
-          
-          // Passthrough to current WebSocket
-          if (self.ws && prop in self.ws) {
-            const val = self.ws[prop];
-            return typeof val === 'function' ? val.bind(self.ws) : val;
-          }
-          
-          // Our own properties
-          if (prop in self) {
-            const val = self[prop];
-            return typeof val === 'function' ? val.bind(self) : val;
-          }
-          
-          // Ready state is dynamic
-          if (prop === 'readyState') {
-            return self.ws?.readyState ?? OriginalWebSocket.CLOSED;
-          }
-          
-          return undefined;
-        },
-        set(target, prop, value) {
-          if (self.ws) {
-            self.ws[prop] = value;
-          }
-          return true;
+    flushPendingSends() {
+      if (this.ws?.readyState !== OriginalWebSocket.OPEN) return;
+      while (this.pendingSends.length > 0) {
+        const next = this.pendingSends.shift();
+        try {
+          this.ws.send(next);
+        } catch (err) {
+          log('ERROR', 'Failed to flush pending send', err);
+          this.pendingSends.unshift(next);
+          break;
         }
-      });
+      }
     }
     
     close(code = 1000, reason) {
       this.shouldReconnect = false;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
       if (this.ws) {
         this.ws.close(code, reason);
       }
@@ -262,7 +272,15 @@
       if (this.ws?.readyState === OriginalWebSocket.OPEN) {
         this.ws.send(data);
       } else {
-        log('WARN', 'Tried to send on non-open socket');
+        if (this.pendingSends.length >= MAX_PENDING_SENDS) {
+          this.pendingSends.shift();
+        }
+        this.pendingSends.push(data);
+        if (this.pendingSends.length >= EVENT_BUFFER_WARNING) {
+          log('WARN', `Pending websocket send buffer high-water mark: ${this.pendingSends.length}`);
+        } else {
+          log('WARN', 'Queued send on non-open socket');
+        }
       }
     }
   }

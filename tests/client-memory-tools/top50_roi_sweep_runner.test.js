@@ -62,4 +62,8 @@ assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/lib/test_compactor_benchmark.ts'),
   'expected benchmark harness surfaces to be excluded from live queue unless explicitly authoritative'
 );
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/patches/websocket-client-patch.ts'),
+  'expected runtime patch surfaces to be excluded from live queue unless explicitly authoritative'
+);
 console.log('top50_roi_sweep_runner.test.js: OK');
