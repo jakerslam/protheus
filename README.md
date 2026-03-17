@@ -128,6 +128,8 @@ Tiny-max hardware classes:
 - `legacy`: moderate floor (bounded swarm depth, no persistent swarm).
 - `standard` / `high`: progressively restores capabilities up to full parity.
 
+Regression recovery runbook: [RUNBOOK-007-pure-tiny-capability-restore](docs/ops/RUNBOOK-007-pure-tiny-capability-restore.md).
+
 Legacy command aliases remain supported with a deprecation notice.
 
 > **Note:** Full CLI surface requires Node.js 22+ (see `package.json#engines`). Rust fallback supports `help`, `list`, `status`, `version`, plus Pure Intelligence v1 commands (`think`, `research status|fetch|diagnostics`, `memory status|write|query`) when Node is unavailable. See `docs/TROUBLESHOOTING.md` for environment setup details.
