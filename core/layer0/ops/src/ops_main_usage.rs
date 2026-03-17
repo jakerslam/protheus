@@ -7,6 +7,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops benchmark-matrix <run|status> [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44]");
     println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
+    println!("  protheus-ops system-health-audit-runner-kernel <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops supply-chain-provenance-v2 <run|status> [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]");
     println!("  protheus-ops f100-readiness-program <run|run-all|status> [--lane=<V6-F100-XXX>] [--strict=1|0] [--apply=1|0] [--policy=<path>]");
     println!("  protheus-ops identity-federation <authorize|scim-lifecycle|status> [flags]");
@@ -18,10 +19,12 @@ pub(super) fn print_usage() {
     println!("  protheus-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
     println!("  protheus-ops directive-kernel <status|dashboard|prime-sign|derive|supersede|compliance-check|bridge-rsi|migrate> [flags]");
     println!("  protheus-ops success-criteria-kernel <status|parse-rows|evaluate> [flags]");
+    println!("  protheus-ops success-criteria-compiler-kernel <compile-rows|compile-proposal|to-action-spec-rows> [--payload-base64=<base64_json>]");
     println!("  protheus-ops local-runtime-partitioner <status|init|reset> [--workspace-root=<path>] [--confirm=RESET_LOCAL]");
     println!("  protheus-ops strategy-store-kernel <paths|default-state|default-draft|normalize-mode|normalize-execution-mode|normalize-profile|validate-profile|normalize-queue-item|recommend-mode|read-state|ensure-state|set-state|upsert-profile|intake-signal|materialize-from-queue|touch-profile-usage|evaluate-gc-candidates|gc-profiles> [--payload-base64=<base64_json>]");
     println!("  protheus-ops strategy-campaign-scheduler-kernel <normalize-campaigns|annotate-priority|build-decomposition-plans> [--payload-base64=<base64_json>]");
     println!("  protheus-ops queued-backlog-kernel <ensure-dir|read-json|write-json-atomic|append-jsonl|read-jsonl|resolve-path|stable-hash|load-policy> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops upgrade-lane-kernel <status|record> [--payload-base64=<base64_json>]");
     println!("  protheus-ops mech-suit-mode-kernel <load-policy|approx-token-count|classify-severity|should-emit-console|update-status|append-attention-event> [--payload-base64=<base64_json>]");
     println!("  protheus-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
     println!("  protheus-ops continuity-runtime <resurrection-protocol|session-continuity-vault> [flags]");

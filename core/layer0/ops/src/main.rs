@@ -214,6 +214,11 @@ fn main() {
             let exit = protheus_ops_core::success_criteria_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "success-criteria-compiler-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::success_criteria_compiler_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "local-runtime-partitioner" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);
@@ -232,6 +237,11 @@ fn main() {
         "queued-backlog-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::queued_backlog_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "upgrade-lane-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::upgrade_lane_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "mech-suit-mode-kernel" => {
@@ -422,6 +432,11 @@ fn main() {
         "sdlc-change-control" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::sdlc_change_control::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "system-health-audit-runner-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::system_health_audit_runner_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "supply-chain-provenance-v2" => {
