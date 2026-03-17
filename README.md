@@ -96,9 +96,24 @@ infringctl --help
 infringd --help
 ```
 
+Pure Intelligence v1 (Node-free in `--pure` / `--tiny-max`):
+
+```bash
+# Minimal research surface (Rust core)
+infring research status
+infring research fetch --url=https://example.com
+
+# Minimal memory surface (Rust core)
+infring memory write --session-id=alpha --text="important note" --tags=pure,intel
+infring memory query --session-id=alpha --q=important --limit=5
+
+# Deterministic think primitive (Rust core)
+infring think --session-id=alpha --prompt="What should I do next?"
+```
+
 Legacy command aliases remain supported with a deprecation notice.
 
-> **Note:** Full CLI surface requires Node.js 22+ (see `package.json#engines`). Rust fallback supports `help`, `list`, `status`, and `version` even when Node is unavailable. See `docs/TROUBLESHOOTING.md` for environment setup details.
+> **Note:** Full CLI surface requires Node.js 22+ (see `package.json#engines`). Rust fallback supports `help`, `list`, `status`, `version`, plus Pure Intelligence v1 commands (`think`, `research status|fetch|diagnostics`, `memory status|write|query`) when Node is unavailable. See `docs/TROUBLESHOOTING.md` for environment setup details.
 
 Local source workflow:
 
@@ -135,10 +150,10 @@ Sources:
 
 | Metric | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) | Snapshot/Reference |
 |---|---:|---:|---:|---:|
-| Cold start | 5.6 ms | 4.3 ms | 4.6 ms | 74.5 ms |
-| Idle memory | 9.7 MB | 1.4 MB | 1.4 MB | 22.1 MB |
-| Install size (full) | 11.8 MB | 0.7 MB | 0.5 MB | 126.4 MB |
-| Throughput | 10,943.1 ops/sec | 11,290.9 ops/sec | 11,380.6 ops/sec | 7,420.0 ops/sec |
+| Cold start | 318.3 ms | 304.2 ms | 58.8 ms | 74.5 ms |
+| Idle memory | 8.3 MB | 1.4 MB | 1.4 MB | 22.1 MB |
+| Install size (full) | 11.9 MB | 0.7 MB | 0.5 MB | 126.4 MB |
+| Throughput | 1,552.4 ops/sec | 2,711.1 ops/sec | 3,390.3 ops/sec | 7,420.0 ops/sec |
 
 | Capability Counter | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) |
 |---|---:|---:|---:|
@@ -156,9 +171,9 @@ External baseline (OpenFang public table):
 
 | Project | Install Size (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **InfRing (rich)** | **11.8** | **5.6 ms** | **9.7** | **10,943.1** | **0.4** | **83** | 6 | 3 |
-| **InfRing (pure)** | **0.7** | **4.3 ms** | **1.4** | **11,290.9** | **0.4** | **83** | 0 | 0 |
-| **InfRing (tiny-max)** | **0.5** | **4.6 ms** | **1.4** | **11,380.6** | **0.3** | **83** | 0 | 0 |
+| **InfRing (rich)** | **11.9** | **318.3 ms** | **8.3** | **1,552.4** | **0.4** | **83** | 6 | 3 |
+| **InfRing (pure)** | **0.7** | **304.2 ms** | **1.4** | **2,711.1** | **0.4** | **83** | 0 | 0 |
+| **InfRing (tiny-max)** | **0.5** | **58.8 ms** | **1.4** | **3,390.3** | **0.3** | **83** | 0 | 0 |
 | OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
 | OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
 | LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
@@ -188,10 +203,10 @@ Tiny-max is the smallest full agentic OS artifact shipped in this repo today and
 
 ```text
 Cold Start Time (lower is better)
-InfRing (tiny-max) ###########################################-  4.6 ms
-InfRing (pure)     ###########################################-  4.3 ms
-InfRing (rich)     ##########################################--  5.6 ms
-OpenFang   ##########################################--  180.0 ms
+InfRing (tiny-max) ############################################  58.8 ms
+OpenFang   ###########################################-  180.0 ms
+InfRing (pure) #########################################---  304.2 ms
+InfRing (rich) #########################################---  318.3 ms
 OpenHands  ###############################-------------  1.3 sec
 LangGraph  #################---------------------------  2.5 sec
 CrewAI     ############--------------------------------  3.0 sec
@@ -202,7 +217,7 @@ AutoGen    #-------------------------------------------  4.0 sec
 Idle Memory Usage (lower is better)
 InfRing (pure)     ############################################  1.4 MB
 InfRing (tiny-max) ############################################  1.4 MB
-InfRing (rich)     ###########################################-  9.7 MB
+InfRing (rich)     ###########################################-  8.3 MB
 OpenFang   #####################################-------  40.0 MB
 OpenHands  ####################------------------------  150.0 MB
 LangGraph  ##############------------------------------  180.0 MB
@@ -214,7 +229,7 @@ AutoGen    #-------------------------------------------  250.0 MB
 Install Size (lower is better)
 InfRing (tiny-max) ############################################  0.5 MB
 InfRing (pure)     ###########################################-  0.7 MB
-InfRing (rich)     ##########################################--  11.8 MB
+InfRing (rich)     #########################################---  11.9 MB
 OpenFang   #####################################-------  32.0 MB
 OpenHands  ###########################-----------------  95.5 MB
 CrewAI     ##########################------------------  100.0 MB
@@ -234,9 +249,9 @@ CrewAI     #-------------------------------------------  1
 
 ```text
 Throughput (ops/sec, higher is better)
-InfRing (tiny-max) ############################################  11,380.6
-InfRing (pure)     ###########################################-  11,290.9
-InfRing (rich)     #########################################---  10,943.1
+InfRing (tiny-max) ############################################  3,390.3
+InfRing (pure)     ############################----------------  2,711.1
+InfRing (rich)     #-------------------------------------------  1,552.4
 OpenFang   n/p
 OpenHands  n/p
 LangGraph  n/p
