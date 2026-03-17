@@ -18,6 +18,11 @@ fn usage() {
     println!(
         "  protheus-pure-workspace conduit [status|start|stop|restart|attach|subscribe|tick|diagnostics]"
     );
+    println!(
+        "  protheus-pure-workspace think --prompt=<text> [--session-id=<id>] [--memory-limit=<n>]"
+    );
+    println!("  protheus-pure-workspace research [status|fetch|diagnostics] [flags]");
+    println!("  protheus-pure-workspace memory [status|write|query] [flags]");
     println!("  protheus-pure-workspace probe [--sleep-ms=<n>] [--tiny-max=1|0]");
     println!("  protheus-pure-workspace benchmark-ping [--tiny-max=1|0]");
 }
@@ -95,7 +100,10 @@ fn write_file(path: &Path, body: &str) -> Result<(), String> {
 }
 
 fn run_init(args: &[String]) -> Result<(), String> {
-    if args.iter().any(|arg| matches!(arg.as_str(), "--help" | "-h")) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--help" | "-h"))
+    {
         init_usage();
         return Ok(());
     }
@@ -109,7 +117,11 @@ fn run_init(args: &[String]) -> Result<(), String> {
         || parse_bool(parse_flag_value(args, "--tiny_max").as_deref(), false);
     let target = parse_flag_value(args, "--target-dir")
         .map(PathBuf::from)
-        .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join("pure-workspace"));
+        .unwrap_or_else(|| {
+            env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join("pure-workspace")
+        });
     let template = parse_flag_value(args, "--template")
         .unwrap_or_else(|| "pure-rust".to_string())
         .trim()
@@ -142,7 +154,11 @@ fn run_init(args: &[String]) -> Result<(), String> {
         write_file(&manifest_path, &manifest)?;
     }
 
-    let p = if tiny_max { tiny_max_profile() } else { profile() };
+    let p = if tiny_max {
+        tiny_max_profile()
+    } else {
+        profile()
+    };
     println!(
         "{{\"ok\":true,\"type\":\"pure_workspace_init\",\"mode\":\"{}\",\"tiny_max\":{},\"dry_run\":{},\"target_dir\":\"{}\",\"template\":\"{}\",\"files\":[\"{}\",\"{}\",\"{}\",\"{}\"],\"install_size_target_mb\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{}}}",
         p.mode,
@@ -165,7 +181,11 @@ fn run_status(args: &[String]) {
     let json_mode = parse_bool(parse_flag_value(args, "--json").as_deref(), true);
     let tiny_max = parse_bool(parse_flag_value(args, "--tiny-max").as_deref(), false)
         || parse_bool(parse_flag_value(args, "--tiny_max").as_deref(), false);
-    let p = if tiny_max { tiny_max_profile() } else { profile() };
+    let p = if tiny_max {
+        tiny_max_profile()
+    } else {
+        profile()
+    };
     if json_mode {
         println!(
             "{{\"ok\":true,\"type\":\"pure_workspace_status\",\"mode\":\"{}\",\"tiny_max\":{},\"rust_only\":{},\"conduit_required\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{},\"install_size_target_mb\":{}}}",
@@ -204,22 +224,42 @@ fn run_probe(args: &[String]) {
     );
 }
 
+fn run_daemon(command: &str, args: &[String]) -> i32 {
+    let mut candidates = Vec::new();
+    if let Ok(exe) = env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("protheusd"));
+            candidates.push(dir.join("infringd"));
+        }
+    }
+    // PATH fallbacks for installed wrappers.
+    candidates.push(PathBuf::from("protheusd"));
+    candidates.push(PathBuf::from("infringd"));
+
+    let mut last_err = String::new();
+    for candidate in candidates {
+        let result = Command::new(&candidate).arg(command).args(args).status();
+        match result {
+            Ok(status) => return status.code().unwrap_or(1),
+            Err(err) => {
+                last_err = format!("{}:{}", candidate.display(), err);
+            }
+        }
+    }
+    eprintln!(
+        "{{\"ok\":false,\"type\":\"pure_workspace_daemon_error\",\"command\":\"{}\",\"error\":\"spawn_failed:{}\"}}",
+        command, last_err
+    );
+    1
+}
+
 fn run_conduit(args: &[String]) -> i32 {
     let action = args
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
-    match Command::new("protheusd").arg(action).args(passthrough).status() {
-        Ok(status) => status.code().unwrap_or(1),
-        Err(err) => {
-            eprintln!(
-                "{{\"ok\":false,\"type\":\"pure_workspace_conduit_error\",\"error\":\"spawn_failed:{}\"}}",
-                err
-            );
-            1
-        }
-    }
+    run_daemon(action.as_str(), &passthrough)
 }
 
 fn main() {
@@ -235,7 +275,10 @@ fn main() {
         }
         "init" => {
             if let Err(err) = run_init(&args[1..]) {
-                eprintln!("{{\"ok\":false,\"type\":\"pure_workspace_init_error\",\"error\":\"{}\"}}", err);
+                eprintln!(
+                    "{{\"ok\":false,\"type\":\"pure_workspace_init_error\",\"error\":\"{}\"}}",
+                    err
+                );
                 std::process::exit(1);
             }
         }
@@ -243,6 +286,26 @@ fn main() {
         "probe" => run_probe(&args[1..]),
         "conduit" => {
             let code = run_conduit(&args[1..]);
+            std::process::exit(code);
+        }
+        "think" => {
+            let code = run_daemon("think", &args[1..]);
+            std::process::exit(code);
+        }
+        "research" => {
+            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            if passthrough.is_empty() {
+                passthrough.push("status".to_string());
+            }
+            let code = run_daemon("research", &passthrough);
+            std::process::exit(code);
+        }
+        "memory" => {
+            let mut passthrough = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            if passthrough.is_empty() {
+                passthrough.push("status".to_string());
+            }
+            let code = run_daemon("memory", &passthrough);
             std::process::exit(code);
         }
         "benchmark-ping" => {}

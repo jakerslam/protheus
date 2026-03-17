@@ -10896,3 +10896,27 @@ Objective: eliminate lost-work and stalled-partition failure modes in multi-agen
 | V8-SWARM-012.8 | done | Capability Advertisement + Adaptive Partitioning Contract | Static partitioning ignores worker heterogeneity and reduces throughput. | Require worker capability advertisement (`max_items`, rate estimate, specialties`) at spawn; coordinator must use capability-aware partitioning and emit deterministic assignment rationale receipts. | 7 | 0/1/2 |
 | V8-SWARM-012.9 | done | Cross-Agent Dedup + Reconciliation Contract | Duplicate/conflicting findings create integrity risk without deterministic conflict resolution. | Add dedup/conflict detector keyed by `item_id`; on conflict spawn reconciliation sub-agent and emit deterministic merge/reject receipts with provenance links. | 8 | 0/1/2 |
 | V8-SWARM-012.10 | done | Timeout Graceful Degradation Contract | Timeouts currently risk empty returns and lost partial progress. | Require timed-out workers to return partial results + checkpoint pointer; coordinator auto-spawns finisher worker for remainder with deterministic timeout/degradation receipts. | 9 | 0/1/2 |
+
+## Pure Intelligence v1 Intake (Node-free `--pure` / `--tiny-max`, 2026-03-16)
+
+Source references:
+- Direct user request to make pure/tiny-max modes practically intelligent without pulling Node/TS surfaces.
+
+Notes:
+- Primitive-first normalization: this intake adds a minimal Rust-native cognition surface over existing Layer-0 authority lanes and keeps pure mode thin-client boundaries intact.
+- Overlap handled explicitly:
+  - pure/tiny-max footprint and install lanes remain `V7-PURE-WORKSPACE-*` and `V9-TINYMAX-*`
+  - research authority remains in `research-plane` (core)
+  - memory authority remains in core state lanes; pure client only forwards
+- Net-new emphasis from source:
+  - practical node-free intelligence commands in pure mode (`think`, bounded `research`, minimal `memory write/query/status`),
+  - deterministic receipt emission for each pure-intelligence operation.
+
+Objective: preserve pure/tiny-max portability while enabling meaningful intelligent operation without Node/TS runtime dependency.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V9-PURE-INTEL-001.1 | done | Rust-Native Think Primitive for Pure Mode | Pure mode felt operationally thin without a direct deterministic reasoning primitive. | `infring think --prompt=<text>` works in pure mode through Rust core (`infringd think`), returns structured response + deterministic receipt hash, and is covered by behavior tests. | 8 | 0/1/2/client |
+| V9-PURE-INTEL-001.2 | done | Bounded Research Surface in Pure Mode | Pure mode could not perform practical research workflows without rich Node CLI. | `infring research status|fetch|diagnostics` is available in pure mode via Rust core routing only (no Node dependency), with deterministic receipts and runnable CLI evidence. | 8 | 0/1/2/client |
+| V9-PURE-INTEL-001.3 | done | Minimal Memory Query/Write Surface in Pure Mode | Pure-mode sessions lacked a direct way to persist and reuse operator context. | `infring memory status|write|query` works in pure mode, persists to core-authoritative local state with deterministic receipts, and includes regression tests for write/query round-trip. | 8 | 0/1/2/client |
+| V9-PURE-INTEL-001.4 | done | Pure Client Daemon Passthrough Hardening | Pure client should remain thin while reliably targeting current daemon binaries across install/build layouts. | Pure client prefers sibling daemon binaries then PATH fallbacks and successfully routes `think/research/memory/conduit` commands in runnable CLI verification. | 7 | 0/1/2/client |
