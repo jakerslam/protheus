@@ -507,6 +507,7 @@
     "autonomy:swarm:sessions:receive": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_receive --sessionKey=swarm-demo",
     "autonomy:swarm:sessions:ack": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_ack --sessionKey=swarm-demo --message-id=msg-demo",
     "autonomy:swarm:sessions:resume": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_resume --sessionKey=swarm-demo",
+    "autonomy:swarm:sessions:bootstrap": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_bootstrap --sessionKey=swarm-demo",
     "autonomy:swarm:sessions:state": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_state --sessionKey=swarm-demo",
     "autonomy:swarm:sessions:dead-letter": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_dead_letter",
     "autonomy:swarm:sessions:tick": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_tick --advance-ms=1000",
