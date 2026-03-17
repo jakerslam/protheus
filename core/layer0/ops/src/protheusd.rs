@@ -1,6 +1,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 
+use protheus_ops_core::v8_kernel::{parse_bool_str, parse_u64_str};
 use protheus_ops_core::{
     client_state_root, configure_low_memory_allocator_env, daemon_control,
     deterministic_receipt_hash, now_iso, parse_os_args, status_runtime_efficiency_floor,
@@ -121,14 +122,6 @@ fn parse_usize(raw: Option<&str>, fallback: usize, min: usize, max: usize) -> us
         .clamp(min, max)
 }
 
-fn parse_bool_flag(raw: Option<&str>, default: bool) -> bool {
-    match raw.map(|v| v.trim().to_ascii_lowercase()) {
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
-        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        _ => default,
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RuntimeHardwareClass {
     Microcontroller,
@@ -238,27 +231,26 @@ fn parse_hardware_class(raw: Option<&str>) -> Option<RuntimeHardwareClass> {
     }
 }
 
-fn parse_u64_any(raw: Option<&str>) -> Option<u64> {
-    raw.and_then(|v| v.trim().parse::<u64>().ok())
-}
-
-fn parse_usize_any(raw: Option<&str>) -> Option<usize> {
-    raw.and_then(|v| v.trim().parse::<usize>().ok())
+fn parse_u8_flag(argv: &[String], key: &str, default: u8) -> u8 {
+    let parsed = parse_u64_str(parse_flag(argv, key).as_deref(), default as u64);
+    parsed.clamp(0, u8::MAX as u64) as u8
 }
 
 fn tiny_max_requested(argv: &[String]) -> bool {
-    parse_bool_flag(parse_flag(argv, "tiny-max").as_deref(), false)
-        || parse_bool_flag(parse_flag(argv, "tiny_max").as_deref(), false)
-        || parse_bool_flag(env::var("PROTHEUS_EMBEDDED_MAX").ok().as_deref(), false)
+    parse_bool_str(parse_flag(argv, "tiny-max").as_deref(), false)
+        || parse_bool_str(parse_flag(argv, "tiny_max").as_deref(), false)
+        || parse_bool_str(env::var("PROTHEUS_EMBEDDED_MAX").ok().as_deref(), false)
         || cfg!(feature = "embedded-max")
 }
 
 fn sensed_memory_mb(argv: &[String]) -> u64 {
-    if let Some(v) = parse_u64_any(parse_flag(argv, "memory-mb").as_deref()) {
-        return v.max(64);
+    let parsed_flag = parse_u64_str(parse_flag(argv, "memory-mb").as_deref(), 0);
+    if parsed_flag > 0 {
+        return parsed_flag.max(64);
     }
-    if let Some(v) = parse_u64_any(env::var("PROTHEUS_HW_MEMORY_MB").ok().as_deref()) {
-        return v.max(64);
+    let parsed_env = parse_u64_str(env::var("PROTHEUS_HW_MEMORY_MB").ok().as_deref(), 0);
+    if parsed_env > 0 {
+        return parsed_env.max(64);
     }
     let mut system = System::new_all();
     system.refresh_memory();
@@ -267,13 +259,45 @@ fn sensed_memory_mb(argv: &[String]) -> u64 {
 }
 
 fn sensed_cpu_cores(argv: &[String]) -> usize {
-    if let Some(v) = parse_usize_any(parse_flag(argv, "cpu-cores").as_deref()) {
-        return v.max(1);
+    let parsed_flag = parse_u64_str(parse_flag(argv, "cpu-cores").as_deref(), 0);
+    if parsed_flag > 0 {
+        return parsed_flag.clamp(1, usize::MAX as u64) as usize;
     }
-    if let Some(v) = parse_usize_any(env::var("PROTHEUS_HW_CPU_CORES").ok().as_deref()) {
-        return v.max(1);
+    let parsed_env = parse_u64_str(env::var("PROTHEUS_HW_CPU_CORES").ok().as_deref(), 0);
+    if parsed_env > 0 {
+        return parsed_env.clamp(1, usize::MAX as u64) as usize;
     }
     num_cpus::get().max(1)
+}
+
+#[derive(Clone, Debug)]
+struct ProfiledRunArgs {
+    profile: RuntimeCapabilityProfile,
+    rest: Vec<String>,
+}
+
+fn profiled_run_args(argv: &[String], default_subcommand: &str) -> ProfiledRunArgs {
+    let profile = runtime_capability_profile(argv);
+    let mut rest = strip_runtime_profile_flags(argv);
+    if rest.is_empty() {
+        rest.push(default_subcommand.to_string());
+    }
+    ProfiledRunArgs { profile, rest }
+}
+
+fn enforce_profile<T>(
+    profile: &RuntimeCapabilityProfile,
+    argv: &[String],
+    command: &str,
+    validator: impl FnOnce(&RuntimeCapabilityProfile, &[String]) -> Result<T, String>,
+) -> Result<T, i32> {
+    match validator(profile, argv) {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            print_json(&cli_error(err.as_str(), command));
+            Err(1)
+        }
+    }
 }
 
 fn infer_hardware_class(memory_mb: u64, cpu_cores: usize, tiny_max: bool) -> RuntimeHardwareClass {
@@ -427,12 +451,6 @@ fn validate_orchestration_profile(
         return Err(format!("hardware_profile_blocks_orchestration_op:{}", op));
     }
     Ok(())
-}
-
-fn parse_u8_flag(argv: &[String], key: &str, default: u8) -> u8 {
-    parse_flag(argv, key)
-        .and_then(|v| v.trim().parse::<u8>().ok())
-        .unwrap_or(default)
 }
 
 fn validate_swarm_profile(
@@ -754,12 +772,9 @@ fn think_payload(root: &Path, argv: &[String]) -> Result<Value, String> {
 }
 
 fn run_research(root: &Path, argv: &[String]) -> i32 {
-    let profile = runtime_capability_profile(argv);
-    let mut rest = strip_runtime_profile_flags(argv);
-    if rest.is_empty() {
-        rest.push("status".to_string());
-    }
-    let command = rest
+    let args = profiled_run_args(argv, "status");
+    let command = args
+        .rest
         .first()
         .map(|v| v.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
@@ -770,14 +785,14 @@ fn run_research(root: &Path, argv: &[String]) -> i32 {
         ));
         return 1;
     }
-    if command == "fetch" && !profile.allow_research_fetch {
+    if command == "fetch" && !args.profile.allow_research_fetch {
         print_json(&cli_error(
             "hardware_profile_blocks_research_fetch",
             "research",
         ));
         return 1;
     }
-    protheus_ops_core::research_plane::run(root, &rest)
+    protheus_ops_core::research_plane::run(root, &args.rest)
 }
 
 fn run_memory(root: &Path, argv: &[String]) -> i32 {
@@ -825,29 +840,33 @@ fn run_think(root: &Path, argv: &[String]) -> i32 {
 }
 
 fn run_orchestration(root: &Path, argv: &[String]) -> i32 {
-    let profile = runtime_capability_profile(argv);
-    let mut rest = strip_runtime_profile_flags(argv);
-    if rest.is_empty() {
-        rest.push("help".to_string());
-    }
-    if let Err(err) = validate_orchestration_profile(&profile, &rest) {
-        print_json(&cli_error(err.as_str(), "orchestration"));
+    let args = profiled_run_args(argv, "help");
+    if enforce_profile(
+        &args.profile,
+        &args.rest,
+        "orchestration",
+        validate_orchestration_profile,
+    )
+    .is_err()
+    {
         return 1;
     }
-    protheus_ops_core::orchestration::run(root, &rest)
+    protheus_ops_core::orchestration::run(root, &args.rest)
 }
 
 fn run_swarm(root: &Path, argv: &[String]) -> i32 {
-    let profile = runtime_capability_profile(argv);
-    let mut rest = strip_runtime_profile_flags(argv);
-    if rest.is_empty() {
-        rest.push("status".to_string());
-    }
-    if let Err(err) = validate_swarm_profile(&profile, &rest) {
-        print_json(&cli_error(err.as_str(), "swarm-runtime"));
+    let args = profiled_run_args(argv, "status");
+    if enforce_profile(
+        &args.profile,
+        &args.rest,
+        "swarm-runtime",
+        validate_swarm_profile,
+    )
+    .is_err()
+    {
         return 1;
     }
-    protheus_ops_core::swarm_runtime::run(root, &rest)
+    protheus_ops_core::swarm_runtime::run(root, &args.rest)
 }
 
 #[cfg(feature = "embedded-minimal-core")]
