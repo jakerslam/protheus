@@ -153,6 +153,9 @@ function normalizeSpawnPayload(payload) {
       && payload.payload.session_state
       && payload.payload.session_state.tool_manifest)
     || null;
+  const agentBootstrap =
+    (toolManifest && toolManifest.agent_bootstrap)
+    || null;
   return {
     ok: true,
     type: 'sessions_spawn',
@@ -160,6 +163,7 @@ function normalizeSpawnPayload(payload) {
     session_key: asSessionKey(sessionId),
     tool_access: Array.isArray(toolAccess) ? toolAccess : [],
     tool_manifest: toolManifest,
+    agent_bootstrap: agentBootstrap,
     payload,
   };
 }
@@ -188,11 +192,28 @@ function normalizeReceivePayload(payload, sessionId) {
 }
 
 function normalizeStatePayload(payload, sessionId) {
+  const agentBootstrap =
+    payload
+    && payload.session
+    && payload.session.tool_manifest
+    && payload.session.tool_manifest.agent_bootstrap;
   return {
     ok: true,
     type: 'sessions_state',
     session_id: sessionId,
     session_key: asSessionKey(sessionId),
+    agent_bootstrap: agentBootstrap || null,
+    payload,
+  };
+}
+
+function normalizeBootstrapPayload(payload, sessionId) {
+  return {
+    ok: true,
+    type: 'sessions_bootstrap',
+    session_id: sessionId,
+    session_key: asSessionKey(sessionId),
+    bootstrap: payload.bootstrap || null,
     payload,
   };
 }
@@ -335,6 +356,22 @@ function sessionsResume(options = {}) {
     session_id: sessionId,
     payload,
   };
+}
+
+function sessionsBootstrap(options = {}) {
+  const parsed = normalizedOptions(options);
+  const sessionId = sessionIdFromKey(
+    parsed.sessionKey || parsed.session_key || parsed.session_id || parsed.sessionId
+  );
+  const run = execOps([
+    'swarm-runtime',
+    'sessions',
+    'bootstrap',
+    `--session-id=${sessionId}`,
+    `--state-path=${statePath(parsed)}`,
+  ]);
+  const payload = requireOk(run, 'sessions_bootstrap');
+  return normalizeBootstrapPayload(payload, sessionId);
 }
 
 function sessionsDeadLetters(options = {}) {
@@ -509,13 +546,14 @@ function printUsage() {
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_receive --sessionKey=<key|id> [--limit=<n>] [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_ack --sessionKey=<key|id> --message-id=<id> [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_resume --sessionKey=<key|id> [--state-path=<path>]',
+      '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_bootstrap --sessionKey=<key|id> [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_dead_letter [--sessionKey=<key|id>] [--retryable=1|0] [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_retry_dead_letter --message-id=<id> [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_query [--agentRole=<role>] [--agentLabel=<label>] [--testId=<task>] [--wait=1] [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_state --sessionKey=<key|id> [--timeline=1] [--tool-history-limit=<n>] [--state-path=<path>]',
       '  node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_tick [--advance-ms=<n>] [--max-check-ins=<n>] [--state-path=<path>]',
       '',
-      'Aliases: spawn/send/receive/ack/resume/query/state/tick',
+      'Aliases: spawn/send/receive/ack/resume/bootstrap/query/state/tick',
       '',
     ].join('\n')
   );
@@ -535,6 +573,7 @@ function run(argv = process.argv.slice(2)) {
   else if (command === 'sessions_receive' || command === 'receive') payload = sessionsReceive(parsed);
   else if (command === 'sessions_ack' || command === 'ack') payload = sessionsAck(parsed);
   else if (command === 'sessions_resume' || command === 'resume') payload = sessionsResume(parsed);
+  else if (command === 'sessions_bootstrap' || command === 'bootstrap') payload = sessionsBootstrap(parsed);
   else if (command === 'sessions_dead_letter' || command === 'dead-letter') payload = sessionsDeadLetters(parsed);
   else if (command === 'sessions_retry_dead_letter' || command === 'retry-dead-letter') payload = sessionsRetryDeadLetter(parsed);
   else if (command === 'sessions_query' || command === 'query') payload = sessionsQuery(parsed);
@@ -568,6 +607,7 @@ module.exports = {
   sessionsReceive,
   sessionsAck,
   sessionsResume,
+  sessionsBootstrap,
   sessionsDeadLetters,
   sessionsRetryDeadLetter,
   sessionsQuery,

@@ -2,6 +2,7 @@
 use protheus_ops_core::swarm_runtime;
 use serde_json::Value;
 use std::fs;
+use std::process::Command;
 
 const SWARM_CONTRACT_IDS: &[&str] = &[
     "V6-SWARM-013",
@@ -28,6 +29,7 @@ const SWARM_CONTRACT_IDS: &[&str] = &[
     "V6-SWARM-035",
     "V6-SWARM-036",
     "V6-SWARM-037",
+    "V6-SWARM-038",
 ];
 
 fn run_swarm(root: &std::path::Path, args: &[String]) -> i32 {
@@ -38,9 +40,70 @@ fn read_state(path: &std::path::Path) -> Value {
     serde_json::from_str(&fs::read_to_string(path).expect("read state")).expect("parse state")
 }
 
+fn find_session_id_by_task(state: &Value, task: &str) -> Option<String> {
+    state
+        .get("sessions")
+        .and_then(Value::as_object)
+        .and_then(|rows| {
+            rows.iter().find_map(|(session_id, row)| {
+                let matches = row
+                    .get("report")
+                    .and_then(|value| value.get("task"))
+                    .and_then(Value::as_str)
+                    == Some(task);
+                matches.then(|| session_id.clone())
+            })
+        })
+}
+
+fn parse_last_json(stdout: &str) -> Value {
+    stdout
+        .lines()
+        .rev()
+        .find_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.starts_with('{') {
+                serde_json::from_str::<Value>(trimmed).ok()
+            } else {
+                None
+            }
+        })
+        .expect("json payload in stdout")
+}
+
+fn repo_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("repo root")
+        .to_path_buf()
+}
+
+fn run_bridge_cli(args: &[String]) -> Value {
+    let repo_root = repo_root();
+    let bridge = repo_root
+        .join("client")
+        .join("runtime")
+        .join("systems")
+        .join("autonomy")
+        .join("swarm_sessions_bridge.ts");
+    let output = Command::new("node")
+        .current_dir(&repo_root)
+        .arg(bridge)
+        .args(args)
+        .output()
+        .expect("run swarm sessions bridge");
+    assert!(
+        output.status.success(),
+        "expected CLI success, stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    parse_last_json(&String::from_utf8_lossy(&output.stdout))
+}
+
 #[test]
 fn swarm_contract_ids_are_embedded_for_receipt_audit_evidence() {
-    assert_eq!(SWARM_CONTRACT_IDS.len(), 24);
+    assert_eq!(SWARM_CONTRACT_IDS.len(), 25);
     assert!(SWARM_CONTRACT_IDS
         .iter()
         .all(|id| id.starts_with("V6-SWARM-0")));
@@ -1139,6 +1202,69 @@ fn spawn_payload_exposes_authoritative_tool_manifest() {
 }
 
 #[test]
+fn sessions_bootstrap_exposes_generic_agent_contract() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let spawn_args = vec![
+        "spawn".to_string(),
+        "--task=bootstrap-contract-proof".to_string(),
+        "--token-budget=240".to_string(),
+        "--on-budget-exhausted=fail".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &spawn_args), 0);
+
+    let state = read_state(&state_path);
+    let session_id = state
+        .get("sessions")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.keys().next())
+        .cloned()
+        .expect("session id");
+
+    let bootstrap_args = vec![
+        "sessions_bootstrap".to_string(),
+        format!("--sessionKey={session_id}"),
+        format!("--state-path={}", state_path.display()),
+    ];
+    let payload = run_bridge_cli(&bootstrap_args);
+    let bootstrap = payload.get("bootstrap").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        payload.get("session_id").and_then(Value::as_str),
+        Some(session_id.as_str())
+    );
+    assert_eq!(
+        bootstrap.get("version").and_then(Value::as_str),
+        Some("swarm-agent-bootstrap/v1")
+    );
+    assert!(
+        bootstrap
+            .get("commands")
+            .and_then(|row| row.get("sessions_send"))
+            .and_then(Value::as_str)
+            .map(|row| row.contains("sessions_send"))
+            .unwrap_or(false),
+        "expected bootstrap command surface to include sessions_send"
+    );
+    assert_eq!(
+        bootstrap
+            .get("budget")
+            .and_then(|row| row.get("on_budget_exhausted"))
+            .and_then(Value::as_str),
+        Some("fail")
+    );
+    assert!(
+        bootstrap
+            .get("prompt")
+            .and_then(Value::as_str)
+            .map(|row| row.contains("Use direct swarm bridge commands"))
+            .unwrap_or(false),
+        "expected bootstrap prompt to direct generic agents to bridge commands"
+    );
+}
+
+#[test]
 fn child_budget_reservation_settles_into_parent_budget() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
@@ -1215,17 +1341,8 @@ fn dead_letter_messages_can_be_retried() {
     }
 
     let state = read_state(&state_path);
-    let mut ids = state
-        .get("sessions")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default()
-        .keys()
-        .cloned()
-        .collect::<Vec<_>>();
-    ids.sort();
-    let sender = ids.get(1).cloned().expect("sender");
-    let receiver = ids.get(2).cloned().expect("receiver");
+    let sender = find_session_id_by_task(&state, "dlq-sender").expect("sender");
+    let receiver = find_session_id_by_task(&state, "dlq-receiver").expect("receiver");
 
     let send_args = vec![
         "sessions".to_string(),

@@ -294,6 +294,52 @@ function runToolManifestTest(statePath) {
   }
 }
 
+function runGenericBootstrapTest(statePath) {
+  try {
+    const spawned = bridge.sessionsSpawn({
+      task: 'bootstrap-check',
+      max_tokens: 240,
+      on_budget_exhausted: 'fail',
+      state_path: statePath,
+    });
+    const bootstrap = bridge.sessionsBootstrap({
+      session_id: spawned.session_id,
+      state_path: statePath,
+    });
+    const contract = bootstrap.bootstrap || null;
+    const sendCommand = contract?.commands?.sessions_send || '';
+    const exhaustionMode = contract?.budget?.on_budget_exhausted || null;
+    const prompt = contract?.prompt || '';
+    if (!sendCommand || !String(sendCommand).includes('sessions_send')) {
+      return fail('test_12_generic_agent_bootstrap', 'bootstrap_missing_sessions_send', {
+        session_id: spawned.session_id,
+        bootstrap: contract,
+      });
+    }
+    if (exhaustionMode !== 'fail') {
+      return fail('test_12_generic_agent_bootstrap', 'bootstrap_budget_policy_missing', {
+        session_id: spawned.session_id,
+        bootstrap: contract,
+      });
+    }
+    if (!String(prompt).includes('Use direct swarm bridge commands')) {
+      return fail('test_12_generic_agent_bootstrap', 'bootstrap_prompt_missing_guidance', {
+        session_id: spawned.session_id,
+        bootstrap: contract,
+      });
+    }
+    return pass('test_12_generic_agent_bootstrap', {
+      session_id: spawned.session_id,
+      send_command: sendCommand,
+      exhaustion_mode: exhaustionMode,
+    });
+  } catch (err) {
+    return fail('test_12_generic_agent_bootstrap', 'bridge_exception', {
+      error: String(err && err.message ? err.message : err),
+    });
+  }
+}
+
 function runHierarchicalBudgetTest(statePath) {
   try {
     const parent = bridge.sessionsSpawn({
@@ -499,6 +545,7 @@ function main() {
     runHierarchicalBudgetTest(statePath),
     runDeadLetterRecoveryTest(statePath),
     runRestartRecoveryTest(statePath),
+    runGenericBootstrapTest(statePath),
   ];
 
   const passed = tests.filter((row) => row.ok).length;

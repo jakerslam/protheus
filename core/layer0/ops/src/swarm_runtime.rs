@@ -682,6 +682,7 @@ fn usage() {
     println!("  protheus-ops swarm-runtime sessions terminate --session-id=<id> [--graceful=1|0] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions metrics --session-id=<id> [--timeline=1|0] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions state --session-id=<id> [--timeline=1|0] [--tool-history-limit=<n>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime sessions bootstrap --session-id=<id> [--state-path=<path>]");
     println!(
         "  protheus-ops swarm-runtime sessions anomalies --session-id=<id> [--state-path=<path>]"
     );
@@ -862,29 +863,126 @@ fn session_capabilities(state: &SwarmState, session_id: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn session_tool_manifest(state: &SwarmState, session: &SessionMetadata) -> Value {
+fn session_transport_contract(session_id: &str) -> Value {
+    let session_key = session_key(session_id);
+    json!({
+        "bridge_path": "client/runtime/systems/autonomy/swarm_sessions_bridge.ts",
+        "sessions_send": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_send --sender={session_key} --sessionKey=<target> --message=<text>"),
+        "sessions_receive": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_receive --sessionKey={session_key}"),
+        "sessions_ack": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_ack --sessionKey={session_key} --message-id=<id>"),
+        "sessions_state": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_state --sessionKey={session_key}"),
+        "sessions_bootstrap": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_bootstrap --sessionKey={session_key}"),
+        "sessions_tick": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_tick".to_string(),
+    })
+}
+
+fn session_budget_bootstrap(session: &SessionMetadata) -> Value {
+    if let Some(telemetry) = session.budget_telemetry.as_ref() {
+        json!({
+            "configured": true,
+            "budget": telemetry.budget_config.max_tokens,
+            "warning_threshold": telemetry.budget_config.warning_threshold,
+            "on_budget_exhausted": telemetry.budget_config.exhaustion_action.as_label(),
+            "remaining_tokens": telemetry.remaining_tokens(),
+            "final_usage": telemetry.final_usage,
+            "budget_exhausted": telemetry.budget_exhausted,
+            "reserved_for_children": telemetry.reserved_for_children,
+            "settled_child_tokens": telemetry.settled_child_tokens,
+        })
+    } else {
+        json!({
+            "configured": false,
+            "note": "set --token-budget or --max-tokens to enable fail-closed swarm budget enforcement"
+        })
+    }
+}
+
+fn session_bootstrap_contract(_state: &SwarmState, session: &SessionMetadata) -> Value {
     let session_id = session.session_id.as_str();
     let session_key = session_key(session_id);
+    let transport = session_transport_contract(session_id);
+    let budget = session_budget_bootstrap(session);
+    let send_cmd = transport
+        .get("sessions_send")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let receive_cmd = transport
+        .get("sessions_receive")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let ack_cmd = transport
+        .get("sessions_ack")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let state_cmd = transport
+        .get("sessions_state")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let budget_summary = if budget
+        .get("configured")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        format!(
+            "Budget is hard-governed at {} tokens with '{}' exhaustion handling and {} remaining tokens.",
+            budget
+                .get("budget")
+                .and_then(Value::as_u64)
+                .unwrap_or_default(),
+            budget
+                .get("on_budget_exhausted")
+                .and_then(Value::as_str)
+                .unwrap_or("fail"),
+            budget
+                .get("remaining_tokens")
+                .and_then(Value::as_u64)
+                .unwrap_or_default()
+        )
+    } else {
+        "No explicit token budget is configured for this session yet.".to_string()
+    };
+    json!({
+        "version": "swarm-agent-bootstrap/v1",
+        "session_id": session_id,
+        "session_key": session_key,
+        "commands": transport,
+        "budget": budget,
+        "fallback_policy": "use direct swarm bridge commands first; only use file relay if the bridge is unavailable",
+        "prompt": format!(
+            "You are swarm session {session_key}. Use direct swarm bridge commands instead of file relays. Send messages with `{send_cmd}`. Read inbound messages with `{receive_cmd}`. Ack processed messages with `{ack_cmd}`. Inspect live state with `{state_cmd}`. {budget_summary}"
+        ),
+    })
+}
+
+fn session_tool_manifest(state: &SwarmState, session: &SessionMetadata) -> Value {
+    let session_id = session.session_id.as_str();
     json!({
         "version": "swarm-tool-manifest/v1",
         "session_id": session_id,
-        "session_key": session_key,
+        "session_key": session_key(session_id),
         "tool_access": session.tool_access.clone(),
         "role": session.role.clone(),
         "capabilities": session_capabilities(state, session_id),
-        "transport": {
-            "bridge_path": "client/runtime/systems/autonomy/swarm_sessions_bridge.ts",
-            "sessions_send": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_send --sender={session_key} --sessionKey=<target> --message=<text>"),
-            "sessions_receive": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_receive --sessionKey={session_key}"),
-            "sessions_ack": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_ack --sessionKey={session_key} --message-id=<id>"),
-            "sessions_state": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_state --sessionKey={session_key}"),
-            "sessions_tick": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_tick".to_string(),
-        },
+        "transport": session_transport_contract(session_id),
         "resumption": {
             "persistent": session.persistent.is_some(),
             "resume_command": format!("protheus-ops swarm-runtime sessions resume --session-id={session_id}"),
         },
+        "agent_bootstrap": session_bootstrap_contract(state, session),
     })
+}
+
+fn sessions_bootstrap(state: &SwarmState, session_id: &str) -> Result<Value, String> {
+    let Some(session) = state.sessions.get(session_id) else {
+        return Err(format!("unknown_session:{session_id}"));
+    };
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_session_bootstrap",
+        "session_id": session_id,
+        "session_key": session_key(session_id),
+        "bootstrap": session_bootstrap_contract(state, session),
+    }))
 }
 
 fn reserve_budget_from_parent(
@@ -4613,6 +4711,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                             parse_bool_flag(argv, "timeline", false),
                             parse_u64_flag(argv, "tool-history-limit", 50) as usize,
                         )
+                    } else {
+                        Err("session_id_required".to_string())
+                    }
+                }
+                "bootstrap" => {
+                    if let Some(session_id) =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty())
+                    {
+                        sessions_bootstrap(&state, &session_id)
                     } else {
                         Err("session_id_required".to_string())
                     }

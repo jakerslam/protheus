@@ -29,7 +29,7 @@ Out of scope:
 - REQ-12: Swarm Engine Router (message routing, queue handoff)
 - REQ-15: Sandboxed Sub-Agent Execution (isolated execution, scoped permissions)
 - REQ-36: Smart Memory Low-Burn Regression Contract (shared state patterns)
-- V6-SWARM-033 through V6-SWARM-037: spawned-agent tool manifests, hierarchical budgets, dead-letter recovery, restart recovery, and the expanded dominance audit suite
+- V6-SWARM-033 through V6-SWARM-038: spawned-agent tool manifests, hierarchical budgets, dead-letter recovery, restart recovery, the expanded dominance audit suite, and the generic-agent bootstrap contract for direct swarm bridge discovery
 
 ## Requirements
 

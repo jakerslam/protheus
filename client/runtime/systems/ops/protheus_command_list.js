@@ -15,6 +15,7 @@ const COMMANDS = [
   { name: 'autonomy:swarm:sessions:send', desc: 'Send inter-agent message between sessions.' },
   { name: 'autonomy:swarm:sessions:receive', desc: 'Receive pending inter-agent messages.' },
   { name: 'autonomy:swarm:sessions:ack', desc: 'Acknowledge inter-agent message delivery.' },
+  { name: 'autonomy:swarm:sessions:bootstrap', desc: 'Fetch the authoritative direct-send/budget bootstrap contract for a session.' },
   { name: 'autonomy:swarm:sessions:state', desc: 'Inspect session state/context/tool history.' },
   { name: 'autonomy:swarm:sessions:query', desc: 'Query swarm service discovery/result registry.' },
   { name: 'autonomy:swarm:sessions:tick', desc: 'Advance persistent swarm check-ins.' },
