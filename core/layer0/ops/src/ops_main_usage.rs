@@ -7,6 +7,8 @@ pub(super) fn print_usage() {
     println!("  protheus-ops passport-iteration-chain-kernel <record|status> [--payload-base64=<base64_json>]");
     println!("  protheus-ops egress-gateway-kernel <load-policy|load-state|authorize> [--payload-base64=<base64_json>]");
     println!("  protheus-ops adaptive-layer-store-kernel <paths|is-within-root|resolve-path|read-json|ensure-json|set-json|delete-path> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops security-integrity-kernel <load-policy|collect-present-files|verify|seal|append-event> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops queue-sqlite-kernel <open|ensure-schema|migrate-history|upsert-item|append-event|insert-receipt|queue-stats> [--payload-base64=<base64_json>]");
     println!("  protheus-ops benchmark-matrix <run|status> [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44]");
     println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");

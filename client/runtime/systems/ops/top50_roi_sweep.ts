@@ -62,6 +62,7 @@ function shouldExclude(record) {
   const base = path.posix.basename(relPath);
   if (!relPath.endsWith('.ts')) return true;
   if (relPath.startsWith('tests/')) return true;
+  if ((base.includes('benchmark') || relPath.includes('/benchmarks/')) && !hasAuthorityMarker(record)) return true;
   if (relPath.startsWith('client/runtime/systems/ui/')) return true;
   if (isExtensionSurface(record) && !hasAuthorityMarker(record)) return true;
   if (relPath === 'client/runtime/systems/conduit/conduit-client.ts') return true;
