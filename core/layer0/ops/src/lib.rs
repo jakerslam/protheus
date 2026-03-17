@@ -1012,12 +1012,14 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         )?);
     }
 
+    let p50_ms = percentile(&samples, 0.50).unwrap_or(0.0);
     let p95_ms = percentile(&samples, 0.95).unwrap_or(0.0);
 
     let mut rss_samples = Vec::new();
     for _ in 0..policy.idle_rss_probe.samples {
         rss_samples.push(system_idle_rss_mb(&policy.idle_rss_probe.measurement_mode));
     }
+    let idle_rss_p50_mb = percentile(&rss_samples, 0.50).unwrap_or(0.0);
     let idle_rss_mb = percentile(&rss_samples, 0.95).unwrap_or(0.0);
 
     let mut install_sizes = BTreeMap::new();
@@ -1048,7 +1050,9 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "pass": pass,
         "strict": strict,
         "metrics": {
+            "cold_start_p50_ms": (p50_ms * 1000.0).round() / 1000.0,
             "cold_start_p95_ms": (p95_ms * 1000.0).round() / 1000.0,
+            "idle_rss_p50_mb": (idle_rss_p50_mb * 1000.0).round() / 1000.0,
             "idle_rss_p95_mb": (idle_rss_mb * 1000.0).round() / 1000.0,
             "install_artifact_total_mb": (install_total * 1000.0).round() / 1000.0,
             "full_install_total_mb": (full_install_total * 1000.0).round() / 1000.0
@@ -1056,6 +1060,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "cold_start": {
             "samples": policy.cold_start_probe.samples,
             "max_ms": policy.cold_start_probe.max_ms,
+            "p50_ms": (p50_ms * 1000.0).round() / 1000.0,
             "p95_ms": (p95_ms * 1000.0).round() / 1000.0,
             "engine": policy.cold_start_probe.engine.clone(),
             "runtime_mode": policy.cold_start_probe.runtime_mode,
@@ -1068,6 +1073,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "idle_rss": {
             "samples": policy.idle_rss_probe.samples,
             "max_mb": policy.idle_rss_probe.max_mb,
+            "p50_mb": (idle_rss_p50_mb * 1000.0).round() / 1000.0,
             "p95_mb": (idle_rss_mb * 1000.0).round() / 1000.0,
             "measurement_mode": policy.idle_rss_probe.measurement_mode.clone(),
             "required_modules": policy.idle_rss_probe.require_modules,

@@ -4,8 +4,8 @@
   "state_path": "core/local/state/ops/benchmark_sanity/latest.json",
   "required_projects": [
     "OpenClaw",
-    "Protheus Pure",
-    "Protheus Pure Tiny-Max"
+    "InfRing (pure)",
+    "InfRing (tiny-max)"
   ],
   "required_metrics": [
     "cold_start_ms",
@@ -39,7 +39,7 @@
   },
   "step_change_exemptions": [
     {
-      "project": "Protheus Pure Tiny-Max",
+      "project": "InfRing (tiny-max)",
       "metric": "cold_start_ms"
     }
   ],
