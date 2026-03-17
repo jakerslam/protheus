@@ -6,6 +6,7 @@ const path = require('path');
 const { ROOT } = require('./run_protheus_ops.js');
 const {
   buildInventory,
+  isCognitionOrchestrationThinSurface,
   hasAuthorityMarker,
   isExtensionSurface,
   isThinBridge
@@ -71,6 +72,7 @@ function shouldExclude(record) {
   if (relPath === 'client/runtime/lib/ts_bootstrap.ts') return true;
   if (relPath === 'client/runtime/lib/exec_compacted.ts') return true;
   if (relPath === 'client/runtime/lib/backlog_lane_cli.ts') return true;
+  if (isCognitionOrchestrationThinSurface(record)) return true;
   if (base.endsWith('_bridge.ts')) return true;
   if (base.endsWith('_client.ts')) return true;
   if (base.endsWith('_cli.ts')) return true;

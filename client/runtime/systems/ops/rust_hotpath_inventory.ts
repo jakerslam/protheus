@@ -161,6 +161,18 @@ function isExtensionSurface(record) {
   );
 }
 
+function isCognitionOrchestrationThinSurface(record) {
+  const relPath = String((record && record.path) || '');
+  const normalized = String((record && record.text) || '');
+  if (!relPath.startsWith('client/cognition/orchestration/')) return false;
+  if (hasAuthorityMarker(record)) return false;
+  return (
+    normalized.includes("require('./core_bridge.ts')") ||
+    normalized.includes('invokeOrchestration(') ||
+    normalized.includes('runTaskGroupCli(')
+  );
+}
+
 function buildInventory(argv = []) {
   const policyPath = path.resolve(ROOT, parseFlag(argv, 'policy', DEFAULT_POLICY));
   const policy = readJson(policyPath);
@@ -227,6 +239,7 @@ if (require.main === module) {
 
 module.exports = {
   buildInventory,
+  isCognitionOrchestrationThinSurface,
   hasAuthorityMarker,
   isExtensionSurface,
   isThinBridge,
