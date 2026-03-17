@@ -39,6 +39,14 @@ function run() {
     level1.tool_manifest && Array.isArray(level1.tool_manifest.tool_access),
     'expected spawned sessions to expose an authoritative tool manifest'
   );
+  assert(
+    level1.agent_bootstrap && level1.agent_bootstrap.version === 'swarm-agent-bootstrap/v1',
+    'expected spawned sessions to expose a generic-agent bootstrap contract'
+  );
+  assert(
+    String(level1.agent_bootstrap.prompt || '').includes('Use direct swarm bridge commands'),
+    'expected bootstrap prompt to direct agents toward bridge commands'
+  );
   assert.strictEqual(level2.payload.payload.parent_id, level1.session_id);
   assert(
     Array.isArray(level1State.payload.session.children)
@@ -154,6 +162,23 @@ function run() {
   assert(
     Number(budgetParentState.payload.session.budget.settled_child_tokens || 0) > 0,
     'expected parent budget to settle child token usage'
+  );
+  const bootstrap = bridge.sessionsBootstrap({
+    session_id: budgetChild.session_id,
+    state_path: state,
+  });
+  assert(
+    bootstrap.bootstrap && bootstrap.bootstrap.commands && bootstrap.bootstrap.commands.sessions_send,
+    'expected sessions_bootstrap to expose direct inter-agent messaging commands'
+  );
+  assert.strictEqual(
+    bootstrap.bootstrap.budget.on_budget_exhausted,
+    'fail',
+    'expected sessions_bootstrap to surface fail-closed budget policy'
+  );
+  assert(
+    Number(bootstrap.bootstrap.budget.remaining_tokens || 0) <= 200,
+    'expected sessions_bootstrap to surface remaining budget telemetry'
   );
 
   // Test 7 parity: service discovery + result query.
