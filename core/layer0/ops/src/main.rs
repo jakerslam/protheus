@@ -174,6 +174,11 @@ fn main() {
             let exit = protheus_ops_core::ternary_belief_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "trit-shadow-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::trit_shadow_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "model-router" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::model_router::run(&cwd, &rest);
