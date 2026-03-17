@@ -1,4 +1,22 @@
 use super::*;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
+
+fn decode_base64_text(raw: Option<&String>, field: &str) -> Result<String, String> {
+    let encoded = raw
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("missing_{field}"))?;
+    let bytes = BASE64_STANDARD
+        .decode(encoded.as_bytes())
+        .map_err(|err| format!("base64_decode_failed:{field}:{err}"))?;
+    String::from_utf8(bytes).map_err(|err| format!("utf8_decode_failed:{field}:{err}"))
+}
+
+fn decode_base64_json(raw: Option<&String>, field: &str) -> Result<Value, String> {
+    let text = decode_base64_text(raw, field)?;
+    serde_json::from_str(&text).map_err(|err| format!("json_decode_failed:{field}:{err}"))
+}
 
 pub(super) fn emit_receipt(root: &Path, payload: Value) -> i32 {
     match write_receipt(root, STATE_ENV, STATE_SCOPE, payload) {
@@ -44,6 +62,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops directive-kernel bridge-rsi [--proposal=<text>] [--apply=1|0]");
         println!(
             "  protheus-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0] [--repair-signatures=1|0]"
+        );
+        println!("  protheus-ops directive-kernel parse-yaml [--text-base64=<base64>]");
+        println!(
+            "  protheus-ops directive-kernel validate-tier1-quality [--directive-id=<id>] [--text-base64=<base64>]"
+        );
+        println!(
+            "  protheus-ops directive-kernel active-directives [--allow-missing=1|0] [--allow-weak-tier1=1|0]"
+        );
+        println!(
+            "  protheus-ops directive-kernel merge-constraints [--payload-base64=<base64_json>]"
+        );
+        println!(
+            "  protheus-ops directive-kernel validate-action-envelope [--payload-base64=<base64_json>]"
+        );
+        println!(
+            "  protheus-ops directive-kernel tier-conflict [--payload-base64=<base64_json>]"
         );
         return 0;
     }
@@ -540,6 +574,225 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         }
                     }
                 ]
+            }),
+        );
+    }
+
+    if command == "parse-yaml" {
+        let text = match decode_base64_text(parsed.flags.get("text-base64"), "text_base64") {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_parse_yaml",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let parsed_yaml = match yaml_to_json(&text) {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_parse_yaml",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        return emit_receipt(
+            root,
+            json!({
+                "ok": true,
+                "type": "directive_kernel_parse_yaml",
+                "lane": "core/layer0/ops",
+                "parsed": parsed_yaml
+            }),
+        );
+    }
+
+    if command == "validate-tier1-quality" {
+        let text = match decode_base64_text(parsed.flags.get("text-base64"), "text_base64") {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_validate_tier1_quality",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let directive_id = parsed
+            .flags
+            .get("directive-id")
+            .map(|value| clean(value, 128))
+            .unwrap_or_else(|| "unknown".to_string());
+        let validation = validate_tier1_directive_quality(&text, &directive_id);
+        return emit_receipt(
+            root,
+            json!({
+                "ok": validation.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                "type": "directive_kernel_validate_tier1_quality",
+                "lane": "core/layer0/ops",
+                "validation": validation
+            }),
+        );
+    }
+
+    if command == "active-directives" {
+        let allow_missing = parse_bool(parsed.flags.get("allow-missing"), false);
+        let allow_weak_tier1 = parse_bool(parsed.flags.get("allow-weak-tier1"), false);
+        let directives = match load_active_directives(root, allow_missing, allow_weak_tier1) {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_active_directives",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        return emit_receipt(
+            root,
+            json!({
+                "ok": true,
+                "type": "directive_kernel_active_directives",
+                "lane": "core/layer0/ops",
+                "directives": directives
+            }),
+        );
+    }
+
+    if command == "merge-constraints" {
+        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
+        {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_merge_constraints",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let directives = payload
+            .get("directives")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let constraints = merge_active_constraints(&directives);
+        return emit_receipt(
+            root,
+            json!({
+                "ok": true,
+                "type": "directive_kernel_merge_constraints",
+                "lane": "core/layer0/ops",
+                "constraints": constraints
+            }),
+        );
+    }
+
+    if command == "validate-action-envelope" {
+        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
+        {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_validate_action_envelope",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let envelope = payload.get("action_envelope").cloned().unwrap_or(Value::Null);
+        let validation = match validate_action_envelope(root, &envelope) {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_validate_action_envelope",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let ok = validation
+            .get("allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || validation
+                .get("requires_approval")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        return emit_receipt(
+            root,
+            json!({
+                "ok": ok,
+                "type": "directive_kernel_validate_action_envelope",
+                "lane": "core/layer0/ops",
+                "validation": validation
+            }),
+        );
+    }
+
+    if command == "tier-conflict" {
+        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
+        {
+            Ok(value) => value,
+            Err(err) => {
+                return emit_receipt(
+                    root,
+                    json!({
+                        "ok": false,
+                        "type": "directive_kernel_tier_conflict",
+                        "lane": "core/layer0/ops",
+                        "error": err
+                    }),
+                );
+            }
+        };
+        let lower = payload
+            .get("lower_tier_action")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let higher = payload
+            .get("higher_tier_directive")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let conflict = check_tier_conflict(&lower, &higher);
+        return emit_receipt(
+            root,
+            json!({
+                "ok": true,
+                "type": "directive_kernel_tier_conflict",
+                "lane": "core/layer0/ops",
+                "conflict": conflict
             }),
         );
     }

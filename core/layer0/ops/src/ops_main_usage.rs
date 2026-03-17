@@ -2,6 +2,7 @@ pub(super) fn print_usage() {
     println!("Usage:");
     println!("  protheus-ops runtime-efficiency-floor run [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
+    println!("  protheus-ops benchmark-autonomy-gate <run|status> [--strict=1|0]");
     println!("  protheus-ops benchmark-matrix <run|status> [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44]");
     println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
@@ -15,9 +16,12 @@ pub(super) fn print_usage() {
     println!("  protheus-ops seed-protocol <status|deploy|migrate|enforce|select|archive|defend|monitor> [flags]");
     println!("  protheus-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
     println!("  protheus-ops directive-kernel <status|dashboard|prime-sign|derive|supersede|compliance-check|bridge-rsi|migrate> [flags]");
+    println!("  protheus-ops success-criteria-kernel <status|parse-rows|evaluate> [flags]");
+    println!("  protheus-ops local-runtime-partitioner <status|init|reset> [--workspace-root=<path>] [--confirm=RESET_LOCAL]");
     println!("  protheus-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
     println!("  protheus-ops continuity-runtime <resurrection-protocol|session-continuity-vault> [flags]");
     println!("  protheus-ops memory-plane <causal-temporal-graph|memory-federation-plane> [flags]");
+    println!("  protheus-ops memory-policy-kernel <status|parse-cli|command-name|validate|validate-ranking|validate-lensmap|severity-rank|guard-failure> [--payload-base64=<base64_json>]");
     println!("  protheus-ops runtime-systems <status|verify|run|build|manifest|bootstrap|package|settle> [flags]");
     println!("  protheus-ops child-organ-runtime <plan|spawn|status> [flags]");
     println!("  protheus-ops organism-layer <status|ignite|dream|homeostasis|crystallize|symbiosis|mutate|sensory|narrative> [flags]");

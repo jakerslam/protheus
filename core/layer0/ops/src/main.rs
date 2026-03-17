@@ -149,6 +149,11 @@ fn main() {
                 }
             }
         }
+        "benchmark-autonomy-gate" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::benchmark_autonomy_gate::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "model-router" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::model_router::run(&cwd, &rest);
@@ -179,6 +184,16 @@ fn main() {
             let exit = protheus_ops_core::directive_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "success-criteria-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::success_criteria_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "local-runtime-partitioner" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "rsi-ignition" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::rsi_ignition::run(&cwd, &rest);
@@ -192,6 +207,11 @@ fn main() {
         "memory-plane" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::memory_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "memory-policy-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::memory_policy_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "runtime-systems" => {
