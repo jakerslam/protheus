@@ -155,6 +155,7 @@ function isExtensionSurface(record) {
   return (
     relPath.startsWith('apps/') ||
     relPath.includes('/skills/') ||
+    relPath.startsWith('client/runtime/patches/') ||
     relPath.startsWith('client/runtime/systems/extensions/') ||
     relPath.startsWith('client/runtime/systems/marketplace/')
   );

@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 const { runOpsDomainCommand } = require('./spine_conduit_bridge.ts');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'ops_domain_conduit_runner', 'ops-domain-conduit-runner-kernel');
 
 function cleanText(v, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -15,90 +20,68 @@ function toBool(v, fallback = false) {
   return fallback;
 }
 
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i += 1) {
-    const token = String(argv[i] || '');
-    if (!token.startsWith('--')) {
-      out._.push(token);
-      continue;
-    }
-    const idx = token.indexOf('=');
-    if (idx >= 0) {
-      out[token.slice(2, idx)] = token.slice(idx + 1);
-      continue;
-    }
-    const key = token.slice(2);
-    const next = argv[i + 1];
-    if (next != null && !String(next).startsWith('--')) {
-      out[key] = String(next);
-      i += 1;
-      continue;
-    }
-    out[key] = true;
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function normalizeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
+}
+
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(normalizeObject(payload)))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `ops_domain_conduit_runner_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `ops_domain_conduit_runner_kernel_${command}_failed`);
+    return { ok: false, error: message || `ops_domain_conduit_runner_kernel_${command}_failed` };
   }
-  return out;
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `ops_domain_conduit_runner_kernel_${command}_bridge_failed`
+      : `ops_domain_conduit_runner_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
+}
+
+function parseArgs(argv) {
+  return invoke('parse-argv', {
+    argv: Array.isArray(argv) ? argv.map((value) => String(value)) : []
+  }).parsed || { _: [] };
 }
 
 function buildPassArgs(parsedArgs) {
-  if (!parsedArgs || !Array.isArray(parsedArgs._)) return [];
-  const positional = parsedArgs._.slice();
-  const controlKeys = new Set([
-    '_',
-    'domain',
-    'run-context',
-    'skip-runtime-gate',
-    'stdio-timeout-ms',
-    'timeout-ms'
-  ]);
-  const forwardedFlags = [];
-  for (const [key, value] of Object.entries(parsedArgs)) {
-    if (controlKeys.has(key)) continue;
-    if (value === true) {
-      forwardedFlags.push(`--${key}`);
-      continue;
-    }
-    if (value == null || value === false) continue;
-    forwardedFlags.push(`--${key}=${String(value)}`);
-  }
-  // --domain=<name> keeps positional arguments untouched (`run --mode=daily`).
-  if (parsedArgs.domain != null && String(parsedArgs.domain).trim()) {
-    return positional.concat(forwardedFlags);
-  }
-  // Positional domain (`spine run`) should not leak the domain token into payload args.
-  const args = positional.length ? positional.slice(1) : [];
-  return args.concat(forwardedFlags);
+  return invoke('build-pass-args', {
+    parsed: normalizeObject(parsedArgs)
+  }).args || [];
 }
 
 function buildRunOptions(parsedArgs) {
-  const skipRuntimeGate = toBool(
-    parsedArgs['skip-runtime-gate'],
-    toBool(process.env.PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE, true)
-  );
-  const stdioTimeoutMs = Number(
-    parsedArgs['stdio-timeout-ms']
-      || process.env.PROTHEUS_OPS_DOMAIN_STDIO_TIMEOUT_MS
-      || process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
-      || 120000
-  );
-  const timeoutMs = Number(
-    parsedArgs['timeout-ms']
-      || process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS
-      || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS
-      || Math.max(stdioTimeoutMs + 1000, 125000)
-  );
-  return {
-    runContext: parsedArgs['run-context'] == null ? null : String(parsedArgs['run-context']),
-    skipRuntimeGate,
-    stdioTimeoutMs: Number.isFinite(stdioTimeoutMs) ? stdioTimeoutMs : 120000,
-    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 125000
+  return invoke('build-run-options', {
+    parsed: normalizeObject(parsedArgs)
+  }).options || {
+    runContext: null,
+    skipRuntimeGate: true,
+    stdioTimeoutMs: 120000,
+    timeoutMs: 125000
   };
 }
 
 async function run(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
-  const domain = cleanText(args.domain || args._[0] || '', 120);
-  if (!domain) {
+  const prepared = invoke('prepare-run', {
+    argv: Array.isArray(argv) ? argv.map((value) => String(value)) : []
+  });
+  if (!prepared || !prepared.ok || !cleanText(prepared.domain || '', 120)) {
     return {
       status: 2,
       payload: {
@@ -110,7 +93,13 @@ async function run(argv = process.argv.slice(2)) {
     };
   }
 
-  const result = await runOpsDomainCommand(domain, buildPassArgs(args), buildRunOptions(args));
+  const result = await runOpsDomainCommand(
+    cleanText(prepared.domain, 120),
+    Array.isArray(prepared.args) ? prepared.args.map((value) => String(value)) : [],
+    prepared.options && typeof prepared.options === 'object'
+      ? prepared.options
+      : buildRunOptions(parseArgs(argv))
+  );
   return {
     status: Number.isFinite(result && result.status) ? Number(result.status) : 1,
     payload: result && result.payload
