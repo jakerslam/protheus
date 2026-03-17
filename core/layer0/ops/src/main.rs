@@ -259,6 +259,11 @@ fn main() {
             let exit = protheus_ops_core::queued_backlog_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "queue-sqlite-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::queue_sqlite_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "upgrade-lane-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::upgrade_lane_kernel::run(&cwd, &rest);
@@ -297,6 +302,11 @@ fn main() {
         "readiness-bridge-pack-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::readiness_bridge_pack_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "security-integrity-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::security_integrity_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "runtime-systems" => {
