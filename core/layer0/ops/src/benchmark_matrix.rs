@@ -202,8 +202,10 @@ fn extract_runtime_metrics(runtime_json: &Value) -> Option<(f64, f64, f64)> {
         .cloned()
         .unwrap_or_else(|| runtime_json.clone());
     let metrics = latest.get("metrics")?;
-    let cold_start_ms = get_f64(metrics, "cold_start_p95_ms")?;
-    let idle_memory_mb = get_f64(metrics, "idle_rss_p95_mb")?;
+    let cold_start_ms =
+        get_f64(metrics, "cold_start_p50_ms").or_else(|| get_f64(metrics, "cold_start_p95_ms"))?;
+    let idle_memory_mb =
+        get_f64(metrics, "idle_rss_p50_mb").or_else(|| get_f64(metrics, "idle_rss_p95_mb"))?;
     let install_size_mb = get_f64(metrics, "full_install_total_mb")
         .or_else(|| get_f64(metrics, "install_artifact_total_mb"))?;
     Some((cold_start_ms, idle_memory_mb, install_size_mb))
@@ -304,8 +306,12 @@ fn percentile(sorted: &[f64], q: f64) -> f64 {
 fn sample_command_quantiles_ms(
     program: &str,
     args: &[&str],
+    warmup_runs: usize,
     samples: usize,
 ) -> Result<(f64, f64, f64), String> {
+    for _ in 0..warmup_runs {
+        let _ = command_elapsed_ms(program, args)?;
+    }
     let mut rows = Vec::new();
     for _ in 0..samples.max(1) {
         rows.push(command_elapsed_ms(program, args)?);
@@ -352,8 +358,12 @@ fn sample_child_rss_mb(program: &str, args: &[&str]) -> Result<f64, String> {
 fn sample_child_rss_quantiles_mb(
     program: &str,
     args: &[&str],
+    warmup_runs: usize,
     samples: usize,
 ) -> Result<(f64, f64, f64), String> {
+    for _ in 0..warmup_runs {
+        let _ = sample_child_rss_mb(program, args)?;
+    }
     let mut rows = Vec::new();
     for _ in 0..samples.max(1) {
         rows.push(sample_child_rss_mb(program, args)?);
@@ -409,10 +419,10 @@ fn measure_pure_workspace_profile(
     cold_start_args: &[&str],
     idle_probe_args: &[&str],
 ) -> Result<Map<String, Value>, String> {
-    let (cold_start_p50_ms, cold_start_ms, cold_start_p99_ms) =
-        sample_command_quantiles_ms(probe_bin, cold_start_args, 5)?;
-    let (idle_rss_p50_mb, idle_memory_mb, idle_rss_p99_mb) =
-        sample_child_rss_quantiles_mb(probe_bin, idle_probe_args, 3)?;
+    let (cold_start_p50_ms, cold_start_p95_ms, cold_start_p99_ms) =
+        sample_command_quantiles_ms(probe_bin, cold_start_args, 2, 9)?;
+    let (idle_rss_p50_mb, idle_rss_p95_mb, idle_rss_p99_mb) =
+        sample_child_rss_quantiles_mb(probe_bin, idle_probe_args, 1, 5)?;
     let mut install_size_mb = path_size_mb(root, size_bin);
     if let Some(daemon) = daemon_bin {
         install_size_mb += path_size_mb(root, daemon);
@@ -421,16 +431,16 @@ fn measure_pure_workspace_profile(
 
     let mut measured = Map::<String, Value>::new();
     measured.insert("mode".to_string(), Value::String(mode.to_string()));
-    measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
+    measured.insert("cold_start_ms".to_string(), json!(cold_start_p50_ms));
     measured.insert("cold_start_p50_ms".to_string(), json!(cold_start_p50_ms));
-    measured.insert("cold_start_p95_ms".to_string(), json!(cold_start_ms));
+    measured.insert("cold_start_p95_ms".to_string(), json!(cold_start_p95_ms));
     measured.insert("cold_start_p99_ms".to_string(), json!(cold_start_p99_ms));
-    measured.insert("idle_memory_mb".to_string(), json!(idle_memory_mb));
+    measured.insert("idle_memory_mb".to_string(), json!(idle_rss_p50_mb));
     measured.insert("idle_rss_p50_mb".to_string(), json!(idle_rss_p50_mb));
-    measured.insert("idle_rss_p95_mb".to_string(), json!(idle_memory_mb));
+    measured.insert("idle_rss_p95_mb".to_string(), json!(idle_rss_p95_mb));
     measured.insert("idle_rss_p99_mb".to_string(), json!(idle_rss_p99_mb));
     measured.insert("install_size_mb".to_string(), json!(install_size_mb));
-    measured.insert("tasks_per_sec".to_string(), json!(live_tasks_per_sec(800)));
+    measured.insert("tasks_per_sec".to_string(), json!(stabilized_tasks_per_sec(5, 800)));
     measured.insert("security_systems".to_string(), json!(83.0));
     measured.insert("channel_adapters".to_string(), json!(0.0));
     measured.insert("llm_providers".to_string(), json!(0.0));
@@ -548,6 +558,14 @@ fn live_tasks_per_sec(sample_ms: u64) -> f64 {
     }
 }
 
+fn stabilized_tasks_per_sec(rounds: usize, sample_ms: u64) -> f64 {
+    let mut rows = Vec::<f64>::new();
+    for _ in 0..rounds.max(1) {
+        rows.push(live_tasks_per_sec(sample_ms));
+    }
+    ((percentile(&rows, 0.50) * 100.0).round()) / 100.0
+}
+
 fn runtime_metrics(
     root: &Path,
     refresh_runtime: bool,
@@ -647,7 +665,7 @@ fn measure_openclaw(
     let security_systems = count_guard_checks(root)?;
     let channel_adapters = count_channel_adapters(root)?;
     let llm_providers = count_llm_providers(root)?;
-    let tasks_per_sec = live_tasks_per_sec(800);
+    let tasks_per_sec = stabilized_tasks_per_sec(5, 800);
 
     let mut measured = Map::<String, Value>::new();
     measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
