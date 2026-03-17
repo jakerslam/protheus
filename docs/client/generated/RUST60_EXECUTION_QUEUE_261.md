@@ -1,277 +1,176 @@
-# RUST60 Execution Queue (Rank 1-261)
+# RUST60 Live Execution Queue
 
-Generated: 2026-03-04T07:44:21.923Z
+Generated: 2026-03-17T13:04:27.682Z
 
-Updated: 2026-03-04T07:53:26.504Z
+| Rank | Path | LOC | Impact | Cumulative TS Migrated | Projected Rust % |
+|---:|---|---:|---:|---:|---:|
+| 1 | client/runtime/lib/secret_broker.ts | 1041 | 2914.8 | 1041 | 87.63 |
+| 2 | client/lib/trit_shadow_control.ts | 1040 | 2288 | 2081 | 87.993 |
+| 3 | client/lib/symbiosis_coherence_signal.ts | 653 | 1436.6 | 2734 | 88.221 |
+| 4 | core/layer1/memory_runtime/adaptive/strategy_store.ts | 862 | 1293 | 3596 | 88.523 |
+| 5 | client/runtime/lib/mech_suit_mode.ts | 451 | 1262.8 | 4047 | 88.68 |
+| 6 | client/runtime/lib/ternary_belief_engine.ts | 451 | 1262.8 | 4498 | 88.838 |
+| 7 | adapters/cognition/skills/moltbook/moltbook_api.ts | 548 | 1150.8 | 5046 | 89.03 |
+| 8 | client/runtime/systems/autonomy/swarm_orchestration_runtime.ts | 241 | 1036.3 | 5287 | 89.114 |
+| 9 | client/runtime/lib/approval_gate.ts | 355 | 994 | 5642 | 89.238 |
+| 10 | client/runtime/systems/ops/top50_roi_sweep.ts | 224 | 963.2 | 5866 | 89.316 |
+| 11 | adapters/cognition/skills/mcp/mcp_gateway.ts | 453 | 951.3 | 6319 | 89.475 |
+| 12 | client/runtime/systems/ops/rust_hotpath_inventory.ts | 210 | 903 | 6529 | 89.548 |
+| 13 | client/lib/strategy_campaign_scheduler.ts | 397 | 873.4 | 6926 | 89.687 |
+| 14 | client/runtime/lib/queued_backlog_runtime.ts | 303 | 848.4 | 7229 | 89.793 |
+| 15 | client/runtime/lib/success_criteria_compiler.ts | 300 | 840 | 7529 | 89.898 |
+| 16 | client/runtime/systems/ops/system_health_audit_runner.ts | 188 | 808.4 | 7717 | 89.963 |
+| 17 | client/runtime/lib/upgrade_lane_runtime.ts | 286 | 800.8 | 8003 | 90.063 |
+| 18 | client/runtime/systems/memory/session_isolation.ts | 181 | 778.3 | 8184 | 90.127 |
+| 19 | client/runtime/lib/action_envelope.ts | 277 | 775.6 | 8461 | 90.223 |
+| 20 | client/runtime/systems/ops/readiness_bridge_pack.ts | 180 | 774 | 8641 | 90.286 |
+| 21 | client/runtime/lib/passport_iteration_chain.ts | 274 | 767.2 | 8915 | 90.382 |
+| 22 | core/layer1/memory_runtime/adaptive/layer_store.ts | 504 | 756 | 9419 | 90.558 |
+| 23 | client/runtime/lib/egress_gateway.ts | 267 | 747.6 | 9686 | 90.652 |
+| 24 | client/runtime/lib/test_compactor_benchmark.ts | 266 | 744.8 | 9952 | 90.745 |
+| 25 | client/runtime/lib/security_integrity.ts | 260 | 728 | 10212 | 90.835 |
+| 26 | client/lib/queue_sqlite_runtime.ts | 300 | 660 | 10512 | 90.94 |
+| 27 | client/lib/outcome_fitness.ts | 287 | 631.4 | 10799 | 91.041 |
+| 28 | client/lib/training_conduit_schema.ts | 281 | 618.2 | 11080 | 91.139 |
+| 29 | client/lib/capability_lease.ts | 278 | 611.6 | 11358 | 91.236 |
+| 30 | client/runtime/lib/tool_response_compactor.ts | 218 | 610.4 | 11576 | 91.312 |
+| 31 | client/runtime/lib/strategy_resolver.ts | 217 | 607.6 | 11793 | 91.388 |
+| 32 | core/layer1/memory_runtime/adaptive/focus_trigger_store.ts | 391 | 586.5 | 12184 | 91.525 |
+| 33 | client/lib/autonomy_receipt_schema.ts | 249 | 547.8 | 12433 | 91.612 |
+| 34 | client/runtime/systems/memory/policy_validator.ts | 126 | 541.8 | 12559 | 91.656 |
+| 35 | client/runtime/systems/memory/causal_temporal_graph.ts | 123 | 528.9 | 12682 | 91.699 |
+| 36 | client/runtime/systems/memory/memory_federation_plane.ts | 117 | 503.1 | 12799 | 91.74 |
+| 37 | client/lib/trit.ts | 226 | 497.2 | 13025 | 91.819 |
+| 38 | client/runtime/lib/directive_resolver.ts | 165 | 462 | 13190 | 91.876 |
+| 39 | apps/photo-grit/systems/sensory/multimodal_signal_adapter_plane.ts | 305 | 457.5 | 13495 | 91.983 |
+| 40 | client/runtime/lib/ops_domain_conduit_runner.ts | 163 | 456.4 | 13658 | 92.04 |
+| 41 | client/lib/request_envelope.ts | 204 | 448.8 | 13862 | 92.111 |
+| 42 | client/runtime/systems/ops/local_runtime_partitioner.ts | 102 | 438.6 | 13964 | 92.147 |
+| 43 | client/runtime/patches/websocket-client-patch.ts | 292 | 438 | 14256 | 92.249 |
+| 44 | client/runtime/lib/quorum_validator.ts | 154 | 431.2 | 14410 | 92.303 |
+| 45 | client/cognition/orchestration/scratchpad.ts | 269 | 403.5 | 14679 | 92.397 |
+| 46 | client/runtime/patches/websocket-server-patch.ts | 259 | 388.5 | 14938 | 92.488 |
+| 47 | client/lib/mutation_provenance.ts | 171 | 376.2 | 15109 | 92.547 |
+| 48 | client/runtime/systems/sensory/conversation_eye_synthesizer.ts | 86 | 369.8 | 15195 | 92.577 |
+| 49 | client/runtime/lib/duality_seed.ts | 125 | 350 | 15320 | 92.621 |
+| 50 | client/cognition/orchestration/taskgroup.ts | 223 | 334.5 | 15543 | 92.699 |
+| 51 | client/runtime/lib/action_receipts.ts | 118 | 330.4 | 15661 | 92.74 |
+| 52 | client/lib/conduit_full_lifecycle_probe.ts | 149 | 327.8 | 15810 | 92.792 |
+| 53 | core/layer1/memory_runtime/adaptive/habit_store.ts | 216 | 324 | 16026 | 92.868 |
+| 54 | client/lib/trainability_matrix.ts | 146 | 321.2 | 16172 | 92.919 |
+| 55 | core/layer1/memory_runtime/adaptive/reflex_store.ts | 214 | 321 | 16386 | 92.994 |
+| 56 | client/lib/dynamic_burn_budget_signal.ts | 143 | 314.6 | 16529 | 93.044 |
+| 57 | client/runtime/lib/policy_runtime.ts | 109 | 305.2 | 16638 | 93.082 |
+| 58 | client/cognition/orchestration/scope.ts | 202 | 303 | 16840 | 93.152 |
+| 59 | client/cognition/orchestration/completion.ts | 198 | 297 | 17038 | 93.222 |
+| 60 | client/runtime/lib/moltbook_api.ts | 102 | 285.6 | 17140 | 93.257 |
+| 61 | client/runtime/patches/websocket-heartbeat.ts | 189 | 283.5 | 17329 | 93.323 |
+| 62 | client/lib/emergency_stop.ts | 123 | 270.6 | 17452 | 93.366 |
+| 63 | core/layer1/memory_runtime/adaptive/catalog_store.ts | 179 | 268.5 | 17631 | 93.429 |
+| 64 | client/lib/proposal_type_classifier.ts | 117 | 257.4 | 17748 | 93.47 |
+| 65 | client/runtime/systems/memory/rust_memory_transition_lane.ts | 59 | 253.7 | 17807 | 93.49 |
+| 66 | client/cognition/orchestration/partial.ts | 155 | 232.5 | 17962 | 93.545 |
+| 67 | client/runtime/lib/state_artifact_contract.ts | 80 | 224 | 18042 | 93.573 |
+| 68 | packages/protheus-npm/scripts/install.ts | 146 | 219 | 18188 | 93.624 |
+| 69 | packages/protheus-edge/index.ts | 143 | 214.5 | 18331 | 93.674 |
+| 70 | client/cognition/orchestration/coordinator.ts | 139 | 208.5 | 18470 | 93.722 |
+| 71 | client/cognition/orchestration/checkpoint.ts | 131 | 196.5 | 18601 | 93.768 |
+| 72 | adapters/importers/generic_yaml_importer.ts | 93 | 195.3 | 18694 | 93.8 |
+| 73 | client/runtime/systems/continuity/resurrection_protocol.ts | 130 | 195 | 18824 | 93.846 |
+| 74 | client/runtime/systems/ops/f100_readiness_remediation.ts | 44 | 189.2 | 18868 | 93.861 |
+| 75 | packages/protheus-core/index.ts | 123 | 184.5 | 18991 | 93.904 |
+| 76 | client/runtime/systems/compat/legacy_alias_adapter.ts | 121 | 181.5 | 19112 | 93.947 |
+| 77 | client/runtime/systems/ops/system_visualizer_server.ts | 41 | 176.3 | 19153 | 93.961 |
+| 78 | client/runtime/lib/runtime_path_registry.ts | 59 | 165.2 | 19212 | 93.982 |
+| 79 | client/runtime/systems/continuity/session_continuity_vault.ts | 108 | 162 | 19320 | 94.019 |
+| 80 | client/runtime/systems/fractal/child_organ_runtime.ts | 97 | 145.5 | 19417 | 94.053 |
+| 81 | packages/protheus-npm/bin/protheus.ts | 96 | 144 | 19513 | 94.087 |
+| 82 | adapters/importers/openfang_importer.ts | 67 | 140.7 | 19580 | 94.11 |
+| 83 | adapters/importers/workflow_graph_importer.ts | 67 | 140.7 | 19647 | 94.134 |
+| 84 | adapters/importers/generic_json_importer.ts | 66 | 138.6 | 19713 | 94.157 |
+| 85 | client/runtime/systems/ops/dependency_boundary_guard.ts | 31 | 133.3 | 19744 | 94.168 |
+| 86 | client/runtime/systems/ops/formal_spec_guard.ts | 31 | 133.3 | 19775 | 94.178 |
+| 87 | client/runtime/lib/uid.ts | 46 | 128.8 | 19821 | 94.194 |
+| 88 | client/runtime/lib/agent_passport_link.ts | 45 | 126 | 19866 | 94.21 |
+| 89 | client/runtime/lib/tool_compactor_integration.ts | 45 | 126 | 19911 | 94.226 |
+| 90 | client/runtime/lib/eyes_catalog.ts | 42 | 117.6 | 19953 | 94.241 |
+| 91 | client/cognition/orchestration/cli_shared.ts | 71 | 106.5 | 20024 | 94.265 |
+| 92 | client/runtime/lib/ts_entrypoint.ts | 37 | 103.6 | 20061 | 94.278 |
+| 93 | client/cognition/orchestration/schema_runtime.ts | 62 | 93 | 20123 | 94.3 |
+| 94 | client/runtime/lib/integrity_hash_utility.ts | 32 | 89.6 | 20155 | 94.311 |
+| 95 | client/runtime/lib/command_output_compactor.ts | 30 | 84 | 20185 | 94.322 |
+| 96 | core/layer1/memory_runtime/adaptive/uid.ts | 53 | 79.5 | 20238 | 94.34 |
+| 97 | packages/protheus-core/core_profile_contract.ts | 53 | 79.5 | 20291 | 94.359 |
+| 98 | packages/protheus-npm/scripts/smoke.ts | 43 | 64.5 | 20334 | 94.374 |
+| 99 | client/cognition/shared/lib/legacy_retired_wrapper.ts | 38 | 57 | 20372 | 94.387 |
+| 100 | client/cli/bin/protheus-graph.ts | 37 | 55.5 | 20409 | 94.4 |
+| 101 | client/runtime/platform/api/donate_gpu.ts | 29 | 43.5 | 20438 | 94.41 |
+| 102 | client/runtime/systems/ops/visualizer/app.ts | 10 | 43 | 20448 | 94.414 |
+| 103 | adapters/cognition/collectors/bird_x.ts | 19 | 39.9 | 20467 | 94.42 |
+| 104 | adapters/cognition/collectors/ollama_search.ts | 19 | 39.9 | 20486 | 94.427 |
+| 105 | client/lib/protheus_suite_tooling.ts | 18 | 39.6 | 20504 | 94.433 |
+| 106 | client/lib/redaction_classification.ts | 14 | 30.8 | 20518 | 94.438 |
+| 107 | client/runtime/systems/sensory/eyes_collectors/bird_x.ts | 7 | 30.1 | 20525 | 94.441 |
+| 108 | client/runtime/systems/sensory/eyes_collectors/ollama_search.ts | 7 | 30.1 | 20532 | 94.443 |
+| 109 | vitest.config.ts | 19 | 28.5 | 20551 | 94.45 |
+| 110 | adapters/cognition/skills/imap-smtp-email/scripts/imap.ts | 10 | 21 | 20561 | 94.453 |
+| 111 | adapters/cognition/skills/imap-smtp-email/scripts/smtp.ts | 10 | 21 | 20571 | 94.457 |
+| 112 | adapters/cognition/skills/moltbook/actuation_adapter.ts | 10 | 21 | 20581 | 94.46 |
+| 113 | adapters/cognition/skills/moltbook/moltbook_publish_guard.ts | 10 | 21 | 20591 | 94.464 |
+| 114 | adapters/cognition/skills/moltbook/proposal_template.ts | 10 | 21 | 20601 | 94.467 |
+| 115 | adapters/cognition/skills/moltstack/scripts/publish.ts | 10 | 21 | 20611 | 94.471 |
+| 116 | adapters/cognition/skills/moltstack/scripts/quality-check.ts | 10 | 21 | 20621 | 94.474 |
+| 117 | client/types/node_compat.d.ts | 12 | 18 | 20633 | 94.478 |
+| 118 | client/cognition/shared/adaptive/executive/system3_executive_layer.ts | 10 | 15 | 20643 | 94.482 |
+| 119 | client/cognition/shared/adaptive/rsi/dual_agent_spiral.ts | 10 | 15 | 20653 | 94.485 |
+| 120 | client/cognition/shared/adaptive/rsi/rsi_bootstrap_canonicalization.ts | 10 | 15 | 20663 | 94.489 |
+| 121 | client/runtime/systems/adaptive/core/layer_store.ts | 9 | 13.5 | 20672 | 94.492 |
+| 122 | client/runtime/systems/adaptive/reflex/reflex_store.ts | 9 | 13.5 | 20681 | 94.495 |
+| 123 | client/runtime/systems/adaptive/strategy/strategy_store.ts | 9 | 13.5 | 20690 | 94.498 |
+| 124 | client/lib/ts_entrypoint.ts | 6 | 13.2 | 20696 | 94.5 |
+| 125 | client/lib/action_envelope.ts | 5 | 11 | 20701 | 94.502 |
+| 126 | client/lib/action_receipts.ts | 5 | 11 | 20706 | 94.504 |
+| 127 | client/lib/agent_passport_link.ts | 5 | 11 | 20711 | 94.506 |
+| 128 | client/lib/approval_gate.ts | 5 | 11 | 20716 | 94.507 |
+| 129 | client/lib/command_output_compactor.ts | 5 | 11 | 20721 | 94.509 |
+| 130 | client/lib/directive_resolver.ts | 5 | 11 | 20726 | 94.511 |
+| 131 | client/lib/duality_seed.ts | 5 | 11 | 20731 | 94.513 |
+| 132 | client/lib/egress_gateway.ts | 5 | 11 | 20736 | 94.514 |
+| 133 | client/lib/exec_compacted.ts | 5 | 11 | 20741 | 94.516 |
+| 134 | client/lib/eyes_catalog.ts | 5 | 11 | 20746 | 94.518 |
+| 135 | client/lib/integrity_hash_utility.ts | 5 | 11 | 20751 | 94.52 |
+| 136 | client/lib/legacy_alias_adapter.ts | 5 | 11 | 20756 | 94.521 |
+| 137 | client/lib/legacy_conduit_proxy.ts | 5 | 11 | 20761 | 94.523 |
+| 138 | client/lib/mech_suit_mode.ts | 5 | 11 | 20766 | 94.525 |
+| 139 | client/lib/ops_domain_conduit_runner.ts | 5 | 11 | 20771 | 94.527 |
+| 140 | client/lib/passport_iteration_chain.ts | 5 | 11 | 20776 | 94.528 |
+| 141 | client/lib/policy_runtime.ts | 5 | 11 | 20781 | 94.53 |
+| 142 | client/lib/queued_backlog_runtime.ts | 5 | 11 | 20786 | 94.532 |
+| 143 | client/lib/quorum_validator.ts | 5 | 11 | 20791 | 94.534 |
+| 144 | client/lib/runtime_path_registry.ts | 5 | 11 | 20796 | 94.535 |
+| 145 | client/lib/secret_broker.ts | 5 | 11 | 20801 | 94.537 |
+| 146 | client/lib/security_integrity.ts | 5 | 11 | 20806 | 94.539 |
+| 147 | client/lib/state_artifact_contract.ts | 5 | 11 | 20811 | 94.54 |
+| 148 | client/lib/strategy_resolver.ts | 5 | 11 | 20816 | 94.542 |
+| 149 | client/lib/success_criteria_compiler.ts | 5 | 11 | 20821 | 94.544 |
+| 150 | client/lib/success_criteria_verifier.ts | 5 | 11 | 20826 | 94.546 |
+| 151 | client/lib/ternary_belief_engine.ts | 5 | 11 | 20831 | 94.547 |
+| 152 | client/lib/test_compactor_benchmark.ts | 5 | 11 | 20836 | 94.549 |
+| 153 | client/lib/tool_compactor_integration.ts | 5 | 11 | 20841 | 94.551 |
+| 154 | client/lib/tool_response_compactor.ts | 5 | 11 | 20846 | 94.553 |
+| 155 | client/lib/ts_bootstrap.ts | 5 | 11 | 20851 | 94.554 |
+| 156 | client/lib/uid.ts | 5 | 11 | 20856 | 94.556 |
+| 157 | client/lib/upgrade_lane_runtime.ts | 5 | 11 | 20861 | 94.558 |
+| 158 | client/cli/bin/protheus-bootstrap.ts | 6 | 9 | 20867 | 94.56 |
+| 159 | client/cli/bin/protheus-econ.ts | 6 | 9 | 20873 | 94.562 |
+| 160 | client/cli/bin/protheus-forge.ts | 6 | 9 | 20879 | 94.564 |
+| 161 | client/cli/bin/protheus-mem.ts | 6 | 9 | 20885 | 94.566 |
+| 162 | client/cli/bin/protheus-pinnacle.ts | 6 | 9 | 20891 | 94.568 |
+| 163 | client/cli/bin/protheus-redlegion.ts | 6 | 9 | 20897 | 94.571 |
+| 164 | client/cli/bin/protheus-soul.ts | 6 | 9 | 20903 | 94.573 |
+| 165 | client/cli/bin/protheus-swarm.ts | 6 | 9 | 20909 | 94.575 |
+| 166 | client/cli/bin/protheus-telemetry.ts | 6 | 9 | 20915 | 94.577 |
+| 167 | client/cli/bin/protheus-vault.ts | 6 | 9 | 20921 | 94.579 |
+| 168 | client/cognition/shared/adaptive/rsi/rsi_bootstrap.ts | 5 | 7.5 | 20926 | 94.581 |
+| 169 | client/cognition/shared/adaptive/rsi/rsi_integrity_chain_guard.ts | 5 | 7.5 | 20931 | 94.582 |
 
-Queue size: 261 lanes
-
-Current Rust %: 1.163
-
-Target Rust %: 60
-
-TS LOC needed: 225545
-
-| Lane | Rank | Path | LOC | Impact | Projected Rust % | Status |
-|---|---:|---|---:|---:|---:|---|
-| R60-0001 | 1 | client/runtime/systems/autonomy/autonomy_controller.ts | 17810 | 76583 | 5.809 | in_progress |
-| R60-0002 | 2 | client/runtime/systems/autonomy/inversion_controller.ts | 6229 | 26784.7 | 7.434 | queued |
-| R60-0003 | 3 | client/runtime/systems/spine/spine.ts | 6237 | 23700.6 | 9.061 | queued |
-| R60-0004 | 4 | client/runtime/systems/routing/model_router.ts | 4421 | 15915.6 | 10.214 | queued |
-| R60-0005 | 5 | client/runtime/systems/workflow/workflow_executor.ts | 4847 | 15510.4 | 11.479 | queued |
-| R60-0006 | 6 | client/runtime/systems/autonomy/proposal_enricher.ts | 2912 | 8736 | 12.238 | queued |
-| R60-0007 | 7 | client/runtime/systems/personas/cli.ts | 3926 | 8244.6 | 13.263 | queued |
-| R60-0008 | 8 | client/runtime/systems/autonomy/health_status.ts | 2570 | 7196 | 13.933 | queued |
-| R60-0009 | 9 | client/runtime/systems/ops/autotest_doctor.ts | 2729 | 6003.8 | 14.645 | queued |
-| R60-0010 | 10 | client/runtime/systems/ops/foundation_contract_gate.ts | 2369 | 5685.6 | 15.263 | queued |
-| R60-0011 | 11 | client/runtime/systems/memory/idle_dream_cycle.ts | 2290 | 5267 | 15.86 | queued |
-| R60-0012 | 12 | client/runtime/systems/ops/autotest_controller.ts | 2103 | 5257.5 | 16.409 | queued |
-| R60-0013 | 13 | client/runtime/systems/personas/orchestration.ts | 2325 | 4882.5 | 17.015 | queued |
-| R60-0014 | 14 | client/runtime/systems/spine/contract_check.ts | 1684 | 4715.2 | 17.455 | queued |
-| R60-0015 | 15 | client/runtime/systems/execution/task_decomposition_primitive.ts | 1735 | 4684.5 | 17.907 | queued |
-| R60-0016 | 16 | client/runtime/systems/autonomy/strategy_mode_governor.ts | 1403 | 4209 | 18.273 | queued |
-| R60-0017 | 17 | client/runtime/systems/assimilation/assimilation_controller.ts | 1801 | 4142.3 | 18.743 | queued |
-| R60-0018 | 18 | client/runtime/systems/sensory/focus_controller.ts | 1782 | 4098.6 | 19.208 | queued |
-| R60-0019 | 19 | client/runtime/systems/autonomy/outcome_fitness_loop.ts | 1262 | 3786 | 19.537 | queued |
-| R60-0020 | 20 | client/runtime/systems/continuum/continuum_core.ts | 1792 | 3763.2 | 20.005 | queued |
-| R60-0021 | 21 | client/runtime/systems/weaver/weaver_core.ts | 1735 | 3643.5 | 20.457 | queued |
-| R60-0022 | 22 | client/runtime/systems/autonomy/improvement_controller.ts | 1068 | 3524.4 | 20.736 | queued |
-| R60-0023 | 23 | client/runtime/systems/ops/execution_yield_recovery.ts | 1438 | 3451.2 | 21.111 | queued |
-| R60-0024 | 24 | client/runtime/systems/autonomy/red_team_harness.ts | 1227 | 3435.6 | 21.431 | queued |
-| R60-0025 | 25 | client/runtime/systems/ops/state_kernel.ts | 1390 | 3336 | 21.794 | queued |
-| R60-0026 | 26 | client/runtime/systems/memory/rust_memory_transition_lane.ts | 1422 | 3270.6 | 22.165 | queued |
-| R60-0027 | 27 | client/runtime/systems/autonomy/mirror_organ.ts | 1059 | 3177 | 22.441 | queued |
-| R60-0028 | 28 | client/runtime/systems/autonomy/runtime_stability_soak.ts | 1057 | 3171 | 22.717 | queued |
-| R60-0029 | 29 | client/runtime/systems/ops/protheus_control_plane.ts | 1256 | 3014.4 | 23.044 | queued |
-| R60-0030 | 30 | client/runtime/systems/security/venom_containment_layer.ts | 1198 | 2995 | 23.357 | queued |
-| R60-0031 | 31 | client/runtime/systems/autonomy/autonomy_simulation_harness.ts | 1068 | 2990.4 | 23.635 | queued |
-| R60-0032 | 32 | client/runtime/systems/workflow/orchestron/candidate_generator.ts | 1354 | 2978.8 | 23.989 | queued |
-| R60-0033 | 33 | client/runtime/systems/autonomy/gated_self_improvement_loop.ts | 975 | 2925 | 24.243 | queued |
-| R60-0034 | 34 | client/runtime/systems/ops/rust50_migration_program.ts | 1215 | 2916 | 24.56 | queued |
-| R60-0035 | 35 | client/runtime/systems/workflow/orchestron/adaptive_controller.ts | 1109 | 2772.5 | 24.849 | queued |
-| R60-0036 | 36 | client/runtime/systems/autonomy/pain_signal.ts | 914 | 2742 | 25.088 | queued |
-| R60-0037 | 37 | client/runtime/systems/workflow/workflow_controller.ts | 1061 | 2652.5 | 25.364 | queued |
-| R60-0038 | 38 | client/runtime/systems/ops/dynamic_burn_budget_oracle.ts | 1105 | 2652 | 25.653 | queued |
-| R60-0039 | 39 | client/runtime/systems/workflow/universal_outreach_primitive.ts | 1200 | 2640 | 25.966 | queued |
-| R60-0040 | 40 | client/runtime/systems/ops/organ_atrophy_controller.ts | 969 | 2616.3 | 26.219 | queued |
-| R60-0041 | 41 | client/runtime/systems/autonomy/drift_target_governor.ts | 859 | 2577 | 26.443 | queued |
-| R60-0042 | 42 | client/runtime/systems/actuation/universal_execution_primitive.ts | 1296 | 2462.4 | 26.781 | queued |
-| R60-0043 | 43 | client/runtime/systems/routing/route_execute.ts | 945 | 2457 | 27.027 | queued |
-| R60-0044 | 44 | client/runtime/systems/ops/rust_enterprise_productivity_program.ts | 1022 | 2452.8 | 27.294 | queued |
-| R60-0045 | 45 | client/runtime/systems/security/directive_hierarchy_controller.ts | 874 | 2447.2 | 27.522 | queued |
-| R60-0046 | 46 | client/runtime/systems/ops/backlog_registry.ts | 1016 | 2438.4 | 27.787 | queued |
-| R60-0047 | 47 | client/runtime/systems/ops/backlog_github_sync.ts | 999 | 2397.6 | 28.047 | queued |
-| R60-0048 | 48 | client/runtime/systems/security/agent_passport.ts | 950 | 2375 | 28.295 | queued |
-| R60-0049 | 49 | client/runtime/systems/autonomy/adaptive_crystallizer.ts | 791 | 2373 | 28.502 | queued |
-| R60-0050 | 50 | client/runtime/systems/autonomy/model_catalog_loop.ts | 783 | 2349 | 28.706 | queued |
-| R60-0051 | 51 | client/runtime/systems/routing/llm_gateway.ts | 893 | 2321.8 | 28.939 | queued |
-| R60-0052 | 52 | client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts | 767 | 2301 | 29.139 | queued |
-| R60-0053 | 53 | client/runtime/systems/autonomy/improvement_orchestrator.ts | 766 | 2298 | 29.339 | queued |
-| R60-0054 | 54 | client/runtime/systems/security/guard.ts | 896 | 2240 | 29.572 | queued |
-| R60-0055 | 55 | client/runtime/systems/autonomy/receipt_summary.ts | 721 | 2163 | 29.761 | queued |
-| R60-0056 | 56 | client/runtime/systems/ops/llm_economy_organ.ts | 885 | 2124 | 29.991 | queued |
-| R60-0057 | 57 | client/runtime/systems/security/remote_emergency_halt.ts | 849 | 2122.5 | 30.213 | queued |
-| R60-0058 | 58 | client/runtime/systems/autonomy/pain_adaptive_router.ts | 702 | 2106 | 30.396 | queued |
-| R60-0059 | 59 | client/runtime/systems/autonomy/hold_remediation_engine.ts | 632 | 2085.6 | 30.561 | queued |
-| R60-0060 | 60 | client/runtime/systems/autonomy/collective_shadow.ts | 687 | 2061 | 30.74 | queued |
-| R60-0061 | 61 | client/runtime/systems/autonomy/tier1_governance.ts | 670 | 2010 | 30.915 | queued |
-| R60-0062 | 62 | client/runtime/systems/workflow/learning_conduit.ts | 913 | 2008.6 | 31.153 | queued |
-| R60-0063 | 63 | client/runtime/systems/security/anti_sabotage_shield.ts | 802 | 2005 | 31.362 | queued |
-| R60-0064 | 64 | client/runtime/systems/security/alias_verification_vault.ts | 792 | 1980 | 31.569 | queued |
-| R60-0065 | 65 | client/runtime/systems/ops/offsite_backup.ts | 820 | 1968 | 31.783 | queued |
-| R60-0066 | 66 | client/runtime/systems/routing/route_task.ts | 756 | 1965.6 | 31.98 | queued |
-| R60-0067 | 67 | client/runtime/systems/workflow/data_rights_engine.ts | 773 | 1932.5 | 32.182 | queued |
-| R60-0068 | 68 | client/runtime/systems/autonomy/lever_experiment_gate.ts | 642 | 1926 | 32.349 | queued |
-| R60-0069 | 69 | client/runtime/systems/security/soul_token_guard.ts | 763 | 1907.5 | 32.548 | queued |
-| R60-0070 | 70 | client/runtime/systems/autonomy/autonomy_rollout_controller.ts | 573 | 1890.9 | 32.698 | queued |
-| R60-0071 | 71 | client/runtime/systems/autonomy/self_documentation_closeout.ts | 621 | 1863 | 32.86 | queued |
-| R60-0072 | 72 | client/runtime/systems/security/delegated_authority_branching.ts | 740 | 1850 | 33.053 | queued |
-| R60-0073 | 73 | client/runtime/systems/ops/settlement_program.ts | 770 | 1848 | 33.254 | queued |
-| R60-0074 | 74 | client/runtime/systems/routing/router_budget_calibration.ts | 708 | 1840.8 | 33.438 | queued |
-| R60-0075 | 75 | client/runtime/systems/sensory/cross_signal_engine.ts | 789 | 1814.7 | 33.644 | queued |
-| R60-0076 | 76 | client/runtime/systems/memory/creative_links.ts | 788 | 1812.4 | 33.85 | queued |
-| R60-0077 | 77 | client/runtime/systems/ops/narrow_agent_parity_harness.ts | 813 | 1788.6 | 34.062 | queued |
-| R60-0078 | 78 | client/runtime/systems/memory/cryonics_tier.ts | 773 | 1777.9 | 34.263 | queued |
-| R60-0079 | 79 | client/runtime/systems/strategy/strategy_controller.ts | 1103 | 1764.8 | 34.551 | queued |
-| R60-0080 | 80 | client/runtime/systems/security/secure_heartbeat_endpoint.ts | 697 | 1742.5 | 34.733 | queued |
-| R60-0081 | 81 | client/runtime/systems/autonomy/multi_agent_debate_orchestrator.ts | 572 | 1716 | 34.882 | queued |
-| R60-0082 | 82 | client/runtime/systems/autonomy/background_persistent_agent_runtime.ts | 571 | 1713 | 35.031 | queued |
-| R60-0083 | 83 | client/runtime/systems/tools/assimilate.ts | 951 | 1711.8 | 35.279 | queued |
-| R60-0084 | 84 | client/runtime/systems/routing/provider_readiness.ts | 658 | 1710.8 | 35.451 | queued |
-| R60-0085 | 85 | client/runtime/systems/autonomy/strategy_mode.ts | 568 | 1704 | 35.599 | queued |
-| R60-0086 | 86 | client/runtime/systems/tools/cli_suggestion_engine.ts | 804 | 1688.4 | 35.809 | queued |
-| R60-0087 | 87 | client/runtime/systems/autonomy/self_code_evolution_sandbox.ts | 554 | 1662 | 35.953 | queued |
-| R60-0088 | 88 | client/runtime/systems/security/organ_state_encryption_plane.ts | 664 | 1660 | 36.126 | queued |
-| R60-0089 | 89 | client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts | 503 | 1659.9 | 36.258 | queued |
-| R60-0090 | 90 | client/runtime/systems/nursery/specialist_training.ts | 1654 | 1654 | 36.689 | queued |
-| R60-0091 | 91 | client/runtime/systems/actuation/disposable_infrastructure_organ.ts | 861 | 1635.9 | 36.914 | queued |
-| R60-0092 | 92 | client/runtime/systems/memory/memory_federation_plane.ts | 707 | 1626.1 | 37.098 | queued |
-| R60-0093 | 93 | client/runtime/systems/ops/productized_suite_program.ts | 664 | 1593.6 | 37.271 | queued |
-| R60-0094 | 94 | client/runtime/systems/autonomy/trit_shadow_report.ts | 568 | 1590.4 | 37.42 | queued |
-| R60-0095 | 95 | client/runtime/systems/security/dream_warden_guard.ts | 628 | 1570 | 37.583 | queued |
-| R60-0096 | 96 | client/runtime/systems/autonomy/ethical_reasoning_organ.ts | 516 | 1548 | 37.718 | queued |
-| R60-0097 | 97 | client/runtime/systems/ops/rust_hybrid_migration_program.ts | 644 | 1545.6 | 37.886 | queued |
-| R60-0098 | 98 | client/runtime/systems/security/skin_protection_layer.ts | 618 | 1545 | 38.047 | queued |
-| R60-0099 | 99 | client/runtime/systems/fractal/regime_organ.ts | 905 | 1538.5 | 38.283 | queued |
-| R60-0100 | 100 | client/runtime/systems/tools/research.ts | 838 | 1508.4 | 38.502 | queued |
-| R60-0101 | 101 | client/runtime/systems/memory/failure_memory_bridge.ts | 652 | 1499.6 | 38.672 | queued |
-| R60-0102 | 102 | client/runtime/systems/autonomy/objective_runtime_governor.ts | 493 | 1479 | 38.801 | queued |
-| R60-0103 | 103 | client/runtime/systems/autonomy/canary_scheduler.ts | 491 | 1473 | 38.929 | queued |
-| R60-0104 | 104 | client/runtime/systems/security/constitution_guardian.ts | 589 | 1472.5 | 39.082 | queued |
-| R60-0105 | 105 | client/runtime/systems/ops/rust_control_plane_cutover.ts | 609 | 1461.6 | 39.241 | queued |
-| R60-0106 | 106 | client/runtime/systems/assimilation/group_evolving_agents_primitive.ts | 730 | 1460 | 39.432 | queued |
-| R60-0107 | 107 | client/runtime/systems/memory/causal_temporal_graph.ts | 633 | 1455.9 | 39.597 | queued |
-| R60-0108 | 108 | client/runtime/lib/secret_broker.ts | 1211 | 1453.2 | 39.913 | queued |
-| R60-0109 | 109 | client/runtime/systems/security/remote_tamper_heartbeat.ts | 581 | 1452.5 | 40.064 | queued |
-| R60-0110 | 110 | client/runtime/systems/ops/backlog_implementation_review.ts | 602 | 1444.8 | 40.221 | queued |
-| R60-0111 | 111 | client/runtime/systems/autonomy/batch_lane.ts | 480 | 1440 | 40.346 | queued |
-| R60-0112 | 112 | client/runtime/systems/ops/cleanup_orchestrator.ts | 598 | 1435.2 | 40.502 | queued |
-| R60-0113 | 113 | client/runtime/systems/ops/top50_roi_sweep.ts | 593 | 1423.2 | 40.657 | queued |
-| R60-0114 | 114 | client/runtime/systems/security/supply_chain_trust_plane.ts | 564 | 1410 | 40.804 | queued |
-| R60-0115 | 115 | client/runtime/systems/memory/offdevice_memory_replication.ts | 609 | 1400.7 | 40.963 | queued |
-| R60-0116 | 116 | client/runtime/systems/spawn/spawn_broker.ts | 996 | 1394.4 | 41.223 | queued |
-| R60-0117 | 117 | client/runtime/systems/ops/workflow_execution_closure.ts | 579 | 1389.6 | 41.374 | queued |
-| R60-0118 | 118 | client/runtime/systems/security/secret_rotation_migration_auditor.ts | 555 | 1387.5 | 41.519 | queued |
-| R60-0119 | 119 | client/runtime/systems/ops/trace_habit_autogenesis.ts | 573 | 1375.2 | 41.668 | queued |
-| R60-0120 | 120 | client/runtime/systems/autonomy/skill_generation_pipeline.ts | 454 | 1362 | 41.787 | queued |
-| R60-0121 | 121 | client/runtime/systems/ops/compliance_reports.ts | 616 | 1355.2 | 41.947 | queued |
-| R60-0122 | 122 | client/runtime/systems/workflow/payment_skills_bridge.ts | 615 | 1353 | 42.108 | queued |
-| R60-0123 | 123 | client/runtime/systems/memory/memory_dream.ts | 581 | 1336.3 | 42.259 | queued |
-| R60-0124 | 124 | client/runtime/systems/ops/execution_reliability_slo.ts | 547 | 1312.8 | 42.402 | queued |
-| R60-0125 | 125 | client/runtime/systems/routing/provider_onboarding_manifest.ts | 502 | 1305.2 | 42.533 | queued |
-| R60-0126 | 126 | client/runtime/systems/security/capability_switchboard.ts | 522 | 1305 | 42.669 | queued |
-| R60-0127 | 127 | client/runtime/systems/fractal/organism_cycle.ts | 750 | 1275 | 42.865 | queued |
-| R60-0128 | 128 | client/runtime/systems/autonomy/zero_permission_conversational_layer.ts | 425 | 1275 | 42.976 | queued |
-| R60-0129 | 129 | client/runtime/systems/autonomy/ops_dashboard.ts | 424 | 1272 | 43.086 | queued |
-| R60-0130 | 130 | client/runtime/systems/security/key_lifecycle_governor.ts | 508 | 1270 | 43.219 | queued |
-| R60-0131 | 131 | client/runtime/systems/ops/predictive_capacity_forecast.ts | 529 | 1269.6 | 43.357 | queued |
-| R60-0132 | 132 | client/runtime/systems/security/black_box_ledger.ts | 505 | 1262.5 | 43.489 | queued |
-| R60-0133 | 133 | client/runtime/systems/security/post_quantum_migration_lane.ts | 505 | 1262.5 | 43.62 | queued |
-| R60-0134 | 134 | client/runtime/systems/ops/soc2_type2_track.ts | 525 | 1260 | 43.757 | queued |
-| R60-0135 | 135 | client/runtime/systems/ops/v1_hardening_checkpoint.ts | 525 | 1260 | 43.894 | queued |
-| R60-0136 | 136 | client/runtime/systems/autonomy/trit_shadow_replay_calibration.ts | 419 | 1257 | 44.003 | queued |
-| R60-0137 | 137 | client/runtime/systems/autonomy/persistent_fractal_meta_organ.ts | 418 | 1254 | 44.113 | queued |
-| R60-0138 | 138 | client/runtime/systems/memory/eyes_memory_bridge.ts | 544 | 1251.2 | 44.254 | queued |
-| R60-0139 | 139 | client/runtime/systems/assimilation/capability_profile_compiler.ts | 625 | 1250 | 44.417 | queued |
-| R60-0140 | 140 | client/runtime/lib/trit_shadow_control.ts | 1040 | 1248 | 44.689 | queued |
-| R60-0141 | 141 | client/runtime/systems/workflow/client_communication_organ.ts | 566 | 1245.2 | 44.836 | queued |
-| R60-0142 | 142 | client/runtime/systems/ops/backlog_queue_executor.ts | 518 | 1243.2 | 44.972 | queued |
-| R60-0143 | 143 | client/runtime/systems/ops/blank_slate_reset.ts | 518 | 1243.2 | 45.107 | queued |
-| R60-0144 | 144 | client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts | 514 | 1233.6 | 45.241 | queued |
-| R60-0145 | 145 | client/runtime/systems/ops/global_molt_cycle.ts | 511 | 1226.4 | 45.374 | queued |
-| R60-0146 | 146 | client/runtime/systems/ops/rust_spine_microkernel.ts | 508 | 1219.2 | 45.507 | queued |
-| R60-0147 | 147 | client/runtime/systems/autonomy/optimization_aperture_controller.ts | 368 | 1214.4 | 45.603 | queued |
-| R60-0148 | 148 | client/runtime/systems/ops/schema_evolution_contract.ts | 505 | 1212 | 45.734 | queued |
-| R60-0149 | 149 | client/runtime/systems/security/copy_hardening_pack.ts | 482 | 1205 | 45.86 | queued |
-| R60-0150 | 150 | client/runtime/systems/ops/continuous_chaos_resilience.ts | 499 | 1197.6 | 45.99 | queued |
-| R60-0151 | 151 | client/runtime/systems/ops/open_platform_release_pack.ts | 497 | 1192.8 | 46.12 | queued |
-| R60-0152 | 152 | client/runtime/systems/ops/openfang_capability_pack.ts | 497 | 1192.8 | 46.25 | queued |
-| R60-0153 | 153 | client/runtime/systems/workflow/workflow_generator.ts | 542 | 1192.4 | 46.391 | queued |
-| R60-0154 | 154 | client/runtime/systems/autonomy/dream_signal_bridge.ts | 397 | 1191 | 46.494 | queued |
-| R60-0155 | 155 | client/runtime/systems/autonomy/receipt_dashboard.ts | 397 | 1191 | 46.598 | queued |
-| R60-0156 | 156 | client/runtime/systems/workflow/gated_account_creation_organ.ts | 539 | 1185.8 | 46.739 | queued |
-| R60-0157 | 157 | client/runtime/systems/ops/model_health_auto_recovery.ts | 492 | 1180.8 | 46.867 | queued |
-| R60-0158 | 158 | client/runtime/systems/ops/platform_socket_runtime.ts | 492 | 1180.8 | 46.995 | queued |
-| R60-0159 | 159 | client/runtime/lib/strategy_resolver.ts | 983 | 1179.6 | 47.252 | queued |
-| R60-0160 | 160 | client/runtime/systems/ops/postmortem_loop.ts | 491 | 1178.4 | 47.38 | queued |
-| R60-0161 | 161 | client/runtime/systems/reflex/reflex_dispatcher.ts | 1176 | 1176 | 47.687 | queued |
-| R60-0162 | 162 | client/runtime/systems/memory/memory_efficiency_plane.ts | 511 | 1175.3 | 47.82 | queued |
-| R60-0163 | 163 | client/runtime/systems/autonomy/observer_mirror.ts | 391 | 1173 | 47.922 | queued |
-| R60-0164 | 164 | client/runtime/systems/security/governance_hardening_pack.ts | 465 | 1162.5 | 48.043 | queued |
-| R60-0165 | 165 | client/runtime/systems/security/jigsaw/attackcinema_replay_theater.ts | 463 | 1157.5 | 48.164 | queued |
-| R60-0166 | 166 | client/runtime/systems/ops/event_sourced_control_plane.ts | 481 | 1154.4 | 48.29 | queued |
-| R60-0167 | 167 | client/runtime/systems/ops/dist_runtime_cutover.ts | 478 | 1147.2 | 48.414 | queued |
-| R60-0168 | 168 | client/runtime/systems/workflow/rate_limit_intelligence.ts | 520 | 1144 | 48.55 | queued |
-| R60-0169 | 169 | client/runtime/lib/duality_seed.ts | 952 | 1142.4 | 48.798 | queued |
-| R60-0170 | 170 | client/runtime/systems/ops/deployment_packaging.ts | 471 | 1130.4 | 48.921 | queued |
-| R60-0171 | 171 | client/runtime/systems/ops/backup_integrity_check.ts | 470 | 1128 | 49.044 | queued |
-| R60-0172 | 172 | client/runtime/systems/ops/protheus_setup_wizard.ts | 468 | 1123.2 | 49.166 | queued |
-| R60-0173 | 173 | client/runtime/systems/autonomy/pipeline_spc_gate.ts | 373 | 1119 | 49.263 | queued |
-| R60-0174 | 174 | client/runtime/systems/security/critical_path_formal_verifier.ts | 446 | 1115 | 49.379 | queued |
-| R60-0175 | 175 | client/runtime/systems/ops/type_derived_lane_docs_autogen.ts | 463 | 1111.2 | 49.5 | queued |
-| R60-0176 | 176 | client/runtime/systems/autonomy/inversion_readiness_cert.ts | 369 | 1107 | 49.596 | queued |
-| R60-0177 | 177 | client/runtime/systems/spine/spine_safe_launcher.ts | 394 | 1103.2 | 49.699 | queued |
-| R60-0178 | 178 | client/runtime/systems/ops/operational_maturity_closure.ts | 459 | 1101.6 | 49.819 | queued |
-| R60-0179 | 179 | client/runtime/systems/ops/protheus_prime_seed.ts | 458 | 1099.2 | 49.938 | queued |
-| R60-0180 | 180 | client/runtime/systems/security/safety_resilience_guard.ts | 439 | 1097.5 | 50.053 | queued |
-| R60-0181 | 181 | client/runtime/systems/echo/heroic_echo_controller.ts | 842 | 1094.6 | 50.273 | queued |
-| R60-0182 | 182 | client/runtime/systems/autonomy/suggestion_lane.ts | 364 | 1092 | 50.368 | queued |
-| R60-0183 | 183 | client/runtime/systems/storm/storm_value_distribution.ts | 1091 | 1091 | 50.652 | queued |
-| R60-0184 | 184 | client/runtime/systems/workflow/high_value_play_detector.ts | 493 | 1084.6 | 50.781 | queued |
-| R60-0185 | 185 | client/runtime/systems/identity/identity_anchor.ts | 1073 | 1073 | 51.061 | queued |
-| R60-0186 | 186 | client/runtime/systems/ops/environment_promotion_gate.ts | 447 | 1072.8 | 51.177 | queued |
-| R60-0187 | 187 | client/runtime/systems/autonomy/mutation_safety_kernel.ts | 354 | 1062 | 51.27 | queued |
-| R60-0188 | 188 | client/runtime/systems/autonomy/non_yield_ledger_backfill.ts | 353 | 1059 | 51.362 | queued |
-| R60-0189 | 189 | client/runtime/systems/autonomy/non_yield_replay.ts | 353 | 1059 | 51.454 | queued |
-| R60-0190 | 190 | client/runtime/systems/ops/docs_structure_pack.ts | 441 | 1058.4 | 51.569 | queued |
-| R60-0191 | 191 | client/runtime/systems/ops/explain_decision.ts | 441 | 1058.4 | 51.684 | queued |
-| R60-0192 | 192 | client/runtime/systems/ops/system_health_audit_runner.ts | 441 | 1058.4 | 51.799 | queued |
-| R60-0193 | 193 | client/runtime/systems/security/execution_sandbox_envelope.ts | 417 | 1042.5 | 51.908 | queued |
-| R60-0194 | 194 | client/runtime/systems/sensory/temporal_patterns.ts | 518 | 1036 | 52.043 | queued |
-| R60-0195 | 195 | client/runtime/systems/primitives/explanation_primitive.ts | 647 | 1035.2 | 52.212 | queued |
-| R60-0196 | 196 | client/runtime/systems/ops/backlog_execution_pathfinder.ts | 431 | 1034.4 | 52.324 | queued |
-| R60-0197 | 197 | client/runtime/systems/helix/helix_controller.ts | 794 | 1032.2 | 52.531 | queued |
-| R60-0198 | 198 | client/runtime/systems/ops/alert_transport_health.ts | 430 | 1032 | 52.643 | queued |
-| R60-0199 | 199 | client/runtime/systems/memory/rust_memory_daemon_supervisor.ts | 448 | 1030.4 | 52.76 | queued |
-| R60-0200 | 200 | client/runtime/systems/ops/config_registry.ts | 428 | 1027.2 | 52.872 | queued |
-| R60-0201 | 201 | client/runtime/systems/actuation/real_world_claws_bundle.ts | 539 | 1024.1 | 53.012 | queued |
-| R60-0202 | 202 | client/runtime/systems/autonomy/genuine_creative_breakthrough_organ.ts | 341 | 1023 | 53.101 | queued |
-| R60-0203 | 203 | client/runtime/systems/ops/compliance_posture.ts | 422 | 1012.8 | 53.212 | queued |
-| R60-0204 | 204 | client/runtime/systems/memory/uid_connections.ts | 440 | 1012 | 53.326 | queued |
-| R60-0205 | 205 | client/runtime/systems/dual_brain/coordinator.ts | 1010 | 1010 | 53.59 | queued |
-| R60-0206 | 206 | client/runtime/systems/ops/config_plane_pilot.ts | 417 | 1000.8 | 53.699 | queued |
-| R60-0207 | 207 | client/runtime/systems/autonomy/self_mod_reversion_drill.ts | 331 | 993 | 53.785 | queued |
-| R60-0208 | 208 | client/runtime/systems/ops/token_economics_engine.ts | 366 | 988.2 | 53.88 | queued |
-| R60-0209 | 209 | client/runtime/systems/autonomy/non_yield_cycle.ts | 327 | 981 | 53.966 | queued |
-| R60-0210 | 210 | client/runtime/systems/fractal/mini_core_instancer.ts | 487 | 974 | 54.093 | queued |
-| R60-0211 | 211 | client/runtime/systems/security/goal_preservation_kernel.ts | 389 | 972.5 | 54.194 | queued |
-| R60-0212 | 212 | client/runtime/systems/self_audit/illusion_integrity_lane.ts | 966 | 966 | 54.446 | queued |
-| R60-0213 | 213 | client/runtime/systems/ops/cognitive_toolkit_cli.ts | 398 | 955.2 | 54.55 | queued |
-| R60-0214 | 214 | client/runtime/systems/ops/js_holdout_audit.ts | 398 | 955.2 | 54.654 | queued |
-| R60-0215 | 215 | client/runtime/systems/ops/platform_oracle_hostprofile.ts | 398 | 955.2 | 54.758 | queued |
-| R60-0216 | 216 | client/runtime/systems/ops/compliance_retention_uplift.ts | 397 | 952.8 | 54.861 | queued |
-| R60-0217 | 217 | client/runtime/systems/autonomy/trit_shadow_weekly_adaptation.ts | 317 | 951 | 54.944 | queued |
-| R60-0218 | 218 | client/runtime/systems/ops/simplicity_budget_gate.ts | 396 | 950.4 | 55.047 | queued |
-| R60-0219 | 219 | client/runtime/systems/workflow/orchestron/nursery_tester.ts | 475 | 950 | 55.171 | queued |
-| R60-0220 | 220 | client/runtime/systems/fractal/child_organ_runtime.ts | 557 | 946.9 | 55.316 | queued |
-| R60-0221 | 221 | client/runtime/systems/autonomy/physiology_opportunity_map.ts | 315 | 945 | 55.399 | queued |
-| R60-0222 | 222 | client/runtime/systems/routing/llm_gateway_failure_classifier.ts | 363 | 943.8 | 55.493 | queued |
-| R60-0223 | 223 | client/runtime/systems/personas/shadow_cli.ts | 449 | 942.9 | 55.61 | queued |
-| R60-0224 | 224 | client/runtime/systems/ops/rust50_sprint_contract.ts | 391 | 938.4 | 55.712 | queued |
-| R60-0225 | 225 | client/runtime/systems/autonomy/non_yield_harvest.ts | 310 | 930 | 55.793 | queued |
-| R60-0226 | 226 | client/runtime/systems/autonomy/strategy_readiness.ts | 310 | 930 | 55.874 | queued |
-| R60-0227 | 227 | client/runtime/systems/finance/economic_entity_manager.ts | 927 | 927 | 56.116 | queued |
-| R60-0228 | 228 | client/runtime/systems/autonomy/exception_recovery_classifier.ts | 309 | 927 | 56.197 | queued |
-| R60-0229 | 229 | client/runtime/systems/ops/state_backup.ts | 386 | 926.4 | 56.297 | queued |
-| R60-0230 | 230 | client/runtime/systems/security/legion_geas_protocol.ts | 369 | 922.5 | 56.394 | queued |
-| R60-0231 | 231 | client/runtime/systems/security/lockweaver/eternal_flux_field.ts | 369 | 922.5 | 56.49 | queued |
-| R60-0232 | 232 | client/runtime/systems/assimilation/memory_evolution_primitive.ts | 461 | 922 | 56.61 | queued |
-| R60-0233 | 233 | client/runtime/systems/actuation/sub_executor_synthesis.ts | 485 | 921.5 | 56.737 | queued |
-| R60-0234 | 234 | client/runtime/systems/security/repository_access_auditor.ts | 368 | 920 | 56.833 | queued |
-| R60-0235 | 235 | client/runtime/systems/tools/proactive_assimilation.ts | 511 | 919.8 | 56.966 | queued |
-| R60-0236 | 236 | client/runtime/systems/sensory/multi_hop_objective_chain_mapper.ts | 459 | 918 | 57.086 | queued |
-| R60-0237 | 237 | client/runtime/systems/security/directive_intake.ts | 365 | 912.5 | 57.181 | queued |
-| R60-0238 | 238 | client/runtime/systems/security/operator_terms_ack.ts | 365 | 912.5 | 57.276 | queued |
-| R60-0239 | 239 | client/runtime/systems/actuation/actuation_executor.ts | 480 | 912 | 57.401 | queued |
-| R60-0240 | 240 | client/runtime/systems/weaver/arbitration_engine.ts | 433 | 909.3 | 57.514 | queued |
-| R60-0241 | 241 | client/runtime/systems/memory/dream_model_failover.ts | 395 | 908.5 | 57.617 | queued |
-| R60-0242 | 242 | client/runtime/systems/assimilation/world_model_freshness.ts | 453 | 906 | 57.735 | queued |
-| R60-0243 | 243 | client/runtime/systems/budget/system_budget.ts | 904 | 904 | 57.971 | queued |
-| R60-0244 | 244 | client/runtime/systems/ops/first_run_onboarding_wizard.ts | 375 | 900 | 58.069 | queued |
-| R60-0245 | 245 | client/runtime/systems/autonomy/strategy_execute_guard.ts | 300 | 900 | 58.147 | queued |
-| R60-0246 | 246 | client/runtime/systems/primitives/effect_type_system.ts | 562 | 899.2 | 58.294 | queued |
-| R60-0247 | 247 | client/runtime/systems/primitives/emergent_primitive_synthesis.ts | 561 | 897.6 | 58.44 | queued |
-| R60-0248 | 248 | client/runtime/systems/ops/public_docs_developer_experience_overhaul.ts | 374 | 897.6 | 58.538 | queued |
-| R60-0249 | 249 | client/runtime/systems/autonomy/non_yield_enqueue.ts | 299 | 897 | 58.616 | queued |
-| R60-0250 | 250 | client/runtime/systems/workflow/client_relationship_manager.ts | 407 | 895.4 | 58.722 | queued |
-| R60-0251 | 251 | client/runtime/systems/ops/error_budget_release_gate.ts | 373 | 895.2 | 58.819 | queued |
-| R60-0252 | 252 | client/runtime/systems/security/governance_hardening_lane.ts | 357 | 892.5 | 58.912 | queued |
-| R60-0253 | 253 | client/runtime/systems/ops/reproducible_distribution_artifact_pack.ts | 370 | 888 | 59.009 | queued |
-| R60-0254 | 254 | client/runtime/systems/security/skill_install_path_enforcer.ts | 355 | 887.5 | 59.102 | queued |
-| R60-0255 | 255 | client/runtime/systems/fractal/engine.ts | 519 | 882.3 | 59.237 | queued |
-| R60-0256 | 256 | client/runtime/systems/autonomy/escalation_resolver.ts | 293 | 879 | 59.313 | queued |
-| R60-0257 | 257 | client/runtime/systems/ops/binary_runtime_hardening.ts | 365 | 876 | 59.409 | queued |
-| R60-0258 | 258 | client/runtime/systems/security/schema_contract_check.ts | 349 | 872.5 | 59.5 | queued |
-| R60-0259 | 259 | client/runtime/systems/adaptive/strategy/strategy_store.ts | 872 | 872 | 59.727 | queued |
-| R60-0260 | 260 | client/runtime/systems/sensory/eyes_intake.ts | 436 | 872 | 59.841 | queued |
-| R60-0261 | 261 | client/runtime/systems/redteam/adaptive_defense_expansion.ts | 870 | 870 | 60.068 | queued |

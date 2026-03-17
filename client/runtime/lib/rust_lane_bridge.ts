@@ -58,14 +58,21 @@ function statMtimeMs(filePath) {
 function opsSourceNewestMtimeMs(root) {
   const candidates = [
     path.join(root, 'core', 'layer0', 'ops', 'Cargo.toml'),
-    path.join(root, 'core', 'layer0', 'ops', 'src', 'main.rs'),
-    path.join(root, 'core', 'layer0', 'ops', 'src', 'lib.rs'),
-    path.join(root, 'core', 'layer0', 'ops', 'src', 'spine.rs'),
-    path.join(root, 'core', 'layer0', 'ops', 'src', 'security_plane.rs')
+    path.join(root, 'core', 'layer0', 'ops', 'src')
   ];
   let newest = 0;
+  const visit = (candidate) => {
+    try {
+      const stat = fs.statSync(candidate);
+      newest = Math.max(newest, stat.mtimeMs || 0);
+      if (!stat.isDirectory()) return;
+      for (const entry of fs.readdirSync(candidate)) {
+        visit(path.join(candidate, entry));
+      }
+    } catch {}
+  };
   for (const candidate of candidates) {
-    newest = Math.max(newest, statMtimeMs(candidate));
+    visit(candidate);
   }
   return newest;
 }
@@ -127,6 +134,8 @@ function shouldFallbackToLocalCore(status, payload, stderr, domain = '') {
   if (!reason) return false;
   return (
     reason.includes('conduit_')
+    || reason.includes('unknown_command')
+    || reason.includes('unknown_domain')
     || reason.includes('startup_probe')
     || reason.includes('timeout')
     || reason.includes('etimedout')

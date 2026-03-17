@@ -7,6 +7,8 @@ Use the inventory tool to rank migration order by measured TypeScript line conce
 ```bash
 node client/runtime/systems/ops/rust_hotpath_inventory.ts run
 node client/runtime/systems/ops/rust_hotpath_inventory.ts status
+node client/runtime/systems/ops/top50_roi_sweep.ts --max=50
+node client/runtime/systems/ops/top50_roi_sweep.ts --max=100
 ```
 
 ## Outputs
@@ -37,3 +39,5 @@ Queue policy:
 - Process lanes strictly in rank order.
 - Commit and push each lane independently.
 - Keep lane diffs isolated to minimize rollback scope.
+- Exclude thin bridge/client wrapper surfaces (`createOpsLaneBridge`, conduit client, bridge/bootstrap glue) from the live queue.
+- Treat the queue as an opportunity ranking even when repository-wide Rust share already exceeds the historical 60% threshold.
