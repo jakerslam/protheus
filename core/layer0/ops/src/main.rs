@@ -159,6 +159,11 @@ fn main() {
             let exit = protheus_ops_core::approval_gate_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "secret-broker-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::secret_broker_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "model-router" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::model_router::run(&cwd, &rest);

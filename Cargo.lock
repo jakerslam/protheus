@@ -977,6 +977,7 @@ dependencies = [
  "exotic_wrapper",
  "foundation_hook_enforcer",
  "hex",
+ "hmac",
  "infring-layer1-security",
  "memmap2",
  "mimalloc",
