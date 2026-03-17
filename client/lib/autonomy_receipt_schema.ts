@@ -1,246 +1,79 @@
-type SuccessCriteriaRecord = {
-  required: boolean;
-  min_count: number;
-  total_count: number;
-  evaluated_count: number;
-  passed_count: number;
-  failed_count: number;
-  hard_failed_count: number;
-  unknown_count: number;
-  deferred_count: number;
-  deferred_pending: boolean;
-  pass_rate: number | null;
-  passed: boolean;
-  primary_failure: string | null;
-  checks: unknown[];
-  synthesized: boolean;
-};
+#!/usr/bin/env node
+'use strict';
 
-function shortText(v: unknown, maxLen = 200): string {
-  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
+
+const { createOpsLaneBridge } = require('../runtime/lib/rust_lane_bridge.ts');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'autonomy_receipt_schema', 'autonomy-receipt-schema-kernel');
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function normalizeReasonToken(v: unknown): string {
-  const raw = shortText(v, 180).toLowerCase();
-  if (!raw) return '';
-  const compact = raw.replace(/[^a-z0-9:_-]+/g, '_').replace(/^_+|_+$/g, '');
-  if (!compact) return '';
-
-  if (/\bgate_manual\b/.test(compact)) return 'route_gate_manual';
-  if (/\bgate_deny\b/.test(compact)) return 'route_gate_deny';
-  if (/\bnot_executable\b/.test(compact)) return 'route_not_executable';
-  if (/\bpreflight_executable\b/.test(compact)) return 'preflight_not_executable';
-  if (/\bpre_exec_criteria_gate\b/.test(compact)) return 'pre_exec_criteria_gate_failed';
-  if (/\bqueue_accept_logged\b/.test(compact)) return 'queue_accept_not_logged';
-  if (/\bdeferred_pending_window\b/.test(compact)) return 'deferred_pending_window';
-  if (/\bsuccess_criteria\b/.test(compact)) return 'success_criteria_failed';
-  if (/\bpostcheck_fail\b/.test(compact)) return 'postcheck_failed';
-  if (/\badapter_/.test(compact) && /\bunverified\b/.test(compact)) return 'actuation_unverified';
-  if (/\bactuation/.test(compact) && /\bexit_\d+\b/.test(compact)) return 'actuation_execution_failed';
-  if (/\broute/.test(compact) && /\bexit_\d+\b/.test(compact)) return 'route_execution_failed';
-  if (/\bexec_failed\b/.test(compact) || /\bcommand_failed\b/.test(compact)) return 'execution_failed';
-
-  return compact.slice(0, 80);
-}
-
-function normalizeReasonList(values: unknown[]): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const v of values || []) {
-    const token = normalizeReasonToken(v);
-    if (!token || seen.has(token)) continue;
-    seen.add(token);
-    out.push(token);
-  }
-  return out;
-}
-
-function clampCount(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  if (n < 0) return 0;
-  return n;
-}
-
-function toSuccessCriteriaRecord(criteria: unknown, fallback: Record<string, unknown> = {}): SuccessCriteriaRecord {
-  const src = criteria && typeof criteria === 'object' ? criteria as Record<string, unknown> : {};
-  const requiredFallback = fallback && fallback.required === true;
-  const minCountFallback = Number.isFinite(Number(fallback && fallback.min_count))
-    ? Math.max(0, Number(fallback.min_count))
-    : 0;
-  return {
-    required: src.required === true || requiredFallback,
-    min_count: Number.isFinite(Number(src.min_count)) ? Math.max(0, Number(src.min_count)) : minCountFallback,
-    total_count: clampCount(src.total_count),
-    evaluated_count: clampCount(src.evaluated_count),
-    passed_count: clampCount(src.passed_count),
-    failed_count: clampCount(src.failed_count),
-    hard_failed_count: clampCount(src.hard_failed_count != null ? src.hard_failed_count : src.failed_count),
-    unknown_count: clampCount(src.unknown_count),
-    deferred_count: clampCount(src.deferred_count),
-    deferred_pending: src.deferred_pending === true,
-    pass_rate: Number.isFinite(Number(src.pass_rate)) ? Number(src.pass_rate) : null,
-    passed: src.passed === true,
-    primary_failure: src.primary_failure ? String(src.primary_failure) : null,
-    checks: Array.isArray(src.checks) ? src.checks.slice(0, 12) : [],
-    synthesized: src.synthesized === true
-  };
-}
-
-function synthesizeSuccessCriteria({ required, minCount, checkPass }: { required?: boolean; minCount?: number; checkPass: boolean | null }): SuccessCriteriaRecord {
-  const resolvedRequired = required !== false;
-  const resolvedPass = checkPass === null
-    ? (resolvedRequired ? false : true)
-    : checkPass === true;
-  const evaluated = checkPass === null ? 0 : 1;
-  return {
-    required: resolvedRequired,
-    min_count: Number.isFinite(Number(minCount))
-      ? Math.max(0, Number(minCount))
-      : (resolvedRequired ? 1 : 0),
-    total_count: 0,
-    evaluated_count: evaluated,
-    passed_count: resolvedPass ? 1 : 0,
-    failed_count: resolvedPass ? 0 : 1,
-    hard_failed_count: resolvedPass ? 0 : 1,
-    unknown_count: evaluated === 0 ? 1 : 0,
-    deferred_count: 0,
-    deferred_pending: false,
-    pass_rate: evaluated > 0 ? (resolvedPass ? 1 : 0) : null,
-    passed: resolvedPass,
-    primary_failure: resolvedPass ? null : 'success_criteria_missing_in_receipt_pipeline',
-    checks: [],
-    synthesized: true
-  };
-}
-
-function withSuccessCriteriaVerification(baseVerification: Record<string, unknown>, successCriteria: unknown, options: Record<string, unknown> = {}) {
-  const base = baseVerification && typeof baseVerification === 'object'
-    ? { ...baseVerification }
-    : {};
-  const criteria = toSuccessCriteriaRecord(successCriteria, (options.fallback as Record<string, unknown>) || {});
-  const criteriaPass = criteria.required
-    ? (criteria.passed === true || criteria.deferred_pending === true)
-    : true;
-  const checks = Array.isArray(base.checks) ? base.checks.map((row) => ({ ...(row as Record<string, unknown>) })) : [];
-  const existingIdx = checks.findIndex((row) => row && row.name === 'success_criteria_met');
-  if (existingIdx >= 0) checks[existingIdx] = { name: 'success_criteria_met', pass: criteriaPass };
-  else checks.push({ name: 'success_criteria_met', pass: criteriaPass });
-  const failedSet = new Set(
-    (Array.isArray(base.failed) ? base.failed : [])
-      .map((name) => String(name || '').trim())
-      .filter(Boolean)
-  );
-  if (criteriaPass) failedSet.delete('success_criteria_met');
-  else failedSet.add('success_criteria_met');
-  const failed = Array.from(failedSet);
-  const passed = failed.length === 0;
-  let outcome = String(base.outcome || '').trim();
-  if (!outcome) outcome = passed ? 'shipped' : 'no_change';
-  if (!criteriaPass && options.enforceNoChangeOnFailure === true && outcome === 'shipped') {
-    outcome = 'no_change';
-  }
-  const primaryFailure = !criteriaPass
-    ? (criteria.primary_failure || String(base.primary_failure || 'success_criteria_failed'))
-    : (base.primary_failure || null);
-  return {
-    ...base,
-    checks,
-    failed,
-    passed,
-    outcome,
-    primary_failure: primaryFailure,
-    success_criteria: criteria
-  };
-}
-
-function normalizeAutonomyReceiptForWrite(receipt: unknown) {
-  const src = receipt && typeof receipt === 'object' ? { ...(receipt as Record<string, unknown>) } : {};
-  const intent = src.intent && typeof src.intent === 'object' ? src.intent as Record<string, unknown> : {};
-  const verificationSrc = src.verification && typeof src.verification === 'object'
-    ? src.verification as Record<string, unknown>
-    : {};
-
-  const checks = Array.isArray(verificationSrc.checks)
-    ? verificationSrc.checks
-      .map((row) => ({
-        name: shortText(String((row as Record<string, unknown>)?.name || ''), 80),
-        pass: (row as Record<string, unknown>)?.pass === true
-      }))
-      .filter((row) => row.name)
-    : [];
-  const failedSet = new Set(
-    (Array.isArray(verificationSrc.failed) ? verificationSrc.failed : [])
-      .map((name) => shortText(String(name || ''), 80))
-      .filter(Boolean)
-  );
-
-  const policy = intent.success_criteria_policy && typeof intent.success_criteria_policy === 'object'
-    ? intent.success_criteria_policy as Record<string, unknown>
-    : {};
-  const required = policy.required !== false;
-  const minCount = Number.isFinite(Number(policy.min_count))
-    ? Math.max(0, Number(policy.min_count))
-    : (required ? 1 : 0);
-  const successIdx = checks.findIndex((row) => row && row.name === 'success_criteria_met');
-  const successCheckPass = successIdx >= 0 ? checks[successIdx].pass === true : null;
-
-  const criteriaIn = verificationSrc.success_criteria && typeof verificationSrc.success_criteria === 'object'
-    ? verificationSrc.success_criteria
-    : null;
-  let criteria = criteriaIn
-    ? toSuccessCriteriaRecord(criteriaIn, { required, min_count: minCount })
-    : null;
-  if (!criteria) {
-    criteria = synthesizeSuccessCriteria({ required, minCount, checkPass: successCheckPass });
-  }
-
-  const criteriaPass = criteria.required
-    ? (criteria.passed === true || criteria.deferred_pending === true)
-    : true;
-  if (successIdx >= 0) checks[successIdx] = { name: 'success_criteria_met', pass: criteriaPass };
-  else checks.push({ name: 'success_criteria_met', pass: criteriaPass });
-
-  if (criteriaPass) failedSet.delete('success_criteria_met');
-  else failedSet.add('success_criteria_met');
-
-  const failed = Array.from(failedSet);
-  const primaryFailureRaw = !criteriaPass
-    ? shortText(String(criteria.primary_failure || verificationSrc.primary_failure || 'success_criteria_failed'), 180)
-    : (verificationSrc.primary_failure ? shortText(String(verificationSrc.primary_failure), 180) : null);
-  const reasonTaxonomy = normalizeReasonList([
-    ...failed,
-    primaryFailureRaw || ''
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
   ]);
-  const normalizedVerification = {
-    ...verificationSrc,
-    checks,
-    failed,
-    passed: failed.length === 0,
-    primary_failure: primaryFailureRaw,
-    primary_failure_taxonomy: reasonTaxonomy.length ? reasonTaxonomy[0] : null,
-    failed_reason_taxonomy: reasonTaxonomy,
-    success_criteria: criteria
-  };
-
-  return {
-    ...src,
-    verification: normalizedVerification
-  };
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `autonomy_receipt_schema_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `autonomy_receipt_schema_kernel_${command}_failed`);
+    return { ok: false, error: message || `autonomy_receipt_schema_kernel_${command}_failed` };
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `autonomy_receipt_schema_kernel_${command}_bridge_failed`
+      : `autonomy_receipt_schema_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
 }
 
-function successCriteriaFromReceipt(rec: unknown) {
-  const normalized = normalizeAutonomyReceiptForWrite(rec && typeof rec === 'object' ? rec : {});
-  const verification = normalized.verification && typeof normalized.verification === 'object'
-    ? normalized.verification as Record<string, unknown>
-    : {};
-  const criteria = verification.success_criteria && typeof verification.success_criteria === 'object'
-    ? verification.success_criteria
+function toSuccessCriteriaRecord(criteria, fallback = {}) {
+  const out = invoke('to-success-criteria-record', {
+    criteria,
+    fallback: fallback && typeof fallback === 'object' ? fallback : {}
+  });
+  return out.record && typeof out.record === 'object' ? out.record : null;
+}
+
+function withSuccessCriteriaVerification(baseVerification, successCriteria, options = {}) {
+  const out = invoke('with-success-criteria-verification', {
+    baseVerification: baseVerification && typeof baseVerification === 'object' ? baseVerification : {},
+    successCriteria,
+    options: options && typeof options === 'object' ? options : {}
+  });
+  return out.verification && typeof out.verification === 'object' ? out.verification : null;
+}
+
+function normalizeAutonomyReceiptForWrite(receipt) {
+  const out = invoke('normalize-receipt', {
+    receipt: receipt && typeof receipt === 'object' ? receipt : {}
+  });
+  return out.receipt && typeof out.receipt === 'object' ? out.receipt : null;
+}
+
+function successCriteriaFromReceipt(rec) {
+  const out = invoke('success-criteria-from-receipt', {
+    receipt: rec && typeof rec === 'object' ? rec : {}
+  });
+  return out.success_criteria && typeof out.success_criteria === 'object'
+    ? out.success_criteria
     : null;
-  return criteria ? { ...(criteria as Record<string, unknown>) } : null;
 }
 
-export {
+module.exports = {
   toSuccessCriteriaRecord,
   withSuccessCriteriaVerification,
   normalizeAutonomyReceiptForWrite,
