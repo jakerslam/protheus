@@ -42,6 +42,13 @@ function classifyPath(path) {
     return 'swarm_surface_churn';
   }
   if (
+    path === '.codex_worktrees/' ||
+    path.startsWith('.codex_worktrees/') ||
+    (!path.includes('/') && /^(cell|regional|swarm)[-_A-Za-z0-9]*\.(py|js|swarm)$/i.test(path))
+  ) {
+    return 'local_simulation_churn';
+  }
+  if (
     path === 'docs/workspace/TODO.md' ||
     path === 'docs/workspace/SRS.md' ||
     path === 'docs/workspace/UPGRADE_BACKLOG.md' ||

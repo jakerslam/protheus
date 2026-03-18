@@ -179,6 +179,7 @@ state/ops/cleanup/*.json
 state/ops/cleanup/*.jsonl
 
 # Local sibling/sidecar repos (kept separate from workspace repo)
+.codex_worktrees/
 agent-holo-viz/
 projects/
 pqts/
