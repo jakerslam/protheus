@@ -31,6 +31,16 @@ struct SwarmState {
     #[serde(default)]
     result_registry: BTreeMap<String, AgentResult>,
     #[serde(default)]
+    handoff_registry: BTreeMap<String, Value>,
+    #[serde(default)]
+    tool_registry: BTreeMap<String, Value>,
+    #[serde(default)]
+    stream_registry: BTreeMap<String, Vec<Value>>,
+    #[serde(default)]
+    turn_registry: BTreeMap<String, Value>,
+    #[serde(default)]
+    network_registry: BTreeMap<String, Value>,
+    #[serde(default)]
     results_by_session: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     results_by_label: BTreeMap<String, Vec<String>>,
@@ -57,6 +67,11 @@ impl Default for SwarmState {
             channels: BTreeMap::new(),
             service_registry: BTreeMap::new(),
             result_registry: BTreeMap::new(),
+            handoff_registry: BTreeMap::new(),
+            tool_registry: BTreeMap::new(),
+            stream_registry: BTreeMap::new(),
+            turn_registry: BTreeMap::new(),
+            network_registry: BTreeMap::new(),
             results_by_session: BTreeMap::new(),
             results_by_label: BTreeMap::new(),
             results_by_role: BTreeMap::new(),
@@ -94,8 +109,24 @@ struct SessionMetadata {
     budget_action_taken: Option<String>,
     #[serde(default)]
     role: Option<String>,
+    #[serde(default)]
+    agent_label: Option<String>,
     #[serde(default = "default_session_tool_access")]
     tool_access: Vec<String>,
+    #[serde(default)]
+    context_vars: BTreeMap<String, Value>,
+    #[serde(default)]
+    context_mode: Option<String>,
+    #[serde(default)]
+    handoff_ids: Vec<String>,
+    #[serde(default)]
+    registered_tool_ids: Vec<String>,
+    #[serde(default)]
+    stream_turn_ids: Vec<String>,
+    #[serde(default)]
+    turn_run_ids: Vec<String>,
+    #[serde(default)]
+    network_ids: Vec<String>,
     #[serde(default)]
     check_ins: Vec<Value>,
     #[serde(default)]
@@ -120,9 +151,20 @@ fn default_session_tool_access() -> Vec<String> {
         "sessions_send".to_string(),
         "sessions_receive".to_string(),
         "sessions_ack".to_string(),
+        "sessions_handoff".to_string(),
+        "sessions_context_put".to_string(),
+        "sessions_context_get".to_string(),
         "sessions_query".to_string(),
         "sessions_state".to_string(),
         "sessions_tick".to_string(),
+        "tools_register_json_schema".to_string(),
+        "tools_invoke".to_string(),
+        "stream_emit".to_string(),
+        "stream_render".to_string(),
+        "turns_run".to_string(),
+        "turns_show".to_string(),
+        "networks_create".to_string(),
+        "networks_status".to_string(),
     ]
 }
 
@@ -683,6 +725,9 @@ fn usage() {
     println!("  protheus-ops swarm-runtime sessions metrics --session-id=<id> [--timeline=1|0] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions state --session-id=<id> [--timeline=1|0] [--tool-history-limit=<n>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions bootstrap --session-id=<id> [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime sessions handoff --session-id=<sender> --target-session-id=<recipient> --reason=<text> [--importance=<0..1>] [--context-json=<json>] [--network-id=<id>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime sessions context-put --session-id=<id> --context-json=<json> [--merge=1|0] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime sessions context-get --session-id=<id> [--state-path=<path>]");
     println!(
         "  protheus-ops swarm-runtime sessions anomalies --session-id=<id> [--state-path=<path>]"
     );
@@ -702,6 +747,14 @@ fn usage() {
     println!(
         "  protheus-ops swarm-runtime results <publish|query|wait|show|consensus|outliers> [flags]"
     );
+    println!("  protheus-ops swarm-runtime tools register-json-schema --session-id=<id> --tool-name=<name> --schema-json=<json> --bridge-path=<path> --entrypoint=<name> [--description=<text>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime tools invoke --session-id=<id> --tool-name=<name> [--args-json=<json>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime stream emit --session-id=<id> [--turn-id=<id>] [--agent-label=<label>] --chunks-json=<json> [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime stream render --session-id=<id> [--turn-id=<id>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime turns run --session-id=<id> --turns-json=<json> [--label=<text>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime turns show --session-id=<id> --run-id=<id> [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime networks create [--session-id=<owner>] --spec-json=<json> [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime networks status --network-id=<id> [--session-id=<owner>] [--state-path=<path>]");
     println!(
         "  protheus-ops swarm-runtime metrics queue [--format=<json|prometheus>] [--state-path=<path>]"
     );
@@ -755,6 +808,66 @@ fn parse_f64_flag(argv: &[String], key: &str, fallback: f64) -> f64 {
     parse_flag(argv, key)
         .and_then(|v| v.trim().parse::<f64>().ok())
         .unwrap_or(fallback)
+}
+
+fn parse_json_flag(argv: &[String], key: &str) -> Option<Value> {
+    parse_flag(argv, key).and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+}
+
+fn clean_text(raw: &str, max_len: usize) -> String {
+    raw.trim().chars().take(max_len).collect()
+}
+
+fn json_size_bytes(value: &Value) -> usize {
+    serde_json::to_vec(value).map(|row| row.len()).unwrap_or(0)
+}
+
+fn compact_context_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(clean_text(text, 160)),
+        Value::Array(rows) => Value::Array(
+            rows.iter()
+                .take(8)
+                .map(compact_context_value)
+                .collect::<Vec<_>>(),
+        ),
+        Value::Object(map) => {
+            let mut out = Map::new();
+            for (key, value) in map.iter().take(12) {
+                out.insert(clean_text(key, 64), compact_context_value(value));
+            }
+            Value::Object(out)
+        }
+        _ => value.clone(),
+    }
+}
+
+fn normalize_context_map(input: Value) -> Map<String, Value> {
+    match input {
+        Value::Object(map) => map,
+        other => {
+            let mut out = Map::new();
+            out.insert("value".to_string(), other);
+            out
+        }
+    }
+}
+
+fn safe_registry_slug(raw: &str, max_len: usize) -> String {
+    let mut out = String::new();
+    for ch in raw.trim().chars() {
+        if out.len() >= max_len {
+            break;
+        }
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+        } else if matches!(ch, '-' | '_' | '.' | ':') {
+            out.push(ch);
+        } else if ch.is_whitespace() && !out.ends_with('_') {
+            out.push('_');
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 fn state_path(root: &Path, argv: &[String]) -> PathBuf {
@@ -870,9 +983,20 @@ fn session_transport_contract(session_id: &str) -> Value {
         "sessions_send": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_send --sender={session_key} --sessionKey=<target> --message=<text>"),
         "sessions_receive": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_receive --sessionKey={session_key}"),
         "sessions_ack": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_ack --sessionKey={session_key} --message-id=<id>"),
+        "sessions_handoff": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_handoff --sessionKey={session_key} --targetSessionKey=<target> --reason=<text>"),
+        "sessions_context_put": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_context_put --sessionKey={session_key} --context-json=<json>"),
+        "sessions_context_get": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_context_get --sessionKey={session_key}"),
         "sessions_state": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_state --sessionKey={session_key}"),
         "sessions_bootstrap": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_bootstrap --sessionKey={session_key}"),
         "sessions_tick": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts sessions_tick".to_string(),
+        "tools_register_json_schema": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts tools_register_json_schema --sessionKey={session_key} --toolName=<name> --schema-json=<json> --bridgePath=<path> --entrypoint=<name>"),
+        "tools_invoke": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts tools_invoke --sessionKey={session_key} --toolName=<name> --args-json=<json>"),
+        "stream_emit": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts stream_emit --sessionKey={session_key} --agentLabel=<label> --chunks-json=<json>"),
+        "stream_render": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts stream_render --sessionKey={session_key}"),
+        "turns_run": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts turns_run --sessionKey={session_key} --turns-json=<json>"),
+        "turns_show": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts turns_show --sessionKey={session_key} --runId=<id>"),
+        "networks_create": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts networks_create --sessionKey={session_key} --spec-json=<json>"),
+        "networks_status": format!("node client/runtime/systems/autonomy/swarm_sessions_bridge.ts networks_status --sessionKey={session_key} --networkId=<id>"),
     })
 }
 
@@ -964,6 +1088,9 @@ fn session_tool_manifest(state: &SwarmState, session: &SessionMetadata) -> Value
         "role": session.role.clone(),
         "capabilities": session_capabilities(state, session_id),
         "transport": session_transport_contract(session_id),
+        "handoff_registry_size": state.handoff_registry.len(),
+        "tool_registry_size": state.tool_registry.len(),
+        "network_registry_size": state.network_registry.len(),
         "resumption": {
             "persistent": session.persistent.is_some(),
             "resume_command": format!("protheus-ops swarm-runtime sessions resume --session-id={session_id}"),
@@ -1286,6 +1413,30 @@ fn detect_anomalies(timeline: &[MetricsSnapshot]) -> Vec<String> {
     out
 }
 
+fn default_spawn_options() -> SpawnOptions {
+    SpawnOptions {
+        verify: false,
+        timeout_ms: 30_000,
+        metrics_detailed: false,
+        simulate_unreachable: false,
+        byzantine: false,
+        corruption_type: "data_falsification".to_string(),
+        token_budget: None,
+        token_warning_threshold: 0.8,
+        budget_exhaustion_action: BudgetAction::FailHard,
+        adaptive_complexity: false,
+        execution_mode: ExecutionMode::TaskOriented,
+        role: None,
+        capabilities: Vec::new(),
+        auto_publish_results: false,
+        agent_label: None,
+        result_value: None,
+        result_text: None,
+        result_confidence: 1.0,
+        verification_status: "not_verified".to_string(),
+    }
+}
+
 fn build_spawn_options(argv: &[String]) -> SpawnOptions {
     let metrics_detailed = parse_flag(argv, "metrics")
         .map(|value| value.eq_ignore_ascii_case("detailed"))
@@ -1298,33 +1449,34 @@ fn build_spawn_options(argv: &[String]) -> SpawnOptions {
     .filter(|value| *value > 0);
     let token_warning_threshold =
         parse_f64_flag(argv, "token-warning-at", 0.8).clamp(0.0, 1.0) as f32;
-    SpawnOptions {
-        verify: parse_bool_flag(argv, "verify", false),
-        timeout_ms: (parse_f64_flag(argv, "timeout-sec", 30.0).max(0.0) * 1000.0) as u64,
-        metrics_detailed,
-        simulate_unreachable: parse_bool_flag(argv, "simulate-unreachable", false),
-        byzantine: parse_bool_flag(argv, "byzantine", false),
-        corruption_type: parse_flag(argv, "corruption-type")
-            .unwrap_or_else(|| "data_falsification".to_string()),
-        token_budget,
-        token_warning_threshold,
-        budget_exhaustion_action: BudgetAction::from_flag(parse_flag(argv, "on-budget-exhausted")),
-        adaptive_complexity: parse_bool_flag(argv, "adaptive-complexity", false),
-        execution_mode: parse_execution_mode(argv),
-        role: parse_flag(argv, "role"),
-        capabilities: parse_capabilities(argv),
-        auto_publish_results: parse_bool_flag(argv, "auto-publish-results", false),
-        agent_label: parse_flag(argv, "agent-label")
-            .or_else(|| parse_flag(argv, "label"))
-            .filter(|value| !value.trim().is_empty()),
-        result_value: parse_flag(argv, "result-value")
-            .and_then(|value| value.trim().parse::<f64>().ok()),
-        result_text: parse_flag(argv, "result-text").filter(|value| !value.trim().is_empty()),
-        result_confidence: parse_f64_flag(argv, "result-confidence", 1.0).clamp(0.0, 1.0),
-        verification_status: parse_flag(argv, "verification-status")
-            .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| "not_verified".to_string()),
-    }
+    let mut options = default_spawn_options();
+    options.verify = parse_bool_flag(argv, "verify", false);
+    options.timeout_ms = (parse_f64_flag(argv, "timeout-sec", 30.0).max(0.0) * 1000.0) as u64;
+    options.metrics_detailed = metrics_detailed;
+    options.simulate_unreachable = parse_bool_flag(argv, "simulate-unreachable", false);
+    options.byzantine = parse_bool_flag(argv, "byzantine", false);
+    options.corruption_type = parse_flag(argv, "corruption-type")
+        .unwrap_or_else(|| "data_falsification".to_string());
+    options.token_budget = token_budget;
+    options.token_warning_threshold = token_warning_threshold;
+    options.budget_exhaustion_action =
+        BudgetAction::from_flag(parse_flag(argv, "on-budget-exhausted"));
+    options.adaptive_complexity = parse_bool_flag(argv, "adaptive-complexity", false);
+    options.execution_mode = parse_execution_mode(argv);
+    options.role = parse_flag(argv, "role");
+    options.capabilities = parse_capabilities(argv);
+    options.auto_publish_results = parse_bool_flag(argv, "auto-publish-results", false);
+    options.agent_label = parse_flag(argv, "agent-label")
+        .or_else(|| parse_flag(argv, "label"))
+        .filter(|value| !value.trim().is_empty());
+    options.result_value = parse_flag(argv, "result-value")
+        .and_then(|value| value.trim().parse::<f64>().ok());
+    options.result_text = parse_flag(argv, "result-text").filter(|value| !value.trim().is_empty());
+    options.result_confidence = parse_f64_flag(argv, "result-confidence", 1.0).clamp(0.0, 1.0);
+    options.verification_status = parse_flag(argv, "verification-status")
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "not_verified".to_string());
+    options
 }
 
 fn parse_capabilities(argv: &[String]) -> Vec<String> {
@@ -1700,6 +1852,992 @@ fn send_to_role(
         false,
         DEFAULT_MESSAGE_TTL_MS,
     )
+}
+
+fn session_context_json(session: &SessionMetadata) -> Value {
+    Value::Object(
+        session
+            .context_vars
+            .clone()
+            .into_iter()
+            .collect::<Map<String, Value>>(),
+    )
+}
+
+fn apply_context_update(
+    session: &mut SessionMetadata,
+    context: Value,
+    merge: bool,
+    source: &str,
+) -> Result<Value, String> {
+    let normalized = Value::Object(normalize_context_map(context));
+    let initial_size = json_size_bytes(&normalized);
+    let max_bytes = session
+        .budget_telemetry
+        .as_ref()
+        .map(|telemetry| ((telemetry.remaining_tokens().max(16) as usize) * 24).clamp(256, 4096))
+        .unwrap_or(2048);
+    let mut degraded_mode: Option<&'static str> = None;
+    let effective = if initial_size > max_bytes {
+        degraded_mode = Some("context_compacted");
+        compact_context_value(&normalized)
+    } else {
+        normalized
+    };
+    let effective_size = json_size_bytes(&effective);
+    let requested_tokens = u32::try_from(((effective_size as f64) / 32.0).ceil() as u64)
+        .unwrap_or(u32::MAX)
+        .max(1);
+
+    if let Some(telemetry) = session.budget_telemetry.as_mut() {
+        match telemetry.record_tool_usage("context_propagation", requested_tokens) {
+            BudgetUsageOutcome::Ok => {}
+            BudgetUsageOutcome::Warning(event) => session.check_ins.push(event),
+            BudgetUsageOutcome::ExhaustedAllowed { event, action } => {
+                session.check_ins.push(event);
+                session.budget_action_taken = Some(action);
+            }
+            BudgetUsageOutcome::ExceededDenied(reason) => return Err(reason),
+        }
+    }
+
+    let effective_map = normalize_context_map(effective.clone());
+    if !merge {
+        session.context_vars.clear();
+    }
+    for (key, value) in effective_map {
+        session.context_vars.insert(clean_text(&key, 64), value);
+    }
+    session.context_mode = Some(
+        degraded_mode
+            .unwrap_or("full")
+            .to_string(),
+    );
+
+    let receipt = json!({
+        "source": source,
+        "merge": merge,
+        "degraded_mode": degraded_mode,
+        "applied_keys": session.context_vars.keys().cloned().collect::<Vec<_>>(),
+        "context": session_context_json(session),
+        "requested_tokens": requested_tokens,
+    });
+    session.check_ins.push(json!({
+        "type": "swarm_context_update",
+        "source": source,
+        "merge": merge,
+        "degraded_mode": degraded_mode,
+        "timestamp": now_iso(),
+    }));
+    Ok(receipt)
+}
+
+fn session_lineage(state: &SwarmState, session_id: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cursor = Some(session_id.to_string());
+    let mut seen = BTreeMap::<String, bool>::new();
+    while let Some(current) = cursor {
+        if seen.insert(current.clone(), true).is_some() {
+            break;
+        }
+        out.push(current.clone());
+        cursor = state
+            .sessions
+            .get(&current)
+            .and_then(|session| session.parent_id.clone());
+    }
+    out.reverse();
+    out
+}
+
+fn register_handoff(
+    state: &mut SwarmState,
+    sender_session_id: &str,
+    recipient_session_id: &str,
+    reason: &str,
+    importance: f64,
+    context_override: Option<Value>,
+    network_id: Option<String>,
+) -> Result<Value, String> {
+    if !session_exists(state, sender_session_id) {
+        return Err(format!("unknown_sender_session:{sender_session_id}"));
+    }
+    if !session_exists(state, recipient_session_id) {
+        return Err(format!("unknown_recipient_session:{recipient_session_id}"));
+    }
+    if !(0.0..=1.0).contains(&importance) {
+        return Err(format!("invalid_importance:{importance}"));
+    }
+
+    let sender_context = state
+        .sessions
+        .get(sender_session_id)
+        .map(session_context_json)
+        .unwrap_or(Value::Object(Map::new()));
+    let sender_lineage = session_lineage(state, sender_session_id);
+    let recipient_lineage = session_lineage(state, recipient_session_id);
+    let effective_context = context_override.unwrap_or(sender_context);
+    let context_receipt = {
+        let recipient = state
+            .sessions
+            .get_mut(recipient_session_id)
+            .ok_or_else(|| format!("unknown_recipient_session:{recipient_session_id}"))?;
+        apply_context_update(recipient, effective_context, true, "handoff")?
+    };
+    let handoff_message = json!({
+        "kind": "handoff",
+        "from": sender_session_id,
+        "to": recipient_session_id,
+        "reason": clean_text(reason, 240),
+        "importance": importance,
+        "network_id": network_id,
+    });
+    let message_result = send_session_message(
+        state,
+        sender_session_id,
+        recipient_session_id,
+        &handoff_message.to_string(),
+        DeliveryGuarantee::AtLeastOnce,
+        false,
+        DEFAULT_MESSAGE_TTL_MS,
+    )?;
+    let handoff_id = format!(
+        "handoff-{}",
+        &deterministic_receipt_hash(&json!({
+            "sender": sender_session_id,
+            "recipient": recipient_session_id,
+            "reason": reason,
+            "importance": importance,
+            "ts": now_epoch_ms(),
+        }))[..12]
+    );
+    let receipt = json!({
+        "handoff_id": handoff_id,
+        "sender_session_id": sender_session_id,
+        "recipient_session_id": recipient_session_id,
+        "reason": clean_text(reason, 240),
+        "importance": importance,
+        "lineage": {
+            "sender": sender_lineage,
+            "recipient": recipient_lineage,
+        },
+        "context_receipt": context_receipt,
+        "message": message_result,
+        "network_id": network_id,
+        "created_at": now_iso(),
+    });
+    state
+        .handoff_registry
+        .insert(handoff_id.clone(), receipt.clone());
+    if let Some(sender) = state.sessions.get_mut(sender_session_id) {
+        if !sender.handoff_ids.iter().any(|row| row == &handoff_id) {
+            sender.handoff_ids.push(handoff_id.clone());
+        }
+    }
+    if let Some(recipient) = state.sessions.get_mut(recipient_session_id) {
+        if !recipient.handoff_ids.iter().any(|row| row == &handoff_id) {
+            recipient.handoff_ids.push(handoff_id.clone());
+        }
+    }
+    append_event(
+        state,
+        json!({
+            "type": "swarm_handoff",
+            "handoff_id": handoff_id,
+            "sender_session_id": sender_session_id,
+            "recipient_session_id": recipient_session_id,
+            "reason": clean_text(reason, 240),
+            "importance": importance,
+            "timestamp": now_iso(),
+        }),
+    );
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_session_handoff",
+        "handoff": receipt,
+    }))
+}
+
+fn safe_tool_bridge_path(raw: &str) -> Result<String, String> {
+    let normalized = clean_text(raw, 260).replace('\\', "/");
+    if normalized.is_empty() {
+        return Err("tool_bridge_path_required".to_string());
+    }
+    if normalized.starts_with('/') || normalized.contains("..") {
+        return Err(format!("unsafe_tool_bridge:{normalized}"));
+    }
+    if normalized == "client/runtime/systems/autonomy/swarm_sessions_bridge.ts"
+        || normalized.starts_with("adapters/")
+    {
+        Ok(normalized)
+    } else {
+        Err(format!("unsupported_tool_bridge:{normalized}"))
+    }
+}
+
+fn tool_manifest_storage_key(session_id: &str, tool_name: &str) -> String {
+    format!("{session_id}:{}", safe_registry_slug(tool_name, 80))
+}
+
+fn register_json_schema_tool(
+    state: &mut SwarmState,
+    session_id: &str,
+    tool_name: &str,
+    schema: Value,
+    bridge_path: &str,
+    entrypoint: &str,
+    description: Option<String>,
+) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    if !matches!(schema, Value::Object(_)) {
+        return Err("tool_schema_object_required".to_string());
+    }
+    let safe_path = safe_tool_bridge_path(bridge_path)?;
+    let tool_name = clean_text(tool_name, 120);
+    if tool_name.is_empty() {
+        return Err("tool_name_required".to_string());
+    }
+    let entrypoint = clean_text(entrypoint, 120);
+    if entrypoint.is_empty() {
+        return Err("tool_entrypoint_required".to_string());
+    }
+    let manifest_id = format!(
+        "tool-{}",
+        &deterministic_receipt_hash(&json!({
+            "session_id": session_id,
+            "tool_name": tool_name,
+            "entrypoint": entrypoint,
+            "bridge_path": safe_path,
+        }))[..12]
+    );
+    let manifest = json!({
+        "manifest_id": manifest_id,
+        "session_id": session_id,
+        "tool_name": tool_name,
+        "entrypoint": entrypoint,
+        "bridge_path": safe_path,
+        "schema": schema,
+        "description": description,
+        "registered_at": now_iso(),
+        "invocation_count": 0u64,
+        "policy": {
+            "fail_closed": true,
+            "unsafe_bridge_denied": true,
+        }
+    });
+    state
+        .tool_registry
+        .insert(tool_manifest_storage_key(session_id, &tool_name), manifest.clone());
+    if let Some(session) = state.sessions.get_mut(session_id) {
+        if !session
+            .registered_tool_ids
+            .iter()
+            .any(|row| row == &manifest_id)
+        {
+            session.registered_tool_ids.push(manifest_id.clone());
+        }
+    }
+    append_event(
+        state,
+        json!({
+            "type": "swarm_tool_registered",
+            "manifest_id": manifest_id,
+            "session_id": session_id,
+            "tool_name": tool_name,
+            "entrypoint": entrypoint,
+            "bridge_path": bridge_path,
+            "timestamp": now_iso(),
+        }),
+    );
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_tool_register",
+        "tool_manifest": manifest,
+    }))
+}
+
+fn invoke_registered_tool(
+    state: &mut SwarmState,
+    session_id: &str,
+    tool_name: &str,
+    args: Value,
+) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    let key = tool_manifest_storage_key(session_id, tool_name);
+    let manifest = state
+        .tool_registry
+        .get(&key)
+        .cloned()
+        .ok_or_else(|| format!("unknown_tool_manifest:{tool_name}"))?;
+    let bridge_path = manifest
+        .get("bridge_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let entrypoint = manifest
+        .get("entrypoint")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let safe_path = safe_tool_bridge_path(bridge_path)?;
+    if safe_path != "client/runtime/systems/autonomy/swarm_sessions_bridge.ts" {
+        return Err(format!("unsupported_tool_bridge:{safe_path}"));
+    }
+
+    let args_obj = match args {
+        Value::Object(map) => map,
+        other => normalize_context_map(other),
+    };
+    let result = match entrypoint {
+        "sessions_send" => {
+            let target = args_obj
+                .get("target_session_id")
+                .or_else(|| args_obj.get("session_id"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| "tool_target_session_id_required".to_string())?;
+            let message = args_obj
+                .get("message")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "tool_message_required".to_string())?;
+            send_session_message(
+                state,
+                session_id,
+                target,
+                message,
+                DeliveryGuarantee::AtLeastOnce,
+                false,
+                DEFAULT_MESSAGE_TTL_MS,
+            )?
+        }
+        "sessions_state" => {
+            let target = args_obj
+                .get("target_session_id")
+                .or_else(|| args_obj.get("session_id"))
+                .and_then(Value::as_str)
+                .unwrap_or(session_id);
+            sessions_state(state, target, false, 16)?
+        }
+        "sessions_handoff" => {
+            let target = args_obj
+                .get("target_session_id")
+                .or_else(|| args_obj.get("session_id"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| "tool_target_session_id_required".to_string())?;
+            let reason = args_obj
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("tool_handoff");
+            let importance = args_obj
+                .get("importance")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.5);
+            let context = args_obj.get("context").cloned();
+            register_handoff(
+                state,
+                session_id,
+                target,
+                reason,
+                importance,
+                context,
+                None,
+            )?
+        }
+        "sessions_context_put" => {
+            let context = args_obj
+                .get("context")
+                .cloned()
+                .or_else(|| args_obj.get("context_json").cloned())
+                .unwrap_or_else(|| Value::Object(Map::new()));
+            let merge = args_obj.get("merge").and_then(Value::as_bool).unwrap_or(true);
+            let session = state
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| format!("unknown_session:{session_id}"))?;
+            let receipt = apply_context_update(session, context, merge, "tool_invoke")?;
+            json!({
+                "ok": true,
+                "type": "swarm_runtime_context_put",
+                "session_id": session_id,
+                "receipt": receipt,
+            })
+        }
+        _ => return Err(format!("unsupported_tool_entrypoint:{entrypoint}")),
+    };
+
+    if let Some(updated) = state.tool_registry.get_mut(&key) {
+        let count = updated
+            .get("invocation_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            .saturating_add(1);
+        updated["invocation_count"] = json!(count);
+        updated["last_invoked_at"] = json!(now_iso());
+    }
+    append_event(
+        state,
+        json!({
+            "type": "swarm_tool_invoked",
+            "session_id": session_id,
+            "tool_name": tool_name,
+            "entrypoint": entrypoint,
+            "timestamp": now_iso(),
+        }),
+    );
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_tool_invoke",
+        "session_id": session_id,
+        "tool_name": tool_name,
+        "entrypoint": entrypoint,
+        "result": result,
+    }))
+}
+
+fn render_stream_chunks(chunks: &[Value]) -> String {
+    chunks
+        .iter()
+        .map(|row| {
+            let agent = row
+                .get("agent_label")
+                .and_then(Value::as_str)
+                .unwrap_or("agent");
+            let delimiter = row
+                .get("delimiter")
+                .and_then(Value::as_str)
+                .unwrap_or("agent_delta");
+            let content = row
+                .get("content")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            format!("<agent:{agent}:{delimiter}>{content}")
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn stream_emit(
+    state: &mut SwarmState,
+    session_id: &str,
+    turn_id: Option<String>,
+    agent_label: Option<String>,
+    chunks: Vec<Value>,
+) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    if chunks.is_empty() {
+        return Err("stream_chunks_required".to_string());
+    }
+    let turn_id = turn_id.unwrap_or_else(|| {
+        format!(
+            "turn-{}",
+            &deterministic_receipt_hash(&json!({
+                "session_id": session_id,
+                "ts": now_epoch_ms(),
+                "kind": "stream",
+            }))[..12]
+        )
+    });
+    let label = agent_label
+        .or_else(|| {
+            state
+                .sessions
+                .get(session_id)
+                .and_then(|session| session.agent_label.clone().or(session.role.clone()))
+        })
+        .unwrap_or_else(|| session_id.to_string());
+    let key = format!("{session_id}:{turn_id}");
+    let mut emitted = Vec::new();
+    let total = chunks.len();
+    for (idx, chunk) in chunks.into_iter().enumerate() {
+        let raw = match chunk {
+            Value::Object(map) => Value::Object(map),
+            other => json!({ "content": other }),
+        };
+        let delimiter = raw
+            .get("delimiter")
+            .or_else(|| raw.get("boundary"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string)
+            .unwrap_or_else(|| {
+                if idx == 0 {
+                    "agent_start".to_string()
+                } else if idx + 1 == total {
+                    "agent_end".to_string()
+                } else {
+                    "agent_delta".to_string()
+                }
+            });
+        let content = raw
+            .get("content")
+            .or_else(|| raw.get("text"))
+            .map(|value| match value {
+                Value::String(text) => text.clone(),
+                other => other.to_string(),
+            })
+            .unwrap_or_default();
+        let chunk_receipt = json!({
+            "chunk_id": format!("chunk-{}", &deterministic_receipt_hash(&json!({
+                "session_id": session_id,
+                "turn_id": turn_id,
+                "idx": idx,
+                "content": content,
+            }))[..12]),
+            "session_id": session_id,
+            "turn_id": turn_id,
+            "agent_label": label,
+            "delimiter": delimiter,
+            "content": content,
+            "partial": idx + 1 != total,
+            "sequence": idx,
+            "timestamp_ms": now_epoch_ms(),
+        });
+        emitted.push(chunk_receipt.clone());
+        state
+            .stream_registry
+            .entry(key.clone())
+            .or_default()
+            .push(chunk_receipt.clone());
+        append_event(
+            state,
+            json!({
+                "type": "swarm_stream_chunk",
+                "session_id": session_id,
+                "turn_id": turn_id,
+                "agent_label": label,
+                "delimiter": chunk_receipt.get("delimiter").cloned().unwrap_or(Value::Null),
+                "timestamp": now_iso(),
+            }),
+        );
+    }
+    if let Some(session) = state.sessions.get_mut(session_id) {
+        if !session.stream_turn_ids.iter().any(|row| row == &turn_id) {
+            session.stream_turn_ids.push(turn_id.clone());
+        }
+    }
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_stream_emit",
+        "session_id": session_id,
+        "turn_id": turn_id,
+        "chunk_count": emitted.len(),
+        "chunks": emitted,
+        "rendered": render_stream_chunks(state.stream_registry.get(&key).map(|rows| rows.as_slice()).unwrap_or(&[])),
+    }))
+}
+
+fn stream_render(
+    state: &SwarmState,
+    session_id: &str,
+    turn_id: Option<&str>,
+) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    let mut rows = Vec::new();
+    for (key, chunks) in &state.stream_registry {
+        if !key.starts_with(&format!("{session_id}:")) {
+            continue;
+        }
+        if let Some(expected_turn) = turn_id {
+            if !key.ends_with(&format!(":{expected_turn}")) {
+                continue;
+            }
+        }
+        rows.extend(chunks.clone());
+    }
+    rows.sort_by_key(|row| row.get("sequence").and_then(Value::as_u64).unwrap_or(0));
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_stream_render",
+        "session_id": session_id,
+        "turn_id": turn_id,
+        "chunk_count": rows.len(),
+        "chunks": rows.clone(),
+        "rendered": render_stream_chunks(&rows),
+    }))
+}
+
+fn execute_turns(
+    state: &mut SwarmState,
+    session_id: &str,
+    turns: Vec<Value>,
+    run_label: Option<String>,
+) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    if turns.is_empty() {
+        return Err("turns_required".to_string());
+    }
+    let run_id = format!(
+        "run-{}",
+        &deterministic_receipt_hash(&json!({
+            "session_id": session_id,
+            "run_label": run_label,
+            "turn_count": turns.len(),
+            "ts": now_epoch_ms(),
+        }))[..12]
+    );
+    let mut receipts = Vec::new();
+    let mut failed = false;
+    for (idx, turn) in turns.into_iter().enumerate() {
+        let raw = match turn {
+            Value::Object(map) => Value::Object(map),
+            other => json!({ "message": other }),
+        };
+        let message = raw
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let tool_name = raw
+            .get("tool_name")
+            .or_else(|| raw.get("tool"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        let recovery = raw
+            .get("recovery")
+            .and_then(Value::as_str)
+            .unwrap_or("fail_closed")
+            .to_string();
+        let fail_first_attempt = raw
+            .get("fail_first_attempt")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let mut recovery_action: Option<String> = None;
+        if let Some(context_patch) = raw
+            .get("context_patch")
+            .or_else(|| raw.get("context"))
+            .cloned()
+        {
+            let session = state
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| format!("unknown_session:{session_id}"))?;
+            let _ = apply_context_update(session, context_patch, true, "turn_run")?;
+        }
+        if fail_first_attempt {
+            let error_receipt = json!({
+                "turn_index": idx,
+                "status": "error",
+                "error": "simulated_transient_error",
+                "attempt": 1,
+                "message": message,
+            });
+            receipts.push(error_receipt);
+            if recovery == "retry_once" {
+                recovery_action = Some("retry_once".to_string());
+            } else {
+                failed = true;
+                break;
+            }
+        }
+        let result = if let Some(tool_name) = tool_name.clone() {
+            let args = raw
+                .get("tool_args")
+                .cloned()
+                .unwrap_or_else(|| Value::Object(Map::new()));
+            invoke_registered_tool(state, session_id, &tool_name, args)?
+        } else {
+            json!({
+                "ok": true,
+                "type": "swarm_runtime_turn_message",
+                "session_id": session_id,
+                "message": message,
+            })
+        };
+        let emit_stream = raw
+            .get("emit_stream")
+            .and_then(Value::as_bool)
+            .unwrap_or(!message.is_empty());
+        let stream_receipt = if emit_stream {
+            Some(stream_emit(
+                state,
+                session_id,
+                Some(format!("{run_id}-turn-{}", idx + 1)),
+                None,
+                vec![
+                    json!({ "delimiter": "agent_start", "content": format!("turn:{}:", idx + 1) }),
+                    json!({ "delimiter": "agent_delta", "content": if message.is_empty() { tool_name.clone().unwrap_or_else(|| "tool".to_string()) } else { message.clone() } }),
+                    json!({ "delimiter": "agent_end", "content": "" }),
+                ],
+            )?)
+        } else {
+            None
+        };
+        receipts.push(json!({
+            "turn_index": idx,
+            "status": "ok",
+            "message": message,
+            "tool_name": tool_name,
+            "recovery_action": recovery_action,
+            "result": result,
+            "stream": stream_receipt,
+        }));
+    }
+    let run_receipt = json!({
+        "run_id": run_id,
+        "session_id": session_id,
+        "label": run_label,
+        "status": if failed { "failed" } else { "completed" },
+        "turns": receipts,
+        "completed_at": now_iso(),
+    });
+    state.turn_registry.insert(run_id.clone(), run_receipt.clone());
+    if let Some(session) = state.sessions.get_mut(session_id) {
+        if !session.turn_run_ids.iter().any(|row| row == &run_id) {
+            session.turn_run_ids.push(run_id.clone());
+        }
+    }
+    append_event(
+        state,
+        json!({
+            "type": "swarm_turn_run",
+            "run_id": run_id,
+            "session_id": session_id,
+            "status": if failed { "failed" } else { "completed" },
+            "timestamp": now_iso(),
+        }),
+    );
+    Ok(json!({
+        "ok": !failed,
+        "type": "swarm_runtime_turn_run",
+        "run": run_receipt,
+    }))
+}
+
+fn show_turn_run(state: &SwarmState, session_id: &str, run_id: &str) -> Result<Value, String> {
+    if !session_exists(state, session_id) {
+        return Err(format!("unknown_session:{session_id}"));
+    }
+    let run = state
+        .turn_registry
+        .get(run_id)
+        .cloned()
+        .ok_or_else(|| format!("unknown_turn_run:{run_id}"))?;
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_turn_show",
+        "session_id": session_id,
+        "run": run,
+    }))
+}
+
+fn create_agent_network(
+    state: &mut SwarmState,
+    owner_session_id: Option<&str>,
+    spec: Value,
+) -> Result<Value, String> {
+    let spec_obj = match spec {
+        Value::Object(map) => map,
+        _ => return Err("network_spec_object_required".to_string()),
+    };
+    let name = spec_obj
+        .get("name")
+        .and_then(Value::as_str)
+        .map(|value| clean_text(value, 120))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "swarm-network".to_string());
+    let nodes = spec_obj
+        .get("nodes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if nodes.is_empty() {
+        return Err("network_nodes_required".to_string());
+    }
+    let network_id = format!(
+        "net-{}",
+        &deterministic_receipt_hash(&json!({
+            "name": name,
+            "node_count": nodes.len(),
+            "ts": now_epoch_ms(),
+        }))[..12]
+    );
+    let mut node_rows = Vec::new();
+    let mut label_to_session = BTreeMap::new();
+    let mut participant_ids = Vec::new();
+    for node in nodes {
+        let node_obj = match node {
+            Value::Object(map) => map,
+            _ => return Err("network_node_object_required".to_string()),
+        };
+        let task = node_obj
+            .get("task")
+            .and_then(Value::as_str)
+            .map(|value| clean_text(value, 160))
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "network-node-task".to_string());
+        let mut options = default_spawn_options();
+        options.role = node_obj
+            .get("role")
+            .and_then(Value::as_str)
+            .map(|value| clean_text(value, 80));
+        options.agent_label = node_obj
+            .get("label")
+            .or_else(|| node_obj.get("agent_label"))
+            .and_then(Value::as_str)
+            .map(|value| clean_text(value, 80));
+        options.capabilities = node_obj
+            .get("capabilities")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(Value::as_str)
+                    .map(|value| clean_text(value, 80))
+                    .filter(|value| !value.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        options.token_budget = node_obj
+            .get("token_budget")
+            .and_then(Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok());
+        let spawned = spawn_single(state, owner_session_id, &task, 8, &options)?;
+        let session_id = spawned
+            .get("session_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "network_spawn_missing_session_id".to_string())?
+            .to_string();
+        if let Some(context) = node_obj.get("context").cloned() {
+            let session = state
+                .sessions
+                .get_mut(&session_id)
+                .ok_or_else(|| format!("unknown_session:{session_id}"))?;
+            let _ = apply_context_update(session, context, true, "network_create")?;
+        }
+        if let Some(label) = options.agent_label.clone() {
+            label_to_session.insert(label.clone(), session_id.clone());
+        }
+        participant_ids.push(session_id.clone());
+        node_rows.push(json!({
+            "session_id": session_id,
+            "role": options.role,
+            "label": options.agent_label,
+            "attention_weight": node_obj.get("attention_weight").cloned().unwrap_or_else(|| json!(1.0)),
+            "importance": node_obj.get("importance").cloned().unwrap_or_else(|| json!(0.5)),
+            "task": task,
+        }));
+    }
+    let channel = create_channel(state, &format!("{name}-channel"), participant_ids.clone())?;
+    let channel_id = channel
+        .get("channel")
+        .and_then(|row| row.get("channel_id"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let mut edge_rows = Vec::new();
+    if let Some(edges) = spec_obj.get("edges").and_then(Value::as_array) {
+        for edge in edges {
+            let edge_obj = match edge {
+                Value::Object(map) => map,
+                _ => return Err("network_edge_object_required".to_string()),
+            };
+            let from_key = edge_obj
+                .get("from")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "network_edge_from_required".to_string())?;
+            let to_key = edge_obj
+                .get("to")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "network_edge_to_required".to_string())?;
+            let from_session = label_to_session
+                .get(from_key)
+                .cloned()
+                .unwrap_or_else(|| from_key.to_string());
+            let to_session = label_to_session
+                .get(to_key)
+                .cloned()
+                .unwrap_or_else(|| to_key.to_string());
+            if edge_obj
+                .get("auto_handoff")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+            {
+                let _ = register_handoff(
+                    state,
+                    &from_session,
+                    &to_session,
+                    edge_obj
+                        .get("reason")
+                        .and_then(Value::as_str)
+                        .unwrap_or("network_edge"),
+                    edge_obj
+                        .get("importance")
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.5),
+                    edge_obj.get("context").cloned(),
+                    Some(network_id.clone()),
+                )?;
+            }
+            edge_rows.push(json!({
+                "from": from_session,
+                "to": to_session,
+                "relation": edge_obj.get("relation").cloned().unwrap_or_else(|| json!("handoff")),
+                "importance": edge_obj.get("importance").cloned().unwrap_or_else(|| json!(0.5)),
+            }));
+        }
+    }
+    let receipt = json!({
+        "network_id": network_id,
+        "name": name,
+        "owner_session_id": owner_session_id,
+        "channel_id": channel_id,
+        "nodes": node_rows,
+        "edges": edge_rows,
+        "status": "active",
+        "created_at": now_iso(),
+    });
+    state
+        .network_registry
+        .insert(network_id.clone(), receipt.clone());
+    for participant in participant_ids {
+        if let Some(session) = state.sessions.get_mut(&participant) {
+            if !session.network_ids.iter().any(|row| row == &network_id) {
+                session.network_ids.push(network_id.clone());
+            }
+        }
+    }
+    append_event(
+        state,
+        json!({
+            "type": "swarm_network_created",
+            "network_id": network_id,
+            "name": name,
+            "timestamp": now_iso(),
+        }),
+    );
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_network_create",
+        "network": receipt,
+    }))
+}
+
+fn network_status(
+    state: &SwarmState,
+    session_id: Option<&str>,
+    network_id: &str,
+) -> Result<Value, String> {
+    let network = state
+        .network_registry
+        .get(network_id)
+        .cloned()
+        .ok_or_else(|| format!("unknown_network:{network_id}"))?;
+    if let Some(session_id) = session_id {
+        if !session_exists(state, session_id) {
+            return Err(format!("unknown_session:{session_id}"));
+        }
+    }
+    Ok(json!({
+        "ok": true,
+        "type": "swarm_runtime_network_status",
+        "network_id": network_id,
+        "network": network,
+    }))
 }
 
 fn wildcard_matches(pattern: &str, candidate: &str) -> bool {
@@ -2415,7 +3553,15 @@ fn spawn_persistent_session(
         scaled_task: Some(scaled_task),
         budget_action_taken: None,
         role: options.role.clone(),
+        agent_label: options.agent_label.clone(),
         tool_access: default_session_tool_access(),
+        context_vars: BTreeMap::new(),
+        context_mode: None,
+        handoff_ids: Vec::new(),
+        registered_tool_ids: Vec::new(),
+        stream_turn_ids: Vec::new(),
+        turn_run_ids: Vec::new(),
+        network_ids: Vec::new(),
         check_ins: Vec::new(),
         metrics_timeline: Vec::new(),
         anomalies: Vec::new(),
@@ -2575,7 +3721,15 @@ fn spawn_single(
                         scaled_task: Some(scaled_task.clone()),
                         budget_action_taken: budget_action_taken.clone(),
                         role: options.role.clone(),
+                        agent_label: options.agent_label.clone(),
                         tool_access: default_session_tool_access(),
+                        context_vars: BTreeMap::new(),
+                        context_mode: None,
+                        handoff_ids: Vec::new(),
+                        registered_tool_ids: Vec::new(),
+                        stream_turn_ids: Vec::new(),
+                        turn_run_ids: Vec::new(),
+                        network_ids: Vec::new(),
                         check_ins: Vec::new(),
                         metrics_timeline: Vec::new(),
                         anomalies: Vec::new(),
@@ -2659,7 +3813,15 @@ fn spawn_single(
         scaled_task: Some(scaled_task.clone()),
         budget_action_taken: budget_action_taken.clone(),
         role: options.role.clone(),
+        agent_label: options.agent_label.clone(),
         tool_access: default_session_tool_access(),
+        context_vars: BTreeMap::new(),
+        context_mode: None,
+        handoff_ids: Vec::new(),
+        registered_tool_ids: Vec::new(),
+        stream_turn_ids: Vec::new(),
+        turn_run_ids: Vec::new(),
+        network_ids: Vec::new(),
         check_ins: Vec::new(),
         metrics_timeline: Vec::new(),
         anomalies: Vec::new(),
@@ -3545,6 +4707,27 @@ fn sessions_state(
         .iter()
         .filter(|row| row.message.recipient_session_id == session_id)
         .count();
+    let handoffs = session
+        .handoff_ids
+        .iter()
+        .filter_map(|row| state.handoff_registry.get(row).cloned())
+        .collect::<Vec<_>>();
+    let registered_tools = session
+        .registered_tool_ids
+        .iter()
+        .filter_map(|tool_id| {
+            state
+                .tool_registry
+                .values()
+                .find(|row| row.get("manifest_id").and_then(Value::as_str) == Some(tool_id.as_str()))
+                .cloned()
+        })
+        .collect::<Vec<_>>();
+    let networks = session
+        .network_ids
+        .iter()
+        .filter_map(|row| state.network_registry.get(row).cloned())
+        .collect::<Vec<_>>();
 
     Ok(json!({
         "ok": true,
@@ -3568,6 +4751,7 @@ fn sessions_state(
             "result_ids": results,
             "background_worker": session.background_worker,
             "persistent": session.persistent.clone(),
+            "agent_label": session.agent_label.clone(),
             "report": session.report.clone(),
             "anomalies": session.anomalies.clone(),
             "tool_manifest": tool_manifest,
@@ -3575,8 +4759,15 @@ fn sessions_state(
             "budget_parent_session_id": session.budget_parent_session_id.clone(),
             "budget_reservation_tokens": session.budget_reservation_tokens,
             "budget_reservation_settled": session.budget_reservation_settled,
+            "handoff_count": session.handoff_ids.len(),
+            "registered_tool_count": session.registered_tool_ids.len(),
+            "network_count": session.network_ids.len(),
+            "turn_run_count": session.turn_run_ids.len(),
+            "stream_turn_count": session.stream_turn_ids.len(),
         },
         "context": {
+            "variables": session_context_json(session),
+            "mode": session.context_mode.clone(),
             "utilization_ratio": context_utilization,
             "utilization_pct": context_utilization * 100.0,
             "latest_snapshot": latest_snapshot,
@@ -3593,7 +4784,10 @@ fn sessions_state(
             "unread": mailbox.map(|row| row.unread.len()).unwrap_or(0),
             "read": mailbox.map(|row| row.read.len()).unwrap_or(0),
             "dead_lettered": dead_letter_count,
-        }
+        },
+        "handoffs": handoffs,
+        "registered_tools": registered_tools,
+        "networks": networks,
     }))
 }
 
@@ -4485,6 +5679,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "byzantine_test_mode": state.byzantine_test_mode,
             "session_count": state.sessions.len(),
             "result_count": state.result_registry.len(),
+            "handoff_count": state.handoff_registry.len(),
+            "tool_manifest_count": state.tool_registry.len(),
+            "network_count": state.network_registry.len(),
             "dead_letter_count": state.dead_letters.len(),
             "event_count": state.events.len(),
             "max_depth": state
@@ -4733,6 +5930,85 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         Err("session_id_required".to_string())
                     }
                 }
+                "handoff" => {
+                    let sender_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let recipient_id = parse_flag(argv, "target-session-id")
+                        .or_else(|| parse_flag(argv, "recipient-session-id"))
+                        .filter(|value| !value.trim().is_empty());
+                    let reason =
+                        parse_flag(argv, "reason").filter(|value| !value.trim().is_empty());
+                    match (sender_id, recipient_id, reason) {
+                        (Some(sender_id), Some(recipient_id), Some(reason)) => register_handoff(
+                            &mut state,
+                            &sender_id,
+                            &recipient_id,
+                            &reason,
+                            parse_f64_flag(argv, "importance", 0.5).clamp(0.0, 1.0),
+                            parse_json_flag(argv, "context-json"),
+                            parse_flag(argv, "network-id")
+                                .filter(|value| !value.trim().is_empty()),
+                        ),
+                        (None, _, _) => Err("session_id_required".to_string()),
+                        (_, None, _) => Err("target_session_id_required".to_string()),
+                        (_, _, None) => Err("reason_required".to_string()),
+                    }
+                }
+                "context-put" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let context = parse_json_flag(argv, "context-json");
+                    match (session_id, context) {
+                        (Some(session_id), Some(context)) => match state.sessions.get_mut(&session_id)
+                        {
+                            Some(session) => match apply_context_update(
+                                session,
+                                context,
+                                parse_bool_flag(argv, "merge", true),
+                                "sessions_context_put",
+                            ) {
+                                Ok(receipt) => {
+                                    append_event(
+                                        &mut state,
+                                        json!({
+                                            "type": "swarm_context_put",
+                                            "session_id": session_id,
+                                            "timestamp": now_iso(),
+                                        }),
+                                    );
+                                    Ok(json!({
+                                        "ok": true,
+                                        "type": "swarm_runtime_context_put",
+                                        "session_id": session_id,
+                                        "receipt": receipt,
+                                    }))
+                                }
+                                Err(err) => Err(err),
+                            },
+                            None => Err(format!("unknown_session:{session_id}")),
+                        },
+                        (None, _) => Err("session_id_required".to_string()),
+                        (_, None) => Err("context_json_required".to_string()),
+                    }
+                }
+                "context-get" => {
+                    if let Some(session_id) =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty())
+                    {
+                        match state.sessions.get(&session_id) {
+                            Some(session) => Ok(json!({
+                                "ok": true,
+                                "type": "swarm_runtime_context_get",
+                                "session_id": session_id,
+                                "context": session_context_json(session),
+                                "mode": session.context_mode.clone(),
+                            })),
+                            None => Err(format!("unknown_session:{session_id}")),
+                        }
+                    } else {
+                        Err("session_id_required".to_string())
+                    }
+                }
                 "send" => {
                     let sender_id = parse_flag(argv, "sender-id")
                         .filter(|value| !value.trim().is_empty())
@@ -4832,6 +6108,179 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     }
                 }
                 _ => Err(format!("unknown_sessions_subcommand:{sub}")),
+            }
+        }
+        "tools" => {
+            let sub = argv
+                .get(1)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            match sub.as_str() {
+                "register-json-schema" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let tool_name =
+                        parse_flag(argv, "tool-name").filter(|value| !value.trim().is_empty());
+                    let schema = parse_json_flag(argv, "schema-json");
+                    let bridge_path =
+                        parse_flag(argv, "bridge-path").filter(|value| !value.trim().is_empty());
+                    let entrypoint =
+                        parse_flag(argv, "entrypoint").filter(|value| !value.trim().is_empty());
+                    match (session_id, tool_name, schema, bridge_path, entrypoint) {
+                        (Some(session_id), Some(tool_name), Some(schema), Some(bridge_path), Some(entrypoint)) =>
+                            register_json_schema_tool(
+                                &mut state,
+                                &session_id,
+                                &tool_name,
+                                schema,
+                                &bridge_path,
+                                &entrypoint,
+                                parse_flag(argv, "description")
+                                    .filter(|value| !value.trim().is_empty()),
+                            ),
+                        (None, _, _, _, _) => Err("session_id_required".to_string()),
+                        (_, None, _, _, _) => Err("tool_name_required".to_string()),
+                        (_, _, None, _, _) => Err("schema_json_required".to_string()),
+                        (_, _, _, None, _) => Err("bridge_path_required".to_string()),
+                        (_, _, _, _, None) => Err("entrypoint_required".to_string()),
+                    }
+                }
+                "invoke" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let tool_name =
+                        parse_flag(argv, "tool-name").filter(|value| !value.trim().is_empty());
+                    match (session_id, tool_name) {
+                        (Some(session_id), Some(tool_name)) => invoke_registered_tool(
+                            &mut state,
+                            &session_id,
+                            &tool_name,
+                            parse_json_flag(argv, "args-json")
+                                .unwrap_or_else(|| Value::Object(Map::new())),
+                        ),
+                        (None, _) => Err("session_id_required".to_string()),
+                        (_, None) => Err("tool_name_required".to_string()),
+                    }
+                }
+                _ => Err(format!("unknown_tools_subcommand:{sub}")),
+            }
+        }
+        "stream" => {
+            let sub = argv
+                .get(1)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "render".to_string());
+            match sub.as_str() {
+                "emit" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let chunks = parse_json_flag(argv, "chunks-json")
+                        .and_then(|value| value.as_array().cloned())
+                        .unwrap_or_default();
+                    if let Some(session_id) = session_id {
+                        stream_emit(
+                            &mut state,
+                            &session_id,
+                            parse_flag(argv, "turn-id").filter(|value| !value.trim().is_empty()),
+                            parse_flag(argv, "agent-label")
+                                .filter(|value| !value.trim().is_empty()),
+                            chunks,
+                        )
+                    } else {
+                        Err("session_id_required".to_string())
+                    }
+                }
+                "render" => {
+                    if let Some(session_id) =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty())
+                    {
+                        stream_render(
+                            &state,
+                            &session_id,
+                            parse_flag(argv, "turn-id")
+                                .filter(|value| !value.trim().is_empty())
+                                .as_deref(),
+                        )
+                    } else {
+                        Err("session_id_required".to_string())
+                    }
+                }
+                _ => Err(format!("unknown_stream_subcommand:{sub}")),
+            }
+        }
+        "turns" => {
+            let sub = argv
+                .get(1)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "run".to_string());
+            match sub.as_str() {
+                "run" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let turns = parse_json_flag(argv, "turns-json")
+                        .and_then(|value| value.as_array().cloned())
+                        .unwrap_or_default();
+                    if let Some(session_id) = session_id {
+                        execute_turns(
+                            &mut state,
+                            &session_id,
+                            turns,
+                            parse_flag(argv, "label").filter(|value| !value.trim().is_empty()),
+                        )
+                    } else {
+                        Err("session_id_required".to_string())
+                    }
+                }
+                "show" => {
+                    let session_id =
+                        parse_flag(argv, "session-id").filter(|value| !value.trim().is_empty());
+                    let run_id =
+                        parse_flag(argv, "run-id").filter(|value| !value.trim().is_empty());
+                    match (session_id, run_id) {
+                        (Some(session_id), Some(run_id)) => show_turn_run(&state, &session_id, &run_id),
+                        (None, _) => Err("session_id_required".to_string()),
+                        (_, None) => Err("run_id_required".to_string()),
+                    }
+                }
+                _ => Err(format!("unknown_turns_subcommand:{sub}")),
+            }
+        }
+        "networks" => {
+            let sub = argv
+                .get(1)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            match sub.as_str() {
+                "create" => {
+                    let spec = parse_json_flag(argv, "spec-json");
+                    if let Some(spec) = spec {
+                        create_agent_network(
+                            &mut state,
+                            parse_flag(argv, "session-id")
+                                .filter(|value| !value.trim().is_empty())
+                                .as_deref(),
+                            spec,
+                        )
+                    } else {
+                        Err("spec_json_required".to_string())
+                    }
+                }
+                "status" => {
+                    let network_id =
+                        parse_flag(argv, "network-id").filter(|value| !value.trim().is_empty());
+                    if let Some(network_id) = network_id {
+                        network_status(
+                            &state,
+                            parse_flag(argv, "session-id")
+                                .filter(|value| !value.trim().is_empty())
+                                .as_deref(),
+                            &network_id,
+                        )
+                    } else {
+                        Err("network_id_required".to_string())
+                    }
+                }
+                _ => Err(format!("unknown_networks_subcommand:{sub}")),
             }
         }
         "channels" => {

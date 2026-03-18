@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+// SRS coverage: V6-WORKFLOW-007.1, V6-WORKFLOW-007.2, V6-WORKFLOW-007.3,
+// V6-WORKFLOW-007.4, V6-WORKFLOW-007.5, V6-WORKFLOW-007.6, V6-WORKFLOW-007.7
+
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -225,6 +228,121 @@ function run() {
     hardBudgetRejected = /token_budget_exceeded/.test(String(err && err.message));
   }
   assert.strictEqual(hardBudgetRejected, true, 'expected hard budget fail-close rejection');
+
+  // Workflow-007 smoke: handoff/context/tool/stream/turns/network surfaces remain live on the
+  // canonical swarm bridge regression path as well as the dedicated workflow-007 tests.
+  const workflowCoordinator = bridge.sessionsSpawn({
+    task: 'workflow-007 bridge smoke coordinator',
+    max_tokens: 1024,
+    on_budget_exhausted: 'fail',
+    state_path: state,
+  });
+  const workflowSpecialist = bridge.sessionsSpawn({
+    task: 'workflow-007 bridge smoke specialist',
+    session_id: workflowCoordinator.session_id,
+    max_tokens: 192,
+    on_budget_exhausted: 'fail',
+    state_path: state,
+  });
+  const workflowContext = bridge.sessionsContextPut({
+    session_id: workflowCoordinator.session_id,
+    context: {
+      objective: 'workflow-007 bridge smoke',
+      oversized: 'x'.repeat(9000),
+    },
+    state_path: state,
+  });
+  assert.strictEqual(
+    workflowContext.payload.receipt.degraded_mode,
+    'context_compacted',
+    'expected workflow-007 context propagation to compact under budget pressure'
+  );
+  const workflowHandoff = bridge.sessionsHandoff({
+    session_id: workflowCoordinator.session_id,
+    target_session_id: workflowSpecialist.session_id,
+    reason: 'workflow-007 bridge smoke delegation',
+    importance: 0.8,
+    context: { delegated_goal: 'complete bridge smoke' },
+    state_path: state,
+  });
+  assert.strictEqual(Boolean(workflowHandoff.payload.handoff.handoff_id), true);
+  bridge.toolsRegisterJsonSchema({
+    session_id: workflowSpecialist.session_id,
+    toolName: 'context_patch',
+    schema: {
+      type: 'object',
+      properties: {
+        context: { type: 'object' },
+        merge: { type: 'boolean' },
+      },
+      required: ['context'],
+    },
+    bridgePath: 'client/runtime/systems/autonomy/swarm_sessions_bridge.ts',
+    entrypoint: 'sessions_context_put',
+    state_path: state,
+  });
+  const workflowTool = bridge.toolsInvoke({
+    session_id: workflowSpecialist.session_id,
+    toolName: 'context_patch',
+    args: {
+      context: { tool_applied: true },
+      merge: true,
+    },
+    state_path: state,
+  });
+  assert.strictEqual(workflowTool.payload.result.receipt.context.tool_applied, true);
+  bridge.streamEmit({
+    session_id: workflowSpecialist.session_id,
+    turn_id: 'workflow-007-bridge-smoke-turn',
+    agentLabel: 'workflow-007-bridge-smoke',
+    chunks: [
+      { delimiter: 'agent_start', content: 'hello:' },
+      { delimiter: 'agent_delta', content: 'smoke' },
+      { delimiter: 'agent_end', content: '' },
+    ],
+    state_path: state,
+  });
+  const workflowRender = bridge.streamRender({
+    session_id: workflowSpecialist.session_id,
+    turn_id: 'workflow-007-bridge-smoke-turn',
+    state_path: state,
+  });
+  assert(
+    String(workflowRender.payload.rendered || '').includes('workflow-007-bridge-smoke'),
+    'expected workflow-007 stream render to preserve agent delimiters'
+  );
+  const workflowRun = bridge.turnsRun({
+    session_id: workflowSpecialist.session_id,
+    label: 'workflow-007-bridge-smoke',
+    turns: [{ message: 'bridge smoke run', fail_first_attempt: true, recovery: 'retry_once' }],
+    state_path: state,
+  });
+  const workflowRunState = bridge.turnsShow({
+    session_id: workflowSpecialist.session_id,
+    run_id: workflowRun.payload.run.run_id,
+    state_path: state,
+  });
+  assert.strictEqual(workflowRunState.payload.run.status, 'completed');
+  const workflowNetwork = bridge.networksCreate({
+    session_id: workflowCoordinator.session_id,
+    spec: {
+      name: 'workflow-007-bridge-smoke-network',
+      nodes: [
+        { label: 'planner', role: 'planner', task: 'plan' },
+        { label: 'executor', role: 'executor', task: 'execute' },
+      ],
+      edges: [
+        { from: 'planner', to: 'executor', relation: 'handoff', importance: 0.7, auto_handoff: true },
+      ],
+    },
+    state_path: state,
+  });
+  const workflowNetworkState = bridge.networksStatus({
+    session_id: workflowCoordinator.session_id,
+    network_id: workflowNetwork.payload.network.network_id,
+    state_path: state,
+  });
+  assert.strictEqual(workflowNetworkState.payload.network.nodes.length, 2);
 
   // Dead-letter expiry + retry recovery.
   const dlqParent = bridge.sessionsSpawn({ task: 'dlq-parent', state_path: state });

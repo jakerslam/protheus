@@ -1,0 +1,39 @@
+{
+  "id": "V6-WORKFLOW-007.3",
+  "upgrade": "Automatic JSON-Schema Tool Bridge Contract",
+  "section": "OpenAI Swarm Lightweight Handoff Assimilation (REQ-45, 2026-03-17)",
+  "impact": 9,
+  "layer_map": "0/1/2/adapter/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "todo",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-007.3/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-WORKFLOW-007.3.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-007.3/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-WORKFLOW-007.3",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-WORKFLOW-007.3",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-18T02:29:10Z",
+    "notes": "Reuse content-skill and adapter bridges to convert imported functions into governed tool manifests with deterministic registration/invocation receipts and fail-closed denials for unsupported or unsafe tool paths."
+  }
+}
