@@ -4,6 +4,7 @@ use protheus_ops_core::security_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 
 fn env_lock() -> &'static Mutex<()> {
@@ -29,6 +30,13 @@ fn latest_path(root: &Path) -> std::path::PathBuf {
 fn read_json(path: &Path) -> Value {
     let raw = fs::read_to_string(path).expect("read json");
     serde_json::from_str::<Value>(&raw).expect("parse json")
+}
+
+fn write_file(path: &Path, body: &str) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("create parent");
+    }
+    fs::write(path, body).expect("write file");
 }
 
 fn assert_claim(payload: &Value, id: &str) {
@@ -393,4 +401,296 @@ fn v6_sec_stub_contracts_are_now_authoritative_security_lanes() {
         ],
     );
     assert_eq!(fail, 2, "strict conduit boundary mismatch must fail closed");
+}
+
+#[test]
+fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let invalid_path = "../../etc/passwd";
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "skill-install-path-enforcer".to_string(),
+                format!("--skill-path={invalid_path}"),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let invalid_latest = read_json(&latest_path(root));
+    assert_eq!(
+        invalid_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_skill_install_path_enforcer")
+    );
+    assert_eq!(
+        invalid_latest.get("allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_claim(&invalid_latest, "V6-SEC-SKILL-PATH-001");
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "skill-install-path-enforcer".to_string(),
+                "--skill-path=client/runtime/systems/skills/packages/demo".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "skill-quarantine".to_string(),
+                "quarantine".to_string(),
+                "--skill-id=demo-skill".to_string(),
+                "--reason=suspicious-network".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+    let quarantine_latest = read_json(&latest_path(root));
+    assert_eq!(
+        quarantine_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_skill_quarantine")
+    );
+    assert_eq!(
+        quarantine_latest
+            .get("quarantined_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_claim(&quarantine_latest, "V6-SEC-SKILL-QUARANTINE-001");
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "skill-quarantine".to_string(),
+                "release".to_string(),
+                "--skill-id=demo-skill".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+
+    write_file(
+        &root
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("skills_plane")
+            .join("registry.json"),
+        r#"{"installed":{"demo-a":{},"demo-b":{},"demo-c":{}}}"#,
+    );
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "autonomous-skill-necessity-audit".to_string(),
+                "--required-skills=demo-a".to_string(),
+                "--max-installed=1".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let audit_latest = read_json(&latest_path(root));
+    assert_eq!(
+        audit_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_autonomous_skill_necessity_audit")
+    );
+    assert_eq!(
+        audit_latest.get("overloaded").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_claim(&audit_latest, "V6-SEC-SKILL-AUDIT-001");
+}
+
+#[test]
+fn v6_sec_connected_runtime_guards_detect_risk_markers() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let scan_root = root.join("scan");
+    write_file(
+        &scan_root.join("conflict.rs"),
+        "<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>> main\n",
+    );
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "repo-hygiene-guard".to_string(),
+                format!("--scan-root={}", scan_root.display()),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let hygiene_latest = read_json(&latest_path(root));
+    assert_eq!(
+        hygiene_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_repo_hygiene_guard")
+    );
+    assert!(
+        hygiene_latest
+            .get("hit_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 1
+    );
+    assert_claim(&hygiene_latest, "V6-SEC-REPO-HYGIENE-001");
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "log-redaction-guard".to_string(),
+                "--text=token sk-123456".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let redaction_latest = read_json(&latest_path(root));
+    assert_eq!(
+        redaction_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_log_redaction_guard")
+    );
+    assert_claim(&redaction_latest, "V6-SEC-LOG-REDACTION-001");
+
+    let secret_path = root.join("secrets").join(".env");
+    write_file(&secret_path, "TOKEN=abcd");
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "workspace-dump-guard".to_string(),
+                "--path=secrets/.env".to_string(),
+                "--max-bytes=100000".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let dump_latest = read_json(&latest_path(root));
+    assert_eq!(
+        dump_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_workspace_dump_guard")
+    );
+    assert_eq!(
+        dump_latest.get("blocked").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_claim(&dump_latest, "V6-SEC-WORKSPACE-DUMP-001");
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "llm-gateway-guard".to_string(),
+                "--provider=openai".to_string(),
+                "--model=gpt-5.4".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "llm-gateway-guard".to_string(),
+                "--provider=unknown".to_string(),
+                "--model=rogue-model".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let gateway_latest = read_json(&latest_path(root));
+    assert_eq!(
+        gateway_latest.get("type").and_then(Value::as_str),
+        Some("security_plane_llm_gateway_guard")
+    );
+    assert_claim(&gateway_latest, "V6-SEC-LLM-GATEWAY-001");
+}
+
+#[test]
+fn v6_sec_rsi_self_mod_gate_requires_approval_for_sensitive_paths() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let init = Command::new("git")
+        .arg("init")
+        .arg(root)
+        .output()
+        .expect("git init");
+    assert!(init.status.success(), "git init should succeed");
+
+    write_file(
+        &root
+            .join("core")
+            .join("layer0")
+            .join("ops")
+            .join("src")
+            .join("placeholder.rs"),
+        "pub fn placeholder() {}\n",
+    );
+    let add = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .arg("add")
+        .arg("core/layer0/ops/src/placeholder.rs")
+        .output()
+        .expect("git add");
+    assert!(add.status.success(), "git add should succeed");
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "rsi-git-patch-self-mod-gate".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        2
+    );
+    let blocked = read_json(&latest_path(root));
+    assert_eq!(
+        blocked.get("type").and_then(Value::as_str),
+        Some("security_plane_rsi_git_patch_self_mod_gate")
+    );
+    assert!(
+        blocked
+            .get("sensitive_change_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 1
+    );
+    assert_claim(&blocked, "V6-SEC-RSI-SELFMOD-001");
+
+    assert_eq!(
+        security_plane::run(
+            root,
+            &[
+                "rsi-git-patch-self-mod-gate".to_string(),
+                "--self-mod-approved=1".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
 }
