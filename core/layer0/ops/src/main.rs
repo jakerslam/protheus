@@ -911,6 +911,9 @@ fn main() {
         "crewai-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::crewai_bridge::run);
         }
+        "metagpt-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::metagpt_bridge::run);
+        }
         "pydantic-ai-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::pydantic_ai_bridge::run);
         }

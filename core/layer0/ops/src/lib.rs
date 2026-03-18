@@ -107,6 +107,7 @@ pub mod memory_ambient;
 pub mod memory_plane;
 pub mod memory_policy_kernel;
 pub mod memory_session_isolation_kernel;
+pub mod metagpt_bridge;
 pub mod metakernel;
 pub mod model_router;
 pub mod mutation_provenance_kernel;
