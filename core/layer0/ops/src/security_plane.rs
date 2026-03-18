@@ -933,6 +933,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "black-box-ledger" | "black_box_ledger" => {
             infring_layer1_security::run_black_box_ledger(root, rest)
         }
+        "t0-invariants" | "t0_invariants" => crate::t0_invariants_kernel::run(root, rest),
+        "thorn-swarm-protocol" | "thorn_swarm_protocol" | "thorn" => {
+            crate::swarm_runtime::run_thorn_contract(root, rest)
+        }
+        "psycheforge" => crate::psycheforge_kernel::run(root, rest),
         "goal-preservation-kernel" | "goal_preservation_kernel" => {
             infring_layer1_security::run_goal_preservation_kernel(root, rest)
         }
@@ -1212,6 +1217,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "emergency-stop",
                     "capability-switchboard",
                     "black-box-ledger",
+                    "t0-invariants",
+                    "thorn-swarm-protocol",
+                    "psycheforge",
                     "goal-preservation-kernel",
                     "dream-warden-guard",
                     "abac-policy-plane",
@@ -1275,7 +1283,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "protheus-ops security-plane integrity-kernel <run|status|seal> [flags]",
                     "protheus-ops security-plane emergency-stop <status|engage|release> [flags]",
                     "protheus-ops security-plane capability-switchboard <status|evaluate|set> [flags]",
-                    "protheus-ops security-plane black-box-ledger <rollup|verify|status> [flags]",
+                    "protheus-ops security-plane black-box-ledger <append|export|rollup|verify|verify-offline|status> [flags]",
+                    "protheus-ops security-plane t0-invariants <status|evaluate|fuzz> [flags]",
+                    "protheus-ops security-plane thorn-swarm-protocol <status|quarantine|release> [flags]",
+                    "protheus-ops security-plane psycheforge <status|profile> [flags]",
                     "protheus-ops security-plane goal-preservation-kernel <evaluate|status> [flags]",
                     "protheus-ops security-plane dream-warden-guard <run|status> [flags]",
                     "protheus-ops security-plane truth-seeking-gate <status|ingest-rule|evaluate> [flags]",

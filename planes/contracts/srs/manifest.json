@@ -4,7 +4,7 @@
   "generated_at": "2026-03-18T10:01:34Z",
   "source": "contract_dir_scan",
   "source_ref": "planes/contracts/srs/*.json",
-  "row_count": 2000,
+  "row_count": 2005,
   "entries": [
     {
       "id": "V10-PHONE-001.1",
@@ -6607,6 +6607,22 @@
       "contract": "planes/contracts/srs/V6-SEC-017.json"
     },
     {
+      "id": "V6-SEC-LEDGER-001",
+      "contract": "planes/contracts/srs/V6-SEC-LEDGER-001.json"
+    },
+    {
+      "id": "V6-SEC-PSYCHE-001",
+      "contract": "planes/contracts/srs/V6-SEC-PSYCHE-001.json"
+    },
+    {
+      "id": "V6-SEC-T0-001",
+      "contract": "planes/contracts/srs/V6-SEC-T0-001.json"
+    },
+    {
+      "id": "V6-SEC-THORN-001",
+      "contract": "planes/contracts/srs/V6-SEC-THORN-001.json"
+    },
+    {
       "id": "V6-SEED-801",
       "contract": "planes/contracts/srs/V6-SEED-801.json"
     },
@@ -7941,6 +7957,10 @@
     {
       "id": "V7-TOP1-012",
       "contract": "planes/contracts/srs/V7-TOP1-012.json"
+    },
+    {
+      "id": "V8-MCP-001",
+      "contract": "planes/contracts/srs/V8-MCP-001.json"
     },
     {
       "id": "V9-AUDIT-026.1",

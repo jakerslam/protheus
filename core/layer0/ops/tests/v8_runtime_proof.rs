@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use protheus_ops_core::{
-    binary_blob_runtime, directive_kernel, intelligence_nexus, network_protocol, organism_layer,
+    binary_blob_runtime, directive_kernel, intelligence_nexus, mcp_plane, network_protocol,
+    organism_layer,
 };
 use serde_json::Value;
 use std::fs;
@@ -247,6 +248,7 @@ const V8_PROOF_IDS: &[&str] = &[
     "V8-SWARM-012.7",
     "V8-SWARM-012.8",
     "V8-SWARM-012.9",
+    "V8-MCP-001",
     "V7-CANYON-002.1",
     "V7-CANYON-002.2",
     "V7-CANYON-002.3",
@@ -276,6 +278,7 @@ fn runtime_proof_registry_includes_v7_canyon_and_f100_series() {
         "V7-CANYON-002.6",
         "V7-F100-002.3",
         "V7-F100-002.7",
+        "V8-MCP-001",
     ] {
         assert!(
             V8_PROOF_IDS.contains(&id),
@@ -493,6 +496,72 @@ fn intelligence_nexus_buy_credits_debits_nexus_balance() {
     std::env::remove_var("INTELLIGENCE_NEXUS_VAULT_KEY");
     std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
     std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn v8_mcp_001_runtime_proof_exercises_client_server_and_template_suite() {
+    let _guard = env_guard();
+    let root = temp_root("v8_mcp_001");
+    let caps = "tools.call,resources.read,prompts.get,notifications.emit,auth.session,sampling.request,elicitation.request,roots.enumerate,workflow.pause_resume_retry,server.expose,pattern.pack,template.governance";
+
+    assert_eq!(
+        mcp_plane::run(
+            &root,
+            &[
+                "client".to_string(),
+                format!("--server-capabilities={caps}"),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+    assert_eq!(
+        mcp_plane::run(
+            &root,
+            &[
+                "server".to_string(),
+                "--agent=runtime-proof-agent".to_string(),
+                "--tools=fetch,extract".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+    assert_eq!(
+        mcp_plane::run(&root, &["template-suite".to_string(), "--strict=1".to_string()]),
+        0
+    );
+    assert_eq!(
+        mcp_plane::run(
+            &root,
+            &[
+                "interop-status".to_string(),
+                format!("--server-capabilities={caps}"),
+                "--agent=runtime-proof-agent".to_string(),
+                "--tools=fetch,extract".to_string(),
+                "--strict=1".to_string(),
+            ],
+        ),
+        0
+    );
+    let latest_mcp = latest("mcp_plane", &root);
+    let claim_ids = latest_mcp
+        .get("claim_evidence")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect::<Vec<_>>();
+    assert!(
+        claim_ids.iter().any(|id| id == "V8-MCP-001"),
+        "runtime proof did not record V8-MCP-001 claim: {latest_mcp}"
+    );
+    assert_eq!(
+        latest_mcp.get("type").and_then(Value::as_str),
+        Some("mcp_plane_interop_status")
+    );
     let _ = fs::remove_dir_all(root);
 }
 
