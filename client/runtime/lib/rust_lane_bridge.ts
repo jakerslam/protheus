@@ -280,6 +280,19 @@ function runBridge(config, args = [], cliMode = false) {
   const passArgs = Array.isArray(args) ? args.slice(0) : [];
 
   if (config.mode === 'ops_domain') {
+    if (config.preferLocalCore === true) {
+      const local = runLocalOpsDomain(
+        root,
+        config.domain,
+        passArgs,
+        cliMode,
+        config.inheritStdio
+      );
+      return {
+        ...local,
+        lane: config.lane
+      };
+    }
     const runnerCandidates = [
       path.join(root, 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.ts'),
       path.join(root, 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.js'),
@@ -396,7 +409,8 @@ function createOpsLaneBridge(scriptDir, lane, domain, opts = {}) {
     lane,
     domain: String(domain || '').trim(),
     mode: 'ops_domain',
-    inheritStdio: opts.inheritStdio === true
+    inheritStdio: opts.inheritStdio === true,
+    preferLocalCore: opts.preferLocalCore === true
   };
 
   function run(args = []) {
