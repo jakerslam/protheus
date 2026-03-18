@@ -214,6 +214,16 @@ fn main() {
             let exit = protheus_ops_core::network_protocol::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "instinct-bridge" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::instinct_bridge::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "phone-runtime-bridge" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::phone_runtime_bridge::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "seed-protocol" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::seed_protocol::run(&cwd, &rest);

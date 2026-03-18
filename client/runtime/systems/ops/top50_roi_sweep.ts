@@ -72,6 +72,7 @@ function shouldExclude(record) {
   if (relPath === 'client/lib/conduit_full_lifecycle_probe.ts') return true;
   if (relPath === 'client/runtime/lib/rust_lane_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/spine_conduit_bridge.ts') return true;
+  if (relPath === 'client/runtime/systems/workflow/shannon_desktop_shell.ts') return true;
   if (relPath === 'client/runtime/lib/ts_bootstrap.ts') return true;
   if (relPath === 'client/runtime/lib/ts_entrypoint.ts') return true;
   if (relPath === 'client/lib/ts_entrypoint.ts') return true;
