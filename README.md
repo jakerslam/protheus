@@ -198,21 +198,6 @@ External comparison sources:
 
 InfRing numbers reflect the latest stabilized median benchmark artifact. Competitor rows use the closest public footprint/runtime metrics published by each project. Where a project only publishes a ceiling rather than an exact benchmark median, the table uses that published ceiling and marks it.
 
-| Project | Published Footprint (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **InfRing (rich)** | **11.6** | **12.0 ms** | **8.2** | **65,938** | **0.4** | **83** | 6 | 3 |
-| **InfRing (pure)** | **0.7** | **4.1 ms** | **1.4** | **65,938** | **0.4** | **83** | 0 | 0 |
-| **InfRing (tiny-max)** | **0.5** | **3.1 ms** | **1.4** | **65,938** | **0.3** | **83** | 0 | 0 |
-| ZeroClaw* | 3.4 | 10.0 ms* | 5.0* | n/p | 3.4 | n/p | 9 | 28+ |
-| OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
-| OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
-| LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
-| CrewAI | 100.0 | 3.0 sec | 200.0 | n/p | n/p | 1 | 3 | 10 |
-| AutoGen | 200.0 | 4.0 sec | 250.0 | n/p | n/p | 2 | 4 | 8 |
-
-`n/p` means not publicly published with a reproducible method in the referenced sources.
-`*` ZeroClaw publishes `<10 ms startup`, `<5 MB RAM`, and `~3.4 MB binary size`; the table uses those published ceilings/values for placement and comparison.
-
 Copyable benchmark snapshot:
 
 ```csv
@@ -227,6 +212,9 @@ LangGraph,150.0,2.5 sec,180.0,n/p,n/p,2,4,15
 CrewAI,100.0,3.0 sec,200.0,n/p,n/p,1,3,10
 AutoGen,200.0,4.0 sec,250.0,n/p,n/p,2,4,8
 ```
+
+`n/p` means not publicly published with a reproducible method in the referenced sources.
+`*` ZeroClaw publishes `<10 ms startup`, `<5 MB RAM`, and `~3.4 MB binary size`; the snapshot preserves those published ceilings/values.
 
 Pure Workspace mode is 100% Rust with no Node/TS runtime surfaces and is designed to run on low-resource hardware.
 Pure Workspace Tiny-Max is the low-resource profile for old/embedded targets and keeps the same Rust-only control boundary.
@@ -248,48 +236,48 @@ Tiny-max is the smallest full agentic OS artifact shipped in this repo today and
 ### Benchmarks: Measured, Not Marketed
 
 All data from official documentation and public repositories — March 2026.
-Bars use log scaling for wide-range lower-is-better metrics (cold start, memory, footprint) and linear scaling for bounded higher-is-better metrics; fuller bars still indicate better results. `n/p` entries are left unbarred.
+Bars use log scaling for wide-range lower-is-better metrics (cold start, memory, footprint) and linear scaling for bounded higher-is-better metrics; fuller bars still indicate better results. `n/p` entries are left unbarred. Chart labels are conservatively rounded in InfRing's disfavor; exact values remain in the snapshot above.
 
 #### Cold Start Time (lower is better)
 
 ```text
-InfRing (tiny-max) ████████████████████████████████████████████████████████████████  3.1 ms
-InfRing (pure)     ██████████████████████████████████████████████████████████████░░  4.1 ms
+InfRing (tiny-max) ████████████████████████████████████████████████████████████████  4 ms
+InfRing (pure)     ██████████████████████████████████████████████████████████████░░  5 ms
 ZeroClaw           ██████████████████████████████████████████████████████░░░░░░░░░░  10 ms*
-InfRing (rich)     ████████████████████████████████████████████████████░░░░░░░░░░░░  12.0 ms
-OpenFang           ████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180.0 ms
-OpenHands          ███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1.3 sec
-LangGraph          █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2.5 sec
-CrewAI             ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3.0 sec
-AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4.0 sec
+InfRing (rich)     ████████████████████████████████████████████████████░░░░░░░░░░░░  12 ms
+OpenFang           ████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 ms
+OpenHands          ███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1 sec
+LangGraph          █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2 sec
+CrewAI             ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3 sec
+AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4 sec
 ```
 
 #### Idle Memory Usage (lower is better)
 
 ```text
-InfRing (pure)     ████████████████████████████████████████████████████████████████  1.4 MB
-InfRing (tiny-max) ████████████████████████████████████████████████████████████████  1.4 MB
+InfRing (pure)     ████████████████████████████████████████████████████████████████  2 MB
+InfRing (tiny-max) ████████████████████████████████████████████████████████████████  2 MB
 ZeroClaw           █████████████████████████████████████████████████░░░░░░░░░░░░░░░  5 MB*
-InfRing (rich)     ███████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░  8.2 MB
-OpenFang           ███████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  40.0 MB
-OpenHands          ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150.0 MB
-LangGraph          █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180.0 MB
-CrewAI             ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200.0 MB
-AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  250.0 MB
+InfRing (rich)     ███████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░  9 MB
+OpenFang           ███████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  40 MB
+OpenHands          ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
+LangGraph          █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 MB
+CrewAI             ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
+AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  250 MB
 ```
 
 #### Published Footprint (lower is better)
 
 ```text
-InfRing (tiny-max) ████████████████████████████████████████████████████████████████  0.5 MB
-InfRing (pure)     ████████████████████████████████████████████████████████████░░░░  0.7 MB
-ZeroClaw           ████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░  3.4 MB
-InfRing (rich)     ███████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  11.6 MB
-OpenFang           ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  32.0 MB
-OpenHands          █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  95.5 MB
-CrewAI             ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100.0 MB
-LangGraph          ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150.0 MB
-AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200.0 MB
+InfRing (tiny-max) ████████████████████████████████████████████████████████████████  1 MB
+InfRing (pure)     ████████████████████████████████████████████████████████████░░░░  1 MB
+ZeroClaw           ████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░  3 MB
+InfRing (rich)     ███████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  12 MB
+OpenFang           ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  32 MB
+OpenHands          █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  95 MB
+CrewAI             ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100 MB
+LangGraph          ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
+AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
 ```
 
 ## Alpha Readiness Checklist
