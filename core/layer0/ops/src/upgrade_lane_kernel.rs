@@ -175,7 +175,9 @@ fn rel(root: &Path, file_path: &Path) -> String {
 
 fn parse_json_loose(value: Option<&Value>) -> Value {
     match value {
-        Some(Value::String(text)) => serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({})),
+        Some(Value::String(text)) => {
+            serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({}))
+        }
         Some(v) => v.clone(),
         None => json!({}),
     }
@@ -207,7 +209,9 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
     let raw_policy_obj = payload_obj(&raw_policy);
     let payload_paths = as_object(payload.get("paths")).cloned().unwrap_or_default();
     let base_paths = as_object(opts.get("paths")).cloned().unwrap_or_default();
-    let raw_paths = as_object(raw_policy_obj.get("paths")).cloned().unwrap_or_default();
+    let raw_paths = as_object(raw_policy_obj.get("paths"))
+        .cloned()
+        .unwrap_or_default();
     let default_paths = [
         ("memory_dir", DEFAULT_MEMORY_DIR),
         ("adaptive_index_path", DEFAULT_ADAPTIVE_INDEX_PATH),
@@ -225,15 +229,25 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
         resolve_path(root, &as_str(Some(&selected)))
     };
 
-    let event_stream_obj = as_object(raw_policy_obj.get("event_stream")).cloned().unwrap_or_default();
+    let event_stream_obj = as_object(raw_policy_obj.get("event_stream"))
+        .cloned()
+        .unwrap_or_default();
     NormalizedPolicy {
-        enabled: raw_policy_obj.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        enabled: raw_policy_obj
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
         strict_default: raw_policy_obj
             .get("strict_default")
             .map(|v| to_bool(Some(v), true))
             .unwrap_or(true),
         owner_id: normalize_token(
-            &clean_text(raw_policy_obj.get("owner_id").or_else(|| opts.get("owner_id")), 120),
+            &clean_text(
+                raw_policy_obj
+                    .get("owner_id")
+                    .or_else(|| opts.get("owner_id")),
+                120,
+            ),
             120,
         ),
         event_stream_enabled: event_stream_obj
@@ -244,7 +258,12 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
             .get("publish")
             .map(|v| to_bool(Some(v), true))
             .unwrap_or(true),
-        event_stream_stream: clean_text(event_stream_obj.get("stream").or_else(|| opts.get("stream")), 180),
+        event_stream_stream: clean_text(
+            event_stream_obj
+                .get("stream")
+                .or_else(|| opts.get("stream")),
+            180,
+        ),
         memory_dir: resolve_named_path(default_paths[0].0, default_paths[0].1),
         adaptive_index_path: resolve_named_path(default_paths[1].0, default_paths[1].1),
         events_path: resolve_named_path(default_paths[2].0, default_paths[2].1),
@@ -270,7 +289,9 @@ fn persist_adaptive_index(policy: &NormalizedPolicy, row: &Value) -> Result<(), 
         .or_insert_with(|| Value::String("1.0".to_string()));
     next.insert(
         "updated_at".to_string(),
-        row.get("ts").cloned().unwrap_or_else(|| Value::String(now_iso())),
+        row.get("ts")
+            .cloned()
+            .unwrap_or_else(|| Value::String(now_iso())),
     );
     next.insert(
         "latest".to_string(),
@@ -350,7 +371,9 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
         .get("apply")
         .map(|v| to_bool(Some(v), true))
         .unwrap_or(true);
-    let record_args = as_object(payload.get("record_args")).cloned().unwrap_or_default();
+    let record_args = as_object(payload.get("record_args"))
+        .cloned()
+        .unwrap_or_default();
     let payload_value = parse_json_loose(record_args.get("payload_json"));
     let owner_raw = record_args
         .get("owner")
@@ -359,10 +382,17 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| policy.owner_id.clone());
     let owner = normalize_token(&owner_raw, 120);
-    let owner = if owner.is_empty() { "system".to_string() } else { owner };
+    let owner = if owner.is_empty() {
+        "system".to_string()
+    } else {
+        owner
+    };
     let event = {
         let token = normalize_token(
-            &clean_text(record_args.get("event").or_else(|| payload.get("event")), 160),
+            &clean_text(
+                record_args.get("event").or_else(|| payload.get("event")),
+                160,
+            ),
             160,
         );
         if token.is_empty() {
@@ -383,7 +413,10 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
     } else {
         action.clone()
     };
-    let stream_value = if policy.event_stream_enabled && policy.event_stream_publish && !policy.event_stream_stream.is_empty() {
+    let stream_value = if policy.event_stream_enabled
+        && policy.event_stream_publish
+        && !policy.event_stream_stream.is_empty()
+    {
         Value::String(policy.event_stream_stream.clone())
     } else {
         Value::Null

@@ -100,11 +100,7 @@ fn normalize_token(raw: Option<&Value>, max_len: usize) -> String {
     let mut out = String::new();
     let mut prev_us = false;
     for ch in lowered.chars() {
-        let mapped = if ch.is_ascii_alphanumeric() {
-            ch
-        } else {
-            '_'
-        };
+        let mapped = if ch.is_ascii_alphanumeric() { ch } else { '_' };
         if mapped == '_' {
             if prev_us || out.is_empty() {
                 continue;
@@ -162,13 +158,19 @@ fn normalize_trit(value: Option<&Value>) -> i64 {
             }
         }
         Some(Value::Bool(v)) => {
-            if *v { TRIT_OK } else { TRIT_PAIN }
+            if *v {
+                TRIT_OK
+            } else {
+                TRIT_PAIN
+            }
         }
         _ => {
             let token = normalize_token(value, 64);
             match token.as_str() {
-                "ok" | "pass" | "allow" | "approved" | "healthy" | "up" | "true" | "success" | "green" | "ready" => TRIT_OK,
-                "pain" | "fail" | "failed" | "error" | "blocked" | "deny" | "denied" | "critical" | "false" | "down" | "red" => TRIT_PAIN,
+                "ok" | "pass" | "allow" | "approved" | "healthy" | "up" | "true" | "success"
+                | "green" | "ready" => TRIT_OK,
+                "pain" | "fail" | "failed" | "error" | "blocked" | "deny" | "denied"
+                | "critical" | "false" | "down" | "red" => TRIT_PAIN,
                 _ => TRIT_UNKNOWN,
             }
         }
@@ -205,7 +207,9 @@ fn source_trust_value(source_trust: Option<&Value>, source: &str, fallback: f64)
     let Some(map) = source_trust.and_then(Value::as_object) else {
         return fallback;
     };
-    let direct = map.get(source).or_else(|| map.get(&source.to_ascii_lowercase()));
+    let direct = map
+        .get(source)
+        .or_else(|| map.get(&source.to_ascii_lowercase()));
     if let Some(value) = direct {
         if let Some(n) = as_f64(Some(value)) {
             return n;
@@ -256,13 +260,21 @@ fn majority_trit(values: &[i64], weights: &[f64], tie_breaker: &str) -> i64 {
     match tie_breaker {
         "pain" => TRIT_PAIN,
         "ok" => TRIT_OK,
-        "first_non_zero" => values.iter().copied().find(|v| *v != TRIT_UNKNOWN).unwrap_or(TRIT_UNKNOWN),
+        "first_non_zero" => values
+            .iter()
+            .copied()
+            .find(|v| *v != TRIT_UNKNOWN)
+            .unwrap_or(TRIT_UNKNOWN),
         _ => TRIT_UNKNOWN,
     }
 }
 
 fn consensus_trit(values: &[i64]) -> i64 {
-    let non_zero = values.iter().copied().filter(|v| *v != TRIT_UNKNOWN).collect::<Vec<_>>();
+    let non_zero = values
+        .iter()
+        .copied()
+        .filter(|v| *v != TRIT_UNKNOWN)
+        .collect::<Vec<_>>();
     if non_zero.is_empty() {
         return TRIT_UNKNOWN;
     }
@@ -350,24 +362,54 @@ fn classify_belief_trit(score: f64, positive_threshold: f64, negative_threshold:
 }
 
 fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
-    let signals = payload.get("signals").and_then(Value::as_array).cloned().unwrap_or_default();
-    let opts = payload.get("opts").and_then(Value::as_object).cloned().unwrap_or_default();
+    let signals = payload
+        .get("signals")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let opts = payload
+        .get("opts")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let label = {
         let v = clean_text(opts.get("label"), 120);
-        if v.is_empty() { "belief".to_string() } else { v }
+        if v.is_empty() {
+            "belief".to_string()
+        } else {
+            v
+        }
     };
     let default_weight = clamp_number(opts.get("default_weight"), 0.0001, 1000.0, 1.0);
     let positive_threshold = clamp_number(opts.get("positive_threshold"), 0.01, 0.99, 0.2);
     let negative_threshold = clamp_number(opts.get("negative_threshold"), -0.99, -0.01, -0.2);
-    let evidence_saturation_count = clamp_number(opts.get("evidence_saturation_count"), 1.0, 1000.0, 8.0);
+    let evidence_saturation_count =
+        clamp_number(opts.get("evidence_saturation_count"), 1.0, 1000.0, 8.0);
     let source_trust_floor = clamp_number(opts.get("source_trust_floor"), 0.01, 10.0, 0.6);
-    let source_trust_ceiling = clamp_number(opts.get("source_trust_ceiling"), source_trust_floor, 10.0, 1.5);
-    let freshness_half_life_hours = clamp_number(opts.get("freshness_half_life_hours"), 1.0, (24 * 365) as f64, 72.0);
-    let min_non_neutral_signals = clamp_number(opts.get("min_non_neutral_signals"), 0.0, 1000.0, 1.0);
+    let source_trust_ceiling = clamp_number(
+        opts.get("source_trust_ceiling"),
+        source_trust_floor,
+        10.0,
+        1.5,
+    );
+    let freshness_half_life_hours = clamp_number(
+        opts.get("freshness_half_life_hours"),
+        1.0,
+        (24 * 365) as f64,
+        72.0,
+    );
+    let min_non_neutral_signals =
+        clamp_number(opts.get("min_non_neutral_signals"), 0.0, 1000.0, 1.0);
     let min_non_neutral_weight = clamp_number(opts.get("min_non_neutral_weight"), 0.0, 1000.0, 0.9);
-    let min_confidence_for_non_neutral = clamp_number(opts.get("min_confidence_for_non_neutral"), 0.0, 1.0, 0.3);
-    let force_neutral_on_insufficient_evidence = opts.get("force_neutral_on_insufficient_evidence").map(Value::as_bool).flatten().unwrap_or(true);
-    let now_ms = parse_ts_ms(opts.get("now_iso")).unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
+    let min_confidence_for_non_neutral =
+        clamp_number(opts.get("min_confidence_for_non_neutral"), 0.0, 1.0, 0.3);
+    let force_neutral_on_insufficient_evidence = opts
+        .get("force_neutral_on_insufficient_evidence")
+        .map(Value::as_bool)
+        .flatten()
+        .unwrap_or(true);
+    let now_ms =
+        parse_ts_ms(opts.get("now_iso")).unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
 
     let duality_signal = crate::duality_seed::invoke(
         root,
@@ -389,7 +431,8 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
                 "persist": true
             }
         })),
-    ).ok();
+    )
+    .ok();
 
     let mut normalized = Vec::new();
     let mut pain_weight = 0.0;
@@ -410,11 +453,19 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
             .into_iter()
             .filter_map(|tag| {
                 let text = clean_text(Some(&tag), 80);
-                if text.is_empty() { None } else { Some(Value::String(text)) }
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(Value::String(text))
+                }
             })
             .collect::<Vec<_>>();
         let has_trit = row.get("trit").is_some();
-        let mut trit = if has_trit { normalize_trit(row.get("trit")) } else { TRIT_UNKNOWN };
+        let mut trit = if has_trit {
+            normalize_trit(row.get("trit"))
+        } else {
+            TRIT_UNKNOWN
+        };
         if !has_trit && force_neutral_on_insufficient_evidence {
             tags.push(Value::String("missing_trit_neutralized".to_string()));
         }
@@ -427,8 +478,16 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
         let source_trust = source_trust_value(opts.get("source_trust"), &source, 1.0)
             .clamp(source_trust_floor, source_trust_ceiling);
         let signal_ts_ms = parse_ts_ms(row.get("ts"))
-            .or_else(|| row.get("meta").and_then(|v| v.get("ts")).and_then(|v| parse_ts_ms(Some(v))))
-            .or_else(|| row.get("meta").and_then(|v| v.get("updated_at")).and_then(|v| parse_ts_ms(Some(v))));
+            .or_else(|| {
+                row.get("meta")
+                    .and_then(|v| v.get("ts"))
+                    .and_then(|v| parse_ts_ms(Some(v)))
+            })
+            .or_else(|| {
+                row.get("meta")
+                    .and_then(|v| v.get("updated_at"))
+                    .and_then(|v| parse_ts_ms(Some(v)))
+            });
         let freshness = signal_freshness_factor(signal_ts_ms, now_ms, freshness_half_life_hours);
         let weighted = base_weight * confidence * source_trust * freshness;
         total_weight += weighted;
@@ -456,7 +515,11 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
         }));
     }
 
-    let score = if total_weight > 0.0 { weighted_sum / total_weight } else { 0.0 };
+    let score = if total_weight > 0.0 {
+        weighted_sum / total_weight
+    } else {
+        0.0
+    };
     let duality_influence = if let Some(signal) = duality_signal.as_ref() {
         if signal.get("enabled").and_then(Value::as_bool) == Some(true) {
             let score_trit = as_f64(signal.get("score_trit")).unwrap_or(0.0);
@@ -469,35 +532,56 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
         0.0
     };
     let adjusted_score = (score + duality_influence).clamp(-1.0, 1.0);
-    let insufficient_evidence = non_neutral_count < min_non_neutral_signals || non_neutral_weight < min_non_neutral_weight;
+    let insufficient_evidence =
+        non_neutral_count < min_non_neutral_signals || non_neutral_weight < min_non_neutral_weight;
     let trit = if force_neutral_on_insufficient_evidence && insufficient_evidence {
         TRIT_UNKNOWN
     } else {
         classify_belief_trit(adjusted_score, positive_threshold, negative_threshold)
     };
-    let trits = normalized.iter().map(|row| row.get("trit").and_then(Value::as_i64).unwrap_or(TRIT_UNKNOWN)).collect::<Vec<_>>();
-    let weights = normalized.iter().map(|row| row.get("weighted").and_then(Value::as_f64).unwrap_or(0.0)).collect::<Vec<_>>();
+    let trits = normalized
+        .iter()
+        .map(|row| {
+            row.get("trit")
+                .and_then(Value::as_i64)
+                .unwrap_or(TRIT_UNKNOWN)
+        })
+        .collect::<Vec<_>>();
+    let weights = normalized
+        .iter()
+        .map(|row| row.get("weighted").and_then(Value::as_f64).unwrap_or(0.0))
+        .collect::<Vec<_>>();
     let majority = majority_trit(&trits, &weights, "unknown");
     let consensus = consensus_trit(&trits) == trit && trit != TRIT_UNKNOWN;
     let evidence_coverage = (normalized.len() as f64 / evidence_saturation_count).min(1.0);
-    let concentration = if total_weight > 0.0 { pain_weight.max(unknown_weight).max(ok_weight) / total_weight } else { 0.0 };
-    let confidence = ((adjusted_score.abs() * 0.45) + (concentration * 0.35) + (evidence_coverage * 0.2)).min(1.0);
+    let concentration = if total_weight > 0.0 {
+        pain_weight.max(unknown_weight).max(ok_weight) / total_weight
+    } else {
+        0.0
+    };
+    let confidence =
+        ((adjusted_score.abs() * 0.45) + (concentration * 0.35) + (evidence_coverage * 0.2))
+            .min(1.0);
 
     let mut top_sources = normalized.clone();
     top_sources.sort_by(|a, b| {
-        b.get("weighted").and_then(Value::as_f64).unwrap_or(0.0)
+        b.get("weighted")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0)
             .partial_cmp(&a.get("weighted").and_then(Value::as_f64).unwrap_or(0.0))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     top_sources.truncate(8);
     let top_sources = top_sources
         .into_iter()
-        .map(|row| json!({
-            "source": row.get("source").cloned().unwrap_or(Value::Null),
-            "label": row.get("label").cloned().unwrap_or(Value::Null),
-            "trit": row.get("trit").cloned().unwrap_or(Value::Null),
-            "weighted": row.get("weighted").cloned().unwrap_or(Value::Null)
-        }))
+        .map(|row| {
+            json!({
+                "source": row.get("source").cloned().unwrap_or(Value::Null),
+                "label": row.get("label").cloned().unwrap_or(Value::Null),
+                "trit": row.get("trit").cloned().unwrap_or(Value::Null),
+                "weighted": row.get("weighted").cloned().unwrap_or(Value::Null)
+            })
+        })
         .collect::<Vec<_>>();
 
     let result = json!({
@@ -554,7 +638,12 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
         "signals": normalized
     });
 
-    if duality_signal.as_ref().and_then(|v| v.get("enabled")).and_then(Value::as_bool) == Some(true) {
+    if duality_signal
+        .as_ref()
+        .and_then(|v| v.get("enabled"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
         let _ = crate::duality_seed::invoke(
             root,
             "registerDualityObservation",
@@ -573,12 +662,26 @@ fn evaluate(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> 
 }
 
 fn merge(payload: &Map<String, Value>) -> Value {
-    let parent = payload.get("parent_belief").or_else(|| payload.get("parent")).unwrap_or(&Value::Null);
-    let child = payload.get("child_belief").or_else(|| payload.get("child")).unwrap_or(&Value::Null);
-    let opts = payload.get("opts").and_then(Value::as_object).cloned().unwrap_or_default();
+    let parent = payload
+        .get("parent_belief")
+        .or_else(|| payload.get("parent"))
+        .unwrap_or(&Value::Null);
+    let child = payload
+        .get("child_belief")
+        .or_else(|| payload.get("child"))
+        .unwrap_or(&Value::Null);
+    let opts = payload
+        .get("opts")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let mode = {
         let v = clean_text(opts.get("mode"), 24).to_ascii_lowercase();
-        if v.is_empty() { "cautious".to_string() } else { v }
+        if v.is_empty() {
+            "cautious".to_string()
+        } else {
+            v
+        }
     };
     let parent_weight = clamp_number(opts.get("parent_weight"), 0.0001, 1000.0, 1.0);
     let child_weight = clamp_number(opts.get("child_weight"), 0.0001, 1000.0, 1.0);
@@ -588,10 +691,18 @@ fn merge(payload: &Map<String, Value>) -> Value {
     let parent_score = clamp_number(parent.get("score"), -1.0, 1.0, parent_trit as f64);
     let child_score = clamp_number(child.get("score"), -1.0, 1.0, child_trit as f64);
     let total_weight = parent_weight + child_weight;
-    let merged_score = if total_weight > 0.0 { ((parent_score * parent_weight) + (child_score * child_weight)) / total_weight } else { 0.0 };
+    let merged_score = if total_weight > 0.0 {
+        ((parent_score * parent_weight) + (child_score * child_weight)) / total_weight
+    } else {
+        0.0
+    };
     let parent_confidence = clamp_number(parent.get("confidence"), 0.0, 1.0, 0.5);
     let child_confidence = clamp_number(child.get("confidence"), 0.0, 1.0, 0.5);
-    let merged_confidence = if total_weight > 0.0 { ((parent_confidence * parent_weight) + (child_confidence * child_weight)) / total_weight } else { 0.0 };
+    let merged_confidence = if total_weight > 0.0 {
+        ((parent_confidence * parent_weight) + (child_confidence * child_weight)) / total_weight
+    } else {
+        0.0
+    };
     json!({
         "schema_id": "ternary_belief_merge",
         "schema_version": "1.0.0",
@@ -618,10 +729,21 @@ fn merge(payload: &Map<String, Value>) -> Value {
 }
 
 fn serialize(payload: &Map<String, Value>) -> Value {
-    let belief = payload.get("result").or_else(|| payload.get("belief")).unwrap_or(&Value::Null);
+    let belief = payload
+        .get("result")
+        .or_else(|| payload.get("belief"))
+        .unwrap_or(&Value::Null);
     let trit = normalize_trit(belief.get("trit"));
-    let majority = normalize_trit(belief.get("majority_trit").or_else(|| belief.get("majority")));
-    let consensus_signal = if belief.get("consensus").and_then(Value::as_bool) == Some(true) { trit } else { TRIT_UNKNOWN };
+    let majority = normalize_trit(
+        belief
+            .get("majority_trit")
+            .or_else(|| belief.get("majority")),
+    );
+    let consensus_signal = if belief.get("consensus").and_then(Value::as_bool) == Some(true) {
+        trit
+    } else {
+        TRIT_UNKNOWN
+    };
     json!({
         "schema_id": "ternary_belief_serialized",
         "schema_version": "1.0.0",
@@ -659,7 +781,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             usage();
             return 0;
         }
-        _ => Err("ternary_belief_kernel_unknown_command".to_string())
+        _ => Err("ternary_belief_kernel_unknown_command".to_string()),
     };
     match result {
         Ok(payload) => {
@@ -693,7 +815,10 @@ mod tests {
             }
         });
         let out = evaluate(root, payload.as_object().unwrap()).unwrap();
-        assert_eq!(out["schema_id"], Value::String("ternary_belief".to_string()));
+        assert_eq!(
+            out["schema_id"],
+            Value::String("ternary_belief".to_string())
+        );
         assert_eq!(out["trit_label"], Value::String("ok".to_string()));
         assert_eq!(out["evidence_count"], Value::from(3));
     }
@@ -707,6 +832,9 @@ mod tests {
         })));
         assert_eq!(merged["trit_label"], Value::String("ok".to_string()));
         let serialized = serialize(payload_obj(&json!({"belief": merged})));
-        assert_eq!(serialized["vector"]["digits"], Value::String("+00".to_string()));
+        assert_eq!(
+            serialized["vector"]["digits"],
+            Value::String("+00".to_string())
+        );
     }
 }

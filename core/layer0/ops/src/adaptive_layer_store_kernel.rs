@@ -80,11 +80,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("adaptive_layer_store_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("adaptive_layer_store_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("adaptive_layer_store_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("adaptive_layer_store_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("adaptive_layer_store_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("adaptive_layer_store_kernel_payload_decode_failed:{err}"));
     }
@@ -212,10 +213,17 @@ fn adaptive_pointer_index_path(root: &Path, payload: &Map<String, Value>) -> Pat
 }
 
 fn runtime_adaptive_rel_allowed(rel: &str) -> bool {
-    matches!(rel, "sensory/eyes/catalog.json" | "sensory/eyes/focus_triggers.json")
+    matches!(
+        rel,
+        "sensory/eyes/catalog.json" | "sensory/eyes/focus_triggers.json"
+    )
 }
 
-pub(crate) fn resolve_adaptive_path(root: &Path, payload: &Map<String, Value>, target_path: &str) -> Result<(PathBuf, String), String> {
+pub(crate) fn resolve_adaptive_path(
+    root: &Path,
+    payload: &Map<String, Value>,
+    target_path: &str,
+) -> Result<(PathBuf, String), String> {
     let raw = target_path.trim();
     if raw.is_empty() {
         return Err("adaptive_store: target must be file path under adaptive/".to_string());
@@ -238,15 +246,24 @@ pub(crate) fn resolve_adaptive_path(root: &Path, payload: &Map<String, Value>, t
         }
         if let Some(runtime_rel) = relative_within(&adaptive_runtime_root, &abs_path) {
             if runtime_rel.is_empty() {
-                return Err(format!("adaptive_store: target outside adaptive roots: {}", abs_path.display()));
+                return Err(format!(
+                    "adaptive_store: target outside adaptive roots: {}",
+                    abs_path.display()
+                ));
             }
             let rel = normalize_adaptive_rel(&runtime_rel);
             if !runtime_adaptive_rel_allowed(&rel) {
-                return Err(format!("adaptive_store: runtime path not allowed: {}", abs_path.display()));
+                return Err(format!(
+                    "adaptive_store: runtime path not allowed: {}",
+                    abs_path.display()
+                ));
             }
             return Ok((abs_path, rel));
         }
-        return Err(format!("adaptive_store: target outside adaptive roots: {}", abs_path.display()));
+        return Err(format!(
+            "adaptive_store: target outside adaptive roots: {}",
+            abs_path.display()
+        ));
     }
 
     let rel = normalize_adaptive_rel(raw);
@@ -257,10 +274,17 @@ pub(crate) fn resolve_adaptive_path(root: &Path, payload: &Map<String, Value>, t
         return Ok((adaptive_runtime_root.join(&rel), rel));
     }
     let abs = adaptive_root.join(&rel);
-    let source_rel = relative_within(&adaptive_root, &abs)
-        .ok_or_else(|| format!("adaptive_store: target outside adaptive root: {}", abs.display()))?;
+    let source_rel = relative_within(&adaptive_root, &abs).ok_or_else(|| {
+        format!(
+            "adaptive_store: target outside adaptive root: {}",
+            abs.display()
+        )
+    })?;
     if source_rel.is_empty() {
-        return Err(format!("adaptive_store: target outside adaptive root: {}", abs.display()));
+        return Err(format!(
+            "adaptive_store: target outside adaptive root: {}",
+            abs.display()
+        ));
     }
     Ok((abs, normalize_adaptive_rel(&source_rel)))
 }
@@ -312,7 +336,13 @@ fn acquire_write_lock(abs_path: &Path) -> Result<WriteLock, String> {
                     "ts": now_iso(),
                     "path": abs_path.to_string_lossy(),
                 });
-                let _ = file.write_all(format!("{}\n", serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string())).as_bytes());
+                let _ = file.write_all(
+                    format!(
+                        "{}\n",
+                        serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string())
+                    )
+                    .as_bytes(),
+                );
                 return Ok(WriteLock {
                     file,
                     lock_path,
@@ -331,7 +361,10 @@ fn acquire_write_lock(abs_path: &Path) -> Result<WriteLock, String> {
                     continue;
                 }
                 if started.elapsed().as_millis() as u64 >= WRITE_LOCK_TIMEOUT_MS {
-                    return Err(format!("adaptive_store: write lock timeout for {}", abs_path.display()));
+                    return Err(format!(
+                        "adaptive_store: write lock timeout for {}",
+                        abs_path.display()
+                    ));
                 }
                 sleep(Duration::from_millis(WRITE_LOCK_RETRY_MS));
             }
@@ -430,7 +463,13 @@ fn append_jsonl(file_path: &Path, row: &Value) -> Result<(), String> {
         .open(file_path)
         .map_err(|err| format!("adaptive_layer_store_kernel_append_open_failed:{err}"))?;
     handle
-        .write_all(format!("{}\n", serde_json::to_string(row).unwrap_or_else(|_| "null".to_string())).as_bytes())
+        .write_all(
+            format!(
+                "{}\n",
+                serde_json::to_string(row).unwrap_or_else(|_| "null".to_string())
+            )
+            .as_bytes(),
+        )
         .map_err(|err| format!("adaptive_layer_store_kernel_append_failed:{err}"))?;
     Ok(())
 }
@@ -464,7 +503,8 @@ fn meta_reason(meta: &Map<String, Value>, fallback: &str) -> String {
 
 fn pointer_index_load(root: &Path, payload: &Map<String, Value>) -> Value {
     let path = adaptive_pointer_index_path(root, payload);
-    let value = read_json_value(&path).unwrap_or_else(|| json!({ "version": "1.0", "pointers": {} }));
+    let value =
+        read_json_value(&path).unwrap_or_else(|| json!({ "version": "1.0", "pointers": {} }));
     if value.get("pointers").and_then(Value::as_object).is_some() {
         value
     } else {
@@ -472,12 +512,20 @@ fn pointer_index_load(root: &Path, payload: &Map<String, Value>) -> Value {
     }
 }
 
-fn pointer_index_save(root: &Path, payload: &Map<String, Value>, index: &Value) -> Result<(), String> {
+fn pointer_index_save(
+    root: &Path,
+    payload: &Map<String, Value>,
+    index: &Value,
+) -> Result<(), String> {
     let path = adaptive_pointer_index_path(root, payload);
     write_json_atomic(&path, index)
 }
 
-fn append_adaptive_pointer_rows(root: &Path, payload: &Map<String, Value>, rows: &[Value]) -> Result<Value, String> {
+fn append_adaptive_pointer_rows(
+    root: &Path,
+    payload: &Map<String, Value>,
+    rows: &[Value],
+) -> Result<Value, String> {
     if rows.is_empty() {
         return Ok(json!({ "emitted": 0, "skipped": 0 }));
     }
@@ -525,7 +573,12 @@ fn append_adaptive_pointer_rows(root: &Path, payload: &Map<String, Value>, rows:
     Ok(json!({ "emitted": emitted, "skipped": skipped }))
 }
 
-fn project_adaptive_pointers(rel_path: &str, obj: &Value, op: &str, meta: &Map<String, Value>) -> Vec<Value> {
+fn project_adaptive_pointers(
+    rel_path: &str,
+    obj: &Value,
+    op: &str,
+    meta: &Map<String, Value>,
+) -> Vec<Value> {
     let ts = now_iso();
     let path_ref = format!("adaptive/{}", rel_path.replace('\\', "/"));
     let actor = meta_actor(meta);
@@ -557,7 +610,11 @@ fn project_adaptive_pointers(rel_path: &str, obj: &Value, op: &str, meta: &Map<S
                             .collect::<Vec<_>>()
                     })
                     .unwrap_or_default();
-                let mut tags = vec!["adaptive".to_string(), "sensory".to_string(), "eyes".to_string()];
+                let mut tags = vec![
+                    "adaptive".to_string(),
+                    "sensory".to_string(),
+                    "eyes".to_string(),
+                ];
                 let status_tag = normalize_tag(&clean_text(eye_obj.get("status"), 24));
                 if !status_tag.is_empty() {
                     tags.push(status_tag);
@@ -662,9 +719,17 @@ fn project_adaptive_pointers(rel_path: &str, obj: &Value, op: &str, meta: &Map<S
     rows
 }
 
-fn emit_adaptive_pointers(root: &Path, payload: &Map<String, Value>, rel_path: &str, obj: &Value, op: &str, meta: &Map<String, Value>) -> Value {
+fn emit_adaptive_pointers(
+    root: &Path,
+    payload: &Map<String, Value>,
+    rel_path: &str,
+    obj: &Value,
+    op: &str,
+    meta: &Map<String, Value>,
+) -> Value {
     let rows = project_adaptive_pointers(rel_path, obj, op, meta);
-    append_adaptive_pointer_rows(root, payload, &rows).unwrap_or_else(|_| json!({ "emitted": 0, "skipped": 0 }))
+    append_adaptive_pointer_rows(root, payload, &rows)
+        .unwrap_or_else(|_| json!({ "emitted": 0, "skipped": 0 }))
 }
 
 fn paths_command(root: &Path, payload: &Map<String, Value>) -> Value {
@@ -703,7 +768,10 @@ fn resolve_path_command(root: &Path, payload: &Map<String, Value>) -> Result<Val
     }))
 }
 
-pub(crate) fn read_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+pub(crate) fn read_json_command(
+    root: &Path,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let fallback = payload.get("fallback").cloned().unwrap_or(Value::Null);
     let target = clean_text(payload.get("target_path"), 520);
     let (abs, rel) = resolve_adaptive_path(root, payload, &target)?;
@@ -718,9 +786,15 @@ pub(crate) fn read_json_command(root: &Path, payload: &Map<String, Value>) -> Re
     }))
 }
 
-pub(crate) fn ensure_json_command(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+pub(crate) fn ensure_json_command(
+    root: &Path,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let target = clean_text(payload.get("target_path"), 520);
-    let default_value = payload.get("default_value").cloned().unwrap_or_else(|| json!({}));
+    let default_value = payload
+        .get("default_value")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let meta = payload
         .get("meta")
         .and_then(Value::as_object)
@@ -755,7 +829,8 @@ pub(crate) fn ensure_json_command(root: &Path, payload: &Map<String, Value>) -> 
                 "value_hash": canonical_hash(&default_value),
             }),
         );
-        let pointer_stats = emit_adaptive_pointers(root, payload, &rel, &default_value, "ensure", &meta);
+        let pointer_stats =
+            emit_adaptive_pointers(root, payload, &rel, &default_value, "ensure", &meta);
         json!({
             "ok": true,
             "created": true,
@@ -849,7 +924,8 @@ fn delete_path_command(root: &Path, payload: &Map<String, Value>) -> Result<Valu
     let lock = acquire_write_lock(&abs)?;
     let existed = abs.exists();
     if existed {
-        fs::remove_file(&abs).map_err(|err| format!("adaptive_layer_store_kernel_delete_failed:{err}"))?;
+        fs::remove_file(&abs)
+            .map_err(|err| format!("adaptive_layer_store_kernel_delete_failed:{err}"))?;
     }
     append_mutation_log(
         root,
@@ -906,7 +982,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = payload_obj(&payload);
 
     let receipt = match command.as_str() {
-        "paths" => cli_receipt("adaptive_layer_store_kernel_paths", paths_command(root, payload)),
+        "paths" => cli_receipt(
+            "adaptive_layer_store_kernel_paths",
+            paths_command(root, payload),
+        ),
         "is-within-root" => cli_receipt(
             "adaptive_layer_store_kernel_is_within_root",
             is_within_root_command(root, payload),

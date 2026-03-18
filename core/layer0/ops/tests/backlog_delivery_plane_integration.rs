@@ -104,7 +104,11 @@ fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
     for id in all_ids() {
         let exit = backlog_delivery_plane::run(
             &root,
-            &["run".to_string(), format!("--id={id}"), "--strict=0".to_string()],
+            &[
+                "run".to_string(),
+                format!("--id={id}"),
+                "--strict=0".to_string(),
+            ],
         );
         assert_eq!(exit, 0, "id failed: {id}");
         let latest = read_json(&latest_path(&root));

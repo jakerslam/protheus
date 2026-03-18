@@ -170,7 +170,9 @@ fn rewrite_legacy_runtime_relative(rel_path: &str) -> String {
         let suffix = if rel == "client/runtime/state" {
             String::new()
         } else {
-            rel.strip_prefix("client/runtime/local/state/").unwrap_or("").to_string()
+            rel.strip_prefix("client/runtime/local/state/")
+                .unwrap_or("")
+                .to_string()
         };
         return normalize_relative_path_token(&format!("client/runtime/local/state/{suffix}"));
     }
@@ -178,7 +180,9 @@ fn rewrite_legacy_runtime_relative(rel_path: &str) -> String {
         let suffix = if rel == "core/state" {
             String::new()
         } else {
-            rel.strip_prefix("core/local/state/").unwrap_or("").to_string()
+            rel.strip_prefix("core/local/state/")
+                .unwrap_or("")
+                .to_string()
         };
         return normalize_relative_path_token(&format!("core/local/state/{suffix}"));
     }
@@ -194,19 +198,27 @@ fn rewrite_legacy_runtime_absolute(root: &Path, abs_path: &Path) -> PathBuf {
 
     let normalized = abs_path.to_path_buf();
     if normalized == workspace_local || normalized.starts_with(&workspace_local) {
-        let suffix = normalized.strip_prefix(&workspace_local).unwrap_or(Path::new(""));
+        let suffix = normalized
+            .strip_prefix(&workspace_local)
+            .unwrap_or(Path::new(""));
         return client_root(root).join("local").join(suffix);
     }
     if normalized == workspace_state || normalized.starts_with(&workspace_state) {
-        let suffix = normalized.strip_prefix(&workspace_state).unwrap_or(Path::new(""));
+        let suffix = normalized
+            .strip_prefix(&workspace_state)
+            .unwrap_or(Path::new(""));
         return client_root(root).join("local").join("state").join(suffix);
     }
     if normalized == client_state || normalized.starts_with(&client_state) {
-        let suffix = normalized.strip_prefix(&client_state).unwrap_or(Path::new(""));
+        let suffix = normalized
+            .strip_prefix(&client_state)
+            .unwrap_or(Path::new(""));
         return client_root(root).join("local").join("state").join(suffix);
     }
     if normalized == core_state || normalized.starts_with(&core_state) {
-        let suffix = normalized.strip_prefix(&core_state).unwrap_or(Path::new(""));
+        let suffix = normalized
+            .strip_prefix(&core_state)
+            .unwrap_or(Path::new(""));
         return core_root(root).join("local").join("state").join(suffix);
     }
     normalized
@@ -253,7 +265,8 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
         .as_bytes(),
     )
     .map_err(|err| format!("queued_backlog_kernel_tmp_write_failed:{err}"))?;
-    fs::rename(&tmp, path).map_err(|err| format!("queued_backlog_kernel_atomic_rename_failed:{err}"))
+    fs::rename(&tmp, path)
+        .map_err(|err| format!("queued_backlog_kernel_atomic_rename_failed:{err}"))
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
@@ -345,7 +358,9 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
         }
         "load-policy" => {
             let path = resolve_path(root, &clean_text(payload.get("policy_path"), 520), "");
-            let defaults = as_object(payload.get("defaults")).cloned().unwrap_or_default();
+            let defaults = as_object(payload.get("defaults"))
+                .cloned()
+                .unwrap_or_default();
             let raw = read_json(&path)
                 .and_then(|value| value.as_object().cloned())
                 .unwrap_or_default();
@@ -408,8 +423,14 @@ mod tests {
     #[test]
     fn resolve_path_rewrites_local_state_into_runtime_local() {
         let root = temp_root("resolve");
-        let path = resolve_path(&root, "local/state/ops/demo.json", "local/state/ops/demo.json");
-        assert!(path.to_string_lossy().contains("client/runtime/local/state/ops/demo.json"));
+        let path = resolve_path(
+            &root,
+            "local/state/ops/demo.json",
+            "local/state/ops/demo.json",
+        );
+        assert!(path
+            .to_string_lossy()
+            .contains("client/runtime/local/state/ops/demo.json"));
     }
 
     #[test]
@@ -417,7 +438,10 @@ mod tests {
         let root = temp_root("io");
         let file = root.join("client/runtime/local/state/demo/latest.json");
         write_json_atomic(&file, &json!({"ok": true})).unwrap();
-        assert_eq!(read_json(&file).and_then(|value| value.get("ok").and_then(Value::as_bool)), Some(true));
+        assert_eq!(
+            read_json(&file).and_then(|value| value.get("ok").and_then(Value::as_bool)),
+            Some(true)
+        );
         let jsonl = root.join("client/runtime/local/state/demo/history.jsonl");
         append_jsonl(&jsonl, &json!({"id": 1})).unwrap();
         append_jsonl(&jsonl, &json!({"id": 2})).unwrap();

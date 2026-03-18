@@ -107,7 +107,9 @@ fn usage() {
     println!("  protheus-ops approval-gate-kernel queue --payload-base64=<base64_json> [--queue-path=<path>]");
     println!("  protheus-ops approval-gate-kernel approve --action-id=<id> [--queue-path=<path>]");
     println!("  protheus-ops approval-gate-kernel deny --action-id=<id> [--reason=<text>] [--queue-path=<path>]");
-    println!("  protheus-ops approval-gate-kernel was-approved --action-id=<id> [--queue-path=<path>]");
+    println!(
+        "  protheus-ops approval-gate-kernel was-approved --action-id=<id> [--queue-path=<path>]"
+    );
     println!("  protheus-ops approval-gate-kernel parse-command --text-base64=<base64_text>");
     println!("  protheus-ops approval-gate-kernel parse-yaml --text-base64=<base64_text>");
     println!("  protheus-ops approval-gate-kernel replace --payload-base64=<base64_json> [--queue-path=<path>]");
@@ -124,7 +126,10 @@ fn resolve_queue_path(root: &Path, argv: &[String]) -> PathBuf {
             return root.join(candidate);
         }
     }
-    for env_name in ["APPROVAL_GATE_QUEUE_PATH", "PROTHEUS_APPROVAL_GATE_QUEUE_PATH"] {
+    for env_name in [
+        "APPROVAL_GATE_QUEUE_PATH",
+        "PROTHEUS_APPROVAL_GATE_QUEUE_PATH",
+    ] {
         if let Ok(raw) = std::env::var(env_name) {
             let cleaned = raw.trim();
             if !cleaned.is_empty() {
@@ -191,7 +196,8 @@ fn write_queue(path: &Path, queue: &ApprovalQueue) -> Result<(), String> {
 }
 
 fn clean_text(value: Option<&Value>, max_len: usize) -> String {
-    value.and_then(Value::as_str)
+    value
+        .and_then(Value::as_str)
         .unwrap_or_default()
         .trim()
         .chars()
@@ -212,7 +218,10 @@ fn generate_approval_message(entry: &ApprovalEntry) -> String {
     )
 }
 
-fn queue_entry_from_payload(action_envelope: &Value, reason: &str) -> Result<ApprovalEntry, String> {
+fn queue_entry_from_payload(
+    action_envelope: &Value,
+    reason: &str,
+) -> Result<ApprovalEntry, String> {
     let Some(obj) = action_envelope.as_object() else {
         return Err("approval_gate_kernel_action_envelope_invalid".to_string());
     };
@@ -285,9 +294,16 @@ fn command_queue(root: &Path, argv: &[String]) -> Value {
     };
     let action_envelope = match payload.action_envelope {
         Some(value) => value,
-        None => return cli_error("approval_gate_kernel_queue", "approval_gate_kernel_action_envelope_missing"),
+        None => {
+            return cli_error(
+                "approval_gate_kernel_queue",
+                "approval_gate_kernel_action_envelope_missing",
+            )
+        }
     };
-    let reason = payload.reason.unwrap_or_else(|| "approval_required".to_string());
+    let reason = payload
+        .reason
+        .unwrap_or_else(|| "approval_required".to_string());
     let mut queue = match read_queue(&queue_path) {
         Ok(queue) => queue,
         Err(error) => return cli_error("approval_gate_kernel_queue", &error),
@@ -320,7 +336,11 @@ fn transition_entry(
     action_id: &str,
     deny_reason: Option<&str>,
 ) -> Result<Value, String> {
-    let Some(idx) = queue.pending.iter().position(|entry| entry.action_id == action_id) else {
+    let Some(idx) = queue
+        .pending
+        .iter()
+        .position(|entry| entry.action_id == action_id)
+    else {
         return Err(format!("approval_gate_kernel_action_not_found:{action_id}"));
     };
     let mut entry = queue.pending.remove(idx);
@@ -344,7 +364,10 @@ fn transition_entry(
         history.action = "approved".to_string();
         history.history_at = ts;
         queue.history.push(history);
-        success_message = format!("APPROVED: {}. You can now re-run this action.", entry.summary);
+        success_message = format!(
+            "APPROVED: {}. You can now re-run this action.",
+            entry.summary
+        );
     }
     Ok(json!({
         "success": true,
@@ -356,7 +379,10 @@ fn transition_entry(
 fn command_approve(root: &Path, argv: &[String]) -> Value {
     let queue_path = resolve_queue_path(root, argv);
     let Some(action_id) = lane_utils::parse_flag(argv, "action-id", false) else {
-        return cli_error("approval_gate_kernel_approve", "approval_gate_kernel_action_id_missing");
+        return cli_error(
+            "approval_gate_kernel_approve",
+            "approval_gate_kernel_action_id_missing",
+        );
     };
     let mut queue = match read_queue(&queue_path) {
         Ok(queue) => queue,
@@ -383,7 +409,10 @@ fn command_approve(root: &Path, argv: &[String]) -> Value {
 fn command_deny(root: &Path, argv: &[String]) -> Value {
     let queue_path = resolve_queue_path(root, argv);
     let Some(action_id) = lane_utils::parse_flag(argv, "action-id", false) else {
-        return cli_error("approval_gate_kernel_deny", "approval_gate_kernel_action_id_missing");
+        return cli_error(
+            "approval_gate_kernel_deny",
+            "approval_gate_kernel_action_id_missing",
+        );
     };
     let reason = lane_utils::parse_flag(argv, "reason", false)
         .map(|value| value.trim().to_string())
@@ -414,7 +443,10 @@ fn command_deny(root: &Path, argv: &[String]) -> Value {
 fn command_was_approved(root: &Path, argv: &[String]) -> Value {
     let queue_path = resolve_queue_path(root, argv);
     let Some(action_id) = lane_utils::parse_flag(argv, "action-id", false) else {
-        return cli_error("approval_gate_kernel_was_approved", "approval_gate_kernel_action_id_missing");
+        return cli_error(
+            "approval_gate_kernel_was_approved",
+            "approval_gate_kernel_action_id_missing",
+        );
     };
     let queue = match read_queue(&queue_path) {
         Ok(queue) => queue,
@@ -475,7 +507,12 @@ fn command_replace(root: &Path, argv: &[String]) -> Value {
     };
     let queue = match payload.queue {
         Some(queue) => queue,
-        None => return cli_error("approval_gate_kernel_replace", "approval_gate_kernel_queue_missing"),
+        None => {
+            return cli_error(
+                "approval_gate_kernel_replace",
+                "approval_gate_kernel_queue_missing",
+            )
+        }
     };
     if let Err(error) = write_queue(&queue_path, &queue) {
         return cli_error("approval_gate_kernel_replace", &error);
@@ -527,12 +564,21 @@ mod tests {
     #[test]
     fn parse_command_recognizes_approve_and_deny() {
         let approve = parse_approval_command("APPROVE act_123");
-        assert_eq!(approve.get("action").and_then(Value::as_str), Some("approve"));
-        assert_eq!(approve.get("action_id").and_then(Value::as_str), Some("act_123"));
+        assert_eq!(
+            approve.get("action").and_then(Value::as_str),
+            Some("approve")
+        );
+        assert_eq!(
+            approve.get("action_id").and_then(Value::as_str),
+            Some("act_123")
+        );
 
         let deny = parse_approval_command("deny act_456");
         assert_eq!(deny.get("action").and_then(Value::as_str), Some("deny"));
-        assert_eq!(deny.get("action_id").and_then(Value::as_str), Some("act_456"));
+        assert_eq!(
+            deny.get("action_id").and_then(Value::as_str),
+            Some("act_456")
+        );
     }
 
     #[test]

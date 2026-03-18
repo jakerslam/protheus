@@ -440,7 +440,10 @@ fn measure_pure_workspace_profile(
     measured.insert("idle_rss_p95_mb".to_string(), json!(idle_rss_p95_mb));
     measured.insert("idle_rss_p99_mb".to_string(), json!(idle_rss_p99_mb));
     measured.insert("install_size_mb".to_string(), json!(install_size_mb));
-    measured.insert("tasks_per_sec".to_string(), json!(stabilized_tasks_per_sec(5, 800)));
+    measured.insert(
+        "tasks_per_sec".to_string(),
+        json!(stabilized_tasks_per_sec(5, 800)),
+    );
     measured.insert("security_systems".to_string(), json!(83.0));
     measured.insert("channel_adapters".to_string(), json!(0.0));
     measured.insert("llm_providers".to_string(), json!(0.0));

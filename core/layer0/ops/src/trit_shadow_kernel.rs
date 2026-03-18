@@ -19,7 +19,8 @@ const TRUST_STATE_REL: &str = "client/local/state/autonomy/trit_shadow_trust_sta
 const INFLUENCE_BUDGET_REL: &str = "client/local/state/autonomy/trit_shadow_influence_budget.json";
 const INFLUENCE_GUARD_REL: &str = "client/local/state/autonomy/trit_shadow_influence_guard.json";
 const REPORT_HISTORY_REL: &str = "client/local/state/autonomy/trit_shadow_reports/history.jsonl";
-const CALIBRATION_HISTORY_REL: &str = "client/local/state/autonomy/trit_shadow_calibration/history.jsonl";
+const CALIBRATION_HISTORY_REL: &str =
+    "client/local/state/autonomy/trit_shadow_calibration/history.jsonl";
 
 fn usage() {
     println!("trit-shadow-kernel commands:");
@@ -198,7 +199,13 @@ impl TritShadowPaths {
     }
 }
 
-fn resolve_path(root: &Path, payload: &Map<String, Value>, key: &str, env_name: &str, fallback_rel: &str) -> PathBuf {
+fn resolve_path(
+    root: &Path,
+    payload: &Map<String, Value>,
+    key: &str,
+    env_name: &str,
+    fallback_rel: &str,
+) -> PathBuf {
     if let Some(paths) = as_object(payload.get("paths")) {
         if let Some(raw) = paths.get(key) {
             let s = as_str(Some(raw));
@@ -223,7 +230,13 @@ fn resolve_path(root: &Path, payload: &Map<String, Value>, key: &str, env_name: 
 
 fn resolve_paths(root: &Path, payload: &Map<String, Value>) -> TritShadowPaths {
     TritShadowPaths {
-        policy: resolve_path(root, payload, "policy", "AUTONOMY_TRIT_SHADOW_POLICY_PATH", POLICY_REL),
+        policy: resolve_path(
+            root,
+            payload,
+            "policy",
+            "AUTONOMY_TRIT_SHADOW_POLICY_PATH",
+            POLICY_REL,
+        ),
         success_criteria: resolve_path(
             root,
             payload,
@@ -231,7 +244,13 @@ fn resolve_paths(root: &Path, payload: &Map<String, Value>) -> TritShadowPaths {
             "AUTONOMY_TRIT_SHADOW_SUCCESS_CRITERIA_PATH",
             SUCCESS_CRITERIA_REL,
         ),
-        trust_state: resolve_path(root, payload, "trust_state", "AUTONOMY_TRIT_SHADOW_TRUST_STATE_PATH", TRUST_STATE_REL),
+        trust_state: resolve_path(
+            root,
+            payload,
+            "trust_state",
+            "AUTONOMY_TRIT_SHADOW_TRUST_STATE_PATH",
+            TRUST_STATE_REL,
+        ),
         influence_budget: resolve_path(
             root,
             payload,
@@ -265,8 +284,12 @@ fn resolve_paths(root: &Path, payload: &Map<String, Value>) -> TritShadowPaths {
 
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("trit_shadow_kernel_create_dir_failed:{}:{err}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "trit_shadow_kernel_create_dir_failed:{}:{err}",
+                parent.display()
+            )
+        })?;
     }
     Ok(())
 }
@@ -280,13 +303,26 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     ));
     let payload = serde_json::to_string_pretty(value)
         .map_err(|err| format!("trit_shadow_kernel_encode_json_failed:{err}"))?;
-    let mut file = fs::File::create(&temp)
-        .map_err(|err| format!("trit_shadow_kernel_create_tmp_failed:{}:{err}", temp.display()))?;
+    let mut file = fs::File::create(&temp).map_err(|err| {
+        format!(
+            "trit_shadow_kernel_create_tmp_failed:{}:{err}",
+            temp.display()
+        )
+    })?;
     file.write_all(payload.as_bytes())
         .and_then(|_| file.write_all(b"\n"))
-        .map_err(|err| format!("trit_shadow_kernel_write_tmp_failed:{}:{err}", temp.display()))?;
-    fs::rename(&temp, path)
-        .map_err(|err| format!("trit_shadow_kernel_rename_tmp_failed:{}:{err}", path.display()))
+        .map_err(|err| {
+            format!(
+                "trit_shadow_kernel_write_tmp_failed:{}:{err}",
+                temp.display()
+            )
+        })?;
+    fs::rename(&temp, path).map_err(|err| {
+        format!(
+            "trit_shadow_kernel_rename_tmp_failed:{}:{err}",
+            path.display()
+        )
+    })
 }
 
 fn read_json(path: &Path) -> Value {
@@ -415,7 +451,10 @@ fn normalize_policy(input: &Map<String, Value>) -> Value {
         trust.and_then(|v| v.get("source_trust_floor")),
         0.01,
         5.0,
-        base_trust.get("source_trust_floor").and_then(Value::as_f64).unwrap_or(0.6),
+        base_trust
+            .get("source_trust_floor")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.6),
     );
     let version = as_str(input.get("version"))
         .chars()
@@ -571,9 +610,17 @@ fn default_trust_state(policy: &Value) -> Value {
 
 fn normalize_trust_state(input: &Map<String, Value>, policy: &Value) -> Value {
     let base = default_trust_state(policy);
-    let base_default = base.get("default_source_trust").and_then(Value::as_f64).unwrap_or(1.0);
+    let base_default = base
+        .get("default_source_trust")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
     let floor = clamp_number(policy.pointer("/trust/source_trust_floor"), 0.01, 5.0, 0.6);
-    let ceiling = clamp_number(policy.pointer("/trust/source_trust_ceiling"), floor, 5.0, 1.5);
+    let ceiling = clamp_number(
+        policy.pointer("/trust/source_trust_ceiling"),
+        floor,
+        5.0,
+        1.5,
+    );
     let mut by_source = serde_json::Map::new();
     if let Some(source_map) = input.get("by_source").and_then(Value::as_object) {
         for (source, row) in source_map {
@@ -635,7 +682,9 @@ fn sorted_shadow_reports(path: &Path) -> Vec<Value> {
 fn sorted_calibration_rows(path: &Path) -> Vec<Value> {
     let mut rows = read_jsonl(path)
         .into_iter()
-        .filter(|row| row.get("type").and_then(Value::as_str) == Some("trit_shadow_replay_calibration"))
+        .filter(|row| {
+            row.get("type").and_then(Value::as_str) == Some("trit_shadow_replay_calibration")
+        })
         .filter(|row| row.get("ok").and_then(Value::as_bool) == Some(true))
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| as_str(a.get("ts")).cmp(&as_str(b.get("ts"))));
@@ -650,14 +699,24 @@ fn latest_calibration(path: &Path) -> Option<Value> {
 fn report_passes_auto_stage(row: &Value, cfg: &Value) -> bool {
     let summary = row.get("summary").and_then(Value::as_object);
     let success = row.get("success_criteria").and_then(Value::as_object);
-    let checks = success.and_then(|v| v.get("checks")).and_then(Value::as_object);
-    if clamp_number(summary.and_then(|v| v.get("total_decisions")), 0.0, 1_000_000.0, 0.0)
-        < clamp_number(cfg.get("min_decisions"), 0.0, 1_000_000.0, 0.0)
+    let checks = success
+        .and_then(|v| v.get("checks"))
+        .and_then(Value::as_object);
+    if clamp_number(
+        summary.and_then(|v| v.get("total_decisions")),
+        0.0,
+        1_000_000.0,
+        0.0,
+    ) < clamp_number(cfg.get("min_decisions"), 0.0, 1_000_000.0, 0.0)
     {
         return false;
     }
-    if clamp_number(summary.and_then(|v| v.get("divergence_rate")), 0.0, 1.0, 0.0)
-        > clamp_number(cfg.get("max_divergence_rate"), 0.0, 1.0, 1.0)
+    if clamp_number(
+        summary.and_then(|v| v.get("divergence_rate")),
+        0.0,
+        1.0,
+        0.0,
+    ) > clamp_number(cfg.get("max_divergence_rate"), 0.0, 1.0, 1.0)
     {
         return false;
     }
@@ -667,13 +726,17 @@ fn report_passes_auto_stage(row: &Value, cfg: &Value) -> bool {
         return false;
     }
     if as_bool(cfg.get("require_safety_pass"), true) {
-        let safety = checks.and_then(|v| v.get("safety_regressions")).and_then(Value::as_object);
+        let safety = checks
+            .and_then(|v| v.get("safety_regressions"))
+            .and_then(Value::as_object);
         if safety.and_then(|v| v.get("pass")).and_then(Value::as_bool) != Some(true) {
             return false;
         }
     }
     if as_bool(cfg.get("require_drift_non_increasing"), true) {
-        let drift = checks.and_then(|v| v.get("drift_non_increasing")).and_then(Value::as_object);
+        let drift = checks
+            .and_then(|v| v.get("drift_non_increasing"))
+            .and_then(Value::as_object);
         if drift.and_then(|v| v.get("pass")).and_then(Value::as_bool) != Some(true) {
             return false;
         }
@@ -683,8 +746,12 @@ fn report_passes_auto_stage(row: &Value, cfg: &Value) -> bool {
 
 fn calibration_passes_auto_stage(calibration: &Value, cfg: &Value) -> bool {
     let summary = calibration.get("summary").and_then(Value::as_object);
-    if clamp_number(summary.and_then(|v| v.get("total_events")), 0.0, 1_000_000.0, 0.0)
-        < clamp_number(cfg.get("min_calibration_events"), 0.0, 1_000_000.0, 0.0)
+    if clamp_number(
+        summary.and_then(|v| v.get("total_events")),
+        0.0,
+        1_000_000.0,
+        0.0,
+    ) < clamp_number(cfg.get("min_calibration_events"), 0.0, 1_000_000.0, 0.0)
     {
         return false;
     }
@@ -693,18 +760,37 @@ fn calibration_passes_auto_stage(calibration: &Value, cfg: &Value) -> bool {
     {
         return false;
     }
-    if clamp_number(summary.and_then(|v| v.get("expected_calibration_error")), 0.0, 1.0, 1.0)
-        > clamp_number(cfg.get("max_calibration_ece"), 0.0, 1.0, 1.0)
+    if clamp_number(
+        summary.and_then(|v| v.get("expected_calibration_error")),
+        0.0,
+        1.0,
+        1.0,
+    ) > clamp_number(cfg.get("max_calibration_ece"), 0.0, 1.0, 1.0)
     {
         return false;
     }
     true
 }
 
-fn calibration_window_passes_auto_stage(rows: &[Value], cfg: &Value, required_window: i64) -> Value {
+fn calibration_window_passes_auto_stage(
+    rows: &[Value],
+    cfg: &Value,
+    required_window: i64,
+) -> Value {
     let window = required_window.max(1) as usize;
-    let recent = rows.iter().rev().take(window).cloned().collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>();
-    let pass = recent.len() >= window && recent.iter().all(|row| calibration_passes_auto_stage(row, cfg));
+    let recent = rows
+        .iter()
+        .rev()
+        .take(window)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    let pass = recent.len() >= window
+        && recent
+            .iter()
+            .all(|row| calibration_passes_auto_stage(row, cfg));
     json!({
         "required_window": window,
         "rows_evaluated": recent.len(),
@@ -742,7 +828,11 @@ fn source_reliability_gate(rows: &[Value], cfg: &Value) -> Value {
     let mut aggregated = totals
         .into_iter()
         .map(|(source, (samples, weighted_hits))| {
-            let hit_rate = if samples > 0.0 { weighted_hits / samples } else { 0.0 };
+            let hit_rate = if samples > 0.0 {
+                weighted_hits / samples
+            } else {
+                0.0
+            };
             json!({
                 "source": source,
                 "samples": samples as i64,
@@ -787,7 +877,10 @@ fn source_reliability_gate(rows: &[Value], cfg: &Value) -> Value {
 }
 
 fn evaluate_productivity(policy: &Value, paths: &TritShadowPaths) -> Value {
-    let activation = policy.pointer("/influence/activation").cloned().unwrap_or_else(|| json!({}));
+    let activation = policy
+        .pointer("/influence/activation")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if activation.get("enabled").and_then(Value::as_bool) != Some(true) {
         return json!({
             "enabled": false,
@@ -800,8 +893,19 @@ fn evaluate_productivity(policy: &Value, paths: &TritShadowPaths) -> Value {
     }
     let reports = sorted_shadow_reports(&paths.report_history);
     let report_window = clamp_int(activation.get("report_window"), 1, 365, 1) as usize;
-    let recent_reports = reports.iter().rev().take(report_window).cloned().collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>();
-    let reports_pass = recent_reports.len() >= report_window && recent_reports.iter().all(|row| report_passes_auto_stage(row, &activation));
+    let recent_reports = reports
+        .iter()
+        .rev()
+        .take(report_window)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    let reports_pass = recent_reports.len() >= report_window
+        && recent_reports
+            .iter()
+            .all(|row| report_passes_auto_stage(row, &activation));
     if !reports_pass {
         return json!({
             "enabled": true,
@@ -814,7 +918,8 @@ fn evaluate_productivity(policy: &Value, paths: &TritShadowPaths) -> Value {
     }
     let calibrations = sorted_calibration_rows(&paths.calibration_history);
     let calibration_window = clamp_int(activation.get("calibration_window"), 1, 365, 1);
-    let calibration_check = calibration_window_passes_auto_stage(&calibrations, &activation, calibration_window);
+    let calibration_check =
+        calibration_window_passes_auto_stage(&calibrations, &activation, calibration_window);
     if calibration_check.get("pass").and_then(Value::as_bool) != Some(true) {
         return json!({
             "enabled": true,
@@ -826,7 +931,10 @@ fn evaluate_productivity(policy: &Value, paths: &TritShadowPaths) -> Value {
         });
     }
     let source_reliability = source_reliability_gate(
-        calibration_check.get("recent").and_then(Value::as_array).unwrap_or(&Vec::new()),
+        calibration_check
+            .get("recent")
+            .and_then(Value::as_array)
+            .unwrap_or(&Vec::new()),
         &activation,
     );
     if source_reliability.get("pass").and_then(Value::as_bool) != Some(true) {
@@ -850,7 +958,10 @@ fn evaluate_productivity(policy: &Value, paths: &TritShadowPaths) -> Value {
 }
 
 fn evaluate_auto_stage(policy: &Value, paths: &TritShadowPaths) -> Value {
-    let auto_cfg = policy.pointer("/influence/auto_stage").cloned().unwrap_or_else(|| json!({}));
+    let auto_cfg = policy
+        .pointer("/influence/auto_stage")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if auto_cfg.get("enabled").and_then(Value::as_bool) != Some(true) {
         return json!({
             "enabled": false,
@@ -881,20 +992,59 @@ fn evaluate_auto_stage(policy: &Value, paths: &TritShadowPaths) -> Value {
     let stage2_window = clamp_int(stage2_cfg.get("consecutive_reports"), 1, 365, 3) as usize;
     let stage3_cal_window = clamp_int(stage3_cfg.get("min_calibration_reports"), 1, 365, 1);
     let stage2_cal_window = clamp_int(stage2_cfg.get("min_calibration_reports"), 1, 365, 1);
-    let recent3 = reports.iter().rev().take(stage3_window).cloned().collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>();
-    let recent2 = reports.iter().rev().take(stage2_window).cloned().collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>();
-    let stage3_reports_pass = recent3.len() >= stage3_window && recent3.iter().all(|row| report_passes_auto_stage(row, &stage3_cfg));
-    let stage2_reports_pass = recent2.len() >= stage2_window && recent2.iter().all(|row| report_passes_auto_stage(row, &stage2_cfg));
-    let stage3_cal_check = calibration_window_passes_auto_stage(&calibrations, &stage3_cfg, stage3_cal_window);
-    let stage2_cal_check = calibration_window_passes_auto_stage(&calibrations, &stage2_cfg, stage2_cal_window);
-    let activation_cfg = policy.pointer("/influence/activation").cloned().unwrap_or_else(|| json!({}));
+    let recent3 = reports
+        .iter()
+        .rev()
+        .take(stage3_window)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    let recent2 = reports
+        .iter()
+        .rev()
+        .take(stage2_window)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    let stage3_reports_pass = recent3.len() >= stage3_window
+        && recent3
+            .iter()
+            .all(|row| report_passes_auto_stage(row, &stage3_cfg));
+    let stage2_reports_pass = recent2.len() >= stage2_window
+        && recent2
+            .iter()
+            .all(|row| report_passes_auto_stage(row, &stage2_cfg));
+    let stage3_cal_check =
+        calibration_window_passes_auto_stage(&calibrations, &stage3_cfg, stage3_cal_window);
+    let stage2_cal_check =
+        calibration_window_passes_auto_stage(&calibrations, &stage2_cfg, stage2_cal_window);
+    let activation_cfg = policy
+        .pointer("/influence/activation")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let stage3_source = if as_bool(stage3_cfg.get("require_source_reliability"), false) {
-        source_reliability_gate(stage3_cal_check.get("recent").and_then(Value::as_array).unwrap_or(&Vec::new()), &activation_cfg)
+        source_reliability_gate(
+            stage3_cal_check
+                .get("recent")
+                .and_then(Value::as_array)
+                .unwrap_or(&Vec::new()),
+            &activation_cfg,
+        )
     } else {
         json!({"pass": true})
     };
     let stage2_source = if as_bool(stage2_cfg.get("require_source_reliability"), false) {
-        source_reliability_gate(stage2_cal_check.get("recent").and_then(Value::as_array).unwrap_or(&Vec::new()), &activation_cfg)
+        source_reliability_gate(
+            stage2_cal_check
+                .get("recent")
+                .and_then(Value::as_array)
+                .unwrap_or(&Vec::new()),
+            &activation_cfg,
+        )
     } else {
         json!({"pass": true})
     };
@@ -967,7 +1117,11 @@ fn resolve_stage_decision(policy: &Value, paths: &TritShadowPaths) -> Value {
     }
     let auto = evaluate_auto_stage(policy, paths);
     if auto.get("enabled").and_then(Value::as_bool) == Some(true) {
-        let mode = if policy.pointer("/influence/auto_stage/mode").and_then(Value::as_str) == Some("override") {
+        let mode = if policy
+            .pointer("/influence/auto_stage/mode")
+            .and_then(Value::as_str)
+            == Some("override")
+        {
             "override"
         } else {
             "floor"
@@ -1023,19 +1177,31 @@ fn load_influence_budget(path: &Path) -> Value {
 }
 
 fn save_influence_budget(budget: &Value, path: &Path) -> Result<Value, String> {
-    let mut next = if budget.is_object() { budget.clone() } else { default_influence_budget() };
+    let mut next = if budget.is_object() {
+        budget.clone()
+    } else {
+        default_influence_budget()
+    };
     next["updated_at"] = Value::String(now_iso());
     write_json_atomic(path, &next)?;
     Ok(next)
 }
 
 fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
-    let max_per_day = clamp_int(policy.pointer("/influence/max_overrides_per_day"), 0, 10_000, 0);
+    let max_per_day = clamp_int(
+        policy.pointer("/influence/max_overrides_per_day"),
+        0,
+        10_000,
+        0,
+    );
     if max_per_day <= 0 {
         return json!({"allowed": false, "reason": "budget_disabled", "remaining": 0});
     }
     let budget = load_influence_budget(path);
-    let row = budget.pointer(&format!("/by_date/{date_str}")).cloned().unwrap_or_else(|| json!({"overrides": 0}));
+    let row = budget
+        .pointer(&format!("/by_date/{date_str}"))
+        .cloned()
+        .unwrap_or_else(|| json!({"overrides": 0}));
     let used = clamp_int(row.get("overrides"), 0, 1_000_000, 0);
     let remaining = (max_per_day - used).max(0);
     if remaining <= 0 {
@@ -1056,7 +1222,12 @@ fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
     })
 }
 
-fn consume_override(source: &str, policy: &Value, date_str: &str, path: &Path) -> Result<Value, String> {
+fn consume_override(
+    source: &str,
+    policy: &Value,
+    date_str: &str,
+    path: &Path,
+) -> Result<Value, String> {
     let check = can_consume_override(policy, date_str, path);
     if check.get("allowed").and_then(Value::as_bool) != Some(true) {
         return Ok(json!({
@@ -1075,12 +1246,25 @@ fn consume_override(source: &str, policy: &Value, date_str: &str, path: &Path) -
     if budget.pointer(&format!("/by_date/{date_str}")).is_none() {
         budget["by_date"][date_str] = json!({"overrides": 0, "by_source": {}});
     }
-    let used = clamp_int(budget.pointer(&format!("/by_date/{date_str}/overrides")), 0, 1_000_000, 0) + 1;
+    let used = clamp_int(
+        budget.pointer(&format!("/by_date/{date_str}/overrides")),
+        0,
+        1_000_000,
+        0,
+    ) + 1;
     budget["by_date"][date_str]["overrides"] = Value::from(used);
-    if !budget.pointer(&format!("/by_date/{date_str}/by_source")).map(Value::is_object).unwrap_or(false) {
+    if !budget
+        .pointer(&format!("/by_date/{date_str}/by_source"))
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         budget["by_date"][date_str]["by_source"] = json!({});
     }
-    let source_key = if source.trim().is_empty() { "unknown" } else { source.trim() };
+    let source_key = if source.trim().is_empty() {
+        "unknown"
+    } else {
+        source.trim()
+    };
     let by_source_used = clamp_int(
         budget.pointer(&format!("/by_date/{date_str}/by_source/{source_key}")),
         0,
@@ -1150,7 +1334,11 @@ fn load_influence_guard(path: &Path) -> Value {
 }
 
 fn save_influence_guard(guard: &Value, path: &Path) -> Result<Value, String> {
-    let mut next = if guard.is_object() { guard.clone() } else { default_influence_guard() };
+    let mut next = if guard.is_object() {
+        guard.clone()
+    } else {
+        default_influence_guard()
+    };
     next["updated_at"] = Value::String(now_iso());
     write_json_atomic(path, &next)?;
     Ok(next)
@@ -1161,12 +1349,20 @@ fn is_influence_blocked(guard: &Value, now_ts: Option<&str>) -> Value {
         return json!({"blocked": false, "reason": "enabled"});
     }
     let now_ms = now_ts
-        .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok().map(|dt| dt.timestamp_millis()))
+        .and_then(|v| {
+            chrono::DateTime::parse_from_rfc3339(v)
+                .ok()
+                .map(|dt| dt.timestamp_millis())
+        })
         .unwrap_or_else(|| Utc::now().timestamp_millis());
     let until_ms = guard
         .get("disabled_until")
         .and_then(Value::as_str)
-        .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok().map(|dt| dt.timestamp_millis()));
+        .and_then(|v| {
+            chrono::DateTime::parse_from_rfc3339(v)
+                .ok()
+                .map(|dt| dt.timestamp_millis())
+        });
     if let Some(until) = until_ms {
         if now_ms > until {
             return json!({"blocked": false, "reason": "expired"});
@@ -1179,17 +1375,29 @@ fn is_influence_blocked(guard: &Value, now_ts: Option<&str>) -> Value {
     })
 }
 
-fn apply_influence_guard(report_payload: &Value, policy: &Value, path: &Path) -> Result<Value, String> {
+fn apply_influence_guard(
+    report_payload: &Value,
+    policy: &Value,
+    path: &Path,
+) -> Result<Value, String> {
     let summary = report_payload.get("summary").and_then(Value::as_object);
-    let gate = summary.and_then(|v| v.get("gate")).and_then(Value::as_object);
+    let gate = summary
+        .and_then(|v| v.get("gate"))
+        .and_then(Value::as_object);
     let status = as_str(summary.and_then(|v| v.get("status"))).to_ascii_lowercase();
-    let should_disable = if gate.and_then(|v| v.get("enabled")).and_then(Value::as_bool) == Some(true) {
-        gate.and_then(|v| v.get("pass")).and_then(Value::as_bool) == Some(false)
-    } else {
-        status == "critical"
-    };
+    let should_disable =
+        if gate.and_then(|v| v.get("enabled")).and_then(Value::as_bool) == Some(true) {
+            gate.and_then(|v| v.get("pass")).and_then(Value::as_bool) == Some(false)
+        } else {
+            status == "critical"
+        };
     let mut next = load_influence_guard(path);
-    let disable_hours = clamp_number(policy.pointer("/influence/auto_disable_hours_on_regression"), 1.0, (24 * 30) as f64, 24.0);
+    let disable_hours = clamp_number(
+        policy.pointer("/influence/auto_disable_hours_on_regression"),
+        1.0,
+        (24 * 30) as f64,
+        24.0,
+    );
     if should_disable {
         next["disabled"] = Value::Bool(true);
         let reason = if gate.and_then(|v| v.get("enabled")).and_then(Value::as_bool) == Some(true)
@@ -1197,7 +1405,8 @@ fn apply_influence_guard(report_payload: &Value, policy: &Value, path: &Path) ->
         {
             format!(
                 "shadow_gate_failed:{}",
-                as_str(gate.and_then(|v| v.get("reason"))).if_empty_then("divergence_rate_exceeds_limit")
+                as_str(gate.and_then(|v| v.get("reason")))
+                    .if_empty_then("divergence_rate_exceeds_limit")
             )
         } else {
             "shadow_status_critical".to_string()
@@ -1251,11 +1460,17 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
                 .and_then(Value::as_object)
                 .map(normalize_policy)
                 .unwrap_or_else(|| load_policy_from_path(&paths.policy));
-            let state = payload.get("state").cloned().unwrap_or_else(|| Value::Object(payload.clone()));
+            let state = payload
+                .get("state")
+                .cloned()
+                .unwrap_or_else(|| Value::Object(payload.clone()));
             save_trust_state_to_path(&state, &policy, &paths.trust_state)
         }
         "build-trust-map" => {
-            let trust_state = payload.get("trust_state").cloned().unwrap_or_else(|| Value::Object(payload.clone()));
+            let trust_state = payload
+                .get("trust_state")
+                .cloned()
+                .unwrap_or_else(|| Value::Object(payload.clone()));
             Ok(build_trust_map(&trust_state))
         }
         "evaluate-productivity" => {
@@ -1301,7 +1516,11 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
                 .map(normalize_policy)
                 .unwrap_or_else(|| load_policy_from_path(&paths.policy));
             let date_str = as_str(payload.get("date_str")).if_empty_then(&now_date());
-            Ok(can_consume_override(&policy, &date_str, &paths.influence_budget))
+            Ok(can_consume_override(
+                &policy,
+                &date_str,
+                &paths.influence_budget,
+            ))
         }
         "consume-override" => {
             let policy = payload
@@ -1315,7 +1534,10 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
         }
         "load-influence-guard" => Ok(load_influence_guard(&paths.influence_guard)),
         "save-influence-guard" => {
-            let guard = payload.get("guard").cloned().unwrap_or_else(|| Value::Object(payload.clone()));
+            let guard = payload
+                .get("guard")
+                .cloned()
+                .unwrap_or_else(|| Value::Object(payload.clone()));
             save_influence_guard(&guard, &paths.influence_guard)
         }
         "influence-blocked" => {
@@ -1326,7 +1548,11 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
             let now_ts = as_str(payload.get("now_ts"));
             Ok(is_influence_blocked(
                 &guard,
-                if now_ts.is_empty() { None } else { Some(now_ts.as_str()) },
+                if now_ts.is_empty() {
+                    None
+                } else {
+                    Some(now_ts.as_str())
+                },
             ))
         }
         "apply-influence-guard" => {
@@ -1380,7 +1606,11 @@ mod tests {
     use super::*;
 
     fn temp_file(name: &str) -> PathBuf {
-        let base = std::env::temp_dir().join(format!("trit-shadow-kernel-{}-{}", std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or_default()));
+        let base = std::env::temp_dir().join(format!(
+            "trit-shadow-kernel-{}-{}",
+            std::process::id(),
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
         fs::create_dir_all(&base).unwrap();
         base.join(name)
     }
@@ -1395,24 +1625,52 @@ mod tests {
             },
             "trust": {"source_trust_floor": 0.2, "source_trust_ceiling": 9}
         })));
-        assert_eq!(normalized.pointer("/influence/stage").and_then(Value::as_i64), Some(3));
-        assert_eq!(normalized.pointer("/influence/max_overrides_per_day").and_then(Value::as_i64), Some(0));
-        assert_eq!(normalized.pointer("/trust/source_trust_floor").and_then(Value::as_f64), Some(0.2_f64.max(0.01)));
-        assert_eq!(normalized.pointer("/influence/auto_stage/mode").and_then(Value::as_str), Some("override"));
+        assert_eq!(
+            normalized
+                .pointer("/influence/stage")
+                .and_then(Value::as_i64),
+            Some(3)
+        );
+        assert_eq!(
+            normalized
+                .pointer("/influence/max_overrides_per_day")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            normalized
+                .pointer("/trust/source_trust_floor")
+                .and_then(Value::as_f64),
+            Some(0.2_f64.max(0.01))
+        );
+        assert_eq!(
+            normalized
+                .pointer("/influence/auto_stage/mode")
+                .and_then(Value::as_str),
+            Some("override")
+        );
     }
 
     #[test]
     fn trust_state_round_trip_and_map() {
         let path = temp_file("trust_state.json");
         let policy = default_policy();
-        let saved = save_trust_state_to_path(&json!({
-            "default_source_trust": 1.2,
-            "by_source": {
-                "policy": {"trust": 1.4, "samples": 10, "hit_rate": 0.7}
-            }
-        }), &policy, &path).unwrap();
+        let saved = save_trust_state_to_path(
+            &json!({
+                "default_source_trust": 1.2,
+                "by_source": {
+                    "policy": {"trust": 1.4, "samples": 10, "hit_rate": 0.7}
+                }
+            }),
+            &policy,
+            &path,
+        )
+        .unwrap();
         let loaded = load_trust_state_from_path(&policy, &path);
-        assert_eq!(saved.pointer("/by_source/policy/trust"), loaded.pointer("/by_source/policy/trust"));
+        assert_eq!(
+            saved.pointer("/by_source/policy/trust"),
+            loaded.pointer("/by_source/policy/trust")
+        );
         let trust_map = build_trust_map(&loaded);
         assert_eq!(trust_map.get("policy").and_then(Value::as_f64), Some(1.4));
     }
@@ -1528,7 +1786,8 @@ mod tests {
                 "guard": guard,
                 "now_ts": "2026-03-17T12:30:00Z"
             })),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(blocked.get("blocked").and_then(Value::as_bool), Some(true));
     }
 }

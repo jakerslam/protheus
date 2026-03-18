@@ -18,7 +18,9 @@ fn usage() {
     println!("tool-response-compactor-kernel commands:");
     println!("  protheus-ops tool-response-compactor-kernel compact --payload-base64=<json>");
     println!("  protheus-ops tool-response-compactor-kernel redact --payload-base64=<json>");
-    println!("  protheus-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>");
+    println!(
+        "  protheus-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -63,11 +65,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("tool_response_compactor_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("tool_response_compactor_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("tool_response_compactor_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("tool_response_compactor_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("tool_response_compactor_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("tool_response_compactor_kernel_payload_decode_failed:{err}"));
     }
@@ -105,8 +108,7 @@ fn render_input(value: &Value) -> String {
 
 fn redact_secrets(content: &str) -> String {
     let mut out = content.to_string();
-    let moltbook_re =
-        Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex");
+    let moltbook_re = Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex");
     out = moltbook_re
         .replace_all(&out, |caps: &Captures| {
             let token = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
@@ -134,10 +136,7 @@ fn redact_secrets(content: &str) -> String {
     .expect("valid header regex");
     out = header_re
         .replace_all(&out, |caps: &Captures| {
-            let key = caps
-                .get(1)
-                .map(|m| m.as_str())
-                .unwrap_or("authorization");
+            let key = caps.get(1).map(|m| m.as_str()).unwrap_or("authorization");
             format!("{key}: [REDACTED]")
         })
         .to_string();
@@ -150,9 +149,8 @@ fn redact_secrets(content: &str) -> String {
         .replace_all(&out, "$1\"[REDACTED]\"")
         .to_string();
 
-    let query_re =
-        Regex::new(r"(?i)([?&](?:token|access_token|api_key|auth|ct0|bearer)=)[^&\s]+")
-            .expect("valid query regex");
+    let query_re = Regex::new(r"(?i)([?&](?:token|access_token|api_key|auth|ct0|bearer)=)[^&\s]+")
+        .expect("valid query regex");
     out = query_re.replace_all(&out, "$1[REDACTED]").to_string();
     out
 }
@@ -279,7 +277,14 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
 
     while bullets.len() < 5 && bullets.len() < 10 {
         if !bullets.iter().any(|row| row.contains("Type:")) {
-            bullets.push(format!("• Type: {}", if tool_name.is_empty() { "tool output" } else { tool_name }));
+            bullets.push(format!(
+                "• Type: {}",
+                if tool_name.is_empty() {
+                    "tool output"
+                } else {
+                    tool_name
+                }
+            ));
         } else if !bullets.iter().any(|row| row.contains("Status:")) {
             bullets.push("• Status: success".to_string());
         } else {
@@ -390,10 +395,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "redact" => match payload_json(argv) {
             Ok(payload) => {
-                let data = payload
-                    .get("data")
-                    .map(render_input)
-                    .unwrap_or_default();
+                let data = payload.get("data").map(render_input).unwrap_or_default();
                 print_json_line(&cli_receipt(
                     "tool_response_compactor_kernel_redact",
                     json!({ "content": redact_secrets(&data) }),
@@ -439,10 +441,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         0
                     }
                     Err(err) => {
-                        print_json_line(&cli_error(
-                            "tool_response_compactor_kernel_compact",
-                            &err,
-                        ));
+                        print_json_line(&cli_error("tool_response_compactor_kernel_compact", &err));
                         1
                     }
                 }

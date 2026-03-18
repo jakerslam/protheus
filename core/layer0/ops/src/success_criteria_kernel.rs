@@ -37,8 +37,16 @@ const PROPOSAL_BASE_METRICS: &[&str] = &[
 ];
 const OUTREACH_METRICS: &[&str] = &["outreach_artifact", "reply_or_interview_count"];
 const CONTRACT_SAFE_BACKFILL_ROWS: &[(&str, &str, &str)] = &[
-    ("contract_backfill", "execution_success", "execution success"),
-    ("contract_backfill", "postconditions_ok", "postconditions pass"),
+    (
+        "contract_backfill",
+        "execution_success",
+        "execution success",
+    ),
+    (
+        "contract_backfill",
+        "postconditions_ok",
+        "postconditions pass",
+    ),
     (
         "contract_backfill",
         "queue_outcome_logged",
@@ -115,12 +123,8 @@ fn print_json_line(value: &Value) {
 fn usage() {
     println!("success-criteria-kernel commands:");
     println!("  protheus-ops success-criteria-kernel status");
-    println!(
-        "  protheus-ops success-criteria-kernel parse-rows --payload-base64=<base64_json>"
-    );
-    println!(
-        "  protheus-ops success-criteria-kernel evaluate --payload-base64=<base64_json>"
-    );
+    println!("  protheus-ops success-criteria-kernel parse-rows --payload-base64=<base64_json>");
+    println!("  protheus-ops success-criteria-kernel evaluate --payload-base64=<base64_json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -320,7 +324,10 @@ fn capability_allows_outreach(capability_key: &str) -> bool {
 fn remap_metric_for_capability(metric: &str, capability_key: &str) -> String {
     let norm = normalize_spaces(metric).to_ascii_lowercase();
     if !capability_allows_outreach(capability_key)
-        && matches!(norm.as_str(), "reply_or_interview_count" | "outreach_artifact")
+        && matches!(
+            norm.as_str(),
+            "reply_or_interview_count" | "outreach_artifact"
+        )
     {
         return "artifact_count".to_string();
     }
@@ -339,37 +346,65 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         "queue_outcome_logged" => "outcome receipt logged".to_string(),
         "artifact_count" => format!(
             "{}{} artifact",
-            if parse_comparator(&text, "gte") == "lte" { "<=" } else { ">=" },
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
             parse_first_int(&text, 1)
         ),
         "outreach_artifact" => format!(
             "{}{} outreach artifact",
-            if parse_comparator(&text, "gte") == "lte" { "<=" } else { ">=" },
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
             parse_first_int(&text, 1)
         ),
         "reply_or_interview_count" => format!(
             "{}{} reply/interview signal",
-            if parse_comparator(&text, "gte") == "lte" { "<=" } else { ">=" },
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
             parse_first_int(&text, 1)
         ),
         "entries_count" => format!(
             "{}{} entries",
-            if parse_comparator(&text, "gte") == "lte" { "<=" } else { ">=" },
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
             parse_first_int(&text, 1)
         ),
         "revenue_actions_count" => format!(
             "{}{} revenue actions",
-            if parse_comparator(&text, "gte") == "lte" { "<=" } else { ">=" },
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
             parse_first_int(&text, 1)
         ),
         "token_usage" => format!(
             "tokens {}{}",
-            if parse_comparator(&text, "lte") == "gte" { ">=" } else { "<=" },
+            if parse_comparator(&text, "lte") == "gte" {
+                ">="
+            } else {
+                "<="
+            },
             parse_token_limit(&text).unwrap_or(1200)
         ),
         "duration_ms" => format!(
             "duration {}{}ms",
-            if parse_comparator(&text, "lte") == "gte" { ">=" } else { "<=" },
+            if parse_comparator(&text, "lte") == "gte" {
+                ">="
+            } else {
+                "<="
+            },
             parse_duration_limit_ms(&text).unwrap_or(15_000)
         ),
         _ => {
@@ -404,12 +439,18 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
             return "postconditions_ok".to_string()
         }
         "outreach_artifact" => return "outreach_artifact".to_string(),
-        "reply_or_interview_count" | "reply_count" | "interview_count" | "outreach_reply_count" | "outreach_interview_count" => {
-            return "reply_or_interview_count".to_string()
-        }
-        "artifact_count" | "experiment_artifact" | "collector_success_runs" | "hypothesis_signal_lift" | "outreach_artifact_count" | "offer_draft_count" | "proposal_draft_count" => {
-            return "artifact_count".to_string()
-        }
+        "reply_or_interview_count"
+        | "reply_count"
+        | "interview_count"
+        | "outreach_reply_count"
+        | "outreach_interview_count" => return "reply_or_interview_count".to_string(),
+        "artifact_count"
+        | "experiment_artifact"
+        | "collector_success_runs"
+        | "hypothesis_signal_lift"
+        | "outreach_artifact_count"
+        | "offer_draft_count"
+        | "proposal_draft_count" => return "artifact_count".to_string(),
         "verification_checks_passed" | "postconditions_ok" => {
             return "postconditions_ok".to_string()
         }
@@ -430,10 +471,24 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
     if text.contains("outreach") && contains_any(&["artifact", "draft", "offer", "proposal"]) {
         return "outreach_artifact".to_string();
     }
-    if contains_any(&["artifact", "draft", "experiment", "patch", "plan", "deliverable"]) {
+    if contains_any(&[
+        "artifact",
+        "draft",
+        "experiment",
+        "patch",
+        "plan",
+        "deliverable",
+    ]) {
         return "artifact_count".to_string();
     }
-    if contains_any(&["postcondition", "contract", "verify", "verification", "check pass", "checks pass"]) {
+    if contains_any(&[
+        "postcondition",
+        "contract",
+        "verify",
+        "verification",
+        "check pass",
+        "checks pass",
+    ]) {
         return "postconditions_ok".to_string();
     }
     if contains_any(&["receipt", "evidence", "queue outcome", "logged"]) {
@@ -462,13 +517,23 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
     ]) {
         return "duration_ms".to_string();
     }
-    if contains_any(&["execute", "executed", "execution", "run", "runnable", "success"]) {
+    if contains_any(&[
+        "execute",
+        "executed",
+        "execution",
+        "run",
+        "runnable",
+        "success",
+    ]) {
         return "execution_success".to_string();
     }
     "execution_success".to_string()
 }
 
-fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) -> Vec<SuccessCriteriaCompiledRow> {
+fn compile_success_criteria_rows(
+    rows: Option<&Value>,
+    source: &str,
+) -> Vec<SuccessCriteriaCompiledRow> {
     let mut out = Vec::<SuccessCriteriaCompiledRow>::new();
     let source = normalize_text(source);
     let src = if source.is_empty() {
@@ -487,23 +552,27 @@ fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) -> Vec<Succ
         } else if let Some(obj) = row.as_object() {
             (
                 normalize_spaces(&value_to_string(obj.get("metric")).to_ascii_lowercase()),
-                normalize_spaces(&[
-                    value_to_string(obj.get("target")),
-                    value_to_string(obj.get("threshold")),
-                    value_to_string(obj.get("description")),
-                    value_to_string(obj.get("goal")),
-                ]
-                .into_iter()
-                .find(|value| !value.is_empty())
-                .unwrap_or_default()),
-                normalize_spaces(&[
-                    value_to_string(obj.get("horizon")),
-                    value_to_string(obj.get("window")),
-                    value_to_string(obj.get("by")),
-                ]
-                .into_iter()
-                .find(|value| !value.is_empty())
-                .unwrap_or_default()),
+                normalize_spaces(
+                    &[
+                        value_to_string(obj.get("target")),
+                        value_to_string(obj.get("threshold")),
+                        value_to_string(obj.get("description")),
+                        value_to_string(obj.get("goal")),
+                    ]
+                    .into_iter()
+                    .find(|value| !value.is_empty())
+                    .unwrap_or_default(),
+                ),
+                normalize_spaces(
+                    &[
+                        value_to_string(obj.get("horizon")),
+                        value_to_string(obj.get("window")),
+                        value_to_string(obj.get("by")),
+                    ]
+                    .into_iter()
+                    .find(|value| !value.is_empty())
+                    .unwrap_or_default(),
+                ),
             )
         } else {
             continue;
@@ -642,7 +711,10 @@ fn capability_metric_contract(capability_key: &str) -> CapabilityMetricContract 
         };
     }
     if key.starts_with("proposal:") {
-        let mut allowed: HashSet<String> = PROPOSAL_BASE_METRICS.iter().map(|v| v.to_string()).collect();
+        let mut allowed: HashSet<String> = PROPOSAL_BASE_METRICS
+            .iter()
+            .map(|v| v.to_string())
+            .collect();
         if capability_allows_outreach(&key) {
             for metric in OUTREACH_METRICS {
                 allowed.insert((*metric).to_string());
@@ -751,13 +823,19 @@ fn read_numeric_metric(context: &Value, keys: &[&str]) -> Option<f64> {
     let metric_values = top.get("metric_values").and_then(Value::as_object);
     let dod_diff = top.get("dod_diff").and_then(Value::as_object);
     for key in keys {
-        if let Some(value) = metric_values.and_then(|map| map.get(*key)).and_then(|v| as_f64(Some(v))) {
+        if let Some(value) = metric_values
+            .and_then(|map| map.get(*key))
+            .and_then(|v| as_f64(Some(v)))
+        {
             return Some(value);
         }
         if let Some(value) = top.get(*key).and_then(|v| as_f64(Some(v))) {
             return Some(value);
         }
-        if let Some(value) = dod_diff.and_then(|map| map.get(*key)).and_then(|v| as_f64(Some(v))) {
+        if let Some(value) = dod_diff
+            .and_then(|map| map.get(*key))
+            .and_then(|v| as_f64(Some(v)))
+        {
             return Some(value);
         }
     }
@@ -793,14 +871,24 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let duration_ms = read_numeric_metric(context, &["duration_ms"]);
-    let token_usage = top.and_then(|map| map.get("token_usage")).and_then(Value::as_object);
+    let token_usage = top
+        .and_then(|map| map.get("token_usage"))
+        .and_then(Value::as_object);
     let effective_tokens = token_usage
         .and_then(|map| map.get("effective_tokens").and_then(|v| as_f64(Some(v))))
-        .or_else(|| token_usage.and_then(|map| map.get("actual_total_tokens").and_then(|v| as_f64(Some(v)))))
-        .or_else(|| token_usage.and_then(|map| map.get("estimated_tokens").and_then(|v| as_f64(Some(v)))));
-    let artifacts_delta = read_numeric_metric(context, &["artifacts_delta", "artifacts_count", "artifact_count"]);
+        .or_else(|| {
+            token_usage.and_then(|map| map.get("actual_total_tokens").and_then(|v| as_f64(Some(v))))
+        })
+        .or_else(|| {
+            token_usage.and_then(|map| map.get("estimated_tokens").and_then(|v| as_f64(Some(v))))
+        });
+    let artifacts_delta = read_numeric_metric(
+        context,
+        &["artifacts_delta", "artifacts_count", "artifact_count"],
+    );
     let entries_delta = read_numeric_metric(context, &["entries_delta", "entries_count"]);
-    let revenue_delta = read_numeric_metric(context, &["revenue_actions_delta", "revenue_actions_count"]);
+    let revenue_delta =
+        read_numeric_metric(context, &["revenue_actions_delta", "revenue_actions_count"]);
     let has_any = |tokens: &[&str]| tokens.iter().any(|token| text_words.contains(token));
 
     let numeric_verdict = |reason: &str,
@@ -967,11 +1055,9 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
             let value = read_numeric_metric(context, &["reply_or_interview_count"]).or_else(|| {
                 let reply = read_numeric_metric(context, &["reply_count", "outreach_reply_count"])
                     .unwrap_or(0.0);
-                let interview = read_numeric_metric(
-                    context,
-                    &["interview_count", "outreach_interview_count"],
-                )
-                .unwrap_or(0.0);
+                let interview =
+                    read_numeric_metric(context, &["interview_count", "outreach_interview_count"])
+                        .unwrap_or(0.0);
                 if reply > 0.0 || interview > 0.0 {
                     Some(reply + interview)
                 } else {
@@ -990,7 +1076,15 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
         _ => {}
     }
 
-    if has_any(&["ship", "shipped", "publish", "posted", "merged", "applied", "delivered"]) {
+    if has_any(&[
+        "ship",
+        "shipped",
+        "publish",
+        "posted",
+        "merged",
+        "applied",
+        "delivered",
+    ]) {
         return EvaluationVerdict {
             evaluated: true,
             pass: Some(outcome == "shipped"),
@@ -1023,7 +1117,15 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
             unit: None,
         };
     }
-    if has_any(&["execute", "executed", "execution", "run", "runnable", "exit 0", "success"]) {
+    if has_any(&[
+        "execute",
+        "executed",
+        "execution",
+        "run",
+        "runnable",
+        "exit 0",
+        "success",
+    ]) {
         return bool_verdict(
             "requires_execution_success",
             exec_ok,
@@ -1031,7 +1133,15 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
             Value::Bool(true),
         );
     }
-    if has_any(&["postcondition", "contract", "verify", "verification", "validated", "check pass", "checks pass"]) {
+    if has_any(&[
+        "postcondition",
+        "contract",
+        "verify",
+        "verification",
+        "validated",
+        "check pass",
+        "checks pass",
+    ]) {
         return bool_verdict(
             "requires_postconditions_pass",
             postconditions_ok,
@@ -1085,7 +1195,15 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
     }
     if metric_norm == "outreach_artifact"
         || (has_any(&["outreach"]) && has_any(&["artifact", "draft", "offer", "proposal"]))
-        || (has_any(&["draft", "offer", "proposal"]) && has_any(&["build", "generate", "generated", "create", "created", "artifact"]))
+        || (has_any(&["draft", "offer", "proposal"])
+            && has_any(&[
+                "build",
+                "generate",
+                "generated",
+                "create",
+                "created",
+                "artifact",
+            ]))
     {
         let threshold = parse_first_int(&text, 1) as f64;
         let comparator = parse_comparator(&text, "gte");
@@ -1116,11 +1234,9 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
         let value = read_numeric_metric(context, &["reply_or_interview_count"]).or_else(|| {
             let reply = read_numeric_metric(context, &["reply_count", "outreach_reply_count"])
                 .unwrap_or(0.0);
-            let interview = read_numeric_metric(
-                context,
-                &["interview_count", "outreach_interview_count"],
-            )
-            .unwrap_or(0.0);
+            let interview =
+                read_numeric_metric(context, &["interview_count", "outreach_interview_count"])
+                    .unwrap_or(0.0);
             if reply > 0.0 || interview > 0.0 {
                 Some(reply + interview)
             } else {
@@ -1324,7 +1440,8 @@ pub fn evaluate_success_criteria_value(
         .iter()
         .filter(|row| row.reason == "metric_not_allowed_for_capability")
         .count() as i64;
-    let structurally_supported_count = (results.len() as i64 - unsupported_count - contract_not_allowed_count).max(0);
+    let structurally_supported_count =
+        (results.len() as i64 - unsupported_count - contract_not_allowed_count).max(0);
 
     let mut passed = true;
     let mut primary_failure: Option<String> = None;
@@ -1354,15 +1471,19 @@ pub fn evaluate_success_criteria_value(
 
     if enforce_contract && fail_on_contract_violation && contract_not_allowed_count > 0 {
         passed = false;
-        primary_failure = Some("success_criteria_failed:metric_not_allowed_for_capability".to_string());
+        primary_failure =
+            Some("success_criteria_failed:metric_not_allowed_for_capability".to_string());
     } else if enforce_min_supported && required && structurally_supported_count < min_count {
         passed = false;
-        primary_failure = Some("success_criteria_failed:insufficient_supported_metrics".to_string());
+        primary_failure =
+            Some("success_criteria_failed:insufficient_supported_metrics".to_string());
     }
 
     let violation_rows = results
         .iter()
-        .filter(|row| row.reason == "unsupported_metric" || row.reason == "metric_not_allowed_for_capability")
+        .filter(|row| {
+            row.reason == "unsupported_metric" || row.reason == "metric_not_allowed_for_capability"
+        })
         .take(12)
         .map(|row| {
             json!({
@@ -1516,7 +1637,8 @@ mod tests {
                 "verify": ["receipt logged"]
             }
         });
-        let rows = parse_success_criteria_rows_from_proposal(Some(&proposal), "proposal:internal_patch");
+        let rows =
+            parse_success_criteria_rows_from_proposal(Some(&proposal), "proposal:internal_patch");
         assert!(rows.iter().any(|row| row.metric == "artifact_count"));
         assert!(rows.iter().any(|row| row.metric == "postconditions_ok"));
         assert_eq!(rows.len(), 2);
@@ -1554,7 +1676,11 @@ mod tests {
             out.get("primary_failure").and_then(Value::as_str),
             Some("success_criteria_failed:token_limit_check")
         );
-        assert_eq!(out.get("contract_not_allowed_count").and_then(Value::as_i64), Some(0));
+        assert_eq!(
+            out.get("contract_not_allowed_count")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
         assert_eq!(out.get("passed_count").and_then(Value::as_i64), Some(1));
     }
 }

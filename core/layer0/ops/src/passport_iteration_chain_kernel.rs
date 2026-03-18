@@ -62,11 +62,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("passport_iteration_chain_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("passport_iteration_chain_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("passport_iteration_chain_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("passport_iteration_chain_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("passport_iteration_chain_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("passport_iteration_chain_kernel_payload_decode_failed:{err}"));
     }
@@ -280,14 +281,22 @@ fn record(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
             .get("objective_id")
             .or_else(|| payload.get("objectiveId"));
         let normalized = normalize_token(&clean_text(raw, 180), 180);
-        if normalized.is_empty() { None } else { Some(normalized) }
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
     };
     let target_path = {
         let raw = payload
             .get("target_path")
             .or_else(|| payload.get("targetPath"));
         let value = clean_text(raw, 360);
-        if value.is_empty() { None } else { Some(value) }
+        if value.is_empty() {
+            None
+        } else {
+            Some(value)
+        }
     };
     let metadata = payload
         .get("metadata")
@@ -424,7 +433,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = payload_obj(&payload);
 
     let receipt = match command.as_str() {
-        "status" => cli_receipt("passport_iteration_chain_kernel_status", status(root, payload)),
+        "status" => cli_receipt(
+            "passport_iteration_chain_kernel_status",
+            status(root, payload),
+        ),
         "record" => match record(root, payload) {
             Ok(value) => cli_receipt("passport_iteration_chain_kernel_record", value),
             Err(err) => cli_error("passport_iteration_chain_kernel_error", err.as_str()),

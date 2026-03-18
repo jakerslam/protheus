@@ -269,7 +269,11 @@ fn today_ymd(ts: &str) -> String {
     }
 }
 
-fn persist_autonomy_run_row(root: &Path, argv: &[String], receipt: &Value) -> Result<Value, String> {
+fn persist_autonomy_run_row(
+    root: &Path,
+    argv: &[String],
+    receipt: &Value,
+) -> Result<Value, String> {
     let ts = receipt
         .get("ts")
         .and_then(Value::as_str)
@@ -292,7 +296,9 @@ fn persist_autonomy_run_row(root: &Path, argv: &[String], receipt: &Value) -> Re
     let policy_hold_reason = parse_flag(argv, "policy-hold-reason");
     let route_block_reason = parse_flag(argv, "route-block-reason");
     let policy_hold = parse_bool(parse_flag(argv, "policy-hold").as_deref(), false)
-        || result.to_ascii_lowercase().starts_with("no_candidates_policy_");
+        || result
+            .to_ascii_lowercase()
+            .starts_with("no_candidates_policy_");
     let row = json!({
         "ts": ts,
         "type": "autonomy_run",
@@ -1222,7 +1228,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
                 Err(err) => {
                     if strict {
-                        print_json_line(&cli_error_receipt(argv, &format!("autonomy_run_persist_failed:{err}"), 2));
+                        print_json_line(&cli_error_receipt(
+                            argv,
+                            &format!("autonomy_run_persist_failed:{err}"),
+                            2,
+                        ));
                         2
                     } else {
                         receipt["run_telemetry"] = json!({
@@ -1348,7 +1358,10 @@ mod tests {
         let rows = read_jsonl(&path);
         assert!(!rows.is_empty());
         let last = rows.last().expect("row");
-        assert_eq!(last.get("type").and_then(Value::as_str), Some("autonomy_run"));
+        assert_eq!(
+            last.get("type").and_then(Value::as_str),
+            Some("autonomy_run")
+        );
         assert_eq!(
             last.get("objective_id").and_then(Value::as_str),
             Some("t1_harness_seed")

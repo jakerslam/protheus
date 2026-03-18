@@ -335,21 +335,15 @@ fn langchain_claim(id: &str) -> &'static str {
         "V6-WORKFLOW-014.1" => {
             "langchain_lcel_and_runnable_chains_register_and_execute_as_governed_workflows"
         }
-        "V6-WORKFLOW-014.2" => {
-            "langchain_legacy_and_deep_agents_execute_through_swarm_authority"
-        }
+        "V6-WORKFLOW-014.2" => "langchain_legacy_and_deep_agents_execute_through_swarm_authority",
         "V6-WORKFLOW-014.3" => {
             "langchain_retrieval_and_memory_abstractions_normalize_to_governed_memory_runtime"
         }
-        "V6-WORKFLOW-014.4" => {
-            "langchain_integrations_ingest_through_one_governed_gateway"
-        }
+        "V6-WORKFLOW-014.4" => "langchain_integrations_ingest_through_one_governed_gateway",
         "V6-WORKFLOW-014.5" => {
             "langchain_model_routing_and_prompt_templates_are_deterministic_and_fail_closed"
         }
-        "V6-WORKFLOW-014.6" => {
-            "langchain_traces_and_eval_events_fold_into_native_observability"
-        }
+        "V6-WORKFLOW-014.6" => "langchain_traces_and_eval_events_fold_into_native_observability",
         "V6-WORKFLOW-014.7" => {
             "langchain_stateful_runs_checkpoint_and_replay_through_authoritative_workflow_lanes"
         }
@@ -695,7 +689,10 @@ fn run_deep_agent(
     }
     let terms = query_terms(&instruction);
     let requested_limit = parse_u64_value(payload.get("search_limit"), 3, 1, 12) as usize;
-    let search_limit = if matches!(clean_token(payload.get("profile").and_then(Value::as_str), "rich").as_str(), "pure" | "tiny-max") {
+    let search_limit = if matches!(
+        clean_token(payload.get("profile").and_then(Value::as_str), "rich").as_str(),
+        "pure" | "tiny-max"
+    ) {
         requested_limit.min(1)
     } else {
         requested_limit
@@ -959,7 +956,10 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let provider = clean_token(payload.get("provider").and_then(Value::as_str), "openai-compatible");
+    let provider = clean_token(
+        payload.get("provider").and_then(Value::as_str),
+        "openai-compatible",
+    );
     let fallback_provider = clean_token(
         payload.get("fallback_provider").and_then(Value::as_str),
         &provider,
@@ -984,10 +984,12 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
     }
     let local_capable = matches!(provider.as_str(), "local" | "openai-compatible");
     let constrained_profile = matches!(profile.as_str(), "pure" | "tiny-max");
-    let selected_provider = if constrained_profile && !local_capable && supported_providers
-        .iter()
-        .filter_map(Value::as_str)
-        .any(|row| row == fallback_provider)
+    let selected_provider = if constrained_profile
+        && !local_capable
+        && supported_providers
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|row| row == fallback_provider)
     {
         fallback_provider.clone()
     } else {
@@ -1055,7 +1057,10 @@ fn checkpoint_run(
         .count();
     let degraded = matches!(profile.as_str(), "pure" | "tiny-max") && parallel_count > 1;
     let swarm_state_path = swarm_state_path(root, argv, payload);
-    let root_session_id = if runnables.iter().any(|row| row.get("spawn").and_then(Value::as_bool) == Some(true)) {
+    let root_session_id = if runnables
+        .iter()
+        .any(|row| row.get("spawn").and_then(Value::as_bool) == Some(true))
+    {
         Some(ensure_session_for_task(
             root,
             &swarm_state_path,
@@ -1336,11 +1341,14 @@ mod tests {
                 "template": "Hello {{name}}",
                 "variables": {"name": "Jay"}
             })
-                .as_object()
-                .unwrap(),
+            .as_object()
+            .unwrap(),
         )
         .expect("route");
-        assert_eq!(route["route"]["rendered_prompt"].as_str(), Some("Hello Jay"));
+        assert_eq!(
+            route["route"]["rendered_prompt"].as_str(),
+            Some("Hello Jay")
+        );
         assert_eq!(
             route["route"]["selected_provider"].as_str(),
             Some("openai-compatible")

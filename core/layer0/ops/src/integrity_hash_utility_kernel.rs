@@ -13,15 +13,20 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 fn usage() {
     println!("integrity-hash-utility-kernel commands:");
-    println!("  protheus-ops integrity-hash-utility-kernel stable-stringify [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops integrity-hash-utility-kernel stable-stringify [--payload-base64=<json>]"
+    );
     println!("  protheus-ops integrity-hash-utility-kernel sha256-hex [--payload-base64=<json>]");
-    println!("  protheus-ops integrity-hash-utility-kernel hash-file-sha256 [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops integrity-hash-utility-kernel hash-file-sha256 [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
+    let mut out =
+        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
@@ -47,11 +52,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("integrity_hash_utility_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("integrity_hash_utility_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("integrity_hash_utility_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("integrity_hash_utility_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("integrity_hash_utility_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("integrity_hash_utility_kernel_payload_decode_failed:{err}"));
     }
@@ -96,12 +102,20 @@ fn stable_stringify(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),
         Value::Bool(v) => {
-            if *v { "true".to_string() } else { "false".to_string() }
+            if *v {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
         }
         Value::Number(v) => v.to_string(),
         Value::String(v) => serde_json::to_string(v).unwrap_or_else(|_| "\"\"".to_string()),
         Value::Array(rows) => {
-            let inner = rows.iter().map(stable_stringify).collect::<Vec<_>>().join(",");
+            let inner = rows
+                .iter()
+                .map(stable_stringify)
+                .collect::<Vec<_>>()
+                .join(",");
             format!("[{inner}]")
         }
         Value::Object(map) => {
@@ -110,7 +124,8 @@ fn stable_stringify(value: &Value) -> String {
             let inner = keys
                 .into_iter()
                 .map(|key| {
-                    let encoded = serde_json::to_string(&key).unwrap_or_else(|_| "\"\"".to_string());
+                    let encoded =
+                        serde_json::to_string(&key).unwrap_or_else(|_| "\"\"".to_string());
                     format!("{encoded}:{}", stable_stringify(&map[&key]))
                 })
                 .collect::<Vec<_>>()
@@ -162,7 +177,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }),
             )
         }
-        "hash-file-sha256" => match resolve_file_path(root, input.get("filePath").or_else(|| input.get("file_path"))) {
+        "hash-file-sha256" => match resolve_file_path(
+            root,
+            input.get("filePath").or_else(|| input.get("file_path")),
+        ) {
             Ok(file_path) => match fs::read(&file_path) {
                 Ok(bytes) => {
                     let mut hasher = Sha256::new();
@@ -176,7 +194,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         }),
                     )
                 }
-                Err(err) => cli_error("integrity_hash_utility_kernel_error", &format!("integrity_hash_utility_kernel_read_failed:{err}")),
+                Err(err) => cli_error(
+                    "integrity_hash_utility_kernel_error",
+                    &format!("integrity_hash_utility_kernel_read_failed:{err}"),
+                ),
             },
             Err(err) => cli_error("integrity_hash_utility_kernel_error", &err),
         },
@@ -185,7 +206,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             &format!("unknown_command:{command}"),
         ),
     };
-    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    };
     print_json_line(&result);
     exit
 }
@@ -204,6 +229,9 @@ mod tests {
     fn sha256_hex_stays_deterministic() {
         let value = json!({"b": 2, "a": 1});
         let serialized = stable_stringify(&value);
-        assert_eq!(sha256_hex_string(&serialized), sha256_hex_string(&serialized));
+        assert_eq!(
+            sha256_hex_string(&serialized),
+            sha256_hex_string(&serialized)
+        );
     }
 }

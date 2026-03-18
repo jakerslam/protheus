@@ -56,11 +56,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("conversation_eye_synthesizer_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("conversation_eye_synthesizer_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("conversation_eye_synthesizer_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("conversation_eye_synthesizer_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("conversation_eye_synthesizer_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("conversation_eye_synthesizer_payload_decode_failed:{err}"));
     }
@@ -194,7 +195,11 @@ fn synthesize_envelope(row: &Map<String, Value>) -> Value {
                 .or_else(|| row.get("timestamp")),
             32,
         );
-        if raw.is_empty() { now.clone() } else { raw }
+        if raw.is_empty() {
+            now.clone()
+        } else {
+            raw
+        }
     };
     let title = {
         let raw = clean_text(
@@ -217,15 +222,20 @@ fn synthesize_envelope(row: &Map<String, Value>) -> Value {
                 .or_else(|| row.get("content")),
             320,
         );
-        if raw.is_empty() { title.clone() } else { raw }
+        if raw.is_empty() {
+            title.clone()
+        } else {
+            raw
+        }
     };
     let node_kind = {
-        let raw = clean_text(
-            row.get("node_kind").or_else(|| row.get("kind")),
-            32,
-        )
-        .to_ascii_lowercase();
-        if raw.is_empty() { "insight".to_string() } else { raw }
+        let raw =
+            clean_text(row.get("node_kind").or_else(|| row.get("kind")), 32).to_ascii_lowercase();
+        if raw.is_empty() {
+            "insight".to_string()
+        } else {
+            raw
+        }
     };
     let level = infer_level(row);
     let node_tags = normalize_tags(row.get("node_tags").or_else(|| row.get("tags")));
@@ -268,11 +278,19 @@ fn synthesize_envelope(row: &Map<String, Value>) -> Value {
 
     let ts_value = {
         let raw = clean_text(row.get("ts"), 32);
-        if raw.is_empty() { now } else { raw }
+        if raw.is_empty() {
+            now
+        } else {
+            raw
+        }
     };
     let level_token_value = {
         let raw = clean_text(row.get("level_token"), 16);
-        if raw.is_empty() { level_token(level).to_string() } else { raw }
+        if raw.is_empty() {
+            level_token(level).to_string()
+        } else {
+            raw
+        }
     };
 
     json!({
@@ -303,7 +321,10 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
     let payload = match payload_json(&argv[1..]) {
         Ok(payload) => payload,
         Err(err) => {
-            print_json_line(&cli_error("conversation_eye_synthesizer_kernel_error", &err));
+            print_json_line(&cli_error(
+                "conversation_eye_synthesizer_kernel_error",
+                &err,
+            ));
             return 1;
         }
     };
@@ -321,7 +342,11 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
             &format!("unknown_command:{command}"),
         ),
     };
-    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    };
     print_json_line(&result);
     exit
 }
@@ -341,6 +366,9 @@ mod tests {
         assert_eq!(envelope["level"], json!(1));
         assert_eq!(envelope["level_token"], json!("jot1"));
         assert_eq!(envelope["node_kind"], json!("insight"));
-        assert!(envelope["node_id"].as_str().unwrap().starts_with("conversation-eye-"));
+        assert!(envelope["node_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("conversation-eye-"));
     }
 }

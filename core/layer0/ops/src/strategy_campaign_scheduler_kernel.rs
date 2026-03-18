@@ -54,17 +54,20 @@ fn print_json_line(value: &Value) {
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&raw).map_err(|err| {
+            format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}")
+        });
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("strategy_campaign_scheduler_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("strategy_campaign_scheduler_kernel_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}"));
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("strategy_campaign_scheduler_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("strategy_campaign_scheduler_kernel_payload_utf8_decode_failed:{err}")
+        })?;
+        return serde_json::from_str::<Value>(&text).map_err(|err| {
+            format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}")
+        });
     }
     Ok(json!({}))
 }
@@ -271,7 +274,10 @@ fn campaigns_as_value(campaigns: &[Campaign]) -> Value {
                                 );
                                 next.insert("order".to_string(), Value::from(phase.order));
                                 next.insert("priority".to_string(), Value::from(phase.priority));
-                                next.insert("proposal_types".to_string(), json!(phase.proposal_types));
+                                next.insert(
+                                    "proposal_types".to_string(),
+                                    json!(phase.proposal_types),
+                                );
                                 next.insert("source_eyes".to_string(), json!(phase.source_eyes));
                                 next.insert("tags".to_string(), json!(phase.tags));
                                 Value::Object(next)
@@ -332,7 +338,11 @@ fn is_filter_match(required: &[String], value: &str) -> bool {
     required.is_empty() || required.iter().any(|row| row == value)
 }
 
-fn is_phase_preferred_filter_match(campaign_required: &[String], phase_required: &[String], value: &str) -> bool {
+fn is_phase_preferred_filter_match(
+    campaign_required: &[String],
+    phase_required: &[String],
+    value: &str,
+) -> bool {
     if !phase_required.is_empty() {
         return is_filter_match(phase_required, value);
     }
@@ -351,7 +361,11 @@ fn score_match(campaign: &Campaign, phase: &Phase, candidate: &Value) -> Option<
     if !phase.objective_id.is_empty() && objective_id != phase.objective_id {
         return None;
     }
-    if !is_phase_preferred_filter_match(&campaign.proposal_types, &phase.proposal_types, &proposal_type) {
+    if !is_phase_preferred_filter_match(
+        &campaign.proposal_types,
+        &phase.proposal_types,
+        &proposal_type,
+    ) {
         return None;
     }
     if !is_filter_match(&campaign.source_eyes, &source_eye) {
@@ -468,7 +482,9 @@ fn annotate_campaign_priority(candidates: &[Value], strategy: &Value) -> Value {
             if let Some(found) = best_campaign_match(candidate, &campaigns) {
                 matched_count += 1;
                 if let Some(campaign_id) = found.get("campaign_id").and_then(Value::as_str) {
-                    *matched_by_campaign.entry(campaign_id.to_string()).or_insert(0) += 1;
+                    *matched_by_campaign
+                        .entry(campaign_id.to_string())
+                        .or_insert(0) += 1;
                 }
                 next.insert("campaign_match".to_string(), found.clone());
                 next.insert("campaign_sort_bucket".to_string(), Value::from(1));
@@ -541,7 +557,12 @@ fn sanitize_token(raw: &str, fallback: &str) -> String {
     }
 }
 
-fn campaign_seed_key(campaign: &Campaign, phase: &Phase, proposal_type: &str, objective_id: &str) -> String {
+fn campaign_seed_key(
+    campaign: &Campaign,
+    phase: &Phase,
+    proposal_type: &str,
+    objective_id: &str,
+) -> String {
     format!(
         "{}|{}|{}|{}",
         sanitize_token(&campaign.id, "campaign"),
@@ -553,7 +574,10 @@ fn campaign_seed_key(campaign: &Campaign, phase: &Phase, proposal_type: &str, ob
 
 fn campaign_seed_id(seed_key: &str) -> String {
     let compact = sanitize_token(&seed_key.replace('|', "-"), "seed");
-    format!("CAMP-{}", compact[..compact.len().min(52)].to_ascii_uppercase())
+    format!(
+        "CAMP-{}",
+        compact[..compact.len().min(52)].to_ascii_uppercase()
+    )
 }
 
 fn existing_campaign_seed_keys(proposals: &[Value]) -> BTreeSet<String> {
@@ -582,18 +606,30 @@ fn open_proposal_type_counts(proposals: &[Value]) -> BTreeMap<String, i64> {
     counts
 }
 
-fn build_campaign_decomposition_plans(proposals: &[Value], strategy: &Value, opts: &Map<String, Value>) -> Value {
+fn build_campaign_decomposition_plans(
+    proposals: &[Value],
+    strategy: &Value,
+    opts: &Map<String, Value>,
+) -> Value {
     let campaigns = normalize_campaigns(strategy);
     let min_open_per_type = as_i64(opts.get("min_open_per_type")).unwrap_or(1).max(1);
     let max_additions = as_i64(opts.get("max_additions")).unwrap_or(0).max(0);
     let default_objective_id = clean_text(opts.get("default_objective_id"), 160);
     let default_risk = {
         let token = as_lower(opts.get("default_risk"), 40);
-        if token.is_empty() { "low".to_string() } else { token }
+        if token.is_empty() {
+            "low".to_string()
+        } else {
+            token
+        }
     };
     let default_impact = {
         let token = as_lower(opts.get("default_impact"), 40);
-        if token.is_empty() { "medium".to_string() } else { token }
+        if token.is_empty() {
+            "medium".to_string()
+        } else {
+            token
+        }
     };
     if campaigns.is_empty() || max_additions == 0 {
         return json!({
@@ -631,7 +667,16 @@ fn build_campaign_decomposition_plans(proposals: &[Value], strategy: &Value, opt
                 if open >= min_open_per_type {
                     continue;
                 }
-                let seed_key = campaign_seed_key(&campaign, phase, proposal_type, if objective_id.is_empty() { "objective" } else { &objective_id });
+                let seed_key = campaign_seed_key(
+                    &campaign,
+                    phase,
+                    proposal_type,
+                    if objective_id.is_empty() {
+                        "objective"
+                    } else {
+                        &objective_id
+                    },
+                );
                 if existing_keys.contains(&seed_key) {
                     continue;
                 }
@@ -714,15 +759,24 @@ fn build_campaign_decomposition_plans(proposals: &[Value], strategy: &Value, opt
 fn run_command(command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
     match command {
         "normalize-campaigns" => {
-            let strategy = payload.get("strategy").cloned().unwrap_or_else(|| json!({}));
+            let strategy = payload
+                .get("strategy")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             Ok(json!({
                 "ok": true,
                 "campaigns": campaigns_as_value(&normalize_campaigns(&strategy))
             }))
         }
         "annotate-priority" => {
-            let strategy = payload.get("strategy").cloned().unwrap_or_else(|| json!({}));
-            let candidates = as_array(payload.get("candidates")).iter().cloned().collect::<Vec<_>>();
+            let strategy = payload
+                .get("strategy")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let candidates = as_array(payload.get("candidates"))
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
             let out = annotate_campaign_priority(&candidates, &strategy);
             Ok(json!({
                 "ok": true,
@@ -731,8 +785,14 @@ fn run_command(command: &str, payload: &Map<String, Value>) -> Result<Value, Str
             }))
         }
         "build-decomposition-plans" => {
-            let strategy = payload.get("strategy").cloned().unwrap_or_else(|| json!({}));
-            let proposals = as_array(payload.get("proposals")).iter().cloned().collect::<Vec<_>>();
+            let strategy = payload
+                .get("strategy")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let proposals = as_array(payload.get("proposals"))
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
             let opts = as_object(payload.get("opts")).cloned().unwrap_or_default();
             let out = build_campaign_decomposition_plans(&proposals, &strategy, &opts);
             Ok(json!({
@@ -829,10 +889,12 @@ mod tests {
         let out = build_campaign_decomposition_plans(
             &proposals,
             &strategy,
-            payload_obj(&json!({"max_additions": 1, "min_open_per_type": 1}))
+            payload_obj(&json!({"max_additions": 1, "min_open_per_type": 1})),
         );
         assert_eq!(
-            out.get("additions").and_then(Value::as_array).map(|rows| rows.len()),
+            out.get("additions")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
             Some(0)
         );
     }
@@ -867,9 +929,14 @@ mod tests {
             }
         })];
         let out = annotate_campaign_priority(&candidates, &strategy);
-        assert_eq!(out.pointer("/summary/matched_count").and_then(Value::as_i64), Some(1));
         assert_eq!(
-            out.pointer("/candidates/0/campaign_match/campaign_id").and_then(Value::as_str),
+            out.pointer("/summary/matched_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            out.pointer("/candidates/0/campaign_match/campaign_id")
+                .and_then(Value::as_str),
             Some("objective flow")
         );
     }

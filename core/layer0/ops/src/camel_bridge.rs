@@ -106,14 +106,24 @@ fn rel(root: &Path, path: &Path) -> String {
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "state-path", false)
-        .or_else(|| payload.get("state_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("state_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_STATE_REL))
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "history-path", false)
-        .or_else(|| payload.get("history_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("history_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_HISTORY_REL))
 }
@@ -413,7 +423,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         "created_at": now_iso(),
                         "claim_evidence": claim("V6-WORKFLOW-013.1", "role_playing_society_registry"),
                     });
-                    as_object_mut(&mut state, "societies").insert(society_id.clone(), society.clone());
+                    as_object_mut(&mut state, "societies")
+                        .insert(society_id.clone(), society.clone());
                     Ok(json!({
                         "ok": true,
                         "society": society,
@@ -426,13 +437,35 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             let society_id = clean_token(payload.get("society_id").and_then(Value::as_str), "");
             if society_id.is_empty() {
                 Err("camel_bridge_society_id_required".to_string())
-            } else if let Some(society) = state.get("societies").and_then(|row| row.get(&society_id)).cloned() {
+            } else if let Some(society) = state
+                .get("societies")
+                .and_then(|row| row.get(&society_id))
+                .cloned()
+            {
                 let profile = parse_profile(payload);
-                let roles = society.get("roles").and_then(Value::as_array).cloned().unwrap_or_default();
-                let max_roles = if profile == "tiny-max" || profile == "tiny_max" { 1 } else if profile == "pure" { 2 } else { 6 };
+                let roles = society
+                    .get("roles")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let max_roles = if profile == "tiny-max" || profile == "tiny_max" {
+                    1
+                } else if profile == "pure" {
+                    2
+                } else {
+                    6
+                };
                 let selected_roles: Vec<Value> = roles.into_iter().take(max_roles).collect();
-                let degraded = selected_roles.len() < society.get("roles").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0);
-                let run_id = stable_id("camel_run", &json!({"society_id": society_id, "profile": profile, "selected_roles": selected_roles}));
+                let degraded = selected_roles.len()
+                    < society
+                        .get("roles")
+                        .and_then(Value::as_array)
+                        .map(|rows| rows.len())
+                        .unwrap_or(0);
+                let run_id = stable_id(
+                    "camel_run",
+                    &json!({"society_id": society_id, "profile": profile, "selected_roles": selected_roles}),
+                );
                 let sessions: Vec<Value> = selected_roles
                     .iter()
                     .enumerate()
@@ -483,12 +516,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("camel_bridge_world_name_required".to_string())
             } else {
                 let profile = parse_profile(payload);
-                let seed_state = payload.get("seed_state").cloned().unwrap_or_else(|| json!({}));
-                let events = payload.get("events").and_then(Value::as_array).cloned().unwrap_or_default();
+                let seed_state = payload
+                    .get("seed_state")
+                    .cloned()
+                    .unwrap_or_else(|| json!({}));
+                let events = payload
+                    .get("events")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 let max_events = if constrained_profile(&profile) { 2 } else { 8 };
                 let truncated: Vec<Value> = events.into_iter().take(max_events).collect();
-                let degraded = truncated.len() < payload.get("events").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0);
-                let world_id = stable_id("camel_world", &json!({"world_name": world_name, "seed_state": seed_state}));
+                let degraded = truncated.len()
+                    < payload
+                        .get("events")
+                        .and_then(Value::as_array)
+                        .map(|rows| rows.len())
+                        .unwrap_or(0);
+                let world_id = stable_id(
+                    "camel_world",
+                    &json!({"world_name": world_name, "seed_state": seed_state}),
+                );
                 let simulation = json!({
                     "world_id": world_id,
                     "world_name": world_name,
@@ -501,7 +549,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "created_at": now_iso(),
                     "claim_evidence": claim("V6-WORKFLOW-013.3", "oasis_world_simulation_bridge"),
                 });
-                as_object_mut(&mut state, "world_simulations").insert(world_id.clone(), simulation.clone());
+                as_object_mut(&mut state, "world_simulations")
+                    .insert(world_id.clone(), simulation.clone());
                 Ok(json!({
                     "ok": true,
                     "simulation": simulation,
@@ -511,22 +560,35 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "import-dataset" => {
             let name = clean_text(payload.get("name").and_then(Value::as_str), 96);
-            let kind = clean_token(payload.get("dataset_kind").and_then(Value::as_str), "society");
+            let kind = clean_token(
+                payload.get("dataset_kind").and_then(Value::as_str),
+                "society",
+            );
             let allowed = ["society", "domain", "code", "benchmark", "eval"];
             if name.is_empty() {
                 Err("camel_bridge_dataset_name_required".to_string())
             } else if !allowed.contains(&kind.as_str()) {
                 Err(format!("camel_bridge_unsupported_dataset_kind:{kind}"))
             } else {
-                let source_path = clean_text(payload.get("source_path").and_then(Value::as_str), 240);
+                let source_path =
+                    clean_text(payload.get("source_path").and_then(Value::as_str), 240);
                 if !source_path.is_empty() && !safe_bridge_path(&source_path) {
-                    Err(format!("camel_bridge_dataset_source_path_unsafe:{source_path}"))
+                    Err(format!(
+                        "camel_bridge_dataset_source_path_unsafe:{source_path}"
+                    ))
                 } else {
-                    let records = payload.get("records").and_then(Value::as_array).cloned().unwrap_or_default();
+                    let records = payload
+                        .get("records")
+                        .and_then(Value::as_array)
+                        .cloned()
+                        .unwrap_or_default();
                     if source_path.is_empty() && records.is_empty() {
                         Err("camel_bridge_dataset_records_or_source_required".to_string())
                     } else {
-                        let dataset_id = stable_id("camel_dataset", &json!({"name": name, "kind": kind, "source_path": source_path, "records": records}));
+                        let dataset_id = stable_id(
+                            "camel_dataset",
+                            &json!({"name": name, "kind": kind, "source_path": source_path, "records": records}),
+                        );
                         let dataset = json!({
                             "dataset_id": dataset_id,
                             "name": name,
@@ -537,7 +599,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                             "created_at": now_iso(),
                             "claim_evidence": claim("V6-WORKFLOW-013.4", "synthetic_dataset_ingestion"),
                         });
-                        as_object_mut(&mut state, "datasets").insert(dataset_id.clone(), dataset.clone());
+                        as_object_mut(&mut state, "datasets")
+                            .insert(dataset_id.clone(), dataset.clone());
                         Ok(json!({
                             "ok": true,
                             "dataset": dataset,
@@ -549,16 +612,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "route-conversation" => {
             let conversation_name = clean_text(payload.get("name").and_then(Value::as_str), 96);
-            let code_prompt = clean_text(payload.get("code_prompt").or_else(|| payload.get("prompt")).and_then(Value::as_str), 400);
+            let code_prompt = clean_text(
+                payload
+                    .get("code_prompt")
+                    .or_else(|| payload.get("prompt"))
+                    .and_then(Value::as_str),
+                400,
+            );
             if conversation_name.is_empty() || code_prompt.is_empty() {
                 Err("camel_bridge_conversation_name_and_code_prompt_required".to_string())
             } else {
                 let profile = parse_profile(payload);
-                let turns = payload.get("turns").and_then(Value::as_array).cloned().unwrap_or_default();
+                let turns = payload
+                    .get("turns")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 let max_turns = if constrained_profile(&profile) { 3 } else { 12 };
                 let selected_turns: Vec<Value> = turns.into_iter().take(max_turns).collect();
-                let degraded = selected_turns.len() < payload.get("turns").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0);
-                let conversation_id = stable_id("camel_conversation", &json!({"name": conversation_name, "prompt": code_prompt}));
+                let degraded = selected_turns.len()
+                    < payload
+                        .get("turns")
+                        .and_then(Value::as_array)
+                        .map(|rows| rows.len())
+                        .unwrap_or(0);
+                let conversation_id = stable_id(
+                    "camel_conversation",
+                    &json!({"name": conversation_name, "prompt": code_prompt}),
+                );
                 let route = json!({
                     "conversation_id": conversation_id,
                     "name": conversation_name,
@@ -572,7 +653,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "created_at": now_iso(),
                     "claim_evidence": claim("V6-WORKFLOW-013.5", "code_as_prompt_stateful_conversation_routing"),
                 });
-                as_object_mut(&mut state, "conversation_routes").insert(conversation_id.clone(), route.clone());
+                as_object_mut(&mut state, "conversation_routes")
+                    .insert(conversation_id.clone(), route.clone());
                 let swarm_summary = json!({
                     "ok": true,
                     "type": "camel_conversation_route",
@@ -596,11 +678,25 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("camel_bridge_benchmark_name_required".to_string())
             } else {
                 let profile = parse_profile(payload);
-                let tasks = payload.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
-                let artifacts = payload.get("artifacts").and_then(Value::as_array).cloned().unwrap_or_default();
-                let multimodal = artifacts.iter().filter_map(|row| row.get("media_type").and_then(Value::as_str)).collect::<Vec<_>>();
+                let tasks = payload
+                    .get("tasks")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let artifacts = payload
+                    .get("artifacts")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let multimodal = artifacts
+                    .iter()
+                    .filter_map(|row| row.get("media_type").and_then(Value::as_str))
+                    .collect::<Vec<_>>();
                 let degraded = constrained_profile(&profile) && multimodal.len() > 1;
-                let benchmark_id = stable_id("camel_benchmark", &json!({"name": name, "tasks": tasks, "artifacts": artifacts}));
+                let benchmark_id = stable_id(
+                    "camel_benchmark",
+                    &json!({"name": name, "tasks": tasks, "artifacts": artifacts}),
+                );
                 let benchmark = json!({
                     "benchmark_id": benchmark_id,
                     "name": name,
@@ -613,7 +709,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "created_at": now_iso(),
                     "claim_evidence": claim("V6-WORKFLOW-013.6", "crab_benchmark_and_evaluation_bridge"),
                 });
-                as_object_mut(&mut state, "benchmarks").insert(benchmark_id.clone(), benchmark.clone());
+                as_object_mut(&mut state, "benchmarks")
+                    .insert(benchmark_id.clone(), benchmark.clone());
                 Ok(json!({
                     "ok": true,
                     "benchmark": benchmark,
@@ -627,13 +724,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             if name.is_empty() || bridge_path.is_empty() {
                 Err("camel_bridge_tool_gateway_name_and_bridge_path_required".to_string())
             } else if !safe_bridge_path(&bridge_path) {
-                Err(format!("camel_bridge_tool_gateway_path_unsafe:{bridge_path}"))
+                Err(format!(
+                    "camel_bridge_tool_gateway_path_unsafe:{bridge_path}"
+                ))
             } else {
-                let tools = payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
+                let tools = payload
+                    .get("tools")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 if tools.is_empty() {
                     Err("camel_bridge_tool_gateway_tools_required".to_string())
                 } else {
-                    let gateway_id = stable_id("camel_gateway", &json!({"name": name, "bridge_path": bridge_path, "tools": tools}));
+                    let gateway_id = stable_id(
+                        "camel_gateway",
+                        &json!({"name": name, "bridge_path": bridge_path, "tools": tools}),
+                    );
                     let gateway = json!({
                         "gateway_id": gateway_id,
                         "name": name,
@@ -642,7 +748,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         "created_at": now_iso(),
                         "claim_evidence": claim("V6-WORKFLOW-013.7", "tool_ecosystem_and_real_world_integration_gateway"),
                     });
-                    as_object_mut(&mut state, "tool_gateways").insert(gateway_id.clone(), gateway.clone());
+                    as_object_mut(&mut state, "tool_gateways")
+                        .insert(gateway_id.clone(), gateway.clone());
                     Ok(json!({
                         "ok": true,
                         "tool_gateway": gateway,
@@ -656,16 +763,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             let tool_name = clean_token(payload.get("tool_name").and_then(Value::as_str), "");
             if gateway_id.is_empty() || tool_name.is_empty() {
                 Err("camel_bridge_tool_gateway_and_tool_name_required".to_string())
-            } else if let Some(gateway) = state.get("tool_gateways").and_then(|row| row.get(&gateway_id)).cloned() {
+            } else if let Some(gateway) = state
+                .get("tool_gateways")
+                .and_then(|row| row.get(&gateway_id))
+                .cloned()
+            {
                 let profile = parse_profile(payload);
                 let tool = gateway
                     .get("tools")
                     .and_then(Value::as_array)
-                    .and_then(|rows| rows.iter().find(|row| clean_token(row.get("name").and_then(Value::as_str), "") == tool_name))
+                    .and_then(|rows| {
+                        rows.iter().find(|row| {
+                            clean_token(row.get("name").and_then(Value::as_str), "") == tool_name
+                        })
+                    })
                     .cloned();
                 if let Some(tool_row) = tool {
-                    let supported_profiles = clean_profiles(tool_row.get("supported_profiles"), &["rich", "pure"]);
-                    let requires_approval = parse_bool_value(tool_row.get("requires_approval"), false);
+                    let supported_profiles =
+                        clean_profiles(tool_row.get("supported_profiles"), &["rich", "pure"]);
+                    let requires_approval =
+                        parse_bool_value(tool_row.get("requires_approval"), false);
                     let approved = parse_bool_value(payload.get("approved"), false);
                     let allowed_profile = supported_profiles.iter().any(|row| row == &profile);
                     let (status, reason_code) = if !allowed_profile {
@@ -675,7 +792,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     } else {
                         ("executed", "tool_invocation_ok")
                     };
-                    let invocation_id = stable_id("camel_tool", &json!({"gateway_id": gateway_id, "tool_name": tool_name, "args": payload.get("args")}));
+                    let invocation_id = stable_id(
+                        "camel_tool",
+                        &json!({"gateway_id": gateway_id, "tool_name": tool_name, "args": payload.get("args")}),
+                    );
                     let invocation = json!({
                         "invocation_id": invocation_id,
                         "gateway_id": gateway_id,
@@ -688,7 +808,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         "created_at": now_iso(),
                         "claim_evidence": claim("V6-WORKFLOW-013.7", "tool_ecosystem_and_real_world_integration_gateway"),
                     });
-                    as_object_mut(&mut state, "tool_invocations").insert(invocation_id.clone(), invocation.clone());
+                    as_object_mut(&mut state, "tool_invocations")
+                        .insert(invocation_id.clone(), invocation.clone());
                     Ok(json!({
                         "ok": true,
                         "invocation": invocation,
@@ -702,12 +823,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
         }
         "record-scaling-observation" => {
-            let society_id = clean_token(payload.get("society_id").and_then(Value::as_str), "unknown-society");
-            let observation_id = stable_id("camel_observation", &json!({"society_id": society_id, "metrics": payload.get("metrics")}));
+            let society_id = clean_token(
+                payload.get("society_id").and_then(Value::as_str),
+                "unknown-society",
+            );
+            let observation_id = stable_id(
+                "camel_observation",
+                &json!({"society_id": society_id, "metrics": payload.get("metrics")}),
+            );
             let agent_count = parse_u64_value(payload.get("agent_count"), 1, 1, 10000);
             let message_count = parse_u64_value(payload.get("message_count"), 0, 0, 1000000);
             let coherence = parse_f64_value(payload.get("coherence"), 0.5, 0.0, 1.0);
-            let emergent_risk = if agent_count > 100 || coherence < 0.4 { "elevated" } else { "stable" };
+            let emergent_risk = if agent_count > 100 || coherence < 0.4 {
+                "elevated"
+            } else {
+                "stable"
+            };
             let observation = json!({
                 "observation_id": observation_id,
                 "society_id": society_id,
@@ -720,7 +851,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "created_at": now_iso(),
                 "claim_evidence": claim("V6-WORKFLOW-013.8", "emergent_scaling_law_observability"),
             });
-            as_object_mut(&mut state, "scaling_observations").insert(observation_id.clone(), observation.clone());
+            as_object_mut(&mut state, "scaling_observations")
+                .insert(observation_id.clone(), observation.clone());
             Ok(json!({
                 "ok": true,
                 "observation": observation,
@@ -728,7 +860,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }))
         }
         "assimilate-intake" => {
-            let package_name = clean_token(payload.get("package_name").and_then(Value::as_str), "camel-shell");
+            let package_name = clean_token(
+                payload.get("package_name").and_then(Value::as_str),
+                "camel-shell",
+            );
             let output_dir_raw = payload
                 .get("output_dir")
                 .and_then(Value::as_str)
@@ -741,13 +876,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 if let Err(err) = fs::create_dir_all(&output_dir) {
                     Err(format!("camel_bridge_output_dir_create_failed:{err}"))
                 } else {
-                let package_json = json!({
-                    "name": package_name,
-                    "private": true,
-                    "authority_delegate": "core://camel-bridge",
-                    "bridge": "client/runtime/systems/workflow/camel_bridge.ts"
-                });
-                if let Err(err) = lane_utils::write_json(&output_dir.join("package.json"), &package_json) {
+                    let package_json = json!({
+                        "name": package_name,
+                        "private": true,
+                        "authority_delegate": "core://camel-bridge",
+                        "bridge": "client/runtime/systems/workflow/camel_bridge.ts"
+                    });
+                    if let Err(err) = lane_utils::write_json(&output_dir.join("package.json"), &package_json) {
                     Err(err)
                 } else if let Err(err) = fs::write(
                     output_dir.join("README.md"),
@@ -787,7 +922,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             print_json_line(&receipt);
             0
         }
-        Err(err) => emit_error(&mut state, &state_path, &history_path, &format!("camel_bridge_{command}"), &err),
+        Err(err) => emit_error(
+            &mut state,
+            &state_path,
+            &history_path,
+            &format!("camel_bridge_{command}"),
+            &err,
+        ),
     }
 }
 

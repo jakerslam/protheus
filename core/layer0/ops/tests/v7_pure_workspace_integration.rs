@@ -26,7 +26,10 @@ fn ecosystem_init_pure_dry_run_emits_pure_components() {
     let state_root = root.join("state/canyon_pure");
     fs::create_dir_all(&state_root).expect("state root");
 
-    std::env::set_var("PROTHEUS_CANYON_PLANE_STATE_ROOT", state_root.to_string_lossy().as_ref());
+    std::env::set_var(
+        "PROTHEUS_CANYON_PLANE_STATE_ROOT",
+        state_root.to_string_lossy().as_ref(),
+    );
     std::env::set_var("PROTHEUS_V8_CONDUIT_ENFORCE", "0");
     std::env::set_var("PROTHEUS_V8_CONDUIT_AUDIT_ONLY", "1");
     std::env::set_var("PROTHEUS_V8_CONDUIT_TRACE", "0");
@@ -55,11 +58,7 @@ fn ecosystem_init_pure_dry_run_emits_pure_components() {
         .get("components")
         .and_then(Value::as_array)
         .expect("components");
-    assert!(
-        components
-            .iter()
-            .any(|v| v.as_str() == Some("pure_client"))
-    );
+    assert!(components.iter().any(|v| v.as_str() == Some("pure_client")));
     assert!(
         !root.join("demo_pure").exists(),
         "dry-run should not create files"
@@ -74,7 +73,10 @@ fn ecosystem_init_tiny_max_dry_run_sets_tiny_max_contract() {
     let state_root = root.join("state/canyon_pure_tiny_max");
     fs::create_dir_all(&state_root).expect("state root");
 
-    std::env::set_var("PROTHEUS_CANYON_PLANE_STATE_ROOT", state_root.to_string_lossy().as_ref());
+    std::env::set_var(
+        "PROTHEUS_CANYON_PLANE_STATE_ROOT",
+        state_root.to_string_lossy().as_ref(),
+    );
     std::env::set_var("PROTHEUS_V8_CONDUIT_ENFORCE", "0");
     std::env::set_var("PROTHEUS_V8_CONDUIT_AUDIT_ONLY", "1");
     std::env::set_var("PROTHEUS_V8_CONDUIT_TRACE", "0");

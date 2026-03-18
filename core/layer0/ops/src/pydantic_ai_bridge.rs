@@ -375,16 +375,34 @@ fn default_claim_evidence(id: &str, claim: &str) -> Value {
 
 fn pydantic_claim(id: &str) -> &'static str {
     match id {
-        "V6-WORKFLOW-015.1" => "pydantic_ai_typed_agents_register_over_authoritative_workflow_and_swarm_lanes",
-        "V6-WORKFLOW-015.2" => "pydantic_ai_structured_outputs_validate_retry_and_reject_with_deterministic_receipts",
-        "V6-WORKFLOW-015.3" => "pydantic_ai_tool_contexts_and_dependency_injection_stay_governed_and_fail_closed",
-        "V6-WORKFLOW-015.4" => "pydantic_ai_protocol_flows_normalize_onto_existing_swarm_session_and_adapter_lanes",
-        "V6-WORKFLOW-015.5" => "pydantic_ai_durable_runs_resume_and_retry_through_authoritative_checkpoint_lanes",
-        "V6-WORKFLOW-015.6" => "pydantic_ai_hitl_approvals_reuse_existing_approval_gate_with_deterministic_receipts",
+        "V6-WORKFLOW-015.1" => {
+            "pydantic_ai_typed_agents_register_over_authoritative_workflow_and_swarm_lanes"
+        }
+        "V6-WORKFLOW-015.2" => {
+            "pydantic_ai_structured_outputs_validate_retry_and_reject_with_deterministic_receipts"
+        }
+        "V6-WORKFLOW-015.3" => {
+            "pydantic_ai_tool_contexts_and_dependency_injection_stay_governed_and_fail_closed"
+        }
+        "V6-WORKFLOW-015.4" => {
+            "pydantic_ai_protocol_flows_normalize_onto_existing_swarm_session_and_adapter_lanes"
+        }
+        "V6-WORKFLOW-015.5" => {
+            "pydantic_ai_durable_runs_resume_and_retry_through_authoritative_checkpoint_lanes"
+        }
+        "V6-WORKFLOW-015.6" => {
+            "pydantic_ai_hitl_approvals_reuse_existing_approval_gate_with_deterministic_receipts"
+        }
         "V6-WORKFLOW-015.7" => "pydantic_ai_logfire_and_otel_events_fold_into_native_observability",
-        "V6-WORKFLOW-015.8" => "pydantic_ai_graph_execution_normalizes_to_authoritative_workflow_lineage",
-        "V6-WORKFLOW-015.9" => "pydantic_ai_model_agnostic_routing_and_structured_streaming_remain_profile_safe",
-        "V6-WORKFLOW-015.10" => "pydantic_ai_eval_artifacts_remain_replayable_provenance_linked_and_native",
+        "V6-WORKFLOW-015.8" => {
+            "pydantic_ai_graph_execution_normalizes_to_authoritative_workflow_lineage"
+        }
+        "V6-WORKFLOW-015.9" => {
+            "pydantic_ai_model_agnostic_routing_and_structured_streaming_remain_profile_safe"
+        }
+        "V6-WORKFLOW-015.10" => {
+            "pydantic_ai_eval_artifacts_remain_replayable_provenance_linked_and_native"
+        }
         _ => "pydantic_ai_bridge_claim",
     }
 }
@@ -1617,10 +1635,7 @@ fn register_agent(
     }))
 }
 
-fn validate_output(
-    state: &mut Value,
-    payload: &Map<String, Value>,
-) -> Result<Value, String> {
+fn validate_output(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let agent_id = clean_token(payload.get("agent_id").and_then(Value::as_str), "");
     let data = payload.get("data").cloned().unwrap_or_else(|| json!({}));
     let data_obj = data.as_object().cloned().unwrap_or_default();
@@ -1704,7 +1719,10 @@ fn register_tool_context(
                 .unwrap_or_else(|| json!({})),
         );
         tool.insert("required_args".to_string(), json!(required_args));
-        tool.insert("required_dependencies".to_string(), json!(required_dependencies));
+        tool.insert(
+            "required_dependencies".to_string(),
+            json!(required_dependencies),
+        );
         tool.insert(
             "argument_schema".to_string(),
             payload
@@ -1829,7 +1847,8 @@ fn durable_run(
         .entry("mode".to_string())
         .or_insert_with(|| json!("loop"));
 
-    let resumed = if let Some(session_id) = payload.get("resume_session_id").and_then(Value::as_str) {
+    let resumed = if let Some(session_id) = payload.get("resume_session_id").and_then(Value::as_str)
+    {
         let rewind_payload = Map::from_iter([("session_id".to_string(), json!(session_id))]);
         let _ = rewind_session(root, argv, state, &rewind_payload)?;
         true
@@ -1866,8 +1885,14 @@ fn record_logfire(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let trace_id = clean_token(payload.get("trace_id").and_then(Value::as_str), &stable_id("pydailog", &json!(payload)));
-    let event_name = clean_token(payload.get("event_name").and_then(Value::as_str), "pydantic-ai-logfire");
+    let trace_id = clean_token(
+        payload.get("trace_id").and_then(Value::as_str),
+        &stable_id("pydailog", &json!(payload)),
+    );
+    let event_name = clean_token(
+        payload.get("event_name").and_then(Value::as_str),
+        "pydantic-ai-logfire",
+    );
     let message = clean_text(payload.get("message").and_then(Value::as_str), 160);
     emit_native_trace(root, &trace_id, &event_name, &message)?;
     let record = json!({
@@ -1893,7 +1918,11 @@ fn execute_graph(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let nodes = payload.get("nodes").and_then(Value::as_array).cloned().unwrap_or_default();
+    let nodes = payload
+        .get("nodes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if nodes.is_empty() {
         return Err("pydantic_ai_graph_nodes_required".to_string());
     }
@@ -1911,10 +1940,28 @@ fn execute_graph(
         })
         .collect::<Vec<_>>();
     let normalized = Map::from_iter([
-        ("name".to_string(), payload.get("name").cloned().unwrap_or_else(|| json!("pydantic-ai-graph"))),
+        (
+            "name".to_string(),
+            payload
+                .get("name")
+                .cloned()
+                .unwrap_or_else(|| json!("pydantic-ai-graph")),
+        ),
         ("agents".to_string(), json!(agents)),
-        ("importance".to_string(), payload.get("importance").cloned().unwrap_or_else(|| json!(0.8))),
-        ("profile".to_string(), payload.get("profile").cloned().unwrap_or_else(|| json!("rich"))),
+        (
+            "importance".to_string(),
+            payload
+                .get("importance")
+                .cloned()
+                .unwrap_or_else(|| json!(0.8)),
+        ),
+        (
+            "profile".to_string(),
+            payload
+                .get("profile")
+                .cloned()
+                .unwrap_or_else(|| json!("rich")),
+        ),
     ]);
     let hierarchy = coordinate_hierarchy(root, argv, state, &normalized)?;
     let graph_record = json!({
@@ -1934,10 +1981,7 @@ fn execute_graph(
     }))
 }
 
-fn stream_model(
-    state: &mut Value,
-    payload: &Map<String, Value>,
-) -> Result<Value, String> {
+fn stream_model(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let route = route_model(state, payload)?;
     let structured_fields = parse_string_list(payload.get("structured_fields"));
     let chunks = payload
