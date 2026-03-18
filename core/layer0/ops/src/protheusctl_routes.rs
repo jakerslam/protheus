@@ -685,6 +685,101 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                         forward_stdin: false,
                     })
                 }
+                "google-adk" | "workflow://google-adk" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["register-tool-manifest".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://google-adk-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "camel" | "workflow://camel" | "society://camel" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["import-dataset".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://camel-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "haystack" | "workflow://haystack" | "rag://haystack" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["register-pipeline".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://haystack-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "langchain" | "workflow://langchain" | "chains://langchain" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["import-integration".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://langchain-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "mastra" | "workflow://mastra" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["register-graph".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://mastra-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
                 _ => None,
             }
         }
