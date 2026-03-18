@@ -10,21 +10,20 @@
 ![Coverage](docs/client/badges/coverage.svg)
 ![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
 
-InfRing is an evidence-first Rust kernel for autonomous operations, workflow execution, and policy-governed system evolution.
-This repository is maintained under the InfRing operating model.
-InfRing is the three-plane metakernel substrate: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
+InfRing is an evidence-first Rust operating substrate for autonomous operations, policy-governed workflow execution, and auditable system evolution.
+This repository is maintained under the InfRing operating model and packages the three-plane metakernel substrate: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
 
 > **Clarification:** The term "metakernel" refers to the architectural pattern where the runtime itself operates as a managed system layer, not a traditional monolithic kernel. This enables policy-driven, auditable execution across safety, cognition, and substrate planes.
 
-This repository is organized to run like an internal platform team: typed runtime lanes, deterministic receipts, strict governance surfaces, and operational guardrails that are reviewable in-source.
+The repository is structured like an internal platform product: typed runtime lanes, deterministic receipts, strict governance surfaces, and operator guardrails that remain reviewable in-source.
 
-## What This Repo Includes
+## Platform Capabilities
 
-- Control plane CLI surface (`infring`, `infringd`, `infringctl`, `infring top`)
-- Policy-backed runtime lanes across `client/runtime/systems/` (ops, security, memory, routing, workflow, observability, and more)
-- Deterministic state and receipt contracts for auditable execution
-- Backlog governance pipeline with generated active/archive/reviewed views
-- Docs and runbooks that map directly to executable scripts and checks
+- Control-plane CLIs for operators and automation (`infring`, `infringd`, `infringctl`, `infring top`)
+- Policy-backed runtime lanes across operations, security, memory, routing, workflow, sensory, and observability domains
+- Deterministic state, receipts, and contract-runtime evidence for audited execution
+- Backlog and SRS governance pipelines with generated active, archived, and reviewed views
+- Runbooks and operator documentation that map directly to executable scripts and verification gates
 
 ## Quick Start
 
@@ -178,7 +177,7 @@ Sources:
 | Cold start | 12.0 ms | 4.1 ms | 3.1 ms | 74.5 ms |
 | Idle memory | 8.2 MB | 1.4 MB | 1.4 MB | 22.1 MB |
 | Install size (full) | 11.6 MB | 0.7 MB | 0.5 MB | 126.4 MB |
-| Throughput | 65,938.9 ops/sec | 65,938.9 ops/sec | 65,938.9 ops/sec | 7,420.0 ops/sec |
+| Throughput | 65,938 ops/sec | 65,938 ops/sec | 65,938 ops/sec | 7,420 ops/sec |
 
 | Capability Counter | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) |
 |---|---:|---:|---:|
@@ -189,16 +188,20 @@ Sources:
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
 
-### Competitive Benchmark Matrix (Feb 2026 Snapshot + Live InfRing)
+### Competitive Benchmark Snapshot
 
-External baseline (OpenFang public table):
-<https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md>
+External comparison sources:
+- [OpenFang README](https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md)
+- [ZeroClaw official site](https://www.zeroclaw.dev/)
 
-| Project | Install Size (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
+InfRing numbers reflect the latest stabilized median benchmark artifact. Competitor rows use the closest public footprint/runtime metrics published by each project. Where a project only publishes a ceiling rather than an exact benchmark median, the table uses that published ceiling and marks it.
+
+| Project | Published Footprint (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **InfRing (rich)** | **11.6** | **12.0 ms** | **8.2** | **65,938.9** | **0.4** | **83** | 6 | 3 |
-| **InfRing (pure)** | **0.7** | **4.1 ms** | **1.4** | **65,938.9** | **0.4** | **83** | 0 | 0 |
-| **InfRing (tiny-max)** | **0.5** | **3.1 ms** | **1.4** | **65,938.9** | **0.3** | **83** | 0 | 0 |
+| **InfRing (rich)** | **11.6** | **12.0 ms** | **8.2** | **65,938** | **0.4** | **83** | 6 | 3 |
+| **InfRing (pure)** | **0.7** | **4.1 ms** | **1.4** | **65,938** | **0.4** | **83** | 0 | 0 |
+| **InfRing (tiny-max)** | **0.5** | **3.1 ms** | **1.4** | **65,938** | **0.3** | **83** | 0 | 0 |
+| ZeroClaw* | 3.4 | 10.0 ms* | 5.0* | n/p | 3.4 | n/p | 9 | 28+ |
 | OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
 | OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
 | LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
@@ -206,6 +209,7 @@ External baseline (OpenFang public table):
 | AutoGen | 200.0 | 4.0 sec | 250.0 | n/p | n/p | 2 | 4 | 8 |
 
 `n/p` means not publicly published with a reproducible method in the referenced sources.
+`*` ZeroClaw publishes `<10 ms startup`, `<5 MB RAM`, and `~3.4 MB binary size`; the table uses those published ceilings/values for placement and comparison.
 
 Pure Workspace mode is 100% Rust with no Node/TS runtime surfaces and is designed to run on low-resource hardware.
 Pure Workspace Tiny-Max is the low-resource profile for old/embedded targets and keeps the same Rust-only control boundary.
@@ -224,64 +228,76 @@ Tiny-max is the smallest full agentic OS artifact shipped in this repo today and
   - `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png`
   - `state/ops/evidence/mcu_flash_session_<date>.md`
 
-### Benchmarks: Measured, Not Marketed (ASCII)
+### Benchmarks: Measured, Not Marketed
+
+All data from official documentation and public repositories — March 2026.
+
+#### Cold Start Time (lower is better)
 
 ```text
-Cold Start Time (lower is better)
-InfRing (tiny-max) ############################################  3.1 ms
-InfRing (pure)     ############################################  4.1 ms
-InfRing (rich)     ###########################################-  12.0 ms
-OpenFang   ###########################################-  180.0 ms
-OpenHands  ###############################-------------  1.3 sec
-LangGraph  #################---------------------------  2.5 sec
-CrewAI     ############--------------------------------  3.0 sec
-AutoGen    #-------------------------------------------  4.0 sec
+InfRing (tiny-max) ████████████████████████████████████████████  3.1 ms
+InfRing (pure)     ███████████████████████████████████████████░  4.1 ms
+ZeroClaw           ██████████████████████████████████████████░░  10 ms*
+InfRing (rich)     █████████████████████████████████████████░░░  12.0 ms
+OpenFang           ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180.0 ms
+OpenHands          ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1.3 sec
+LangGraph          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2.5 sec
+CrewAI             ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3.0 sec
+AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4.0 sec
 ```
 
-```text
-Idle Memory Usage (lower is better)
-InfRing (pure)     ############################################  1.4 MB
-InfRing (tiny-max) ############################################  1.4 MB
-InfRing (rich)     ###########################################-  8.2 MB
-OpenFang   #####################################-------  40.0 MB
-OpenHands  ####################------------------------  150.0 MB
-LangGraph  ##############------------------------------  180.0 MB
-CrewAI     ##########----------------------------------  200.0 MB
-AutoGen    #-------------------------------------------  250.0 MB
-```
+#### Idle Memory Usage (lower is better)
 
 ```text
-Install Size (lower is better)
-InfRing (tiny-max) ############################################  0.5 MB
-InfRing (pure)     ############################################  0.7 MB
-InfRing (rich)     ##########################################--  11.6 MB
-OpenFang   #####################################-------  32.0 MB
-OpenHands  ###########################-----------------  95.5 MB
-CrewAI     ##########################------------------  100.0 MB
-LangGraph  #############-------------------------------  150.0 MB
-AutoGen    #-------------------------------------------  200.0 MB
+InfRing (pure)     ████████████████████████████████████████████  1.4 MB
+InfRing (tiny-max) ████████████████████████████████████████████  1.4 MB
+ZeroClaw           █████████████████████████████████████████░░░  5 MB*
+InfRing (rich)     ████████████████████████████████████████░░░░  8.2 MB
+OpenFang           ██████████████████████████████████░░░░░░░░░░  40.0 MB
+OpenHands          ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150.0 MB
+LangGraph          ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180.0 MB
+CrewAI             █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200.0 MB
+AutoGen            ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  250.0 MB
 ```
 
-```text
-Security Systems (higher is better)
-InfRing    ############################################  83
-OpenFang   ########------------------------------------  16
-OpenHands  ###-----------------------------------------  7
-AutoGen    #-------------------------------------------  2
-LangGraph  #-------------------------------------------  2
-CrewAI     #-------------------------------------------  1
-```
+#### Published Footprint (lower is better)
 
 ```text
-Throughput (ops/sec, higher is better)
-InfRing (rich)     ############################################  65,938.9
-InfRing (pure)     ############################################  65,938.9
-InfRing (tiny-max) ############################################  65,938.9
-OpenFang   n/p
-OpenHands  n/p
-LangGraph  n/p
-CrewAI     n/p
-AutoGen    n/p
+InfRing (tiny-max) ████████████████████████████████████████████  0.5 MB
+InfRing (pure)     ████████████████████████████████████████████  0.7 MB
+ZeroClaw           ████████████████████████████████████████░░░░  3.4 MB
+InfRing (rich)     ████████████████████████████████████░░░░░░░░  11.6 MB
+OpenFang           ████████████████████████████░░░░░░░░░░░░░░░░  32.0 MB
+OpenHands          ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  95.5 MB
+CrewAI             ███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100.0 MB
+LangGraph          ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150.0 MB
+AutoGen            █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200.0 MB
+```
+
+#### Security Systems (higher is better)
+
+```text
+InfRing            ████████████████████████████████████████████  83
+OpenFang           ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  16
+OpenHands          ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  7
+AutoGen            █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2
+LangGraph          █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2
+CrewAI             █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1
+ZeroClaw           n/p
+```
+
+#### Throughput (ops/sec, higher is better)
+
+```text
+InfRing (rich)     ████████████████████████████████████████████  65,938
+InfRing (pure)     ████████████████████████████████████████████  65,938
+InfRing (tiny-max) ████████████████████████████████████████████  65,938
+ZeroClaw           n/p
+OpenFang           n/p
+OpenHands          n/p
+LangGraph          n/p
+CrewAI             n/p
+AutoGen            n/p
 ```
 
 ## Alpha Readiness Checklist
