@@ -1,10 +1,10 @@
 {
   "ok": true,
   "type": "srs_contract_manifest",
-  "generated_at": "2026-03-18T03:20:00Z",
+  "generated_at": "2026-03-18T05:05:13.095Z",
   "source": "contract_dir_scan",
   "source_ref": "planes/contracts/srs/*.json",
-  "row_count": 1894,
+  "row_count": 1902,
   "entries": [
     {
       "id": "V10-ULTIMATE-001.1",
@@ -7319,6 +7319,38 @@
       "contract": "planes/contracts/srs/V6-WORKFLOW-010.9.json"
     },
     {
+      "id": "V6-WORKFLOW-012.1",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.1.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.2",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.2.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.3",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.3.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.4",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.4.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.5",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.5.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.6",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.6.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.7",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.7.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.8",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.8.json"
+    },
+    {
       "id": "V7-ASM-001",
       "contract": "planes/contracts/srs/V7-ASM-001.json"
     },
@@ -7619,6 +7651,38 @@
     {
       "id": "V6-WORKFLOW-011.9",
       "contract": "planes/contracts/srs/V6-WORKFLOW-011.9.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.1",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.1.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.2",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.2.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.3",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.3.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.4",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.4.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.5",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.5.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.6",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.6.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.7",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.7.json"
+    },
+    {
+      "id": "V6-WORKFLOW-012.8",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-012.8.json"
     }
   ]
 }
