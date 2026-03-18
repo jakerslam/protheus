@@ -891,6 +891,13 @@ fn main() {
                 protheus_ops_core::policy_runtime_kernel::run
             );
         }
+        "semantic-kernel-bridge" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::semantic_kernel_bridge::run
+            );
+        }
         "integrity-hash-utility-kernel" => {
             exit_domain!(
                 &cwd,

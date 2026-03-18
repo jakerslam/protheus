@@ -148,6 +148,7 @@ pub mod sdlc_change_control;
 pub mod secret_broker_kernel;
 pub mod security_integrity_kernel;
 pub mod security_plane;
+pub mod semantic_kernel_bridge;
 pub mod seed_protocol;
 pub mod sensory_eyes_intake;
 pub mod settlement_program;
