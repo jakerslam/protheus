@@ -709,7 +709,10 @@ fn core_shortcut_routes_assimilate_doc2dict_core_to_parse_plane() {
 fn core_shortcut_routes_assimilate_llamaindex_to_llamaindex_bridge() {
     let route = resolve_core_shortcuts(
         "assimilate",
-        &["llamaindex".to_string(), "--payload-base64=e30=".to_string()],
+        &[
+            "llamaindex".to_string(),
+            "--payload-base64=e30=".to_string(),
+        ],
     )
     .expect("route");
     assert_eq!(route.script_rel, "core://llamaindex-bridge");
@@ -723,7 +726,10 @@ fn core_shortcut_routes_assimilate_llamaindex_to_llamaindex_bridge() {
 fn core_shortcut_routes_assimilate_google_adk_to_google_adk_bridge() {
     let route = resolve_core_shortcuts(
         "assimilate",
-        &["google-adk".to_string(), "--payload-base64=e30=".to_string()],
+        &[
+            "google-adk".to_string(),
+            "--payload-base64=e30=".to_string(),
+        ],
     )
     .expect("route");
     assert_eq!(route.script_rel, "core://google-adk-bridge");
@@ -731,6 +737,17 @@ fn core_shortcut_routes_assimilate_google_adk_to_google_adk_bridge() {
         route.args,
         vec!["register-tool-manifest", "--payload-base64=e30="]
     );
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_mastra_to_mastra_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &["mastra".to_string(), "--payload-base64=e30=".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://mastra-bridge");
+    assert_eq!(route.args, vec!["register-graph", "--payload-base64=e30="]);
 }
 
 #[test]
