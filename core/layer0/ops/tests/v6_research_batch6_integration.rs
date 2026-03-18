@@ -172,7 +172,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
     let spider_exit = research_plane::run(
         root,
         &[
-            "spider".to_string(),
+            "crawl-spider".to_string(),
             "--strict=1".to_string(),
             "--graph-json={\"https://a.test\":{\"links\":[\"https://a.test/alpha\",\"https://b.test/beta\"]},\"https://a.test/alpha\":{\"links\":[]},\"https://b.test/beta\":{\"links\":[]}}".to_string(),
             "--seed-urls=https://a.test".to_string(),
@@ -194,12 +194,18 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
             .unwrap_or(false),
         "spider must emit per-link receipts"
     );
+    assert_eq!(
+        spider_latest
+            .get("runtime_component")
+            .and_then(Value::as_str),
+        Some("crawl_spider")
+    );
     assert_claim(&spider_latest, "V6-RESEARCH-002.1");
 
     let middleware_exit = research_plane::run(
         root,
         &[
-            "middleware".to_string(),
+            "crawl-middleware".to_string(),
             "--strict=1".to_string(),
             "--request-json={\"url\":\"https://example.com\",\"headers\":{}}".to_string(),
             "--response-json={\"status\":200,\"body\":\"<html><body>ok</body></html>\"}".to_string(),
@@ -216,6 +222,12 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         middleware_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        middleware_latest
+            .get("runtime_component")
+            .and_then(Value::as_str),
+        Some("crawl_middleware")
+    );
     assert_claim(&middleware_latest, "V6-RESEARCH-002.2");
 
     let export_path = root
@@ -225,7 +237,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
     let pipeline_exit = research_plane::run(
         root,
         &[
-            "pipeline".to_string(),
+            "crawl-pipeline".to_string(),
             "--strict=1".to_string(),
             "--items-json=[{\"url\":\"https://a.test\",\"title\":\"alpha\"},{\"url\":\"https://a.test\",\"title\":\"duplicate\"},{\"url\":\"https://b.test\",\"title\":\"beta\"}]".to_string(),
             "--pipeline-json=[{\"stage\":\"validate\",\"required_fields\":[\"url\",\"title\"]},{\"stage\":\"dedupe\",\"key\":\"url\"},{\"stage\":\"enrich\",\"add\":{\"source\":\"batch6\"}}]".to_string(),
@@ -247,12 +259,18 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         export_path.exists(),
         "pipeline exporter must write output artifact"
     );
+    assert_eq!(
+        pipeline_latest
+            .get("runtime_component")
+            .and_then(Value::as_str),
+        Some("crawl_pipeline")
+    );
     assert_claim(&pipeline_latest, "V6-RESEARCH-002.3");
 
     let signals_exit = research_plane::run(
         root,
         &[
-            "signals".to_string(),
+            "crawl-signals".to_string(),
             "--strict=1".to_string(),
             "--events-json=[{\"signal\":\"spider_opened\",\"payload\":{}},{\"signal\":\"item_scraped\",\"payload\":{\"url\":\"https://a.test\"}}]".to_string(),
             "--handlers-json=[{\"id\":\"metrics\",\"signal\":\"item_scraped\"},{\"id\":\"lifecycle\",\"signal\":\"spider_opened\"}]".to_string(),
@@ -268,13 +286,19 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         signals_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        signals_latest
+            .get("runtime_component")
+            .and_then(Value::as_str),
+        Some("crawl_signals")
+    );
     assert_claim(&signals_latest, "V6-RESEARCH-002.4");
 
     std::env::set_var("RESEARCH_CONSOLE_TOKEN", "batch6-console-token");
     let console_exit = research_plane::run(
         root,
         &[
-            "console".to_string(),
+            "crawl-console".to_string(),
             "--strict=1".to_string(),
             "--op=pause".to_string(),
             "--auth-token=batch6-console-token".to_string(),
@@ -296,6 +320,12 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
             .and_then(|v| v.get("paused"))
             .and_then(Value::as_bool),
         Some(true)
+    );
+    assert_eq!(
+        console_latest
+            .get("runtime_component")
+            .and_then(Value::as_str),
+        Some("crawl_console")
     );
     assert_claim(&console_latest, "V6-RESEARCH-002.5");
 

@@ -84,7 +84,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops organism-layer <status|ignite|dream|homeostasis|crystallize|symbiosis|mutate|sensory|narrative> [flags]");
     println!("  protheus-ops graph-toolkit <status|pagerank|louvain|jaccard|label-propagation|betweenness|predict-links|centrality|communities> [flags]");
     println!("  protheus-ops asm-plane <status|wasm-dual-meter|hands-runtime|crdt-adapter|trust-chain|fastpath|industrial-pack> [flags]");
-    println!("  protheus-ops research-plane <status|diagnostics|fetch|recover-selectors|crawl|mcp-extract|spider|middleware|pipeline|signals|console|template-governance|goal-crawl|map-site|extract-structured|monitor|firecrawl-template-governance|js-scrape|auth-session|proxy-rotate|parallel-scrape-workers|book-patterns-template-governance|decode-news-url|decode-news-urls|decoder-template-governance> [flags]");
+    println!("  protheus-ops research-plane <status|diagnostics|fetch|recover-selectors|crawl|mcp-extract|spider|crawl-spider|middleware|crawl-middleware|pipeline|crawl-pipeline|signals|crawl-signals|console|crawl-console|template-governance|goal-crawl|map-site|extract-structured|monitor|firecrawl-template-governance|js-scrape|auth-session|proxy-rotate|parallel-scrape-workers|book-patterns-template-governance|decode-news-url|decode-news-urls|decoder-template-governance> [flags]");
     println!("  protheus-ops parse-plane <status|parse-doc|visualize|postprocess-table|flatten|export|template-governance> [flags]");
     println!("  protheus-ops flow-plane <status|compile|playground|component-marketplace|export|template-governance> [flags]");
     println!("  protheus-ops app-plane <status|run|history|replay|switch-provider|build|ingress|template-governance> [flags]");
