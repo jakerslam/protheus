@@ -13,6 +13,7 @@ const SWARM_CODE_SURFACES = new Set([
 ]);
 const SWARM_TEST_SURFACES = new Set([
   'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
+  'core/layer0/ops/tests/v6_openfang_closure_integration.rs',
   'tests/client-memory-tools/swarm_sessions_bridge.test.js',
   'tests/tooling/scripts/ci/swarm_protocol_audit_runner.mjs',
 ]);

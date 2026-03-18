@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer1/security (authoritative)
 
+use aes_gcm::aead::Aead;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chrono::{SecondsFormat, Utc};
+use rusqlite::{params, Connection};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -1195,6 +1198,603 @@ fn black_box_write_detail(
     Ok((rows, digest))
 }
 
+fn black_box_sqlite_path(ledger_dir: &Path) -> PathBuf {
+    ledger_dir.join("ledger.sqlite")
+}
+
+fn black_box_export_path(ledger_dir: &Path) -> PathBuf {
+    ledger_dir.join("export_latest.json")
+}
+
+fn black_box_key_path(ledger_dir: &Path) -> PathBuf {
+    ledger_dir.join("encryption_key.hex")
+}
+
+fn random_bytes(len: usize) -> Result<Vec<u8>, String> {
+    let mut out = vec![0u8; len];
+    match fs::File::open("/dev/urandom") {
+        Ok(mut file) => file
+            .read_exact(&mut out)
+            .map_err(|err| format!("urandom_read_failed:{err}"))?,
+        Err(_) => {
+            let fallback = sha256_hex(&format!("{}:{}:{}", now_iso(), std::process::id(), len));
+            let decoded =
+                hex::decode(fallback).map_err(|err| format!("fallback_random_decode_failed:{err}"))?;
+            for (idx, byte) in out.iter_mut().enumerate() {
+                *byte = decoded[idx % decoded.len()];
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn black_box_key(ledger_dir: &Path) -> Result<Vec<u8>, String> {
+    if let Ok(raw) = std::env::var("BLACK_BOX_LEDGER_KEY_HEX") {
+        let key = hex::decode(raw.trim()).map_err(|err| format!("ledger_key_hex_invalid:{err}"))?;
+        if key.len() != 32 {
+            return Err("ledger_key_hex_must_be_32_bytes".to_string());
+        }
+        return Ok(key);
+    }
+
+    let key_path = black_box_key_path(ledger_dir);
+    if let Ok(raw) = fs::read_to_string(&key_path) {
+        let key = hex::decode(raw.trim()).map_err(|err| format!("ledger_key_file_invalid:{err}"))?;
+        if key.len() != 32 {
+            return Err("ledger_key_file_must_be_32_bytes".to_string());
+        }
+        return Ok(key);
+    }
+
+    let key = random_bytes(32)?;
+    ensure_parent(&key_path)?;
+    fs::write(&key_path, format!("{}\n", hex::encode(&key)))
+        .map_err(|err| format!("ledger_key_write_failed:{}:{err}", key_path.display()))?;
+    Ok(key)
+}
+
+fn black_box_open_db(ledger_dir: &Path) -> Result<Connection, String> {
+    fs::create_dir_all(ledger_dir)
+        .map_err(|err| format!("black_box_ledger_dir_create_failed:{}:{err}", ledger_dir.display()))?;
+    let db_path = black_box_sqlite_path(ledger_dir);
+    let conn =
+        Connection::open(&db_path).map_err(|err| format!("black_box_sqlite_open_failed:{err}"))?;
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS ledger_entries(
+            seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            action TEXT NOT NULL,
+            source TEXT NOT NULL,
+            prev_hash TEXT NOT NULL,
+            entry_hash TEXT NOT NULL UNIQUE,
+            signature TEXT NOT NULL,
+            details_nonce BLOB NOT NULL,
+            details_ciphertext BLOB NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS published_roots(
+            root_seq INTEGER PRIMARY KEY,
+            root_hash TEXT NOT NULL,
+            published_at TEXT NOT NULL
+        );",
+    )
+    .map_err(|err| format!("black_box_sqlite_schema_failed:{err}"))?;
+    Ok(conn)
+}
+
+fn encrypt_ledger_details(key: &[u8], details: &Value) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
+    let nonce = random_bytes(12)?;
+    let plaintext = stable_json_string(details);
+    let ciphertext = cipher
+        .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
+        .map_err(|err| format!("ledger_encrypt_failed:{err}"))?;
+    Ok((nonce, ciphertext))
+}
+
+fn decrypt_ledger_details(key: &[u8], nonce: &[u8], ciphertext: &[u8]) -> Result<Value, String> {
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
+    let plaintext = cipher
+        .decrypt(Nonce::from_slice(nonce), ciphertext)
+        .map_err(|err| format!("ledger_decrypt_failed:{err}"))?;
+    serde_json::from_slice::<Value>(&plaintext).map_err(|err| format!("ledger_details_json_invalid:{err}"))
+}
+
+fn append_black_box_entry(
+    repo_root: &Path,
+    args: &CliArgs,
+    ledger_dir: &Path,
+) -> (Value, i32) {
+    let actor = clean_text(
+        args.flags
+            .get("actor")
+            .cloned()
+            .unwrap_or_else(|| "unknown_actor".to_string()),
+        120,
+    );
+    let action = clean_text(
+        args.flags
+            .get("action")
+            .cloned()
+            .unwrap_or_else(|| "unknown_action".to_string()),
+        160,
+    );
+    let source = clean_text(
+        args.flags
+            .get("source")
+            .cloned()
+            .unwrap_or_else(|| "security_plane".to_string()),
+        120,
+    );
+    let details = args
+        .flags
+        .get("details-json")
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .unwrap_or_else(|| json!({}));
+
+    let conn = match black_box_open_db(ledger_dir) {
+        Ok(conn) => conn,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_append",
+                    "error": err
+                }),
+                1,
+            )
+        }
+    };
+    let key = match black_box_key(ledger_dir) {
+        Ok(key) => key,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_append",
+                    "error": err
+                }),
+                1,
+            )
+        }
+    };
+    let (nonce, ciphertext) = match encrypt_ledger_details(&key, &details) {
+        Ok(v) => v,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_append",
+                    "error": err
+                }),
+                1,
+            )
+        }
+    };
+
+    let prev_hash = conn
+        .query_row(
+            "SELECT entry_hash FROM ledger_entries ORDER BY seq DESC LIMIT 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "GENESIS".to_string());
+    let ts = now_iso();
+    let ciphertext_digest = sha256_hex(&hex::encode(&ciphertext));
+    let signature = sha256_hex(&format!(
+        "{ts}|{actor}|{action}|{source}|{prev_hash}|{ciphertext_digest}"
+    ));
+    let entry_hash = sha256_hex(&stable_json_string(&json!({
+        "ts": ts,
+        "actor": actor,
+        "action": action,
+        "source": source,
+        "prev_hash": prev_hash,
+        "signature": signature,
+        "ciphertext_digest": ciphertext_digest
+    })));
+
+    if let Err(err) = conn.execute(
+        "INSERT INTO ledger_entries (ts, actor, action, source, prev_hash, entry_hash, signature, details_nonce, details_ciphertext)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            ts,
+            actor,
+            action,
+            source,
+            prev_hash,
+            entry_hash,
+            signature,
+            nonce,
+            ciphertext
+        ],
+    ) {
+        return (
+            json!({
+                "ok": false,
+                "type": "black_box_ledger_append",
+                "error": format!("sqlite_insert_failed:{err}")
+            }),
+            1,
+        );
+    }
+
+    let seq = conn.last_insert_rowid();
+    let latest_published = conn
+        .query_row(
+            "SELECT published_at FROM published_roots ORDER BY root_seq DESC LIMIT 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok();
+    let should_publish = latest_published
+        .as_deref()
+        .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
+        .map(|dt| Utc::now().signed_duration_since(dt.with_timezone(&Utc)).num_seconds() >= 60)
+        .unwrap_or(true);
+    if should_publish {
+        let root_hash = conn
+            .query_row(
+                "SELECT entry_hash FROM ledger_entries ORDER BY seq DESC LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap_or_else(|_| "GENESIS".to_string());
+        let published_at = now_iso();
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO published_roots (root_seq, root_hash, published_at) VALUES (?1, ?2, ?3)",
+            params![seq, root_hash, published_at],
+        );
+    }
+
+    (
+        json!({
+            "ok": true,
+            "type": "black_box_ledger_append",
+            "seq": seq,
+            "actor": args.flags.get("actor").cloned().unwrap_or_else(|| "unknown_actor".to_string()),
+            "action": args.flags.get("action").cloned().unwrap_or_else(|| "unknown_action".to_string()),
+            "entry_hash": conn.query_row("SELECT entry_hash FROM ledger_entries WHERE seq = ?1", params![seq], |row| row.get::<_, String>(0)).unwrap_or_default(),
+            "sqlite_path": normalize_rel_path(black_box_sqlite_path(ledger_dir).to_string_lossy()),
+            "encrypted_at_rest": true,
+            "claim_evidence": [{
+                "id": "V6-SEC-LEDGER-001",
+                "claim": "black_box_ledger_appends_tamper_evident_encrypted_sqlite_entries_with_hash_chain_signatures_and_published_roots",
+                "evidence": {
+                    "lane": "append",
+                    "runtime": "security_plane_black_box_ledger"
+                }
+            }],
+            "receipt_hash": sha256_hex(&stable_json_string(&json!({
+                "repo_root": normalize_rel_path(repo_root.display()),
+                "seq": seq,
+                "type": "black_box_ledger_append"
+            }))),
+        }),
+        0,
+    )
+}
+
+fn verify_black_box_sqlite(ledger_dir: &Path) -> Result<Value, String> {
+    let conn = black_box_open_db(ledger_dir)?;
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM ledger_entries", [], |row| row.get(0))
+        .map_err(|err| format!("sqlite_count_failed:{err}"))?;
+    if count == 0 {
+        return Err("sqlite_chain_empty".to_string());
+    }
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT seq, ts, actor, action, source, prev_hash, entry_hash, signature, details_nonce, details_ciphertext
+             FROM ledger_entries ORDER BY seq ASC",
+        )
+        .map_err(|err| format!("sqlite_prepare_failed:{err}"))?;
+    let mut rows = stmt
+        .query([])
+        .map_err(|err| format!("sqlite_query_failed:{err}"))?;
+    let mut prev_hash = "GENESIS".to_string();
+    let key = black_box_key(ledger_dir)?;
+    let mut last_hash = "GENESIS".to_string();
+    let mut last_seq = 0i64;
+    while let Some(row) = rows.next().map_err(|err| format!("sqlite_row_failed:{err}"))? {
+        let seq: i64 = row.get(0).map_err(|err| format!("sqlite_seq_failed:{err}"))?;
+        let ts: String = row.get(1).map_err(|err| format!("sqlite_ts_failed:{err}"))?;
+        let actor: String = row.get(2).map_err(|err| format!("sqlite_actor_failed:{err}"))?;
+        let action: String = row.get(3).map_err(|err| format!("sqlite_action_failed:{err}"))?;
+        let source: String = row.get(4).map_err(|err| format!("sqlite_source_failed:{err}"))?;
+        let stored_prev: String = row.get(5).map_err(|err| format!("sqlite_prev_failed:{err}"))?;
+        let entry_hash: String = row.get(6).map_err(|err| format!("sqlite_hash_failed:{err}"))?;
+        let signature: String = row.get(7).map_err(|err| format!("sqlite_signature_failed:{err}"))?;
+        let nonce: Vec<u8> = row.get(8).map_err(|err| format!("sqlite_nonce_failed:{err}"))?;
+        let ciphertext: Vec<u8> = row.get(9).map_err(|err| format!("sqlite_ciphertext_failed:{err}"))?;
+
+        if stored_prev != prev_hash {
+            return Err(format!("sqlite_prev_hash_mismatch:seq={seq}"));
+        }
+        let _details = decrypt_ledger_details(&key, &nonce, &ciphertext)?;
+        let ciphertext_digest = sha256_hex(&hex::encode(&ciphertext));
+        let calc_signature = sha256_hex(&format!(
+            "{ts}|{actor}|{action}|{source}|{stored_prev}|{ciphertext_digest}"
+        ));
+        if calc_signature != signature {
+            return Err(format!("sqlite_signature_mismatch:seq={seq}"));
+        }
+        let calc_hash = sha256_hex(&stable_json_string(&json!({
+            "ts": ts,
+            "actor": actor,
+            "action": action,
+            "source": source,
+            "prev_hash": stored_prev,
+            "signature": signature,
+            "ciphertext_digest": ciphertext_digest
+        })));
+        if calc_hash != entry_hash {
+            return Err(format!("sqlite_hash_mismatch:seq={seq}"));
+        }
+        prev_hash = entry_hash.clone();
+        last_hash = entry_hash;
+        last_seq = seq;
+    }
+
+    let published_root = conn
+        .query_row(
+            "SELECT root_seq, root_hash, published_at FROM published_roots ORDER BY root_seq DESC LIMIT 1",
+            [],
+            |row| {
+                Ok(json!({
+                    "root_seq": row.get::<_, i64>(0)?,
+                    "root_hash": row.get::<_, String>(1)?,
+                    "published_at": row.get::<_, String>(2)?,
+                }))
+            },
+        )
+        .ok();
+    if let Some(root) = published_root.as_ref() {
+        if root.get("root_hash").and_then(Value::as_str) != Some(last_hash.as_str()) {
+            return Err("published_root_hash_mismatch".to_string());
+        }
+    }
+
+    Ok(json!({
+        "ok": true,
+        "type": "black_box_ledger_verify",
+        "valid": true,
+        "sqlite_chain_length": count,
+        "last_seq": last_seq,
+        "last_hash": last_hash,
+        "published_root": published_root,
+    }))
+}
+
+fn export_black_box_sqlite(ledger_dir: &Path, export_path: &Path) -> (Value, i32) {
+    let conn = match black_box_open_db(ledger_dir) {
+        Ok(conn) => conn,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_export",
+                    "error": err
+                }),
+                1,
+            )
+        }
+    };
+    let key = match black_box_key(ledger_dir) {
+        Ok(key) => key,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_export",
+                    "error": err
+                }),
+                1,
+            )
+        }
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT seq, ts, actor, action, source, prev_hash, entry_hash, signature, details_nonce, details_ciphertext
+         FROM ledger_entries ORDER BY seq ASC",
+    ) {
+        Ok(stmt) => stmt,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_export",
+                    "error": format!("sqlite_prepare_failed:{err}")
+                }),
+                1,
+            )
+        }
+    };
+    let mapped = match stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, String>(4)?,
+            row.get::<_, String>(5)?,
+            row.get::<_, String>(6)?,
+            row.get::<_, String>(7)?,
+            row.get::<_, Vec<u8>>(8)?,
+            row.get::<_, Vec<u8>>(9)?,
+        ))
+    }) {
+        Ok(rows) => rows,
+        Err(err) => {
+            return (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_export",
+                    "error": format!("sqlite_query_failed:{err}")
+                }),
+                1,
+            )
+        }
+    };
+    let mut entries = Vec::new();
+    for row in mapped {
+        let (seq, ts, actor, action, source, prev_hash, entry_hash, signature, nonce, ciphertext) =
+            match row {
+                Ok(v) => v,
+                Err(err) => {
+                    return (
+                        json!({
+                            "ok": false,
+                            "type": "black_box_ledger_export",
+                            "error": format!("sqlite_row_failed:{err}")
+                        }),
+                        1,
+                    )
+                }
+            };
+        let details = match decrypt_ledger_details(&key, &nonce, &ciphertext) {
+            Ok(details) => details,
+            Err(err) => {
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "black_box_ledger_export",
+                        "error": err
+                    }),
+                    1,
+                )
+            }
+        };
+        entries.push(json!({
+            "seq": seq,
+            "ts": ts,
+            "actor": actor,
+            "action": action,
+            "source": source,
+            "prev_hash": prev_hash,
+            "entry_hash": entry_hash,
+            "signature": signature,
+            "ciphertext_digest": sha256_hex(&hex::encode(&ciphertext)),
+            "details": details,
+        }));
+    }
+    let published_roots = match conn
+        .prepare("SELECT root_seq, root_hash, published_at FROM published_roots ORDER BY root_seq ASC")
+    {
+        Ok(mut stmt) => match stmt.query_map([], |row| {
+            Ok(json!({
+                "root_seq": row.get::<_, i64>(0)?,
+                "root_hash": row.get::<_, String>(1)?,
+                "published_at": row.get::<_, String>(2)?,
+            }))
+        }) {
+            Ok(rows) => rows.filter_map(Result::ok).collect::<Vec<_>>(),
+            Err(_) => Vec::new(),
+        },
+        Err(_) => Vec::new(),
+    };
+    let export = json!({
+        "type": "black_box_ledger_offline_export",
+        "version": "v1",
+        "generated_at": now_iso(),
+        "entries": entries,
+        "published_roots": published_roots,
+    });
+    match write_json_atomic(export_path, &export) {
+        Ok(()) => (
+            json!({
+                "ok": true,
+                "type": "black_box_ledger_export",
+                "export_path": normalize_rel_path(export_path.to_string_lossy()),
+                "entry_count": export.get("entries").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
+            }),
+            0,
+        ),
+        Err(err) => (
+            json!({
+                "ok": false,
+                "type": "black_box_ledger_export",
+                "error": err
+            }),
+            1,
+        ),
+    }
+}
+
+fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
+    let export = read_json_or(export_path, json!({}));
+    let entries = export
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| "offline_export_entries_missing".to_string())?;
+    if entries.is_empty() {
+        return Err("offline_export_empty".to_string());
+    }
+    let mut prev_hash = "GENESIS".to_string();
+    let mut last_hash = "GENESIS".to_string();
+    let mut last_seq = 0u64;
+    for entry in &entries {
+        let seq = entry.get("seq").and_then(Value::as_u64).unwrap_or_default();
+        let ts = entry.get("ts").and_then(Value::as_str).unwrap_or_default();
+        let actor = entry.get("actor").and_then(Value::as_str).unwrap_or_default();
+        let action = entry.get("action").and_then(Value::as_str).unwrap_or_default();
+        let source = entry.get("source").and_then(Value::as_str).unwrap_or_default();
+        let stored_prev = entry
+            .get("prev_hash")
+            .and_then(Value::as_str)
+            .unwrap_or("GENESIS");
+        let signature = entry.get("signature").and_then(Value::as_str).unwrap_or_default();
+        let stored_hash = entry
+            .get("entry_hash")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if stored_prev != prev_hash {
+            return Err(format!("offline_prev_hash_mismatch:seq={seq}"));
+        }
+        let ciphertext_digest = entry
+            .get("ciphertext_digest")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let calc_signature = sha256_hex(&format!(
+            "{ts}|{actor}|{action}|{source}|{stored_prev}|{ciphertext_digest}"
+        ));
+        let calc_hash = sha256_hex(&stable_json_string(&json!({
+            "ts": ts,
+            "actor": actor,
+            "action": action,
+            "source": source,
+            "prev_hash": stored_prev,
+            "signature": calc_signature,
+            "ciphertext_digest": ciphertext_digest
+        })));
+        if calc_hash != stored_hash || calc_signature != signature {
+            return Err(format!("offline_hash_or_signature_mismatch:seq={seq}"));
+        }
+        prev_hash = stored_hash.to_string();
+        last_hash = stored_hash.to_string();
+        last_seq = seq;
+    }
+    if let Some(root) = export
+        .get("published_roots")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.last())
+    {
+        if root.get("root_hash").and_then(Value::as_str) != Some(last_hash.as_str()) {
+            return Err("offline_published_root_hash_mismatch".to_string());
+        }
+    }
+    Ok(json!({
+        "ok": true,
+        "type": "black_box_ledger_verify_offline",
+        "valid": true,
+        "entry_count": entries.len(),
+        "last_seq": last_seq,
+        "last_hash": last_hash,
+        "export_path": normalize_rel_path(export_path.to_string_lossy()),
+    }))
+}
+
 pub fn run_black_box_ledger(repo_root: &Path, argv: &[String]) -> (Value, i32) {
     let args = parse_cli_args(argv);
     let cmd = args
@@ -1204,6 +1804,37 @@ pub fn run_black_box_ledger(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         .unwrap_or_else(|| "status".to_string());
     let (ledger_dir, spine_dir, autonomy_dir, attest_dir) = black_box_paths(repo_root);
     let chain_path = black_box_chain_path(&ledger_dir);
+    let sqlite_path = black_box_sqlite_path(&ledger_dir);
+    let default_export_path = black_box_export_path(&ledger_dir);
+
+    if cmd == "append" {
+        return append_black_box_entry(repo_root, &args, &ledger_dir);
+    } else if cmd == "export" {
+        let export_path = args
+            .flags
+            .get("export-path")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| default_export_path.clone());
+        return export_black_box_sqlite(&ledger_dir, &export_path);
+    } else if cmd == "verify_offline" || cmd == "verify-offline" {
+        let export_path = args
+            .flags
+            .get("export-path")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| default_export_path.clone());
+        return match verify_black_box_export(&export_path) {
+            Ok(payload) => (payload, 0),
+            Err(err) => (
+                json!({
+                    "ok": false,
+                    "type": "black_box_ledger_verify_offline",
+                    "error": err,
+                    "export_path": normalize_rel_path(export_path.to_string_lossy())
+                }),
+                1,
+            ),
+        };
+    }
 
     if cmd == "rollup" {
         let date = date_arg_or_today(args.positional.get(1));
@@ -1285,13 +1916,29 @@ pub fn run_black_box_ledger(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             0,
         )
     } else if cmd == "verify" {
+        let sqlite_verify = verify_black_box_sqlite(&ledger_dir);
         let chain_rows = read_jsonl(&chain_path);
         if chain_rows.is_empty() {
+            return match sqlite_verify {
+                Ok(payload) => (payload, 0),
+                Err(err) => (
+                    json!({
+                        "ok": false,
+                        "type": "black_box_ledger_verify",
+                        "error": err,
+                        "sqlite_path": normalize_rel_path(sqlite_path.to_string_lossy())
+                    }),
+                    1,
+                ),
+            };
+        }
+        if let Err(err) = sqlite_verify {
             return (
                 json!({
                     "ok": false,
                     "type": "black_box_ledger_verify",
-                    "error": "chain_empty"
+                    "error": err,
+                    "sqlite_path": normalize_rel_path(sqlite_path.to_string_lossy())
                 }),
                 1,
             );
@@ -1401,33 +2048,37 @@ pub fn run_black_box_ledger(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 "ok": true,
                 "type": "black_box_ledger_verify",
                 "valid": true,
-                "chain_length": chain_rows.len()
+                "chain_length": chain_rows.len(),
+                "sqlite_path": normalize_rel_path(sqlite_path.to_string_lossy())
             }),
             0,
         )
     } else if cmd == "status" {
         let chain_rows = read_jsonl(&chain_path);
-        if chain_rows.is_empty() {
-            return (
-                json!({
-                    "ok": false,
-                    "type": "black_box_ledger_status",
-                    "error": "chain_empty"
-                }),
-                1,
-            );
-        }
+        let sqlite_status = verify_black_box_sqlite(&ledger_dir).ok();
         let last = chain_rows.last().cloned().unwrap_or_else(|| json!({}));
         (
             json!({
-                "ok": true,
+                "ok": !chain_rows.is_empty() || sqlite_status.is_some(),
                 "type": "black_box_ledger_status",
                 "chain_length": chain_rows.len(),
                 "last_date": last.get("date").cloned().unwrap_or(Value::Null),
                 "last_digest": last.get("digest").cloned().unwrap_or(Value::Null),
-                "last_rollup_seq": last.get("rollup_seq").cloned().unwrap_or(Value::Null)
+                "last_rollup_seq": last.get("rollup_seq").cloned().unwrap_or(Value::Null),
+                "sqlite_path": normalize_rel_path(sqlite_path.to_string_lossy()),
+                "sqlite_chain_length": sqlite_status
+                    .as_ref()
+                    .and_then(|v| v.get("sqlite_chain_length"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+                "published_root": sqlite_status
+                    .as_ref()
+                    .and_then(|v| v.get("published_root"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+                "encrypted_at_rest": sqlite_status.is_some(),
             }),
-            0,
+            if !chain_rows.is_empty() || sqlite_status.is_some() { 0 } else { 1 },
         )
     } else {
         (

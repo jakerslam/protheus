@@ -7688,6 +7688,35 @@ Objective: convert internal excellence into reproducible public proof surfaces (
 | V6-DOM-416 | existing-coverage-validated | Public Migration Guide Autogenesis + Importer Mapping Contract | Importers exist, but migration guidance is not continuously regenerated from current importer capabilities and compatibility constraints. | Auto-generate migration guides/matrices (e.g., LangGraph/CrewAI/OpenFang -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold. | 8 | 0/1/2 |
 | V6-DOM-417 | existing-coverage-validated | Anonymized Public Telemetry Benchmark Publication Contract | Community confidence is limited when benchmark telemetry remains internal and lacks a governed public publication path. | Publish anonymized benchmark/health telemetry snapshots (no sensitive data) from `protheus-top` evidence lanes on scheduled cadence with deterministic publication receipts, redaction verification, and policy-controlled opt-out/airgap behavior. | 8 | 0/1/2 |
 
+## OpenFang Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)
+
+Source references:
+- user-supplied SRS: OpenFang Security & MCP Gap Closure / `V6-OPENFANG-CLOSURE-001`
+
+Notes:
+- Primitive-first normalization: this intake extends existing `security_plane`, `swarm_runtime`, `black_box_ledger`, and `mcp_plane` authority lanes instead of adding parallel OpenFang-specific subsystems.
+- Overlap handled explicitly:
+  - sacrificial thorn swarm baseline: `V3-RACE-DEF-031A`
+  - adaptive attacker profiling baseline: `V3-RACE-DEF-024`
+  - existing MCP capability/workflow/server/template lanes: `V6-MCP-001.1..001.6`
+  - existing security hardening baselines: `V6-SEC-010..017`
+- Net-new focus from this source:
+  - swarm-wide thorn quarantine tied directly to live swarm state and reroute receipts,
+  - compiled Layer-0 constitutional invariant enforcement with immediate shutdown receipts,
+  - encrypted SQLite black-box ledger append/export/offline verification lane,
+  - canonical 7-profile PsycheForge threat classifier wired to thorn quarantine,
+  - one receipted MCP client/server/template interop surface proving the broader OpenFang-closure claim.
+
+Objective: close the remaining OpenFang-unique security and interoperability differentiators through existing authority planes so every claim is backed by deterministic receipts, runnable CLI evidence, and integration tests.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-SEC-THORN-001 | done | Thorn Swarm Protocol (Sacrificial Cells) | Swarm resilience remains weaker than it should be unless compromised sessions can be isolated without collapsing the rest of the graph. | Delivered receipted thorn quarantine/release flow in `core/layer0/ops/src/swarm_runtime.rs` and `core/layer0/ops/src/security_plane.rs`, including restricted thorn-cell capabilities, automatic reroute candidate discovery, 60-second TTL self-destruct/release semantics, and state receipts; validated by `core/layer0/ops/tests/v6_openfang_closure_integration.rs` plus `protheus-ops security-plane thorn-swarm-protocol quarantine ...` and `protheus-ops srs-contract-runtime run --id=V6-SEC-THORN-001`. | 10 | 0/1/2 |
+| V6-SEC-T0-001 | done | T0 Invariants (Constitutional Safety Rules) | Safety guarantees remain patchable theater unless the highest-order invariants run before agent/policy execution and fail closed on violation. | Delivered compiled Layer-0 invariant kernel in `core/layer0/ops/src/t0_invariants_kernel.rs` routed via `core/layer0/ops/src/security_plane.rs`, enforcing receipt, memory-scope, shell, exfiltration, safety-plane, external-call, budget, and human-veto rules with swarm shutdown + ledger receipts; validated by `core/layer0/ops/tests/v6_openfang_closure_integration.rs`, `protheus-ops security-plane t0-invariants evaluate ...`, `protheus-ops security-plane t0-invariants fuzz --attempts=10000`, and `protheus-ops srs-contract-runtime run --id=V6-SEC-T0-001`. | 10 | 0/1/2 |
+| V6-SEC-LEDGER-001 | done | Black Box Ledger (Hash-Chain Audit) | Audit trails are still disputable unless live actions append to an encrypted, tamper-evident chain that can be exported and verified offline. | Delivered encrypted SQLite append/export/offline verification lane in `core/layer1/security/src/security_wave1.rs`, exposed through `core/layer0/ops/src/security_plane.rs`, with chained hashes, signatures, periodic published roots, and fail-closed tamper detection; validated by `core/layer0/ops/tests/v6_openfang_closure_integration.rs`, `protheus-ops security-plane black-box-ledger append ...`, `export`, `verify`, `verify-offline`, and `protheus-ops srs-contract-runtime run --id=V6-SEC-LEDGER-001`. | 10 | 0/1/2 |
+| V6-SEC-PSYCHE-001 | done | PsycheForge (Attacker Profiling) | Defensive posture stays reactive unless behavior is classified into concrete attacker archetypes with automatic containment hooks. | Delivered canonical 7-profile PsycheForge classifier in `core/layer0/ops/src/psycheforge_kernel.rs` routed via `core/layer0/ops/src/security_plane.rs`, persisting profile history and auto-routing high-threat sessions into thorn quarantine with ledger receipts; validated by `core/layer0/ops/tests/v6_openfang_closure_integration.rs`, `protheus-ops security-plane psycheforge profile ...`, and `protheus-ops srs-contract-runtime run --id=V6-SEC-PSYCHE-001`. | 9 | 0/1/2 |
+| V8-MCP-001 | done | MCP Protocol Client/Server Interop Closure Contract | MCP compatibility remains fragmented unless one authoritative lane proves client discovery, server exposure, template coverage, and policy-gated interop together. | Delivered consolidated MCP closure commands in `core/layer0/ops/src/mcp_plane.rs` for receipted client conformance, server exposure, curated 25-template suite validation, and aggregate interop status with OAuth/sampling/roots gates; validated by `core/layer0/ops/tests/v6_openfang_closure_integration.rs`, `protheus-ops mcp-plane client ...`, `server ...`, `template-suite`, `interop-status`, and `protheus-ops srs-contract-runtime run --id=V8-MCP-001`. | 10 | 0/1/2/adapter/client |
+
 ## Agentix Production Run Observability Source Coverage Intake (Doc `1Hh2SidqH1vZdO5iYdmHA9-j4nig97km8VH-oUbMIud0`, 2026-03-11)
 
 Source references:

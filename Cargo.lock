@@ -519,10 +519,12 @@ dependencies = [
 name = "infring-layer1-security"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "base64",
  "chrono",
  "hex",
  "hmac",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2",
