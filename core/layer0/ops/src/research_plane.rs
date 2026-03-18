@@ -4,6 +4,7 @@
 use crate::research_batch6;
 use crate::research_batch7;
 use crate::research_batch8;
+use crate::{crawl_console, crawl_middleware, crawl_pipeline, crawl_signals, crawl_spider};
 use crate::v8_kernel::{
     parse_bool, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_receipt,
 };
@@ -32,11 +33,11 @@ fn usage() {
     println!("  protheus-ops research-plane recover-selectors [--html=<text>|--html-base64=<b64>|--html-path=<path>] [--selectors=a,b,c] [--target-text=<text>] [--strict=1|0]");
     println!("  protheus-ops research-plane crawl --seed-urls=<u1,u2> [--max-pages=<n>] [--max-concurrency=<n>] [--max-retries=<n>] [--per-domain-qps=<n>] [--checkpoint-path=<path>] [--resume=1|0] [--strict=1|0]");
     println!("  protheus-ops research-plane mcp-extract [--payload=<html>|--payload-path=<path>] [--source=<url>] [--query=<text>] [--strict=1|0]");
-    println!("  protheus-ops research-plane spider [--graph-json=<json>|--graph-path=<path>] --seed-urls=<u1,u2> [--allow-rules=a,b] [--deny-rules=a,b] [--allowed-domains=a,b] [--max-depth=<n>] [--max-links=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane middleware [--request-json=<json>] [--response-json=<json>] [--stack-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops research-plane pipeline [--items-json=<json>] [--pipeline-json=<json>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane signals [--events-json=<json>] [--handlers-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops research-plane console --op=<status|stats|queue|pause|resume|enqueue> --auth-token=<token> [--url=<u>] [--strict=1|0]");
+    println!("  protheus-ops research-plane spider|crawl-spider [--graph-json=<json>|--graph-path=<path>] --seed-urls=<u1,u2> [--allow-rules=a,b] [--deny-rules=a,b] [--allowed-domains=a,b] [--max-depth=<n>] [--max-links=<n>] [--strict=1|0]");
+    println!("  protheus-ops research-plane middleware|crawl-middleware [--request-json=<json>] [--response-json=<json>] [--stack-json=<json>] [--strict=1|0]");
+    println!("  protheus-ops research-plane pipeline|crawl-pipeline [--items-json=<json>] [--pipeline-json=<json>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
+    println!("  protheus-ops research-plane signals|crawl-signals [--events-json=<json>] [--handlers-json=<json>] [--strict=1|0]");
+    println!("  protheus-ops research-plane console|crawl-console --op=<status|stats|queue|pause|resume|enqueue> --auth-token=<token> [--url=<u>] [--strict=1|0]");
     println!("  protheus-ops research-plane template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
     println!("  protheus-ops research-plane goal-crawl --goal=<text> [--max-pages=<n>] [--max-discovery=<n>] [--catalog-json=<json>|--catalog-path=<path>] [--strict=1|0]");
     println!("  protheus-ops research-plane map-site --domain=<host|url> [--depth=<n>] [--graph-json=<json>|--graph-path=<path>] [--strict=1|0]");
@@ -1124,11 +1125,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "crawl" => run_crawl(root, &parsed, strict),
         "mcp-extract" | "mcp_extract" => research_batch6::run_mcp_extract(root, &parsed, strict),
-        "spider" => research_batch6::run_spider(root, &parsed, strict),
-        "middleware" => research_batch6::run_middleware(root, &parsed, strict),
-        "pipeline" => research_batch6::run_pipeline(root, &parsed, strict),
-        "signals" => research_batch6::run_signals(root, &parsed, strict),
-        "console" => research_batch6::run_console(root, &parsed, strict),
+        "spider" | "crawl-spider" | "crawl_spider" => crawl_spider::run(root, &parsed, strict),
+        "middleware" | "crawl-middleware" | "crawl_middleware" => {
+            crawl_middleware::run(root, &parsed, strict)
+        }
+        "pipeline" | "crawl-pipeline" | "crawl_pipeline" => {
+            crawl_pipeline::run(root, &parsed, strict)
+        }
+        "signals" | "crawl-signals" | "crawl_signals" => {
+            crawl_signals::run(root, &parsed, strict)
+        }
+        "console" | "crawl-console" | "crawl_console" => {
+            crawl_console::run(root, &parsed, strict)
+        }
         "template-governance" | "template_governance" => {
             research_batch6::run_template_governance(root, &parsed, strict)
         }

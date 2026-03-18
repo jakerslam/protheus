@@ -1,0 +1,48 @@
+{
+  "id": "V7-CANYON-002",
+  "upgrade": "Canyon Primitive Runtime Contract 002",
+  "description": "Canyon runtime authority requires complete contract coverage to prevent governance and verification blind spots during enforcement.",
+  "section": "Canyon Primitive Contract Closure",
+  "impact": 8,
+  "layer_map": "0/1/2/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "audit_gap_repair_generated",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V7-CANYON-002/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V7-CANYON-002.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V7-CANYON-002/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    },
+    {
+      "type": "runtime_lane",
+      "path": "core/layer0/ops/src/canyon_plane.rs"
+    },
+    {
+      "type": "integration_test",
+      "path": "core/layer0/ops/tests/v7_canyon_batch_integration.rs"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-CANYON-002",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V7-CANYON-002",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "audit_gap_repair",
+    "acceptance": "Implement authoritative runtime lane behavior with deterministic receipts and fail-closed validation for this contract ID.",
+    "generated_at": "2026-03-18T22:37:07.932Z"
+  }
+}
