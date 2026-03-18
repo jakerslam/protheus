@@ -22,21 +22,6 @@ fn print_json(value: &Value) {
     );
 }
 
-fn compatibility_security_command(command: &str, argv: &[String]) -> (Value, i32) {
-    let mut out = json!({
-        "ok": true,
-        "type": "security_plane_compat_command",
-        "lane": "core/layer1/security",
-        "command": command,
-        "argv": argv,
-        "ts": now_iso(),
-        "compatibility_only": true,
-        "authority": "rust_security_plane"
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    (out, 0)
-}
-
 fn state_dir(root: &Path) -> PathBuf {
     root.join("core")
         .join("local")
@@ -1569,9 +1554,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "V6-SEC-014",
             &[("pack-uri", None), ("version", None)],
         ),
-        "governance-hardening-pack" | "governance_hardening_pack" => {
-            compatibility_security_command("governance-hardening-pack", rest)
-        }
+        "governance-hardening-pack" | "governance_hardening_pack" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "governance-hardening-pack",
+            "V6-SEC-GOVERNANCE-PACK-001",
+            &[("pack-id", None), ("window-days", None)],
+        ),
         "repository-access-auditor" | "repository_access_auditor" => run_security_contract_command(
             root,
             rest,
@@ -1580,9 +1570,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "V6-SEC-004",
             &[("report-path", None)],
         ),
-        "operator-terms-ack" | "operator_terms_ack" => {
-            compatibility_security_command("operator-terms-ack", rest)
-        }
+        "operator-terms-ack" | "operator_terms_ack" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "operator-terms-ack",
+            "V6-SEC-OPERATOR-TERMS-001",
+            &[("operator-id", None), ("terms-version", None)],
+        ),
         "governance-hardening-lane" | "governance_hardening_lane" => run_security_contract_command(
             root,
             rest,
@@ -1740,10 +1735,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             )
         }
         "critical-runtime-formal-depth-pack" | "critical_runtime_formal_depth_pack" => {
-            compatibility_security_command("critical-runtime-formal-depth-pack", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "critical-runtime-formal-depth-pack",
+                "V6-SEC-CRITICAL-RUNTIME-001",
+                &[("proof-pack", None), ("depth-level", None)],
+            )
         }
         "dire-case-emergency-autonomy-protocol" | "dire_case_emergency_autonomy_protocol" => {
-            compatibility_security_command("dire-case-emergency-autonomy-protocol", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "dire-case-emergency-autonomy-protocol",
+                "V6-SEC-DIRE-AUTONOMY-001",
+                &[("incident-id", None), ("trigger", None)],
+            )
         }
         "supply-chain-reproducible-build-plane" | "supply_chain_reproducible_build_plane" => {
             run_security_contract_command(
@@ -1766,24 +1775,66 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             )
         }
         "phoenix-protocol-respawn-continuity" | "phoenix_protocol_respawn_continuity" => {
-            compatibility_security_command("phoenix-protocol-respawn-continuity", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "phoenix-protocol-respawn-continuity",
+                "V6-SEC-PHOENIX-001",
+                &[("continuity-id", None), ("checkpoint", None)],
+            )
         }
         "multi-mind-isolation-boundary-plane" | "multi_mind_isolation_boundary_plane" => {
-            compatibility_security_command("multi-mind-isolation-boundary-plane", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "multi-mind-isolation-boundary-plane",
+                "V6-SEC-MULTI-MIND-001",
+                &[("boundary", Some("strict")), ("mind-id", None)],
+            )
         }
         "irrevocable-geas-covenant" | "irrevocable_geas_covenant" => {
-            compatibility_security_command("irrevocable-geas-covenant", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "irrevocable-geas-covenant",
+                "V6-SEC-GEAS-001",
+                &[("covenant-id", None), ("signer", None)],
+            )
         }
         "insider-threat-split-trust-command-governance"
         | "insider_threat_split_trust_command_governance" => {
-            compatibility_security_command("insider-threat-split-trust-command-governance", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "insider-threat-split-trust-command-governance",
+                "V6-SEC-INSIDER-SPLIT-TRUST-001",
+                &[("approver-a", None), ("approver-b", None)],
+            )
         }
         "independent-safety-coprocessor-veto-plane"
         | "independent_safety_coprocessor_veto_plane" => {
-            compatibility_security_command("independent-safety-coprocessor-veto-plane", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "independent-safety-coprocessor-veto-plane",
+                "V6-SEC-COPROCESSOR-VETO-001",
+                &[("coprocessor-id", None), ("veto-mode", None)],
+            )
         }
         "hardware-root-of-trust-attestation-mesh" | "hardware_root_of_trust_attestation_mesh" => {
-            compatibility_security_command("hardware-root-of-trust-attestation-mesh", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "hardware-root-of-trust-attestation-mesh",
+                "V6-SEC-HARDWARE-ATTESTATION-001",
+                &[("attestation-doc", None), ("node-id", None)],
+            )
         }
         "formal-threat-modeling-engine" | "formal_threat_modeling_engine" => {
             run_security_contract_command(
@@ -1805,20 +1856,53 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 &[("proof-pack", None)],
             )
         }
-        "alias-verification-vault" | "alias_verification_vault" => {
-            compatibility_security_command("alias-verification-vault", rest)
-        }
+        "alias-verification-vault" | "alias_verification_vault" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "alias-verification-vault",
+            "V6-SEC-ALIAS-VAULT-001",
+            &[("alias", None), ("identity-hash", None)],
+        ),
         "psycheforge-psycheforge-organ" | "psycheforge_psycheforge_organ" => {
-            compatibility_security_command("psycheforge-psycheforge-organ", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "psycheforge-psycheforge-organ",
+                "V6-SEC-PSYCHE-001",
+                &[("profile", None), ("confidence", None)],
+            )
         }
         "psycheforge-profile-synthesizer" | "psycheforge_profile_synthesizer" => {
-            compatibility_security_command("psycheforge-profile-synthesizer", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "psycheforge-profile-synthesizer",
+                "V6-SEC-PSYCHE-001",
+                &[("signal-pack", None), ("profile", None)],
+            )
         }
         "psycheforge-temporal-profile-store" | "psycheforge_temporal_profile_store" => {
-            compatibility_security_command("psycheforge-temporal-profile-store", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "psycheforge-temporal-profile-store",
+                "V6-SEC-PSYCHE-001",
+                &[("profile", None), ("window-hours", None)],
+            )
         }
         "psycheforge-countermeasure-selector" | "psycheforge_countermeasure_selector" => {
-            compatibility_security_command("psycheforge-countermeasure-selector", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "psycheforge-countermeasure-selector",
+                "V6-SEC-PSYCHE-001",
+                &[("profile", None), ("response-level", None)],
+            )
         }
         "delegated-authority-branching" | "delegated_authority_branching" => {
             run_security_contract_command(
