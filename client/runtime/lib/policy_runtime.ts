@@ -2,11 +2,13 @@
 
 export {};
 
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
+
 const path = require('path') as typeof import('path');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 const {
   ROOT,
-  cleanText,
-  readJson,
   resolvePath
 } = require('./queued_backlog_runtime.ts');
 
@@ -24,6 +26,40 @@ type LoadPolicyRuntimeOptions = {
   }) => AnyObj
 };
 
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'policy_runtime', 'policy-runtime-kernel');
+
+function encodeBase64(value: unknown) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function invoke(command: string, payload: Record<string, unknown> = {}, opts: { throwOnError?: boolean } = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `policy_runtime_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `policy_runtime_kernel_${command}_failed`);
+    return { ok: false, error: message || `policy_runtime_kernel_${command}_failed` };
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `policy_runtime_kernel_${command}_bridge_failed`
+      : `policy_runtime_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
+}
+
 function isPlainObject(v: unknown): v is AnyObj {
   return !!v && typeof v === 'object' && !Array.isArray(v);
 }
@@ -39,59 +75,43 @@ function clone(value: unknown): unknown {
 }
 
 function deepMerge(baseValue: unknown, overrideValue: unknown): unknown {
-  if (Array.isArray(baseValue)) {
-    if (Array.isArray(overrideValue)) return clone(overrideValue);
-    return clone(baseValue);
-  }
-  if (isPlainObject(baseValue)) {
-    const out: AnyObj = {};
-    const keys = new Set<string>([
-      ...Object.keys(baseValue),
-      ...(isPlainObject(overrideValue) ? Object.keys(overrideValue) : [])
-    ]);
-    for (const key of keys) {
-      const baseEntry = (baseValue as AnyObj)[key];
-      const hasOverride = isPlainObject(overrideValue)
-        ? Object.prototype.hasOwnProperty.call(overrideValue, key)
-        : false;
-      if (!hasOverride) {
-        out[key] = clone(baseEntry);
-        continue;
-      }
-      const overrideEntry = (overrideValue as AnyObj)[key];
-      out[key] = deepMerge(baseEntry, overrideEntry);
-    }
-    return out;
-  }
-  if (overrideValue === undefined) return clone(baseValue);
-  return clone(overrideValue);
+  const out = invoke('deep-merge', {
+    base: baseValue,
+    override: overrideValue === undefined ? null : overrideValue
+  });
+  return clone(out.value);
 }
 
 function resolvePolicyPath(rawPath: unknown) {
-  const txt = cleanText(rawPath, 520);
+  const txt = String(rawPath == null ? '' : rawPath).trim();
   if (!txt) return '';
-  return path.isAbsolute(txt) ? txt : path.join(ROOT, txt);
+  const out = invoke('resolve-policy-path', {
+    root_dir: ROOT,
+    policy_path: txt
+  });
+  return String(out.policy_path || '');
 }
 
 function loadPolicyRuntime(opts: LoadPolicyRuntimeOptions) {
   const defaults = isPlainObject(opts && opts.defaults) ? opts.defaults : {};
-  const policyPath = resolvePolicyPath(opts && opts.policyPath);
-  const rawLoaded = readJson(policyPath, {});
-  const raw = isPlainObject(rawLoaded) ? rawLoaded : {};
-  const mergedRaw = deepMerge(defaults, raw);
-  const merged = isPlainObject(mergedRaw) ? mergedRaw as AnyObj : {};
-
+  const out = invoke('load-policy-runtime', {
+    root_dir: ROOT,
+    policy_path: opts && opts.policyPath,
+    defaults
+  });
+  const runtime = out.runtime && typeof out.runtime === 'object' ? out.runtime : {};
+  const raw = runtime.raw && typeof runtime.raw === 'object' ? runtime.raw : {};
+  const merged = runtime.merged && typeof runtime.merged === 'object' ? runtime.merged : {};
   const normalize = opts && typeof opts.normalize === 'function' ? opts.normalize : null;
   const policy = normalize
-    ? normalize({ raw, defaults, merged, policyPath, root: ROOT })
+    ? normalize({ raw, defaults, merged, policyPath: String(runtime.policy_path || ''), root: ROOT })
     : merged;
-
   return {
     policy,
     raw,
     defaults,
     merged,
-    policy_path: policyPath
+    policy_path: String(runtime.policy_path || '')
   };
 }
 
