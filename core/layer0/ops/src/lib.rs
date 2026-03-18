@@ -81,6 +81,7 @@ pub mod government_plane;
 pub mod graph_toolkit;
 pub mod habit_store_kernel;
 pub mod hardware_route_hardening;
+pub mod haystack_bridge;
 pub mod health_status;
 pub mod healthcare_plane;
 pub mod hermes_plane;

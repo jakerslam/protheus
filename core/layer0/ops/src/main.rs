@@ -893,6 +893,9 @@ fn main() {
         "google-adk-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::google_adk_bridge::run);
         }
+        "haystack-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::haystack_bridge::run);
+        }
         "mastra-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::mastra_bridge::run);
         }
