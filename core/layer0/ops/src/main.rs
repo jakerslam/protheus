@@ -899,6 +899,9 @@ fn main() {
         "haystack-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::haystack_bridge::run);
         }
+        "langchain-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::langchain_bridge::run);
+        }
         "mastra-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::mastra_bridge::run);
         }
