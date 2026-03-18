@@ -92,6 +92,8 @@ pub mod identity_federation;
 pub mod importance;
 pub mod integrity_hash_utility_kernel;
 pub mod intelligence_nexus;
+pub mod instinct_bridge;
+pub mod phone_runtime_bridge;
 pub mod inversion_controller;
 pub mod crewai_bridge;
 pub mod langgraph_bridge;

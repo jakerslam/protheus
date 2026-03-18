@@ -252,6 +252,24 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             },
             forward_stdin: false,
         }),
+        "instinct" => Some(Route {
+            script_rel: "core://instinct-bridge".to_string(),
+            args: if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            },
+            forward_stdin: false,
+        }),
+        "phone" => Some(Route {
+            script_rel: "core://phone-runtime-bridge".to_string(),
+            args: if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            },
+            forward_stdin: false,
+        }),
         "adaptive" | "adaptive-intelligence" => {
             let sub = rest
                 .first()
