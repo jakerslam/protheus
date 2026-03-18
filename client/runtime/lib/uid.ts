@@ -1,44 +1,74 @@
-const crypto = require('crypto');
+#!/usr/bin/env node
+'use strict';
+export {};
+
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
+
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'uid', 'uid-kernel');
+
+function encodeBase64(value: unknown) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function invoke(command: string, payload: Record<string, unknown> = {}, opts: Record<string, unknown> = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `uid_kernel_${command}_failed`);
+    if (opts && opts.throwOnError === false) return { ok: false, error: message || `uid_kernel_${command}_failed` };
+    throw new Error(message || `uid_kernel_${command}_failed`);
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `uid_kernel_${command}_bridge_failed`
+      : `uid_kernel_${command}_bridge_failed`;
+    if (opts && opts.throwOnError === false) return { ok: false, error: message };
+    throw new Error(message);
+  }
+  return payloadOut;
+}
 
 type UidOptions = {
   prefix?: string;
   length?: number;
 };
 
-function normalizePrefix(v: unknown): string {
-  return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 4);
-}
-
-function toBase36FromHex(hex: unknown): string {
-  const clean = String(hex || '').replace(/[^0-9a-f]/gi, '').toLowerCase();
-  if (!clean) return '0';
-  return BigInt(`0x${clean}`).toString(36);
-}
-
 function isAlnum(v: unknown): boolean {
-  return /^[A-Za-z0-9]+$/.test(String(v || ''));
+  const out = invoke('is-alnum', { value: v });
+  return out.result === true;
 }
 
 function stableUid(seed: unknown, opts: UidOptions = {}): string {
-  const prefix = normalizePrefix(opts.prefix || '');
-  const len = Number.isFinite(Number(opts.length)) ? Math.max(8, Math.min(48, Math.floor(Number(opts.length)))) : 24;
-  const hex = crypto.createHash('sha256').update(String(seed || ''), 'utf8').digest('hex');
-  const body = toBase36FromHex(hex).slice(0, len);
-  const uid = `${prefix}${body}`;
-  return uid.slice(0, len);
+  const out = invoke('stable-uid', {
+    seed: String(seed == null ? '' : seed),
+    prefix: opts.prefix || '',
+    length: opts.length
+  });
+  return String(out.uid || '');
 }
 
 function randomUid(opts: UidOptions = {}): string {
-  const prefix = normalizePrefix(opts.prefix || '');
-  const len = Number.isFinite(Number(opts.length)) ? Math.max(8, Math.min(48, Math.floor(Number(opts.length)))) : 24;
-  const ts = Date.now().toString(36);
-  const rnd = crypto.randomBytes(12).toString('hex');
-  const body = toBase36FromHex(`${rnd}${rnd}`).slice(0, Math.max(4, len - ts.length));
-  const uid = `${prefix}${ts}${body}`;
-  return uid.slice(0, len);
+  const out = invoke('random-uid', {
+    prefix: opts.prefix || '',
+    length: opts.length
+  });
+  return String(out.uid || '');
 }
 
-export {
+module.exports = {
   isAlnum,
   stableUid,
   randomUid

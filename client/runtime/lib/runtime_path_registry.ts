@@ -2,50 +2,63 @@
 'use strict';
 export {};
 
-const path = require('path');
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-const CANONICAL_PATHS = {
-  client_local_root: 'client/runtime/local',
-  client_state_root: 'client/runtime/local/state',
-  client_internal_root: 'client/runtime/local/internal',
-  core_local_root: 'core/local',
-  core_state_root: 'core/local/state'
-};
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
-const LEGACY_SURFACES = ['state', 'client/runtime/state', 'local'];
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'runtime_path_registry', 'runtime-path-registry-kernel');
 
-function clean(v: unknown) {
-  return String(v == null ? '' : v)
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '');
+function encodeBase64(value: unknown) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function normalizeForRoot(rootAbs: string, relPath: string) {
-  const rootName = path.basename(rootAbs).toLowerCase();
-  const rootClean = clean(rootAbs);
-  const rel = clean(relPath);
-  if (!rel) return rel;
-  if (rootClean.endsWith('client/runtime')) {
-    if (rel === 'client/runtime') return '';
-    if (rel.startsWith('client/runtime/')) return rel.slice('client/runtime/'.length);
+function invoke(command: string, payload: Record<string, unknown> = {}, opts: Record<string, unknown> = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `runtime_path_registry_kernel_${command}_failed`);
+    if (opts && opts.throwOnError === false) return { ok: false, error: message || `runtime_path_registry_kernel_${command}_failed` };
+    throw new Error(message || `runtime_path_registry_kernel_${command}_failed`);
   }
-  if (rootName === 'client' && rel.startsWith('client/')) return rel.slice('client/'.length);
-  if (rootName === 'core' && rel.startsWith('core/')) return rel.slice('core/'.length);
-  return rel;
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `runtime_path_registry_kernel_${command}_bridge_failed`
+      : `runtime_path_registry_kernel_${command}_bridge_failed`;
+    if (opts && opts.throwOnError === false) return { ok: false, error: message };
+    throw new Error(message);
+  }
+  return payloadOut;
+}
+
+const constants = invoke('constants', {});
+const CANONICAL_PATHS = constants.canonical_paths || {};
+const LEGACY_SURFACES = Array.isArray(constants.legacy_surfaces) ? constants.legacy_surfaces : [];
+
+function normalizeForRoot(rootAbs: string, relPath: string) {
+  return String(invoke('normalize-for-root', { root_abs: rootAbs, rel_path: relPath }).value || '');
 }
 
 function resolveCanonical(rootAbs: string, relPath: string) {
-  const normalized = normalizeForRoot(rootAbs, relPath);
-  return path.join(rootAbs, normalized);
+  return String(invoke('resolve-canonical', { root_abs: rootAbs, rel_path: relPath }).value || '');
 }
 
 function resolveClientState(rootAbs: string, suffix = '') {
-  return resolveCanonical(rootAbs, path.join(CANONICAL_PATHS.client_state_root, clean(suffix)));
+  return String(invoke('resolve-client-state', { root_abs: rootAbs, suffix }).value || '');
 }
 
 function resolveCoreState(rootAbs: string, suffix = '') {
-  return resolveCanonical(rootAbs, path.join(CANONICAL_PATHS.core_state_root, clean(suffix)));
+  return String(invoke('resolve-core-state', { root_abs: rootAbs, suffix }).value || '');
 }
 
 module.exports = {

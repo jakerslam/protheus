@@ -891,6 +891,13 @@ fn main() {
                 protheus_ops_core::policy_runtime_kernel::run
             );
         }
+        "runtime-path-registry-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::runtime_path_registry_kernel::run
+            );
+        }
         "proposal-type-classifier-kernel" => {
             exit_domain!(
                 &cwd,
@@ -904,6 +911,16 @@ fn main() {
                 &args,
                 protheus_ops_core::catalog_store_kernel::run
             );
+        }
+        "state-artifact-contract-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::state_artifact_contract_kernel::run
+            );
+        }
+        "uid-kernel" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::uid_kernel::run);
         }
         "backlog-registry" => {
             exit_domain!(&cwd, &args, protheus_ops_core::backlog_registry::run);

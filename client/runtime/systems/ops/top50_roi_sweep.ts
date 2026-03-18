@@ -66,6 +66,7 @@ function shouldExclude(record) {
   if ((base.includes('benchmark') || relPath.includes('/benchmarks/')) && !hasAuthorityMarker(record)) return true;
   if (relPath.startsWith('client/runtime/systems/ui/')) return true;
   if (isExtensionSurface(record) && !hasAuthorityMarker(record)) return true;
+  if (relPath === 'client/runtime/lib/moltbook_api.ts') return true;
   if (relPath === 'client/runtime/systems/conduit/conduit-client.ts') return true;
   if (relPath === 'client/lib/conduit_full_lifecycle_probe.ts') return true;
   if (relPath === 'client/runtime/lib/rust_lane_bridge.ts') return true;
