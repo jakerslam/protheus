@@ -132,6 +132,7 @@ function isThinBridge(record) {
   const normalized = String(text || '');
   return (
     normalized.includes('createOpsLaneBridge') ||
+    normalized.includes('createManifestLaneBridge') ||
     normalized.includes("runProtheusOps(args") ||
     normalized.includes("runProtheusOps(['") ||
     normalized.includes("require('./run_protheus_ops.js')") ||

@@ -863,6 +863,48 @@ fn main() {
                 protheus_ops_core::dynamic_burn_budget_oracle::run
             );
         }
+        "dynamic-burn-budget-signal-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::dynamic_burn_budget_signal_kernel::run
+            );
+        }
+        "conversation-eye-synthesizer-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::conversation_eye_synthesizer_kernel::run
+            );
+        }
+        "trainability-matrix-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::trainability_matrix_kernel::run
+            );
+        }
+        "policy-runtime-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::policy_runtime_kernel::run
+            );
+        }
+        "proposal-type-classifier-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::proposal_type_classifier_kernel::run
+            );
+        }
+        "catalog-store-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::catalog_store_kernel::run
+            );
+        }
         "backlog-registry" => {
             exit_domain!(&cwd, &args, protheus_ops_core::backlog_registry::run);
         }

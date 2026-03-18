@@ -67,6 +67,7 @@ function shouldExclude(record) {
   if (relPath.startsWith('client/runtime/systems/ui/')) return true;
   if (isExtensionSurface(record) && !hasAuthorityMarker(record)) return true;
   if (relPath === 'client/runtime/systems/conduit/conduit-client.ts') return true;
+  if (relPath === 'client/lib/conduit_full_lifecycle_probe.ts') return true;
   if (relPath === 'client/runtime/lib/rust_lane_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/spine_conduit_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/ts_bootstrap.ts') return true;

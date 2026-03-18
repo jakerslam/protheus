@@ -1,168 +1,115 @@
-// Layer ownership: core/layer1/memory_runtime/adaptive (authoritative)
+#!/usr/bin/env node
 'use strict';
 
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
+
 const path = require('path');
-const { stableUid, randomUid, isAlnum } = require('./uid.ts');
-const {
-  ADAPTIVE_ROOT,
-  readJson,
-  ensureJson,
-  setJson,
-  mutateJson
-} = require('./layer_store.ts');
+const { createOpsLaneBridge } = require('../../../../client/runtime/lib/rust_lane_bridge.ts');
+
+function workspaceRoot() {
+  return process.env.PROTHEUS_WORKSPACE_ROOT
+    ? path.resolve(String(process.env.PROTHEUS_WORKSPACE_ROOT))
+    : path.resolve(__dirname, '..', '..', '..', '..');
+}
+
+function runtimeRoot() {
+  return process.env.PROTHEUS_RUNTIME_ROOT
+    ? path.resolve(String(process.env.PROTHEUS_RUNTIME_ROOT))
+    : path.join(workspaceRoot(), 'client', 'runtime');
+}
 
 const DEFAULT_REL_PATH = 'sensory/eyes/catalog.json';
-const DEFAULT_ABS_PATH = path.join(ADAPTIVE_ROOT, DEFAULT_REL_PATH);
+const DEFAULT_ABS_PATH = path.join(runtimeRoot(), 'adaptive', DEFAULT_REL_PATH);
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'catalog_store', 'catalog-store-kernel');
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function normalizeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
+}
+
+function cloneJsonSafe(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(normalizeObject(payload)))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `catalog_store_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `catalog_store_kernel_${command}_failed`);
+    return { ok: false, error: message || `catalog_store_kernel_${command}_failed` };
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `catalog_store_kernel_${command}_bridge_failed`
+      : `catalog_store_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
+}
+
+function storePayload(filePath) {
+  if (!filePath) return {};
+  return { file_path: String(filePath) };
+}
 
 function defaultCatalog() {
-  return {
-    version: '1.0',
-    eyes: [
-      {
-        id: 'conversation_eye',
-        name: 'Conversation Eye',
-        status: 'active',
-        cadence_hours: 1,
-        allowed_domains: ['local.workspace'],
-        budgets: {
-          max_items: 6,
-          max_seconds: 8,
-          max_bytes: 65536,
-          max_requests: 1,
-          max_rows: 96
-        },
-        parser_type: 'conversation_eye',
-        topics: ['conversation', 'decision', 'insight', 'directive', 't1'],
-        error_rate: 0,
-        score_ema: 50
-      }
-    ],
-    global_limits: {
-      max_concurrent_runs: 3,
-      global_max_requests_per_day: 50,
-      global_max_bytes_per_day: 5242880
-    },
-    scoring: {
-      ema_alpha: 0.3,
-      score_threshold_high: 70,
-      score_threshold_low: 30,
-      score_threshold_dormant: 20,
-      cadence_min_hours: 1,
-      cadence_max_hours: 168
-    }
-  };
+  return invoke('default-state').state;
 }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function normalizeEyeUid(eye, takenUids) {
-  const candidate = String(eye && eye.uid || '').trim();
-  if (candidate && isAlnum(candidate) && !takenUids.has(candidate)) {
-    return candidate;
-  }
-  const idSeed = String(eye && eye.id || '').trim();
-  const seeded = idSeed ? stableUid(`adaptive_eye|${idSeed}|v1`, { prefix: 'e', length: 24 }) : '';
-  if (seeded && !takenUids.has(seeded)) return seeded;
-  let uid = randomUid({ prefix: 'e', length: 24 });
-  let attempts = 0;
-  while (takenUids.has(uid) && attempts < 8) {
-    uid = randomUid({ prefix: 'e', length: 24 });
-    attempts++;
-  }
-  return uid;
-}
-
-function normalizeEyesArray(eyes) {
-  const src = Array.isArray(eyes) ? eyes : [];
-  const taken = new Set();
-  const out = [];
-  const ts = nowIso();
-  for (const raw of src) {
-    if (!raw || typeof raw !== 'object') continue;
-    const eye = { ...raw };
-    eye.uid = normalizeEyeUid(eye, taken);
-    taken.add(eye.uid);
-    eye.created_ts = String(eye.created_ts || ts);
-    eye.updated_ts = String(ts);
-    out.push(eye);
-  }
-  return out;
-}
-
-function normalizeCatalog(catalog, fallback = null) {
-  const src = catalog && typeof catalog === 'object' ? { ...catalog } : fallback;
-  if (!src || typeof src !== 'object') return fallback;
-  src.eyes = normalizeEyesArray(src.eyes);
-  return src;
-}
-
-function asCatalogPath(filePath) {
-  const canonical = DEFAULT_ABS_PATH;
-  const raw = String(filePath || '').trim();
-  if (!raw) return canonical;
-  const requested = path.resolve(raw);
-  if (requested !== canonical) {
-    throw new Error(`catalog_store: catalog path override denied (requested=${requested})`);
-  }
-  return canonical;
+function normalizeCatalog(raw, fallback = null) {
+  return invoke('normalize-state', {
+    state: raw && typeof raw === 'object' ? raw : fallback && typeof fallback === 'object' ? fallback : defaultCatalog()
+  }).state;
 }
 
 function readCatalog(filePath, fallback = null) {
-  const abs = asCatalogPath(filePath);
-  return normalizeCatalog(readJson(abs, fallback), fallback);
+  return invoke('read-state', {
+    ...storePayload(filePath),
+    fallback: fallback && typeof fallback === 'object' ? fallback : defaultCatalog()
+  }).state;
 }
 
 function ensureCatalog(filePath, meta = {}) {
-  const abs = asCatalogPath(filePath);
-  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
-  return normalizeCatalog(
-    ensureJson(abs, defaultCatalog, {
-      ...m,
-      source: m.source || 'core/layer1/memory_runtime/adaptive/catalog_store.ts',
-      reason: m.reason || 'ensure_catalog'
-    }),
-    defaultCatalog()
-  );
+  return invoke('ensure-state', {
+    ...storePayload(filePath),
+    meta: normalizeObject(meta)
+  }).state;
 }
 
 function setCatalog(filePath, nextCatalog, meta = {}) {
-  const abs = asCatalogPath(filePath);
-  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
-  const normalized = normalizeCatalog(nextCatalog, defaultCatalog());
-  return normalizeCatalog(
-    setJson(abs, normalized, {
-      ...m,
-      source: m.source || 'core/layer1/memory_runtime/adaptive/catalog_store.ts',
-      reason: m.reason || 'set_catalog'
-    }),
-    defaultCatalog()
-  );
+  return invoke('set-state', {
+    ...storePayload(filePath),
+    state: nextCatalog && typeof nextCatalog === 'object' ? nextCatalog : defaultCatalog(),
+    meta: normalizeObject(meta)
+  }).state;
 }
 
 function mutateCatalog(filePath, mutator, meta = {}) {
-  const abs = asCatalogPath(filePath);
-  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
-  if (typeof mutator !== 'function') {
-    throw new Error('catalog_store: mutator must be function');
-  }
-  return normalizeCatalog(
-    mutateJson(
-      abs,
-      (current) => {
-        const base = normalizeCatalog(current, defaultCatalog());
-        const next = mutator({ ...base, eyes: Array.isArray(base.eyes) ? base.eyes.slice() : [] });
-        return normalizeCatalog(next, base);
-      },
-      {
-        ...m,
-        source: m.source || 'core/layer1/memory_runtime/adaptive/catalog_store.ts',
-        reason: m.reason || 'mutate_catalog'
-      }
-    ),
-    defaultCatalog()
-  );
+  if (typeof mutator !== 'function') throw new Error('catalog_store: mutator must be function');
+  const current = readCatalog(filePath, defaultCatalog());
+  const base = cloneJsonSafe(current || {});
+  const next = mutator(base);
+  return setCatalog(filePath, next, {
+    ...normalizeObject(meta),
+    reason: meta && meta.reason ? meta.reason : 'mutate_catalog'
+  });
 }
 
 module.exports = {
