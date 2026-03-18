@@ -98,7 +98,8 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
     if let Some(parent) = dst.parent() {
         ensure_dir(parent)?;
     }
-    fs::copy(src, dst).map_err(|err| format!("copy_failed:{}:{}:{err}", src.display(), dst.display()))?;
+    fs::copy(src, dst)
+        .map_err(|err| format!("copy_failed:{}:{}:{err}", src.display(), dst.display()))?;
     Ok(())
 }
 
@@ -106,12 +107,17 @@ fn move_file(src: &Path, dst: &Path) -> Result<(), String> {
     if let Some(parent) = dst.parent() {
         ensure_dir(parent)?;
     }
-    fs::rename(src, dst).map_err(|err| format!("rename_failed:{}:{}:{err}", src.display(), dst.display()))
+    fs::rename(src, dst)
+        .map_err(|err| format!("rename_failed:{}:{}:{err}", src.display(), dst.display()))
 }
 
 fn files_equal(left: &Path, right: &Path) -> bool {
-    let Ok(left_meta) = fs::metadata(left) else { return false; };
-    let Ok(right_meta) = fs::metadata(right) else { return false; };
+    let Ok(left_meta) = fs::metadata(left) else {
+        return false;
+    };
+    let Ok(right_meta) = fs::metadata(right) else {
+        return false;
+    };
     if !left_meta.is_file() || !right_meta.is_file() || left_meta.len() != right_meta.len() {
         return false;
     }
@@ -205,7 +211,9 @@ fn archive_deprecated_root_continuity(
             && files_equal(&assistant_path, &template_path);
         if assistant_is_template {
             let archive_dir = state.archive_dir.get_or_insert_with(|| {
-                paths.archive_root.join(format!("root-continuity-{}", iso_stamp()))
+                paths
+                    .archive_root
+                    .join(format!("root-continuity-{}", iso_stamp()))
             });
             ensure_dir(archive_dir)?;
             move_file(
@@ -220,7 +228,9 @@ fn archive_deprecated_root_continuity(
             continue;
         }
         let archive_dir = state.archive_dir.get_or_insert_with(|| {
-            paths.archive_root.join(format!("root-continuity-{}", iso_stamp()))
+            paths
+                .archive_root
+                .join(format!("root-continuity-{}", iso_stamp()))
         });
         ensure_dir(archive_dir)?;
         move_file(&root_path, &archive_dir.join("root-conflict").join(name))?;
@@ -246,16 +256,24 @@ fn migrate_legacy_memory_path(
         return Ok(());
     }
     let archive_dir = state.archive_dir.get_or_insert_with(|| {
-        paths.archive_root.join(format!("root-memory-{}", iso_stamp()))
+        paths
+            .archive_root
+            .join(format!("root-memory-{}", iso_stamp()))
     });
     ensure_dir(archive_dir)?;
     if files_equal(source_path, &destination_path) {
-        move_file(source_path, &archive_dir.join("duplicate").join(source_label))?;
+        move_file(
+            source_path,
+            &archive_dir.join("duplicate").join(source_label),
+        )?;
         state.archived.push(source_label.to_string());
         state.duplicates.push(source_label.to_string());
         return Ok(());
     }
-    move_file(source_path, &archive_dir.join("conflict").join(source_label))?;
+    move_file(
+        source_path,
+        &archive_dir.join("conflict").join(source_label),
+    )?;
     state.archived.push(source_label.to_string());
     state.conflicts.push(source_label.to_string());
     Ok(())
@@ -291,7 +309,9 @@ fn migrate_legacy_memory(paths: &WorkspacePaths) -> Result<MemoryMigrationState,
     Ok(state)
 }
 
-fn generate_missing_continuity(paths: &WorkspacePaths) -> Result<(Vec<String>, Vec<String>), String> {
+fn generate_missing_continuity(
+    paths: &WorkspacePaths,
+) -> Result<(Vec<String>, Vec<String>), String> {
     let mut generated = Vec::<String>::new();
     let mut missing_templates = Vec::<String>::new();
     for name in CONTINUITY_FILES {
@@ -376,7 +396,9 @@ fn reset_local_runtime_value(workspace_root: &Path, confirm: &str) -> Result<Val
     }
     let paths = workspace_paths(workspace_root);
     ensure_local_workspace_structure(&paths)?;
-    let reset_archive = paths.archive_root.join(format!("assistant-reset-{}", iso_stamp()));
+    let reset_archive = paths
+        .archive_root
+        .join(format!("assistant-reset-{}", iso_stamp()));
     ensure_dir(&reset_archive)?;
     let mut archived_assistant_files = Vec::<String>::new();
     for name in CONTINUITY_FILES {
@@ -429,7 +451,9 @@ pub fn run(cwd: &Path, argv: &[String]) -> i32 {
             reset_local_runtime_value(&workspace_root, &confirm)
         }
         "status" => Ok(continuity_status_value(&workspace_root)),
-        _ => Err(format!("local_runtime_partitioner_unknown_command:{command}")),
+        _ => Err(format!(
+            "local_runtime_partitioner_unknown_command:{command}"
+        )),
     };
     match payload {
         Ok(payload) => {
@@ -438,7 +462,11 @@ pub fn run(cwd: &Path, argv: &[String]) -> i32 {
                 &format!("local_runtime_partitioner_{}", command.replace('-', "_")),
                 payload,
             ));
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         Err(err) => {
             print_json_line(&cli_error("local_runtime_partitioner_error", &err));
@@ -522,27 +550,24 @@ mod tests {
 
         let out = init_local_runtime_value(root).expect("init");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
-        assert!(
-            out.get("migrated_memory_files")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
-                .unwrap_or_default()
-                .contains(&"memory/2026-03-13.md")
-        );
-        assert!(
-            out.get("migrated_memory_files")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
-                .unwrap_or_default()
-                .contains(&"MEMORY_INDEX.md")
-        );
-        assert!(
-            out.get("conflicted_memory_files")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
-                .unwrap_or_default()
-                .contains(&"memory/heartbeat-state.json")
-        );
+        assert!(out
+            .get("migrated_memory_files")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
+            .unwrap_or_default()
+            .contains(&"memory/2026-03-13.md"));
+        assert!(out
+            .get("migrated_memory_files")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
+            .unwrap_or_default()
+            .contains(&"MEMORY_INDEX.md"));
+        assert!(out
+            .get("conflicted_memory_files")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>())
+            .unwrap_or_default()
+            .contains(&"memory/heartbeat-state.json"));
         assert!(root.join("local/workspace/memory/2026-03-13.md").exists());
         assert!(!root.join("memory").exists());
     }

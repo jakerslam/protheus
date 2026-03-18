@@ -23,18 +23,41 @@ fn usage() {
     println!("  protheus-ops catalog-store-kernel set-state [--payload-base64=<json>]");
 }
 
-fn cli_receipt(kind: &str, payload: Value) -> Value { let ts = now_iso(); let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true); let mut out = json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload}); out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out)); out }
-fn cli_error(kind: &str, error: &str) -> Value { let ts = now_iso(); let mut out = json!({"ok": false, "type": kind, "ts": ts, "date": ts[..10].to_string(), "error": error, "fail_closed": true}); out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out)); out }
-fn print_json_line(value: &Value) { println!("{}", serde_json::to_string(value).unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())); }
+fn cli_receipt(kind: &str, payload: Value) -> Value {
+    let ts = now_iso();
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out =
+        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+fn cli_error(kind: &str, error: &str) -> Value {
+    let ts = now_iso();
+    let mut out = json!({"ok": false, "type": kind, "ts": ts, "date": ts[..10].to_string(), "error": error, "fail_closed": true});
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+fn print_json_line(value: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+}
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw).map_err(|err| format!("catalog_store_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&raw)
+            .map_err(|err| format!("catalog_store_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| format!("catalog_store_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes).map_err(|err| format!("catalog_store_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text).map_err(|err| format!("catalog_store_payload_decode_failed:{err}"));
+        let bytes = BASE64_STANDARD
+            .decode(raw_b64.as_bytes())
+            .map_err(|err| format!("catalog_store_payload_base64_decode_failed:{err}"))?;
+        let text = String::from_utf8(bytes)
+            .map_err(|err| format!("catalog_store_payload_utf8_decode_failed:{err}"))?;
+        return serde_json::from_str::<Value>(&text)
+            .map_err(|err| format!("catalog_store_payload_decode_failed:{err}"));
     }
     Ok(json!({}))
 }
@@ -47,28 +70,66 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
 }
 
 fn clean_text(value: Option<&Value>, max_len: usize) -> String {
-    let input = match value { Some(Value::String(v)) => v.clone(), Some(Value::Null) | None => String::new(), Some(other) => other.to_string() };
-    input.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(max_len).collect::<String>()
+    let input = match value {
+        Some(Value::String(v)) => v.clone(),
+        Some(Value::Null) | None => String::new(),
+        Some(other) => other.to_string(),
+    };
+    input
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect::<String>()
 }
 
 fn runtime_root(root: &Path) -> PathBuf {
     if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
         let trimmed = raw.trim();
-        if !trimmed.is_empty() { return PathBuf::from(trimmed); }
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
     }
-    let workspace = if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") { let trimmed = raw.trim(); if !trimmed.is_empty() { PathBuf::from(trimmed) } else { root.to_path_buf() } } else { root.to_path_buf() };
+    let workspace = if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            PathBuf::from(trimmed)
+        } else {
+            root.to_path_buf()
+        }
+    } else {
+        root.to_path_buf()
+    };
     let candidate = workspace.join("client/runtime");
-    if candidate.exists() { candidate } else { workspace }
+    if candidate.exists() {
+        candidate
+    } else {
+        workspace
+    }
 }
 
-fn default_abs_path(root: &Path) -> PathBuf { runtime_root(root).join("adaptive").join(DEFAULT_REL_PATH) }
+fn default_abs_path(root: &Path) -> PathBuf {
+    runtime_root(root).join("adaptive").join(DEFAULT_REL_PATH)
+}
 fn as_catalog_path(root: &Path, raw: Option<&Value>) -> Result<PathBuf, String> {
     let canonical = default_abs_path(root);
     let requested = clean_text(raw, 520);
-    if requested.is_empty() { return Ok(canonical); }
+    if requested.is_empty() {
+        return Ok(canonical);
+    }
     let candidate = PathBuf::from(&requested);
-    let resolved = if candidate.is_absolute() { candidate } else { root.join(candidate) };
-    if resolved != canonical { return Err(format!("catalog_store: catalog path override denied (requested={})", resolved.display())); }
+    let resolved = if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    };
+    if resolved != canonical {
+        return Err(format!(
+            "catalog_store: catalog path override denied (requested={})",
+            resolved.display()
+        ));
+    }
     Ok(canonical)
 }
 
@@ -97,28 +158,55 @@ fn stable_uid(seed: &str) -> String {
     hasher.update(seed.as_bytes());
     let digest = hasher.finalize();
     let mut hex = String::new();
-    for byte in digest { hex.push_str(&format!("{byte:02x}")); }
+    for byte in digest {
+        hex.push_str(&format!("{byte:02x}"));
+    }
     format!("e{}", &hex[..23])
 }
 
 fn normalize_catalog(catalog: Option<&Value>) -> Value {
-    let src = catalog.and_then(Value::as_object).cloned().unwrap_or_else(|| default_catalog().as_object().cloned().unwrap());
+    let src = catalog
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_else(|| default_catalog().as_object().cloned().unwrap());
     let now = now_iso();
     let mut out = src.clone();
     let mut taken = BTreeSet::<String>::new();
     let mut eyes = Vec::<Value>::new();
-    for row in src.get("eyes").and_then(Value::as_array).cloned().unwrap_or_default() {
+    for row in src
+        .get("eyes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         let mut eye = row.as_object().cloned().unwrap_or_default();
         let requested_uid = clean_text(eye.get("uid"), 32);
-        let mut uid = if !requested_uid.is_empty() && requested_uid.chars().all(|ch| ch.is_ascii_alphanumeric()) && !taken.contains(&requested_uid) { requested_uid } else {
+        let mut uid = if !requested_uid.is_empty()
+            && requested_uid.chars().all(|ch| ch.is_ascii_alphanumeric())
+            && !taken.contains(&requested_uid)
+        {
+            requested_uid
+        } else {
             let seed = clean_text(eye.get("id"), 64);
-            let seeded = if seed.is_empty() { stable_uid(&format!("catalog-eye|{}", now)) } else { stable_uid(&format!("adaptive_eye|{}|v1", seed)) };
-            if taken.contains(&seeded) { stable_uid(&format!("catalog-eye|{}|{}", seeded, now)) } else { seeded }
+            let seeded = if seed.is_empty() {
+                stable_uid(&format!("catalog-eye|{}", now))
+            } else {
+                stable_uid(&format!("adaptive_eye|{}|v1", seed))
+            };
+            if taken.contains(&seeded) {
+                stable_uid(&format!("catalog-eye|{}|{}", seeded, now))
+            } else {
+                seeded
+            }
         };
-        while taken.contains(&uid) { uid = stable_uid(&format!("catalog-eye|{}|{}", uid, now)); }
+        while taken.contains(&uid) {
+            uid = stable_uid(&format!("catalog-eye|{}|{}", uid, now));
+        }
         taken.insert(uid.clone());
         eye.insert("uid".to_string(), Value::String(uid));
-        if clean_text(eye.get("created_ts"), 40).is_empty() { eye.insert("created_ts".to_string(), Value::String(now.clone())); }
+        if clean_text(eye.get("created_ts"), 40).is_empty() {
+            eye.insert("created_ts".to_string(), Value::String(now.clone()));
+        }
         eye.insert("updated_ts".to_string(), Value::String(now.clone()));
         eyes.push(Value::Object(eye));
     }
@@ -128,12 +216,20 @@ fn normalize_catalog(catalog: Option<&Value>) -> Value {
 
 fn read_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let path = as_catalog_path(root, payload.get("file_path"))?;
-    Ok(normalize_catalog(lane_utils::read_json(&path).as_ref().or_else(|| payload.get("fallback"))))
+    Ok(normalize_catalog(
+        lane_utils::read_json(&path)
+            .as_ref()
+            .or_else(|| payload.get("fallback")),
+    ))
 }
 
 fn ensure_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let path = as_catalog_path(root, payload.get("file_path"))?;
-    let current = if path.exists() { lane_utils::read_json(&path) } else { None };
+    let current = if path.exists() {
+        lane_utils::read_json(&path)
+    } else {
+        None
+    };
     let normalized = normalize_catalog(current.as_ref().or(Some(&default_catalog())));
     lane_utils::write_json(&path, &normalized)?;
     Ok(normalized)
@@ -147,20 +243,69 @@ fn set_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String>
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
-    let command = argv.first().map(|value| value.to_ascii_lowercase()).unwrap_or_else(|| "help".to_string());
-    if matches!(command.as_str(), "help" | "--help" | "-h") { usage(); return 0; }
-    let payload = match payload_json(&argv[1..]) { Ok(payload) => payload, Err(err) => { print_json_line(&cli_error("catalog_store_kernel_error", &err)); return 1; } };
+    let command = argv
+        .first()
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_else(|| "help".to_string());
+    if matches!(command.as_str(), "help" | "--help" | "-h") {
+        usage();
+        return 0;
+    }
+    let payload = match payload_json(&argv[1..]) {
+        Ok(payload) => payload,
+        Err(err) => {
+            print_json_line(&cli_error("catalog_store_kernel_error", &err));
+            return 1;
+        }
+    };
     let input = payload_obj(&payload);
     let result = match command.as_str() {
-        "paths" => match as_catalog_path(root, input.get("file_path")) { Ok(path) => cli_receipt("catalog_store_kernel_paths", json!({ "ok": true, "default_rel_path": DEFAULT_REL_PATH, "default_abs_path": default_abs_path(root), "catalog_path": path })), Err(err) => cli_error("catalog_store_kernel_error", &err) },
-        "default-state" => cli_receipt("catalog_store_kernel_default_state", json!({ "ok": true, "state": default_catalog() })),
-        "normalize-state" => cli_receipt("catalog_store_kernel_normalize_state", json!({ "ok": true, "state": normalize_catalog(input.get("state").or_else(|| input.get("catalog"))) })),
-        "read-state" => match read_state(root, input) { Ok(state) => cli_receipt("catalog_store_kernel_read_state", json!({ "ok": true, "state": state })), Err(err) => cli_error("catalog_store_kernel_error", &err) },
-        "ensure-state" => match ensure_state(root, input) { Ok(state) => cli_receipt("catalog_store_kernel_ensure_state", json!({ "ok": true, "state": state })), Err(err) => cli_error("catalog_store_kernel_error", &err) },
-        "set-state" => match set_state(root, input) { Ok(state) => cli_receipt("catalog_store_kernel_set_state", json!({ "ok": true, "state": state })), Err(err) => cli_error("catalog_store_kernel_error", &err) },
-        _ => cli_error("catalog_store_kernel_error", &format!("unknown_command:{command}")),
+        "paths" => match as_catalog_path(root, input.get("file_path")) {
+            Ok(path) => cli_receipt(
+                "catalog_store_kernel_paths",
+                json!({ "ok": true, "default_rel_path": DEFAULT_REL_PATH, "default_abs_path": default_abs_path(root), "catalog_path": path }),
+            ),
+            Err(err) => cli_error("catalog_store_kernel_error", &err),
+        },
+        "default-state" => cli_receipt(
+            "catalog_store_kernel_default_state",
+            json!({ "ok": true, "state": default_catalog() }),
+        ),
+        "normalize-state" => cli_receipt(
+            "catalog_store_kernel_normalize_state",
+            json!({ "ok": true, "state": normalize_catalog(input.get("state").or_else(|| input.get("catalog"))) }),
+        ),
+        "read-state" => match read_state(root, input) {
+            Ok(state) => cli_receipt(
+                "catalog_store_kernel_read_state",
+                json!({ "ok": true, "state": state }),
+            ),
+            Err(err) => cli_error("catalog_store_kernel_error", &err),
+        },
+        "ensure-state" => match ensure_state(root, input) {
+            Ok(state) => cli_receipt(
+                "catalog_store_kernel_ensure_state",
+                json!({ "ok": true, "state": state }),
+            ),
+            Err(err) => cli_error("catalog_store_kernel_error", &err),
+        },
+        "set-state" => match set_state(root, input) {
+            Ok(state) => cli_receipt(
+                "catalog_store_kernel_set_state",
+                json!({ "ok": true, "state": state }),
+            ),
+            Err(err) => cli_error("catalog_store_kernel_error", &err),
+        },
+        _ => cli_error(
+            "catalog_store_kernel_error",
+            &format!("unknown_command:{command}"),
+        ),
     };
-    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    };
     print_json_line(&result);
     exit
 }

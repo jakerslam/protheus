@@ -13,16 +13,23 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 fn usage() {
     println!("redaction-classification-kernel commands:");
-    println!("  protheus-ops redaction-classification-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops redaction-classification-kernel classify-text [--payload-base64=<json>]");
-    println!("  protheus-ops redaction-classification-kernel redact-text [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops redaction-classification-kernel load-policy [--payload-base64=<json>]"
+    );
+    println!(
+        "  protheus-ops redaction-classification-kernel classify-text [--payload-base64=<json>]"
+    );
+    println!(
+        "  protheus-ops redaction-classification-kernel redact-text [--payload-base64=<json>]"
+    );
     println!("  protheus-ops redaction-classification-kernel classify-and-redact [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
+    let mut out =
+        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
@@ -48,11 +55,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("redaction_classification_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("redaction_classification_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("redaction_classification_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("redaction_classification_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("redaction_classification_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("redaction_classification_kernel_payload_decode_failed:{err}"));
     }
@@ -68,9 +76,22 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
 
 fn clean_text(value: Option<&Value>, max_len: usize) -> String {
     match value {
-        Some(Value::String(v)) => v.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(max_len).collect(),
+        Some(Value::String(v)) => v
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(max_len)
+            .collect(),
         Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string().split_whitespace().collect::<Vec<_>>().join(" ").chars().take(max_len).collect(),
+        Some(other) => other
+            .to_string()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(max_len)
+            .collect(),
     }
 }
 
@@ -80,13 +101,20 @@ fn resolve_policy_path(root: &Path, value: Option<&Value>) -> PathBuf {
         return root.join("client/runtime/config/redaction_classification_policy.json");
     }
     let candidate = PathBuf::from(&raw);
-    if candidate.is_absolute() { candidate } else { root.join(candidate) }
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
 }
 
 fn read_policy(root: &Path, value: Option<&Value>) -> Result<(PathBuf, Value), String> {
     let policy_path = resolve_policy_path(root, value);
     if !policy_path.exists() {
-        return Ok((policy_path, json!({"patterns": [], "labels": [], "rules": []})));
+        return Ok((
+            policy_path,
+            json!({"patterns": [], "labels": [], "rules": []}),
+        ));
     }
     let raw = fs::read_to_string(&policy_path)
         .map_err(|err| format!("redaction_classification_kernel_policy_read_failed:{err}"))?;
@@ -120,8 +148,16 @@ fn compile_rules(policy: &Value) -> Vec<CompiledRule> {
             if let Ok(regex) = builder.build() {
                 compiled.push(CompiledRule {
                     regex,
-                    label: if label.is_empty() { "sensitive".to_string() } else { label.clone() },
-                    action: clean_text(row.get("action"), 32).to_ascii_lowercase().chars().take(16).collect::<String>(),
+                    label: if label.is_empty() {
+                        "sensitive".to_string()
+                    } else {
+                        label.clone()
+                    },
+                    action: clean_text(row.get("action"), 32)
+                        .to_ascii_lowercase()
+                        .chars()
+                        .take(16)
+                        .collect::<String>(),
                     rule_id: clean_text(row.get("id"), 80),
                 });
             }
@@ -144,8 +180,16 @@ fn compile_rules(policy: &Value) -> Vec<CompiledRule> {
             if let Ok(regex) = builder.build() {
                 compiled.push(CompiledRule {
                     regex,
-                    label: if label.is_empty() { "sensitive".to_string() } else { label },
-                    action: if action.is_empty() { "redact".to_string() } else { action },
+                    label: if label.is_empty() {
+                        "sensitive".to_string()
+                    } else {
+                        label
+                    },
+                    action: if action.is_empty() {
+                        "redact".to_string()
+                    } else {
+                        action
+                    },
                     rule_id,
                 });
             }
@@ -203,17 +247,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let input = payload_obj(&payload);
     let replacement = {
         let raw = clean_text(input.get("replacement"), 120);
-        if raw.is_empty() { "[REDACTED]".to_string() } else { raw }
+        if raw.is_empty() {
+            "[REDACTED]".to_string()
+        } else {
+            raw
+        }
     };
     let result = match command.as_str() {
-        "load-policy" => match read_policy(root, input.get("policyPath").or_else(|| input.get("policy_path"))) {
+        "load-policy" => match read_policy(
+            root,
+            input.get("policyPath").or_else(|| input.get("policy_path")),
+        ) {
             Ok((policy_path, policy)) => cli_receipt(
                 "redaction_classification_kernel_load_policy",
                 json!({"ok": true, "policy_path": policy_path, "policy": policy}),
             ),
             Err(err) => cli_error("redaction_classification_kernel_error", &err),
         },
-        "classify-text" => match read_policy(root, input.get("policyPath").or_else(|| input.get("policy_path"))) {
+        "classify-text" => match read_policy(
+            root,
+            input.get("policyPath").or_else(|| input.get("policy_path")),
+        ) {
             Ok((policy_path, policy)) => {
                 let rules = compile_rules(&policy);
                 let classified = classify_text(&clean_text(input.get("text"), 16384), &rules);
@@ -224,10 +278,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             Err(err) => cli_error("redaction_classification_kernel_error", &err),
         },
-        "redact-text" => match read_policy(root, input.get("policyPath").or_else(|| input.get("policy_path"))) {
+        "redact-text" => match read_policy(
+            root,
+            input.get("policyPath").or_else(|| input.get("policy_path")),
+        ) {
             Ok((policy_path, policy)) => {
                 let rules = compile_rules(&policy);
-                let redaction = redact_text(&clean_text(input.get("text"), 16384), &rules, &replacement);
+                let redaction =
+                    redact_text(&clean_text(input.get("text"), 16384), &rules, &replacement);
                 cli_receipt(
                     "redaction_classification_kernel_redact_text",
                     json!({"ok": true, "policy_path": policy_path, "redaction": redaction}),
@@ -235,7 +293,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             Err(err) => cli_error("redaction_classification_kernel_error", &err),
         },
-        "classify-and-redact" => match read_policy(root, input.get("policyPath").or_else(|| input.get("policy_path"))) {
+        "classify-and-redact" => match read_policy(
+            root,
+            input.get("policyPath").or_else(|| input.get("policy_path")),
+        ) {
             Ok((policy_path, policy)) => {
                 let text = clean_text(input.get("text"), 16384);
                 let rules = compile_rules(&policy);
@@ -258,7 +319,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             &format!("unknown_command:{command}"),
         ),
     };
-    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    };
     print_json_line(&result);
     exit
 }
@@ -276,7 +341,13 @@ mod tests {
         });
         let rules = compile_rules(&policy);
         let out = classify_text("reach me at jay@example.com", &rules);
-        assert_eq!(out.get("labels").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0), 1);
+        assert_eq!(
+            out.get("labels")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+                .unwrap_or(0),
+            1
+        );
     }
 
     #[test]
@@ -288,6 +359,10 @@ mod tests {
         });
         let rules = compile_rules(&policy);
         let out = redact_text("a secret value", &rules, "[REDACTED]");
-        assert!(out.get("text").and_then(Value::as_str).unwrap_or("").contains("[REDACTED]"));
+        assert!(out
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("[REDACTED]"));
     }
 }

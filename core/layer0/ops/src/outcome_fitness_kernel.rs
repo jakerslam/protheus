@@ -43,11 +43,15 @@ fn usage() {
     println!("outcome-fitness-kernel commands:");
     println!("  protheus-ops outcome-fitness-kernel load-policy --payload-base64=<json>");
     println!("  protheus-ops outcome-fitness-kernel normalize-threshold-overrides --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel normalize-ranking-weights --payload-base64=<json>");
+    println!(
+        "  protheus-ops outcome-fitness-kernel normalize-ranking-weights --payload-base64=<json>"
+    );
     println!("  protheus-ops outcome-fitness-kernel normalize-proposal-type-threshold-offsets --payload-base64=<json>");
     println!("  protheus-ops outcome-fitness-kernel normalize-promotion-policy-overrides --payload-base64=<json>");
     println!("  protheus-ops outcome-fitness-kernel normalize-value-currency-policy-overrides --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel normalize-proposal-type-key --payload-base64=<json>");
+    println!(
+        "  protheus-ops outcome-fitness-kernel normalize-proposal-type-key --payload-base64=<json>"
+    );
     println!("  protheus-ops outcome-fitness-kernel normalize-value-currency-token --payload-base64=<json>");
     println!("  protheus-ops outcome-fitness-kernel proposal-type-threshold-offsets-for --payload-base64=<json>");
 }
@@ -249,7 +253,10 @@ fn normalize_ranking_weights(value: Option<&Value>) -> Option<Map<String, Value>
     }
     let mut out = Map::new();
     for (key, weight) in rows {
-        out.insert(key.to_string(), json_number(round_to_places(weight / total, 6)));
+        out.insert(
+            key.to_string(),
+            json_number(round_to_places(weight / total, 6)),
+        );
     }
     Some(out)
 }
@@ -489,7 +496,11 @@ fn load_outcome_fitness_policy(repo_root: &Path, payload: &Map<String, Value>) -
     let path = default_policy_path(repo_root, payload);
     let raw = read_json_safe(&path);
     let base = default_policy();
-    let src = raw.as_ref().and_then(Value::as_object).cloned().unwrap_or_default();
+    let src = raw
+        .as_ref()
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let schema = src
         .get("schema")
         .and_then(Value::as_object)
@@ -655,7 +666,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         },
         "normalize-proposal-type-threshold-offsets" => match payload_json(argv) {
             Ok(payload) => {
-                let result = Value::Object(normalize_proposal_type_threshold_offsets(Some(&payload)));
+                let result =
+                    Value::Object(normalize_proposal_type_threshold_offsets(Some(&payload)));
                 print_json_line(&cli_receipt(
                     "outcome_fitness_kernel_normalize_proposal_type_threshold_offsets",
                     json!({ "normalized": result }),
@@ -706,7 +718,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         },
         "normalize-proposal-type-key" => match payload_json(argv) {
             Ok(payload) => {
-                let normalized = normalize_proposal_type_key(&as_text(payload_obj(&payload).get("value")));
+                let normalized =
+                    normalize_proposal_type_key(&as_text(payload_obj(&payload).get("value")));
                 print_json_line(&cli_receipt(
                     "outcome_fitness_kernel_normalize_proposal_type_key",
                     json!({ "normalized": normalized }),
@@ -744,10 +757,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 let obj = payload_obj(&payload);
                 let empty = json!({});
                 let policy = obj.get("policy").unwrap_or(&empty);
-                let offsets = proposal_type_threshold_offsets_for(
-                    policy,
-                    &as_text(obj.get("proposal_type")),
-                );
+                let offsets =
+                    proposal_type_threshold_offsets_for(policy, &as_text(obj.get("proposal_type")));
                 print_json_line(&cli_receipt(
                     "outcome_fitness_kernel_proposal_type_threshold_offsets_for",
                     json!({ "offsets": offsets }),
@@ -788,7 +799,9 @@ mod tests {
             .fold(0.0, |acc, v| acc + v);
         assert!((sum - 1.0).abs() < 0.00001);
         assert_eq!(
-            out.get("composite").and_then(Value::as_f64).unwrap_or_default(),
+            out.get("composite")
+                .and_then(Value::as_f64)
+                .unwrap_or_default(),
             0.5
         );
     }

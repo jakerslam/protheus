@@ -234,7 +234,8 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
 }
 
 fn text(value: Option<&Value>, max_len: usize) -> String {
-    value.and_then(Value::as_str)
+    value
+        .and_then(Value::as_str)
         .unwrap_or_default()
         .trim()
         .chars()
@@ -278,7 +279,9 @@ fn runtime_root(root: &Path) -> PathBuf {
 }
 
 fn default_policy_path(root: &Path) -> PathBuf {
-    runtime_root(root).join("config").join("secret_broker_policy.json")
+    runtime_root(root)
+        .join("config")
+        .join("secret_broker_policy.json")
 }
 
 fn default_state_path(root: &Path) -> PathBuf {
@@ -328,19 +331,33 @@ fn local_key_path(_root: &Path) -> PathBuf {
     default_secrets_dir().join("secret_broker_key.txt")
 }
 
-fn resolve_path(root: &Path, payload: &Map<String, Value>, payload_key: &str, env_key: &str, default_path: PathBuf) -> PathBuf {
+fn resolve_path(
+    root: &Path,
+    payload: &Map<String, Value>,
+    payload_key: &str,
+    env_key: &str,
+    default_path: PathBuf,
+) -> PathBuf {
     if let Some(raw) = payload.get(payload_key).and_then(Value::as_str) {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             let candidate = PathBuf::from(trimmed);
-            return if candidate.is_absolute() { candidate } else { root.join(candidate) };
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
         }
     }
     if let Ok(raw) = std::env::var(env_key) {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             let candidate = PathBuf::from(trimmed);
-            return if candidate.is_absolute() { candidate } else { root.join(candidate) };
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
         }
     }
     default_path
@@ -374,7 +391,11 @@ fn generated_key() -> String {
 }
 
 fn secret_broker_key(root: &Path) -> Result<String, String> {
-    for env_name in ["SECRET_BROKER_KEY", "REQUEST_GATE_SECRET", "CAPABILITY_LEASE_KEY"] {
+    for env_name in [
+        "SECRET_BROKER_KEY",
+        "REQUEST_GATE_SECRET",
+        "CAPABILITY_LEASE_KEY",
+    ] {
         if let Ok(raw) = std::env::var(env_name) {
             let trimmed = raw.trim();
             if !trimmed.is_empty() {
@@ -402,8 +423,8 @@ fn sha16(value: &str) -> String {
 }
 
 fn sign_handle(body: &str, key: &str) -> Result<String, String> {
-    let mut mac =
-        HmacSha256::new_from_slice(key.as_bytes()).map_err(|err| format!("hmac_init_failed:{err}"))?;
+    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
+        .map_err(|err| format!("hmac_init_failed:{err}"))?;
     mac.update(body.as_bytes());
     Ok(hex::encode(mac.finalize().into_bytes()))
 }
@@ -611,7 +632,12 @@ fn default_policy(root: &Path) -> SecretBrokerPolicy {
     }
 }
 
-fn normalize_provider(root: &Path, secret_id: &str, raw: &Value, command_timeout_ms: i64) -> Option<ProviderConfig> {
+fn normalize_provider(
+    root: &Path,
+    secret_id: &str,
+    raw: &Value,
+    command_timeout_ms: i64,
+) -> Option<ProviderConfig> {
     let provider_type = text(raw.get("type"), 32).to_ascii_lowercase();
     match provider_type.as_str() {
         "env" => Some(ProviderConfig::Env {
@@ -641,23 +667,46 @@ fn normalize_provider(root: &Path, secret_id: &str, raw: &Value, command_timeout
                 paths,
                 field: {
                     let v = text(raw.get("field"), 120);
-                    if v.is_empty() { "api_key".to_string() } else { v }
+                    if v.is_empty() {
+                        "api_key".to_string()
+                    } else {
+                        v
+                    }
                 },
                 rotated_at_field: {
                     let v = text(raw.get("rotated_at_field"), 120);
-                    if v.is_empty() { "rotated_at".to_string() } else { v }
+                    if v.is_empty() {
+                        "rotated_at".to_string()
+                    } else {
+                        v
+                    }
                 },
             })
         }
         "command" => {
             let command = parse_command_spec(raw.get("command").unwrap_or(&Value::Null))?;
             let value_path = {
-                let v = text(raw.get("value_path").or_else(|| raw.get("value_field")), 160);
-                if v.is_empty() { "value".to_string() } else { v }
+                let v = text(
+                    raw.get("value_path").or_else(|| raw.get("value_field")),
+                    160,
+                );
+                if v.is_empty() {
+                    "value".to_string()
+                } else {
+                    v
+                }
             };
             let rotated_at_path = {
-                let v = text(raw.get("rotated_at_path").or_else(|| raw.get("rotated_at_field")), 160);
-                if v.is_empty() { "rotated_at".to_string() } else { v }
+                let v = text(
+                    raw.get("rotated_at_path")
+                        .or_else(|| raw.get("rotated_at_field")),
+                    160,
+                );
+                if v.is_empty() {
+                    "rotated_at".to_string()
+                } else {
+                    v
+                }
             };
             let env = raw
                 .get("env")
@@ -694,10 +743,15 @@ fn normalize_secret_spec(
 ) -> SecretSpec {
     let raw_obj = raw.and_then(Value::as_object);
     let base_providers = base.map(|row| row.providers.clone()).unwrap_or_default();
-    let providers = if let Some(raw_providers) = raw_obj.and_then(|obj| obj.get("providers")).and_then(Value::as_array) {
+    let providers = if let Some(raw_providers) = raw_obj
+        .and_then(|obj| obj.get("providers"))
+        .and_then(Value::as_array)
+    {
         raw_providers
             .iter()
-            .filter_map(|provider| normalize_provider(root, secret_id, provider, command_timeout_ms))
+            .filter_map(|provider| {
+                normalize_provider(root, secret_id, provider, command_timeout_ms)
+            })
             .collect::<Vec<_>>()
     } else {
         base_providers
@@ -705,7 +759,9 @@ fn normalize_secret_spec(
     let base_rotation = base
         .map(|row| row.rotation.clone())
         .unwrap_or_else(|| policy_rotation.clone());
-    let raw_rotation = raw_obj.and_then(|obj| obj.get("rotation")).and_then(Value::as_object);
+    let raw_rotation = raw_obj
+        .and_then(|obj| obj.get("rotation"))
+        .and_then(Value::as_object);
     let rotation = RotationConfig {
         warn_after_days: number_clamped(
             raw_rotation.and_then(|row| row.get("warn_after_days")),
@@ -717,7 +773,9 @@ fn normalize_secret_spec(
             raw_rotation.and_then(|row| row.get("max_after_days")),
             1.0,
             3650.0,
-            base_rotation.max_after_days.max(base_rotation.warn_after_days),
+            base_rotation
+                .max_after_days
+                .max(base_rotation.warn_after_days),
         )
         .max(number_clamped(
             raw_rotation.and_then(|row| row.get("warn_after_days")),
@@ -755,7 +813,12 @@ fn load_policy(root: &Path, payload: &Map<String, Value>) -> SecretBrokerPolicy 
     let include_backend_details = raw_obj
         .and_then(|obj| obj.get("audit"))
         .and_then(Value::as_object)
-        .map(|audit| bool_value(audit.get("include_backend_details"), base.include_backend_details))
+        .map(|audit| {
+            bool_value(
+                audit.get("include_backend_details"),
+                base.include_backend_details,
+            )
+        })
         .unwrap_or(base.include_backend_details);
     let command_timeout_ms = raw_obj
         .and_then(|obj| obj.get("command_backend"))
@@ -767,26 +830,12 @@ fn load_policy(root: &Path, payload: &Map<String, Value>) -> SecretBrokerPolicy 
         warn_after_days: raw_obj
             .and_then(|obj| obj.get("rotation_policy"))
             .and_then(Value::as_object)
-            .map(|rotation| {
-                number_clamped(
-                    rotation.get("warn_after_days"),
-                    1.0,
-                    3650.0,
-                    45.0,
-                )
-            })
+            .map(|rotation| number_clamped(rotation.get("warn_after_days"), 1.0, 3650.0, 45.0))
             .unwrap_or(45.0),
         max_after_days: raw_obj
             .and_then(|obj| obj.get("rotation_policy"))
             .and_then(Value::as_object)
-            .map(|rotation| {
-                number_clamped(
-                    rotation.get("max_after_days"),
-                    1.0,
-                    3650.0,
-                    90.0,
-                )
-            })
+            .map(|rotation| number_clamped(rotation.get("max_after_days"), 1.0, 3650.0, 90.0))
             .unwrap_or(90.0),
         require_rotated_at: raw_obj
             .and_then(|obj| obj.get("rotation_policy"))
@@ -857,8 +906,8 @@ fn read_state(path: &Path) -> SecretBrokerState {
 }
 
 fn write_state(path: &Path, state: &SecretBrokerState) -> Result<(), String> {
-    let payload =
-        serde_json::to_value(state).map_err(|err| format!("secret_broker_kernel_state_encode_failed:{err}"))?;
+    let payload = serde_json::to_value(state)
+        .map_err(|err| format!("secret_broker_kernel_state_encode_failed:{err}"))?;
     lane_utils::write_json(path, &payload)
 }
 
@@ -1030,7 +1079,11 @@ fn provider_command(secret_id: &str, provider: &ProviderConfig) -> Option<Value>
     }))
 }
 
-fn evaluate_rotation(rotation_cfg: &RotationConfig, rotated_at: Option<&Value>, now_ms: i64) -> RotationHealth {
+fn evaluate_rotation(
+    rotation_cfg: &RotationConfig,
+    rotated_at: Option<&Value>,
+    now_ms: i64,
+) -> RotationHealth {
     let rotated_at_ms = rotated_at.and_then(parse_ts_ms);
     if rotated_at_ms.is_none() {
         return RotationHealth {
@@ -1138,7 +1191,11 @@ fn load_secret_by_id(
             provider_type: text(result.get("provider_type"), 64),
             provider_ref: {
                 let v = text(result.get("provider_ref"), 240);
-                if v.is_empty() { None } else { Some(v) }
+                if v.is_empty() {
+                    None
+                } else {
+                    Some(v)
+                }
             },
             external: bool_value(result.get("external"), false),
         };
@@ -1254,7 +1311,10 @@ fn rotation_health_report(
             available: true,
             provider_type: loaded.backend.as_ref().map(|row| row.provider_type.clone()),
             provider_ref: if policy.include_backend_details {
-                loaded.backend.as_ref().and_then(|row| row.provider_ref.clone())
+                loaded
+                    .backend
+                    .as_ref()
+                    .and_then(|row| row.provider_ref.clone())
             } else {
                 None
             },
@@ -1320,8 +1380,10 @@ fn secret_broker_status(
         .values()
         .filter(|row| parse_ts_ms(&Value::String(row.expires_at.clone())).unwrap_or(0) > now)
         .count();
-    let rotation = serde_json::to_value(rotation_health_report(root, payload, policy, audit_path, false))
-        .unwrap_or_else(|_| json!({"ok": false, "type": "secret_rotation_health"}));
+    let rotation = serde_json::to_value(rotation_health_report(
+        root, payload, policy, audit_path, false,
+    ))
+    .unwrap_or_else(|_| json!({"ok": false, "type": "secret_rotation_health"}));
     json!({
         "ok": true,
         "type": "secret_broker_status",
@@ -1357,11 +1419,19 @@ fn issue_handle(
     let scope = text(payload.get("scope"), 180);
     let caller = {
         let clean = text(payload.get("caller"), 180);
-        if clean.is_empty() { "unknown".to_string() } else { clean }
+        if clean.is_empty() {
+            "unknown".to_string()
+        } else {
+            clean
+        }
     };
     let reason = {
         let clean = text(payload.get("reason"), 240);
-        if clean.is_empty() { None } else { Some(clean) }
+        if clean.is_empty() {
+            None
+        } else {
+            Some(clean)
+        }
     };
     if secret_id.is_empty() {
         return json!({ "ok": false, "error": "secret_id_required" });
@@ -1384,7 +1454,8 @@ fn issue_handle(
                 "reason": loaded.error,
             }),
         );
-        return serde_json::to_value(loaded).unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" }));
+        return serde_json::to_value(loaded)
+            .unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" }));
     }
     let rotation = loaded.rotation.clone().unwrap_or_default();
     if rotation.enforce_on_issue && rotation.status == "critical" {
@@ -1408,12 +1479,15 @@ fn issue_handle(
     }
     let issued_ms = now_ms(payload);
     let expires_ms = issued_ms + ttl_sec * 1000;
-    let handle_id = format!("sh_{}", &deterministic_receipt_hash(&json!({
-        "secret_id": secret_id,
-        "scope": scope,
-        "caller": caller,
-        "issued_ms": issued_ms,
-    }))[..16]);
+    let handle_id = format!(
+        "sh_{}",
+        &deterministic_receipt_hash(&json!({
+            "secret_id": secret_id,
+            "scope": scope,
+            "caller": caller,
+            "issued_ms": issued_ms,
+        }))[..16]
+    );
     let body_payload = json!({
         "v": "1.1",
         "handle_id": handle_id,
@@ -1447,7 +1521,10 @@ fn issue_handle(
             expires_at: iso_from_ms(expires_ms),
             value_hash: loaded.value_hash.clone(),
             backend_provider_type: loaded.backend.as_ref().map(|row| row.provider_type.clone()),
-            backend_provider_ref: loaded.backend.as_ref().and_then(|row| row.provider_ref.clone()),
+            backend_provider_ref: loaded
+                .backend
+                .as_ref()
+                .and_then(|row| row.provider_ref.clone()),
             rotation_status: loaded.rotation.as_ref().map(|row| row.status.clone()),
             ..SecretHandleStateRow::default()
         },
@@ -1581,12 +1658,16 @@ fn resolve_handle(
         true,
     );
     if !loaded.ok {
-        return serde_json::to_value(loaded).unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" }));
+        return serde_json::to_value(loaded)
+            .unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" }));
     }
     if let Some(row) = state.issued.get_mut(&handle_id) {
         row.resolve_count += 1;
         row.last_resolved_at = Some(iso_from_ms(now));
-        row.last_backend_provider_type = loaded.backend.as_ref().map(|item| item.provider_type.clone());
+        row.last_backend_provider_type = loaded
+            .backend
+            .as_ref()
+            .map(|item| item.provider_type.clone());
         row.last_rotation_status = loaded.rotation.as_ref().map(|item| item.status.clone());
     }
     let _ = write_state(state_path, &state);
@@ -1658,10 +1739,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": true,
             "policy": policy,
         }),
-        "load-secret" => serde_json::to_value(load_secret_by_id(root, payload, &policy, &audit_path, bool_value(payload.get("with_audit"), true)))
-            .unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" })),
-        "rotation-health" => serde_json::to_value(rotation_health_report(root, payload, &policy, &audit_path, bool_value(payload.get("with_audit"), true)))
-            .unwrap_or_else(|_| json!({ "ok": false, "error": "rotation_health_failed" })),
+        "load-secret" => serde_json::to_value(load_secret_by_id(
+            root,
+            payload,
+            &policy,
+            &audit_path,
+            bool_value(payload.get("with_audit"), true),
+        ))
+        .unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" })),
+        "rotation-health" => serde_json::to_value(rotation_health_report(
+            root,
+            payload,
+            &policy,
+            &audit_path,
+            bool_value(payload.get("with_audit"), true),
+        ))
+        .unwrap_or_else(|_| json!({ "ok": false, "error": "rotation_health_failed" })),
         "status" => secret_broker_status(root, payload, &policy, &state_path, &audit_path),
         "issue-handle" => issue_handle(root, payload, &policy, &state_path, &audit_path),
         "resolve-handle" => resolve_handle(root, payload, &policy, &state_path, &audit_path),
@@ -1672,7 +1765,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     };
     let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
     print_json_line(&cli_receipt("secret_broker_kernel", result));
-    if ok { 0 } else { 2 }
+    if ok {
+        0
+    } else {
+        2
+    }
 }
 
 #[cfg(test)]
@@ -1691,7 +1788,9 @@ mod tests {
         let root = temp_root();
         let secret_dir = root.path().join(".secrets-roundtrip");
         fs::create_dir_all(&secret_dir).expect("secret_dir");
-        let policy_path = root.path().join("client/runtime/config/secret_broker_policy.json");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/secret_broker_policy.json");
         fs::write(
             &policy_path,
             format!(
@@ -1750,7 +1849,9 @@ mod tests {
         let root = temp_root();
         let secret_dir = root.path().join(".secrets");
         fs::create_dir_all(&secret_dir).expect("secret_dir");
-        let policy_path = root.path().join("client/runtime/config/secret_broker_policy.json");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/secret_broker_policy.json");
         fs::write(
             &policy_path,
             format!(

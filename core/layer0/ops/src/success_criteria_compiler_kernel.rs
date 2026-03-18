@@ -12,8 +12,12 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 fn usage() {
     println!("success-criteria-compiler-kernel commands:");
-    println!("  protheus-ops success-criteria-compiler-kernel compile-rows --payload-base64=<json>");
-    println!("  protheus-ops success-criteria-compiler-kernel compile-proposal --payload-base64=<json>");
+    println!(
+        "  protheus-ops success-criteria-compiler-kernel compile-rows --payload-base64=<json>"
+    );
+    println!(
+        "  protheus-ops success-criteria-compiler-kernel compile-proposal --payload-base64=<json>"
+    );
     println!("  protheus-ops success-criteria-compiler-kernel to-action-spec-rows --payload-base64=<json>");
 }
 
@@ -55,8 +59,9 @@ fn print_json_line(value: &Value) {
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("success_criteria_compiler_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&raw).map_err(|err| {
+            format!("success_criteria_compiler_kernel_payload_decode_failed:{err}")
+        });
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
         let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
@@ -65,8 +70,9 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
         let text = String::from_utf8(bytes).map_err(|err| {
             format!("success_criteria_compiler_kernel_payload_utf8_decode_failed:{err}")
         })?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("success_criteria_compiler_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&text).map_err(|err| {
+            format!("success_criteria_compiler_kernel_payload_decode_failed:{err}")
+        });
     }
     Ok(json!({}))
 }
@@ -167,9 +173,11 @@ fn parse_first_int(text: &str, fallback: i64) -> i64 {
 
 fn parse_comparator(text: &str, fallback: &str) -> &'static str {
     let lower = text.to_ascii_lowercase();
-    if Regex::new(r"(?:<=|≤|\bat most\b|\bwithin\b|\bunder\b|\bbelow\b|\bmax(?:imum)?\b|\bless than\b)")
-        .unwrap()
-        .is_match(&lower)
+    if Regex::new(
+        r"(?:<=|≤|\bat most\b|\bwithin\b|\bunder\b|\bbelow\b|\bmax(?:imum)?\b|\bless than\b)",
+    )
+    .unwrap()
+    .is_match(&lower)
     {
         return "lte";
     }
@@ -281,7 +289,11 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         "artifact_count" => {
             let comparator = parse_comparator(&text, "gte");
             let threshold = parse_first_int(&text, 1);
-            format!("{}{} artifact", if comparator == "lte" { "<=" } else { ">=" }, threshold)
+            format!(
+                "{}{} artifact",
+                if comparator == "lte" { "<=" } else { ">=" },
+                threshold
+            )
         }
         "outreach_artifact" => {
             let comparator = parse_comparator(&text, "gte");
@@ -304,7 +316,11 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         "entries_count" => {
             let comparator = parse_comparator(&text, "gte");
             let threshold = parse_first_int(&text, 1);
-            format!("{}{} entries", if comparator == "lte" { "<=" } else { ">=" }, threshold)
+            format!(
+                "{}{} entries",
+                if comparator == "lte" { "<=" } else { ">=" },
+                threshold
+            )
         }
         "revenue_actions_count" => {
             let comparator = parse_comparator(&text, "gte");
@@ -318,7 +334,11 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         "token_usage" => {
             let comparator = parse_comparator(&text, "lte");
             let limit = parse_token_limit(&text).unwrap_or(1200);
-            format!("tokens {}{}", if comparator == "gte" { ">=" } else { "<=" }, limit)
+            format!(
+                "tokens {}{}",
+                if comparator == "gte" { ">=" } else { "<=" },
+                limit
+            )
         }
         "duration_ms" => {
             let comparator = parse_comparator(&text, "lte");
@@ -342,14 +362,17 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
 
 fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> String {
     let metric = normalize_spaces_str(metric_text).to_ascii_lowercase();
-    let text = normalize_spaces_str(&format!("{metric_text} {target_text} {source_text}")).to_ascii_lowercase();
+    let text = normalize_spaces_str(&format!("{metric_text} {target_text} {source_text}"))
+        .to_ascii_lowercase();
 
     if metric.is_empty() && (text.contains("reply") || text.contains("interview")) {
         return "reply_or_interview_count".to_string();
     }
     if metric.is_empty()
         && text.contains("outreach")
-        && ["artifact", "draft", "offer", "proposal"].iter().any(|token| text.contains(token))
+        && ["artifact", "draft", "offer", "proposal"]
+            .iter()
+            .any(|token| text.contains(token))
     {
         return "outreach_artifact".to_string();
     }
@@ -359,10 +382,17 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
             "postconditions_ok".to_string()
         }
         "outreach_artifact" => "outreach_artifact".to_string(),
-        "reply_or_interview_count" | "reply_count" | "interview_count" | "outreach_reply_count"
+        "reply_or_interview_count"
+        | "reply_count"
+        | "interview_count"
+        | "outreach_reply_count"
         | "outreach_interview_count" => "reply_or_interview_count".to_string(),
-        "artifact_count" | "experiment_artifact" | "collector_success_runs"
-        | "hypothesis_signal_lift" | "outreach_artifact_count" | "offer_draft_count"
+        "artifact_count"
+        | "experiment_artifact"
+        | "collector_success_runs"
+        | "hypothesis_signal_lift"
+        | "outreach_artifact_count"
+        | "offer_draft_count"
         | "proposal_draft_count" => "artifact_count".to_string(),
         "verification_checks_passed" | "postconditions_ok" => "postconditions_ok".to_string(),
         "collector_failure_streak" | "queue_outcome_logged" => "queue_outcome_logged".to_string(),
@@ -376,17 +406,32 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
             if text.contains("reply") || text.contains("interview") {
                 "reply_or_interview_count".to_string()
             } else if text.contains("outreach")
-                && ["artifact", "draft", "offer", "proposal"].iter().any(|token| text.contains(token))
+                && ["artifact", "draft", "offer", "proposal"]
+                    .iter()
+                    .any(|token| text.contains(token))
             {
                 "outreach_artifact".to_string()
-            } else if ["artifact", "draft", "experiment", "patch", "plan", "deliverable"]
-                .iter()
-                .any(|token| text.contains(token))
+            } else if [
+                "artifact",
+                "draft",
+                "experiment",
+                "patch",
+                "plan",
+                "deliverable",
+            ]
+            .iter()
+            .any(|token| text.contains(token))
             {
                 "artifact_count".to_string()
-            } else if ["postcondition", "contract", "verify", "verification", "check pass"]
-                .iter()
-                .any(|token| text.contains(token))
+            } else if [
+                "postcondition",
+                "contract",
+                "verify",
+                "verification",
+                "check pass",
+            ]
+            .iter()
+            .any(|token| text.contains(token))
             {
                 "postconditions_ok".to_string()
             } else if ["receipt", "evidence", "queue outcome", "logged"]
@@ -396,13 +441,27 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
                 "queue_outcome_logged".to_string()
             } else if text.contains("revenue") {
                 "revenue_actions_count".to_string()
-            } else if ["entries", "entry", "notes"].iter().any(|token| text.contains(token)) {
+            } else if ["entries", "entry", "notes"]
+                .iter()
+                .any(|token| text.contains(token))
+            {
                 "entries_count".to_string()
             } else if text.contains("token") {
                 "token_usage".to_string()
-            } else if ["latency", "duration", "time", "ms", "msec", "millisecond", "second", "sec", "min", "minute"]
-                .iter()
-                .any(|token| text.contains(token))
+            } else if [
+                "latency",
+                "duration",
+                "time",
+                "ms",
+                "msec",
+                "millisecond",
+                "second",
+                "sec",
+                "min",
+                "minute",
+            ]
+            .iter()
+            .any(|token| text.contains(token))
             {
                 "duration_ms".to_string()
             } else {
@@ -412,7 +471,10 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
     }
 }
 
-fn normalize_input_rows(rows: Option<&Value>, source: &str) -> Vec<(String, String, String, String)> {
+fn normalize_input_rows(
+    rows: Option<&Value>,
+    source: &str,
+) -> Vec<(String, String, String, String)> {
     let src = if source.trim().is_empty() {
         "success_criteria".to_string()
     } else {
@@ -478,8 +540,12 @@ pub(crate) fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) 
 }
 
 pub(crate) fn compile_proposal_success_criteria(payload: &Map<String, Value>) -> Vec<Value> {
-    let proposal = as_object(payload.get("proposal")).cloned().unwrap_or_default();
-    let action_spec = as_object(proposal.get("action_spec")).cloned().unwrap_or_default();
+    let proposal = as_object(payload.get("proposal"))
+        .cloned()
+        .unwrap_or_default();
+    let action_spec = as_object(proposal.get("action_spec"))
+        .cloned()
+        .unwrap_or_default();
     let opts = as_object(payload.get("opts")).cloned().unwrap_or_default();
     let include_verify = opts
         .get("include_verify")
@@ -496,7 +562,10 @@ pub(crate) fn compile_proposal_success_criteria(payload: &Map<String, Value>) ->
     let capability_key = normalize_capability_key(opts.get("capability_key"));
 
     let mut compiled = Vec::new();
-    compiled.extend(compile_success_criteria_rows(proposal.get("success_criteria"), "success_criteria"));
+    compiled.extend(compile_success_criteria_rows(
+        proposal.get("success_criteria"),
+        "success_criteria",
+    ));
     compiled.extend(compile_success_criteria_rows(
         action_spec.get("success_criteria"),
         "action_spec.success_criteria",
@@ -644,8 +713,14 @@ mod tests {
         ]);
         let rows = compile_success_criteria_rows(Some(&payload), "success_criteria");
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].get("metric").and_then(Value::as_str), Some("duration_ms"));
-        assert_eq!(rows[1].get("target").and_then(Value::as_str), Some("tokens <=1200"));
+        assert_eq!(
+            rows[0].get("metric").and_then(Value::as_str),
+            Some("duration_ms")
+        );
+        assert_eq!(
+            rows[1].get("target").and_then(Value::as_str),
+            Some("tokens <=1200")
+        );
     }
 
     #[test]
@@ -664,6 +739,9 @@ mod tests {
         });
         let rows = compile_proposal_success_criteria(payload_obj(&payload));
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].get("metric").and_then(Value::as_str), Some("artifact_count"));
+        assert_eq!(
+            rows[0].get("metric").and_then(Value::as_str),
+            Some("artifact_count")
+        );
     }
 }

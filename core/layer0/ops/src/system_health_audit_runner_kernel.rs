@@ -30,7 +30,9 @@ struct CheckRun {
 
 fn usage() {
     println!("system-health-audit-runner-kernel commands:");
-    println!("  protheus-ops system-health-audit-runner-kernel run [--strict=1|0] [--policy=<path>]");
+    println!(
+        "  protheus-ops system-health-audit-runner-kernel run [--strict=1|0] [--policy=<path>]"
+    );
     println!("  protheus-ops system-health-audit-runner-kernel status [--policy=<path>]");
 }
 
@@ -145,7 +147,10 @@ fn load_policy(root: &Path, argv: &[String]) -> HealthPolicy {
     );
     let parsed = read_json(&policy_path).unwrap_or_else(|| json!({}));
     HealthPolicy {
-        enabled: parsed.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        enabled: parsed
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
         check_timeout_ms: parsed
             .get("check_timeout_ms")
             .and_then(Value::as_u64)
@@ -168,11 +173,10 @@ fn run_ops_capture(domain: &str, args: &[&str], timeout_ms: u64) -> CheckRun {
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops")));
-    let output = Command::new(command)
-        .arg(domain)
-        .args(args)
-        .output();
+        .unwrap_or_else(|| {
+            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"))
+        });
+    let output = Command::new(command).arg(domain).args(args).output();
     let Ok(output) = output else {
         return CheckRun {
             status: 1,
@@ -183,8 +187,12 @@ fn run_ops_capture(domain: &str, args: &[&str], timeout_ms: u64) -> CheckRun {
     let status = output.status.code().unwrap_or(1);
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let payload_type = parse_last_json(&stdout)
-        .and_then(|value| value.get("type").and_then(Value::as_str).map(|v| v.to_string()));
+    let payload_type = parse_last_json(&stdout).and_then(|value| {
+        value
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|v| v.to_string())
+    });
     let stderr_tail = if stderr.len() > 300 {
         stderr[stderr.len() - 300..].to_string()
     } else {
@@ -203,10 +211,18 @@ where
     F: FnMut(&str, &[&str]) -> CheckRun,
 {
     let checks = [
-        ("control_plane", "protheus-control-plane", vec!["status", if strict { "--strict=1" } else { "--strict=0" }]),
+        (
+            "control_plane",
+            "protheus-control-plane",
+            vec!["status", if strict { "--strict=1" } else { "--strict=0" }],
+        ),
         ("alpha_readiness", "alpha-readiness", vec!["status"]),
         ("swarm_runtime", "swarm-runtime", vec!["status"]),
-        ("supply_chain_provenance", "supply-chain-provenance-v2", vec!["status"]),
+        (
+            "supply_chain_provenance",
+            "supply-chain-provenance-v2",
+            vec!["status"],
+        ),
     ]
     .into_iter()
     .map(|(id, domain, args)| {
@@ -243,8 +259,8 @@ fn build_health_snapshot(policy: &HealthPolicy, strict: bool) -> Value {
 
 fn status_payload(root: &Path, policy: &HealthPolicy) -> Result<Value, String> {
     let latest_path = resolve_path(root, &policy.latest_path, DEFAULT_LATEST_REL);
-    let latest = fs::read_to_string(&latest_path)
-        .map_err(|_| "missing_latest_health_audit".to_string())?;
+    let latest =
+        fs::read_to_string(&latest_path).map_err(|_| "missing_latest_health_audit".to_string())?;
     serde_json::from_str::<Value>(&latest)
         .map_err(|err| format!("system_health_audit_runner_kernel_decode_latest_failed:{err}"))
 }
@@ -320,9 +336,7 @@ mod tests {
         });
         assert_eq!(snapshot.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(
-            snapshot
-                .pointer("/failed/0")
-                .and_then(Value::as_str),
+            snapshot.pointer("/failed/0").and_then(Value::as_str),
             Some("swarm_runtime")
         );
     }

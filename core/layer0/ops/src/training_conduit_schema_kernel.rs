@@ -13,11 +13,19 @@ use crate::{deterministic_receipt_hash, now_iso, parse_args};
 
 fn usage() {
     println!("training-conduit-schema-kernel commands:");
-    println!("  protheus-ops training-conduit-schema-kernel default-policy --payload-base64=<json>");
-    println!("  protheus-ops training-conduit-schema-kernel normalize-policy --payload-base64=<json>");
+    println!(
+        "  protheus-ops training-conduit-schema-kernel default-policy --payload-base64=<json>"
+    );
+    println!(
+        "  protheus-ops training-conduit-schema-kernel normalize-policy --payload-base64=<json>"
+    );
     println!("  protheus-ops training-conduit-schema-kernel load-policy --payload-base64=<json>");
-    println!("  protheus-ops training-conduit-schema-kernel build-metadata --payload-base64=<json>");
-    println!("  protheus-ops training-conduit-schema-kernel validate-metadata --payload-base64=<json>");
+    println!(
+        "  protheus-ops training-conduit-schema-kernel build-metadata --payload-base64=<json>"
+    );
+    println!(
+        "  protheus-ops training-conduit-schema-kernel validate-metadata --payload-base64=<json>"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -62,11 +70,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("training_conduit_schema_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("training_conduit_schema_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("training_conduit_schema_kernel_payload_utf8_decode_failed:{err}"))?;
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("training_conduit_schema_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("training_conduit_schema_kernel_payload_utf8_decode_failed:{err}")
+        })?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("training_conduit_schema_kernel_payload_decode_failed:{err}"));
     }
@@ -94,7 +103,8 @@ fn normalize_token(raw: impl ToString, max_len: usize) -> String {
     let mut out = String::new();
     let mut previous_underscore = false;
     for ch in text.chars() {
-        let normalized = if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | ':' | '/' | '-') {
+        let normalized = if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | ':' | '/' | '-')
+        {
             previous_underscore = false;
             ch
         } else {
@@ -234,7 +244,11 @@ fn default_policy(root_dir: &Path) -> Value {
 fn normalize_policy(raw: Option<&Value>, root_dir: &Path) -> Value {
     let base = default_policy(root_dir);
     let src = raw.and_then(Value::as_object).cloned().unwrap_or_default();
-    let schema = src.get("schema").and_then(Value::as_object).cloned().unwrap_or_default();
+    let schema = src
+        .get("schema")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let defaults = src
         .get("defaults")
         .and_then(Value::as_object)
@@ -474,15 +488,43 @@ fn validate_training_conduit_metadata(
         .cloned()
         .unwrap_or_default();
     let m = metadata.as_object().cloned().unwrap_or_default();
-    let source = m.get("source").and_then(Value::as_object).cloned().unwrap_or_default();
-    let owner = m.get("owner").and_then(Value::as_object).cloned().unwrap_or_default();
-    let license = m.get("license").and_then(Value::as_object).cloned().unwrap_or_default();
-    let consent = m.get("consent").and_then(Value::as_object).cloned().unwrap_or_default();
-    let retention = m.get("retention").and_then(Value::as_object).cloned().unwrap_or_default();
-    let deletion = m.get("delete").and_then(Value::as_object).cloned().unwrap_or_default();
+    let source = m
+        .get("source")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let owner = m
+        .get("owner")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let license = m
+        .get("license")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let consent = m
+        .get("consent")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let retention = m
+        .get("retention")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let deletion = m
+        .get("delete")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
     let mut errors = Vec::<String>::new();
-    if constraints.get("require_source").and_then(Value::as_bool).unwrap_or(true) {
+    if constraints
+        .get("require_source")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
         if normalize_token(as_text(source.get("system")), 120).is_empty() {
             errors.push("missing_source_system".to_string());
         }
@@ -490,17 +532,27 @@ fn validate_training_conduit_metadata(
             errors.push("missing_source_channel".to_string());
         }
     }
-    if constraints.get("require_owner").and_then(Value::as_bool).unwrap_or(true)
+    if constraints
+        .get("require_owner")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
         && normalize_token(as_text(owner.get("id")), 120).is_empty()
     {
         errors.push("missing_owner_id".to_string());
     }
-    if constraints.get("require_license").and_then(Value::as_bool).unwrap_or(true)
+    if constraints
+        .get("require_license")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
         && normalize_token(as_text(license.get("id")), 160).is_empty()
     {
         errors.push("missing_license_id".to_string());
     }
-    if constraints.get("require_consent").and_then(Value::as_bool).unwrap_or(true) {
+    if constraints
+        .get("require_consent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
         if normalize_consent_status(as_text(consent.get("status")), "").is_empty() {
             errors.push("missing_consent_status".to_string());
         }
@@ -562,11 +614,18 @@ fn build_training_conduit_metadata(
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let input = input.and_then(Value::as_object).cloned().unwrap_or_default();
+    let input = input
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
     let ts = {
         let raw = clean_text(as_text(input.get("ts")), 64);
-        if raw.is_empty() { now_iso() } else { raw }
+        if raw.is_empty() {
+            now_iso()
+        } else {
+            raw
+        }
     };
     let source_system = {
         let value = normalize_token(
@@ -579,7 +638,11 @@ fn build_training_conduit_metadata(
             },
             120,
         );
-        if value.is_empty() { "unknown".to_string() } else { value }
+        if value.is_empty() {
+            "unknown".to_string()
+        } else {
+            value
+        }
     };
     let source_channel = {
         let value = normalize_token(
@@ -592,7 +655,11 @@ fn build_training_conduit_metadata(
             },
             120,
         );
-        if value.is_empty() { "unknown".to_string() } else { value }
+        if value.is_empty() {
+            "unknown".to_string()
+        } else {
+            value
+        }
     };
     let source_path = rel_path(
         root_dir,
@@ -613,11 +680,19 @@ fn build_training_conduit_metadata(
             },
             180,
         );
-        if value.is_empty() { Value::Null } else { Value::String(value) }
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
     };
     let provider = {
         let value = normalize_token(as_text(input.get("provider")), 120);
-        if value.is_empty() { Value::Null } else { Value::String(value) }
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
     };
     let owner_id = {
         let value = normalize_token(
@@ -628,7 +703,11 @@ fn build_training_conduit_metadata(
             },
             120,
         );
-        if value.is_empty() { as_text(defaults.get("owner_id")) } else { value }
+        if value.is_empty() {
+            as_text(defaults.get("owner_id"))
+        } else {
+            value
+        }
     };
     let owner_type = {
         let value = normalize_token(
@@ -639,7 +718,11 @@ fn build_training_conduit_metadata(
             },
             80,
         );
-        if value.is_empty() { as_text(defaults.get("owner_type")) } else { value }
+        if value.is_empty() {
+            as_text(defaults.get("owner_type"))
+        } else {
+            value
+        }
     };
     let license_id = {
         let value = normalize_token(
@@ -650,7 +733,11 @@ fn build_training_conduit_metadata(
             },
             160,
         );
-        if value.is_empty() { as_text(defaults.get("license_id")) } else { value }
+        if value.is_empty() {
+            as_text(defaults.get("license_id"))
+        } else {
+            value
+        }
     };
     let consent_status = normalize_consent_status(
         if input.get("consent_status").is_some() {
@@ -702,13 +789,19 @@ fn build_training_conduit_metadata(
             },
             120,
         );
-        if value.is_empty() { as_text(defaults.get("delete_scope")) } else { value }
+        if value.is_empty() {
+            as_text(defaults.get("delete_scope"))
+        } else {
+            value
+        }
     };
     let fallback_delete_key = format!(
         "{}:{}:{}",
         source_system,
         source_channel,
-        datum_id.as_str().unwrap_or(&Utc::now().timestamp_millis().to_string())
+        datum_id
+            .as_str()
+            .unwrap_or(&Utc::now().timestamp_millis().to_string())
     );
     let delete_key = normalize_delete_key(input.get("delete_key"), &fallback_delete_key);
     let classification = {
@@ -720,7 +813,11 @@ fn build_training_conduit_metadata(
             },
             80,
         );
-        if value.is_empty() { as_text(defaults.get("classification")) } else { value }
+        if value.is_empty() {
+            as_text(defaults.get("classification"))
+        } else {
+            value
+        }
     };
 
     let metadata = json!({
@@ -781,7 +878,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "default-policy" => match payload_json(argv) {
             Ok(payload) => {
-                let root_dir = root_dir_from_payload(root, payload.as_object().unwrap_or(&Map::new()));
+                let root_dir =
+                    root_dir_from_payload(root, payload.as_object().unwrap_or(&Map::new()));
                 print_json_line(&cli_receipt(
                     "training_conduit_schema_kernel_default_policy",
                     json!({ "policy": default_policy(&root_dir) }),
@@ -911,15 +1009,21 @@ mod tests {
             &root,
         );
         assert_eq!(
-            out.pointer("/defaults/owner_id").and_then(Value::as_str).unwrap_or(""),
+            out.pointer("/defaults/owner_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             "team_lead"
         );
         assert_eq!(
-            out.pointer("/defaults/retention_days").and_then(Value::as_i64).unwrap_or_default(),
+            out.pointer("/defaults/retention_days")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
             3650
         );
         assert_eq!(
-            out.pointer("/defaults/consent_status").and_then(Value::as_str).unwrap_or(""),
+            out.pointer("/defaults/consent_status")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             "granted"
         );
     }
@@ -937,11 +1041,15 @@ mod tests {
             &root,
         );
         assert_eq!(
-            out.pointer("/source/system").and_then(Value::as_str).unwrap_or(""),
+            out.pointer("/source/system")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             "discord"
         );
         assert_eq!(
-            out.pointer("/validation/ok").and_then(Value::as_bool).unwrap_or(false),
+            out.pointer("/validation/ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             true
         );
     }

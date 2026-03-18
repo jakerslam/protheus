@@ -19,16 +19,23 @@ const LEGACY_SURFACES: [&str; 3] = ["state", "client/runtime/state", "local"];
 fn usage() {
     println!("runtime-path-registry-kernel commands:");
     println!("  protheus-ops runtime-path-registry-kernel constants");
-    println!("  protheus-ops runtime-path-registry-kernel normalize-for-root [--payload-base64=<json>]");
-    println!("  protheus-ops runtime-path-registry-kernel resolve-canonical [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops runtime-path-registry-kernel normalize-for-root [--payload-base64=<json>]"
+    );
+    println!(
+        "  protheus-ops runtime-path-registry-kernel resolve-canonical [--payload-base64=<json>]"
+    );
     println!("  protheus-ops runtime-path-registry-kernel resolve-client-state [--payload-base64=<json>]");
-    println!("  protheus-ops runtime-path-registry-kernel resolve-core-state [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops runtime-path-registry-kernel resolve-core-state [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
+    let mut out =
+        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
@@ -41,17 +48,27 @@ fn cli_error(kind: &str, error: &str) -> Value {
 }
 
 fn print_json_line(value: &Value) {
-    println!("{}", serde_json::to_string(value).unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw).map_err(|err| format!("runtime_path_registry_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&raw)
+            .map_err(|err| format!("runtime_path_registry_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| format!("runtime_path_registry_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes).map_err(|err| format!("runtime_path_registry_kernel_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text).map_err(|err| format!("runtime_path_registry_kernel_payload_decode_failed:{err}"));
+        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
+            format!("runtime_path_registry_kernel_payload_base64_decode_failed:{err}")
+        })?;
+        let text = String::from_utf8(bytes).map_err(|err| {
+            format!("runtime_path_registry_kernel_payload_utf8_decode_failed:{err}")
+        })?;
+        return serde_json::from_str::<Value>(&text)
+            .map_err(|err| format!("runtime_path_registry_kernel_payload_decode_failed:{err}"));
     }
     Ok(json!({}))
 }
@@ -65,9 +82,21 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
 
 fn clean(value: Option<&Value>) -> String {
     match value {
-        Some(Value::String(v)) => v.trim().replace('\\', "/").trim_start_matches("./").trim_start_matches('/').to_string(),
+        Some(Value::String(v)) => v
+            .trim()
+            .replace('\\', "/")
+            .trim_start_matches("./")
+            .trim_start_matches('/')
+            .to_string(),
         Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string().trim_matches('"').trim().replace('\\', "/").trim_start_matches("./").trim_start_matches('/').to_string(),
+        Some(other) => other
+            .to_string()
+            .trim_matches('"')
+            .trim()
+            .replace('\\', "/")
+            .trim_start_matches("./")
+            .trim_start_matches('/')
+            .to_string(),
     }
 }
 
@@ -75,7 +104,11 @@ fn clean_root(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(v)) => v.trim().replace('\\', "/"),
         Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string().trim_matches('"').trim().replace('\\', "/"),
+        Some(other) => other
+            .to_string()
+            .trim_matches('"')
+            .trim()
+            .replace('\\', "/"),
     }
 }
 
@@ -113,11 +146,17 @@ fn normalize_for_root(root_abs: &str, rel_path: &str) -> String {
 
 fn resolve_canonical(root_abs: &str, rel_path: &str) -> String {
     let normalized = normalize_for_root(root_abs, rel_path);
-    PathBuf::from(root_abs).join(normalized).to_string_lossy().to_string()
+    PathBuf::from(root_abs)
+        .join(normalized)
+        .to_string_lossy()
+        .to_string()
 }
 
 pub fn run(_root: &Path, argv: &[String]) -> i32 {
-    let command = argv.first().map(|value| value.to_ascii_lowercase()).unwrap_or_else(|| "help".to_string());
+    let command = argv
+        .first()
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_else(|| "help".to_string());
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
@@ -136,7 +175,12 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             .or_else(|| input.get("rootAbs"))
             .or_else(|| input.get("root")),
     );
-    let rel_path = clean(input.get("rel_path").or_else(|| input.get("relPath")).or_else(|| input.get("path")));
+    let rel_path = clean(
+        input
+            .get("rel_path")
+            .or_else(|| input.get("relPath"))
+            .or_else(|| input.get("path")),
+    );
     let suffix = clean(input.get("suffix"));
     let result = match command.as_str() {
         "constants" => cli_receipt(
@@ -175,9 +219,16 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
                 "value": resolve_canonical(&root_abs, &format!("{CORE_STATE_ROOT}/{}", suffix)),
             }),
         ),
-        _ => cli_error("runtime_path_registry_kernel_error", &format!("unknown_command:{command}")),
+        _ => cli_error(
+            "runtime_path_registry_kernel_error",
+            &format!("unknown_command:{command}"),
+        ),
     };
-    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+    let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    };
     print_json_line(&result);
     exit
 }

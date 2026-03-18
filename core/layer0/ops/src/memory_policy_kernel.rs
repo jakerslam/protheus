@@ -124,18 +124,10 @@ fn usage() {
     println!("  protheus-ops memory-policy-kernel parse-cli --payload-base64=<base64_json>");
     println!("  protheus-ops memory-policy-kernel command-name --payload-base64=<base64_json>");
     println!("  protheus-ops memory-policy-kernel validate --payload-base64=<base64_json>");
-    println!(
-        "  protheus-ops memory-policy-kernel validate-ranking --payload-base64=<base64_json>"
-    );
-    println!(
-        "  protheus-ops memory-policy-kernel validate-lensmap --payload-base64=<base64_json>"
-    );
-    println!(
-        "  protheus-ops memory-policy-kernel severity-rank --payload-base64=<base64_json>"
-    );
-    println!(
-        "  protheus-ops memory-policy-kernel guard-failure --payload-base64=<base64_json>"
-    );
+    println!("  protheus-ops memory-policy-kernel validate-ranking --payload-base64=<base64_json>");
+    println!("  protheus-ops memory-policy-kernel validate-lensmap --payload-base64=<base64_json>");
+    println!("  protheus-ops memory-policy-kernel severity-rank --payload-base64=<base64_json>");
+    println!("  protheus-ops memory-policy-kernel guard-failure --payload-base64=<base64_json>");
 }
 
 fn load_payload(argv: &[String]) -> Result<KernelPayload, String> {
@@ -193,9 +185,7 @@ fn read_boolean(flags: &BTreeMap<String, String>, names: &[&str], fallback: bool
     for name in names {
         if let Some(raw) = flags.get(*name) {
             let normalized = raw.trim().to_ascii_lowercase();
-            if normalized.is_empty()
-                || matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
-            {
+            if normalized.is_empty() || matches!(normalized.as_str(), "1" | "true" | "yes" | "on") {
                 return true;
             }
             if matches!(normalized.as_str(), "0" | "false" | "no" | "off") {
@@ -379,7 +369,10 @@ fn validate_memory_policy(args: &[String], options: Option<&Value>) -> Value {
 
     if policy.index_first_required {
         if read_boolean(&parsed.flags, INDEX_BYPASS_FLAGS, false) {
-            return build_failure("index_first_bypass_forbidden", json!({ "command": command }));
+            return build_failure(
+                "index_first_bypass_forbidden",
+                json!({ "command": command }),
+            );
         }
         if DIRECT_READ_FLAGS.iter().any(|flag| {
             parsed
@@ -393,8 +386,7 @@ fn validate_memory_policy(args: &[String], options: Option<&Value>) -> Value {
     }
 
     let bootstrap = read_boolean(&parsed.flags, &["bootstrap"], false);
-    let lazy_hydration =
-        read_boolean(&parsed.flags, &["lazy-hydration", "lazy_hydration"], true);
+    let lazy_hydration = read_boolean(&parsed.flags, &["lazy-hydration", "lazy_hydration"], true);
     let hydration_tokens = read_numeric(
         &parsed.flags,
         &["estimated-hydration-tokens", "estimated_hydration_tokens"],
@@ -469,8 +461,12 @@ fn validate_memory_policy(args: &[String], options: Option<&Value>) -> Value {
     let scores = read_json_flag(&parsed.flags, &["scores-json", "scores_json"]);
     let ids = read_json_flag(&parsed.flags, &["ids-json", "ids_json"]);
     if scores.is_some() || ids.is_some() {
-        let scores_array = scores.and_then(|value| value.as_array().cloned()).unwrap_or_default();
-        let ids_array = ids.and_then(|value| value.as_array().cloned()).unwrap_or_default();
+        let scores_array = scores
+            .and_then(|value| value.as_array().cloned())
+            .unwrap_or_default();
+        let ids_array = ids
+            .and_then(|value| value.as_array().cloned())
+            .unwrap_or_default();
         let ranking = validate_descending_ranking(&scores_array, &ids_array);
         if !ranking.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             return build_failure(
@@ -489,7 +485,11 @@ fn validate_memory_policy(args: &[String], options: Option<&Value>) -> Value {
     );
     if annotation.is_some() {
         let validation = validate_lensmap_annotation(annotation.as_ref());
-        if !validation.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        if !validation
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             return build_failure(
                 validation
                     .get("reason_code")
@@ -630,7 +630,11 @@ pub fn run(_cwd: &Path, argv: &[String]) -> i32 {
                 &format!("memory_policy_kernel_{}", command.replace('-', "_")),
                 payload,
             ));
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         Err(err) => {
             print_json_line(&cli_error("memory_policy_kernel_error", &err));
@@ -693,12 +697,10 @@ mod tests {
         );
         assert_eq!(result.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(result.get("status").and_then(Value::as_i64), Some(2));
-        assert!(
-            result
-                .get("stderr")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .contains("memory_policy_guard_reject:index_first_bypass_forbidden")
-        );
+        assert!(result
+            .get("stderr")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .contains("memory_policy_guard_reject:index_first_bypass_forbidden"));
     }
 }

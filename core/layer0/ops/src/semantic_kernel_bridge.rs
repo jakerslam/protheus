@@ -110,21 +110,40 @@ fn repo_path(root: &Path, rel: &str) -> PathBuf {
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "state-path", false)
-        .or_else(|| payload.get("state_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("state_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_STATE_REL))
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "history-path", false)
-        .or_else(|| payload.get("history_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("history_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_HISTORY_REL))
 }
 
-fn semantic_swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
+fn semantic_swarm_state_path(
+    root: &Path,
+    argv: &[String],
+    payload: &Map<String, Value>,
+) -> PathBuf {
     lane_utils::parse_flag(argv, "swarm-state-path", false)
-        .or_else(|| payload.get("swarm_state_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("swarm_state_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_SWARM_STATE_REL))
 }
@@ -164,10 +183,18 @@ fn ensure_state_shape(value: &mut Value) {
             value[key] = json!({});
         }
     }
-    if !value.get("enterprise_events").map(Value::is_array).unwrap_or(false) {
+    if !value
+        .get("enterprise_events")
+        .map(Value::is_array)
+        .unwrap_or(false)
+    {
         value["enterprise_events"] = json!([]);
     }
-    if value.get("schema_version").and_then(Value::as_str).is_none() {
+    if value
+        .get("schema_version")
+        .and_then(Value::as_str)
+        .is_none()
+    {
         value["schema_version"] = json!("semantic_kernel_bridge_state_v1");
     }
 }
@@ -190,14 +217,20 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
     if !value.get(key).map(Value::is_object).unwrap_or(false) {
         value[key] = json!({});
     }
-    value.get_mut(key).and_then(Value::as_object_mut).expect("object")
+    value
+        .get_mut(key)
+        .and_then(Value::as_object_mut)
+        .expect("object")
 }
 
 fn as_array_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     if !value.get(key).map(Value::is_array).unwrap_or(false) {
         value[key] = json!([]);
     }
-    value.get_mut(key).and_then(Value::as_array_mut).expect("array")
+    value
+        .get_mut(key)
+        .and_then(Value::as_array_mut)
+        .expect("array")
 }
 
 fn now_millis() -> u128 {
@@ -227,7 +260,12 @@ fn to_base36(mut value: u128) -> String {
 
 fn stable_id(prefix: &str, basis: &Value) -> String {
     let basis_hash = deterministic_receipt_hash(basis);
-    format!("{}_{}_{}", prefix, to_base36(now_millis()), &basis_hash[..12])
+    format!(
+        "{}_{}_{}",
+        prefix,
+        to_base36(now_millis()),
+        &basis_hash[..12]
+    )
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
@@ -318,8 +356,9 @@ fn default_claim_evidence(id: &str, claim: &str) -> Value {
 }
 
 fn read_swarm_state(path: &Path) -> Value {
-    lane_utils::read_json(path)
-        .unwrap_or_else(|| json!({ "sessions": {}, "handoff_registry": {}, "network_registry": {} }))
+    lane_utils::read_json(path).unwrap_or_else(
+        || json!({ "sessions": {}, "handoff_registry": {}, "network_registry": {} }),
+    )
 }
 
 fn find_swarm_session_id_by_task(state: &Value, task: &str) -> Option<String> {
@@ -382,12 +421,19 @@ fn semantic_claim(id: &str) -> &'static str {
 fn allowed_service_surface(surface: &str) -> bool {
     matches!(
         surface,
-        "workflow-executor" | "workflow-controller" | "swarm-runtime" | "mcp-plane" | "policy-runtime-kernel"
+        "workflow-executor"
+            | "workflow-controller"
+            | "swarm-runtime"
+            | "mcp-plane"
+            | "policy-runtime-kernel"
     )
 }
 
 fn register_service(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(payload.get("name").and_then(Value::as_str), "semantic-kernel-service");
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "semantic-kernel-service",
+    );
     let role = clean_token(payload.get("role").and_then(Value::as_str), "orchestrator");
     let execution_surface = clean_token(
         payload.get("execution_surface").and_then(Value::as_str),
@@ -406,7 +452,11 @@ fn register_service(state: &mut Value, payload: &Map<String, Value>) -> Result<V
         "capabilities": payload.get("capabilities").cloned().filter(Value::is_array).unwrap_or_else(|| json!([])),
         "registered_at": now_iso(),
     });
-    let service_id = service.get("service_id").and_then(Value::as_str).unwrap().to_string();
+    let service_id = service
+        .get("service_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "services").insert(service_id.clone(), service.clone());
     Ok(json!({
         "ok": true,
@@ -419,12 +469,19 @@ fn allowed_plugin_kind(kind: &str) -> bool {
     matches!(kind, "native" | "prompt" | "openapi" | "mcp")
 }
 
-fn register_plugin(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+fn register_plugin(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let service_id = clean_token(payload.get("service_id").and_then(Value::as_str), "");
     if service_id.is_empty() || !as_object_mut(state, "services").contains_key(&service_id) {
         return Err("semantic_kernel_plugin_service_not_found".to_string());
     }
-    let plugin_name = clean_token(payload.get("plugin_name").and_then(Value::as_str), "semantic-kernel-plugin");
+    let plugin_name = clean_token(
+        payload.get("plugin_name").and_then(Value::as_str),
+        "semantic-kernel-plugin",
+    );
     let plugin_kind = clean_token(payload.get("plugin_kind").and_then(Value::as_str), "native");
     if !allowed_plugin_kind(&plugin_kind) {
         return Err("semantic_kernel_plugin_kind_invalid".to_string());
@@ -458,7 +515,11 @@ fn register_plugin(root: &Path, state: &mut Value, payload: &Map<String, Value>)
         "invocation_count": 0,
         "fail_closed": true,
     });
-    let plugin_id = plugin.get("plugin_id").and_then(Value::as_str).unwrap().to_string();
+    let plugin_id = plugin
+        .get("plugin_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "plugins").insert(plugin_id.clone(), plugin.clone());
     Ok(json!({
         "ok": true,
@@ -494,9 +555,18 @@ fn invoke_plugin(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .get_mut(&plugin_id)
         .and_then(Value::as_object_mut)
         .ok_or_else(|| "semantic_kernel_plugin_not_found".to_string())?;
-    let plugin_kind = plugin.get("plugin_kind").and_then(Value::as_str).unwrap_or("native");
+    let plugin_kind = plugin
+        .get("plugin_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("native");
     let rendered = if plugin_kind == "prompt" {
-        replace_template(plugin.get("prompt_template").and_then(Value::as_str).unwrap_or(""), &args)
+        replace_template(
+            plugin
+                .get("prompt_template")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            &args,
+        )
     } else {
         String::new()
     };
@@ -538,9 +608,21 @@ fn invoke_plugin(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
     }))
 }
 
-fn collaborate(root: &Path, argv: &[String], state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let collaboration_name = clean_token(payload.get("name").and_then(Value::as_str), "semantic-kernel-collaboration");
-    let agents = payload.get("agents").and_then(Value::as_array).cloned().unwrap_or_default();
+fn collaborate(
+    root: &Path,
+    argv: &[String],
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let collaboration_name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "semantic-kernel-collaboration",
+    );
+    let agents = payload
+        .get("agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if agents.is_empty() {
         return Err("semantic_kernel_collaboration_agents_required".to_string());
     }
@@ -602,7 +684,12 @@ fn collaborate(root: &Path, argv: &[String], state: &mut Value, payload: &Map<St
     }
 
     let mut edge_specs = Vec::new();
-    for edge in payload.get("edges").and_then(Value::as_array).cloned().unwrap_or_default() {
+    for edge in payload
+        .get("edges")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         let from = clean_token(edge.get("from").and_then(Value::as_str), "");
         let to = clean_token(edge.get("to").and_then(Value::as_str), "");
         if from.is_empty() || to.is_empty() {
@@ -667,7 +754,11 @@ fn collaborate(root: &Path, argv: &[String], state: &mut Value, payload: &Map<St
         "network_id": network_id,
         "registered_at": now_iso(),
     });
-    let collaboration_id = collaboration.get("collaboration_id").and_then(Value::as_str).unwrap().to_string();
+    let collaboration_id = collaboration
+        .get("collaboration_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "collaborations").insert(collaboration_id, collaboration.clone());
     Ok(json!({
         "ok": true,
@@ -702,9 +793,17 @@ fn plan(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String
         let a_name = clean_token(a.get("name").and_then(Value::as_str), "fn");
         let b_name = clean_token(b.get("name").and_then(Value::as_str), "fn");
         let a_score = parse_f64_value(a.get("score"), 0.5, 0.0, 1.0)
-            + if has_token(&objective_lc, &a_name) { 0.25 } else { 0.0 };
+            + if has_token(&objective_lc, &a_name) {
+                0.25
+            } else {
+                0.0
+            };
         let b_score = parse_f64_value(b.get("score"), 0.5, 0.0, 1.0)
-            + if has_token(&objective_lc, &b_name) { 0.25 } else { 0.0 };
+            + if has_token(&objective_lc, &b_name) {
+                0.25
+            } else {
+                0.0
+            };
         b_score
             .partial_cmp(&a_score)
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -735,7 +834,11 @@ fn plan(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String
         "steps": plan_steps,
         "registered_at": now_iso(),
     });
-    let plan_id = plan.get("plan_id").and_then(Value::as_str).unwrap().to_string();
+    let plan_id = plan
+        .get("plan_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "plans").insert(plan_id.clone(), plan.clone());
     Ok(json!({
         "ok": true,
@@ -745,12 +848,24 @@ fn plan(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String
 }
 
 fn supported_vector_provider(provider: &str) -> bool {
-    matches!(provider, "azure-ai-search" | "chroma" | "elasticsearch" | "memory-plane")
+    matches!(
+        provider,
+        "azure-ai-search" | "chroma" | "elasticsearch" | "memory-plane"
+    )
 }
 
-fn register_vector_connector(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(payload.get("name").and_then(Value::as_str), "semantic-vector");
-    let provider = clean_token(payload.get("provider").and_then(Value::as_str), "memory-plane");
+fn register_vector_connector(
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "semantic-vector",
+    );
+    let provider = clean_token(
+        payload.get("provider").and_then(Value::as_str),
+        "memory-plane",
+    );
     if !supported_vector_provider(&provider) {
         return Err("semantic_kernel_vector_provider_invalid".to_string());
     }
@@ -763,7 +878,11 @@ fn register_vector_connector(state: &mut Value, payload: &Map<String, Value>) ->
         "documents": payload.get("documents").cloned().filter(Value::is_array).unwrap_or_else(|| json!([])),
         "registered_at": now_iso(),
     });
-    let connector_id = connector.get("connector_id").and_then(Value::as_str).unwrap().to_string();
+    let connector_id = connector
+        .get("connector_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "vector_connectors").insert(connector_id.clone(), connector.clone());
     Ok(json!({
         "ok": true,
@@ -796,18 +915,35 @@ fn retrieve(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
         .get(&connector_id)
         .and_then(Value::as_object)
         .ok_or_else(|| "semantic_kernel_vector_connector_not_found".to_string())?;
-    let provider = connector.get("provider").and_then(Value::as_str).unwrap_or("memory-plane");
-    let profile = normalized_profile(payload.get("profile").and_then(Value::as_str).unwrap_or("rich"));
-    let min_profile = connector.get("min_profile").and_then(Value::as_str).unwrap_or("rich");
+    let provider = connector
+        .get("provider")
+        .and_then(Value::as_str)
+        .unwrap_or("memory-plane");
+    let profile = normalized_profile(
+        payload
+            .get("profile")
+            .and_then(Value::as_str)
+            .unwrap_or("rich"),
+    );
+    let min_profile = connector
+        .get("min_profile")
+        .and_then(Value::as_str)
+        .unwrap_or("rich");
     if min_profile == "rich" && profile != "rich" {
-        return Err(format!("semantic_kernel_vector_connector_degraded_profile:{provider}:{profile}"));
+        return Err(format!(
+            "semantic_kernel_vector_connector_degraded_profile:{provider}:{profile}"
+        ));
     }
     let top_k = parse_u64_value(payload.get("top_k"), 3, 1, 12) as usize;
     let budget = connector
         .get("context_budget_tokens")
         .and_then(Value::as_u64)
         .unwrap_or(512);
-    let docs = connector.get("documents").and_then(Value::as_array).cloned().unwrap_or_default();
+    let docs = connector
+        .get("documents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut ranked = docs
         .into_iter()
         .filter_map(|row| {
@@ -817,12 +953,14 @@ fn retrieve(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
                 .map(ToString::to_string)
                 .unwrap_or_else(|| row.to_string());
             let score = lexical_score(&query, &text);
-            (score > 0).then(|| json!({
-                "text": text,
-                "score": score,
-                "token_estimate": approx_token_count(&text),
-                "metadata": row.get("metadata").cloned().unwrap_or(Value::Null),
-            }))
+            (score > 0).then(|| {
+                json!({
+                    "text": text,
+                    "score": score,
+                    "token_estimate": approx_token_count(&text),
+                    "metadata": row.get("metadata").cloned().unwrap_or(Value::Null),
+                })
+            })
         })
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| {
@@ -834,7 +972,10 @@ fn retrieve(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
     let mut used = 0_u64;
     let mut results = Vec::new();
     for row in ranked.into_iter().take(top_k) {
-        let tokens = row.get("token_estimate").and_then(Value::as_u64).unwrap_or(0);
+        let tokens = row
+            .get("token_estimate")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         if used.saturating_add(tokens) > budget {
             break;
         }
@@ -854,16 +995,29 @@ fn retrieve(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
 }
 
 fn supported_llm_provider(provider: &str) -> bool {
-    matches!(provider, "azure-openai" | "ollama" | "hugging-face" | "nvidia" | "openai-compatible")
+    matches!(
+        provider,
+        "azure-openai" | "ollama" | "hugging-face" | "nvidia" | "openai-compatible"
+    )
 }
 
-fn register_llm_connector(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+fn register_llm_connector(
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let name = clean_token(payload.get("name").and_then(Value::as_str), "semantic-llm");
-    let provider = clean_token(payload.get("provider").and_then(Value::as_str), "openai-compatible");
+    let provider = clean_token(
+        payload.get("provider").and_then(Value::as_str),
+        "openai-compatible",
+    );
     if !supported_llm_provider(&provider) {
         return Err("semantic_kernel_llm_provider_invalid".to_string());
     }
-    let modalities = payload.get("modalities").cloned().filter(Value::is_array).unwrap_or_else(|| json!(["text"]));
+    let modalities = payload
+        .get("modalities")
+        .cloned()
+        .filter(Value::is_array)
+        .unwrap_or_else(|| json!(["text"]));
     let connector = json!({
         "connector_id": stable_id("skllm", &json!({"name": name, "provider": provider, "modalities": modalities})),
         "name": name,
@@ -872,7 +1026,11 @@ fn register_llm_connector(state: &mut Value, payload: &Map<String, Value>) -> Re
         "modalities": modalities,
         "registered_at": now_iso(),
     });
-    let connector_id = connector.get("connector_id").and_then(Value::as_str).unwrap().to_string();
+    let connector_id = connector
+        .get("connector_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "llm_connectors").insert(connector_id.clone(), connector.clone());
     Ok(json!({
         "ok": true,
@@ -892,14 +1050,29 @@ fn route_llm(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, S
         .and_then(Value::as_object)
         .ok_or_else(|| "semantic_kernel_llm_connector_not_found".to_string())?;
     let modality = clean_token(payload.get("modality").and_then(Value::as_str), "text");
-    let connector_modalities = connector.get("modalities").and_then(Value::as_array).cloned().unwrap_or_default();
-    let supports_modality = connector_modalities.iter().any(|row| row.as_str() == Some(modality.as_str()));
+    let connector_modalities = connector
+        .get("modalities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let supports_modality = connector_modalities
+        .iter()
+        .any(|row| row.as_str() == Some(modality.as_str()));
     if !supports_modality {
-        return Err(format!("semantic_kernel_llm_modality_unsupported:{modality}"));
+        return Err(format!(
+            "semantic_kernel_llm_modality_unsupported:{modality}"
+        ));
     }
-    let profile = normalized_profile(payload.get("profile").and_then(Value::as_str).unwrap_or("rich"));
+    let profile = normalized_profile(
+        payload
+            .get("profile")
+            .and_then(Value::as_str)
+            .unwrap_or("rich"),
+    );
     if modality != "text" && profile != "rich" {
-        return Err(format!("semantic_kernel_llm_multimodal_profile_blocked:{profile}:{modality}"));
+        return Err(format!(
+            "semantic_kernel_llm_multimodal_profile_blocked:{profile}:{modality}"
+        ));
     }
     Ok(json!({
         "ok": true,
@@ -946,7 +1119,11 @@ fn validate_json_schema(schema: &Value, value: &Value, path: &str, violations: &
         if let Some(map) = value.as_object() {
             for (key, child_schema) in properties {
                 if let Some(child_value) = map.get(key) {
-                    let child_path = if path == "$" { format!("$.{}", key) } else { format!("{}.{}", path, key) };
+                    let child_path = if path == "$" {
+                        format!("$.{}", key)
+                    } else {
+                        format!("{}.{}", path, key)
+                    };
                     validate_json_schema(child_schema, child_value, &child_path, violations);
                 }
             }
@@ -997,7 +1174,10 @@ fn validate_process_graph(process: &Value) -> Result<Value, String> {
     }))
 }
 
-fn validate_structured_output(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+fn validate_structured_output(
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let schema = payload.get("schema").cloned().unwrap_or_else(|| json!({}));
     let output = payload.get("output").cloned().unwrap_or(Value::Null);
     let mut violations = Vec::new();
@@ -1008,7 +1188,10 @@ fn validate_structured_output(state: &mut Value, payload: &Map<String, Value>) -
         None
     };
     if !violations.is_empty() {
-        return Err(format!("semantic_kernel_structured_output_invalid:{}", violations.join(",")));
+        return Err(format!(
+            "semantic_kernel_structured_output_invalid:{}",
+            violations.join(",")
+        ));
     }
     let record = json!({
         "record_id": stable_id("skproc", &json!({"schema": schema, "output": output, "process": payload.get("process")})),
@@ -1017,7 +1200,11 @@ fn validate_structured_output(state: &mut Value, payload: &Map<String, Value>) -
         "process_report": process_report,
         "validated_at": now_iso(),
     });
-    let record_id = record.get("record_id").and_then(Value::as_str).unwrap().to_string();
+    let record_id = record
+        .get("record_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "structured_processes").insert(record_id.clone(), record.clone());
     Ok(json!({
         "ok": true,
@@ -1051,8 +1238,15 @@ fn emit_enterprise_event(state: &mut Value, payload: &Map<String, Value>) -> Res
     }))
 }
 
-fn register_dotnet_bridge(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(payload.get("name").and_then(Value::as_str), "semantic-kernel-dotnet");
+fn register_dotnet_bridge(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "semantic-kernel-dotnet",
+    );
     let bridge_path = normalize_bridge_path(
         root,
         payload
@@ -1072,7 +1266,11 @@ fn register_dotnet_bridge(root: &Path, state: &mut Value, payload: &Map<String, 
         "capabilities": payload.get("capabilities").cloned().filter(Value::is_array).unwrap_or_else(|| json!([])),
         "registered_at": now_iso(),
     });
-    let bridge_id = bridge.get("bridge_id").and_then(Value::as_str).unwrap().to_string();
+    let bridge_id = bridge
+        .get("bridge_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "dotnet_bridges").insert(bridge_id.clone(), bridge.clone());
     Ok(json!({
         "ok": true,
@@ -1091,8 +1289,17 @@ fn invoke_dotnet_bridge(state: &mut Value, payload: &Map<String, Value>) -> Resu
         .get_mut(&bridge_id)
         .and_then(Value::as_object_mut)
         .ok_or_else(|| "semantic_kernel_dotnet_bridge_not_found".to_string())?;
-    let dry_run = payload.get("dry_run").and_then(Value::as_bool).unwrap_or(true);
-    let invocation = if dry_run || bridge.get("command").and_then(Value::as_str).unwrap_or("").is_empty() {
+    let dry_run = payload
+        .get("dry_run")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let invocation = if dry_run
+        || bridge
+            .get("command")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+    {
         json!({
             "mode": "dry_run",
             "operation": clean_token(payload.get("operation").and_then(Value::as_str), "invoke"),
@@ -1110,7 +1317,11 @@ fn invoke_dotnet_bridge(state: &mut Value, payload: &Map<String, Value>) -> Resu
             .filter_map(|row| row.as_str().map(ToString::to_string))
             .collect::<Vec<_>>();
         let operation = clean_token(payload.get("operation").and_then(Value::as_str), "invoke");
-        let args_json = payload.get("args").cloned().unwrap_or_else(|| json!({})).to_string();
+        let args_json = payload
+            .get("args")
+            .cloned()
+            .unwrap_or_else(|| json!({}))
+            .to_string();
         let run = Command::new(command)
             .args(command_args)
             .arg(operation)
@@ -1235,7 +1446,9 @@ mod tests {
         let output = json!({"other": true});
         let mut violations = Vec::new();
         validate_json_schema(&schema, &output, "$", &mut violations);
-        assert!(violations.iter().any(|row| row.contains("missing_required")));
+        assert!(violations
+            .iter()
+            .any(|row| row.contains("missing_required")));
     }
 
     #[test]
@@ -1249,7 +1462,10 @@ mod tests {
                 .clone(),
         )
         .expect("service");
-        let service_id = service["service"]["service_id"].as_str().unwrap().to_string();
+        let service_id = service["service"]["service_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
         let result = plan(
             &mut state,
             &json!({
@@ -1266,6 +1482,12 @@ mod tests {
         )
         .expect("plan");
         let steps = result["plan"]["steps"].as_array().expect("steps");
-        assert_eq!(steps.first().and_then(|row| row.get("function_name")).and_then(Value::as_str), Some("route"));
+        assert_eq!(
+            steps
+                .first()
+                .and_then(|row| row.get("function_name"))
+                .and_then(Value::as_str),
+            Some("route")
+        );
     }
 }
