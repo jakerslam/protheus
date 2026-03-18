@@ -86,7 +86,13 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
     match value {
         Some(Value::String(v)) => v.trim().chars().take(max_len).collect(),
         Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string().trim_matches('"').trim().chars().take(max_len).collect(),
+        Some(other) => other
+            .to_string()
+            .trim_matches('"')
+            .trim()
+            .chars()
+            .take(max_len)
+            .collect(),
     }
 }
 
@@ -102,7 +108,12 @@ fn parse_length(value: Option<&Value>) -> usize {
 fn normalize_prefix(raw: &str) -> String {
     raw.chars()
         .filter(|ch| ch.is_ascii_alphanumeric())
-        .flat_map(|ch| ch.to_ascii_lowercase().to_string().chars().collect::<Vec<_>>())
+        .flat_map(|ch| {
+            ch.to_ascii_lowercase()
+                .to_string()
+                .chars()
+                .collect::<Vec<_>>()
+        })
         .take(4)
         .collect()
 }

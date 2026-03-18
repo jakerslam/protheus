@@ -321,7 +321,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "run".to_string());
-    let strict = parse_bool(lane_utils::parse_flag(argv, "strict", false).as_deref(), true);
+    let strict = parse_bool(
+        lane_utils::parse_flag(argv, "strict", false).as_deref(),
+        true,
+    );
     let policy = read_policy(root);
     if !policy.enabled {
         let payload = json!({
@@ -398,8 +401,12 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(failed.iter().any(|row| row.as_str() == Some("cold_start_ms_max")));
-        assert!(failed.iter().any(|row| row.as_str() == Some("tasks_per_sec_min")));
+        assert!(failed
+            .iter()
+            .any(|row| row.as_str() == Some("cold_start_ms_max")));
+        assert!(failed
+            .iter()
+            .any(|row| row.as_str() == Some("tasks_per_sec_min")));
     }
 
     #[test]

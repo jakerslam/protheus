@@ -32,7 +32,9 @@ fn usage() {
     println!("  protheus-ops strategy-store-kernel default-state");
     println!("  protheus-ops strategy-store-kernel default-draft [--payload-base64=<json>]");
     println!("  protheus-ops strategy-store-kernel normalize-mode [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel normalize-execution-mode [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops strategy-store-kernel normalize-execution-mode [--payload-base64=<json>]"
+    );
     println!("  protheus-ops strategy-store-kernel normalize-profile --payload-base64=<json>");
     println!("  protheus-ops strategy-store-kernel validate-profile --payload-base64=<json>");
     println!("  protheus-ops strategy-store-kernel normalize-queue-item --payload-base64=<json>");
@@ -44,7 +46,9 @@ fn usage() {
     println!("  protheus-ops strategy-store-kernel intake-signal --payload-base64=<json>");
     println!("  protheus-ops strategy-store-kernel materialize-from-queue --payload-base64=<json>");
     println!("  protheus-ops strategy-store-kernel touch-profile-usage --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel evaluate-gc-candidates [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops strategy-store-kernel evaluate-gc-candidates [--payload-base64=<json>]"
+    );
     println!("  protheus-ops strategy-store-kernel gc-profiles [--payload-base64=<json>]");
 }
 
@@ -230,7 +234,12 @@ fn stable_uid(seed: &str, prefix: &str, length: usize) -> String {
 
 fn random_uid(prefix: &str, length: usize) -> String {
     stable_uid(
-        &format!("{}:{}:{}", prefix, std::process::id(), Utc::now().timestamp_nanos_opt().unwrap_or_default()),
+        &format!(
+            "{}:{}:{}",
+            prefix,
+            std::process::id(),
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ),
         prefix,
         length,
     )
@@ -298,8 +307,12 @@ fn pointers_path(root: &Path) -> PathBuf {
 
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("strategy_store_kernel_create_dir_failed:{}:{err}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "strategy_store_kernel_create_dir_failed:{}:{err}",
+                parent.display()
+            )
+        })?;
     }
     Ok(())
 }
@@ -313,13 +326,26 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     ));
     let payload = serde_json::to_string_pretty(value)
         .map_err(|err| format!("strategy_store_kernel_encode_json_failed:{err}"))?;
-    let mut file = fs::File::create(&temp)
-        .map_err(|err| format!("strategy_store_kernel_create_tmp_failed:{}:{err}", temp.display()))?;
+    let mut file = fs::File::create(&temp).map_err(|err| {
+        format!(
+            "strategy_store_kernel_create_tmp_failed:{}:{err}",
+            temp.display()
+        )
+    })?;
     file.write_all(payload.as_bytes())
         .and_then(|_| file.write_all(b"\n"))
-        .map_err(|err| format!("strategy_store_kernel_write_tmp_failed:{}:{err}", temp.display()))?;
-    fs::rename(&temp, path)
-        .map_err(|err| format!("strategy_store_kernel_rename_tmp_failed:{}:{err}", path.display()))
+        .map_err(|err| {
+            format!(
+                "strategy_store_kernel_write_tmp_failed:{}:{err}",
+                temp.display()
+            )
+        })?;
+    fs::rename(&temp, path).map_err(|err| {
+        format!(
+            "strategy_store_kernel_rename_tmp_failed:{}:{err}",
+            path.display()
+        )
+    })
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
@@ -328,12 +354,22 @@ fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|err| format!("strategy_store_kernel_open_jsonl_failed:{}:{err}", path.display()))?;
+        .map_err(|err| {
+            format!(
+                "strategy_store_kernel_open_jsonl_failed:{}:{err}",
+                path.display()
+            )
+        })?;
     let encoded = serde_json::to_string(row)
         .map_err(|err| format!("strategy_store_kernel_encode_jsonl_failed:{err}"))?;
     file.write_all(encoded.as_bytes())
         .and_then(|_| file.write_all(b"\n"))
-        .map_err(|err| format!("strategy_store_kernel_append_jsonl_failed:{}:{err}", path.display()))
+        .map_err(|err| {
+            format!(
+                "strategy_store_kernel_append_jsonl_failed:{}:{err}",
+                path.display()
+            )
+        })
 }
 
 fn read_json(path: &Path) -> Value {
@@ -372,7 +408,14 @@ fn reason_from_meta(meta: Option<&Map<String, Value>>, fallback: &str) -> String
         .unwrap_or_else(|| fallback.to_string())
 }
 
-fn append_mutation_log(root: &Path, op: &str, rel_path: &str, value: Option<&Value>, meta: Option<&Map<String, Value>>, reason_fallback: &str) -> Result<(), String> {
+fn append_mutation_log(
+    root: &Path,
+    op: &str,
+    rel_path: &str,
+    value: Option<&Value>,
+    meta: Option<&Map<String, Value>>,
+    reason_fallback: &str,
+) -> Result<(), String> {
     let row = json!({
         "ts": now_iso(),
         "op": op,
@@ -395,10 +438,7 @@ fn pointer_index_load(root: &Path) -> Value {
 }
 
 fn pointer_index_save(root: &Path, index: &Value) -> Result<(), String> {
-    let pointers = index
-        .get("pointers")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    let pointers = index.get("pointers").cloned().unwrap_or_else(|| json!({}));
     write_json_atomic(
         &pointer_index_path(root),
         &json!({
@@ -435,7 +475,9 @@ fn emit_strategy_pointer(root: &Path, meta: Option<&Map<String, Value>>) -> Resu
         row.get("kind").and_then(Value::as_str).unwrap_or(""),
         row.get("uid").and_then(Value::as_str).unwrap_or(""),
         row.get("path_ref").and_then(Value::as_str).unwrap_or(""),
-        row.get("entity_id").map(json_string).unwrap_or_else(|| "null".to_string()),
+        row.get("entity_id")
+            .map(json_string)
+            .unwrap_or_else(|| "null".to_string()),
     );
     let hash = hash16(&json_string(&json!({
         "uid": row.get("uid").cloned().unwrap_or(Value::Null),
@@ -707,7 +749,11 @@ fn normalize_usage(raw: Option<&Map<String, Value>>, now_ts: &str) -> Value {
 }
 
 fn ensure_work_packet(item: &Value) -> Value {
-    let mode = normalize_mode(item.get("recommended_generation_mode").or_else(|| item.get("generation_mode")), Some("hyper-creative"));
+    let mode = normalize_mode(
+        item.get("recommended_generation_mode")
+            .or_else(|| item.get("generation_mode")),
+        Some("hyper-creative"),
+    );
     json!({
         "mode_hint": mode,
         "allowed_modes": ["hyper-creative", "deep-thinker"],
@@ -753,7 +799,11 @@ fn recommend_mode(summary: &str, raw_text: &str) -> String {
 
 fn compute_trust_score(item: &Value) -> i64 {
     let source = as_str(item.get("source")).to_ascii_lowercase();
-    let evidence = item.get("evidence_refs").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0) as i64;
+    let evidence = item
+        .get("evidence_refs")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0) as i64;
     let summary_len = as_str(item.get("summary")).len() as i64;
     let text_len = as_str(item.get("text")).len() as i64;
     let mut score = 20_i64;
@@ -790,7 +840,11 @@ fn queue_drop_reasons(item: &Value, policy: &Value, now_ms: i64) -> Vec<String> 
     if clamp_i64(item.get("attempts"), 0, 1000, 0) >= max_attempts {
         reasons.push("queue_max_attempts_exceeded".to_string());
     }
-    let evidence_len = item.get("evidence_refs").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0) as i64;
+    let evidence_len = item
+        .get("evidence_refs")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0) as i64;
     if evidence_len < min_evidence {
         reasons.push("evidence_missing".to_string());
     }
@@ -901,7 +955,11 @@ fn normalize_queue_item(raw: Option<&Map<String, Value>>, now_ts: &str) -> Value
     item["trust_score"] = Value::from(trust_score);
     item["drop_reason"] = {
         let value = clean_text(raw.get("drop_reason"), 200);
-        if value.is_empty() { Value::Null } else { Value::String(value) }
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
     };
     item["work_packet"] = ensure_work_packet(&item);
     item
@@ -922,11 +980,15 @@ fn normalize_profile(raw: Option<&Map<String, Value>>, now_ts: &str) -> Value {
     )
     .if_empty_then(&draft_id.clone().if_empty_then("strategy"));
     draft["id"] = Value::String(id.clone());
-    draft["name"] = Value::String(clean_text(raw.get("name"), 120).if_empty_then(&draft_name.if_empty_then(&id)));
+    draft["name"] = Value::String(
+        clean_text(raw.get("name"), 120).if_empty_then(&draft_name.if_empty_then(&id)),
+    );
     let objective_primary = {
         let current = as_object(draft.get("objective")).and_then(|v| v.get("primary"));
-        clean_text(current.or_else(|| raw.get("objective_primary")), 220)
-            .if_empty_then(&format!("Improve outcomes for {}", clean_text(draft.get("name"), 120).if_empty_then(&id)))
+        clean_text(current.or_else(|| raw.get("objective_primary")), 220).if_empty_then(&format!(
+            "Improve outcomes for {}",
+            clean_text(draft.get("name"), 120).if_empty_then(&id)
+        ))
     };
     draft["objective"] = json!({
         "primary": objective_primary,
@@ -940,7 +1002,11 @@ fn normalize_profile(raw: Option<&Map<String, Value>>, now_ts: &str) -> Value {
     });
     let requested_execution_mode = normalize_execution_mode(
         raw.get("execution_mode")
-            .or_else(|| raw.get("execution_policy").and_then(Value::as_object).and_then(|v| v.get("mode")))
+            .or_else(|| {
+                raw.get("execution_policy")
+                    .and_then(Value::as_object)
+                    .and_then(|v| v.get("mode"))
+            })
             .or_else(|| draft.pointer("/execution_policy/mode")),
         Some("score_only"),
     );
@@ -1024,13 +1090,20 @@ fn normalize_profile(raw: Option<&Map<String, Value>>, now_ts: &str) -> Value {
     })
 }
 
-fn validate_profile_input(raw_profile: Option<&Map<String, Value>>, allow_elevated_mode: bool) -> Result<Value, String> {
+fn validate_profile_input(
+    raw_profile: Option<&Map<String, Value>>,
+    allow_elevated_mode: bool,
+) -> Result<Value, String> {
     let normalized = normalize_profile(raw_profile, &now_iso());
     let mut errors = Vec::new();
     if as_str(normalized.get("id")).is_empty() {
         errors.push("id_required");
     }
-    if !normalized.get("draft").map(Value::is_object).unwrap_or(false) {
+    if !normalized
+        .get("draft")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         errors.push("draft_required");
     }
     if clean_text(normalized.pointer("/draft/objective/primary"), 220).is_empty() {
@@ -1044,7 +1117,10 @@ fn validate_profile_input(raw_profile: Option<&Map<String, Value>>, allow_elevat
     {
         errors.push("risk_policy_allowed_risks_required");
     }
-    let mode = normalize_execution_mode(normalized.pointer("/draft/execution_policy/mode"), Some("score_only"));
+    let mode = normalize_execution_mode(
+        normalized.pointer("/draft/execution_policy/mode"),
+        Some("score_only"),
+    );
     if !EXECUTION_MODES.contains(&mode.as_str()) {
         errors.push("execution_mode_invalid");
     }
@@ -1054,18 +1130,29 @@ fn validate_profile_input(raw_profile: Option<&Map<String, Value>>, allow_elevat
     if errors.is_empty() {
         Ok(normalized)
     } else {
-        Err(format!("strategy_store: validation_failed:{}", errors.join(",")))
+        Err(format!(
+            "strategy_store: validation_failed:{}",
+            errors.join(",")
+        ))
     }
 }
 
 fn normalize_state(raw: Option<&Value>, fallback: Option<&Value>) -> Value {
     let now_ts = now_iso();
     let base = default_strategy_state();
-    let src = raw.filter(|v| v.is_object()).unwrap_or_else(|| fallback.unwrap_or(&base));
+    let src = raw
+        .filter(|v| v.is_object())
+        .unwrap_or_else(|| fallback.unwrap_or(&base));
     let src_obj = payload_obj(src);
     let policy = normalize_policy(as_object(src_obj.get("policy")));
-    let max_profiles = policy.get("max_profiles").and_then(Value::as_i64).unwrap_or(64) as usize;
-    let max_queue = policy.get("max_queue").and_then(Value::as_i64).unwrap_or(64) as usize;
+    let max_profiles = policy
+        .get("max_profiles")
+        .and_then(Value::as_i64)
+        .unwrap_or(64) as usize;
+    let max_queue = policy
+        .get("max_queue")
+        .and_then(Value::as_i64)
+        .unwrap_or(64) as usize;
 
     let mut profiles_by_id: BTreeMap<String, Value> = BTreeMap::new();
     for profile in src_obj
@@ -1130,7 +1217,8 @@ fn normalize_state(raw: Option<&Value>, fallback: Option<&Value>) -> Value {
     }
     let mut intake_queue = queue_by_uid.into_values().collect::<Vec<_>>();
     intake_queue.sort_by(|a, b| {
-        parse_ts_ms(&as_str(a.get("created_ts"))).unwrap_or(0)
+        parse_ts_ms(&as_str(a.get("created_ts")))
+            .unwrap_or(0)
             .cmp(&parse_ts_ms(&as_str(b.get("created_ts"))).unwrap_or(0))
     });
     if intake_queue.len() > max_queue {
@@ -1201,23 +1289,48 @@ fn ensure_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
     let next = default_strategy_state();
     write_json_atomic(&path, &next)?;
     let meta = as_object(payload.get("meta"));
-    append_mutation_log(root, "ensure", DEFAULT_REL_PATH, Some(&next), meta, "ensure_strategy_state")?;
+    append_mutation_log(
+        root,
+        "ensure",
+        DEFAULT_REL_PATH,
+        Some(&next),
+        meta,
+        "ensure_strategy_state",
+    )?;
     emit_strategy_pointer(root, meta)?;
-    Ok(normalize_state(Some(&next), Some(&default_strategy_state())))
+    Ok(normalize_state(
+        Some(&next),
+        Some(&default_strategy_state()),
+    ))
 }
 
 fn set_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let path = as_store_path(root, payload)?;
-    let state = payload.get("state").cloned().unwrap_or_else(|| Value::Object(payload.clone()));
+    let state = payload
+        .get("state")
+        .cloned()
+        .unwrap_or_else(|| Value::Object(payload.clone()));
     let normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
     write_json_atomic(&path, &normalized)?;
     let meta = as_object(payload.get("meta"));
-    append_mutation_log(root, "set", DEFAULT_REL_PATH, Some(&normalized), meta, "set_strategy_state")?;
+    append_mutation_log(
+        root,
+        "set",
+        DEFAULT_REL_PATH,
+        Some(&normalized),
+        meta,
+        "set_strategy_state",
+    )?;
     emit_strategy_pointer(root, meta)?;
     Ok(normalized)
 }
 
-fn mutate_state(root: &Path, payload: &Map<String, Value>, reason: &str, mutator: impl FnOnce(&mut Value) -> Result<(), String>) -> Result<Value, String> {
+fn mutate_state(
+    root: &Path,
+    payload: &Map<String, Value>,
+    reason: &str,
+    mutator: impl FnOnce(&mut Value) -> Result<(), String>,
+) -> Result<Value, String> {
     let path = as_store_path(root, payload)?;
     let raw = read_json(&path);
     let mut state = normalize_state(Some(&raw), Some(&default_strategy_state()));
@@ -1225,7 +1338,14 @@ fn mutate_state(root: &Path, payload: &Map<String, Value>, reason: &str, mutator
     let normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
     write_json_atomic(&path, &normalized)?;
     let meta = as_object(payload.get("meta"));
-    append_mutation_log(root, "set", DEFAULT_REL_PATH, Some(&normalized), meta, reason)?;
+    append_mutation_log(
+        root,
+        "set",
+        DEFAULT_REL_PATH,
+        Some(&normalized),
+        meta,
+        reason,
+    )?;
     emit_strategy_pointer(root, meta)?;
     Ok(normalized)
 }
@@ -1241,16 +1361,25 @@ fn upsert_profile(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
             .and_then(|m| m.get("allow_elevated_mode"))
             .and_then(Value::as_bool)
             == Some(true);
-        let incoming = validate_profile_input(payload.get("profile").and_then(Value::as_object), allow_elevated)?;
+        let incoming = validate_profile_input(
+            payload.get("profile").and_then(Value::as_object),
+            allow_elevated,
+        )?;
         let incoming_id = as_str(incoming.get("id"));
-        let max_profiles = state.pointer("/policy/max_profiles").and_then(Value::as_i64).unwrap_or(64) as usize;
+        let max_profiles = state
+            .pointer("/policy/max_profiles")
+            .and_then(Value::as_i64)
+            .unwrap_or(64) as usize;
         let mut updated_metric = 0_i64;
         let mut created_metric = 0_i64;
         {
             let profiles = state["profiles"]
                 .as_array_mut()
                 .ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
-            if let Some(idx) = profiles.iter().position(|row| as_str(row.get("id")) == incoming_id) {
+            if let Some(idx) = profiles
+                .iter()
+                .position(|row| as_str(row.get("id")) == incoming_id)
+            {
                 let existing = normalize_profile(profiles[idx].as_object(), &ts);
                 let mut merged = incoming.clone();
                 merged["usage"] = if existing.get("usage").map(Value::is_object).unwrap_or(false) {
@@ -1296,12 +1425,22 @@ fn upsert_profile(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
         }
         if updated_metric > 0 {
             state["metrics"]["total_profiles_updated"] = Value::from(
-                clamp_i64(state.pointer("/metrics/total_profiles_updated"), 0, 100_000_000, 0) + updated_metric,
+                clamp_i64(
+                    state.pointer("/metrics/total_profiles_updated"),
+                    0,
+                    100_000_000,
+                    0,
+                ) + updated_metric,
             );
         }
         if created_metric > 0 {
             state["metrics"]["total_profiles_created"] = Value::from(
-                clamp_i64(state.pointer("/metrics/total_profiles_created"), 0, 100_000_000, 0) + created_metric,
+                clamp_i64(
+                    state.pointer("/metrics/total_profiles_created"),
+                    0,
+                    100_000_000,
+                    0,
+                ) + created_metric,
             );
         }
         Ok(())
@@ -1327,7 +1466,10 @@ fn intake_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, Str
             item["status"] = Value::String("dropped".to_string());
             item["drop_reason"] = Value::String(drops.join(","));
         }
-        let max_queue = state.pointer("/policy/max_queue").and_then(Value::as_i64).unwrap_or(64) as usize;
+        let max_queue = state
+            .pointer("/policy/max_queue")
+            .and_then(Value::as_i64)
+            .unwrap_or(64) as usize;
         let intake_recorded = {
             let queue = state["intake_queue"]
                 .as_array_mut()
@@ -1357,7 +1499,11 @@ fn intake_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, Str
                 clamp_i64(state.pointer("/metrics/total_intakes"), 0, 100_000_000, 0) + 1,
             );
         }
-        action = if as_str(item.get("status")) == "dropped" { "dropped".to_string() } else { "queued".to_string() };
+        action = if as_str(item.get("status")) == "dropped" {
+            "dropped".to_string()
+        } else {
+            "queued".to_string()
+        };
         queue_item = item;
         Ok(())
     })?;
@@ -1394,13 +1540,16 @@ fn materialize_from_queue(root: &Path, payload: &Map<String, Value>) -> Result<V
             .unwrap_or_default();
         draft_input.insert(
             "source".to_string(),
-            Value::String(clean_text(draft_input.get("source"), 80).if_empty_then(&clean_text(queue_item.get("source"), 80).if_empty_then("adaptive_intake"))),
+            Value::String(clean_text(draft_input.get("source"), 80).if_empty_then(
+                &clean_text(queue_item.get("source"), 80).if_empty_then("adaptive_intake"),
+            )),
         );
         draft_input.insert("queue_ref".to_string(), Value::String(qid.clone()));
         draft_input.insert(
             "generated_mode".to_string(),
             Value::String(normalize_mode(
-                draft_input.get("generated_mode")
+                draft_input
+                    .get("generated_mode")
                     .or_else(|| draft_input.get("generation_mode"))
                     .or_else(|| queue_item.get("recommended_generation_mode")),
                 Some("hyper-creative"),
@@ -1439,7 +1588,10 @@ fn materialize_from_queue(root: &Path, payload: &Map<String, Value>) -> Result<V
             let profiles = state["profiles"]
                 .as_array_mut()
                 .ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
-            if let Some(existing_idx) = profiles.iter().position(|row| as_str(row.get("id")) == upsert_id) {
+            if let Some(existing_idx) = profiles
+                .iter()
+                .position(|row| as_str(row.get("id")) == upsert_id)
+            {
                 let prev = normalize_profile(profiles[existing_idx].as_object(), &ts);
                 let mut merged = upsert.as_object().cloned().unwrap_or_default();
                 merged.insert(
@@ -1483,18 +1635,31 @@ fn materialize_from_queue(root: &Path, payload: &Map<String, Value>) -> Result<V
         }
         if updated_metric > 0 {
             state["metrics"]["total_profiles_updated"] = Value::from(
-                clamp_i64(state.pointer("/metrics/total_profiles_updated"), 0, 100_000_000, 0)
-                    + updated_metric,
+                clamp_i64(
+                    state.pointer("/metrics/total_profiles_updated"),
+                    0,
+                    100_000_000,
+                    0,
+                ) + updated_metric,
             );
         }
         if created_metric > 0 {
             state["metrics"]["total_profiles_created"] = Value::from(
-                clamp_i64(state.pointer("/metrics/total_profiles_created"), 0, 100_000_000, 0)
-                    + created_metric,
+                clamp_i64(
+                    state.pointer("/metrics/total_profiles_created"),
+                    0,
+                    100_000_000,
+                    0,
+                ) + created_metric,
             );
         }
         state["metrics"]["total_queue_consumed"] = Value::from(
-            clamp_i64(state.pointer("/metrics/total_queue_consumed"), 0, 100_000_000, 0) + 1,
+            clamp_i64(
+                state.pointer("/metrics/total_queue_consumed"),
+                0,
+                100_000_000,
+                0,
+            ) + 1,
         );
         queue_out = consumed;
         Ok(())
@@ -1513,19 +1678,36 @@ fn touch_profile_usage(root: &Path, payload: &Map<String, Value>) -> Result<Valu
         .unwrap_or_else(now_iso);
     let mut profile_out = Value::Null;
     let state = mutate_state(root, payload, "touch_profile_usage", |state| {
-        let profiles = state["profiles"].as_array_mut().ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
-        let idx = profiles.iter().position(|row| as_str(row.get("id")) == sid).ok_or_else(|| format!("strategy_store: strategy_not_found:{sid}"))?;
+        let profiles = state["profiles"]
+            .as_array_mut()
+            .ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
+        let idx = profiles
+            .iter()
+            .position(|row| as_str(row.get("id")) == sid)
+            .ok_or_else(|| format!("strategy_store: strategy_not_found:{sid}"))?;
         let mut profile = normalize_profile(profiles[idx].as_object(), &touch_ts);
         let mut usage = normalize_usage(profile.get("usage").and_then(Value::as_object), &touch_ts);
-        let mut events = usage.get("use_events").and_then(Value::as_array).cloned().unwrap_or_default();
+        let mut events = usage
+            .get("use_events")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         events.push(Value::String(touch_ts.clone()));
         if events.len() > 256 {
             events = events.split_off(events.len() - 256);
         }
         let cutoff = parse_ts_ms(&touch_ts).unwrap_or(0) - (30_i64 * 24 * 60 * 60 * 1000);
-        let uses_30 = events.iter().filter(|row| parse_ts_ms(&as_str(Some(row))).map(|ms| ms >= cutoff).unwrap_or(false)).count() as i64;
+        let uses_30 = events
+            .iter()
+            .filter(|row| {
+                parse_ts_ms(&as_str(Some(row)))
+                    .map(|ms| ms >= cutoff)
+                    .unwrap_or(false)
+            })
+            .count() as i64;
         usage["use_events"] = Value::Array(events);
-        usage["uses_total"] = Value::from(clamp_i64(usage.get("uses_total"), 0, 100_000_000, 0) + 1);
+        usage["uses_total"] =
+            Value::from(clamp_i64(usage.get("uses_total"), 0, 100_000_000, 0) + 1);
         usage["uses_30d"] = Value::from(uses_30);
         usage["last_used_ts"] = Value::String(touch_ts.clone());
         usage["last_usage_sync_ts"] = Value::String(touch_ts.clone());
@@ -1539,29 +1721,61 @@ fn touch_profile_usage(root: &Path, payload: &Map<String, Value>) -> Result<Valu
 }
 
 fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>) -> Value {
-    let policy = state.get("policy").cloned().unwrap_or_else(|| default_strategy_state()["policy"].clone());
+    let policy = state
+        .get("policy")
+        .cloned()
+        .unwrap_or_else(|| default_strategy_state()["policy"].clone());
     let opts = opts.unwrap_or_else(|| {
         static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
         EMPTY.get_or_init(Map::new)
     });
     let now_ms = Utc::now().timestamp_millis();
-    let inactive_days = clamp_i64(opts.get("inactive_days"), 1, 365, clamp_i64(policy.get("gc_inactive_days"), 1, 365, 21));
-    let min_uses_30d = clamp_i64(opts.get("min_uses_30d"), 0, 1000, clamp_i64(policy.get("gc_min_uses_30d"), 0, 1000, 1));
-    let protect_new_days = clamp_i64(opts.get("protect_new_days"), 0, 90, clamp_i64(policy.get("gc_protect_new_days"), 0, 90, 3));
+    let inactive_days = clamp_i64(
+        opts.get("inactive_days"),
+        1,
+        365,
+        clamp_i64(policy.get("gc_inactive_days"), 1, 365, 21),
+    );
+    let min_uses_30d = clamp_i64(
+        opts.get("min_uses_30d"),
+        0,
+        1000,
+        clamp_i64(policy.get("gc_min_uses_30d"), 0, 1000, 1),
+    );
+    let protect_new_days = clamp_i64(
+        opts.get("protect_new_days"),
+        0,
+        90,
+        clamp_i64(policy.get("gc_protect_new_days"), 0, 90, 3),
+    );
     let mut candidates = Vec::new();
     let mut keepers = Vec::new();
-    for profile in state.get("profiles").and_then(Value::as_array).cloned().unwrap_or_default() {
+    for profile in state
+        .get("profiles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
         let profile = normalize_profile(profile.as_object(), &now_iso());
         let usage = profile.get("usage").cloned().unwrap_or_else(|| json!({}));
-        let last_used = usage.get("last_used_ts").and_then(|v| parse_ts_ms(&as_str(Some(v))));
-        let created = profile.get("created_ts").and_then(|v| parse_ts_ms(&as_str(Some(v))));
+        let last_used = usage
+            .get("last_used_ts")
+            .and_then(|v| parse_ts_ms(&as_str(Some(v))));
+        let created = profile
+            .get("created_ts")
+            .and_then(|v| parse_ts_ms(&as_str(Some(v))));
         let age_days = last_used.map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0));
         let new_age_days = created.map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0));
         let uses_30 = clamp_i64(usage.get("uses_30d"), 0, 1000, 0);
-        let stale = age_days.map(|days| days > inactive_days as f64).unwrap_or(true);
+        let stale = age_days
+            .map(|days| days > inactive_days as f64)
+            .unwrap_or(true);
         let low_use = uses_30 < min_uses_30d;
-        let protected_new = new_age_days.map(|days| days < protect_new_days as f64).unwrap_or(false);
-        let removable = stale && low_use && !protected_new && as_str(profile.get("status")) != "active";
+        let protected_new = new_age_days
+            .map(|days| days < protect_new_days as f64)
+            .unwrap_or(false);
+        let removable =
+            stale && low_use && !protected_new && as_str(profile.get("status")) != "active";
         let row = json!({
             "id": profile.get("id").cloned().unwrap_or(Value::Null),
             "uid": profile.get("uid").cloned().unwrap_or(Value::Null),
@@ -1601,29 +1815,55 @@ fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>
 fn gc_profiles(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let apply = payload.get("apply").and_then(Value::as_bool) == Some(true);
     let mut summary = Value::Null;
-    let state = mutate_state(root, payload, if apply { "gc_profiles_apply" } else { "gc_profiles_preview" }, |state| {
-        let evals = evaluate_gc_candidates_value(state, payload.get("opts").and_then(Value::as_object).or_else(|| as_object(payload.get("gc_opts"))).or_else(|| as_object(payload.get("options"))).or_else(|| as_object(payload.get("payload"))));
-        summary = evals.clone();
-        if !apply {
-            return Ok(());
-        }
-        let remove_ids = evals
-            .get("candidates")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|row| as_str(row.get("id")))
-            .collect::<Vec<_>>();
-        if remove_ids.is_empty() {
-            return Ok(());
-        }
-        let profiles = state["profiles"].as_array_mut().ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
-        profiles.retain(|row| !remove_ids.iter().any(|id| id == &as_str(row.get("id"))));
-        state["metrics"]["total_gc_deleted"] = Value::from(clamp_i64(state.pointer("/metrics/total_gc_deleted"), 0, 100_000_000, 0) + remove_ids.len() as i64);
-        state["metrics"]["last_gc_ts"] = Value::String(now_iso());
-        Ok(())
-    })?;
+    let state = mutate_state(
+        root,
+        payload,
+        if apply {
+            "gc_profiles_apply"
+        } else {
+            "gc_profiles_preview"
+        },
+        |state| {
+            let evals = evaluate_gc_candidates_value(
+                state,
+                payload
+                    .get("opts")
+                    .and_then(Value::as_object)
+                    .or_else(|| as_object(payload.get("gc_opts")))
+                    .or_else(|| as_object(payload.get("options")))
+                    .or_else(|| as_object(payload.get("payload"))),
+            );
+            summary = evals.clone();
+            if !apply {
+                return Ok(());
+            }
+            let remove_ids = evals
+                .get("candidates")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|row| as_str(row.get("id")))
+                .collect::<Vec<_>>();
+            if remove_ids.is_empty() {
+                return Ok(());
+            }
+            let profiles = state["profiles"]
+                .as_array_mut()
+                .ok_or_else(|| "strategy_store: profiles_missing".to_string())?;
+            profiles.retain(|row| !remove_ids.iter().any(|id| id == &as_str(row.get("id"))));
+            state["metrics"]["total_gc_deleted"] = Value::from(
+                clamp_i64(
+                    state.pointer("/metrics/total_gc_deleted"),
+                    0,
+                    100_000_000,
+                    0,
+                ) + remove_ids.len() as i64,
+            );
+            state["metrics"]["last_gc_ts"] = Value::String(now_iso());
+            Ok(())
+        },
+    )?;
     Ok(json!({
         "state": state,
         "apply": apply,
@@ -1641,22 +1881,40 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
             "store_abs_path": store_abs_path(root).to_string_lossy(),
         })),
         "default-state" => Ok(default_strategy_state()),
-        "default-draft" => Ok(default_strategy_draft(payload.get("seed").and_then(Value::as_object).or_else(|| Some(payload)))),
-        "normalize-mode" => Ok(json!({"mode": normalize_mode(payload.get("value").or_else(|| payload.get("mode")), Some(&as_str(payload.get("fallback")).if_empty_then("hyper-creative")))})),
-        "normalize-execution-mode" => Ok(json!({"mode": normalize_execution_mode(payload.get("value").or_else(|| payload.get("mode")), Some(&as_str(payload.get("fallback")).if_empty_then("score_only")))})),
+        "default-draft" => Ok(default_strategy_draft(
+            payload
+                .get("seed")
+                .and_then(Value::as_object)
+                .or_else(|| Some(payload)),
+        )),
+        "normalize-mode" => Ok(
+            json!({"mode": normalize_mode(payload.get("value").or_else(|| payload.get("mode")), Some(&as_str(payload.get("fallback")).if_empty_then("hyper-creative")))}),
+        ),
+        "normalize-execution-mode" => Ok(
+            json!({"mode": normalize_execution_mode(payload.get("value").or_else(|| payload.get("mode")), Some(&as_str(payload.get("fallback")).if_empty_then("score_only")))}),
+        ),
         "normalize-profile" => {
             let now_ts = payload
                 .get("now_ts")
                 .and_then(|v| parse_ts_ms(&as_str(Some(v))).map(|_| as_str(Some(v))))
                 .unwrap_or_else(now_iso);
             Ok(normalize_profile(
-                payload.get("profile").and_then(Value::as_object).or_else(|| Some(payload)),
+                payload
+                    .get("profile")
+                    .and_then(Value::as_object)
+                    .or_else(|| Some(payload)),
                 &now_ts,
             ))
         }
         "validate-profile" => validate_profile_input(
-            payload.get("profile").and_then(Value::as_object).or_else(|| Some(payload)),
-            payload.get("allow_elevated_mode").and_then(Value::as_bool).unwrap_or(false),
+            payload
+                .get("profile")
+                .and_then(Value::as_object)
+                .or_else(|| Some(payload)),
+            payload
+                .get("allow_elevated_mode")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
         ),
         "normalize-queue-item" => {
             let now_ts = payload
@@ -1664,11 +1922,16 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
                 .and_then(|v| parse_ts_ms(&as_str(Some(v))).map(|_| as_str(Some(v))))
                 .unwrap_or_else(now_iso);
             Ok(normalize_queue_item(
-                payload.get("item").and_then(Value::as_object).or_else(|| Some(payload)),
+                payload
+                    .get("item")
+                    .and_then(Value::as_object)
+                    .or_else(|| Some(payload)),
                 &now_ts,
             ))
         }
-        "recommend-mode" => Ok(json!({"mode": recommend_mode(&clean_text(payload.get("summary"), 220), &clean_text(payload.get("text"), 6000))})),
+        "recommend-mode" => Ok(
+            json!({"mode": recommend_mode(&clean_text(payload.get("summary"), 220), &clean_text(payload.get("text"), 6000))}),
+        ),
         "read-state" => read_state(root, payload),
         "ensure-state" => ensure_state(root, payload),
         "set-state" => set_state(root, payload),
@@ -1751,8 +2014,18 @@ mod tests {
             }))),
             &now_iso(),
         );
-        assert_eq!(normalized.pointer("/draft/execution_policy/mode").and_then(Value::as_str), Some("score_only"));
-        assert_eq!(normalized.get("elevated_mode_forced_down").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            normalized
+                .pointer("/draft/execution_policy/mode")
+                .and_then(Value::as_str),
+            Some("score_only")
+        );
+        assert_eq!(
+            normalized
+                .get("elevated_mode_forced_down")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -1770,9 +2043,14 @@ mod tests {
                     "evidence_refs": ["doc://proof"]
                 }
             })),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(intake.get("action").and_then(Value::as_str), Some("queued"));
-        let qid = intake.pointer("/queue_item/uid").and_then(Value::as_str).unwrap().to_string();
+        let qid = intake
+            .pointer("/queue_item/uid")
+            .and_then(Value::as_str)
+            .unwrap()
+            .to_string();
 
         let materialized = run_command(
             &root,
@@ -1785,19 +2063,38 @@ mod tests {
                     "draft": {"objective": {"primary": "Ship durable queue"}}
                 }
             })),
-        ).unwrap();
-        assert_eq!(materialized.get("action").and_then(Value::as_str), Some("created"));
-        let strategy_id = materialized.pointer("/profile/id").and_then(Value::as_str).unwrap().to_string();
+        )
+        .unwrap();
+        assert_eq!(
+            materialized.get("action").and_then(Value::as_str),
+            Some("created")
+        );
+        let strategy_id = materialized
+            .pointer("/profile/id")
+            .and_then(Value::as_str)
+            .unwrap()
+            .to_string();
 
         let touched = run_command(
             &root,
             "touch-profile-usage",
             payload_obj(&json!({"strategy_id": strategy_id, "ts": "2026-03-17T12:00:00Z"})),
-        ).unwrap();
-        assert_eq!(touched.pointer("/profile/usage/uses_total").and_then(Value::as_i64), Some(1));
+        )
+        .unwrap();
+        assert_eq!(
+            touched
+                .pointer("/profile/usage/uses_total")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
 
         let gc = run_command(&root, "evaluate-gc-candidates", payload_obj(&json!({}))).unwrap();
-        assert_eq!(gc.get("candidates").and_then(Value::as_array).map(|rows| rows.len()), Some(0));
+        assert_eq!(
+            gc.get("candidates")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(0)
+        );
     }
 
     #[test]

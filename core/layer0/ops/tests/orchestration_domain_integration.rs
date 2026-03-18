@@ -8,7 +8,10 @@ fn run_invoke(root: &Path, op: &str, payload: Value) -> i32 {
     let args = vec![
         "invoke".to_string(),
         format!("--op={op}"),
-        format!("--payload-json={}", serde_json::to_string(&payload).expect("payload")),
+        format!(
+            "--payload-json={}",
+            serde_json::to_string(&payload).expect("payload")
+        ),
     ];
     orchestration::run(root, &args)
 }
@@ -51,9 +54,19 @@ fn scratchpad_write_and_append_finding_roundtrip() {
     let file_path = scratchpad_dir.join("audit-task-001.json");
     assert!(file_path.exists());
     let stored: Value =
-        serde_json::from_str(&fs::read_to_string(&file_path).expect("read scratchpad")).expect("parse");
-    assert_eq!(stored.get("schema_version").and_then(Value::as_str), Some("scratchpad/v1"));
-    assert_eq!(stored.get("findings").and_then(Value::as_array).map(|rows| rows.len()), Some(1));
+        serde_json::from_str(&fs::read_to_string(&file_path).expect("read scratchpad"))
+            .expect("parse");
+    assert_eq!(
+        stored.get("schema_version").and_then(Value::as_str),
+        Some("scratchpad/v1")
+    );
+    assert_eq!(
+        stored
+            .get("findings")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(1)
+    );
 }
 
 #[test]
@@ -104,10 +117,9 @@ fn coordinator_run_writes_taskgroup_and_progress() {
 
     let scratchpad_path = scratchpad_dir.join("coord-task-001.json");
     assert!(scratchpad_path.exists());
-    let scratchpad: Value = serde_json::from_str(
-        &fs::read_to_string(&scratchpad_path).expect("read scratchpad"),
-    )
-    .expect("parse scratchpad");
+    let scratchpad: Value =
+        serde_json::from_str(&fs::read_to_string(&scratchpad_path).expect("read scratchpad"))
+            .expect("parse scratchpad");
     assert_eq!(
         scratchpad
             .get("progress")
@@ -130,11 +142,13 @@ fn coordinator_run_writes_taskgroup_and_progress() {
         .collect::<Vec<_>>();
     assert!(!entries.is_empty());
 
-    let taskgroup: Value = serde_json::from_str(
-        &fs::read_to_string(entries[0].path()).expect("read taskgroup"),
-    )
-    .expect("parse taskgroup");
-    assert_eq!(taskgroup.get("status").and_then(Value::as_str), Some("done"));
+    let taskgroup: Value =
+        serde_json::from_str(&fs::read_to_string(entries[0].path()).expect("read taskgroup"))
+            .expect("parse taskgroup");
+    assert_eq!(
+        taskgroup.get("status").and_then(Value::as_str),
+        Some("done")
+    );
     assert_eq!(
         taskgroup
             .get("agents")

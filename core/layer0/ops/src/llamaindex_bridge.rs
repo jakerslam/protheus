@@ -19,7 +19,9 @@ fn usage() {
     println!("llamaindex-bridge commands:");
     println!("  protheus-ops llamaindex-bridge status [--state-path=<path>]");
     println!("  protheus-ops llamaindex-bridge register-index [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge query [--payload-base64=<json>] [--state-path=<path>]");
+    println!(
+        "  protheus-ops llamaindex-bridge query [--payload-base64=<json>] [--state-path=<path>]"
+    );
     println!("  protheus-ops llamaindex-bridge run-agent-workflow [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  protheus-ops llamaindex-bridge ingest-multimodal [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops llamaindex-bridge record-memory-eval [--payload-base64=<json>] [--state-path=<path>]");
@@ -100,21 +102,36 @@ fn repo_path(root: &Path, rel: &str) -> PathBuf {
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "state-path", false)
-        .or_else(|| payload.get("state_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("state_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_STATE_REL))
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "history-path", false)
-        .or_else(|| payload.get("history_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("history_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_HISTORY_REL))
 }
 
 fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
     lane_utils::parse_flag(argv, "swarm-state-path", false)
-        .or_else(|| payload.get("swarm_state_path").and_then(Value::as_str).map(ToString::to_string))
+        .or_else(|| {
+            payload
+                .get("swarm_state_path")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(DEFAULT_SWARM_STATE_REL))
 }
@@ -155,7 +172,11 @@ fn ensure_state_shape(value: &mut Value) {
     if !value.get("traces").map(Value::is_array).unwrap_or(false) {
         value["traces"] = json!([]);
     }
-    if value.get("schema_version").and_then(Value::as_str).is_none() {
+    if value
+        .get("schema_version")
+        .and_then(Value::as_str)
+        .is_none()
+    {
         value["schema_version"] = json!("llamaindex_bridge_state_v1");
     }
 }
@@ -178,14 +199,20 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
     if !value.get(key).map(Value::is_object).unwrap_or(false) {
         value[key] = json!({});
     }
-    value.get_mut(key).and_then(Value::as_object_mut).expect("object")
+    value
+        .get_mut(key)
+        .and_then(Value::as_object_mut)
+        .expect("object")
 }
 
 fn as_array_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     if !value.get(key).map(Value::is_array).unwrap_or(false) {
         value[key] = json!([]);
     }
-    value.get_mut(key).and_then(Value::as_array_mut).expect("array")
+    value
+        .get_mut(key)
+        .and_then(Value::as_array_mut)
+        .expect("array")
 }
 
 fn now_millis() -> u128 {
@@ -203,7 +230,11 @@ fn to_base36(mut value: u128) -> String {
     let mut out = Vec::new();
     while value > 0 {
         let digit = (value % 36) as u8;
-        out.push(if digit < 10 { (b'0' + digit) as char } else { (b'a' + (digit - 10)) as char });
+        out.push(if digit < 10 {
+            (b'0' + digit) as char
+        } else {
+            (b'a' + (digit - 10)) as char
+        });
         value /= 36;
     }
     out.iter().rev().collect()
@@ -241,11 +272,17 @@ fn clean_token(raw: Option<&str>, fallback: &str) -> String {
 }
 
 fn parse_u64_value(value: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
-    value.and_then(|row| row.as_u64()).unwrap_or(fallback).clamp(min, max)
+    value
+        .and_then(|row| row.as_u64())
+        .unwrap_or(fallback)
+        .clamp(min, max)
 }
 
 fn parse_f64_value(value: Option<&Value>, fallback: f64, min: f64, max: f64) -> f64 {
-    value.and_then(|row| row.as_f64()).unwrap_or(fallback).clamp(min, max)
+    value
+        .and_then(|row| row.as_f64())
+        .unwrap_or(fallback)
+        .clamp(min, max)
 }
 
 fn rel(root: &Path, path: &Path) -> String {
@@ -288,8 +325,7 @@ fn default_claim_evidence(id: &str, claim: &str) -> Value {
 }
 
 fn read_swarm_state(path: &Path) -> Value {
-    lane_utils::read_json(path)
-        .unwrap_or_else(|| json!({ "sessions": {}, "handoff_registry": {} }))
+    lane_utils::read_json(path).unwrap_or_else(|| json!({ "sessions": {}, "handoff_registry": {} }))
 }
 
 fn find_swarm_session_id_by_task(state: &Value, task: &str) -> Option<String> {
@@ -351,23 +387,40 @@ fn retrieval_score(doc: &Value, terms: &[String], mode: &str) -> i64 {
             };
         }
     }
-    if mode == "hybrid" && doc.get("metadata").and_then(|row| row.get("kind")).and_then(Value::as_str) == Some("graph") {
+    if mode == "hybrid"
+        && doc
+            .get("metadata")
+            .and_then(|row| row.get("kind"))
+            .and_then(Value::as_str)
+            == Some("graph")
+    {
         score += 2;
     }
     score
 }
 
 fn register_index(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(payload.get("name").and_then(Value::as_str), "llamaindex-index");
-    let documents = payload.get("documents").and_then(Value::as_array).cloned().unwrap_or_default();
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "llamaindex-index",
+    );
+    let documents = payload
+        .get("documents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if documents.is_empty() {
         return Err("llamaindex_index_documents_required".to_string());
     }
-    let retrieval_modes = payload.get("retrieval_modes")
+    let retrieval_modes = payload
+        .get("retrieval_modes")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_else(|| vec![json!("hybrid"), json!("vector"), json!("graph")]);
-    let query_engine = clean_token(payload.get("query_engine").and_then(Value::as_str), "router");
+    let query_engine = clean_token(
+        payload.get("query_engine").and_then(Value::as_str),
+        "router",
+    );
     let index = json!({
         "index_id": stable_id("llxidx", &json!({"name": name, "engine": query_engine})),
         "name": name,
@@ -376,7 +429,11 @@ fn register_index(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         "documents": documents,
         "registered_at": now_iso(),
     });
-    let index_id = index.get("index_id").and_then(Value::as_str).unwrap().to_string();
+    let index_id = index
+        .get("index_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "indexes").insert(index_id, index.clone());
     Ok(json!({
         "ok": true,
@@ -403,8 +460,15 @@ fn query_index(state: &Value, payload: &Map<String, Value>) -> Result<Value, Str
         .and_then(|rows| rows.get(&index_id))
         .cloned()
         .ok_or_else(|| format!("unknown_llamaindex_index:{index_id}"))?;
-    let supported = index.get("retrieval_modes").and_then(Value::as_array).cloned().unwrap_or_default();
-    let supported_modes = supported.iter().filter_map(Value::as_str).collect::<BTreeSet<_>>();
+    let supported = index
+        .get("retrieval_modes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let supported_modes = supported
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
     if !supported_modes.contains(mode.as_str()) {
         return Err(format!("llamaindex_query_mode_unsupported:{mode}"));
     }
@@ -434,13 +498,17 @@ fn query_index(state: &Value, payload: &Map<String, Value>) -> Result<Value, Str
         .filter(|(score, _)| *score > 0)
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| b.0.cmp(&a.0));
-    let results = ranked.into_iter().take(top_k).map(|(score, doc)| {
-        json!({
-            "score": score,
-            "text": doc.get("text").cloned().unwrap_or(Value::Null),
-            "metadata": doc.get("metadata").cloned().unwrap_or(Value::Null),
+    let results = ranked
+        .into_iter()
+        .take(top_k)
+        .map(|(score, doc)| {
+            json!({
+                "score": score,
+                "text": doc.get("text").cloned().unwrap_or(Value::Null),
+                "metadata": doc.get("metadata").cloned().unwrap_or(Value::Null),
+            })
         })
-    }).collect::<Vec<_>>();
+        .collect::<Vec<_>>();
     Ok(json!({
         "ok": true,
         "index_id": index_id,
@@ -453,15 +521,31 @@ fn query_index(state: &Value, payload: &Map<String, Value>) -> Result<Value, Str
     }))
 }
 
-fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let workflow_name = clean_token(payload.get("name").and_then(Value::as_str), "llamaindex-agent-workflow");
+fn run_agent_workflow(
+    root: &Path,
+    argv: &[String],
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let workflow_name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "llamaindex-agent-workflow",
+    );
     let query = clean_text(payload.get("query").and_then(Value::as_str), 200);
     if query.is_empty() {
         return Err("llamaindex_agent_workflow_query_required".to_string());
     }
     let swarm_state_path = swarm_state_path(root, argv, payload);
-    let tools = payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
-    let handoffs = payload.get("handoffs").and_then(Value::as_array).cloned().unwrap_or_default();
+    let tools = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let handoffs = payload
+        .get("handoffs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let child_budget_sum = handoffs
         .iter()
         .filter_map(|row| row.get("budget").and_then(Value::as_u64))
@@ -472,7 +556,10 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
         .saturating_add(1024)
         .clamp(1024, 16384);
     let agent_task = format!("llamaindex:{}:{}", workflow_name, query);
-    let agent_label = clean_token(payload.get("agent_label").and_then(Value::as_str), "llamaindex-agent");
+    let agent_label = clean_token(
+        payload.get("agent_label").and_then(Value::as_str),
+        "llamaindex-agent",
+    );
     let spawn_exit = crate::swarm_runtime::run(
         root,
         &[
@@ -492,9 +579,17 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
 
     let mut tool_calls = Vec::new();
     for tool in tools {
-        let tool_obj = tool.as_object().ok_or_else(|| "llamaindex_tool_object_required".to_string())?;
+        let tool_obj = tool
+            .as_object()
+            .ok_or_else(|| "llamaindex_tool_object_required".to_string())?;
         let tool_name = clean_token(tool_obj.get("name").and_then(Value::as_str), "tool");
-        let bridge_path = normalize_bridge_path(root, tool_obj.get("bridge_path").and_then(Value::as_str).unwrap_or(""))?;
+        let bridge_path = normalize_bridge_path(
+            root,
+            tool_obj
+                .get("bridge_path")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+        )?;
         let entrypoint = clean_token(tool_obj.get("entrypoint").and_then(Value::as_str), "run");
         tool_calls.push(json!({
             "tool_name": tool_name,
@@ -509,9 +604,17 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
     let mut session_ids = BTreeMap::new();
     session_ids.insert(agent_label.clone(), primary_session_id.clone());
     for handoff in handoffs {
-        let handoff_obj = handoff.as_object().ok_or_else(|| "llamaindex_handoff_object_required".to_string())?;
-        let label = clean_token(handoff_obj.get("label").and_then(Value::as_str), "handoff-agent");
-        let role = clean_token(handoff_obj.get("role").and_then(Value::as_str), "specialist");
+        let handoff_obj = handoff
+            .as_object()
+            .ok_or_else(|| "llamaindex_handoff_object_required".to_string())?;
+        let label = clean_token(
+            handoff_obj.get("label").and_then(Value::as_str),
+            "handoff-agent",
+        );
+        let role = clean_token(
+            handoff_obj.get("role").and_then(Value::as_str),
+            "specialist",
+        );
         let task = format!(
             "llamaindex:{}:{}:{}",
             workflow_name,
@@ -545,8 +648,18 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
                 "handoff".to_string(),
                 format!("--session-id={primary_session_id}"),
                 format!("--target-session-id={child_session_id}"),
-                format!("--reason={}", if reason.is_empty() { "llamaindex_handoff" } else { &reason }),
-                format!("--importance={:.2}", parse_f64_value(handoff_obj.get("importance"), 0.75, 0.0, 1.0)),
+                format!(
+                    "--reason={}",
+                    if reason.is_empty() {
+                        "llamaindex_handoff"
+                    } else {
+                        &reason
+                    }
+                ),
+                format!(
+                    "--importance={:.2}",
+                    parse_f64_value(handoff_obj.get("importance"), 0.75, 0.0, 1.0)
+                ),
                 format!("--state-path={}", swarm_state_path.display()),
             ],
         );
@@ -573,7 +686,11 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
         "swarm_state_path": rel(root, &swarm_state_path),
         "executed_at": now_iso(),
     });
-    let workflow_id = workflow.get("workflow_id").and_then(Value::as_str).unwrap().to_string();
+    let workflow_id = workflow
+        .get("workflow_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "agent_workflows").insert(workflow_id, workflow.clone());
     Ok(json!({
         "ok": true,
@@ -582,19 +699,37 @@ fn run_agent_workflow(root: &Path, argv: &[String], state: &mut Value, payload: 
     }))
 }
 
-fn ingest_multimodal(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let loader_name = clean_token(payload.get("loader_name").and_then(Value::as_str), "llamaindex-loader");
+fn ingest_multimodal(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let loader_name = clean_token(
+        payload.get("loader_name").and_then(Value::as_str),
+        "llamaindex-loader",
+    );
     let modality = clean_token(payload.get("modality").and_then(Value::as_str), "text");
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
-    let assets = payload.get("assets").and_then(Value::as_array).cloned().unwrap_or_default();
+    let assets = payload
+        .get("assets")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if assets.is_empty() {
         return Err("llamaindex_ingestion_assets_required".to_string());
     }
-    let connector = payload.get("bridge_path").and_then(Value::as_str)
+    let connector = payload
+        .get("bridge_path")
+        .and_then(Value::as_str)
         .map(|raw| normalize_bridge_path(root, raw))
         .transpose()?;
-    let degraded = matches!(profile.as_str(), "pure" | "tiny-max") && matches!(modality.as_str(), "audio" | "video" | "image");
-    let reason_code = if degraded { "profile_multimodal_degraded" } else { "ingestion_ok" };
+    let degraded = matches!(profile.as_str(), "pure" | "tiny-max")
+        && matches!(modality.as_str(), "audio" | "video" | "image");
+    let reason_code = if degraded {
+        "profile_multimodal_degraded"
+    } else {
+        "ingestion_ok"
+    };
     let record = json!({
         "ingestion_id": stable_id("llxingest", &json!({"loader": loader_name, "modality": modality})),
         "loader_name": loader_name,
@@ -606,7 +741,11 @@ fn ingest_multimodal(root: &Path, state: &mut Value, payload: &Map<String, Value
         "reason_code": reason_code,
         "recorded_at": now_iso(),
     });
-    let ingestion_id = record.get("ingestion_id").and_then(Value::as_str).unwrap().to_string();
+    let ingestion_id = record
+        .get("ingestion_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "ingestions").insert(ingestion_id, record.clone());
     Ok(json!({
         "ok": true,
@@ -615,7 +754,12 @@ fn ingest_multimodal(root: &Path, state: &mut Value, payload: &Map<String, Value
     }))
 }
 
-fn emit_native_trace(root: &Path, trace_id: &str, intent: &str, message: &str) -> Result<(), String> {
+fn emit_native_trace(
+    root: &Path,
+    trace_id: &str,
+    intent: &str,
+    message: &str,
+) -> Result<(), String> {
     let enable_exit = crate::observability_plane::run(
         root,
         &[
@@ -649,18 +793,47 @@ fn emit_native_trace(root: &Path, trace_id: &str, intent: &str, message: &str) -
     Ok(())
 }
 
-fn record_memory_eval(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let memory_key = clean_token(payload.get("memory_key").and_then(Value::as_str), "llamaindex-memory");
-    let entries = payload.get("entries").and_then(Value::as_array).cloned().unwrap_or_default();
+fn record_memory_eval(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let memory_key = clean_token(
+        payload.get("memory_key").and_then(Value::as_str),
+        "llamaindex-memory",
+    );
+    let entries = payload
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if entries.is_empty() {
         return Err("llamaindex_memory_entries_required".to_string());
     }
-    let expected = payload.get("expected_hits").and_then(Value::as_array).cloned().unwrap_or_default();
-    let actual = payload.get("actual_hits").and_then(Value::as_array).cloned().unwrap_or_default();
-    let expected_set = expected.iter().filter_map(Value::as_str).collect::<BTreeSet<_>>();
-    let actual_set = actual.iter().filter_map(Value::as_str).collect::<BTreeSet<_>>();
+    let expected = payload
+        .get("expected_hits")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let actual = payload
+        .get("actual_hits")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let expected_set = expected
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
+    let actual_set = actual
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
     let overlap = expected_set.intersection(&actual_set).count() as f64;
-    let recall = if expected_set.is_empty() { 1.0 } else { overlap / (expected_set.len() as f64) };
+    let recall = if expected_set.is_empty() {
+        1.0
+    } else {
+        overlap / (expected_set.len() as f64)
+    };
     let eval = json!({
         "evaluation_id": stable_id("llxeval", &json!({"memory_key": memory_key, "expected": expected_set.len(), "actual": actual_set.len()})),
         "memory_key": memory_key,
@@ -670,13 +843,27 @@ fn record_memory_eval(root: &Path, state: &mut Value, payload: &Map<String, Valu
         "recall": recall,
         "evaluated_at": now_iso(),
     });
-    let eval_id = eval.get("evaluation_id").and_then(Value::as_str).unwrap().to_string();
-    as_object_mut(state, "memory_store").insert(memory_key.clone(), json!({
-        "entries": entries,
-        "updated_at": now_iso(),
-    }));
+    let eval_id = eval
+        .get("evaluation_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
+    as_object_mut(state, "memory_store").insert(
+        memory_key.clone(),
+        json!({
+            "entries": entries,
+            "updated_at": now_iso(),
+        }),
+    );
     as_object_mut(state, "evaluations").insert(eval_id, eval.clone());
-    emit_native_trace(root, eval.get("evaluation_id").and_then(Value::as_str).unwrap_or("llamaindex-eval"), "llamaindex_eval", &format!("memory_key={memory_key} recall={recall:.2}"))?;
+    emit_native_trace(
+        root,
+        eval.get("evaluation_id")
+            .and_then(Value::as_str)
+            .unwrap_or("llamaindex-eval"),
+        "llamaindex_eval",
+        &format!("memory_key={memory_key} recall={recall:.2}"),
+    )?;
     Ok(json!({
         "ok": true,
         "evaluation": eval,
@@ -685,7 +872,10 @@ fn record_memory_eval(root: &Path, state: &mut Value, payload: &Map<String, Valu
 }
 
 fn condition_matches(condition: &Value, context: &Map<String, Value>) -> bool {
-    let field = condition.get("field").and_then(Value::as_str).unwrap_or_default();
+    let field = condition
+        .get("field")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let equals = condition.get("equals");
     if field.is_empty() {
         return false;
@@ -693,19 +883,39 @@ fn condition_matches(condition: &Value, context: &Map<String, Value>) -> bool {
     context.get(field) == equals
 }
 
-fn run_conditional_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let workflow_name = clean_token(payload.get("name").and_then(Value::as_str), "llamaindex-conditional");
-    let steps = payload.get("steps").and_then(Value::as_array).cloned().unwrap_or_default();
+fn run_conditional_workflow(
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let workflow_name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "llamaindex-conditional",
+    );
+    let steps = payload
+        .get("steps")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if steps.is_empty() {
         return Err("llamaindex_conditional_workflow_steps_required".to_string());
     }
-    let context = payload.get("context").and_then(Value::as_object).cloned().unwrap_or_default();
+    let context = payload
+        .get("context")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     let mut current = steps.first().cloned().unwrap_or(Value::Null);
     let mut visited = Vec::new();
     for _ in 0..steps.len().saturating_add(2) {
-        let step = current.as_object().cloned().ok_or_else(|| "llamaindex_conditional_step_object_required".to_string())?;
+        let step = current
+            .as_object()
+            .cloned()
+            .ok_or_else(|| "llamaindex_conditional_step_object_required".to_string())?;
         let step_id = clean_token(step.get("id").and_then(Value::as_str), "step");
-        let matched = step.get("condition").map(|row| condition_matches(row, &context)).unwrap_or(true);
+        let matched = step
+            .get("condition")
+            .map(|row| condition_matches(row, &context))
+            .unwrap_or(true);
         let next_id = if matched {
             step.get("next").and_then(Value::as_str)
         } else {
@@ -722,7 +932,8 @@ fn run_conditional_workflow(state: &mut Value, payload: &Map<String, Value>) -> 
         if next_id.is_empty() {
             break;
         }
-        current = steps.iter()
+        current = steps
+            .iter()
             .find(|row| row.get("id").and_then(Value::as_str) == Some(next_id))
             .cloned()
             .ok_or_else(|| format!("llamaindex_conditional_workflow_unknown_step:{next_id}"))?;
@@ -734,7 +945,11 @@ fn run_conditional_workflow(state: &mut Value, payload: &Map<String, Value>) -> 
         "context": context,
         "executed_at": now_iso(),
     });
-    let workflow_id = record.get("workflow_id").and_then(Value::as_str).unwrap().to_string();
+    let workflow_id = record
+        .get("workflow_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "conditional_workflows").insert(workflow_id, record.clone());
     Ok(json!({
         "ok": true,
@@ -743,8 +958,15 @@ fn run_conditional_workflow(state: &mut Value, payload: &Map<String, Value>) -> 
     }))
 }
 
-fn emit_trace(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let trace_id = clean_token(payload.get("trace_id").and_then(Value::as_str), "llamaindex-trace");
+fn emit_trace(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let trace_id = clean_token(
+        payload.get("trace_id").and_then(Value::as_str),
+        "llamaindex-trace",
+    );
     let stage = clean_token(payload.get("stage").and_then(Value::as_str), "query");
     let message = clean_text(payload.get("message").and_then(Value::as_str), 160);
     emit_native_trace(root, &trace_id, &stage, &message)?;
@@ -763,12 +985,37 @@ fn emit_trace(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> R
     }))
 }
 
-fn register_connector(root: &Path, state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(payload.get("name").and_then(Value::as_str), "llamaindex-connector");
-    let bridge_path = normalize_bridge_path(root, payload.get("bridge_path").and_then(Value::as_str).unwrap_or(""))?;
-    let capabilities = payload.get("capabilities").and_then(Value::as_array).cloned().unwrap_or_default();
-    let documents = payload.get("documents").and_then(Value::as_array).cloned().unwrap_or_default();
-    let supported_profiles = payload.get("supported_profiles").and_then(Value::as_array).cloned().unwrap_or_else(|| vec![json!("rich"), json!("pure")]);
+fn register_connector(
+    root: &Path,
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "llamaindex-connector",
+    );
+    let bridge_path = normalize_bridge_path(
+        root,
+        payload
+            .get("bridge_path")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    )?;
+    let capabilities = payload
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let documents = payload
+        .get("documents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let supported_profiles = payload
+        .get("supported_profiles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![json!("rich"), json!("pure")]);
     let connector = json!({
         "connector_id": stable_id("llxconn", &json!({"name": name, "bridge_path": bridge_path})),
         "name": name,
@@ -778,7 +1025,11 @@ fn register_connector(root: &Path, state: &mut Value, payload: &Map<String, Valu
         "documents": documents,
         "registered_at": now_iso(),
     });
-    let connector_id = connector.get("connector_id").and_then(Value::as_str).unwrap().to_string();
+    let connector_id = connector
+        .get("connector_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
     as_object_mut(state, "connectors").insert(connector_id, connector.clone());
     Ok(json!({
         "ok": true,
@@ -803,9 +1054,19 @@ fn connector_query(state: &Value, payload: &Map<String, Value>) -> Result<Value,
         .and_then(|rows| rows.get(&connector_id))
         .cloned()
         .ok_or_else(|| format!("unknown_llamaindex_connector:{connector_id}"))?;
-    let supported = connector.get("supported_profiles").and_then(Value::as_array).cloned().unwrap_or_default();
-    if !supported.iter().filter_map(Value::as_str).any(|row| row == profile) {
-        return Err(format!("llamaindex_connector_profile_unsupported:{profile}"));
+    let supported = connector
+        .get("supported_profiles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if !supported
+        .iter()
+        .filter_map(Value::as_str)
+        .any(|row| row == profile)
+    {
+        return Err(format!(
+            "llamaindex_connector_profile_unsupported:{profile}"
+        ));
     }
     let terms = query_terms(&query);
     let mut ranked = connector
@@ -879,9 +1140,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     match result {
         Ok(payload) => {
-            let receipt = cli_receipt(&format!("llamaindex_bridge_{}", command.replace('-', "_")), payload);
+            let receipt = cli_receipt(
+                &format!("llamaindex_bridge_{}", command.replace('-', "_")),
+                payload,
+            );
             state["last_receipt"] = receipt.clone();
-            if let Err(err) = save_state(&state_path, &state).and_then(|_| append_history(&history_path, &receipt)) {
+            if let Err(err) = save_state(&state_path, &state)
+                .and_then(|_| append_history(&history_path, &receipt))
+            {
                 print_json_line(&cli_error("llamaindex_bridge_error", &err));
                 return 1;
             }
@@ -910,10 +1176,19 @@ mod tests {
             ]
         });
         let _ = register_index(&mut state, payload.as_object().unwrap()).expect("register");
-        let index_id = state["indexes"].as_object().unwrap().keys().next().unwrap().to_string();
+        let index_id = state["indexes"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap()
+            .to_string();
         let query = json!({"index_id": index_id, "query": "hybrid retrieval", "mode": "hybrid"});
         let out = query_index(&state, query.as_object().unwrap()).expect("query");
-        assert!(out["results"].as_array().map(|rows| !rows.is_empty()).unwrap_or(false));
+        assert!(out["results"]
+            .as_array()
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
     }
 
     #[test]
@@ -928,7 +1203,11 @@ mod tests {
                 {"id": "generic"}
             ]
         });
-        let out = run_conditional_workflow(&mut state, payload.as_object().unwrap()).expect("workflow");
-        assert_eq!(out["workflow"]["visited"][0]["matched"].as_bool(), Some(true));
+        let out =
+            run_conditional_workflow(&mut state, payload.as_object().unwrap()).expect("workflow");
+        assert_eq!(
+            out["workflow"]["visited"][0]["matched"].as_bool(),
+            Some(true)
+        );
     }
 }

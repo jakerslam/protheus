@@ -231,7 +231,13 @@ fn append_jsonl(file_path: &Path, row: &Value) -> Result<(), String> {
         .open(file_path)
         .map_err(|err| format!("egress_gateway_kernel_open_failed:{err}"))?;
     handle
-        .write_all(format!("{}\n", serde_json::to_string(row).unwrap_or_else(|_| "null".to_string())).as_bytes())
+        .write_all(
+            format!(
+                "{}\n",
+                serde_json::to_string(row).unwrap_or_else(|_| "null".to_string())
+            )
+            .as_bytes(),
+        )
         .map_err(|err| format!("egress_gateway_kernel_append_failed:{err}"))?;
     Ok(())
 }
@@ -301,7 +307,9 @@ fn clean_domains(value: Option<&Value>) -> Vec<String> {
 
 fn to_u64(value: Option<&Value>) -> Option<u64> {
     match value {
-        Some(Value::Number(number)) => number.as_u64().or_else(|| number.as_i64().map(|raw| raw.max(0) as u64)),
+        Some(Value::Number(number)) => number
+            .as_u64()
+            .or_else(|| number.as_i64().map(|raw| raw.max(0) as u64)),
         Some(Value::String(raw)) => raw.trim().parse::<u64>().ok(),
         _ => None,
     }
@@ -332,9 +340,7 @@ fn normalize_scope_rule(id: &str, raw_rule: &Map<String, Value>) -> ScopeRule {
 fn load_policy_model(root: &Path, payload: &Map<String, Value>) -> (Policy, PathBuf) {
     let runtime = runtime_root(root, payload);
     let explicit = clean_text(
-        payload
-            .get("policy_path")
-            .or_else(|| payload.get("path")),
+        payload.get("policy_path").or_else(|| payload.get("path")),
         520,
     );
     let policy_env = std::env::var("EGRESS_GATEWAY_POLICY_PATH").unwrap_or_default();
@@ -431,9 +437,7 @@ fn policy_to_value(policy: &Policy) -> Value {
 fn load_state_model(root: &Path, payload: &Map<String, Value>) -> (Value, PathBuf) {
     let runtime = runtime_root(root, payload);
     let explicit = clean_text(
-        payload
-            .get("state_path")
-            .or_else(|| payload.get("path")),
+        payload.get("state_path").or_else(|| payload.get("path")),
         520,
     );
     let state_env = std::env::var("EGRESS_GATEWAY_STATE_PATH").unwrap_or_default();
@@ -517,7 +521,10 @@ fn check_cap(map: &Map<String, Value>, key: &str, cap: Option<u64>) -> bool {
 }
 
 fn set_counter(map: &mut Map<String, Value>, key: &str, value: u64) {
-    map.insert(key.to_string(), Value::Number(serde_json::Number::from(value)));
+    map.insert(
+        key.to_string(),
+        Value::Number(serde_json::Number::from(value)),
+    );
 }
 
 fn increment_counter(map: &mut Map<String, Value>, key: &str) {
@@ -568,12 +575,21 @@ fn authorize_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
 
     let scope_id = normalize_token(&clean_text(payload.get("scope"), 160), 160);
     let method = {
-        let normalized = normalize_token(&clean_text(payload.get("method"), 20), 20).to_ascii_uppercase();
-        if normalized.is_empty() { "GET".to_string() } else { normalized }
+        let normalized =
+            normalize_token(&clean_text(payload.get("method"), 20), 20).to_ascii_uppercase();
+        if normalized.is_empty() {
+            "GET".to_string()
+        } else {
+            normalized
+        }
     };
     let caller = {
         let normalized = normalize_token(&clean_text(payload.get("caller"), 120), 120);
-        if normalized.is_empty() { "unknown".to_string() } else { normalized }
+        if normalized.is_empty() {
+            "unknown".to_string()
+        } else {
+            normalized
+        }
     };
     let url = clean_text(payload.get("url"), 2000);
     let host = parse_host(&url);
@@ -590,7 +606,10 @@ fn authorize_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
     let now_ms = to_u64(payload.get("now_ms"))
         .map(|value| value as i64)
         .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-    let apply = payload.get("apply").and_then(Value::as_bool).unwrap_or(true);
+    let apply = payload
+        .get("apply")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let ts = chrono::Utc
         .timestamp_millis_opt(now_ms)
         .single()
@@ -619,7 +638,11 @@ fn authorize_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
     let Some(rule) = resolve_scope_rule(&policy, &scope_id) else {
         let allow = policy.default_decision == "allow";
         out["allow"] = Value::Bool(allow);
-        let reason = if allow { "default_allow" } else { "scope_not_allowlisted" };
+        let reason = if allow {
+            "default_allow"
+        } else {
+            "scope_not_allowlisted"
+        };
         out["reason"] = Value::String(reason.to_string());
         out["code"] = Value::String(reason.to_string());
         return Ok(out);
@@ -637,7 +660,12 @@ fn authorize_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
         return Ok(out);
     }
 
-    if !rule.domains.is_empty() && !rule.domains.iter().any(|domain| domain_matches(&host, domain)) {
+    if !rule.domains.is_empty()
+        && !rule
+            .domains
+            .iter()
+            .any(|domain| domain_matches(&host, domain))
+    {
         out["reason"] = Value::String("domain_not_allowlisted".to_string());
         out["code"] = Value::String("domain_not_allowlisted".to_string());
         return Ok(out);
@@ -683,12 +711,20 @@ fn authorize_command(root: &Path, payload: &Map<String, Value>) -> Result<Value,
         out["code"] = Value::String("scope_day_cap_exceeded".to_string());
         return Ok(out);
     }
-    if !check_cap(per_hour_view, &global_hour_key, policy.global_rate_caps.per_hour) {
+    if !check_cap(
+        per_hour_view,
+        &global_hour_key,
+        policy.global_rate_caps.per_hour,
+    ) {
         out["reason"] = Value::String("global_hour_cap_exceeded".to_string());
         out["code"] = Value::String("global_hour_cap_exceeded".to_string());
         return Ok(out);
     }
-    if !check_cap(per_day_view, &global_day_key, policy.global_rate_caps.per_day) {
+    if !check_cap(
+        per_day_view,
+        &global_day_key,
+        policy.global_rate_caps.per_day,
+    ) {
         out["reason"] = Value::String("global_day_cap_exceeded".to_string());
         out["code"] = Value::String("global_day_cap_exceeded".to_string());
         return Ok(out);
@@ -743,8 +779,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = payload_obj(&payload);
 
     let receipt = match command.as_str() {
-        "load-policy" => cli_receipt("egress_gateway_kernel_load_policy", load_policy_command(root, payload)),
-        "load-state" => cli_receipt("egress_gateway_kernel_load_state", load_state_command(root, payload)),
+        "load-policy" => cli_receipt(
+            "egress_gateway_kernel_load_policy",
+            load_policy_command(root, payload),
+        ),
+        "load-state" => cli_receipt(
+            "egress_gateway_kernel_load_state",
+            load_state_command(root, payload),
+        ),
         "authorize" => match authorize_command(root, payload) {
             Ok(value) => cli_receipt("egress_gateway_kernel_authorize", value),
             Err(err) => cli_error("egress_gateway_kernel_error", err.as_str()),

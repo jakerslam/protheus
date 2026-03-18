@@ -88,6 +88,10 @@ fn bench_recovery_srs_rows_have_runtime_evidence_paths() {
     assert_path_contains(&repo, "install.ps1", ".tar.zst");
 
     // V7-BENCH-RECOVERY-001.4
-    assert_path_contains(&repo, "core/layer0/tiny_runtime/Cargo.toml", "protheus-tiny-runtime");
+    assert_path_contains(
+        &repo,
+        "core/layer0/tiny_runtime/Cargo.toml",
+        "protheus-tiny-runtime",
+    );
     assert_path_contains(&repo, "core/layer0/ops/src/protheusd.rs", "tiny-status");
 }

@@ -15,7 +15,9 @@ fn usage() {
     println!("  protheus-ops symbiosis-coherence-kernel load-policy [--payload-base64=<json>]");
     println!("  protheus-ops symbiosis-coherence-kernel evaluate [--payload-base64=<json>]");
     println!("  protheus-ops symbiosis-coherence-kernel load [--payload-base64=<json>]");
-    println!("  protheus-ops symbiosis-coherence-kernel recursion-request [--payload-base64=<json>]");
+    println!(
+        "  protheus-ops symbiosis-coherence-kernel recursion-request [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -138,7 +140,9 @@ fn clamp_number(value: Option<&Value>, lo: f64, hi: f64, fallback: f64) -> f64 {
 
 fn clamp_int(value: Option<&Value>, lo: i64, hi: i64, fallback: i64) -> i64 {
     let parsed = value.and_then(|v| match v {
-        Value::Number(n) => n.as_i64().or_else(|| n.as_u64().and_then(|u| i64::try_from(u).ok())),
+        Value::Number(n) => n
+            .as_i64()
+            .or_else(|| n.as_u64().and_then(|u| i64::try_from(u).ok())),
         Value::String(s) => s.trim().parse::<i64>().ok(),
         _ => None,
     });
@@ -243,10 +247,30 @@ fn default_policy(root: &Path, policy_path: &Path) -> Value {
 }
 
 fn normalize_weights(raw: &Value, base: &Value) -> Value {
-    let identity = clamp_number(raw.get("identity"), 0.0, 1.0, base["identity"].as_f64().unwrap_or(0.34));
-    let pre_neuralink = clamp_number(raw.get("pre_neuralink"), 0.0, 1.0, base["pre_neuralink"].as_f64().unwrap_or(0.22));
-    let behavioral = clamp_number(raw.get("behavioral"), 0.0, 1.0, base["behavioral"].as_f64().unwrap_or(0.22));
-    let mirror = clamp_number(raw.get("mirror"), 0.0, 1.0, base["mirror"].as_f64().unwrap_or(0.22));
+    let identity = clamp_number(
+        raw.get("identity"),
+        0.0,
+        1.0,
+        base["identity"].as_f64().unwrap_or(0.34),
+    );
+    let pre_neuralink = clamp_number(
+        raw.get("pre_neuralink"),
+        0.0,
+        1.0,
+        base["pre_neuralink"].as_f64().unwrap_or(0.22),
+    );
+    let behavioral = clamp_number(
+        raw.get("behavioral"),
+        0.0,
+        1.0,
+        base["behavioral"].as_f64().unwrap_or(0.22),
+    );
+    let mirror = clamp_number(
+        raw.get("mirror"),
+        0.0,
+        1.0,
+        base["mirror"].as_f64().unwrap_or(0.22),
+    );
     let total = identity + pre_neuralink + behavioral + mirror;
     if total <= 0.0 {
         return base.clone();
@@ -268,7 +292,11 @@ fn normalize_policy(raw: &Value, root: &Path, policy_path: &Path) -> Value {
     let paths = raw.get("paths").unwrap_or(&Value::Null);
     let version = {
         let v = clean_text(raw.get("version"), 32);
-        if v.is_empty() { "1.0".to_string() } else { v }
+        if v.is_empty() {
+            "1.0".to_string()
+        } else {
+            v
+        }
     };
     json!({
         "version": version,
@@ -309,7 +337,10 @@ fn normalize_policy(raw: &Value, root: &Path, policy_path: &Path) -> Value {
 
 fn load_policy(root: &Path, payload: &Map<String, Value>) -> Value {
     let default_path = default_policy_path(root);
-    let policy_path = if let Some(policy_path_value) = payload.get("policy_path").or_else(|| payload.get("policyPath")) {
+    let policy_path = if let Some(policy_path_value) = payload
+        .get("policy_path")
+        .or_else(|| payload.get("policyPath"))
+    {
         let requested = clean_text(Some(policy_path_value), 520);
         if requested.is_empty() {
             default_path.clone()
@@ -324,7 +355,10 @@ fn load_policy(root: &Path, payload: &Map<String, Value>) -> Value {
     } else {
         default_path.clone()
     };
-    let raw = payload.get("policy").cloned().unwrap_or_else(|| read_json_value(&policy_path, json!({})));
+    let raw = payload
+        .get("policy")
+        .cloned()
+        .unwrap_or_else(|| read_json_value(&policy_path, json!({})));
     normalize_policy(&raw, root, &policy_path)
 }
 
@@ -344,7 +378,11 @@ fn load_state(policy: &Value) -> Value {
             }
             let tier = {
                 let token = normalize_token(row.get("tier"), 24);
-                if token.is_empty() { "low".to_string() } else { token }
+                if token.is_empty() {
+                    "low".to_string()
+                } else {
+                    token
+                }
             };
             Some(json!({
                 "ts": ts,
@@ -363,7 +401,8 @@ fn load_state(policy: &Value) -> Value {
 }
 
 fn save_state(policy: &Value, state: &Value) -> Result<(), String> {
-    let max_recent = clamp_int(policy["history"].get("max_recent_scores"), 10, 10_000, 200) as usize;
+    let max_recent =
+        clamp_int(policy["history"].get("max_recent_scores"), 10, 10_000, 200) as usize;
     let rows = state
         .get("recent_scores")
         .and_then(Value::as_array)
@@ -389,23 +428,41 @@ struct Component {
 }
 
 fn compute_identity_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(policy["paths"]["identity_latest_path"].as_str().unwrap_or_default());
+    let path = PathBuf::from(
+        policy["paths"]["identity_latest_path"]
+            .as_str()
+            .unwrap_or_default(),
+    );
     let latest = read_json_value(&path, json!({}));
     let summary = latest.get("summary").unwrap_or(&latest);
     let drift_score = clamp_number(
-        summary.get("identity_drift_score").or_else(|| latest.get("identity_drift_score")),
+        summary
+            .get("identity_drift_score")
+            .or_else(|| latest.get("identity_drift_score")),
         0.0,
         1.0,
         0.5,
     );
     let max_drift = clamp_number(
-        summary.get("max_identity_drift_score").or_else(|| latest.get("max_identity_drift_score")),
+        summary
+            .get("max_identity_drift_score")
+            .or_else(|| latest.get("max_identity_drift_score")),
         0.01,
         1.0,
         0.58,
     );
-    let blocked = clamp_int(summary.get("blocked").or_else(|| latest.get("blocked")), 0, 1_000_000, 0);
-    let checked = clamp_int(summary.get("checked").or_else(|| latest.get("checked")), 0, 1_000_000, 0);
+    let blocked = clamp_int(
+        summary.get("blocked").or_else(|| latest.get("blocked")),
+        0,
+        1_000_000,
+        0,
+    );
+    let checked = clamp_int(
+        summary.get("checked").or_else(|| latest.get("checked")),
+        0,
+        1_000_000,
+        0,
+    );
     let drift_ratio = (drift_score / max_drift.max(0.0001)).clamp(0.0, 1.5);
     let blocked_ratio = if checked > 0 {
         (blocked as f64 / checked as f64).clamp(0.0, 1.0)
@@ -427,11 +484,19 @@ fn compute_identity_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_pre_neuralink_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(policy["paths"]["pre_neuralink_state_path"].as_str().unwrap_or_default());
+    let path = PathBuf::from(
+        policy["paths"]["pre_neuralink_state_path"]
+            .as_str()
+            .unwrap_or_default(),
+    );
     let state = read_json_value(&path, json!({}));
     let consent_state = {
         let token = normalize_token(state.get("consent_state"), 40);
-        if token.is_empty() { "paused".to_string() } else { token }
+        if token.is_empty() {
+            "paused".to_string()
+        } else {
+            token
+        }
     };
     let consent_score = match consent_state.as_str() {
         "granted" => 1.0,
@@ -470,7 +535,11 @@ fn compute_pre_neuralink_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_behavioral_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(policy["paths"]["deep_symbiosis_state_path"].as_str().unwrap_or_default());
+    let path = PathBuf::from(
+        policy["paths"]["deep_symbiosis_state_path"]
+            .as_str()
+            .unwrap_or_default(),
+    );
     let state = read_json_value(&path, json!({}));
     let style = state.get("style").unwrap_or(&Value::Null);
     let samples = clamp_int(state.get("samples"), 0, 1_000_000_000, 0);
@@ -497,14 +566,22 @@ fn compute_behavioral_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_mirror_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(policy["paths"]["observer_mirror_latest_path"].as_str().unwrap_or_default());
+    let path = PathBuf::from(
+        policy["paths"]["observer_mirror_latest_path"]
+            .as_str()
+            .unwrap_or_default(),
+    );
     let latest = read_json_value(&path, json!({}));
     let mood = {
         let token = normalize_token(
             nested(&latest, &["observer", "mood"]).or_else(|| latest.get("mood")),
             40,
         );
-        if token.is_empty() { "unknown".to_string() } else { token }
+        if token.is_empty() {
+            "unknown".to_string()
+        } else {
+            token
+        }
     };
     let mood_score = match mood.as_str() {
         "stable" => 1.0,
@@ -515,7 +592,8 @@ fn compute_mirror_component(policy: &Value, root: &Path) -> Component {
     let rates = nested(&latest, &["summary", "rates"]).unwrap_or(&Value::Null);
     let ship_rate = clamp_number(rates.get("ship_rate"), 0.0, 1.0, 0.5);
     let hold_rate = clamp_number(rates.get("hold_rate"), 0.0, 1.0, 0.3);
-    let score = ((mood_score * 0.5) + (ship_rate * 0.35) + ((1.0 - hold_rate) * 0.15)).clamp(0.0, 1.0);
+    let score =
+        ((mood_score * 0.5) + (ship_rate * 0.35) + ((1.0 - hold_rate) * 0.15)).clamp(0.0, 1.0);
     Component {
         score: round_to(score, 6),
         detail: json!({
@@ -553,7 +631,12 @@ fn count_consecutive_high(rows: &[Value], high_min: f64) -> i64 {
     streak
 }
 
-fn compute_allowed_depth(policy: &Value, score: f64, tier: &str, sustained_high_samples: i64) -> i64 {
+fn compute_allowed_depth(
+    policy: &Value,
+    score: f64,
+    tier: &str,
+    sustained_high_samples: i64,
+) -> i64 {
     if tier == "low" {
         return clamp_int(policy["recursion"].get("low_depth"), 1, 1_000_000, 1);
     }
@@ -611,13 +694,11 @@ fn evaluate_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
     let mirror = compute_mirror_component(&policy, root);
 
     let weights = &policy["weights"];
-    let score = (
-        identity.score * clamp_number(weights.get("identity"), 0.0, 1.0, 0.34)
-            + pre_neuralink.score * clamp_number(weights.get("pre_neuralink"), 0.0, 1.0, 0.22)
-            + behavioral.score * clamp_number(weights.get("behavioral"), 0.0, 1.0, 0.22)
-            + mirror.score * clamp_number(weights.get("mirror"), 0.0, 1.0, 0.22)
-    )
-        .clamp(0.0, 1.0);
+    let score = (identity.score * clamp_number(weights.get("identity"), 0.0, 1.0, 0.34)
+        + pre_neuralink.score * clamp_number(weights.get("pre_neuralink"), 0.0, 1.0, 0.22)
+        + behavioral.score * clamp_number(weights.get("behavioral"), 0.0, 1.0, 0.22)
+        + mirror.score * clamp_number(weights.get("mirror"), 0.0, 1.0, 0.22))
+    .clamp(0.0, 1.0);
     let rounded_score = round_to(score, 6);
     let tier = score_tier(&policy, rounded_score);
 
@@ -633,7 +714,8 @@ fn evaluate_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
         "score": rounded_score,
         "tier": tier,
     }));
-    let max_recent = clamp_int(policy["history"].get("max_recent_scores"), 10, 10_000, 200) as usize;
+    let max_recent =
+        clamp_int(policy["history"].get("max_recent_scores"), 10, 10_000, 200) as usize;
     let start = recent_scores.len().saturating_sub(max_recent);
     let next_recent = recent_scores[start..].to_vec();
     let sustained_high_samples = count_consecutive_high(
@@ -643,7 +725,12 @@ fn evaluate_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
     let unbounded_allowed_base = rounded_score
         >= clamp_number(policy["thresholds"].get("unbounded_min"), 0.2, 1.0, 0.9)
         && sustained_high_samples
-            >= clamp_int(policy["thresholds"].get("sustained_high_samples"), 1, 1000, 6);
+            >= clamp_int(
+                policy["thresholds"].get("sustained_high_samples"),
+                1,
+                1000,
+                6,
+            );
     let consent_granted = pre_neuralink
         .detail
         .get("consent_state")
@@ -668,7 +755,12 @@ fn evaluate_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
     let allowed_depth = if unbounded_allowed {
         Value::Null
     } else {
-        Value::from(compute_allowed_depth(&policy, rounded_score, tier, sustained_high_samples))
+        Value::from(compute_allowed_depth(
+            &policy,
+            rounded_score,
+            tier,
+            sustained_high_samples,
+        ))
     };
 
     let payload_out = json!({
@@ -719,7 +811,11 @@ fn evaluate_signal(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
             &payload_out,
         )?;
         append_jsonl(
-            Path::new(policy["paths"]["receipts_path"].as_str().unwrap_or_default()),
+            Path::new(
+                policy["paths"]["receipts_path"]
+                    .as_str()
+                    .unwrap_or_default(),
+            ),
             &payload_out,
         )?;
     }
@@ -774,7 +870,9 @@ fn recursion_request(root: &Path, payload: &Map<String, Value>) -> Result<Value,
         load_signal(root, payload)?
     };
     let (requested_depth, parsed_unbounded) = parse_depth_request(
-        payload.get("requested_depth").or_else(|| payload.get("requestedDepth")),
+        payload
+            .get("requested_depth")
+            .or_else(|| payload.get("requestedDepth")),
     );
     let require_unbounded = bool_value(payload.get("require_unbounded"), false) || parsed_unbounded;
     let allowed_depth = signal
@@ -784,7 +882,8 @@ fn recursion_request(root: &Path, payload: &Map<String, Value>) -> Result<Value,
             if v.is_null() {
                 None
             } else {
-                v.as_i64().or_else(|| v.as_u64().and_then(|u| i64::try_from(u).ok()))
+                v.as_i64()
+                    .or_else(|| v.as_u64().and_then(|u| i64::try_from(u).ok()))
             }
         });
     let unbounded_allowed = signal
@@ -813,7 +912,10 @@ fn recursion_request(root: &Path, payload: &Map<String, Value>) -> Result<Value,
     let shadow_only = if payload.contains_key("shadow_only_override") {
         bool_value(payload.get("shadow_only_override"), true)
     } else {
-        signal.get("shadow_only").and_then(Value::as_bool).unwrap_or(true)
+        signal
+            .get("shadow_only")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
     };
     let blocked_hard = blocked && !shadow_only;
 
@@ -919,10 +1021,26 @@ mod tests {
                 }
             }),
         );
-        write(root, "local/state/autonomy/identity_anchor/latest.json", &json!({"summary":{"identity_drift_score":0.12,"max_identity_drift_score":0.58,"blocked":0,"checked":10}}));
-        write(root, "local/state/symbiosis/pre_neuralink_interface/state.json", &json!({"consent_state":"granted","signals_total":20,"routed_total":18,"blocked_total":1}));
-        write(root, "local/state/symbiosis/deep_understanding/state.json", &json!({"samples":60,"style":{"directness":0.9,"brevity":0.8,"proactive_delta":0.85}}));
-        write(root, "local/state/autonomy/observer_mirror/latest.json", &json!({"observer":{"mood":"stable"},"summary":{"rates":{"ship_rate":0.8,"hold_rate":0.1}}}));
+        write(
+            root,
+            "local/state/autonomy/identity_anchor/latest.json",
+            &json!({"summary":{"identity_drift_score":0.12,"max_identity_drift_score":0.58,"blocked":0,"checked":10}}),
+        );
+        write(
+            root,
+            "local/state/symbiosis/pre_neuralink_interface/state.json",
+            &json!({"consent_state":"granted","signals_total":20,"routed_total":18,"blocked_total":1}),
+        );
+        write(
+            root,
+            "local/state/symbiosis/deep_understanding/state.json",
+            &json!({"samples":60,"style":{"directness":0.9,"brevity":0.8,"proactive_delta":0.85}}),
+        );
+        write(
+            root,
+            "local/state/autonomy/observer_mirror/latest.json",
+            &json!({"observer":{"mood":"stable"},"summary":{"rates":{"ship_rate":0.8,"hold_rate":0.1}}}),
+        );
 
         let payload = json!({
             "policy_path": policy_path,
@@ -932,7 +1050,9 @@ mod tests {
         assert_eq!(out["available"], Value::Bool(true));
         assert!(out["coherence_score"].as_f64().unwrap() > 0.7);
         assert!(out["recursion_gate"]["allowed_depth"].as_i64().unwrap() >= 3);
-        assert!(root.join("local/state/symbiosis/coherence/latest.json").exists());
+        assert!(root
+            .join("local/state/symbiosis/coherence/latest.json")
+            .exists());
     }
 
     #[test]
@@ -957,6 +1077,10 @@ mod tests {
         let out = recursion_request(dir.path(), payload.as_object().unwrap()).unwrap();
         assert_eq!(out["blocked"], Value::Bool(true));
         assert_eq!(out["blocked_hard"], Value::Bool(false));
-        assert!(out["reason_codes"].as_array().unwrap().iter().any(|v| v == "symbiosis_depth_exceeds_allowed"));
+        assert!(out["reason_codes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v == "symbiosis_depth_exceeds_allowed"));
     }
 }
