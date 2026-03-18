@@ -79,6 +79,22 @@ assert(
   'expected external API client surface to be excluded from live queue'
 );
 assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/lib/tool_compactor_integration.ts'),
+  'expected tool compactor integration wrapper to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/lib/command_output_compactor.ts'),
+  'expected command output compactor wrapper to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/lib/eyes_catalog.ts'),
+  'expected eyes catalog user-flex wrapper to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/lib/ts_entrypoint.ts'),
+  'expected ts entrypoint bootstrap surface to be excluded from live queue'
+);
+assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/systems/ops/f100_readiness_remediation.ts'),
   'expected thin remediation wrapper to be excluded from live queue'
 );
@@ -89,5 +105,29 @@ assert(
 assert(
   queue.top.every((lane) => lane.path !== 'client/cognition/orchestration/taskgroup.ts'),
   'expected thin cognition taskgroup wrapper to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('client/cognition/')),
+  'expected cognition flex surfaces to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('client/cli/bin/')),
+  'expected CLI bin wrappers to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('client/runtime/platform/')),
+  'expected platform API wrappers to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('adapters/cognition/collectors/')),
+  'expected collector adapter surfaces to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('adapters/cognition/skills/')),
+  'expected skill script surfaces to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/lib/ts_entrypoint.ts'),
+  'expected legacy ts entrypoint alias to be excluded from live queue'
 );
 console.log('top50_roi_sweep_runner.test.js: OK');

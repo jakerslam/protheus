@@ -1,31 +1,66 @@
 'use strict';
 
-const crypto = require('crypto');
-const fs = require('fs');
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-type AnyObj = Record<string, any>;
+const path = require('path');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
-function stableStringify(value: unknown): string {
-  if (value == null) return 'null';
-  if (Array.isArray(value)) return `[${value.map((row) => stableStringify(row)).join(',')}]`;
-  if (typeof value !== 'object') return JSON.stringify(value);
-  const obj = value as AnyObj;
-  const keys = Object.keys(obj).sort((a, b) => String(a).localeCompare(String(b)));
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+const ROOT = path.resolve(__dirname, '..', '..', '..');
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'integrity_hash_utility', 'integrity-hash-utility-kernel');
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function sha256Hex(value: unknown): string {
-  return crypto.createHash('sha256').update(stableStringify(value), 'utf8').digest('hex');
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `integrity_hash_utility_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `integrity_hash_utility_kernel_${command}_failed`);
+    return { ok: false, error: message || `integrity_hash_utility_kernel_${command}_failed` };
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `integrity_hash_utility_kernel_${command}_bridge_failed`
+      : `integrity_hash_utility_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
 }
 
-function hashFileSha256(filePath: string): string {
-  const buf = fs.readFileSync(filePath);
-  return crypto.createHash('sha256').update(buf).digest('hex');
+function stableStringify(value) {
+  const out = invoke('stable-stringify', { value });
+  return String(out.value || 'null');
+}
+
+function sha256Hex(value) {
+  const out = invoke('sha256-hex', { value });
+  return String(out.value || '');
+}
+
+function hashFileSha256(filePath) {
+  const out = invoke('hash-file-sha256', {
+    root_dir: ROOT,
+    file_path: filePath,
+  });
+  return String(out.value || '');
 }
 
 module.exports = {
   stableStringify,
   sha256Hex,
-  hashFileSha256
+  hashFileSha256,
 };
-export {};
