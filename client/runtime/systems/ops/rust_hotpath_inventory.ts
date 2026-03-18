@@ -131,12 +131,14 @@ function isThinBridge(record) {
   const text = record.text;
   const normalized = String(text || '');
   return (
+    /^\s*module\.exports\s*=\s*require\(['"][.]{1,2}\/.+\.ts['"]\);?\s*$/m.test(normalized) ||
     normalized.includes('createOpsLaneBridge') ||
     normalized.includes('createManifestLaneBridge') ||
     normalized.includes("runProtheusOps(args") ||
     normalized.includes("runProtheusOps(['") ||
     normalized.includes("require('./run_protheus_ops.js')") ||
     normalized.includes('Thin TypeScript wrapper only') ||
+    normalized.includes('Thin runtime wrapper:') ||
     normalized.includes('thin CLI bridge') ||
     normalized.includes('compatibility shim only') ||
     normalized.includes('Layer ownership: core/layer0/ops') && (
@@ -155,6 +157,8 @@ function isExtensionSurface(record) {
   const relPath = String((record && record.path) || '');
   return (
     relPath.startsWith('apps/') ||
+    relPath.startsWith('packages/') ||
+    relPath.startsWith('adapters/importers/') ||
     relPath.includes('/skills/') ||
     relPath.startsWith('client/runtime/patches/') ||
     relPath.startsWith('client/runtime/systems/extensions/') ||

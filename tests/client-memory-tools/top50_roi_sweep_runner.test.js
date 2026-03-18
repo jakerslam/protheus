@@ -59,12 +59,28 @@ assert(
   'expected app shells to be excluded from live queue unless explicitly authoritative'
 );
 assert(
+  queue.top.every((lane) => !lane.path.startsWith('packages/')),
+  'expected package entrypoints to be excluded from live queue unless explicitly authoritative'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('adapters/importers/')),
+  'expected importer adapter surfaces to be excluded from live queue unless explicitly authoritative'
+);
+assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/lib/test_compactor_benchmark.ts'),
   'expected benchmark harness surfaces to be excluded from live queue unless explicitly authoritative'
 );
 assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/patches/websocket-client-patch.ts'),
   'expected runtime patch surfaces to be excluded from live queue unless explicitly authoritative'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/lib/moltbook_api.ts'),
+  'expected external API client surface to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'client/runtime/systems/ops/f100_readiness_remediation.ts'),
+  'expected thin remediation wrapper to be excluded from live queue'
 );
 assert(
   queue.top.every((lane) => lane.path !== 'client/cognition/orchestration/scratchpad.ts'),

@@ -31,7 +31,9 @@ pub(super) fn print_usage() {
     println!("  protheus-ops trainability-matrix-kernel <default-policy|normalize-policy|load-policy|evaluate> [--payload-base64=<base64_json>]");
     println!("  protheus-ops dynamic-burn-budget-signal-kernel <normalize-pressure|pressure-rank|cost-pressure|load-signal> [--payload-base64=<base64_json>]");
     println!("  protheus-ops policy-runtime-kernel <deep-merge|resolve-policy-path|load-policy-runtime|resolve-policy-value-path> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops runtime-path-registry-kernel <constants|normalize-for-root|resolve-canonical|resolve-client-state|resolve-core-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops proposal-type-classifier-kernel <normalize-type-key|extract-source-eye-id|classify> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops state-artifact-contract-kernel <now-iso|decorate-artifact-row|trim-jsonl-rows|write-artifact-set|append-artifact-history> [--payload-base64=<base64_json>]");
     println!("  protheus-ops success-criteria-kernel <status|parse-rows|evaluate> [flags]");
     println!("  protheus-ops success-criteria-compiler-kernel <compile-rows|compile-proposal|to-action-spec-rows> [--payload-base64=<base64_json>]");
     println!("  protheus-ops outcome-fitness-kernel <load-policy|normalize-threshold-overrides|normalize-ranking-weights|normalize-proposal-type-threshold-offsets|normalize-promotion-policy-overrides|normalize-value-currency-policy-overrides|normalize-proposal-type-key|normalize-value-currency-token|proposal-type-threshold-offsets-for> [--payload-base64=<base64_json>]");
@@ -40,6 +42,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops trit-kernel <normalize|label|from-label|invert|majority|consensus|propagate|serialize|parse-serialized|serialize-vector|parse-vector> [--payload-base64=<base64_json>]");
     println!("  protheus-ops request-envelope-kernel <envelope-payload|canonical-string|sign|verify|stamp-env|verify-from-env|normalize-files|normalize-key-id|secret-key-env-var-name> [--payload-base64=<base64_json>]");
     println!("  protheus-ops autonomy-receipt-schema-kernel <to-success-criteria-record|with-success-criteria-verification|normalize-receipt|success-criteria-from-receipt> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops uid-kernel <normalize-prefix|is-alnum|stable-uid|random-uid> [--payload-base64=<base64_json>]");
     println!("  protheus-ops quorum-validator-kernel <evaluate> [--payload-base64=<base64_json>]");
     println!("  protheus-ops mutation-provenance-kernel <load-policy|normalize-meta|enforce|record-audit> [--payload-base64=<base64_json>]");
     println!("  protheus-ops ops-domain-conduit-runner-kernel <parse-argv|build-pass-args|build-run-options|prepare-run> [--payload-base64=<base64_json>]");

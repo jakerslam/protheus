@@ -2,17 +2,16 @@
 
 export {};
 
-const fs = require('fs') as typeof import('fs');
-const {
-  nowIso,
-  cleanText,
-  appendJsonl,
-  writeJsonAtomic,
-  clampInt
-} = require('./queued_backlog_runtime.ts');
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
+
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'state_artifact_contract', 'state-artifact-contract-kernel');
 
 type AnyObj = Record<string, any>;
-
 type ArtifactOptions = {
   schemaId?: string,
   schemaVersion?: string,
@@ -22,28 +21,52 @@ type ArtifactOptions = {
   maxReceiptRows?: number
 };
 
+function encodeBase64(value: unknown) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function invoke(command: string, payload: Record<string, unknown> = {}, opts: Record<string, unknown> = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `state_artifact_contract_kernel_${command}_failed`);
+    if (opts && opts.throwOnError === false) return { ok: false, error: message || `state_artifact_contract_kernel_${command}_failed` };
+    throw new Error(message || `state_artifact_contract_kernel_${command}_failed`);
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `state_artifact_contract_kernel_${command}_bridge_failed`
+      : `state_artifact_contract_kernel_${command}_bridge_failed`;
+    if (opts && opts.throwOnError === false) return { ok: false, error: message };
+    throw new Error(message);
+  }
+  return payloadOut;
+}
+
+function nowIso() {
+  return String(invoke('now-iso', {}).ts || new Date().toISOString());
+}
+
 function decorateArtifactRow(payload: AnyObj, opts: ArtifactOptions = {}) {
-  return {
-    schema_id: cleanText(opts.schemaId || payload.schema_id || 'state_artifact_row', 120) || 'state_artifact_row',
-    schema_version: cleanText(opts.schemaVersion || payload.schema_version || '1.0', 40) || '1.0',
-    artifact_type: cleanText(opts.artifactType || payload.artifact_type || 'receipt', 80) || 'receipt',
-    ts: cleanText(payload.ts || nowIso(), 48) || nowIso(),
-    ...payload
-  };
+  return invoke('decorate-artifact-row', {
+    payload: payload && typeof payload === 'object' ? payload : {},
+    options: opts && typeof opts === 'object' ? opts : {}
+  }).row;
 }
 
 function trimJsonlRows(filePath: string, maxRows: number) {
-  const cap = clampInt(maxRows, 1, 1_000_000, 0);
-  if (!cap) return;
-  try {
-    if (!fs.existsSync(filePath)) return;
-    const rows = String(fs.readFileSync(filePath, 'utf8') || '').split('\n').filter(Boolean);
-    if (rows.length <= cap) return;
-    const keep = rows.slice(rows.length - cap).join('\n') + '\n';
-    fs.writeFileSync(filePath, keep, 'utf8');
-  } catch {
-    // Fail-open for retention trimming; main write path already completed.
-  }
+  invoke('trim-jsonl-rows', {
+    file_path: String(filePath || ''),
+    max_rows: Number.isFinite(Number(maxRows)) ? Math.floor(Number(maxRows)) : 0
+  });
 }
 
 function writeArtifactSet(paths: {
@@ -51,29 +74,29 @@ function writeArtifactSet(paths: {
   receiptsPath?: string,
   historyPath?: string
 }, payload: AnyObj, opts: ArtifactOptions = {}) {
-  const row = decorateArtifactRow(payload, opts);
-  if (opts.writeLatest !== false && paths && paths.latestPath) {
-    writeJsonAtomic(paths.latestPath, row);
-  }
-  if (opts.appendReceipt !== false && paths && paths.receiptsPath) {
-    appendJsonl(paths.receiptsPath, row);
-    if (opts.maxReceiptRows != null) trimJsonlRows(paths.receiptsPath, opts.maxReceiptRows);
-  }
-  if (paths && paths.historyPath) {
-    appendJsonl(paths.historyPath, row);
-  }
-  return row;
+  return invoke('write-artifact-set', {
+    paths: {
+      latestPath: paths && paths.latestPath ? String(paths.latestPath) : undefined,
+      receiptsPath: paths && paths.receiptsPath ? String(paths.receiptsPath) : undefined,
+      historyPath: paths && paths.historyPath ? String(paths.historyPath) : undefined
+    },
+    payload: payload && typeof payload === 'object' ? payload : {},
+    options: opts && typeof opts === 'object' ? opts : {}
+  }).row;
 }
 
 function appendArtifactHistory(historyPath: string, payload: AnyObj, opts: ArtifactOptions = {}) {
-  const row = decorateArtifactRow(payload, opts);
-  appendJsonl(historyPath, row);
-  return row;
+  return invoke('append-artifact-history', {
+    history_path: String(historyPath || ''),
+    payload: payload && typeof payload === 'object' ? payload : {},
+    options: opts && typeof opts === 'object' ? opts : {}
+  }).row;
 }
 
 module.exports = {
   decorateArtifactRow,
   writeArtifactSet,
   appendArtifactHistory,
-  trimJsonlRows
+  trimJsonlRows,
+  nowIso
 };
