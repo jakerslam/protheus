@@ -1622,9 +1622,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             parse_bool(parse_flag(rest, "strict"), true),
             "repo-hygiene-guard",
         ),
-        "capability-envelope-guard" | "capability_envelope_guard" => {
-            compatibility_security_command("capability-envelope-guard", rest)
-        }
+        "capability-envelope-guard" | "capability_envelope_guard" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "capability-envelope-guard",
+            "V6-SEC-ENVELOPE-001",
+            &[("capability", None), ("boundary", Some("conduit_only"))],
+        ),
         "ip-posture-review" | "ip_posture_review" => run_security_contract_command(
             root,
             rest,
@@ -1633,9 +1638,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "V6-SEC-002",
             &[("public-url", None)],
         ),
-        "habit-hygiene-guard" | "habit_hygiene_guard" => {
-            compatibility_security_command("habit-hygiene-guard", rest)
-        }
+        "habit-hygiene-guard" | "habit_hygiene_guard" => run_repo_hygiene_guard(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "habit-hygiene-guard",
+        ),
         "enterprise-access-gate" | "enterprise_access_gate" => run_security_contract_command(
             root,
             rest,
@@ -1652,11 +1660,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "V6-SEC-008",
             &[("suite", None)],
         ),
-        "skill-install-enforcer" | "skill_install_enforcer" => {
-            compatibility_security_command("skill-install-enforcer", rest)
-        }
+        "skill-install-enforcer" | "skill_install_enforcer" => run_skill_install_path_enforcer(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+        ),
         "execution-sandbox-envelope" | "execution_sandbox_envelope" => {
-            compatibility_security_command("execution-sandbox-envelope", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "execution-sandbox-envelope",
+                "V6-SEC-SANDBOX-ENVELOPE-001",
+                &[("sandbox", Some("enabled"))],
+            )
         }
         "workspace-dump-guard" | "workspace_dump_guard" => {
             run_workspace_dump_guard(root, rest, parse_bool(parse_flag(rest, "strict"), true))
@@ -1769,10 +1786,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             compatibility_security_command("hardware-root-of-trust-attestation-mesh", rest)
         }
         "formal-threat-modeling-engine" | "formal_threat_modeling_engine" => {
-            compatibility_security_command("formal-threat-modeling-engine", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "formal-threat-modeling-engine",
+                "V6-SEC-THREAT-MODEL-001",
+                &[("threat-model-path", None)],
+            )
         }
         "formal-mind-sovereignty-verification" | "formal_mind_sovereignty_verification" => {
-            compatibility_security_command("formal-mind-sovereignty-verification", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "formal-mind-sovereignty-verification",
+                "V6-SEC-MIND-SOVEREIGNTY-001",
+                &[("proof-pack", None)],
+            )
         }
         "alias-verification-vault" | "alias_verification_vault" => {
             compatibility_security_command("alias-verification-vault", rest)
@@ -1790,32 +1821,85 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             compatibility_security_command("psycheforge-countermeasure-selector", rest)
         }
         "delegated-authority-branching" | "delegated_authority_branching" => {
-            compatibility_security_command("delegated-authority-branching", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "delegated-authority-branching",
+                "V6-SEC-DELEGATED-AUTH-001",
+                &[("authority-branch", None), ("delegation-token", None)],
+            )
         }
         "organ-state-encryption-plane" | "organ_state_encryption_plane" => {
-            compatibility_security_command("organ-state-encryption-plane", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "organ-state-encryption-plane",
+                "V6-SEC-ORGAN-ENCRYPTION-001",
+                &[("algorithm", Some("aes-256-gcm")), ("key-id", None)],
+            )
         }
-        "remote-tamper-heartbeat" | "remote_tamper_heartbeat" => {
-            compatibility_security_command("remote-tamper-heartbeat", rest)
-        }
-        "skin-protection-layer" | "skin_protection_layer" => {
-            compatibility_security_command("skin-protection-layer", rest)
-        }
+        "remote-tamper-heartbeat" | "remote_tamper_heartbeat" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "remote-tamper-heartbeat",
+            "V6-SEC-TAMPER-HEARTBEAT-001",
+            &[("heartbeat-id", None), ("epoch", None)],
+        ),
+        "skin-protection-layer" | "skin_protection_layer" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "skin-protection-layer",
+            "V6-SEC-SKIN-PROTECTION-001",
+            &[("surface", None)],
+        ),
         "critical-path-formal-verifier" | "critical_path_formal_verifier" => {
-            compatibility_security_command("critical-path-formal-verifier", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "critical-path-formal-verifier",
+                "V6-SEC-CRITICAL-FORMAL-001",
+                &[("proof-pack", None)],
+            )
         }
-        "key-lifecycle-governor" | "key_lifecycle_governor" => {
-            compatibility_security_command("key-lifecycle-governor", rest)
-        }
-        "supply-chain-trust-plane" | "supply_chain_trust_plane" => {
-            compatibility_security_command("supply-chain-trust-plane", rest)
-        }
+        "key-lifecycle-governor" | "key_lifecycle_governor" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "key-lifecycle-governor",
+            "V6-SEC-KEY-LIFECYCLE-001",
+            &[("key-id", None), ("action", None)],
+        ),
+        "supply-chain-trust-plane" | "supply_chain_trust_plane" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "supply-chain-trust-plane",
+            "V6-SEC-SUPPLY-TRUST-001",
+            &[("sbom-digest", None), ("provenance", None)],
+        ),
         "post-quantum-migration-lane" | "post_quantum_migration_lane" => {
-            compatibility_security_command("post-quantum-migration-lane", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "post-quantum-migration-lane",
+                "V6-SEC-POST-QUANTUM-001",
+                &[("profile", None), ("phase", None)],
+            )
         }
-        "safety-resilience-guard" | "safety_resilience_guard" => {
-            compatibility_security_command("safety-resilience-guard", rest)
-        }
+        "safety-resilience-guard" | "safety_resilience_guard" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "safety-resilience-guard",
+            "V6-SEC-RESILIENCE-001",
+            &[("scenario", None), ("rto-seconds", None)],
+        ),
         "status" => (
             json!({
                 "ok": true,
