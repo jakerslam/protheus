@@ -1,9 +1,10 @@
 {
   "schema_version": "1.0",
   "report_path": "docs/client/reports/benchmark_matrix_run_2026-03-06.json",
+  "runtime_source_report_path": "docs/client/reports/benchmark_matrix_run_2026-03-06.json",
   "state_path": "core/local/state/ops/benchmark_sanity/latest.json",
   "required_projects": [
-    "OpenClaw",
+    "InfRing (rich)",
     "InfRing (pure)",
     "InfRing (tiny-max)"
   ],
