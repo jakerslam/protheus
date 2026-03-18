@@ -7582,5 +7582,43 @@
       "id": "V9-VIRAL-001.6",
       "contract": "planes/contracts/srs/V9-VIRAL-001.6.json"
     }
+  ],
+  "contracts": [
+    {
+      "id": "V6-WORKFLOW-011.1",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.1.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.2",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.2.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.3",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.3.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.4",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.4.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.5",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.5.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.6",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.6.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.7",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.7.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.8",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.8.json"
+    },
+    {
+      "id": "V6-WORKFLOW-011.9",
+      "contract": "planes/contracts/srs/V6-WORKFLOW-011.9.json"
+    }
   ]
 }
