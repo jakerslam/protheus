@@ -1,0 +1,39 @@
+{
+  "id": "V6-WORKFLOW-014.3",
+  "upgrade": "Retrieval and Memory Abstraction Bridge Contract",
+  "section": "LangChain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
+  "impact": 10,
+  "layer_map": "0/1/2/adapter/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "repair_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-014.3/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-WORKFLOW-014.3.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-014.3/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-WORKFLOW-014.3",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-WORKFLOW-014.3",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-18T06:10:37Z",
+    "notes": "Reuse governed memory and retrieval primitives for LangChain-style memory bridges and retriever recall."
+  }
+}

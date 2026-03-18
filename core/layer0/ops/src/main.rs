@@ -885,18 +885,25 @@ fn main() {
             );
         }
         "policy-runtime-kernel" => {
-            exit_domain!(
-                &cwd,
-                &args,
-                protheus_ops_core::policy_runtime_kernel::run
-            );
+            exit_domain!(&cwd, &args, protheus_ops_core::policy_runtime_kernel::run);
+        }
+        "camel-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::camel_bridge::run);
         }
         "semantic-kernel-bridge" => {
-            exit_domain!(
-                &cwd,
-                &args,
-                protheus_ops_core::semantic_kernel_bridge::run
-            );
+            exit_domain!(&cwd, &args, protheus_ops_core::semantic_kernel_bridge::run);
+        }
+        "google-adk-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::google_adk_bridge::run);
+        }
+        "haystack-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::haystack_bridge::run);
+        }
+        "langchain-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::langchain_bridge::run);
+        }
+        "mastra-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::mastra_bridge::run);
         }
         "llamaindex-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::llamaindex_bridge::run);
@@ -930,11 +937,7 @@ fn main() {
             );
         }
         "catalog-store-kernel" => {
-            exit_domain!(
-                &cwd,
-                &args,
-                protheus_ops_core::catalog_store_kernel::run
-            );
+            exit_domain!(&cwd, &args, protheus_ops_core::catalog_store_kernel::run);
         }
         "state-artifact-contract-kernel" => {
             exit_domain!(

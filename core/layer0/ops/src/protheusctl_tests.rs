@@ -709,7 +709,10 @@ fn core_shortcut_routes_assimilate_doc2dict_core_to_parse_plane() {
 fn core_shortcut_routes_assimilate_llamaindex_to_llamaindex_bridge() {
     let route = resolve_core_shortcuts(
         "assimilate",
-        &["llamaindex".to_string(), "--payload-base64=e30=".to_string()],
+        &[
+            "llamaindex".to_string(),
+            "--payload-base64=e30=".to_string(),
+        ],
     )
     .expect("route");
     assert_eq!(route.script_rel, "core://llamaindex-bridge");
@@ -717,6 +720,73 @@ fn core_shortcut_routes_assimilate_llamaindex_to_llamaindex_bridge() {
         route.args,
         vec!["register-connector", "--payload-base64=e30="]
     );
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_google_adk_to_google_adk_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &[
+            "google-adk".to_string(),
+            "--payload-base64=e30=".to_string(),
+        ],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://google-adk-bridge");
+    assert_eq!(
+        route.args,
+        vec!["register-tool-manifest", "--payload-base64=e30="]
+    );
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_camel_to_camel_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &["camel".to_string(), "--payload-base64=e30=".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://camel-bridge");
+    assert_eq!(route.args, vec!["import-dataset", "--payload-base64=e30="]);
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_haystack_to_haystack_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &["haystack".to_string(), "--payload-base64=e30=".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://haystack-bridge");
+    assert_eq!(
+        route.args,
+        vec!["register-pipeline", "--payload-base64=e30="]
+    );
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_langchain_to_langchain_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &["langchain".to_string(), "--payload-base64=e30=".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://langchain-bridge");
+    assert_eq!(
+        route.args,
+        vec!["import-integration", "--payload-base64=e30="]
+    );
+}
+
+#[test]
+fn core_shortcut_routes_assimilate_mastra_to_mastra_bridge() {
+    let route = resolve_core_shortcuts(
+        "assimilate",
+        &["mastra".to_string(), "--payload-base64=e30=".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://mastra-bridge");
+    assert_eq!(route.args, vec!["register-graph", "--payload-base64=e30="]);
 }
 
 #[test]
