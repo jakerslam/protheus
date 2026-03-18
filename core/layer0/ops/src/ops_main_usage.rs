@@ -7,6 +7,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops passport-iteration-chain-kernel <record|status> [--payload-base64=<base64_json>]");
     println!("  protheus-ops egress-gateway-kernel <load-policy|load-state|authorize> [--payload-base64=<base64_json>]");
     println!("  protheus-ops adaptive-layer-store-kernel <paths|is-within-root|resolve-path|read-json|ensure-json|set-json|delete-path> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops catalog-store-kernel <paths|default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops focus-trigger-store-kernel <paths|default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops security-integrity-kernel <load-policy|collect-present-files|verify|seal|append-event> [--payload-base64=<base64_json>]");
     println!("  protheus-ops queue-sqlite-kernel <open|ensure-schema|migrate-history|upsert-item|append-event|insert-receipt|queue-stats> [--payload-base64=<base64_json>]");
@@ -26,6 +27,11 @@ pub(super) fn print_usage() {
     println!("  protheus-ops directive-kernel <status|dashboard|prime-sign|derive|supersede|compliance-check|bridge-rsi|migrate> [flags]");
     println!("  protheus-ops action-envelope-kernel <create|classify|auto-classify|requires-approval|detect-irreversible|generate-id> [--payload-base64=<base64_json>]");
     println!("  protheus-ops action-receipts-kernel <now-iso|append-jsonl|with-receipt-contract|write-contract-receipt> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops conversation-eye-synthesizer-kernel <synthesize-envelope> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops trainability-matrix-kernel <default-policy|normalize-policy|load-policy|evaluate> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops dynamic-burn-budget-signal-kernel <normalize-pressure|pressure-rank|cost-pressure|load-signal> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops policy-runtime-kernel <deep-merge|resolve-policy-path|load-policy-runtime|resolve-policy-value-path> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops proposal-type-classifier-kernel <normalize-type-key|extract-source-eye-id|classify> [--payload-base64=<base64_json>]");
     println!("  protheus-ops success-criteria-kernel <status|parse-rows|evaluate> [flags]");
     println!("  protheus-ops success-criteria-compiler-kernel <compile-rows|compile-proposal|to-action-spec-rows> [--payload-base64=<base64_json>]");
     println!("  protheus-ops outcome-fitness-kernel <load-policy|normalize-threshold-overrides|normalize-ranking-weights|normalize-proposal-type-threshold-offsets|normalize-promotion-policy-overrides|normalize-value-currency-policy-overrides|normalize-proposal-type-key|normalize-value-currency-token|proposal-type-threshold-offsets-for> [--payload-base64=<base64_json>]");
