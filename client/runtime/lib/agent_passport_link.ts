@@ -1,37 +1,27 @@
 'use strict';
 export {};
 
-const path = require('path');
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-let _lane = null;
-let _loadAttempted = false;
+const { recordIterationStep } = require('./passport_iteration_chain.ts');
 
-function loadLane() {
-  if (_lane) return _lane;
-  if (_loadAttempted) return null;
-  _loadAttempted = true;
-  try {
-    const lanePath = path.join(__dirname, '..', 'systems', 'security', 'agent_passport.js');
-    const mod = require(lanePath);
-    if (mod && typeof mod.appendActionFromReceipt === 'function') {
-      _lane = mod;
-      return _lane;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+function cleanText(value, maxLen = 240) {
+  return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
 function linkReceiptToPassport(filePath, receiptRecord) {
   const autoLink = String(process.env.AGENT_PASSPORT_AUTOLINK || '1').trim() !== '0';
   if (!autoLink) return null;
-  const lane = loadLane();
-  if (!lane) return null;
   try {
-    return lane.appendActionFromReceipt({
-      receipt_path: filePath,
-      receipt_record: receiptRecord
+    return recordIterationStep({
+      lane: 'action_receipts',
+      step: 'receipt_link',
+      target_path: cleanText(filePath, 360) || null,
+      metadata: {
+        receipt_path: cleanText(filePath, 360) || null,
+        receipt_record: receiptRecord && typeof receiptRecord === 'object' ? receiptRecord : null
+      }
     });
   } catch {
     return null;
@@ -41,4 +31,3 @@ function linkReceiptToPassport(filePath, receiptRecord) {
 module.exports = {
   linkReceiptToPassport
 };
-
