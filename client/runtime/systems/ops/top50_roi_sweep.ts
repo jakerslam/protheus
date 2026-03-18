@@ -65,6 +65,7 @@ function shouldExclude(record) {
   if (relPath.startsWith('tests/')) return true;
   if ((base.includes('benchmark') || relPath.includes('/benchmarks/')) && !hasAuthorityMarker(record)) return true;
   if (relPath.startsWith('client/runtime/systems/ui/')) return true;
+  if (relPath.startsWith('adapters/cognition/skills/')) return true;
   if (isExtensionSurface(record) && !hasAuthorityMarker(record)) return true;
   if (relPath === 'client/runtime/lib/moltbook_api.ts') return true;
   if (relPath === 'client/runtime/systems/conduit/conduit-client.ts') return true;
@@ -72,8 +73,14 @@ function shouldExclude(record) {
   if (relPath === 'client/runtime/lib/rust_lane_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/spine_conduit_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/ts_bootstrap.ts') return true;
+  if (relPath === 'client/runtime/lib/ts_entrypoint.ts') return true;
+  if (relPath === 'client/lib/ts_entrypoint.ts') return true;
   if (relPath === 'client/runtime/lib/exec_compacted.ts') return true;
   if (relPath === 'client/runtime/lib/backlog_lane_cli.ts') return true;
+  if (relPath === 'client/runtime/lib/tool_compactor_integration.ts') return true;
+  if (relPath === 'client/runtime/lib/command_output_compactor.ts') return true;
+  if (relPath === 'client/runtime/lib/eyes_catalog.ts') return true;
+  if (relPath === 'client/lib/protheus_suite_tooling.ts') return true;
   if (isCognitionOrchestrationThinSurface(record)) return true;
   if (base.endsWith('_bridge.ts')) return true;
   if (base.endsWith('_client.ts')) return true;

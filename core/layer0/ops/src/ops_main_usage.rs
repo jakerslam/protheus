@@ -31,6 +31,8 @@ pub(super) fn print_usage() {
     println!("  protheus-ops trainability-matrix-kernel <default-policy|normalize-policy|load-policy|evaluate> [--payload-base64=<base64_json>]");
     println!("  protheus-ops dynamic-burn-budget-signal-kernel <normalize-pressure|pressure-rank|cost-pressure|load-signal> [--payload-base64=<base64_json>]");
     println!("  protheus-ops policy-runtime-kernel <deep-merge|resolve-policy-path|load-policy-runtime|resolve-policy-value-path> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops integrity-hash-utility-kernel <stable-stringify|sha256-hex|hash-file-sha256> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops redaction-classification-kernel <load-policy|classify-text|redact-text|classify-and-redact> [--payload-base64=<base64_json>]");
     println!("  protheus-ops runtime-path-registry-kernel <constants|normalize-for-root|resolve-canonical|resolve-client-state|resolve-core-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops proposal-type-classifier-kernel <normalize-type-key|extract-source-eye-id|classify> [--payload-base64=<base64_json>]");
     println!("  protheus-ops state-artifact-contract-kernel <now-iso|decorate-artifact-row|trim-jsonl-rows|write-artifact-set|append-artifact-history> [--payload-base64=<base64_json>]");

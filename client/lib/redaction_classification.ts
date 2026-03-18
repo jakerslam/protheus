@@ -1,13 +1,100 @@
 'use strict';
 
-export {};
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-const fs = require('fs');
 const path = require('path');
-function normalizeText(v, maxLen = 4000) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen); }
-function loadPolicy(policyPath = null) { const root = path.resolve(__dirname, '..'); const resolved = policyPath ? path.resolve(String(policyPath)) : path.join(root, 'config', 'redaction_classification_policy.json'); try { if (!fs.existsSync(resolved)) return { patterns: [], labels: [] }; const raw = JSON.parse(fs.readFileSync(resolved, 'utf8')); return raw && typeof raw === 'object' ? raw : { patterns: [], labels: [] }; } catch { return { patterns: [], labels: [] }; } }
-function compilePatterns(policy) { const rows = Array.isArray(policy && policy.patterns) ? policy.patterns : []; return rows.map((row) => { const source = normalizeText(row && row.pattern, 512); const flags = normalizeText(row && row.flags, 16) || 'gi'; const label = normalizeText(row && row.label, 80) || 'sensitive'; if (!source) return null; try { return { regex: new RegExp(source, flags), label }; } catch { return null; } }).filter(Boolean); }
-function classifyText(text, policyPath = null) { const policy = loadPolicy(policyPath); const patterns = compilePatterns(policy); const source = String(text == null ? '' : text); const findings = []; for (const row of patterns) { let m; while ((m = row.regex.exec(source))) { findings.push({ label: row.label, match: normalizeText(m[0], 120), index: m.index }); if (!row.regex.global) break; } } return { ok: true, findings, labels: [...new Set(findings.map((f) => f.label))] }; }
-function redactText(text, policyPath = null, replacement = '[REDACTED]') { const policy = loadPolicy(policyPath); const patterns = compilePatterns(policy); let out = String(text == null ? '' : text); for (const row of patterns) out = out.replace(row.regex, replacement); return { ok: true, text: out, replacement: String(replacement) }; }
-function classifyAndRedact(text, policyPath = null, replacement = '[REDACTED]') { const classification = classifyText(text, policyPath); const redaction = redactText(text, policyPath, replacement); return { ok: true, classification, redaction }; }
+const { createOpsLaneBridge } = require('../runtime/lib/rust_lane_bridge.ts');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const DEFAULT_POLICY_PATH = path.join(ROOT, 'client', 'runtime', 'config', 'redaction_classification_policy.json');
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'redaction_classification', 'redaction-classification-kernel');
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function invoke(command, payload = {}, opts = {}) {
+  const out = bridge.run([
+    command,
+    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+  ]);
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (out.status !== 0) {
+    const message = payloadOut && typeof payloadOut.error === 'string'
+      ? payloadOut.error
+      : (out && out.stderr ? String(out.stderr).trim() : `redaction_classification_kernel_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `redaction_classification_kernel_${command}_failed`);
+    return { ok: false, error: message || `redaction_classification_kernel_${command}_failed` };
+  }
+  if (!payloadOut || typeof payloadOut !== 'object') {
+    const message = out && out.stderr
+      ? String(out.stderr).trim() || `redaction_classification_kernel_${command}_bridge_failed`
+      : `redaction_classification_kernel_${command}_bridge_failed`;
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
+  }
+  return payloadOut;
+}
+
+function normalizePolicyPath(policyPath = null) {
+  return String(policyPath || DEFAULT_POLICY_PATH);
+}
+
+function loadPolicy(policyPath = null) {
+  const out = invoke('load-policy', {
+    root_dir: ROOT,
+    policy_path: normalizePolicyPath(policyPath),
+  });
+  return out.policy && typeof out.policy === 'object'
+    ? out.policy
+    : { patterns: [], labels: [], rules: [] };
+}
+
+function classifyText(text, policyPath = null) {
+  const out = invoke('classify-text', {
+    root_dir: ROOT,
+    text: String(text == null ? '' : text),
+    policy_path: normalizePolicyPath(policyPath),
+  });
+  return out.classification && typeof out.classification === 'object'
+    ? out.classification
+    : { ok: true, findings: [], labels: [] };
+}
+
+function redactText(text, policyPath = null, replacement = '[REDACTED]') {
+  const out = invoke('redact-text', {
+    root_dir: ROOT,
+    text: String(text == null ? '' : text),
+    policy_path: normalizePolicyPath(policyPath),
+    replacement: String(replacement),
+  });
+  return out.redaction && typeof out.redaction === 'object'
+    ? out.redaction
+    : { ok: true, text: String(text == null ? '' : text), replacement: String(replacement) };
+}
+
+function classifyAndRedact(text, policyPath = null, replacement = '[REDACTED]') {
+  const out = invoke('classify-and-redact', {
+    root_dir: ROOT,
+    text: String(text == null ? '' : text),
+    policy_path: normalizePolicyPath(policyPath),
+    replacement: String(replacement),
+  });
+  return {
+    ok: true,
+    classification: out.classification && typeof out.classification === 'object'
+      ? out.classification
+      : { ok: true, findings: [], labels: [] },
+    redaction: out.redaction && typeof out.redaction === 'object'
+      ? out.redaction
+      : { ok: true, text: String(text == null ? '' : text), replacement: String(replacement) },
+  };
+}
+
 module.exports = { loadPolicy, classifyText, redactText, classifyAndRedact };

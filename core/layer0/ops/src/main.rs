@@ -891,6 +891,20 @@ fn main() {
                 protheus_ops_core::policy_runtime_kernel::run
             );
         }
+        "integrity-hash-utility-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::integrity_hash_utility_kernel::run
+            );
+        }
+        "redaction-classification-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::redaction_classification_kernel::run
+            );
+        }
         "runtime-path-registry-kernel" => {
             exit_domain!(
                 &cwd,

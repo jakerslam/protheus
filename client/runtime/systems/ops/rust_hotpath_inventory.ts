@@ -158,11 +158,18 @@ function isExtensionSurface(record) {
   return (
     relPath.startsWith('apps/') ||
     relPath.startsWith('packages/') ||
+    relPath.startsWith('client/cognition/') ||
+    relPath.startsWith('client/cli/bin/') ||
+    relPath.startsWith('client/runtime/platform/') ||
     relPath.startsWith('adapters/importers/') ||
+    relPath.startsWith('adapters/cognition/collectors/') ||
     relPath.includes('/skills/') ||
     relPath.startsWith('client/runtime/patches/') ||
     relPath.startsWith('client/runtime/systems/extensions/') ||
-    relPath.startsWith('client/runtime/systems/marketplace/')
+    relPath.startsWith('client/runtime/systems/marketplace/') ||
+    relPath.endsWith('.d.ts') ||
+    relPath.endsWith('.config.ts') ||
+    relPath === 'vitest.config.ts'
   );
 }
 
