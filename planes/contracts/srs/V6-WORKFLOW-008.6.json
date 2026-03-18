@@ -1,0 +1,39 @@
+{
+  "id": "V6-WORKFLOW-008.6",
+  "upgrade": "LLM Connectors and Multimodal Gateway Contract",
+  "section": "Semantic Kernel Enterprise Agent Assimilation (REQ-44, 2026-03-17)",
+  "impact": 9,
+  "layer_map": "0/1/2/adapter/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "todo",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-008.6/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-WORKFLOW-008.6.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-008.6/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-WORKFLOW-008.6",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-WORKFLOW-008.6",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-18T03:02:23Z",
+    "notes": "Wrap Semantic Kernel connector breadth and multimodal routes in governed inference receipts so provider selection stays policy-gated and unsupported paths fail closed."
+  }
+}
