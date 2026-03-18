@@ -742,6 +742,25 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                         forward_stdin: false,
                     })
                 }
+                "langchain" | "workflow://langchain" | "chains://langchain" => {
+                    let args = if passthrough.is_empty()
+                        || passthrough
+                            .first()
+                            .map(|row| row.starts_with("--"))
+                            .unwrap_or(false)
+                    {
+                        let mut args = vec!["import-integration".to_string()];
+                        args.extend(passthrough);
+                        args
+                    } else {
+                        passthrough
+                    };
+                    Some(Route {
+                        script_rel: "core://langchain-bridge".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
                 "mastra" | "workflow://mastra" => {
                     let args = if passthrough.is_empty()
                         || passthrough
