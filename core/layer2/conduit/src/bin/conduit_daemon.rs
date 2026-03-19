@@ -52,3 +52,61 @@ fn load_policy() -> io::Result<ConduitPolicy> {
         Ok(ConduitPolicy::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{load_policy, run};
+    use conduit::ConduitPolicy;
+    use std::env;
+    use std::fs;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    #[test]
+    fn load_policy_uses_default_when_env_unset() {
+        let _guard = env_lock().lock().expect("env lock");
+        env::remove_var("CONDUIT_POLICY_PATH");
+        let policy = load_policy().expect("default policy");
+        assert_eq!(policy.bridge_message_budget_max, conduit::MAX_CONDUIT_MESSAGE_TYPES);
+    }
+
+    #[test]
+    fn load_policy_reads_policy_file_from_env_path() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let policy_path = temp.path().join("policy.json");
+        let mut policy = ConduitPolicy::default();
+        policy.bridge_message_budget_max = 10;
+        fs::write(
+            &policy_path,
+            serde_json::to_string(&policy).expect("serialize policy"),
+        )
+        .expect("write policy");
+        env::set_var("CONDUIT_POLICY_PATH", &policy_path);
+        let policy = load_policy().expect("policy from file");
+        assert_eq!(policy.bridge_message_budget_max, 10);
+        env::remove_var("CONDUIT_POLICY_PATH");
+    }
+
+    #[test]
+    fn run_fails_fast_when_policy_budget_is_invalid() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let policy_path = temp.path().join("policy.json");
+        let mut policy = ConduitPolicy::default();
+        policy.bridge_message_budget_max = 0;
+        fs::write(
+            &policy_path,
+            serde_json::to_string(&policy).expect("serialize policy"),
+        )
+        .expect("write policy");
+        env::set_var("CONDUIT_POLICY_PATH", &policy_path);
+        let err = run().expect_err("invalid budget must fail");
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        env::remove_var("CONDUIT_POLICY_PATH");
+    }
+}
