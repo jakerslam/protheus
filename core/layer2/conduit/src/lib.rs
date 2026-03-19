@@ -1933,6 +1933,62 @@ mod tests {
     }
 
     #[test]
+    fn stdio_once_returns_false_on_eof() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let reader = BufReader::new(Cursor::new(Vec::<u8>::new()));
+        let mut writer = Vec::new();
+        let mut handler = EchoCommandHandler;
+
+        let wrote = run_stdio_once(reader, &mut writer, &gate, &mut security, &mut handler)
+            .expect("eof should not fail");
+        assert!(!wrote);
+        assert!(writer.is_empty());
+    }
+
+    #[test]
+    fn stdio_once_rejects_invalid_json_payload() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let reader = BufReader::new(Cursor::new(b"not-json\n".to_vec()));
+        let mut writer = Vec::new();
+        let mut handler = EchoCommandHandler;
+
+        let err = run_stdio_once(reader, &mut writer, &gate, &mut security, &mut handler)
+            .expect_err("invalid json must fail");
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn conduit_contract_budget_rejects_zero_budget() {
+        let err = validate_conduit_contract_budget(0).expect_err("zero budget must be rejected");
+        assert_eq!(err, "conduit_message_budget_invalid_zero");
+    }
+
+    #[test]
+    fn install_extension_invalid_sha_is_fail_closed() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let command = signed_envelope(
+            &policy,
+            TsCommand::InstallExtension {
+                extension_id: "ext-bad-sha".to_string(),
+                wasm_sha256: "badsha".to_string(),
+                capabilities: vec!["metrics.read".to_string()],
+            },
+        );
+
+        let mut handler = EchoCommandHandler;
+        let response = process_command(&command, &gate, &mut security, &mut handler);
+        assert!(!response.validation.ok);
+        assert!(response.validation.fail_closed);
+        assert_eq!(response.validation.reason, "extension_wasm_sha256_invalid");
+    }
+
+    #[test]
     fn kernel_lane_handler_returns_lane_receipt_for_lane_start() {
         let policy = test_policy();
         let gate = RegistryPolicyGate::new(policy.clone());

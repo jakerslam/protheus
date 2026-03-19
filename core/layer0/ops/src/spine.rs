@@ -14,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
+use std::time::UNIX_EPOCH;
 
 #[derive(Debug, Clone)]
 struct CliArgs {
@@ -62,6 +63,20 @@ struct MechSuitPolicy {
     status_path: PathBuf,
     history_path: PathBuf,
     policy_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct SleepCleanupPolicy {
+    enabled: bool,
+    min_interval_minutes: i64,
+    archive_root: PathBuf,
+    archive_max_age_hours: i64,
+    archive_keep_latest: usize,
+    target_root: PathBuf,
+    target_max_age_hours: i64,
+    detached_worktree_max_age_hours: i64,
+    state_path: PathBuf,
+    history_path: PathBuf,
 }
 
 fn stable_hash(seed: &str, len: usize) -> String {
@@ -203,6 +218,7 @@ fn usage() {
     eprintln!("  protheus-ops spine daily [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine run [eyes|daily] [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine status [--mode=eyes|daily] [--date=YYYY-MM-DD]");
+    eprintln!("  protheus-ops spine sleep-cleanup <run|plan|status> [--apply=1|0] [--force=1|0]");
     eprintln!(
         "  protheus-ops spine background-hands-scheduler <configure|schedule|status> [flags]"
     );
@@ -459,6 +475,119 @@ fn bool_from_env(name: &str) -> Option<bool> {
     }
 }
 
+fn bool_from_flag(argv: &[String], name: &str, default: bool) -> bool {
+    let key = format!("--{name}");
+    let key_eq = format!("--{name}=");
+    let mut idx = 0usize;
+    while idx < argv.len() {
+        let token = argv[idx].trim();
+        if token == key {
+            if let Some(next) = argv.get(idx + 1) {
+                match next.trim().to_ascii_lowercase().as_str() {
+                    "1" | "true" | "yes" | "on" => return true,
+                    "0" | "false" | "no" | "off" => return false,
+                    _ => {}
+                }
+            }
+        }
+        if let Some(value) = token.strip_prefix(&key_eq) {
+            match value.trim().to_ascii_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => return true,
+                "0" | "false" | "no" | "off" => return false,
+                _ => {}
+            }
+        }
+        idx += 1;
+    }
+    default
+}
+
+fn parse_i64_env(name: &str, default: i64, min: i64, max: i64) -> i64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<i64>().ok())
+        .unwrap_or(default)
+        .clamp(min, max)
+}
+
+fn parse_usize_env(name: &str, default: usize, max: usize) -> usize {
+    std::env::var(name)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<usize>().ok())
+        .unwrap_or(default)
+        .min(max)
+}
+
+fn now_epoch_ms() -> i64 {
+    chrono::Utc::now().timestamp_millis()
+}
+
+fn path_mtime_ms(path: &Path) -> Option<i64> {
+    let modified = fs::metadata(path).ok()?.modified().ok()?;
+    let duration = modified.duration_since(UNIX_EPOCH).ok()?;
+    Some(duration.as_millis().min(i64::MAX as u128) as i64)
+}
+
+fn age_hours(now_ms: i64, mtime_ms: i64) -> i64 {
+    ((now_ms - mtime_ms).max(0)) / (1000 * 60 * 60)
+}
+
+fn path_size_bytes(path: &Path) -> u64 {
+    let meta = match fs::symlink_metadata(path) {
+        Ok(v) => v,
+        Err(_) => return 0,
+    };
+    if meta.is_file() {
+        return meta.len();
+    }
+    if !meta.is_dir() {
+        return 0;
+    }
+    let mut total = 0u64;
+    let mut stack = vec![path.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let m = match fs::symlink_metadata(&p) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            if m.is_file() {
+                total = total.saturating_add(m.len());
+            } else if m.is_dir() {
+                stack.push(p);
+            }
+        }
+    }
+    total
+}
+
+fn remove_path(path: &Path) -> std::io::Result<()> {
+    let meta = fs::symlink_metadata(path)?;
+    if meta.is_dir() {
+        fs::remove_dir_all(path)
+    } else {
+        fs::remove_file(path)
+    }
+}
+
+fn append_jsonl(path: &Path, value: &Value) {
+    if let Some(parent) = path.parent() {
+        ensure_dir(parent);
+    }
+    if let Ok(payload) = serde_json::to_string(value) {
+        let _ = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .and_then(|mut f| std::io::Write::write_all(&mut f, format!("{payload}\n").as_bytes()));
+    }
+}
+
 fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf {
     let raw = value
         .and_then(Value::as_str)
@@ -470,6 +599,340 @@ fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf
         candidate
     } else {
         root.join(candidate)
+    }
+}
+
+fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
+    SleepCleanupPolicy {
+        enabled: bool_from_env("SPINE_SLEEP_CLEANUP_ENABLED").unwrap_or(true),
+        min_interval_minutes: parse_i64_env(
+            "SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES",
+            360,
+            0,
+            7 * 24 * 60,
+        ),
+        archive_root: root.join("local/workspace/archive"),
+        archive_max_age_hours: parse_i64_env(
+            "SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS",
+            7 * 24,
+            0,
+            365 * 24,
+        ),
+        archive_keep_latest: parse_usize_env("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST", 6, 10_000),
+        target_root: root.join("target"),
+        target_max_age_hours: parse_i64_env(
+            "SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS",
+            48,
+            0,
+            365 * 24,
+        ),
+        detached_worktree_max_age_hours: parse_i64_env(
+            "SPINE_SLEEP_CLEANUP_DETACHED_WORKTREE_MAX_AGE_HOURS",
+            72,
+            0,
+            365 * 24,
+        ),
+        state_path: root.join("client/runtime/local/state/ops/sleep_cleanup/latest.json"),
+        history_path: root.join("client/runtime/local/state/ops/sleep_cleanup/history.jsonl"),
+    }
+}
+
+fn parse_worktree_blocks(raw: &str) -> Vec<(PathBuf, bool)> {
+    let mut out = Vec::new();
+    let mut current_path: Option<PathBuf> = None;
+    let mut detached = false;
+    for line in raw.lines().chain(std::iter::once("")) {
+        let row = line.trim();
+        if row.is_empty() {
+            if let Some(path) = current_path.take() {
+                out.push((path, detached));
+            }
+            detached = false;
+            continue;
+        }
+        if let Some(path) = row.strip_prefix("worktree ") {
+            current_path = Some(PathBuf::from(path.trim()));
+            continue;
+        }
+        if row == "detached" {
+            detached = true;
+        }
+    }
+    out
+}
+
+fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) -> (i32, Value) {
+    let policy = load_sleep_cleanup_policy(root);
+    let now_ms = now_epoch_ms();
+    let now = now_iso();
+    let mut errors = Vec::<String>::new();
+
+    let last_run_ms = read_json(&policy.state_path)
+        .and_then(|v| v.get("last_run_ms").and_then(Value::as_i64))
+        .unwrap_or(0);
+    let elapsed_minutes = ((now_ms - last_run_ms).max(0)) / (1000 * 60);
+
+    if !policy.enabled && !force {
+        let payload = json!({
+            "ok": true,
+            "type": "spine_sleep_cleanup",
+            "ts": now,
+            "origin": origin,
+            "applied": false,
+            "executed": false,
+            "skipped_reason": "disabled",
+            "policy": {
+                "enabled": policy.enabled,
+                "min_interval_minutes": policy.min_interval_minutes
+            }
+        });
+        return (0, payload);
+    }
+
+    if !force && last_run_ms > 0 && elapsed_minutes < policy.min_interval_minutes {
+        let payload = json!({
+            "ok": true,
+            "type": "spine_sleep_cleanup",
+            "ts": now,
+            "origin": origin,
+            "applied": false,
+            "executed": false,
+            "skipped_reason": "interval_not_elapsed",
+            "elapsed_minutes": elapsed_minutes,
+            "min_interval_minutes": policy.min_interval_minutes
+        });
+        return (0, payload);
+    }
+
+    let mut archive_entries: Vec<(i64, PathBuf)> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&policy.archive_root) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let mt = path_mtime_ms(&p).unwrap_or(0);
+            archive_entries.push((mt, p));
+        }
+    }
+    archive_entries.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let mut archive_candidates = Vec::<PathBuf>::new();
+    let mut archive_candidate_bytes = 0u64;
+    for (idx, (mtime_ms, path)) in archive_entries.iter().enumerate() {
+        if idx < policy.archive_keep_latest {
+            continue;
+        }
+        if age_hours(now_ms, *mtime_ms) < policy.archive_max_age_hours {
+            continue;
+        }
+        archive_candidate_bytes = archive_candidate_bytes.saturating_add(path_size_bytes(path));
+        archive_candidates.push(path.clone());
+    }
+
+    let mut target_candidate = false;
+    let mut target_candidate_bytes = 0u64;
+    if policy.target_root.exists() {
+        if let Some(mtime_ms) = path_mtime_ms(&policy.target_root) {
+            if age_hours(now_ms, mtime_ms) >= policy.target_max_age_hours {
+                target_candidate = true;
+                target_candidate_bytes = path_size_bytes(&policy.target_root);
+            }
+        }
+    }
+
+    let mut detached_candidates = Vec::<PathBuf>::new();
+    let mut worktree_parse_error: Option<String> = None;
+    match Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(root)
+        .output()
+    {
+        Ok(out) => {
+            if out.status.success() {
+                let raw = String::from_utf8_lossy(&out.stdout).to_string();
+                let blocks = parse_worktree_blocks(&raw);
+                for (path, detached) in blocks {
+                    if !detached || path == root || !path.exists() {
+                        continue;
+                    }
+                    let mtime_ms = path_mtime_ms(&path).unwrap_or(0);
+                    if age_hours(now_ms, mtime_ms) < policy.detached_worktree_max_age_hours {
+                        continue;
+                    }
+                    detached_candidates.push(path);
+                }
+            } else {
+                worktree_parse_error =
+                    Some(String::from_utf8_lossy(&out.stderr).trim().to_string());
+            }
+        }
+        Err(err) => {
+            worktree_parse_error = Some(format!("git_worktree_list_failed:{err}"));
+        }
+    }
+    if let Some(err) = worktree_parse_error {
+        let has_git_root = root.join(".git").exists();
+        if has_git_root && !err.trim().is_empty() {
+            errors.push(err);
+        }
+    }
+
+    let mut removed_archive = 0usize;
+    let mut removed_archive_bytes = 0u64;
+    let mut removed_target = false;
+    let mut removed_target_bytes = 0u64;
+    let mut removed_detached_worktrees = 0usize;
+
+    let has_git_root = root.join(".git").exists();
+    if apply {
+        for path in &archive_candidates {
+            let bytes = path_size_bytes(path);
+            match remove_path(path) {
+                Ok(_) => {
+                    removed_archive += 1;
+                    removed_archive_bytes = removed_archive_bytes.saturating_add(bytes);
+                }
+                Err(err) => errors.push(format!("archive_remove_failed:{}:{err}", path.display())),
+            }
+        }
+
+        if target_candidate {
+            removed_target_bytes = target_candidate_bytes;
+            match remove_path(&policy.target_root) {
+                Ok(_) => removed_target = true,
+                Err(err) => errors.push(format!(
+                    "target_remove_failed:{}:{err}",
+                    policy.target_root.display()
+                )),
+            }
+        }
+
+        for path in &detached_candidates {
+            let status = Command::new("git")
+                .args(["worktree", "remove", "--force"])
+                .arg(path)
+                .current_dir(root)
+                .status();
+            match status {
+                Ok(code) if code.success() => {
+                    removed_detached_worktrees += 1;
+                }
+                Ok(code) => errors.push(format!(
+                    "detached_worktree_remove_failed:{}:exit={}",
+                    path.display(),
+                    code.code().unwrap_or(1)
+                )),
+                Err(err) => errors.push(format!(
+                    "detached_worktree_remove_failed:{}:{err}",
+                    path.display()
+                )),
+            }
+        }
+
+        if has_git_root {
+            let _ = Command::new("git")
+                .args(["worktree", "prune", "--expire", "now"])
+                .current_dir(root)
+                .status();
+        }
+    }
+
+    let ok = errors.is_empty();
+    let payload = json!({
+        "ok": ok,
+        "type": "spine_sleep_cleanup",
+        "ts": now,
+        "origin": origin,
+        "applied": apply,
+        "executed": true,
+        "policy": {
+            "enabled": policy.enabled,
+            "min_interval_minutes": policy.min_interval_minutes,
+            "archive_root": policy.archive_root,
+            "archive_max_age_hours": policy.archive_max_age_hours,
+            "archive_keep_latest": policy.archive_keep_latest,
+            "target_root": policy.target_root,
+            "target_max_age_hours": policy.target_max_age_hours,
+            "detached_worktree_max_age_hours": policy.detached_worktree_max_age_hours
+        },
+        "candidates": {
+            "archive_paths": archive_candidates.len(),
+            "archive_bytes": archive_candidate_bytes,
+            "target_path": target_candidate,
+            "target_bytes": target_candidate_bytes,
+            "detached_worktrees": detached_candidates.len()
+        },
+        "removed": {
+            "archive_paths": removed_archive,
+            "archive_bytes": removed_archive_bytes,
+            "target_path": removed_target,
+            "target_bytes": removed_target_bytes,
+            "detached_worktrees": removed_detached_worktrees
+        },
+        "errors": errors
+    });
+
+    if apply {
+        write_json_atomic(
+            &policy.state_path,
+            &json!({
+                "type": "spine_sleep_cleanup_latest",
+                "ts": now_iso(),
+                "last_run_ms": now_epoch_ms(),
+                "origin": origin,
+                "result": payload
+            }),
+        );
+        append_jsonl(
+            &policy.history_path,
+            &json!({
+                "type": "spine_sleep_cleanup_history",
+                "ts": now_iso(),
+                "origin": origin,
+                "result": payload
+            }),
+        );
+    }
+
+    (if ok { 0 } else { 1 }, payload)
+}
+
+fn run_sleep_cleanup_command(root: &Path, argv: &[String]) -> i32 {
+    let sub = argv
+        .first()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "status".to_string());
+    let rest = if argv.is_empty() { &[][..] } else { &argv[1..] };
+
+    match sub.as_str() {
+        "status" => {
+            let policy = load_sleep_cleanup_policy(root);
+            let latest = read_json(&policy.state_path).unwrap_or_else(|| json!({}));
+            let out = json!({
+                "ok": true,
+                "type": "spine_sleep_cleanup_status",
+                "ts": now_iso(),
+                "latest": latest
+            });
+            print_json_line(&out);
+            0
+        }
+        "plan" => {
+            let force = bool_from_flag(rest, "force", true);
+            let (code, out) = execute_sleep_cleanup(root, false, force, "manual_plan");
+            print_json_line(&out);
+            code
+        }
+        "run" => {
+            let apply = bool_from_flag(rest, "apply", true);
+            let force = bool_from_flag(rest, "force", false);
+            let (code, out) = execute_sleep_cleanup(root, apply, force, "manual_run");
+            print_json_line(&out);
+            code
+        }
+        _ => {
+            let out = cli_error_receipt(argv, "sleep_cleanup_invalid_args", 2);
+            print_json_line(&out);
+            2
+        }
     }
 }
 
@@ -1113,6 +1576,18 @@ fn emit_terminal_with_closeout(
     failure_reason: Option<&str>,
 ) -> i32 {
     append_self_documentation_closeout(root, ledger, &context.cli.mode, &context.cli.date);
+    if context.cli.mode == "daily" {
+        let (_code, payload) = execute_sleep_cleanup(root, true, false, "spine_daily");
+        ledger.append(json!({
+            "type": "spine_step_non_blocking",
+            "mode": context.cli.mode,
+            "date": context.cli.date,
+            "step": "sleep_cleanup_cycle",
+            "ok": payload.get("ok").and_then(Value::as_bool).unwrap_or(false),
+            "non_blocking": true,
+            "payload": payload
+        }));
+    }
     emit_terminal_receipt(ledger, context, ok, failure_reason)
 }
 
@@ -1431,6 +1906,9 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if let Some(first) = argv.first() {
         let command = first.trim().to_ascii_lowercase();
+        if command == "sleep-cleanup" || command == "sleep_cleanup" {
+            return run_sleep_cleanup_command(root, &argv[1..]);
+        }
         if command == "background-hands-scheduler" || command == "background_hands_scheduler" {
             let (code, payload) = run_background_hands_scheduler(root, &argv[1..]);
             print_json_line(&payload);
@@ -1700,5 +2178,116 @@ mod tests {
         let ts = out.get("ts").and_then(Value::as_str).expect("ts");
         let date = out.get("date").and_then(Value::as_str).expect("date");
         assert!(ts.starts_with(date));
+    }
+
+    #[test]
+    fn sleep_cleanup_run_removes_old_archive_and_target() {
+        let root = tempdir().expect("tempdir");
+        let archive_dir = root.path().join("local/workspace/archive/churn-a");
+        let target_file = root.path().join("target/debug/stale.bin");
+        fs::create_dir_all(&archive_dir).expect("archive");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::write(archive_dir.join("receipt.json"), "{}").expect("archive write");
+        fs::write(&target_file, "stale").expect("target write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+
+        let (code, out) = execute_sleep_cleanup(root.path(), true, true, "test");
+        assert_eq!(code, 0);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+
+        assert!(!root.path().join("local/workspace/archive/churn-a").exists());
+        assert!(!root.path().join("target").exists());
+        assert!(root
+            .path()
+            .join("client/runtime/local/state/ops/sleep_cleanup/latest.json")
+            .exists());
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+    }
+
+    #[test]
+    fn daily_closeout_triggers_sleep_cleanup_automatically() {
+        let root = tempdir().expect("tempdir");
+        let archive_dir = root.path().join("local/workspace/archive/churn-b");
+        let target_file = root.path().join("target/debug/stale.bin");
+        fs::create_dir_all(&archive_dir).expect("archive");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::write(archive_dir.join("receipt.json"), "{}").expect("archive write");
+        fs::write(&target_file, "stale").expect("target write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+
+        let cli = CliArgs {
+            command: "run".to_string(),
+            mode: "daily".to_string(),
+            date: "2026-03-19".to_string(),
+            max_eyes: None,
+        };
+        let run_id = "spine_daily_auto_cleanup";
+        let policy = MechSuitPolicy {
+            enabled: true,
+            heartbeat_hours: 4,
+            manual_triggers_allowed: true,
+            quiet_non_critical: false,
+            silent_subprocess_output: true,
+            push_attention_queue: true,
+            attention_queue_path: "local/state/attention/queue.jsonl".to_string(),
+            attention_receipts_path: "local/state/attention/receipts.jsonl".to_string(),
+            attention_latest_path: "local/state/attention/latest.json".to_string(),
+            attention_max_queue_depth: 2048,
+            attention_ttl_hours: 48,
+            attention_dedupe_window_hours: 24,
+            attention_backpressure_drop_below: "critical".to_string(),
+            attention_escalate_levels: vec!["critical".to_string()],
+            ambient_stance: true,
+            dopamine_threshold_breach_only: true,
+            status_path: root
+                .path()
+                .join("local/state/ops/mech_suit_mode/latest.json"),
+            history_path: root
+                .path()
+                .join("local/state/ops/mech_suit_mode/history.jsonl"),
+            policy_path: root
+                .path()
+                .join("client/runtime/config/mech_suit_mode_policy.json"),
+        };
+        let constitution_hash = Some("abc123".to_string());
+        let evidence_plan = default_evidence_plan();
+        let mut ledger = LedgerWriter::new(root.path(), &cli.date, run_id);
+        let ctx = TerminalReceiptContext {
+            run_id,
+            cli: &cli,
+            policy: &policy,
+            constitution_hash: &constitution_hash,
+            constitution_ok: true,
+            evidence_plan: &evidence_plan,
+            evidence_ok: 0,
+            started_ms: 0,
+        };
+
+        let code = emit_terminal_with_closeout(root.path(), &mut ledger, &ctx, true, None);
+        assert_eq!(code, 0);
+
+        assert!(!root.path().join("local/workspace/archive/churn-b").exists());
+        assert!(!root.path().join("target").exists());
+        assert!(root
+            .path()
+            .join("client/runtime/local/state/ops/sleep_cleanup/latest.json")
+            .exists());
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
     }
 }
