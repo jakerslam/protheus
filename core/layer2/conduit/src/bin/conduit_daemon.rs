@@ -93,6 +93,30 @@ mod tests {
     }
 
     #[test]
+    fn load_policy_fails_for_missing_file_path() {
+        let _guard = env_lock().lock().expect("env lock");
+        env::set_var(
+            "CONDUIT_POLICY_PATH",
+            "/tmp/protheus_conduit_policy_missing_file_for_test.json",
+        );
+        let err = load_policy().expect_err("missing path must fail");
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+        env::remove_var("CONDUIT_POLICY_PATH");
+    }
+
+    #[test]
+    fn load_policy_fails_for_invalid_json() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let policy_path = temp.path().join("policy.json");
+        fs::write(&policy_path, "{ invalid json").expect("write invalid json");
+        env::set_var("CONDUIT_POLICY_PATH", &policy_path);
+        let err = load_policy().expect_err("invalid json must fail");
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        env::remove_var("CONDUIT_POLICY_PATH");
+    }
+
+    #[test]
     fn run_fails_fast_when_policy_budget_is_invalid() {
         let _guard = env_lock().lock().expect("env lock");
         let temp = tempfile::tempdir().expect("tempdir");
