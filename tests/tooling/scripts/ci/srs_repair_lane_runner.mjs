@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function parseArgs(argv) {
@@ -37,36 +37,65 @@ function fail(message, extra = {}) {
   process.exit(1);
 }
 
-function main() {
-  const args = parseArgs(process.argv);
-  const id = normalizeId(args.get('id'));
-  if (!id || !isValidId(id)) {
-    fail('invalid_or_missing_id', { received: String(args.get('id') || '') });
+function contractPath(id) {
+  return resolve(`planes/contracts/srs/${id}.json`);
+}
+
+function loadContract(id) {
+  const path = contractPath(id);
+  if (!existsSync(path)) return null;
+  try {
+    return {
+      path,
+      json: JSON.parse(readFileSync(path, 'utf8')),
+    };
+  } catch (error) {
+    fail('contract_parse_failed', {
+      id,
+      contractPath: path,
+      detail: String(error && error.message ? error.message : error),
+    });
   }
+  return null;
+}
 
-  const strict = String(args.get('strict') || '1') === '0' ? '0' : '1';
-  const dryRun = String(args.get('dry-run') || '0') === '1';
-
-  const receiptPath = resolve(`client/local/state/runtime_systems/${id}/latest.json`);
-  if (dryRun) {
-    console.log(
-      JSON.stringify(
-        {
-          ok: true,
-          type: 'srs_repair_lane_runner',
-          mode: 'dry_run',
-          id,
-          strict: strict === '1',
-          receiptPath,
-        },
-        null,
-        2,
-      ),
-    );
-    return;
+function detectRoute(contractPayload) {
+  const runtime = String(contractPayload?.execution_contract?.runtime || '').toLowerCase();
+  const laneCommand = String(contractPayload?.validation?.lane_command || '').toLowerCase();
+  if (runtime.includes('srs_contract_runtime') || laneCommand.includes('srs-contract-runtime')) {
+    return 'srs_contract_runtime';
   }
+  if (runtime.includes('runtime_systems') || laneCommand.includes('runtime-systems')) {
+    return 'runtime_systems';
+  }
+  return 'runtime_systems';
+}
 
-  const cmd = [
+function receiptPathFor({ id, route, contractPayload }) {
+  const mutableStatePath = String(contractPayload?.execution_contract?.mutable_state_path || '').trim();
+  if (mutableStatePath) return resolve(mutableStatePath);
+  if (route === 'srs_contract_runtime') {
+    return resolve(`local/state/ops/srs_contract_runtime/${id}/latest.json`);
+  }
+  return resolve(`client/local/state/runtime_systems/${id}/latest.json`);
+}
+
+function cargoArgsFor({ id, strict, route }) {
+  if (route === 'srs_contract_runtime') {
+    return [
+      'run',
+      '-q',
+      '-p',
+      'protheus-ops-core',
+      '--bin',
+      'protheus-ops',
+      '--',
+      'srs-contract-runtime',
+      'run',
+      `--id=${id}`,
+    ];
+  }
+  return [
     'run',
     '-q',
     '-p',
@@ -80,6 +109,42 @@ function main() {
     '--apply=1',
     `--strict=${strict}`,
   ];
+}
+
+function main() {
+  const args = parseArgs(process.argv);
+  const id = normalizeId(args.get('id'));
+  if (!id || !isValidId(id)) {
+    fail('invalid_or_missing_id', { received: String(args.get('id') || '') });
+  }
+
+  const strict = String(args.get('strict') || '1') === '0' ? '0' : '1';
+  const dryRun = String(args.get('dry-run') || '0') === '1';
+  const contract = loadContract(id);
+  const route = detectRoute(contract?.json || null);
+
+  const receiptPath = receiptPathFor({ id, route, contractPayload: contract?.json || null });
+  if (dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          type: 'srs_repair_lane_runner',
+          mode: 'dry_run',
+          id,
+          route,
+          strict: strict === '1',
+          contractPath: contract?.path || null,
+          receiptPath,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  const cmd = cargoArgsFor({ id, strict, route });
   const child = spawnSync('cargo', cmd, {
     cwd: resolve('.'),
     stdio: 'inherit',
@@ -100,7 +165,9 @@ function main() {
         type: 'srs_repair_lane_runner',
         mode: 'run',
         id,
+        route,
         strict: strict === '1',
+        contractPath: contract?.path || null,
         receiptPath,
       },
       null,
