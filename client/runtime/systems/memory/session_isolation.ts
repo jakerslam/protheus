@@ -4,6 +4,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
+const fs = require('fs');
 const path = require('path');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
@@ -71,25 +72,116 @@ function saveState(state, filePath = DEFAULT_STATE_PATH) {
     ? out.state
     : {
         schema_version: '1.0',
-        resources: {}
+      resources: {}
       };
+}
+
+function parseArgsToFlags(args = []) {
+  const flags = {};
+  for (const token of Array.isArray(args) ? args : []) {
+    const value = String(token || '');
+    if (!value.startsWith('--')) continue;
+    const eq = value.indexOf('=');
+    if (eq === -1) {
+      flags[value.slice(2)] = '1';
+    } else {
+      flags[value.slice(2, eq)] = value.slice(eq + 1);
+    }
+  }
+  return flags;
+}
+
+function loadLocalState(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (parsed && typeof parsed === 'object' && parsed.resources && typeof parsed.resources === 'object') {
+        return parsed;
+      }
+    }
+  } catch {
+    // fail closed to empty state snapshot
+  }
+  return {
+    schema_version: '1.0',
+    resources: {}
+  };
+}
+
+function saveLocalState(state, filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+}
+
+function localValidateSessionIsolation(args = [], options = {}) {
+  const flags = parseArgsToFlags(args);
+  const sessionId = typeof flags['session-id'] === 'string' ? flags['session-id'].trim() : '';
+  const statePathCandidate = options && typeof options === 'object'
+    ? (options.statePath || options.state_path || DEFAULT_STATE_PATH)
+    : DEFAULT_STATE_PATH;
+  const statePath = path.resolve(String(statePathCandidate || DEFAULT_STATE_PATH));
+  if (!sessionId) {
+    return {
+      ok: false,
+      type: 'memory_session_isolation',
+      reason_code: 'missing_session_id'
+    };
+  }
+  if (!SESSION_ID_PATTERN.test(sessionId)) {
+    return {
+      ok: false,
+      type: 'memory_session_isolation',
+      reason_code: 'invalid_session_id'
+    };
+  }
+  const resourceId = typeof flags['resource-id'] === 'string' ? flags['resource-id'].trim() : '';
+  if (resourceId) {
+    const state = loadLocalState(statePath);
+    const resources = state.resources && typeof state.resources === 'object' ? state.resources : {};
+    const owner = typeof resources[resourceId] === 'string' ? resources[resourceId] : '';
+    if (owner && owner !== sessionId) {
+      return {
+        ok: false,
+        type: 'memory_session_isolation',
+        reason_code: 'cross_session_leak_blocked'
+      };
+    }
+    resources[resourceId] = sessionId;
+    state.resources = resources;
+    saveLocalState(state, statePath);
+  }
+  return {
+    ok: true,
+    type: 'memory_session_isolation',
+    reason_code: 'session_isolation_ok'
+  };
 }
 
 function validateSessionIsolation(args = [], options = {}) {
-  const out = invoke('validate', {
-    args: Array.isArray(args) ? args : [],
-    options: options && typeof options === 'object' ? options : {}
-  });
-  return out.validation && typeof out.validation === 'object'
-    ? out.validation
-    : {
-        ok: false,
-        type: 'memory_session_isolation',
-        reason_code: 'session_isolation_validation_failed'
-      };
+  return localValidateSessionIsolation(args, options);
 }
 
 function sessionFailureResult(validation, context = {}) {
+  if (validation && typeof validation.reason_code === 'string' && validation.reason_code.trim()) {
+    const reason = validation.reason_code.trim();
+    return {
+      ok: false,
+      status: 2,
+      stdout: `${JSON.stringify({
+        ok: false,
+        type: 'memory_session_isolation_reject',
+        reason,
+        fail_closed: true
+      })}\n`,
+      stderr: `memory_session_isolation_reject:${reason}\n`,
+      payload: {
+        ok: false,
+        type: 'memory_session_isolation_reject',
+        reason,
+        fail_closed: true
+      }
+    };
+  }
   const out = invoke('failure-result', {
     validation: validation && typeof validation === 'object' ? validation : {},
     context: context && typeof context === 'object' ? context : {}
