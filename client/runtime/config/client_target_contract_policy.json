@@ -92,6 +92,46 @@
       "bucket": "keep_public_client",
       "reason": "operator-facing runtime launcher shim remains public for CLI compatibility"
     },
+    "client/runtime/systems/autonomy/swarm_repl_demo.ts": {
+      "bucket": "keep_public_client",
+      "reason": "developer-facing swarm REPL demo surface retained as sanctioned runtime compatibility entrypoint"
+    },
+    "client/runtime/systems/ops/protheus_command_list.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing command listing surface remains public for CLI diagnostics compatibility"
+    },
+    "client/runtime/systems/ops/protheus_control_plane.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing control plane bridge remains public for runtime control workflows"
+    },
+    "client/runtime/systems/ops/protheus_debug_diagnostics.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing diagnostics bridge remains public for incident/debug workflows"
+    },
+    "client/runtime/systems/ops/protheus_status_dashboard.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing status dashboard bridge remains public for runtime observability workflows"
+    },
+    "client/runtime/systems/ops/rust50_migration_program.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/ops/rust_hotpath_inventory.ts": {
+      "bucket": "collapse_to_generic_wrapper",
+      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
+    },
+    "client/runtime/systems/ops/security_layer_inventory_gate.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/ops/top50_roi_sweep.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/workflow/shannon_desktop_shell.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
     "client/runtime/systems/memory/rust_memory_transition_lane.ts": {
       "bucket": "keep_public_client",
       "reason": "Rust transition lane bridge is a sanctioned client-facing compatibility entrypoint"

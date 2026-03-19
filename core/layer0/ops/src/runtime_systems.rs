@@ -1399,7 +1399,7 @@ fn run_payload(
     };
     let passthrough = collect_passthrough(args);
     let ts = now_iso();
-    let row = json!({
+    let mut row = json!({
         "type": "runtime_systems_run",
         "lane": LANE_ID,
         "command": command,
@@ -1413,6 +1413,8 @@ fn run_payload(
         "contract_execution": contract_execution.summary,
         "contract_profile": profile.map(profile_json)
     });
+    row["ok"] = Value::Bool(true);
+    row["receipt_hash"] = Value::String(receipt_hash(&row));
 
     if apply {
         lane_utils::write_json(&latest_path(root, system_id), &row)?;
@@ -1594,7 +1596,7 @@ mod tests {
                 .and_then(Value::as_object)
                 .and_then(|m| m.get("contracts"))
                 .and_then(Value::as_u64),
-            Some(243)
+            Some(actionable_ids().len() as u64)
         );
     }
 
