@@ -1711,6 +1711,7 @@ mod tests {
     use std::fs;
     use std::io::{BufRead, BufReader, Cursor, Write};
     use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
 
     fn test_policy_paths() -> (PathBuf, PathBuf, tempfile::TempDir) {
@@ -1771,6 +1772,11 @@ mod tests {
         fn evaluate(&self, _command: &TsCommand) -> super::PolicyDecision {
             super::PolicyDecision::deny("deny_for_test")
         }
+    }
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
     }
 
     fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> CommandEnvelope {
@@ -1969,6 +1975,181 @@ mod tests {
     #[test]
     fn clean_lane_id_keeps_allowed_chars_and_uppercases() {
         assert_eq!(clean_lane_id(" lane-1.alpha_beta!@# "), "LANE-1.ALPHA_BETA");
+    }
+
+    #[test]
+    fn guard_registry_parser_handles_valid_and_invalid_inputs() {
+        let valid = serde_json::json!({
+            "merge_guard": {
+                "checks": [
+                    {"id": "contract_check"},
+                    {"id": "formal_invariant_engine"}
+                ]
+            }
+        })
+        .to_string();
+        let ids = super::parse_guard_registry_check_ids(&valid).expect("valid guard registry");
+        assert!(ids.contains("contract_check"));
+        assert!(ids.contains("formal_invariant_engine"));
+
+        let invalid_json = super::parse_guard_registry_check_ids("{bad-json");
+        assert_eq!(
+            invalid_json.expect_err("invalid json must fail"),
+            "guard_registry_invalid_json"
+        );
+
+        let missing_checks = super::parse_guard_registry_check_ids("{}");
+        assert_eq!(
+            missing_checks.expect_err("missing checks must fail"),
+            "guard_registry_checks_missing"
+        );
+    }
+
+    #[test]
+    fn parse_json_payload_supports_full_and_tail_json() {
+        let direct = super::parse_json_payload("{\"ok\":true,\"type\":\"x\"}").expect("direct");
+        assert_eq!(direct.get("ok").and_then(Value::as_bool), Some(true));
+
+        let tailed = super::parse_json_payload("noise line\n{\"ok\":false,\"reason\":\"x\"}\n")
+            .expect("tail object");
+        assert_eq!(tailed.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(tailed.get("reason").and_then(Value::as_str), Some("x"));
+
+        assert!(super::parse_json_payload("noise only\nline2").is_none());
+    }
+
+    #[test]
+    fn bridge_timeout_ms_uses_default_and_clamps_env_values() {
+        let _guard = env_lock().lock().expect("env lock");
+
+        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+        assert_eq!(super::bridge_command_timeout_ms(), 110_000);
+
+        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "1");
+        assert_eq!(super::bridge_command_timeout_ms(), 1_000);
+
+        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "999999999");
+        assert_eq!(super::bridge_command_timeout_ms(), 15 * 60 * 1_000);
+
+        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+    }
+
+    #[test]
+    fn resolve_protheus_ops_command_honors_explicit_bin_and_fallbacks() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().to_path_buf();
+
+        std::env::set_var("PROTHEUS_OPS_BIN", "/tmp/protheus-ops-explicit");
+        let (command, args) = super::resolve_protheus_ops_command(&root, "spine");
+        assert_eq!(command, "/tmp/protheus-ops-explicit");
+        assert_eq!(args, vec!["spine".to_string()]);
+        std::env::remove_var("PROTHEUS_OPS_BIN");
+
+        let (fallback_command, fallback_args) = super::resolve_protheus_ops_command(&root, "spine");
+        assert_eq!(fallback_command, "cargo");
+        assert!(fallback_args.contains(&"--manifest-path".to_string()));
+        assert_eq!(fallback_args.last().map(String::as_str), Some("spine"));
+    }
+
+    #[test]
+    fn load_cockpit_summary_reports_missing_invalid_and_valid_sources() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().to_path_buf();
+        let cockpit_file = temp.path().join("cockpit_latest.json");
+        std::env::set_var("COCKPIT_INBOX_LATEST_PATH", &cockpit_file);
+
+        let missing = super::load_cockpit_summary(&root);
+        assert_eq!(missing.get("available").and_then(Value::as_bool), Some(false));
+
+        fs::write(&cockpit_file, "{ invalid-json").expect("write invalid");
+        let invalid = super::load_cockpit_summary(&root);
+        assert_eq!(invalid.get("available").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            invalid.get("reason").and_then(Value::as_str),
+            Some("cockpit_latest_invalid_json")
+        );
+
+        fs::write(&cockpit_file, "[]").expect("write non-object");
+        let not_object = super::load_cockpit_summary(&root);
+        assert_eq!(
+            not_object.get("reason").and_then(Value::as_str),
+            Some("cockpit_latest_not_object")
+        );
+
+        fs::write(
+            &cockpit_file,
+            serde_json::json!({
+                "ts": "2026-03-19T00:00:00Z",
+                "sequence": 7,
+                "consumer_id": "test",
+                "attention": {"batch_count": 2, "queue_depth": 3},
+                "receipt_hash": "abc"
+            })
+            .to_string(),
+        )
+        .expect("write valid object");
+        let valid = super::load_cockpit_summary(&root);
+        assert_eq!(valid.get("available").and_then(Value::as_bool), Some(true));
+        assert_eq!(valid.get("sequence").and_then(Value::as_i64), Some(7));
+        assert_eq!(
+            valid.get("attention_batch_count").and_then(Value::as_i64),
+            Some(2)
+        );
+
+        std::env::remove_var("COCKPIT_INBOX_LATEST_PATH");
+    }
+
+    #[test]
+    fn legacy_lane_receipt_and_edge_decode_cover_error_paths() {
+        let invalid_lane = super::build_legacy_lane_receipt("  !!! ");
+        assert_eq!(invalid_lane.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            invalid_lane.get("error").and_then(Value::as_str),
+            Some("lane_id_missing_or_invalid")
+        );
+
+        let valid_lane = super::build_legacy_lane_receipt(" lane-42 ");
+        assert_eq!(valid_lane.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            valid_lane.get("lane_id").and_then(Value::as_str),
+            Some("LANE-42")
+        );
+
+        assert!(super::decode_edge_bridge_message("no_prefix")
+            .expect("decode")
+            .is_none());
+        assert!(super::decode_edge_bridge_message("edge_json:{bad")
+            .expect_err("invalid edge json")
+            .starts_with("edge_bridge_json_invalid:"));
+    }
+
+    #[test]
+    fn ops_domain_message_rejects_missing_domain() {
+        let event = super::execute_edge_bridge_message(super::EdgeBridgeMessage::OpsDomainCommand {
+            domain: "  ".to_string(),
+            args: vec!["status".to_string()],
+            run_context: None,
+        });
+        match event {
+            RustEvent::SystemFeedback {
+                status,
+                detail,
+                violation_reason,
+            } => {
+                assert_eq!(status, "ops_domain_bridge_error");
+                assert_eq!(
+                    violation_reason.as_deref(),
+                    Some("missing_domain")
+                );
+                assert_eq!(
+                    detail.get("reason").and_then(Value::as_str),
+                    Some("missing_domain")
+                );
+            }
+            _ => panic!("expected system feedback"),
+        }
     }
 
     #[test]
