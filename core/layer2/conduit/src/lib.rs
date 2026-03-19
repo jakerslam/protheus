@@ -1702,7 +1702,10 @@ mod tests {
         EchoCommandHandler, KernelLaneCommandHandler, PolicyGate, RegistryPolicyGate, RustEvent,
         MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
     };
-    use super::{CommandEnvelope, TsCommand};
+    use super::{
+        clean_lane_id, normalize_edge_prompt, summarize_for_edge_backend, validate_command,
+        validate_structure, CommandEnvelope, TsCommand,
+    };
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
     use serde_json::Value;
     use std::fs;
@@ -1759,6 +1762,14 @@ mod tests {
             RateLimiter::new(policy.rate_limit.clone()),
             policy.command_required_capabilities.clone(),
         )
+    }
+
+    struct AlwaysDenyPolicy;
+
+    impl PolicyGate for AlwaysDenyPolicy {
+        fn evaluate(&self, _command: &TsCommand) -> super::PolicyDecision {
+            super::PolicyDecision::deny("deny_for_test")
+        }
     }
 
     fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> CommandEnvelope {
@@ -1849,6 +1860,114 @@ mod tests {
             .validation
             .reason
             .starts_with("capability_token_missing_scope"));
+    }
+
+    #[test]
+    fn schema_mismatch_fails_closed_before_policy_and_security() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let mut command = signed_envelope(&policy, TsCommand::GetSystemStatus);
+        command.schema_id = "conduit.command.envelope.v0".to_string();
+
+        let receipt = validate_command(&command, &gate, &mut security);
+        assert!(!receipt.ok);
+        assert!(receipt.fail_closed);
+        assert_eq!(receipt.reason, "conduit_schema_mismatch");
+        assert_eq!(receipt.policy_receipt_hash, "policy_not_evaluated");
+        assert_eq!(receipt.security_receipt_hash, "security_not_evaluated");
+    }
+
+    #[test]
+    fn policy_denial_fails_closed_before_security_validation() {
+        let policy = test_policy();
+        let mut security = test_security(&policy);
+        let command = signed_envelope(&policy, TsCommand::GetSystemStatus);
+
+        let receipt = validate_command(&command, &AlwaysDenyPolicy, &mut security);
+        assert!(!receipt.ok);
+        assert!(receipt.fail_closed);
+        assert_eq!(receipt.reason, "deny_for_test");
+        assert_eq!(receipt.security_receipt_hash, "security_not_evaluated");
+    }
+
+    #[test]
+    fn structural_validation_rejects_invalid_limits_and_ids() {
+        let empty_start = validate_structure(&TsCommand::StartAgent {
+            agent_id: "   ".to_string(),
+        });
+        assert_eq!(empty_start.as_deref(), Some("agent_id_required"));
+
+        let zero_limit = validate_structure(&TsCommand::QueryReceiptChain {
+            from_hash: Some("abc123".to_string()),
+            limit: Some(0),
+        });
+        assert_eq!(zero_limit.as_deref(), Some("receipt_query_limit_out_of_range"));
+
+        let high_limit = validate_structure(&TsCommand::QueryReceiptChain {
+            from_hash: Some("abc123".to_string()),
+            limit: Some(1001),
+        });
+        assert_eq!(high_limit.as_deref(), Some("receipt_query_limit_out_of_range"));
+
+        let missing_patch_id = validate_structure(&TsCommand::ApplyPolicyUpdate {
+            patch_id: " ".to_string(),
+            patch: serde_json::json!({"safe": true}),
+        });
+        assert_eq!(missing_patch_id.as_deref(), Some("policy_patch_id_required"));
+
+        let unsafe_patch = validate_structure(&TsCommand::ApplyPolicyUpdate {
+            patch_id: "runtime/unsafe".to_string(),
+            patch: serde_json::json!({"safe": false}),
+        });
+        assert_eq!(
+            unsafe_patch.as_deref(),
+            Some("policy_update_must_be_constitution_safe")
+        );
+    }
+
+    #[test]
+    fn structural_validation_rejects_bad_extensions() {
+        let missing_id = validate_structure(&TsCommand::InstallExtension {
+            extension_id: " ".to_string(),
+            wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+            capabilities: vec!["metrics.read".to_string()],
+        });
+        assert_eq!(missing_id.as_deref(), Some("extension_id_required"));
+
+        let bad_capabilities = validate_structure(&TsCommand::InstallExtension {
+            extension_id: "ext-valid".to_string(),
+            wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+            capabilities: vec!["".to_string()],
+        });
+        assert_eq!(
+            bad_capabilities.as_deref(),
+            Some("extension_capabilities_invalid")
+        );
+    }
+
+    #[test]
+    fn edge_prompt_helpers_normalize_and_cap_tokens() {
+        assert_eq!(normalize_edge_prompt("   \n  "), "(empty_prompt)");
+        assert_eq!(
+            normalize_edge_prompt("hello   tiny   world"),
+            "hello tiny world"
+        );
+        assert_eq!(
+            summarize_for_edge_backend("a b c d e", 3),
+            "a b c".to_string()
+        );
+        assert_eq!(
+            summarize_for_edge_backend("a b", 3),
+            "a b".to_string()
+        );
+    }
+
+    #[test]
+    fn clean_lane_id_keeps_allowed_chars_and_uppercases() {
+        assert_eq!(clean_lane_id(" lane-1.alpha_beta!@# "), "LANE-1.ALPHA_BETA");
     }
 
     #[test]
