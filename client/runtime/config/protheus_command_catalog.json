@@ -97,8 +97,8 @@
     },
     "assimilate": {
       "category": "Tools",
-      "usage": "protheus assimilate <path|url> [--dry-run=1]",
-      "summary": "Ingest source and emit governed sprint prompt."
+      "usage": "protheus assimilate <target> [--payload-base64=<b64>] [--strict=1] [--showcase=1] [--scaffold-payload=1]",
+      "summary": "Run governed assimilation lanes with staged progress, payload scaffolds, and receipted runtime metrics."
     },
     "research": {
       "category": "Tools",

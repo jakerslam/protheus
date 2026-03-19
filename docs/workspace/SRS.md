@@ -12961,3 +12961,25 @@ Objective: preserve pure/tiny-max portability while enabling meaningful intellig
 | V9-PURE-INTEL-001.2 | done | Bounded Research Surface in Pure Mode | Pure mode could not perform practical research workflows without rich Node CLI. | `infring research status, fetch, diagnostics` is available in pure mode via Rust core routing only (no Node dependency), with deterministic receipts and runnable CLI evidence. Evidence: `core/layer0/ops/src/research_plane.rs`, `core/layer0/ops/tests/v9_pure_intel_integration.rs`. | 8 | 0/1/2/client |
 | V9-PURE-INTEL-001.3 | done | Minimal Memory Query/Write Surface in Pure Mode | Pure-mode sessions lacked a direct way to persist and reuse operator context. | `infring memory status, write, query` works in pure mode, persists to core-authoritative local state with deterministic receipts, and includes regression tests for write/query round-trip. Evidence: `core/layer0/ops/src/protheusd.rs`, `core/layer0/ops/tests/v9_pure_intel_integration.rs`. | 8 | 0/1/2/client |
 | V9-PURE-INTEL-001.4 | done | Pure Client Daemon Passthrough Hardening | Pure client should remain thin while reliably targeting current daemon binaries across install/build layouts. | Pure client prefers sibling daemon binaries then PATH fallbacks and successfully routes `think/research/memory/conduit` commands in runnable CLI verification. Evidence: `client/pure-workspace/src/main.rs`, `client/pure-workspace/tests/v9_pure_intel_passthrough.rs`. | 7 | 0/1/2/client |
+
+## Assimilate Runtime UX + Metrics Hardening (2026-03-19)
+
+Source references:
+- Operator request to unify assimilation UX for known targets and generic targets, separate showcase timing from real execution, add payload scaffolds, and persist first-class latency metrics.
+
+Notes:
+- Primitive-first normalization: this intake hardens the existing `infring assimilate` operator surface without introducing a parallel assimilation subsystem.
+- Overlap handled explicitly:
+  - bridge-assimilation authority remains core-routed (`*bridge` lanes and research/parse shortcuts)
+  - thin client CLI ownership remains in `client/runtime/systems/tools/assimilate.js`
+  - performance receipts remain deterministic via existing bridge/core receipts
+
+Objective: make assimilation execution observably fast, consistent across targets, and regression-safe with operator-facing scaffolds and latency SLO telemetry.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V10-ASSIM-001.1 | existing-coverage-validated | Unified Assimilation Progress UX Across Known Targets | Known-target bridge routes and generic assimilation rendered different operator experiences, making runtime behavior look inconsistent. | `infring assimilate <target>` always uses a single staged progress renderer (`█`/`░` bars), while still delegating known targets to governed core bridge lanes; validated by `tests/client-memory-tools/assimilate_progress_bar_style.test.js` and live run via `node client/runtime/systems/ops/run_protheus_ops.js protheusctl assimilate haystack ...`. | 8 | 0/1/2/client |
+| V10-ASSIM-001.2 | existing-coverage-validated | Real-Time vs Showcase Timing Split | 10-second cinematic timing obscured actual runtime speed when operators needed factual latency. | Assimilation defaults to real-time execution timing and supports explicit showcase mode (`--showcase=1`, optional `--duration-ms=`) without changing core receipt semantics; verified in `client/runtime/systems/tools/assimilate.js` and `tests/client-memory-tools/assimilate_runtime_contract.test.js`. | 9 | 0/1/2/client |
+| V10-ASSIM-001.3 | existing-coverage-validated | Target-Aware Payload Scaffold Contract | Minimal valid payload shapes were unclear for bridge targets, causing fail-closed errors and operator friction. | `infring assimilate <target> --scaffold-payload=1` emits target-aware minimal payload JSON plus base64 helper; regression coverage in `tests/client-memory-tools/assimilate_runtime_contract.test.js`. | 8 | 0/1/2/client |
+| V10-ASSIM-001.4 | existing-coverage-validated | Assimilation Latency Metrics Ledger (p50/p95) | Assimilation speed could not be tracked over time per target, making regressions hard to detect early. | Assimilation updates persisted per-target latency metrics (`count`, `ok/fail`, `last`, `p50`, `p95`) in `local/state/tools/assimilate/metrics.json` and surfaces them in command output/JSON mode; regression coverage in `tests/client-memory-tools/assimilate_runtime_contract.test.js`. | 9 | 0/1/2/client |
+| V10-ASSIM-001.5 | existing-coverage-validated | Assimilation Prewarm Contract for Variance Reduction | Cold dispatch overhead increased first-run variance for bridge-backed assimilations. | Assimilation prewarm state (`local/state/tools/assimilate/prewarm.json`) gates lightweight health prewarm with bounded TTL and opt-out (`--no-prewarm`) before bridge execution; deterministic behavior implemented in `client/runtime/systems/tools/assimilate.js`. | 7 | 0/1/2/client |

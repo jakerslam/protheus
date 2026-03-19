@@ -740,6 +740,93 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
     protheusctl_routes::resolve_core_shortcuts(cmd, rest)
 }
 
+fn is_assimilate_wrapper_flag(token: &str) -> bool {
+    matches!(token, "--showcase" | "--scaffold-payload" | "--no-prewarm")
+        || token.starts_with("--showcase=")
+        || token.starts_with("--duration-ms=")
+        || token.starts_with("--scaffold-payload=")
+        || token.starts_with("--prewarm=")
+}
+
+fn split_assimilate_tokens(rest: &[String]) -> (Option<String>, Vec<String>, Vec<String>) {
+    let mut target: Option<String> = None;
+    let mut core_passthrough = Vec::<String>::new();
+    let mut wrapper_flags = Vec::<String>::new();
+    for token in rest {
+        let trimmed = token.trim();
+        if target.is_none() {
+            if let Some(value) = trimmed.strip_prefix("--target=") {
+                let normalized = value.trim();
+                if !normalized.is_empty() {
+                    target = Some(normalized.to_string());
+                    continue;
+                }
+            } else if !trimmed.starts_with("--") {
+                target = Some(trimmed.to_string());
+                continue;
+            }
+        }
+        if is_assimilate_wrapper_flag(trimmed) {
+            wrapper_flags.push(token.clone());
+        } else {
+            core_passthrough.push(token.clone());
+        }
+    }
+    (target, core_passthrough, wrapper_flags)
+}
+
+fn resolve_assimilate_route(rest: &[String]) -> Route {
+    let default_args = if rest.is_empty() {
+        vec!["--help".to_string()]
+    } else {
+        rest.to_vec()
+    };
+    if rest.is_empty() {
+        return Route {
+            script_rel: "client/runtime/systems/tools/assimilate.js".to_string(),
+            args: default_args,
+            forward_stdin: false,
+        };
+    }
+
+    let (target, mut core_passthrough, wrapper_flags) = split_assimilate_tokens(rest);
+    let Some(target_value) = target else {
+        return Route {
+            script_rel: "client/runtime/systems/tools/assimilate.js".to_string(),
+            args: default_args,
+            forward_stdin: false,
+        };
+    };
+    let mut core_rest = vec![target_value.clone()];
+    core_rest.append(&mut core_passthrough);
+
+    let Some(core_route) = resolve_core_shortcuts("assimilate", &core_rest) else {
+        return Route {
+            script_rel: "client/runtime/systems/tools/assimilate.js".to_string(),
+            args: default_args,
+            forward_stdin: false,
+        };
+    };
+
+    let Some(core_domain) = core_route.script_rel.strip_prefix("core://") else {
+        return core_route;
+    };
+    let encoded_core_args = serde_json::to_string(&core_route.args)
+        .map(|raw| BASE64_STANDARD.encode(raw.as_bytes()))
+        .unwrap_or_else(|_| BASE64_STANDARD.encode(b"[]"));
+    let mut args = vec![
+        format!("--target={}", target_value),
+        format!("--core-domain={}", core_domain),
+        format!("--core-args-base64={}", encoded_core_args),
+    ];
+    args.extend(wrapper_flags);
+    Route {
+        script_rel: "client/runtime/systems/tools/assimilate.js".to_string(),
+        args,
+        forward_stdin: false,
+    }
+}
+
 pub fn usage() {
     println!("Usage: infring <command> [flags]");
     println!("Try:");
@@ -855,7 +942,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     maybe_run_update_checker(root, &cmd);
     maybe_run_cli_suggestion_engine(root, &cmd, &rest);
 
-    let mut route = resolve_core_shortcuts(&cmd, &rest).unwrap_or_else(|| match cmd.as_str() {
+    let mut route = if cmd == "assimilate" {
+        resolve_assimilate_route(&rest)
+    } else {
+        resolve_core_shortcuts(&cmd, &rest).unwrap_or_else(|| match cmd.as_str() {
         "list" => Route {
             script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=list".to_string())
@@ -1442,12 +1532,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .collect(),
             forward_stdin: false,
         },
-        _ => Route {
-            script_rel: "client/runtime/systems/ops/protheus_unknown_guard.js".to_string(),
-            args: std::iter::once(cmd.clone()).chain(rest).collect(),
-            forward_stdin: false,
-        },
-    });
+            _ => Route {
+                script_rel: "client/runtime/systems/ops/protheus_unknown_guard.js".to_string(),
+                args: std::iter::once(cmd.clone()).chain(rest).collect(),
+                forward_stdin: false,
+            },
+        })
+    };
 
     let supports_json_flag = matches!(
         route.script_rel.as_str(),
