@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "kind": "skill_migration_contract",
+  "description": "Canonical forced-migration contract for backward-compatible skill upgrades.",
+  "required_fields": [
+    "skill_id",
+    "from_version",
+    "to_version",
+    "reason",
+    "deprecation_policy",
+    "migration_lane_path",
+    "rollback_checkpoint"
+  ],
+  "deprecation_policies": [
+    "warn",
+    "enforce"
+  ],
+  "rollback_required": true,
+  "receipt_required": true
+}

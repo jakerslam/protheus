@@ -13,6 +13,12 @@
     "mutable_state_path": "local/state/ops/srs_contract_runtime/V8-SKILL-002/latest.json",
     "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
   },
+  "backward_compat": {
+    "policy": "semver_major",
+    "min_version": "v1",
+    "migration_lane": "skill_forced_migration",
+    "receipt_required": true
+  },
   "deliverables": [
     {
       "type": "contract",

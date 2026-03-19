@@ -38,83 +38,23 @@
   },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
-      "client/runtime/systems/spine/spine_safe_launcher.ts",
-      "client/runtime/systems/security/directive_compiler.ts",
-      "client/runtime/systems/ops/protheusd.ts"
+      "client/runtime/systems/ops/protheusd.js"
     ]
   },
   "rust_shim_contract": {
     "entries": [
       {
-        "path": "client/runtime/systems/ops/state_kernel.ts",
+        "path": "client/runtime/systems/ops/protheus_control_plane.js",
         "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "state-kernel"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/execution_yield_recovery.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "execution-yield-recovery"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/protheus_control_plane.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
+          "runProtheusOps",
           "protheus-control-plane"
         ]
       },
       {
-        "path": "client/runtime/systems/ops/rust50_migration_program.ts",
+        "path": "client/runtime/systems/ops/protheus_status_dashboard.js",
         "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "rust50-migration-program"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/security/venom_containment_layer.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "venom-containment-layer"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/dynamic_burn_budget_oracle.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "dynamic-burn-budget-oracle"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/backlog_registry.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "backlog-registry"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/rust_enterprise_productivity_program.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "rust-enterprise-productivity-program"
-        ]
-      },
-      {
-        "path": "client/runtime/systems/ops/backlog_github_sync.ts",
-        "required_tokens": [
-          "createOpsLaneBridge",
-          "rust_lane_bridge",
-          "backlog-github-sync"
+          "status",
+          "protheus_control_plane"
         ]
       }
     ]
@@ -233,6 +173,8 @@
     "client/runtime/systems/marketplace/",
     "client/runtime/systems/ui/",
     "client/runtime/systems/extensions/",
+    "client/runtime/systems/ops/",
+    "client/runtime/systems/security/",
     "extensions/"
   ],
   "tcb_rust_required_prefixes": [
