@@ -85,16 +85,14 @@ fn spawn_daemon(policy_path: &std::path::Path) -> std::process::Child {
         .expect("spawn conduit_daemon")
 }
 
-#[test]
-fn conduit_daemon_processes_signed_stdio_request() {
-    let (policy, temp) = policy_fixture();
-    let policy_path = write_policy_file(&temp, policy.clone(), conduit::MAX_CONDUIT_MESSAGE_TYPES);
-    let envelope = signed_envelope(&policy, "daemon-success");
-
-    let mut child = spawn_daemon(&policy_path);
+fn run_daemon_with_envelope(
+    policy_path: &std::path::Path,
+    envelope: &CommandEnvelope,
+) -> (std::process::Output, ResponseEnvelope) {
+    let mut child = spawn_daemon(policy_path);
     {
         let stdin = child.stdin.as_mut().expect("stdin");
-        let mut payload = serde_json::to_string(&envelope).expect("serialize envelope");
+        let mut payload = serde_json::to_string(envelope).expect("serialize envelope");
         payload.push('\n');
         stdin
             .write_all(payload.as_bytes())
@@ -103,15 +101,25 @@ fn conduit_daemon_processes_signed_stdio_request() {
     drop(child.stdin.take());
 
     let output = child.wait_with_output().expect("wait output");
+    let stdout = String::from_utf8(output.stdout.clone()).expect("utf8 stdout");
+    let line = stdout.lines().next().expect("response line");
+    let response: ResponseEnvelope = serde_json::from_str(line).expect("response json");
+    (output, response)
+}
+
+#[test]
+fn conduit_daemon_processes_signed_stdio_request() {
+    let (policy, temp) = policy_fixture();
+    let policy_path = write_policy_file(&temp, policy.clone(), conduit::MAX_CONDUIT_MESSAGE_TYPES);
+    let envelope = signed_envelope(&policy, "daemon-success");
+
+    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
     assert!(
         output.status.success(),
         "daemon failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
-    let line = stdout.lines().next().expect("response line");
-    let response: ResponseEnvelope = serde_json::from_str(line).expect("response json");
     assert!(response.validation.ok);
     assert_eq!(response.validation.reason, "validated");
     assert_eq!(response.request_id, "daemon-success");
@@ -124,23 +132,8 @@ fn conduit_daemon_fail_closed_response_for_bad_signature() {
     let mut envelope = signed_envelope(&policy, "daemon-bad-signature");
     envelope.security.signature = "tampered-signature".to_string();
 
-    let mut child = spawn_daemon(&policy_path);
-    {
-        let stdin = child.stdin.as_mut().expect("stdin");
-        let mut payload = serde_json::to_string(&envelope).expect("serialize envelope");
-        payload.push('\n');
-        stdin
-            .write_all(payload.as_bytes())
-            .expect("write envelope payload");
-    }
-    drop(child.stdin.take());
-
-    let output = child.wait_with_output().expect("wait output");
+    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
     assert!(output.status.success());
-
-    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
-    let line = stdout.lines().next().expect("response line");
-    let response: ResponseEnvelope = serde_json::from_str(line).expect("response json");
     assert!(!response.validation.ok);
     assert_eq!(response.validation.reason, "message_signature_invalid");
 }
@@ -168,4 +161,77 @@ fn conduit_daemon_exits_nonzero_when_policy_budget_is_invalid() {
         stderr.contains("conduit_message_budget_invalid_zero"),
         "unexpected stderr: {stderr}"
     );
+}
+
+#[test]
+fn conduit_daemon_routes_edge_status_bridge_contract() {
+    let (policy, temp) = policy_fixture();
+    let policy_path = write_policy_file(&temp, policy.clone(), conduit::MAX_CONDUIT_MESSAGE_TYPES);
+    let mut envelope = signed_envelope(&policy, "daemon-edge-status");
+    envelope.command = TsCommand::StartAgent {
+        agent_id: "edge_status".to_string(),
+    };
+    envelope.security = ConduitSecurityContext::from_policy(
+        &policy,
+        "msg-k1",
+        "msg-secret",
+        "tok-k1",
+        "tok-secret",
+    )
+    .mint_security_metadata(
+        "daemon-it",
+        &envelope.request_id,
+        envelope.ts_ms,
+        &envelope.command,
+        60_000,
+    );
+
+    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    assert!(output.status.success());
+    assert!(response.validation.ok);
+    match response.event {
+        conduit::RustEvent::SystemFeedback { status, .. } => {
+            assert_eq!(status, "edge_status");
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn conduit_daemon_fail_closes_invalid_edge_json_bridge_payload() {
+    let (policy, temp) = policy_fixture();
+    let policy_path = write_policy_file(&temp, policy.clone(), conduit::MAX_CONDUIT_MESSAGE_TYPES);
+    let mut envelope = signed_envelope(&policy, "daemon-edge-json-invalid");
+    envelope.command = TsCommand::StartAgent {
+        agent_id: "edge_json:{bad".to_string(),
+    };
+    envelope.security = ConduitSecurityContext::from_policy(
+        &policy,
+        "msg-k1",
+        "msg-secret",
+        "tok-k1",
+        "tok-secret",
+    )
+    .mint_security_metadata(
+        "daemon-it",
+        &envelope.request_id,
+        envelope.ts_ms,
+        &envelope.command,
+        60_000,
+    );
+
+    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    assert!(output.status.success());
+    assert!(response.validation.ok);
+    match response.event {
+        conduit::RustEvent::SystemFeedback {
+            status,
+            violation_reason,
+            ..
+        } => {
+            assert_eq!(status, "edge_bridge_error");
+            assert_eq!(violation_reason.as_deref(), Some("edge_bridge_parse_failed"));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
 }
