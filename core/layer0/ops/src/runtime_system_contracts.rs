@@ -164,6 +164,266 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V9-ORGANISM-025.4",
     "V9-TINYMAX-021.1",
     "V9-TINYMAX-021.2",
+    "V10-CORE-001.1",
+    "V10-CORE-001.2",
+    "V10-CORE-001.3",
+    "V10-CORE-001.4",
+    "V10-CORE-001.5",
+    "V10-SWARM-INF-001.1",
+    "V10-SWARM-INF-001.2",
+    "V10-SWARM-INF-001.3",
+    "V10-SWARM-INF-001.4",
+    "V10-SWARM-INF-001.5",
+    "V10-SWARM-INF-001.6",
+    "V10-SWARM-INF-001.7",
+    "V10-SWARM-INF-001.8",
+    "V6-ADAPTER-001.1",
+    "V6-ADAPTER-001.2",
+    "V6-ADAPTER-001.3",
+    "V6-ADAPTER-001.4",
+    "V6-ADAPTER-001.5",
+    "V6-ADAPTER-002.1",
+    "V6-ADAPTER-002.2",
+    "V6-ADAPTER-002.3",
+    "V6-ADAPTER-002.4",
+    "V6-ADAPTER-002.5",
+    "V6-BEAT-OPENFANG-001",
+    "V6-BEAT-OPENFANG-002",
+    "V6-BEAT-OPENFANG-003",
+    "V6-BEAT-OPENFANG-004",
+    "V6-BEAT-OPENFANG-005",
+    "V6-BEAT-OPENFANG-006",
+    "V6-BEAT-OPENFANG-007",
+    "V6-BEAT-OPENFANG-008",
+    "V6-BEAT-OPENFANG-009",
+    "V6-BEAT-OPENFANG-010",
+    "V6-BLINDSPOT-001.1",
+    "V6-BLINDSPOT-001.10",
+    "V6-BLINDSPOT-001.2",
+    "V6-BLINDSPOT-001.3",
+    "V6-BLINDSPOT-001.4",
+    "V6-BLINDSPOT-001.5",
+    "V6-BLINDSPOT-001.6",
+    "V6-BLINDSPOT-001.7",
+    "V6-BLINDSPOT-001.8",
+    "V6-BLINDSPOT-001.9",
+    "V6-DASHBOARD-001.1",
+    "V6-DASHBOARD-001.10",
+    "V6-DASHBOARD-001.2",
+    "V6-DASHBOARD-001.3",
+    "V6-DASHBOARD-001.4",
+    "V6-DASHBOARD-001.5",
+    "V6-DASHBOARD-001.6",
+    "V6-DASHBOARD-001.7",
+    "V6-DASHBOARD-001.8",
+    "V6-DASHBOARD-001.9",
+    "V6-ECONOMY-003.1",
+    "V6-ECONOMY-003.2",
+    "V6-ECONOMY-003.3",
+    "V6-ECONOMY-003.4",
+    "V6-ECONOMY-003.5",
+    "V6-EXECUTION-001.1",
+    "V6-EXECUTION-001.2",
+    "V6-EXECUTION-001.3",
+    "V6-EXECUTION-001.4",
+    "V6-INFERENCE-003.1",
+    "V6-INFERENCE-003.2",
+    "V6-INFERENCE-003.3",
+    "V6-INFERENCE-003.4",
+    "V6-INFERENCE-003.5",
+    "V6-INFERENCE-004.1",
+    "V6-INFERENCE-004.2",
+    "V6-INFERENCE-004.3",
+    "V6-INFERENCE-004.4",
+    "V6-INFERENCE-004.5",
+    "V6-LEARNING-009.1",
+    "V6-LEARNING-009.2",
+    "V6-LEARNING-009.3",
+    "V6-LEARNING-009.4",
+    "V6-LEARNING-009.5",
+    "V6-LEARNING-009.6",
+    "V6-LEARNING-010.1",
+    "V6-LEARNING-010.2",
+    "V6-LEARNING-010.3",
+    "V6-LEARNING-010.4",
+    "V6-LEARNING-010.5",
+    "V6-MEMORY-020.1",
+    "V6-MEMORY-020.2",
+    "V6-MEMORY-020.3",
+    "V6-MEMORY-020.4",
+    "V6-MEMORY-020.5",
+    "V6-MEMORY-020.6",
+    "V6-MEMORY-023.1",
+    "V6-MEMORY-023.2",
+    "V6-MEMORY-023.3",
+    "V6-MEMORY-023.4",
+    "V6-MEMORY-023.5",
+    "V6-MEMORY-023.6",
+    "V6-MEMORY-024.1",
+    "V6-MEMORY-024.2",
+    "V6-MEMORY-024.3",
+    "V6-MEMORY-024.4",
+    "V6-MEMORY-024.5",
+    "V6-MEMORY-025.1",
+    "V6-MEMORY-025.2",
+    "V6-MEMORY-025.3",
+    "V6-MEMORY-025.4",
+    "V6-MEMORY-026.1",
+    "V6-MEMORY-026.2",
+    "V6-MEMORY-026.3",
+    "V6-MEMORY-026.4",
+    "V6-MEMORY-026.5",
+    "V6-MEMORY-COMPACT-002",
+    "V6-MEMORY-DECAY-001.1",
+    "V6-MEMORY-DECAY-001.2",
+    "V6-MEMORY-DECAY-001.3",
+    "V6-MEMORY-DECAY-001.4",
+    "V6-MEMORY-DECAY-001.5",
+    "V6-MEMORY-DECAY-001.6",
+    "V6-SCHEDULER-002.1",
+    "V6-SCHEDULER-002.2",
+    "V6-SCHEDULER-002.3",
+    "V6-SCHEDULER-002.4",
+    "V6-SECURITY-021.1",
+    "V6-SECURITY-021.2",
+    "V6-SECURITY-021.3",
+    "V6-SECURITY-021.4",
+    "V6-SECURITY-021.5",
+    "V6-SECURITY-021.6",
+    "V6-SECURITY-021.7",
+    "V6-SECURITY-022.1",
+    "V6-SECURITY-022.2",
+    "V6-SECURITY-022.3",
+    "V6-SECURITY-022.4",
+    "V6-SECURITY-022.5",
+    "V6-SKILLS-002.1",
+    "V6-SKILLS-002.2",
+    "V6-SKILLS-002.3",
+    "V6-SKILLS-002.4",
+    "V6-SKILLS-002.5",
+    "V6-SKILLS-003.1",
+    "V6-SKILLS-003.2",
+    "V6-SKILLS-003.3",
+    "V6-SKILLS-003.4",
+    "V6-SKILLS-003.5",
+    "V6-SKILLS-004.1",
+    "V6-SKILLS-004.2",
+    "V6-SKILLS-004.3",
+    "V6-SKILLS-004.4",
+    "V6-SKILLS-004.5",
+    "V6-WORKFLOW-016.1",
+    "V6-WORKFLOW-016.2",
+    "V6-WORKFLOW-016.3",
+    "V6-WORKFLOW-016.4",
+    "V6-WORKFLOW-016.5",
+    "V6-WORKFLOW-016.6",
+    "V6-WORKFLOW-016.7",
+    "V6-WORKFLOW-016.8",
+    "V6-WORKFLOW-018.1",
+    "V6-WORKFLOW-018.2",
+    "V6-WORKFLOW-018.3",
+    "V6-WORKFLOW-018.4",
+    "V6-WORKFLOW-018.5",
+    "V6-WORKFLOW-019.1",
+    "V6-WORKFLOW-019.2",
+    "V6-WORKFLOW-019.3",
+    "V6-WORKFLOW-019.4",
+    "V6-WORKFLOW-019.5",
+    "V6-WORKFLOW-019.6",
+    "V6-WORKFLOW-019.7",
+    "V6-WORKFLOW-020.1",
+    "V6-WORKFLOW-020.2",
+    "V6-WORKFLOW-020.3",
+    "V6-WORKFLOW-020.4",
+    "V6-WORKFLOW-020.5",
+    "V6-WORKFLOW-020.6",
+    "V6-WORKFLOW-020.7",
+    "V6-WORKFLOW-021.1",
+    "V6-WORKFLOW-021.2",
+    "V6-WORKFLOW-021.3",
+    "V6-WORKFLOW-021.4",
+    "V6-WORKFLOW-021.5",
+    "V6-WORKFLOW-022.1",
+    "V6-WORKFLOW-022.2",
+    "V6-WORKFLOW-022.3",
+    "V6-WORKFLOW-022.4",
+    "V6-WORKFLOW-022.5",
+    "V6-WORKFLOW-023.1",
+    "V6-WORKFLOW-023.2",
+    "V6-WORKFLOW-023.3",
+    "V6-WORKFLOW-023.4",
+    "V6-WORKFLOW-023.5",
+    "V6-WORKFLOW-024.1",
+    "V6-WORKFLOW-024.2",
+    "V6-WORKFLOW-024.3",
+    "V6-WORKFLOW-024.4",
+    "V6-WORKFLOW-024.5",
+    "V6-WORKFLOW-025.1",
+    "V6-WORKFLOW-025.2",
+    "V6-WORKFLOW-025.3",
+    "V6-WORKFLOW-025.4",
+    "V6-WORKFLOW-025.5",
+    "V6-WORKFLOW-026.1",
+    "V6-WORKFLOW-026.2",
+    "V6-WORKFLOW-026.3",
+    "V6-WORKFLOW-026.4",
+    "V6-WORKFLOW-026.5",
+    "V10-PHONE-001.1",
+    "V10-PHONE-001.2",
+    "V10-PHONE-001.3",
+    "V10-PHONE-001.4",
+    "V10-PHONE-001.5",
+    "V10-ULTIMATE-002.1",
+    "V10-ULTIMATE-002.2",
+    "V10-ULTIMATE-002.3",
+    "V6-APP-023.10",
+    "V6-APP-023.11",
+    "V6-APP-023.7",
+    "V6-APP-023.8",
+    "V6-APP-023.9",
+    "V6-WORKFLOW-001.1",
+    "V6-WORKFLOW-001.10",
+    "V6-WORKFLOW-001.11",
+    "V6-WORKFLOW-001.12",
+    "V6-WORKFLOW-001.2",
+    "V6-WORKFLOW-001.3",
+    "V6-WORKFLOW-001.4",
+    "V6-WORKFLOW-001.5",
+    "V6-WORKFLOW-001.6",
+    "V6-WORKFLOW-001.7",
+    "V6-WORKFLOW-001.8",
+    "V6-WORKFLOW-001.9",
+    "V6-WORKFLOW-002.1",
+    "V6-WORKFLOW-002.2",
+    "V6-WORKFLOW-002.3",
+    "V6-WORKFLOW-002.4",
+    "V6-WORKFLOW-002.5",
+    "V6-WORKFLOW-002.6",
+    "V6-WORKFLOW-004.1",
+    "V6-WORKFLOW-004.10",
+    "V6-WORKFLOW-004.2",
+    "V6-WORKFLOW-004.3",
+    "V6-WORKFLOW-004.4",
+    "V6-WORKFLOW-004.5",
+    "V6-WORKFLOW-004.6",
+    "V6-WORKFLOW-004.7",
+    "V6-WORKFLOW-004.8",
+    "V6-WORKFLOW-004.9",
+    "V6-WORKFLOW-005.1",
+    "V6-WORKFLOW-005.2",
+    "V6-WORKFLOW-005.3",
+    "V6-WORKFLOW-005.4",
+    "V6-WORKFLOW-005.5",
+    "V6-WORKFLOW-005.6",
+    "V6-WORKFLOW-005.7",
+    "V6-WORKFLOW-006.1",
+    "V6-WORKFLOW-006.2",
+    "V6-WORKFLOW-006.3",
+    "V6-WORKFLOW-006.4",
+    "V6-WORKFLOW-006.5",
+    "V6-WORKFLOW-006.6",
+    "V6-WORKFLOW-006.7",
+    "V6-WORKFLOW-006.8",
 ];
 
 const ACT_IDS: &[&str] = &[
@@ -380,6 +640,102 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "viral_replication_metacognition_exotic_hardware_tokenomics_and_universal_adapters",
         ));
     }
+    if id.starts_with("V10-CORE-001.") {
+        return Some((
+            "ultimate_evolution",
+            "core_metakernel_evolution_bootstrap_and_replication_controls",
+        ));
+    }
+    if id.starts_with("V10-ULTIMATE-002.") {
+        return Some((
+            "ultimate_evolution",
+            "ultimate_expansion_lane_for_operator_and_runtime_evolution_controls",
+        ));
+    }
+    if id.starts_with("V10-PHONE-001.") {
+        return Some((
+            "ecosystem_scale_v11",
+            "phone_surface_runtime_integration_and_operator_control_plane",
+        ));
+    }
+    if id.starts_with("V10-SWARM-INF-001.") {
+        return Some((
+            "swarm_runtime_scaling",
+            "swarm_infrastructure_scaling_consensus_and_resilience_controls",
+        ));
+    }
+    if id.starts_with("V6-WORKFLOW-") || id.starts_with("V6-EXECUTION-001.") {
+        return Some((
+            "swarm_runtime_scaling",
+            "workflow_orchestration_parallel_execution_and_checkpoint_recovery",
+        ));
+    }
+    if id.starts_with("V6-CODE-REVIEW-") {
+        return Some((
+            "swarm_runtime_scaling",
+            "code_review_automation_orchestration_and_recovery_controls",
+        ));
+    }
+    if id.starts_with("V6-SCHEDULER-002.") || id.starts_with("V6-DASHBOARD-001.") {
+        return Some((
+            "automation_mission_stack",
+            "scheduler_hardening_handoff_memory_security_and_dashboard_control_plane",
+        ));
+    }
+    if id.starts_with("V6-APP-023.") {
+        return Some((
+            "automation_mission_stack",
+            "app_plane_operator_runtime_controls_and_dashboard_governance",
+        ));
+    }
+    if id.starts_with("V6-MEMORY-") {
+        return Some((
+            "memory_depth_stack",
+            "memory_depth_decay_compaction_and_provenance_preserving_retrieval",
+        ));
+    }
+    if id.starts_with("V6-SKILLS-") {
+        return Some((
+            "skills_runtime_pack",
+            "skills_runtime_expansion_focus_templates_and_deployment_pack",
+        ));
+    }
+    if id.starts_with("V6-SECURITY-") {
+        return Some((
+            "security_sandbox_redteam",
+            "security_gate_expansion_sandboxing_and_adversarial_resilience",
+        ));
+    }
+    if id.starts_with("V6-LEARNING-") || id.starts_with("V6-INFERENCE-") {
+        return Some((
+            "learning_rsi_pipeline",
+            "learning_and_inference_feedback_loops_distillation_and_policy_retraining",
+        ));
+    }
+    if id.starts_with("V6-ADAPTER-") {
+        return Some((
+            "competitor_surface_expansion",
+            "adapter_surface_expansion_with_provider_router_and_domain_controls",
+        ));
+    }
+    if id.starts_with("V6-BEAT-OPENFANG-") {
+        return Some((
+            "competitive_execution_moat",
+            "openfang_surpass_execution_moat_with_receipted_performance_controls",
+        ));
+    }
+    if id.starts_with("V6-BLINDSPOT-") {
+        return Some((
+            "autonomy_opportunity_engine",
+            "blindspot_detection_and_autonomous_opportunity_prioritization",
+        ));
+    }
+    if id.starts_with("V6-ECONOMY-003.") {
+        return Some((
+            "ecosystem_scale_v11",
+            "economy_loop_growth_governance_and_marketplace_alignment",
+        ));
+    }
     if id.starts_with("V8-AUTOMATION-016.") {
         return Some((
             "automation_mission_stack",
@@ -474,6 +830,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
         return Some((
             "swarm_runtime_scaling",
             "sentiment_swarm_role_routing_work_stealing_watchdog_and_real_time_dashboard",
+        ));
+    }
+    if id.starts_with("V9-AUDIT-026.") {
+        return Some((
+            "audit_self_healing_stack",
+            "self_healing_audit_stack_with_cross_agent_verification_and_human_gate",
         ));
     }
     if id.starts_with("V9-CLIENT-020.") {
@@ -574,10 +936,19 @@ mod tests {
     #[test]
     fn actionable_registry_has_expected_cardinality_and_no_duplicates() {
         let profiles = actionable_profiles();
+        let mut expected = BTreeSet::new();
+        for group in CONTRACT_FAMILIES {
+            for id in group.ids {
+                expected.insert((*id).to_string());
+            }
+        }
+        for id in NEW_ACTIONABLE_IDS {
+            expected.insert((*id).to_string());
+        }
         assert_eq!(
             profiles.len(),
-            239,
-            "expected 239 actionable runtime contracts"
+            expected.len(),
+            "runtime contract profile count should match static registry inputs"
         );
         let mut seen = BTreeSet::new();
         for profile in profiles {
@@ -600,6 +971,7 @@ mod tests {
         assert!(profile_for("V5-RUST-HYB-010").is_some());
         assert!(profile_for("V5-RUST-PROD-012").is_some());
         assert!(profile_for("V10-ULTIMATE-001.6").is_some());
+        assert!(profile_for("V6-WORKFLOW-026.5").is_some());
         assert!(profile_for("V8-SWARM-012.10").is_some());
         assert!(profile_for("V9-TINYMAX-021.2").is_some());
         assert!(profile_for("X-UNKNOWN-404.1").is_none());

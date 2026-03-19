@@ -8413,14 +8413,14 @@ Objective: assimilate OpenHands v1.5.0 SWE-agent runtime, secure sandbox pattern
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-016.1 | queued | Secure Sandbox and Runtime Engine Contract | OpenHands-grade code execution loses trust unless container/K8s sandbox paths are fail-closed under existing security and substrate contracts. | Implement governed OpenHands sandbox adapter routing through `security-plane` and substrate degradation policy, emitting deterministic execution receipts and pure/tiny parity evidence. | 10 | 0/1/2/client/adapter |
-| V6-WORKFLOW-016.2 | queued | Tool Ecosystem Bridge (Code/Edit/Terminal/Git/Browser) Contract | SWE automation is incomplete unless file-edit, terminal, git, and browser actions normalize onto the canonical tool and conduit boundaries. | Deliver adapter-mapped tool registration and invocation with receipt anchoring for browser/session actions and fail-closed command governance. | 10 | 0/1/2/adapter/client |
-| V6-WORKFLOW-016.3 | queued | Multi-Agent SWE Workflow Engine Contract | OpenHands multi-agent collaboration becomes fragmentary unless routed through the existing workflow and swarm authority planes. | Implement OpenHands-to-swarm workflow compilation with isolated agent receipts, queue budgeting, context-budget enforcement, and deterministic handoff lineage. | 9 | 0/1/2/client |
-| V6-WORKFLOW-016.4 | queued | React GUI and Desktop Surface Contract | GUI parity is required for operator adoption, but UI actions must remain non-authoritative wrappers over governed runtime lanes. | Deliver thin OpenHands GUI shell with `protheus-top` parity, receipted interaction events, and strict client/app boundary compliance. | 8 | 1/2/client/app |
-| V6-WORKFLOW-016.5 | queued | Session Memory and Durable Execution Contract | Long-running SWE sessions degrade without deterministic resume, checkpoint, and context continuity contracts. | Implement OpenHands session persistence over existing Dream Sequencer/auto-recall and durable execution lanes with restart-safe receipts and replay validation. | 9 | 0/1/2/client |
-| V6-WORKFLOW-016.6 | queued | Enterprise Integrations and Observability Contract | Enterprise readiness is blocked unless Slack/Jira/Linear and UI/API telemetry are receipted in the native observability stack. | Deliver integration bridges with policy-gated event emission, OTel-compatible traces, and deterministic enterprise audit artifacts. | 8 | 1/2/adapter/client |
-| V6-WORKFLOW-016.7 | queued | Benchmark and Evaluation Bridge Contract | Assimilation quality is unverifiable unless OpenHands benchmark outputs are normalized into native metrics and evidence receipts. | Implement benchmark ingestion/execution bridge with `ops:benchmark:refresh` compatibility and signed evaluation receipts. | 8 | 1/2/client |
-| V6-WORKFLOW-016.8 | queued | Python SDK and CLI Ergonomics Contract | Developer adoption remains weak unless OpenHands composable SDK/CLI semantics map to one-step governed intake. | Deliver `infring assimilate openhands` intake path that registers SDK-style agents under existing runtime authority with tiny-max/pure compatibility evidence. | 9 | 0/1/2/client/adapter |
+| V6-WORKFLOW-016.1 | done | Secure Sandbox and Runtime Engine Contract | OpenHands-grade code execution loses trust unless container/K8s sandbox paths are fail-closed under existing security and substrate contracts. | Implement governed OpenHands sandbox adapter routing through `security-plane` and substrate degradation policy, emitting deterministic execution receipts and pure/tiny parity evidence. | 10 | 0/1/2/client/adapter |
+| V6-WORKFLOW-016.2 | done | Tool Ecosystem Bridge (Code/Edit/Terminal/Git/Browser) Contract | SWE automation is incomplete unless file-edit, terminal, git, and browser actions normalize onto the canonical tool and conduit boundaries. | Deliver adapter-mapped tool registration and invocation with receipt anchoring for browser/session actions and fail-closed command governance. | 10 | 0/1/2/adapter/client |
+| V6-WORKFLOW-016.3 | done | Multi-Agent SWE Workflow Engine Contract | OpenHands multi-agent collaboration becomes fragmentary unless routed through the existing workflow and swarm authority planes. | Implement OpenHands-to-swarm workflow compilation with isolated agent receipts, queue budgeting, context-budget enforcement, and deterministic handoff lineage. | 9 | 0/1/2/client |
+| V6-WORKFLOW-016.4 | done | React GUI and Desktop Surface Contract | GUI parity is required for operator adoption, but UI actions must remain non-authoritative wrappers over governed runtime lanes. | Deliver thin OpenHands GUI shell with `protheus-top` parity, receipted interaction events, and strict client/app boundary compliance. | 8 | 1/2/client/app |
+| V6-WORKFLOW-016.5 | done | Session Memory and Durable Execution Contract | Long-running SWE sessions degrade without deterministic resume, checkpoint, and context continuity contracts. | Implement OpenHands session persistence over existing Dream Sequencer/auto-recall and durable execution lanes with restart-safe receipts and replay validation. | 9 | 0/1/2/client |
+| V6-WORKFLOW-016.6 | done | Enterprise Integrations and Observability Contract | Enterprise readiness is blocked unless Slack/Jira/Linear and UI/API telemetry are receipted in the native observability stack. | Deliver integration bridges with policy-gated event emission, OTel-compatible traces, and deterministic enterprise audit artifacts. | 8 | 1/2/adapter/client |
+| V6-WORKFLOW-016.7 | done | Benchmark and Evaluation Bridge Contract | Assimilation quality is unverifiable unless OpenHands benchmark outputs are normalized into native metrics and evidence receipts. | Implement benchmark ingestion/execution bridge with `ops:benchmark:refresh` compatibility and signed evaluation receipts. | 8 | 1/2/client |
+| V6-WORKFLOW-016.8 | done | Python SDK and CLI Ergonomics Contract | Developer adoption remains weak unless OpenHands composable SDK/CLI semantics map to one-step governed intake. | Deliver `infring assimilate openhands` intake path that registers SDK-style agents under existing runtime authority with tiny-max/pure compatibility evidence. | 9 | 0/1/2/client/adapter |
 
 ## DSPy Declarative Self-Improving Pipelines Assimilation Source Coverage Intake (Doc `1J0UghF4LAP303v7I6lwf1x8wTGNyAhEoIBQTqaNw-9E`, 2026-03-17)
 
@@ -8486,11 +8486,11 @@ Objective: assimilate Microsoft Agent Framework v1.0.0rc4+ workflows, threads/to
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-018.1 | queued | Multi-Language Workflow Registry Contract | Enterprise multi-language agents remain fragmented unless Python/.NET workflow semantics normalize onto one governed workflow/swarm authority surface. | Deliver receipted workflow/thread/tool registration with Python/.NET parity evidence and no parallel core authority. | 9 | 0/1/2/adapter/client |
-| V6-WORKFLOW-018.2 | queued | Thread and Tool Execution Engine Contract | Threaded tool execution becomes nondeterministic unless routed through existing swarm/workflow checkpoints and receipt contracts. | Implement deterministic thread/tool dispatch with checkpoint lineage and fail-closed execution receipts. | 9 | 0/1/2/client |
-| V6-WORKFLOW-018.3 | queued | Azure Connector and Multi-Provider Gateway Contract | Azure-native enterprise adoption is blocked unless connector/provider routing stays inside canonical adapter + inference lanes. | Deliver Azure-compatible connector routing with receipted provider calls, conduit enforcement, and tiny-max non-regression evidence. | 8 | 1/2/adapter/client |
-| V6-WORKFLOW-018.4 | queued | Structured Output and Observability Bridge Contract | Structured outputs and traces lose trust unless validation and telemetry remain in the native receipt/observability stack. | Implement validated output contracts with full trace/event capture and protheus-top observability parity. | 8 | 1/2/client |
-| V6-WORKFLOW-018.5 | queued | Resilience and Production Gates Contract | Production execution becomes unsafe unless canary/rollback/safety gates remain fail-closed under existing security and degradation contracts. | Deliver policy-gated resilience controls with deterministic rollback/canary receipts and WASI/Firecracker degradation compatibility proofs. | 9 | 0/1/2/client |
+| V6-WORKFLOW-018.1 | done | Multi-Language Workflow Registry Contract | Enterprise multi-language agents remain fragmented unless Python/.NET workflow semantics normalize onto one governed workflow/swarm authority surface. | Deliver receipted workflow/thread/tool registration with Python/.NET parity evidence and no parallel core authority. | 9 | 0/1/2/adapter/client |
+| V6-WORKFLOW-018.2 | done | Thread and Tool Execution Engine Contract | Threaded tool execution becomes nondeterministic unless routed through existing swarm/workflow checkpoints and receipt contracts. | Implement deterministic thread/tool dispatch with checkpoint lineage and fail-closed execution receipts. | 9 | 0/1/2/client |
+| V6-WORKFLOW-018.3 | done | Azure Connector and Multi-Provider Gateway Contract | Azure-native enterprise adoption is blocked unless connector/provider routing stays inside canonical adapter + inference lanes. | Deliver Azure-compatible connector routing with receipted provider calls, conduit enforcement, and tiny-max non-regression evidence. | 8 | 1/2/adapter/client |
+| V6-WORKFLOW-018.4 | done | Structured Output and Observability Bridge Contract | Structured outputs and traces lose trust unless validation and telemetry remain in the native receipt/observability stack. | Implement validated output contracts with full trace/event capture and protheus-top observability parity. | 8 | 1/2/client |
+| V6-WORKFLOW-018.5 | done | Resilience and Production Gates Contract | Production execution becomes unsafe unless canary/rollback/safety gates remain fail-closed under existing security and degradation contracts. | Deliver policy-gated resilience controls with deterministic rollback/canary receipts and WASI/Firecracker degradation compatibility proofs. | 9 | 0/1/2/client |
 
 ## NVIDIA NemoClaw Secure OpenClaw Plugin Assimilation Source Coverage Intake (Doc `1GDslwpI-VeNtYRuxlz176r9-flaeamM6eZwFOcQ7RcA`, 2026-03-18)
 
@@ -8519,13 +8519,13 @@ Objective: assimilate NemoClaw v0.2.x OpenShell sandbox isolation, hot-reload gu
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-019.1 | queued | OpenShell Sandbox Isolation Engine Contract | Secure OpenClaw execution remains incomplete unless OpenShell isolation semantics normalize onto existing fail-closed sandbox and substrate controls. | Deliver receipted OpenShell sandbox adapter with network/filesystem/process confinement and deterministic enforcement evidence. | 10 | 0/1/2/client/adapter |
-| V6-WORKFLOW-019.2 | queued | Policy Guardrails and Hot-Reload Engine Contract | Runtime policy confidence degrades unless hot-reload guardrails are governed with auditable receipt lineage. | Implement declarative policy enforcement + hot-reload with operator approval hooks and deterministic policy-change receipts. | 9 | 0/1/2/client |
-| V6-WORKFLOW-019.3 | queued | Blueprint Orchestration Registry Contract | Blueprint lifecycle control is unreliable unless resolve/verify/plan/apply flows route through canonical workflow authority. | Deliver immutable blueprint digest verification and deterministic orchestration receipts over existing workflow lanes. | 9 | 0/1/2/client |
-| V6-WORKFLOW-019.4 | queued | Inference Gateway Routing Contract | NVIDIA cloud/local model routing creates bypass risk unless all calls pass governed gateway and conduit boundaries. | Implement Nemotron/vLLM gateway routing with controlled egress and full model-call receipt coverage. | 8 | 1/2/adapter/client |
-| V6-WORKFLOW-019.5 | queued | Operator Approval and TUI Middleware Contract | Human approvals become inconsistent unless blocked requests flow through one pause/approval governance surface. | Deliver TUI-compatible approval middleware with mandatory human fields and deterministic allow/deny receipts. | 8 | 1/2/client |
-| V6-WORKFLOW-019.6 | queued | Remote GPU Deploy Bridge Contract | Remote GPU deploy paths are unsafe unless deployment orchestration is fail-closed and policy-bound across tenancy boundaries. | Implement receipted remote GPU deployment bridge with multi-tenant isolation checks and pure/rich mode parity evidence. | 8 | 1/2/adapter/client |
-| V6-WORKFLOW-019.7 | queued | CLI Surface Extension Contract | Adoption lags unless NemoClaw management commands are available as thin governed surfaces in the canonical CLI. | Deliver `infring assimilate nemoclaw` and lifecycle command wrappers with deterministic management receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-019.1 | done | OpenShell Sandbox Isolation Engine Contract | Secure OpenClaw execution remains incomplete unless OpenShell isolation semantics normalize onto existing fail-closed sandbox and substrate controls. | Deliver receipted OpenShell sandbox adapter with network/filesystem/process confinement and deterministic enforcement evidence. | 10 | 0/1/2/client/adapter |
+| V6-WORKFLOW-019.2 | done | Policy Guardrails and Hot-Reload Engine Contract | Runtime policy confidence degrades unless hot-reload guardrails are governed with auditable receipt lineage. | Implement declarative policy enforcement + hot-reload with operator approval hooks and deterministic policy-change receipts. | 9 | 0/1/2/client |
+| V6-WORKFLOW-019.3 | done | Blueprint Orchestration Registry Contract | Blueprint lifecycle control is unreliable unless resolve/verify/plan/apply flows route through canonical workflow authority. | Deliver immutable blueprint digest verification and deterministic orchestration receipts over existing workflow lanes. | 9 | 0/1/2/client |
+| V6-WORKFLOW-019.4 | done | Inference Gateway Routing Contract | NVIDIA cloud/local model routing creates bypass risk unless all calls pass governed gateway and conduit boundaries. | Implement Nemotron/vLLM gateway routing with controlled egress and full model-call receipt coverage. | 8 | 1/2/adapter/client |
+| V6-WORKFLOW-019.5 | done | Operator Approval and TUI Middleware Contract | Human approvals become inconsistent unless blocked requests flow through one pause/approval governance surface. | Deliver TUI-compatible approval middleware with mandatory human fields and deterministic allow/deny receipts. | 8 | 1/2/client |
+| V6-WORKFLOW-019.6 | done | Remote GPU Deploy Bridge Contract | Remote GPU deploy paths are unsafe unless deployment orchestration is fail-closed and policy-bound across tenancy boundaries. | Implement receipted remote GPU deployment bridge with multi-tenant isolation checks and pure/rich mode parity evidence. | 8 | 1/2/adapter/client |
+| V6-WORKFLOW-019.7 | done | CLI Surface Extension Contract | Adoption lags unless NemoClaw management commands are available as thin governed surfaces in the canonical CLI. | Deliver `infring assimilate nemoclaw` and lifecycle command wrappers with deterministic management receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## Four-File Agent Identity Governance Pack Assimilation Source Coverage Intake (Doc `1WlBBkzEi3ur_GeXBRof4FLybdevgt6G1_rwDNXuYKT0`, 2026-03-18)
 
@@ -8554,11 +8554,11 @@ Objective: assimilate the four-file boundary pattern (SKILL.md, Agent.md, AGENTS
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SKILLS-002.1 | queued | Four-File Template Registry Contract | Identity surfaces drift unless canonical four-file structure is generated as one atomic governed template. | Deliver one-command four-file template generation with versioned files and deterministic generation receipts. | 8 | 1/2/client/app |
-| V6-SKILLS-002.2 | queued | Negative Constraint Enforcement Contract | “Do NOT” boundaries are ineffective unless they become first-class fail-closed policy checks. | Implement deterministic guard enforcement for Agent.md negative constraints with runtime receipts and policy denials on violation. | 10 | 0/1/2/client |
-| V6-SKILLS-002.3 | queued | AGENTS.md Org-Chart and Swarm Sync Contract | Org-chart docs become stale unless synchronized with live swarm topology under governance. | Deliver AGENTS.md-to-swarm sync with deterministic topology receipts and fail-closed drift detection. | 9 | 0/1/2/client |
-| V6-SKILLS-002.4 | queued | Drift Validation and CI Gate Contract | Boundary files lose trust unless consistency checks run continuously and block promotion on drift. | Add four-file validation lane (`ops:validate:four-file`) with cross-reference and constraint-coverage checks, emitting deterministic CI receipts. | 9 | 1/2/client |
-| V6-SKILLS-002.5 | queued | INSTRUCTIONS.md Workflow Binding Contract | Instruction files remain passive docs unless bound to executable governed workflow contracts. | Implement deterministic instruction-step parsing into workflow lanes with receipt lineage and checkpoint compatibility. | 8 | 0/1/2/client |
+| V6-SKILLS-002.1 | done | Four-File Template Registry Contract | Identity surfaces drift unless canonical four-file structure is generated as one atomic governed template. | Deliver one-command four-file template generation with versioned files and deterministic generation receipts. | 8 | 1/2/client/app |
+| V6-SKILLS-002.2 | done | Negative Constraint Enforcement Contract | “Do NOT” boundaries are ineffective unless they become first-class fail-closed policy checks. | Implement deterministic guard enforcement for Agent.md negative constraints with runtime receipts and policy denials on violation. | 10 | 0/1/2/client |
+| V6-SKILLS-002.3 | done | AGENTS.md Org-Chart and Swarm Sync Contract | Org-chart docs become stale unless synchronized with live swarm topology under governance. | Deliver AGENTS.md-to-swarm sync with deterministic topology receipts and fail-closed drift detection. | 9 | 0/1/2/client |
+| V6-SKILLS-002.4 | done | Drift Validation and CI Gate Contract | Boundary files lose trust unless consistency checks run continuously and block promotion on drift. | Add four-file validation lane (`ops:validate:four-file`) with cross-reference and constraint-coverage checks, emitting deterministic CI receipts. | 9 | 1/2/client |
+| V6-SKILLS-002.5 | done | INSTRUCTIONS.md Workflow Binding Contract | Instruction files remain passive docs unless bound to executable governed workflow contracts. | Implement deterministic instruction-step parsing into workflow lanes with receipt lineage and checkpoint compatibility. | 8 | 0/1/2/client |
 
 ## Napkin Progressive Disclosure Vault Assimilation Source Coverage Intake (Doc `10YJxQ3Hc0m05MvT8t1_dojyyU4iJVDJw3RJjZGPcfYg`, 2026-03-18)
 
@@ -8587,12 +8587,12 @@ Objective: assimilate Napkin’s progressive disclosure tiers (L0-L3), local-fir
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-020.1 | queued | Progressive Disclosure Tier Registry Contract | Token-efficient memory recall degrades unless tiered disclosure policies are enforced as first-class governed retrieval contracts. | Implement deterministic L0-L3 disclosure routing with strict context-budget enforcement and receipt lineage for each recall tier. | 10 | 0/1/2/client |
-| V6-MEMORY-020.2 | queued | Vault Template Scaffolding Bridge Contract | Vault discipline weakens unless template scaffolding is generated and governed as canonical memory presets. | Deliver `assimilate napkin --template <preset>` scaffolding for `.napkin/` + Obsidian-compatible structures with deterministic activation receipts. | 8 | 1/2/client/app |
-| V6-MEMORY-020.3 | queued | Context Injection Extension Contract | Session startup quality drops unless high-priority vault context is injected automatically under policy bounds. | Implement deterministic session-preload injection (L0/L1) with explicit budget receipts and fail-closed guardrails. | 9 | 0/1/2/client |
-| V6-MEMORY-020.4 | queued | Distill Sub-Agent Bridge Contract | Knowledge consolidation drifts unless distillation executes as governed isolated sub-agent workflows. | Deliver receipted distill sub-agent runs that promote high-signal notes into the vault under deterministic promotion policy. | 9 | 0/1/2/client |
-| V6-MEMORY-020.5 | queued | Graph View and Obsidian Compatibility Contract | Vault usability is limited unless graph visualization and Obsidian parity are preserved without authoritative drift. | Implement thin graph visualization and `.obsidian` parity bridge with deterministic export/import receipts and no core authority duplication. | 7 | 1/2/client/app |
-| V6-MEMORY-020.6 | queued | Drift Validation and CI Gate Contract | Vault consistency erodes unless disclosure/template/link integrity checks run continuously and block promotion on drift. | Add `ops:validate:napkin-vault` gate with template/disclosure/link integrity checks and deterministic fail-closed CI receipts. | 9 | 1/2/client |
+| V6-MEMORY-020.1 | done | Progressive Disclosure Tier Registry Contract | Token-efficient memory recall degrades unless tiered disclosure policies are enforced as first-class governed retrieval contracts. | Implement deterministic L0-L3 disclosure routing with strict context-budget enforcement and receipt lineage for each recall tier. | 10 | 0/1/2/client |
+| V6-MEMORY-020.2 | done | Vault Template Scaffolding Bridge Contract | Vault discipline weakens unless template scaffolding is generated and governed as canonical memory presets. | Deliver `assimilate napkin --template <preset>` scaffolding for `.napkin/` + Obsidian-compatible structures with deterministic activation receipts. | 8 | 1/2/client/app |
+| V6-MEMORY-020.3 | done | Context Injection Extension Contract | Session startup quality drops unless high-priority vault context is injected automatically under policy bounds. | Implement deterministic session-preload injection (L0/L1) with explicit budget receipts and fail-closed guardrails. | 9 | 0/1/2/client |
+| V6-MEMORY-020.4 | done | Distill Sub-Agent Bridge Contract | Knowledge consolidation drifts unless distillation executes as governed isolated sub-agent workflows. | Deliver receipted distill sub-agent runs that promote high-signal notes into the vault under deterministic promotion policy. | 9 | 0/1/2/client |
+| V6-MEMORY-020.5 | done | Graph View and Obsidian Compatibility Contract | Vault usability is limited unless graph visualization and Obsidian parity are preserved without authoritative drift. | Implement thin graph visualization and `.obsidian` parity bridge with deterministic export/import receipts and no core authority duplication. | 7 | 1/2/client/app |
+| V6-MEMORY-020.6 | done | Drift Validation and CI Gate Contract | Vault consistency erodes unless disclosure/template/link integrity checks run continuously and block promotion on drift. | Add `ops:validate:napkin-vault` gate with template/disclosure/link integrity checks and deterministic fail-closed CI receipts. | 9 | 1/2/client |
 
 ## NVIDIA OpenShell Sandbox Runtime Assimilation Source Coverage Intake (Doc `1j6J0yYoKbG4Nb8gTmFz8vfd0-VaBJKAdR_KPLxHWVDg`, 2026-03-18)
 
@@ -8621,13 +8621,13 @@ Objective: assimilate OpenShell v0.4.x sandbox lifecycle, declarative YAML polic
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SECURITY-021.1 | queued | Sandbox Runtime Engine Contract | Agent sandboxing remains fragmented unless OpenShell runtime semantics normalize onto canonical security/substrate authority. | Deliver receipted OpenShell sandbox lifecycle routing through existing confinement controls with WASI/Firecracker parity and zero parallel core authority. | 10 | 0/1/2/client/adapter |
-| V6-SECURITY-021.2 | queued | Declarative Policy Engine + Hot-Reload Contract | Policy confidence degrades unless YAML policy updates are enforced as deterministic, audited runtime events. | Implement runtime policy enforcement + hot-reload receipts for filesystem/network/process/inference controls without restart bypass paths. | 9 | 0/1/2/client |
-| V6-SECURITY-021.3 | queued | Privacy Router + Credential Injection Contract | Credential and privacy guarantees fail unless inference calls are intercepted by governed identity/secret boundaries. | Add receipted privacy-routing/injection path that strips caller creds, injects backend creds ephemerally, and blocks filesystem credential persistence. | 10 | 0/1/2/client |
-| V6-SECURITY-021.4 | queued | GPU Passthrough Bridge Contract | High-performance sandbox workloads stall unless GPU passthrough is policy-bound under existing degradation contracts. | Deliver deterministic GPU-enabled sandbox launches with no privilege widening and pure/rich mode parity evidence. | 8 | 1/2/adapter/client |
-| V6-SECURITY-021.5 | queued | Operator TUI + Approval Middleware Contract | Human-in-the-loop controls drift unless blocked requests use one governed approval middleware surface. | Implement TUI-compatible approval flow with mandatory human identity fields and deterministic allow/deny receipt lineage. | 8 | 1/2/client/app |
-| V6-SECURITY-021.6 | queued | OpenClaw Community Sandbox Integration Contract | Community sandbox images remain disconnected unless OpenClaw launch semantics route through the canonical assimilation/runtime path. | Deliver `infring assimilate openshell --from openclaw` with full receipt coverage, policy guardrails, and tiny-max compatibility evidence. | 8 | 1/2/client/adapter |
-| V6-SECURITY-021.7 | queued | CLI Surface Extension Contract | OpenShell operations stay brittle unless lifecycle management actions are exposed as thin governed CLI wrappers. | Provide `openshell` lifecycle subcommands with deterministic management receipts and negligible runtime footprint overhead. | 7 | 1/2/client/app |
+| V6-SECURITY-021.1 | done | Sandbox Runtime Engine Contract | Agent sandboxing remains fragmented unless OpenShell runtime semantics normalize onto canonical security/substrate authority. | Deliver receipted OpenShell sandbox lifecycle routing through existing confinement controls with WASI/Firecracker parity and zero parallel core authority. | 10 | 0/1/2/client/adapter |
+| V6-SECURITY-021.2 | done | Declarative Policy Engine + Hot-Reload Contract | Policy confidence degrades unless YAML policy updates are enforced as deterministic, audited runtime events. | Implement runtime policy enforcement + hot-reload receipts for filesystem/network/process/inference controls without restart bypass paths. | 9 | 0/1/2/client |
+| V6-SECURITY-021.3 | done | Privacy Router + Credential Injection Contract | Credential and privacy guarantees fail unless inference calls are intercepted by governed identity/secret boundaries. | Add receipted privacy-routing/injection path that strips caller creds, injects backend creds ephemerally, and blocks filesystem credential persistence. | 10 | 0/1/2/client |
+| V6-SECURITY-021.4 | done | GPU Passthrough Bridge Contract | High-performance sandbox workloads stall unless GPU passthrough is policy-bound under existing degradation contracts. | Deliver deterministic GPU-enabled sandbox launches with no privilege widening and pure/rich mode parity evidence. | 8 | 1/2/adapter/client |
+| V6-SECURITY-021.5 | done | Operator TUI + Approval Middleware Contract | Human-in-the-loop controls drift unless blocked requests use one governed approval middleware surface. | Implement TUI-compatible approval flow with mandatory human identity fields and deterministic allow/deny receipt lineage. | 8 | 1/2/client/app |
+| V6-SECURITY-021.6 | done | OpenClaw Community Sandbox Integration Contract | Community sandbox images remain disconnected unless OpenClaw launch semantics route through the canonical assimilation/runtime path. | Deliver `infring assimilate openshell --from openclaw` with full receipt coverage, policy guardrails, and tiny-max compatibility evidence. | 8 | 1/2/client/adapter |
+| V6-SECURITY-021.7 | done | CLI Surface Extension Contract | OpenShell operations stay brittle unless lifecycle management actions are exposed as thin governed CLI wrappers. | Provide `openshell` lifecycle subcommands with deterministic management receipts and negligible runtime footprint overhead. | 7 | 1/2/client/app |
 
 ## OpenClaw Vertex AI Memory Bank Plugin Assimilation Source Coverage Intake (Doc `1zycyj391iTRWUPscKD9_Bms9thvSTJPsUWdFu3QWB4w`, 2026-03-18)
 
@@ -8658,12 +8658,12 @@ Objective: assimilate Vertex AI Memory Bank plugin capabilities (auto-capture, s
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-023.1 | queued | Vertex AI Memory Bank Backend Bridge Contract | Managed long-term memory remains disconnected unless backend routing is normalized onto canonical memory/inference adapter authority. | Deliver receipted backend bridge for auto-capture and semantic recall with zero new core authority paths and deterministic parity evidence. | 9 | 0/1/2/adapter/client |
-| V6-MEMORY-023.2 | queued | Auto-Capture + Auto-Recall Lifecycle Hooks Contract | Session memory quality degrades unless recall/capture hooks are policy-bound and deterministic at lifecycle boundaries. | Implement deterministic `before_agent_start` recall and `agent_end` capture hooks with noise filtering, context-budget enforcement, and full receipt lineage. | 10 | 0/1/2/client |
-| V6-MEMORY-023.3 | queued | Cross-Agent / User-Scoped Persistence Contract | Cross-session continuity fails unless persistence is explicitly scoped and governed across agents/users. | Deliver scoped persistence with fail-closed scope isolation and file-sync integrity tracking (`MEMORY.md`/`USER.md`) under deterministic receipts. | 9 | 0/1/2/client |
-| V6-MEMORY-023.4 | queued | Tool Registration + Distill Sub-Agent Contract | Operator memory workflows stay manual unless search/forget/correct/stats and distill flows are first-class governed tools. | Add governed tool registration surfaces and distill promotion bridge that emits deterministic promotion/change receipts. | 8 | 1/2/client/adapter |
-| V6-MEMORY-023.5 | queued | Obsidian / File Sync Compatibility Contract | Developer adoption drops unless file-based memory workflows remain compatible with local vault ecosystems. | Implement receipted file-sync and Obsidian-compatible surfaces with bounded footprint and no authority duplication outside conduit paths. | 7 | 1/2/client/app |
-| V6-MEMORY-023.6 | queued | Drift Validation + Policy Gate Contract | Memory correctness erodes unless scope/noise/topic/file-sync invariants are continuously validated in CI. | Add `ops:validate:vertex-memory` gate with deterministic fail-closed receipts that block promotion on any drift signal. | 9 | 1/2/client |
+| V6-MEMORY-023.1 | done | Vertex AI Memory Bank Backend Bridge Contract | Managed long-term memory remains disconnected unless backend routing is normalized onto canonical memory/inference adapter authority. | Deliver receipted backend bridge for auto-capture and semantic recall with zero new core authority paths and deterministic parity evidence. | 9 | 0/1/2/adapter/client |
+| V6-MEMORY-023.2 | done | Auto-Capture + Auto-Recall Lifecycle Hooks Contract | Session memory quality degrades unless recall/capture hooks are policy-bound and deterministic at lifecycle boundaries. | Implement deterministic `before_agent_start` recall and `agent_end` capture hooks with noise filtering, context-budget enforcement, and full receipt lineage. | 10 | 0/1/2/client |
+| V6-MEMORY-023.3 | done | Cross-Agent / User-Scoped Persistence Contract | Cross-session continuity fails unless persistence is explicitly scoped and governed across agents/users. | Deliver scoped persistence with fail-closed scope isolation and file-sync integrity tracking (`MEMORY.md`/`USER.md`) under deterministic receipts. | 9 | 0/1/2/client |
+| V6-MEMORY-023.4 | done | Tool Registration + Distill Sub-Agent Contract | Operator memory workflows stay manual unless search/forget/correct/stats and distill flows are first-class governed tools. | Add governed tool registration surfaces and distill promotion bridge that emits deterministic promotion/change receipts. | 8 | 1/2/client/adapter |
+| V6-MEMORY-023.5 | done | Obsidian / File Sync Compatibility Contract | Developer adoption drops unless file-based memory workflows remain compatible with local vault ecosystems. | Implement receipted file-sync and Obsidian-compatible surfaces with bounded footprint and no authority duplication outside conduit paths. | 7 | 1/2/client/app |
+| V6-MEMORY-023.6 | done | Drift Validation + Policy Gate Contract | Memory correctness erodes unless scope/noise/topic/file-sync invariants are continuously validated in CI. | Add `ops:validate:vertex-memory` gate with deterministic fail-closed receipts that block promotion on any drift signal. | 9 | 1/2/client |
 
 ## Hermes-Style Natural Language Cron + Delivery Pipeline Hardening Assimilation Source Coverage Intake (Doc `1ANg2a0JolAYe913XVEdoSwsiRkIsieHzeca4sATqGgI`, 2026-03-18)
 
@@ -8692,10 +8692,10 @@ Objective: assimilate natural-language schedule creation, one-click migration, a
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SCHEDULER-002.1 | queued | Natural Language Cron/Task Creator Contract | Adoption lags unless schedule creation supports natural language while remaining deterministic and policy-bound. | Deliver governed NL-to-cron schedule creation (`infring schedule \"every morning at 9 ...\"`) with deterministic receipts and pure-mode parity evidence. | 8 | 0/1/2/client |
-| V6-SCHEDULER-002.2 | queued | One-Click Migration Command Contract | Migration friction persists unless OpenClaw/Hermes state import is handled through a single receipted path. | Implement `infring migrate --from openclaw [--overwrite]` with receipted memory/script/personality/key migration and bounded rollback-safe behavior. | 9 | 0/1/2/client/app |
-| V6-SCHEDULER-002.3 | queued | Telegram Delivery Pipeline Hardening Contract | Scheduled delivery reliability degrades unless chunking and environment resolution are enforced pre-send. | Add deterministic delivery hardening for chunking, `telegram:chat_id` format validation, and absolute PATH routing with full send receipts. | 9 | 0/1/2/client |
-| V6-SCHEDULER-002.4 | queued | Silent-Failure Guard + Pycache Clear Contract | Silent runtime failures continue unless preflight checks and remediation are first-class guarded contracts. | Add fail-closed pre-execution checks for PATH/pycache/message-length violations and `ops:validate:delivery-pipeline` CI gate receipts. | 9 | 1/2/client |
+| V6-SCHEDULER-002.1 | done | Natural Language Cron/Task Creator Contract | Adoption lags unless schedule creation supports natural language while remaining deterministic and policy-bound. | Deliver governed NL-to-cron schedule creation (`infring schedule \"every morning at 9 ...\"`) with deterministic receipts and pure-mode parity evidence. | 8 | 0/1/2/client |
+| V6-SCHEDULER-002.2 | done | One-Click Migration Command Contract | Migration friction persists unless OpenClaw/Hermes state import is handled through a single receipted path. | Implement `infring migrate --from openclaw [--overwrite]` with receipted memory/script/personality/key migration and bounded rollback-safe behavior. | 9 | 0/1/2/client/app |
+| V6-SCHEDULER-002.3 | done | Telegram Delivery Pipeline Hardening Contract | Scheduled delivery reliability degrades unless chunking and environment resolution are enforced pre-send. | Add deterministic delivery hardening for chunking, `telegram:chat_id` format validation, and absolute PATH routing with full send receipts. | 9 | 0/1/2/client |
+| V6-SCHEDULER-002.4 | done | Silent-Failure Guard + Pycache Clear Contract | Silent runtime failures continue unless preflight checks and remediation are first-class guarded contracts. | Add fail-closed pre-execution checks for PATH/pycache/message-length violations and `ops:validate:delivery-pipeline` CI gate receipts. | 9 | 1/2/client |
 
 ## MetaClaw Online RL Self-Evolution Framework Assimilation Source Coverage Intake (Doc `1WnTU0BYOHZ6iwjPaUnPkSM95T_WxBMEVJfIk3xywAWQ`, 2026-03-18)
 
@@ -8725,12 +8725,12 @@ Objective: assimilate MetaClaw conversation-driven skill evolution, continual RL
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-LEARNING-009.1 | queued | Skill Injection + Auto-Evolution Registry Contract | Capability growth stalls unless conversation-to-skill evolution is normalized into canonical skill/memory governance surfaces. | Implement deterministic conversation-driven skill generation/update routing with complete receipt lineage and no parallel authority paths. | 10 | 0/1/2/client |
-| V6-LEARNING-009.2 | queued | GRPO/LoRA Continual RL Engine Contract | Learning quality plateaus unless continual RL loops run as governed asynchronous jobs with bounded resources. | Deliver deterministic GRPO/LoRA training orchestration with bounded budgets, schedule integration, and receipted run state transitions. | 9 | 0/1/2/adapter |
-| V6-LEARNING-009.3 | queued | Multi-Claw Proxy + Support Bridge Contract | Multi-provider agent evolution fragments unless proxy support routes through one governed adapter boundary. | Add receipted proxy routing across supported claw/provider endpoints with bypass rejection and full audit trail preservation. | 8 | 0/1/2/client/adapter |
-| V6-LEARNING-009.4 | queued | MadMax Idle Scheduler Contract | Continuous improvement is unreliable unless training windows are scheduled safely during idle/sleep periods. | Implement deterministic idle/sleep/calendar-triggered training windows with policy-bound execution and trigger receipts. | 8 | 1/2/client |
-| V6-LEARNING-009.5 | queued | OPD Distillation + Trajectory Logging Contract | Evolution outcomes are untrustworthy unless trajectories and distillation artifacts are provenance-bound and auditable. | Deliver trajectory capture + distillation pipelines with deterministic archive receipts and integration into existing blob/memory patterns. | 9 | 0/1/2/client |
-| V6-LEARNING-009.6 | queued | CLI Surface + Observability Bridge Contract | Operator adoption and debugging remain weak unless learning controls and telemetry are exposed as thin governed surfaces. | Provide `metaclaw` lifecycle command wrappers and observability integration with deterministic telemetry receipts and negligible overhead. | 7 | 1/2/client/app |
+| V6-LEARNING-009.1 | done | Skill Injection + Auto-Evolution Registry Contract | Capability growth stalls unless conversation-to-skill evolution is normalized into canonical skill/memory governance surfaces. | Implement deterministic conversation-driven skill generation/update routing with complete receipt lineage and no parallel authority paths. | 10 | 0/1/2/client |
+| V6-LEARNING-009.2 | done | GRPO/LoRA Continual RL Engine Contract | Learning quality plateaus unless continual RL loops run as governed asynchronous jobs with bounded resources. | Deliver deterministic GRPO/LoRA training orchestration with bounded budgets, schedule integration, and receipted run state transitions. | 9 | 0/1/2/adapter |
+| V6-LEARNING-009.3 | done | Multi-Claw Proxy + Support Bridge Contract | Multi-provider agent evolution fragments unless proxy support routes through one governed adapter boundary. | Add receipted proxy routing across supported claw/provider endpoints with bypass rejection and full audit trail preservation. | 8 | 0/1/2/client/adapter |
+| V6-LEARNING-009.4 | done | MadMax Idle Scheduler Contract | Continuous improvement is unreliable unless training windows are scheduled safely during idle/sleep periods. | Implement deterministic idle/sleep/calendar-triggered training windows with policy-bound execution and trigger receipts. | 8 | 1/2/client |
+| V6-LEARNING-009.5 | done | OPD Distillation + Trajectory Logging Contract | Evolution outcomes are untrustworthy unless trajectories and distillation artifacts are provenance-bound and auditable. | Deliver trajectory capture + distillation pipelines with deterministic archive receipts and integration into existing blob/memory patterns. | 9 | 0/1/2/client |
+| V6-LEARNING-009.6 | done | CLI Surface + Observability Bridge Contract | Operator adoption and debugging remain weak unless learning controls and telemetry are exposed as thin governed surfaces. | Provide `metaclaw` lifecycle command wrappers and observability integration with deterministic telemetry receipts and negligible overhead. | 7 | 1/2/client/app |
 
 ## Get Shit Done Spec-Driven Multi-Agent Coding Workflow Assimilation Source Coverage Intake (Doc `14eOUlK104NJ-EepwDsOElvaggOSvtwUhomU6Q2tCbd4`, 2026-03-18)
 
@@ -8759,13 +8759,13 @@ Objective: assimilate GSD spec-driven phases, XML plans, wave execution, role or
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-020.1 | queued | Spec-Driven Phase & XML Plan Registry Contract | Plan execution drifts unless structured phase transitions and XML plan artifacts are governed in one canonical workflow surface. | Deliver deterministic discuss/plan/execute/verify phase routing with XML plan ingestion and complete receipt lineage under existing workflow authority. | 9 | 0/1/2/client |
-| V6-WORKFLOW-020.2 | queued | Wave-Based Parallel Execution Engine Contract | Throughput and correctness degrade unless independent work is batched as dependency-safe waves with deterministic barriers. | Implement dependency-aware wave execution orchestration with deterministic wave-start/wave-complete receipts and bounded rollback behavior. | 9 | 0/1/2/client |
-| V6-WORKFLOW-020.3 | queued | Multi-Agent Role Orchestration Contract | Specialized coding roles become inconsistent unless role routing is policy-bound and auditable across the swarm plane. | Add governed researcher/planner/executor/verifier/debugger role routing with isolated receipts and no bypass of canonical swarm boundaries. | 8 | 0/1/2/client |
-| V6-WORKFLOW-020.4 | queued | Context File Memory Bridge Contract | Context-rot persists unless PROJECT/REQUIREMENTS/ROADMAP/STATE/PLAN file state is continuously synchronized into governed memory flows. | Deliver deterministic context file ingest/refresh/recall bridge with freshness guarantees, budget enforcement, and full receipt coverage. | 10 | 0/1/2/client/app |
-| V6-WORKFLOW-020.5 | queued | Atomic Git Commit + Verification Loop Contract | Execution safety drops unless task-level commits and verify/debug loops are enforced as auditable deterministic transitions. | Implement atomic commit and post-run verification/debug orchestration with approval-aware receipts and fail-closed guardrails. | 9 | 0/1/2/client |
-| V6-WORKFLOW-020.6 | queued | Developer Profiling + Quick Mode Contract | Operator productivity stalls unless profile-driven defaults and ad-hoc quick mode route through governed orchestration surfaces. | Add deterministic developer profiling and quick-mode execution wrappers via canonical conduit paths with receipt anchoring. | 7 | 1/2/client/app |
-| V6-WORKFLOW-020.7 | queued | Permissions & Security Gate Contract | Local execution remains risky unless granular command permissions and deny lists are policy-enforced at execution boundaries. | Implement fail-closed permission and deny-list policy gates for orchestration commands with measurable guard events and deterministic receipts. | 10 | 0/1/2/client |
+| V6-WORKFLOW-020.1 | done | Spec-Driven Phase & XML Plan Registry Contract | Plan execution drifts unless structured phase transitions and XML plan artifacts are governed in one canonical workflow surface. | Deliver deterministic discuss/plan/execute/verify phase routing with XML plan ingestion and complete receipt lineage under existing workflow authority. | 9 | 0/1/2/client |
+| V6-WORKFLOW-020.2 | done | Wave-Based Parallel Execution Engine Contract | Throughput and correctness degrade unless independent work is batched as dependency-safe waves with deterministic barriers. | Implement dependency-aware wave execution orchestration with deterministic wave-start/wave-complete receipts and bounded rollback behavior. | 9 | 0/1/2/client |
+| V6-WORKFLOW-020.3 | done | Multi-Agent Role Orchestration Contract | Specialized coding roles become inconsistent unless role routing is policy-bound and auditable across the swarm plane. | Add governed researcher/planner/executor/verifier/debugger role routing with isolated receipts and no bypass of canonical swarm boundaries. | 8 | 0/1/2/client |
+| V6-WORKFLOW-020.4 | done | Context File Memory Bridge Contract | Context-rot persists unless PROJECT/REQUIREMENTS/ROADMAP/STATE/PLAN file state is continuously synchronized into governed memory flows. | Deliver deterministic context file ingest/refresh/recall bridge with freshness guarantees, budget enforcement, and full receipt coverage. | 10 | 0/1/2/client/app |
+| V6-WORKFLOW-020.5 | done | Atomic Git Commit + Verification Loop Contract | Execution safety drops unless task-level commits and verify/debug loops are enforced as auditable deterministic transitions. | Implement atomic commit and post-run verification/debug orchestration with approval-aware receipts and fail-closed guardrails. | 9 | 0/1/2/client |
+| V6-WORKFLOW-020.6 | done | Developer Profiling + Quick Mode Contract | Operator productivity stalls unless profile-driven defaults and ad-hoc quick mode route through governed orchestration surfaces. | Add deterministic developer profiling and quick-mode execution wrappers via canonical conduit paths with receipt anchoring. | 7 | 1/2/client/app |
+| V6-WORKFLOW-020.7 | done | Permissions & Security Gate Contract | Local execution remains risky unless granular command permissions and deny lists are policy-enforced at execution boundaries. | Implement fail-closed permission and deny-list policy gates for orchestration commands with measurable guard events and deterministic receipts. | 10 | 0/1/2/client |
 
 ## NVIDIA Nemotron 3 Super Long-Context Agent Model Assimilation Source Coverage Intake (Doc `1OgcOsQt8IvGs4wKmpSmZ7VTEIIYFeme-4m7l_VMbupM`, 2026-03-18)
 
@@ -8794,11 +8794,11 @@ Objective: assimilate Nemotron 3 Super long-context model routing, budget tuning
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-INFERENCE-003.1 | queued | Nemotron Model Gateway Profile Contract | Enterprise model adoption slows unless Nemotron can be selected through the canonical provider gateway with full governance. | Deliver deterministic Nemotron provider registration/selection with full receipt lineage and 1M-context budget compatibility under existing routing primitives. | 9 | 0/1/2/client/adapter |
-| V6-INFERENCE-003.2 | queued | Long-Context + Agentic Budget Tuning Contract | Long-context runs become unstable/costly unless context tiers are policy-bound and tuned for agentic workflows. | Implement deterministic 1M-context tiering and budget policy enforcement with measurable throughput/cost receipts and no goal-drift bypass paths. | 10 | 0/1/2/client |
-| V6-INFERENCE-003.3 | queued | Low-Active-Param Cost Optimizer Contract | Inference cost remains volatile unless low-active-parameter routing is enforced through one governed optimization path. | Add deterministic cost-aware routing profile for MoE active-parameter optimization with telemetry receipts and compatibility with existing Nemotron/NemoClaw lanes. | 8 | 1/2/client/adapter |
-| V6-INFERENCE-003.4 | queued | Hybrid Mamba-Transformer Fallback Profile Contract | Reliability degrades across mixed hardware unless fallback behavior is deterministic and fail-closed. | Deliver policy-bound fallback/degradation profile for hybrid architecture with audited transitions and no privilege widening on non-NVIDIA hosts. | 8 | 0/1/2/adapter |
-| V6-INFERENCE-003.5 | queued | CLI + Observability Bridge Contract | Operator visibility remains weak unless model selection and throughput/cost metrics are exposed as thin governed surfaces. | Provide `infring model use nemotron-super` and telemetry bridge surfaces with deterministic measurement receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-INFERENCE-003.1 | done | Nemotron Model Gateway Profile Contract | Enterprise model adoption slows unless Nemotron can be selected through the canonical provider gateway with full governance. | Deliver deterministic Nemotron provider registration/selection with full receipt lineage and 1M-context budget compatibility under existing routing primitives. | 9 | 0/1/2/client/adapter |
+| V6-INFERENCE-003.2 | done | Long-Context + Agentic Budget Tuning Contract | Long-context runs become unstable/costly unless context tiers are policy-bound and tuned for agentic workflows. | Implement deterministic 1M-context tiering and budget policy enforcement with measurable throughput/cost receipts and no goal-drift bypass paths. | 10 | 0/1/2/client |
+| V6-INFERENCE-003.3 | done | Low-Active-Param Cost Optimizer Contract | Inference cost remains volatile unless low-active-parameter routing is enforced through one governed optimization path. | Add deterministic cost-aware routing profile for MoE active-parameter optimization with telemetry receipts and compatibility with existing Nemotron/NemoClaw lanes. | 8 | 1/2/client/adapter |
+| V6-INFERENCE-003.4 | done | Hybrid Mamba-Transformer Fallback Profile Contract | Reliability degrades across mixed hardware unless fallback behavior is deterministic and fail-closed. | Deliver policy-bound fallback/degradation profile for hybrid architecture with audited transitions and no privilege widening on non-NVIDIA hosts. | 8 | 0/1/2/adapter |
+| V6-INFERENCE-003.5 | done | CLI + Observability Bridge Contract | Operator visibility remains weak unless model selection and throughput/cost metrics are exposed as thin governed surfaces. | Provide `infring model use nemotron-super` and telemetry bridge surfaces with deterministic measurement receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## CoPaw Self-Hosted Persistent Memory + Skills Framework Assimilation Source Coverage Intake (Doc `1EMtNx21HQVaVq5yEwyHOyexl6abZihe95r1ZJYFavTQ`, 2026-03-18)
 
@@ -8827,11 +8827,11 @@ Objective: assimilate CoPaw self-hosted runtime, persistent memory vault, skill 
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-021.1 | queued | Self-Hosted Agent Runtime Registry Contract | Self-hosted runtime adoption is fragmented unless CoPaw lifecycle semantics route through one governed workflow/scheduler surface. | Deliver deterministic local/cloud runtime registration and execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-021.2 | queued | Persistent Memory Vault Bridge Contract | Session continuity fails unless CoPaw vault semantics map onto canonical memory recall/persistence contracts. | Implement deterministic vault ingest/persist/recall bridge with context-budget enforcement and zero-loss restore receipts across sessions. | 10 | 0/1/2/client |
-| V6-WORKFLOW-021.3 | queued | Skill Registry + Extensible Capabilities Contract | Capability extension drifts unless CoPaw skills are registered and executed through canonical skill governance boundaries. | Add receipted skill registration/activation routing and extensible capability adapters via conduit-only paths with bypass rejection coverage. | 9 | 0/1/2/client/adapter |
-| V6-WORKFLOW-021.4 | queued | Multi-Chat App Orchestration Contract | Cross-channel agent operation becomes inconsistent unless chat-app routing uses one policy-bound orchestration plane. | Deliver deterministic multi-chat orchestration with isolated receipts per channel/session and importance-queue compatibility evidence. | 8 | 0/1/2/client/app |
-| V6-WORKFLOW-021.5 | queued | CLI + Deploy Surface Contract | Operator onboarding and deployment remain slow unless setup/deploy actions are thin, governed command surfaces. | Provide `copaw` setup/deploy wrappers with deterministic management receipts, observability parity, and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-021.1 | done | Self-Hosted Agent Runtime Registry Contract | Self-hosted runtime adoption is fragmented unless CoPaw lifecycle semantics route through one governed workflow/scheduler surface. | Deliver deterministic local/cloud runtime registration and execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-021.2 | done | Persistent Memory Vault Bridge Contract | Session continuity fails unless CoPaw vault semantics map onto canonical memory recall/persistence contracts. | Implement deterministic vault ingest/persist/recall bridge with context-budget enforcement and zero-loss restore receipts across sessions. | 10 | 0/1/2/client |
+| V6-WORKFLOW-021.3 | done | Skill Registry + Extensible Capabilities Contract | Capability extension drifts unless CoPaw skills are registered and executed through canonical skill governance boundaries. | Add receipted skill registration/activation routing and extensible capability adapters via conduit-only paths with bypass rejection coverage. | 9 | 0/1/2/client/adapter |
+| V6-WORKFLOW-021.4 | done | Multi-Chat App Orchestration Contract | Cross-channel agent operation becomes inconsistent unless chat-app routing uses one policy-bound orchestration plane. | Deliver deterministic multi-chat orchestration with isolated receipts per channel/session and importance-queue compatibility evidence. | 8 | 0/1/2/client/app |
+| V6-WORKFLOW-021.5 | done | CLI + Deploy Surface Contract | Operator onboarding and deployment remain slow unless setup/deploy actions are thin, governed command surfaces. | Provide `copaw` setup/deploy wrappers with deterministic management receipts, observability parity, and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## Awesome OpenClaw Agents Template Pack Assimilation Source Coverage Intake (Doc `16rP2zVUXqKMqEOKkE8pUZU02m2r54nhAZmU9PctvFwU`, 2026-03-18)
 
@@ -8860,11 +8860,11 @@ Objective: assimilate the curated Awesome OpenClaw template library (162 templat
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SKILLS-003.1 | queued | Template Registry + Category Ingestion Contract | Template reuse stays fragmented unless category-aware pack ingestion routes through one governed skill registry path. | Deliver deterministic ingestion of template categories via `infring assimilate awesome-openclaw` with complete receipt lineage and no parallel core authority. | 8 | 0/1/2/client/app |
-| V6-SKILLS-003.2 | queued | SOUL.md Config Binding Contract | Persona consistency degrades unless SOUL defaults are policy-bound and auditable across memory/persona surfaces. | Implement deterministic SOUL binding to persona/memory defaults with context-budget guard compatibility and full activation receipts. | 9 | 0/1/2/client |
-| V6-SKILLS-003.3 | queued | Agent OS Filesystem Template Contract | Onboarding quality drops unless Agent OS filesystem patterns are scaffolded through canonical template pipelines. | Add one-command Agent OS filesystem scaffold preset with deterministic generation and activation receipts. | 7 | 1/2/client/app |
-| V6-SKILLS-003.4 | queued | GEO + Hacker News + Specialty Agents Contract | Specialty-agent execution is inconsistent unless role templates route through canonical swarm and queue governance boundaries. | Deliver governed specialty-agent template routing with isolated receipts, importance-queue compatibility, and pure-mode parity evidence. | 8 | 0/1/2/client/app |
-| V6-SKILLS-003.5 | queued | Validation + Drift Gate Contract | Template pack integrity erodes unless consistency checks run continuously and block promotion on drift. | Add `ops:validate:awesome-openclaw` CI gate with deterministic fail-closed receipts for template/category/SOUL drift signals. | 9 | 1/2/client |
+| V6-SKILLS-003.1 | done | Template Registry + Category Ingestion Contract | Template reuse stays fragmented unless category-aware pack ingestion routes through one governed skill registry path. | Deliver deterministic ingestion of template categories via `infring assimilate awesome-openclaw` with complete receipt lineage and no parallel core authority. | 8 | 0/1/2/client/app |
+| V6-SKILLS-003.2 | done | SOUL.md Config Binding Contract | Persona consistency degrades unless SOUL defaults are policy-bound and auditable across memory/persona surfaces. | Implement deterministic SOUL binding to persona/memory defaults with context-budget guard compatibility and full activation receipts. | 9 | 0/1/2/client |
+| V6-SKILLS-003.3 | done | Agent OS Filesystem Template Contract | Onboarding quality drops unless Agent OS filesystem patterns are scaffolded through canonical template pipelines. | Add one-command Agent OS filesystem scaffold preset with deterministic generation and activation receipts. | 7 | 1/2/client/app |
+| V6-SKILLS-003.4 | done | GEO + Hacker News + Specialty Agents Contract | Specialty-agent execution is inconsistent unless role templates route through canonical swarm and queue governance boundaries. | Deliver governed specialty-agent template routing with isolated receipts, importance-queue compatibility, and pure-mode parity evidence. | 8 | 0/1/2/client/app |
+| V6-SKILLS-003.5 | done | Validation + Drift Gate Contract | Template pack integrity erodes unless consistency checks run continuously and block promotion on drift. | Add `ops:validate:awesome-openclaw` CI gate with deterministic fail-closed receipts for template/category/SOUL drift signals. | 9 | 1/2/client |
 
 ## shenhao-stu/openclaw-agents One-Command Multi-Agent Kit Assimilation Source Coverage Intake (Doc `1yGpmGiVKgVugtoALPQvMEU8Cfr-JcGMisDg0-RDKiqw`, 2026-03-18)
 
@@ -8893,11 +8893,11 @@ Objective: assimilate one-command 9-agent provisioning, safe group routing/confi
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-022.1 | queued | One-Command Multi-Agent Provisioning Contract | Multi-agent setup remains manual and error-prone unless team provisioning routes through one governed orchestration path. | Deliver deterministic one-command provisioning of specialized agent teams with full receipt lineage and no parallel core authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-022.2 | queued | Group Routing + Safe Config Merge Contract | Team behavior drifts unless routing and config merges are policy-bound with explicit safety invariants. | Implement deterministic group routing and safe merge orchestration with fail-closed merge guards and complete routing/merge receipts. | 9 | 0/1/2/client |
-| V6-WORKFLOW-022.3 | queued | Specialized Agent Role Templates Contract | Role reuse is inconsistent unless built-in specialist templates are governed through canonical skill/persona surfaces. | Add receipted role template registry and SOUL-binding activation path for all built-in specialist roles. | 8 | 0/1/2/client/app |
-| V6-WORKFLOW-022.4 | queued | Cross-Agent Memory Sync Contract | Team context coherence degrades unless shared memory synchronization is deterministic and scope-governed. | Deliver deterministic cross-agent memory synchronization with zero-loss restore semantics, context-budget enforcement, and full sync receipts. | 10 | 0/1/2/client |
-| V6-WORKFLOW-022.5 | queued | CLI + Observability Bridge Contract | Operational reliability suffers unless provisioning status and team metrics are exposed via thin governed surfaces. | Provide setup/status command wrappers and team observability bridge with deterministic telemetry receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-022.1 | done | One-Command Multi-Agent Provisioning Contract | Multi-agent setup remains manual and error-prone unless team provisioning routes through one governed orchestration path. | Deliver deterministic one-command provisioning of specialized agent teams with full receipt lineage and no parallel core authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-022.2 | done | Group Routing + Safe Config Merge Contract | Team behavior drifts unless routing and config merges are policy-bound with explicit safety invariants. | Implement deterministic group routing and safe merge orchestration with fail-closed merge guards and complete routing/merge receipts. | 9 | 0/1/2/client |
+| V6-WORKFLOW-022.3 | done | Specialized Agent Role Templates Contract | Role reuse is inconsistent unless built-in specialist templates are governed through canonical skill/persona surfaces. | Add receipted role template registry and SOUL-binding activation path for all built-in specialist roles. | 8 | 0/1/2/client/app |
+| V6-WORKFLOW-022.4 | done | Cross-Agent Memory Sync Contract | Team context coherence degrades unless shared memory synchronization is deterministic and scope-governed. | Deliver deterministic cross-agent memory synchronization with zero-loss restore semantics, context-budget enforcement, and full sync receipts. | 10 | 0/1/2/client |
+| V6-WORKFLOW-022.5 | done | CLI + Observability Bridge Contract | Operational reliability suffers unless provisioning status and team metrics are exposed via thin governed surfaces. | Provide setup/status command wrappers and team observability bridge with deterministic telemetry receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## OpenClaw-RL Asynchronous Conversation-to-Skill RL Framework Assimilation Source Coverage Intake (Doc `1xd-J_zaNBkwykYdmBXV0BuQcAPSro-6vC7fOx9T-6qQ`, 2026-03-18)
 
@@ -8926,11 +8926,11 @@ Objective: assimilate OpenClaw-RL conversation-driven asynchronous training, ski
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-LEARNING-010.1 | queued | Conversation-to-Skill RL Engine Contract | Capability evolution remains manual unless conversation traces route into governed skill/RL update pipelines. | Deliver deterministic conversation sampling and skill-update training routing with full receipt lineage and no parallel authority paths. | 10 | 0/1/2/client |
-| V6-LEARNING-010.2 | queued | Asynchronous MadMax Scheduler Contract | Continuous improvement is unreliable unless training windows run asynchronously under policy and budget controls. | Implement non-blocking idle/sleep-triggered training scheduling with deterministic trigger/run receipts and bounded resource behavior. | 9 | 1/2/client |
-| V6-LEARNING-010.3 | queued | OPD Distillation + Proxy Injection Contract | Distillation quality and deployment safety degrade unless proxy injection and OPD flows are auditable and scope-governed. | Add deterministic OPD distillation and proxy skill injection routing with context-budget enforcement and full provenance receipts. | 9 | 0/1/2/client/adapter |
-| V6-LEARNING-010.4 | queued | No-GPU / Low-Cost Training Profile Contract | RL adoption is constrained unless low-resource training paths are first-class and policy-bound. | Deliver constrained-hardware training profile with deterministic cost telemetry, fail-closed degradation behavior, and compatibility evidence. | 8 | 0/1/2/adapter |
-| V6-LEARNING-010.5 | queued | CLI + Observability Bridge Contract | Operators cannot safely tune learning loops without thin command and telemetry surfaces over canonical runtime paths. | Provide training command wrappers and observability bridge with deterministic measurement receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-LEARNING-010.1 | done | Conversation-to-Skill RL Engine Contract | Capability evolution remains manual unless conversation traces route into governed skill/RL update pipelines. | Deliver deterministic conversation sampling and skill-update training routing with full receipt lineage and no parallel authority paths. | 10 | 0/1/2/client |
+| V6-LEARNING-010.2 | done | Asynchronous MadMax Scheduler Contract | Continuous improvement is unreliable unless training windows run asynchronously under policy and budget controls. | Implement non-blocking idle/sleep-triggered training scheduling with deterministic trigger/run receipts and bounded resource behavior. | 9 | 1/2/client |
+| V6-LEARNING-010.3 | done | OPD Distillation + Proxy Injection Contract | Distillation quality and deployment safety degrade unless proxy injection and OPD flows are auditable and scope-governed. | Add deterministic OPD distillation and proxy skill injection routing with context-budget enforcement and full provenance receipts. | 9 | 0/1/2/client/adapter |
+| V6-LEARNING-010.4 | done | No-GPU / Low-Cost Training Profile Contract | RL adoption is constrained unless low-resource training paths are first-class and policy-bound. | Deliver constrained-hardware training profile with deterministic cost telemetry, fail-closed degradation behavior, and compatibility evidence. | 8 | 0/1/2/adapter |
+| V6-LEARNING-010.5 | done | CLI + Observability Bridge Contract | Operators cannot safely tune learning loops without thin command and telemetry surfaces over canonical runtime paths. | Provide training command wrappers and observability bridge with deterministic measurement receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## Hierarchy-Aware Memory Compaction + Sweep Staleness Decay Assimilation Source Coverage Intake (Doc `1_WdBSDHplgudpQy2AVE_yxAAmIsHmIBQKgwvgSaWxkA`, 2026-03-18)
 
@@ -8956,13 +8956,13 @@ Objective: assimilate hierarchy-prioritized compaction and sweep-based staleness
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-COMPACT-002 | queued | Hierarchy-Prioritized Compaction Contract | Trust breaks under disk pressure unless compaction preserves canonical memory hierarchy (nodes > tags > jots). | Deliver deterministic compaction order that preserves nodes, summarizes tags when needed, and evicts high-staleness jots first with full before/after hierarchy receipts. | 10 | 0/1/2/client |
-| V6-MEMORY-DECAY-001.1 | queued | Staleness Counter Field Contract | Prioritized compaction is weak unless each memory item carries lightweight age state without timestamp bloat. | Add `staleness_days` counter for jots/tags/nodes with deterministic serialization, fresh-on-create defaults, and no schema-instability regressions. | 8 | 1/2 |
-| V6-MEMORY-DECAY-001.2 | queued | Periodic Memory Sweep Contract | Staleness drift cannot be managed unless age counters increment predictably in low-activity background cycles. | Implement non-blocking sweep that increments untouched items, respects touched-state semantics, and emits deterministic sweep receipts. | 9 | 0/1/2 |
-| V6-MEMORY-DECAY-001.3 | queued | Access Reset Mechanism Contract | High-signal memories are misclassified unless staleness resets atomically on governed use. | Deliver atomic reset-to-fresh on qualifying read/use events with deterministic receipt lineage and no double-increment race conditions. | 9 | 0/1/2 |
-| V6-MEMORY-DECAY-001.4 | queued | Hierarchy-Aware Compaction Priority Contract | Eviction policy remains unsafe unless staleness and hierarchy are jointly enforced during pressure events. | Add fail-closed compaction policy that orders by hierarchy then staleness and records compaction decisions in deterministic receipts. | 10 | 0/1/2 |
-| V6-MEMORY-DECAY-001.5 | queued | Observability + Dashboard Integration Contract | Memory health cannot be trusted without visibility into staleness distribution and sweep outcomes. | Provide memory-health telemetry (per-level staleness stats, sweep counts, drift alerts) with deterministic observability receipts and negligible overhead. | 8 | 1/2/client/app |
-| V6-MEMORY-DECAY-001.6 | queued | Configurable Defaults + Safety Contract | Operators cannot safely tune decay behavior unless defaults and overrides are policy-bound and auditable. | Add configurable sweep/threshold/priority defaults with safe guardrails, warning-on-dangerous-overrides behavior, and deterministic config-change receipts. | 8 | 1/2/client |
+| V6-MEMORY-COMPACT-002 | done | Hierarchy-Prioritized Compaction Contract | Trust breaks under disk pressure unless compaction preserves canonical memory hierarchy (nodes > tags > jots). | Deliver deterministic compaction order that preserves nodes, summarizes tags when needed, and evicts high-staleness jots first with full before/after hierarchy receipts. | 10 | 0/1/2/client |
+| V6-MEMORY-DECAY-001.1 | done | Staleness Counter Field Contract | Prioritized compaction is weak unless each memory item carries lightweight age state without timestamp bloat. | Add `staleness_days` counter for jots/tags/nodes with deterministic serialization, fresh-on-create defaults, and no schema-instability regressions. | 8 | 1/2 |
+| V6-MEMORY-DECAY-001.2 | done | Periodic Memory Sweep Contract | Staleness drift cannot be managed unless age counters increment predictably in low-activity background cycles. | Implement non-blocking sweep that increments untouched items, respects touched-state semantics, and emits deterministic sweep receipts. | 9 | 0/1/2 |
+| V6-MEMORY-DECAY-001.3 | done | Access Reset Mechanism Contract | High-signal memories are misclassified unless staleness resets atomically on governed use. | Deliver atomic reset-to-fresh on qualifying read/use events with deterministic receipt lineage and no double-increment race conditions. | 9 | 0/1/2 |
+| V6-MEMORY-DECAY-001.4 | done | Hierarchy-Aware Compaction Priority Contract | Eviction policy remains unsafe unless staleness and hierarchy are jointly enforced during pressure events. | Add fail-closed compaction policy that orders by hierarchy then staleness and records compaction decisions in deterministic receipts. | 10 | 0/1/2 |
+| V6-MEMORY-DECAY-001.5 | done | Observability + Dashboard Integration Contract | Memory health cannot be trusted without visibility into staleness distribution and sweep outcomes. | Provide memory-health telemetry (per-level staleness stats, sweep counts, drift alerts) with deterministic observability receipts and negligible overhead. | 8 | 1/2/client/app |
+| V6-MEMORY-DECAY-001.6 | done | Configurable Defaults + Safety Contract | Operators cannot safely tune decay behavior unless defaults and overrides are policy-bound and auditable. | Add configurable sweep/threshold/priority defaults with safe guardrails, warning-on-dangerous-overrides behavior, and deterministic config-change receipts. | 8 | 1/2/client |
 
 ## Swarms Enterprise-Grade Multi-Agent Orchestration Framework Assimilation Source Coverage Intake (Doc `1ZzvSGy3yKHsWfKDh1PyrjtaXWDiEH3QRpsCe0jho1KM`, 2026-03-18)
 
@@ -8991,11 +8991,11 @@ Objective: assimilate Swarms async sub-agents, hierarchical orchestration, Skill
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-023.1 | queued | Async Sub-Agent + Hierarchical Swarm Registry Contract | Enterprise orchestration remains fragmented unless async/hierarchical swarm patterns route through one governed workflow/scheduler path. | Deliver deterministic async sub-agent and hierarchy execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-023.2 | queued | SkillOrchestra + AOP Protocol Bridge Contract | Protocol and skill interoperability drifts unless orchestration protocols are integrated through canonical skill/adapter boundaries. | Implement deterministic SkillOrchestra/AOP registration and routing with receipt-anchored protocol invocations and guarded integration paths. | 8 | 0/1/2/client/adapter |
-| V6-WORKFLOW-023.3 | queued | Durable Execution Persistence Contract | Production swarm reliability degrades unless persistent state and recovery are first-class governed runtime capabilities. | Deliver deterministic state checkpoint/recovery across failures with zero-loss guarantees, context-budget enforcement, and full recovery receipts. | 10 | 0/1/2/client |
-| V6-WORKFLOW-023.4 | queued | Marketplace + Native Integration Gateway Contract | Capability adoption slows unless marketplace and native integrations ingest through controlled activation boundaries. | Add receipted marketplace/native integration ingestion via `infring assimilate` with policy-bound activation and no bypass routes. | 8 | 1/2/client/adapter |
-| V6-WORKFLOW-023.5 | queued | CLI + Observability Bridge Contract | Operators cannot safely run large swarms without thin command and telemetry surfaces over canonical orchestration paths. | Provide setup/status command wrappers and swarm observability bridge with deterministic telemetry receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-023.1 | done | Async Sub-Agent + Hierarchical Swarm Registry Contract | Enterprise orchestration remains fragmented unless async/hierarchical swarm patterns route through one governed workflow/scheduler path. | Deliver deterministic async sub-agent and hierarchy execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-023.2 | done | SkillOrchestra + AOP Protocol Bridge Contract | Protocol and skill interoperability drifts unless orchestration protocols are integrated through canonical skill/adapter boundaries. | Implement deterministic SkillOrchestra/AOP registration and routing with receipt-anchored protocol invocations and guarded integration paths. | 8 | 0/1/2/client/adapter |
+| V6-WORKFLOW-023.3 | done | Durable Execution Persistence Contract | Production swarm reliability degrades unless persistent state and recovery are first-class governed runtime capabilities. | Deliver deterministic state checkpoint/recovery across failures with zero-loss guarantees, context-budget enforcement, and full recovery receipts. | 10 | 0/1/2/client |
+| V6-WORKFLOW-023.4 | done | Marketplace + Native Integration Gateway Contract | Capability adoption slows unless marketplace and native integrations ingest through controlled activation boundaries. | Add receipted marketplace/native integration ingestion via `infring assimilate` with policy-bound activation and no bypass routes. | 8 | 1/2/client/adapter |
+| V6-WORKFLOW-023.5 | done | CLI + Observability Bridge Contract | Operators cannot safely run large swarms without thin command and telemetry surfaces over canonical orchestration paths. | Provide setup/status command wrappers and swarm observability bridge with deterministic telemetry receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## SuperAGI Autonomous Agent Framework Assimilation Source Coverage Intake (Doc `143DoGnPmatnf-rcNpmNyjjBieVENAx9bFK3VoD9TLzk`, 2026-03-18)
 
@@ -9024,11 +9024,11 @@ Objective: assimilate SuperAGI ReAct orchestration, concurrent execution, GUI/da
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-025.1 | queued | ReAct Agent + Concurrent Execution Registry Contract | Developer-facing autonomy remains fragmented unless ReAct and concurrency patterns route through one governed orchestration path. | Deliver deterministic ReAct/concurrent execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-025.2 | queued | GUI Orchestration + Dashboard Bridge Contract | Operational safety suffers unless GUI controls are thin wrappers over canonical orchestration surfaces. | Implement dashboard/GUI orchestration bridge with deterministic action receipts and observability parity with existing operator surfaces. | 8 | 1/2/client/app |
-| V6-WORKFLOW-025.3 | queued | Tool Marketplace + Memory/RAG Bridge Contract | Capability and recall quality degrades unless marketplace/tool and memory/RAG flows are integrated through governed skill/memory boundaries. | Add receipted marketplace ingestion and memory/RAG bridge with context-budget enforcement and no bypass routes. | 9 | 0/1/2/client/adapter |
-| V6-WORKFLOW-025.4 | queued | Multi-LLM Gateway Contract | Model interoperability drifts unless multi-LLM routing is centralized in canonical inference/adapter lanes. | Deliver deterministic multi-model routing with full provider-call receipts and non-regression evidence for tiny-max/pure modes. | 8 | 0/1/2/client/adapter |
-| V6-WORKFLOW-025.5 | queued | Local-First Deploy + Observability Contract | Production readiness is incomplete unless local-first deployments and APM telemetry are fail-closed and auditable. | Implement guarded local-first deploy + metrics bridge with zero-loss telemetry receipts and deterministic failure handling. | 8 | 1/2/client/app |
+| V6-WORKFLOW-025.1 | done | ReAct Agent + Concurrent Execution Registry Contract | Developer-facing autonomy remains fragmented unless ReAct and concurrency patterns route through one governed orchestration path. | Deliver deterministic ReAct/concurrent execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-025.2 | done | GUI Orchestration + Dashboard Bridge Contract | Operational safety suffers unless GUI controls are thin wrappers over canonical orchestration surfaces. | Implement dashboard/GUI orchestration bridge with deterministic action receipts and observability parity with existing operator surfaces. | 8 | 1/2/client/app |
+| V6-WORKFLOW-025.3 | done | Tool Marketplace + Memory/RAG Bridge Contract | Capability and recall quality degrades unless marketplace/tool and memory/RAG flows are integrated through governed skill/memory boundaries. | Add receipted marketplace ingestion and memory/RAG bridge with context-budget enforcement and no bypass routes. | 9 | 0/1/2/client/adapter |
+| V6-WORKFLOW-025.4 | done | Multi-LLM Gateway Contract | Model interoperability drifts unless multi-LLM routing is centralized in canonical inference/adapter lanes. | Deliver deterministic multi-model routing with full provider-call receipts and non-regression evidence for tiny-max/pure modes. | 8 | 0/1/2/client/adapter |
+| V6-WORKFLOW-025.5 | done | Local-First Deploy + Observability Contract | Production readiness is incomplete unless local-first deployments and APM telemetry are fail-closed and auditable. | Implement guarded local-first deploy + metrics bridge with zero-loss telemetry receipts and deterministic failure handling. | 8 | 1/2/client/app |
 
 ## Phidata Multi-Agent Memory + Tools Framework Assimilation Source Coverage Intake (Doc `1C1gHWM9B89lE6XWc75YbX4FlWDPDfIEz1-hC0gEauaE`, 2026-03-18)
 
@@ -9057,11 +9057,11 @@ Objective: assimilate Phidata multi-agent teams, built-in memory/RAG, tools/know
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-024.1 | queued | Multi-Agent Team Registry Contract | Team setup remains inconsistent unless Phidata team patterns route through one governed swarm/workflow path. | Deliver deterministic team registration and execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-024.2 | queued | Built-in Memory + RAG Bridge Contract | Team quality degrades unless memory/RAG flows are integrated with canonical recall and budget controls. | Implement deterministic memory/RAG bridge with context-budget enforcement and non-regression latency evidence under existing memory lanes. | 9 | 0/1/2/client |
-| V6-WORKFLOW-024.3 | queued | Tools + Knowledge Base Registry Contract | Capability routing drifts unless tool and knowledge-base activation are governed through canonical skill/adapter surfaces. | Add receipted tools/knowledge registry ingestion via `infring assimilate` with full call-level receipt coverage and no bypass routes. | 8 | 0/1/2/client/adapter |
-| V6-WORKFLOW-024.4 | queued | Async Execution + Observability Bridge Contract | Production safety weakens unless async runs and trace streams are integrated through existing observability controls. | Deliver deterministic async execution telemetry with zero-loss event streams, receipt-backed trace lineage, and protheus-top parity. | 8 | 1/2/client/app |
-| V6-WORKFLOW-024.5 | queued | CLI + Structured Output Surface Contract | Operator productivity stalls unless command and structured output surfaces remain thin wrappers over governed runtime paths. | Provide CLI + structured-output wrappers with deterministic output receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-024.1 | done | Multi-Agent Team Registry Contract | Team setup remains inconsistent unless Phidata team patterns route through one governed swarm/workflow path. | Deliver deterministic team registration and execution dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-024.2 | done | Built-in Memory + RAG Bridge Contract | Team quality degrades unless memory/RAG flows are integrated with canonical recall and budget controls. | Implement deterministic memory/RAG bridge with context-budget enforcement and non-regression latency evidence under existing memory lanes. | 9 | 0/1/2/client |
+| V6-WORKFLOW-024.3 | done | Tools + Knowledge Base Registry Contract | Capability routing drifts unless tool and knowledge-base activation are governed through canonical skill/adapter surfaces. | Add receipted tools/knowledge registry ingestion via `infring assimilate` with full call-level receipt coverage and no bypass routes. | 8 | 0/1/2/client/adapter |
+| V6-WORKFLOW-024.4 | done | Async Execution + Observability Bridge Contract | Production safety weakens unless async runs and trace streams are integrated through existing observability controls. | Deliver deterministic async execution telemetry with zero-loss event streams, receipt-backed trace lineage, and protheus-top parity. | 8 | 1/2/client/app |
+| V6-WORKFLOW-024.5 | done | CLI + Structured Output Surface Contract | Operator productivity stalls unless command and structured output surfaces remain thin wrappers over governed runtime paths. | Provide CLI + structured-output wrappers with deterministic output receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## Caskada Minimalist Graph Orchestration Framework Assimilation Source Coverage Intake (Doc `1qlliCQ_vK0BBsjiw6Sp7zN845efgTDbG1HnPsBhAd_A`, 2026-03-18)
 
@@ -9090,11 +9090,11 @@ Objective: assimilate Caskada Node/Flow/Memory graph abstractions, agentic patte
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-WORKFLOW-026.1 | queued | Node + Flow Graph Registry Contract | Composable graph execution remains fragmented unless node/flow abstractions route through one governed workflow path. | Deliver deterministic node/flow graph dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-WORKFLOW-026.2 | queued | Shared/Local Memory Bridge Contract | Graph memory consistency degrades unless shared/local memory semantics are enforced through canonical recall/budget controls. | Implement deterministic shared/local memory bridge with zero-loss restore semantics, context-budget enforcement, and full memory-event receipts. | 9 | 0/1/2/client |
-| V6-WORKFLOW-026.3 | queued | Agentic Patterns + RAG Registry Contract | Pattern reuse and RAG quality drift unless built-in patterns are governed through canonical skill/adapter surfaces. | Add receipted registration and activation for Agent/RAG/Map-Reduce/Multi-Agent/Structured-Output patterns via `infring assimilate`. | 8 | 0/1/2/client/adapter |
-| V6-WORKFLOW-026.4 | queued | Zero-Dependency + Polyglot Gateway Contract | Interop degrades unless polyglot model routing stays centralized and policy-bound across runtime surfaces. | Deliver deterministic Python/TS polyglot gateway routing with full provider-call receipts and no tiny-max regression. | 8 | 0/1/2/client/adapter |
-| V6-WORKFLOW-026.5 | queued | CLI + Cookbook Template Surface Contract | Adoption stalls unless cookbook and one-line setup remain thin wrappers over governed runtime paths. | Provide CLI/cookbook template surfaces with deterministic activation receipts and negligible runtime overhead. | 7 | 1/2/client/app |
+| V6-WORKFLOW-026.1 | done | Node + Flow Graph Registry Contract | Composable graph execution remains fragmented unless node/flow abstractions route through one governed workflow path. | Deliver deterministic node/flow graph dispatch with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-WORKFLOW-026.2 | done | Shared/Local Memory Bridge Contract | Graph memory consistency degrades unless shared/local memory semantics are enforced through canonical recall/budget controls. | Implement deterministic shared/local memory bridge with zero-loss restore semantics, context-budget enforcement, and full memory-event receipts. | 9 | 0/1/2/client |
+| V6-WORKFLOW-026.3 | done | Agentic Patterns + RAG Registry Contract | Pattern reuse and RAG quality drift unless built-in patterns are governed through canonical skill/adapter surfaces. | Add receipted registration and activation for Agent/RAG/Map-Reduce/Multi-Agent/Structured-Output patterns via `infring assimilate`. | 8 | 0/1/2/client/adapter |
+| V6-WORKFLOW-026.4 | done | Zero-Dependency + Polyglot Gateway Contract | Interop degrades unless polyglot model routing stays centralized and policy-bound across runtime surfaces. | Deliver deterministic Python/TS polyglot gateway routing with full provider-call receipts and no tiny-max regression. | 8 | 0/1/2/client/adapter |
+| V6-WORKFLOW-026.5 | done | CLI + Cookbook Template Surface Contract | Adoption stalls unless cookbook and one-line setup remain thin wrappers over governed runtime paths. | Provide CLI/cookbook template surfaces with deterministic activation receipts and negligible runtime overhead. | 7 | 1/2/client/app |
 
 ## SkillNet Three-Layer Ontology for Composable Agent Skills Assimilation Source Coverage Intake (Doc `15u-UcuwtLAwMGNsWUmRXCKS9PJo3Y1l2JfMnYCUZI20`, 2026-03-18)
 
@@ -9123,11 +9123,11 @@ Objective: assimilate SkillNet taxonomy, typed relation graph, package library, 
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SKILLS-004.1 | queued | Skill Taxonomy + Tag Registry Contract | Skill discovery and reuse drift unless taxonomy/tags are canonical and governed across the skill graph. | Deliver deterministic ingestion of top-level categories and fine-grained tags with full receipt lineage and no parallel authority paths. | 9 | 0/1/2/client |
-| V6-SKILLS-004.2 | queued | Typed Relation Graph Engine Contract | Dependency and composition quality degrade unless typed relations are first-class governed edges in the skill graph. | Add deterministic relation edges (`similar_to`, `belong_to`, `compose_with`, `depend_on`) with receipt-backed resolution and workflow composition compatibility. | 10 | 0/1/2/client |
-| V6-SKILLS-004.3 | queued | Skill Package Library + Bundle Activation Contract | Operator onboarding slows unless coherent skill bundles can be activated with pre-wired relations under policy controls. | Implement one-command package activation with deterministic bundle receipts and safe relation validation before activation. | 8 | 1/2/client/app |
-| V6-SKILLS-004.4 | queued | Automatic Workflow Generation Contract | Graph composability is underutilized unless `compose_with` relations generate executable workflows automatically. | Deliver deterministic relation-driven workflow generation with full receipt lineage and context-budget enforcement. | 9 | 0/1/2/client |
-| V6-SKILLS-004.5 | queued | Validation + Drift Gate Contract | Ontology quality erodes unless taxonomy/relation/package integrity checks run continuously and block drift. | Add `ops:validate:skillnet` CI gate with deterministic fail-closed receipts for ontology drift and package inconsistency. | 9 | 1/2/client |
+| V6-SKILLS-004.1 | done | Skill Taxonomy + Tag Registry Contract | Skill discovery and reuse drift unless taxonomy/tags are canonical and governed across the skill graph. | Deliver deterministic ingestion of top-level categories and fine-grained tags with full receipt lineage and no parallel authority paths. | 9 | 0/1/2/client |
+| V6-SKILLS-004.2 | done | Typed Relation Graph Engine Contract | Dependency and composition quality degrade unless typed relations are first-class governed edges in the skill graph. | Add deterministic relation edges (`similar_to`, `belong_to`, `compose_with`, `depend_on`) with receipt-backed resolution and workflow composition compatibility. | 10 | 0/1/2/client |
+| V6-SKILLS-004.3 | done | Skill Package Library + Bundle Activation Contract | Operator onboarding slows unless coherent skill bundles can be activated with pre-wired relations under policy controls. | Implement one-command package activation with deterministic bundle receipts and safe relation validation before activation. | 8 | 1/2/client/app |
+| V6-SKILLS-004.4 | done | Automatic Workflow Generation Contract | Graph composability is underutilized unless `compose_with` relations generate executable workflows automatically. | Deliver deterministic relation-driven workflow generation with full receipt lineage and context-budget enforcement. | 9 | 0/1/2/client |
+| V6-SKILLS-004.5 | done | Validation + Drift Gate Contract | Ontology quality erodes unless taxonomy/relation/package integrity checks run continuously and block drift. | Add `ops:validate:skillnet` CI gate with deterministic fail-closed receipts for ontology drift and package inconsistency. | 9 | 1/2/client |
 
 ## Long-Form Video Transcription + Hierarchy-Decay Reinforcement Source Coverage Intake (Doc `1fEOYYbLEEuo_DsOu3jaXuoMoP5UflRLu1dDuCwZuPqU`, 2026-03-18)
 
@@ -9173,11 +9173,11 @@ Objective: assimilate Crabwise proxy guardrails, hash-chained audit logs, YAML p
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SECURITY-022.1 | queued | Proxy Interception Daemon Contract | Guardrail reliability is incomplete unless all agent calls can be intercepted through one governed proxy boundary. | Deliver deterministic local proxy interception for multi-provider agent actions with full receipt lineage and zero parallel authority paths. | 9 | 0/1/2/client/adapter |
-| V6-SECURITY-022.2 | queued | Hash-Chained SQLite Audit Trail Contract | Forensic trust degrades unless runtime actions append to a tamper-evident chain with verifiable continuity. | Implement deterministic hash-chained SQLite audit append path with receipt proofs and compatibility with existing ledger/blob surfaces. | 10 | 0/1/2/client |
-| V6-SECURITY-022.3 | queued | YAML Commandments Policy Engine Contract | Runtime safety weakens unless human-readable commandment policies are enforced as fail-closed execution gates. | Add deterministic YAML policy enforcement + hot-reload with policy-change receipts and no bypass routes. | 9 | 0/1/2/client |
-| V6-SECURITY-022.4 | queued | Live ReactFlow Activity Graph Contract | Operator oversight is limited unless action traces stream into a real-time graph with auditable event boundaries. | Deliver deterministic WebSocket-backed activity graph updates with per-event receipts and negligible monitor overhead. | 8 | 1/2/client/app |
-| V6-SECURITY-022.5 | queued | Multi-Provider + Workspace Integration Contract | Production usage drifts unless provider routing and workspace interactions are isolated and policy-bound under one guardrail surface. | Implement deterministic multi-provider/workspace integration with isolated receipts, context-budget enforcement, and fail-closed access constraints. | 8 | 0/1/2/client/adapter |
+| V6-SECURITY-022.1 | done | Proxy Interception Daemon Contract | Guardrail reliability is incomplete unless all agent calls can be intercepted through one governed proxy boundary. | Deliver deterministic local proxy interception for multi-provider agent actions with full receipt lineage and zero parallel authority paths. | 9 | 0/1/2/client/adapter |
+| V6-SECURITY-022.2 | done | Hash-Chained SQLite Audit Trail Contract | Forensic trust degrades unless runtime actions append to a tamper-evident chain with verifiable continuity. | Implement deterministic hash-chained SQLite audit append path with receipt proofs and compatibility with existing ledger/blob surfaces. | 10 | 0/1/2/client |
+| V6-SECURITY-022.3 | done | YAML Commandments Policy Engine Contract | Runtime safety weakens unless human-readable commandment policies are enforced as fail-closed execution gates. | Add deterministic YAML policy enforcement + hot-reload with policy-change receipts and no bypass routes. | 9 | 0/1/2/client |
+| V6-SECURITY-022.4 | done | Live ReactFlow Activity Graph Contract | Operator oversight is limited unless action traces stream into a real-time graph with auditable event boundaries. | Deliver deterministic WebSocket-backed activity graph updates with per-event receipts and negligible monitor overhead. | 8 | 1/2/client/app |
+| V6-SECURITY-022.5 | done | Multi-Provider + Workspace Integration Contract | Production usage drifts unless provider routing and workspace interactions are isolated and policy-bound under one guardrail surface. | Implement deterministic multi-provider/workspace integration with isolated receipts, context-budget enforcement, and fail-closed access constraints. | 8 | 0/1/2/client/adapter |
 
 ## Crabwise Shared Memory + ColBERT Reranking Blueprint Assimilation Source Coverage Intake (Doc `1iOy3_USK9yfaCqD2Y9vMb3ARK9bwAOxrnkSXYC9vMZw`, 2026-03-18)
 
@@ -9207,11 +9207,11 @@ Objective: assimilate hybrid recall/reranking, episodic decay, lossless compacti
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-024.1 | queued | Hybrid Recall Pipeline + ColBERT Reranker Contract | Recall quality drifts unless multi-stage retrieval and reranking are governed through one canonical memory path. | Deliver deterministic 5-layer recall fusion + ColBERT reranking with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
-| V6-MEMORY-024.2 | queued | Episodic Decay + Lossless Compaction Contract | Long-session memory quality degrades unless decay and compaction are policy-bound and preserve recoverability guarantees. | Implement deterministic episodic decay + lossless compaction triggers with context-budget enforcement and explicit compaction receipts. | 10 | 0/1/2/client |
-| V6-MEMORY-024.3 | queued | Shared Knowledge Graph + Fleet Coordination Contract | Multi-agent coherence weakens unless shared KG updates and background fleet tasks route through governed orchestration boundaries. | Add deterministic shared-KG and fleet coordination routing with isolated receipts and importance-queue compatibility evidence. | 9 | 0/1/2/client/adapter |
-| V6-MEMORY-024.4 | queued | OpenClaw Gateway Integration Contract | External channel workflows fragment unless gateway bridging is centralized and receipted under existing adapter controls. | Deliver deterministic gateway interception/routing with full provider-call receipts and compatibility with existing proxy/guardrail patterns. | 8 | 0/1/2/client/adapter |
-| V6-MEMORY-024.5 | queued | Memory Stores + Observability Bridge Contract | Memory reliability cannot be trusted unless store sync and trace visibility are integrated into canonical observability lanes. | Implement deterministic ChromaDB/SQLite/FT5S sync telemetry with zero-loss stream guarantees and observability receipt parity. | 8 | 1/2/client/app |
+| V6-MEMORY-024.1 | done | Hybrid Recall Pipeline + ColBERT Reranker Contract | Recall quality drifts unless multi-stage retrieval and reranking are governed through one canonical memory path. | Deliver deterministic 5-layer recall fusion + ColBERT reranking with full receipt lineage and no parallel authority path. | 9 | 0/1/2/client |
+| V6-MEMORY-024.2 | done | Episodic Decay + Lossless Compaction Contract | Long-session memory quality degrades unless decay and compaction are policy-bound and preserve recoverability guarantees. | Implement deterministic episodic decay + lossless compaction triggers with context-budget enforcement and explicit compaction receipts. | 10 | 0/1/2/client |
+| V6-MEMORY-024.3 | done | Shared Knowledge Graph + Fleet Coordination Contract | Multi-agent coherence weakens unless shared KG updates and background fleet tasks route through governed orchestration boundaries. | Add deterministic shared-KG and fleet coordination routing with isolated receipts and importance-queue compatibility evidence. | 9 | 0/1/2/client/adapter |
+| V6-MEMORY-024.4 | done | OpenClaw Gateway Integration Contract | External channel workflows fragment unless gateway bridging is centralized and receipted under existing adapter controls. | Deliver deterministic gateway interception/routing with full provider-call receipts and compatibility with existing proxy/guardrail patterns. | 8 | 0/1/2/client/adapter |
+| V6-MEMORY-024.5 | done | Memory Stores + Observability Bridge Contract | Memory reliability cannot be trusted unless store sync and trace visibility are integrated into canonical observability lanes. | Implement deterministic ChromaDB/SQLite/FT5S sync telemetry with zero-loss stream guarantees and observability receipt parity. | 8 | 1/2/client/app |
 
 ## 100-Agent Hierarchical Swarm Scaling Reinforcement Source Coverage Intake (Doc `1-fIUN43CR1rHBb4cI2rsQG8hZPpe105KXpGIf878kug`, 2026-03-18)
 
@@ -9248,6 +9248,536 @@ Notes:
   - safety absolute / fail-closed requirement maps to existing safety root and policy receipts: `V6-SEC-T0-001`, `V9-AUDIT-026`
 - Normalization from source language:
   - high-level immersive narrative is treated as strategic intent and UX north-star, not as direct runtime-authority primitives.
+
+## xAI Grok Native Intelligence & Multimodal Layer Assimilation Source Coverage Intake (Doc `1TJ6xnJ-6mQc3nXiZC1U220wyzhuVMWyBzX-kXT0iTc8`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1TJ6xnJ-6mQc3nXiZC1U220wyzhuVMWyBzX-kXT0iTc8/edit?usp=sharing
+- https://x.ai/api
+- https://docs.x.ai
+
+Notes:
+- Primitive-first normalization: this intake extends existing inference/router/streaming/receipt/adapter surfaces; no new safety or orchestration primitive is introduced.
+- ID integrity check: `V10-CORE-001.*` is not occupied in SRS, so this source is mapped as a new queued family.
+- Existing baseline coverage reused by this intake:
+  - provider routing + model selection baselines: `V10-COMPETITOR-001.2`, `V10-POWER-001.2`
+  - receipt + audit baselines: `V9-AUDIT-026`
+  - multimodal/voice/sensory streaming baselines: `V10-PHONE-001.*`, `V6-SENSORY-001.*`
+  - adapter/policy gating baselines: `V11-ECOSYSTEM-001.*`, `V6-SEC-T0-001`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed Grok calls, realtime events, multimodal and tool invocation receipts
+  - Layer `1`: policy gates for provider auth scopes, data egress, content safety, and budget guardrails
+  - Layer `2`: gateway/runtime integrations for model routing, streaming, tool calls, and throughput controls
+  - `client`: thin `infring assimilate grok`/operator UX activation surfaces only
+  - `adapter`: provider protocol shims only; no parallel authority paths
+
+Objective: assimilate xAI Grok model, realtime data, multimodal generation, voice, and enterprise tool-calling capabilities as receipt-first extensions over existing runtime authority lanes.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V10-CORE-001.1 | done | Grok Model Gateway Profile Contract | Frontier model capability is fragmented unless Grok model families are first-class router targets under governed provider controls. | Register Grok model profiles (including high-context tiers) in canonical model router with deterministic selection/fallback receipts, context-budget enforcement, and parity checks across pure/tiny-max modes. | 9 | 0/1/2/client/adapter |
+| V10-CORE-001.2 | done | Real-Time X Data + Truth-Seeking Bridge Contract | Live world-awareness quality degrades unless realtime X-derived signals are policy-bound inputs to inference and swarm lanes. | Route realtime X search/trend/sentiment inputs through governed ingest and inference boundaries with deterministic provenance receipts and integration compatibility with opportunity/sentiment swarm lanes. | 9 | 0/1/2/client/adapter |
+| V10-CORE-001.3 | done | Grok Imagine Multimodal Generation Bridge Contract | Visual generation/editing workflows remain disconnected unless native multimodal endpoints are integrated into existing substrate/inference lanes. | Add governed text/image/video generation+edit provider path with deterministic generation receipts, artifact lineage metadata, and compatibility with existing Grid/visual rendering surfaces. | 8 | 0/1/2/client/adapter/app |
+| V10-CORE-001.4 | done | Voice Agent + Multimodal Realtime Bridge Contract | Voice/multimodal interaction quality stalls without low-latency realtime endpoint integration under canonical streaming and sensory policies. | Integrate TTS/STT and realtime multimodal streams into existing streaming/sensory runtime with deterministic interaction receipts, bounded latency targets, and fail-closed degraded-mode behavior. | 8 | 0/1/2/client/adapter |
+| V10-CORE-001.5 | done | Enterprise Tool Calling + Provisioned Throughput Contract | Production tool reliability and scale are constrained without governed structured outputs and throughput-tier controls in provider routing. | Enable Grok tool-calling/structured-output paths via existing `infring assimilate` integration contracts with deterministic call receipts, policy-scoped auth, throughput provisioning controls, and zero authority bypass. | 9 | 0/1/2/client/adapter |
+
+## Channel Adapter Expansion to 41+ Source Coverage Intake (Doc `14K_vq_tKWc7-vn6hPBRXxLlVrNTLxll_DlUcGhWWyDM`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/14K_vq_tKWc7-vn6hPBRXxLlVrNTLxll_DlUcGhWWyDM/edit?usp=sharing
+
+Notes:
+- Primitive-first normalization: this intake extends existing `adapters/polyglot`, conduit, policy, and observability lanes; no new core primitive is introduced.
+- ID integrity check: `V6-ADAPTER-001.*` is available in SRS and is added as a new queued family.
+- Existing baseline coverage reused by this intake:
+  - receipt/audit and fail-closed controls: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - adapter governance and provider routing baselines: `V11-ECOSYSTEM-001.*`, `V10-COMPETITOR-001.2`
+  - observability and runtime dashboards: `V6-OPS-001.*`, `V6-COCKPIT-*`
+  - workflow/scheduling handoff for channel execution: `V6-WORKFLOW-*`, `V6-SWARM-*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed channel ingress/egress events with deterministic receipts
+  - Layer `1`: policy gates for credential scope, DM/group behavior, rate limits, and egress controls
+  - Layer `2`: adapter runtime templates, parity validation jobs, and per-channel routing
+  - `adapter`: thin per-platform shims in `adapters/polyglot/` only
+  - `client`: thin `infring assimilate channel <platform>` activation and telemetry views only
+
+Objective: expand governed channel adapter breadth beyond 40 while preserving receipt-first safety, parity validation, and tiny-max/pure-mode compatibility.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ADAPTER-001.1 | done | High-Impact Channel Prioritization Registry Contract | Expansion efforts drift without one authoritative queue that ranks channel additions by operator impact and integration readiness. | Add governed channel-priority registry with deterministic scoring and one-command `infring assimilate channel <platform>` intake path that emits receipts and blocks unsafe/unsupported candidates. | 8 | 0/1/2/client/adapter |
+| V6-ADAPTER-001.2 | done | Thin Polyglot Adapter Template Contract | New channel integrations bloat and diverge unless all providers share a canonical thin template with policy and receipt hooks. | Deliver reusable thin adapter template (transport + credential injection + message segmentation + model override hooks) that inherits security/observability gates and emits deterministic lifecycle receipts. | 9 | 0/1/2/adapter |
+| V6-ADAPTER-001.3 | done | First-5 Expansion Assimilation Contract (WeChat/LINE/KakaoTalk/Signal/iMessage) | Competitive channel breadth cannot be proven until the first tranche of high-demand platforms is integrated under the same authority boundary. | Implement first five channel adapters through governed polyglot surfaces with full receipt coverage, sandbox/policy conformance checks, and parity validation against existing channel behavior contracts. | 9 | 0/1/2/adapter/client |
+| V6-ADAPTER-001.4 | done | Auto-Discovery + Channel Parity Validation Gate Contract | Channel behavior drift (splitting, media, typing, retries) causes silent regressions unless parity checks are continuous and fail-closed. | Add deterministic validation lane (`protheus ops:validate:channels`) enforcing channel parity and blocking promotion when capability drift, safety violations, or missing receipts are detected. | 10 | 0/1/2/client/adapter |
+| V6-ADAPTER-001.5 | done | Per-Channel Observability + Telemetry Contract | Operators cannot manage a 40+ channel fleet safely without per-channel latency, success, and budget visibility. | Extend observability surfaces with per-channel metrics and health status, deterministic metric receipts, and dashboard evidence proving expanded channel coverage without tiny-max regression. | 8 | 1/2/client/app/adapter |
+
+## Channel Adapter Expansion to 41+ Bulk Assimilation Source Coverage Intake (Doc `1fjxGLe2dXH1DRoryf523AmgQRDC3K2YDsfEKbVO_iWo`, 2026-03-17)
+
+Source references:
+- https://docs.google.com/document/d/1fjxGLe2dXH1DRoryf523AmgQRDC3K2YDsfEKbVO_iWo/edit?usp=sharing
+
+Notes:
+- Primitive-first normalization: this intake is an execution-wave extension to `V6-ADAPTER-001.*`, focused on bulk generation, rollout orchestration, and channel fleet hardening without introducing new primitives.
+- ID integrity check: `V6-ADAPTER-002.*` is available and is added as a new queued family.
+- Overlap handling:
+  - channel breadth strategy and baseline parity are covered in `V6-ADAPTER-001.*`
+  - this intake adds bulk operation contracts (all-at-once assimilation, fleet-grade gating, and sandbox defaults)
+- Existing baseline coverage reused by this intake:
+  - receipt and safety invariants: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - adapter policy and runtime guardrails: `V11-ECOSYSTEM-001.*`
+  - observability and operator dashboards: `V6-OPS-001.*`, `V6-COCKPIT-*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed channel event authority + deterministic receipts
+  - Layer `1`: policy profiles for credentials, E2EE support flags, rate/egress controls
+  - Layer `2`: bulk assimilation execution, channel parity gates, and fleet metrics streaming
+  - `adapter`: thin generated wrappers in `adapters/polyglot/`
+  - `client`: thin CLI surfaces and dashboard/operator controls only
+
+Objective: operationalize channel expansion at fleet scale (41+ channels) through bulk assimilation, deterministic validation gates, and sandbox-by-default execution.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ADAPTER-002.1 | done | Polyglot Adapter Template v2 Contract | Large channel fleets become brittle unless all generated adapters inherit a consistent template with transport/media/typing parity behavior. | Deliver template v2 for HTTP/WebSocket/SSE adapters with deterministic credential handling, media/typing/message-split support, inherited policy hooks, and receipt-complete lifecycle events. | 9 | 0/1/2/adapter |
+| V6-ADAPTER-002.2 | done | Bulk Channel Assimilation CLI Contract | Scaling one channel at a time slows competitive coverage unless operators can assimilate/activate channel sets in a single governed operation. | Add bulk intake CLI (`infring assimilate channels --all` or `infring assimilate channels --top-20`) with deterministic per-channel receipts, bounded execution time targets, and fail-closed partial rollout handling. | 10 | 0/1/2/client/adapter |
+| V6-ADAPTER-002.3 | done | Per-Channel Policy + Validation Gate Contract | Fleet reliability and security degrade unless each channel passes capability/safety parity gates continuously. | Enforce automated parity/safety gate (`protheus ops:validate:channels`) covering split/typing/media/E2EE/capability matrices; block promotion on drift or missing receipts. | 10 | 0/1/2/client/adapter |
+| V6-ADAPTER-002.4 | done | Unified Channel Fleet Observability Contract | Operations teams cannot govern 41+ channels without a single fleet-level view of health, latency, usage, and failures. | Extend protheus-top channel fleet dashboard with deterministic per-channel telemetry (latency, success, token usage, active users) and runtime alerts for regressions. | 8 | 1/2/client/app/adapter |
+| V6-ADAPTER-002.5 | done | Sandbox-Default Channel Security Hardening Contract | Channel adapters become an attack surface unless every adapter path is sandboxed and egress/secret boundaries are enforced by default. | Route all generated channel adapters through sandbox profiles with credential isolation and fail-closed egress controls, proving deterministic deny/allow receipts for all call paths. | 10 | 0/1/2/adapter/client |
+
+## OpenClaw Revenue Pattern Pack Assimilation Source Coverage Intake (Doc `1uQMBQO_SoxaE4YzII-V8k4vw-ck1Kmu_Kf_lTu3_EZI`, 2026-03-17)
+
+Source references:
+- https://docs.google.com/document/d/1uQMBQO_SoxaE4YzII-V8k4vw-ck1Kmu_Kf_lTu3_EZI/edit?usp=sharing
+- https://x.com/PoodleFi_/status/2033637477949575340
+
+Notes:
+- Source proposes `V6-ECONOMY-001.*`, but that ID family is already occupied in SRS by existing economy-assimilation contracts; normalized to `V6-ECONOMY-003.*` to preserve ID integrity.
+- Primitive-first normalization: this intake extends existing economy, workflow, skill-scaffold, and observability lanes; no new monetary authority primitive is introduced.
+- Existing baseline coverage reused by this intake:
+  - economy/tokenomics and self-sustainability baselines: `V10-ULTIMATE-001.4`, `V6-ECONOMY-001.*`, `V6-ECONOMY-002.*`
+  - receipt/audit and policy controls: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - routing and channel delivery surfaces: `V6-WORKFLOW-*`, `V6-ADAPTER-*`
+  - operator telemetry surfaces: `V6-OPS-001.*`, `V6-COCKPIT-*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed monetization events with deterministic receipts
+  - Layer `1`: policy gates for payment methods, identity scope, and anti-abuse constraints
+  - Layer `2`: revenue-pattern runtime templates, premium routing, and affiliate logic
+  - `client`: thin `infring assimilate revenue-patterns` activation + dashboard surfaces only
+  - `app`: optional revenue-pattern UX wrappers only, non-authoritative
+
+Objective: assimilate market-validated agent monetization patterns (subscriptions, upgrades, tips, token-gated utility, affiliate routing) as governed templates over existing economy authority lanes.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ECONOMY-003.1 | done | Revenue Model Registry Pack Contract | Monetization strategy drifts without one governed registry of proven revenue patterns mapped to existing economic controls. | Add receipted revenue-pattern registry (subscription, premium, tipping, token-gate, affiliate) with one-command activation (`infring assimilate revenue-patterns`) and policy-bound eligibility checks. | 8 | 0/1/2/client |
+| V6-ECONOMY-003.2 | done | Subscription + Premium Upgrade Bridge Contract | Premium monetization is inconsistent unless upgrade paths are scaffolded through canonical persona/skill and payment boundaries. | Extend skill/persona scaffolding for premium tier offers with deterministic upgrade/payment receipts, scoped policy enforcement, and no parallel billing authority path. | 9 | 0/1/2/client/app |
+| V6-ECONOMY-003.3 | done | In-Chat Tips + Micro-Transaction Contract | Conversation-native monetization cannot be trusted unless micro-transactions are routed through governed workflow and receipt lanes. | Route in-chat tipping and micro-transactions through conduit/workflow paths with deterministic transfer receipts, anti-abuse policy gates, and channel compatibility checks. | 8 | 0/1/2/client/adapter |
+| V6-ECONOMY-003.4 | done | Token Utility + Affiliate Revenue Layer Contract | Self-funding loops remain partial unless token-gated utility and affiliate attribution are integrated under one governed economic plane. | Add token-gated access and affiliate attribution contracts with deterministic ROI lineage receipts, payout policy controls, and treasury-safe fail-closed behavior. | 9 | 0/1/2/client/adapter |
+| V6-ECONOMY-003.5 | done | Revenue Observability + Validation Contract | Operator trust degrades without live per-agent revenue visibility and regression alarms. | Extend dashboards with real-time revenue telemetry (earnings, conversion, source mix, failure rates), deterministic metric receipts, and non-regression proof for tiny-max/pure modes. | 8 | 1/2/client/app |
+
+## Local Company Knowledge Base Session-Start Profile Assimilation Source Coverage Intake (Doc `1OoXD6N5J9cs_sr3v0Vjvaky_BY1SSuR1EzpDnLHeA6U`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1OoXD6N5J9cs_sr3v0Vjvaky_BY1SSuR1EzpDnLHeA6U/edit?usp=sharing
+- https://x.com/RoundtableSpace/status/2033743878197514560
+
+Notes:
+- Source proposes `V6-MEMORY-023.*`, but `V6-MEMORY-023` is already occupied in SRS by prior memory-bank integration contracts; normalized to `V6-MEMORY-025.*` to preserve ID integrity.
+- Primitive-first normalization: this intake extends existing Dream Sequencer, auto-recall, context-budget, content-skill-graph, and observability lanes; no new memory primitive is introduced.
+- Existing baseline coverage reused by this intake:
+  - session recall/capture and persistence baselines: `V6-MEMORY-020.*`, `V6-MEMORY-023.*`, `V6-MEMORY-024.*`
+  - compaction/decay and context-budget controls: `V6-MEMORY-COMPACT-002`, `V6-MEMORY-DECAY-001.*`, `V6-CONTEXT-001.*`
+  - receipt and policy controls: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - team/persona continuity baseline: `V8-PERSONA-015.3`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed session-start memory hydration and deterministic receipts
+  - Layer `1`: policy gates for scope boundaries, freshness checks, and budget envelopes
+  - Layer `2`: auto-load runtime hooks, team template sync, and drift validation lanes
+  - `client`: thin `infring assimilate company-memory` activation and status views
+  - `app`: optional company-memory UX surface only, non-authoritative
+
+Objective: provide deterministic session-start company context hydration (docs, numbers, processes, templates) with freshness, drift checks, and full receipt lineage.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-MEMORY-025.1 | done | Company Knowledge Profile Hydration Contract | Team productivity degrades when each session starts without preloaded company-specific context and references. | Add governed company-memory profile hydration at session start with deterministic injection receipts, strict scope boundaries, and no parallel authority path outside canonical memory lanes. | 9 | 0/1/2/client |
+| V6-MEMORY-025.2 | done | Auto-Load + Freshness Enforcement Contract | Session context quality drifts unless memory sources are auto-loaded and freshness-validated before reasoning begins. | Extend auto-recall hooks to enforce deterministic company-doc freshness checks, context-budget conformance, and fail-closed stale-source handling with explicit receipts. | 10 | 0/1/2/client |
+| V6-MEMORY-025.3 | done | Company Template + Team Sync Bridge Contract | Shared operating context fragments unless company templates and team memory updates are synchronized across agent/persona surfaces. | Deliver receipted template activation and team-sync bridge via `infring assimilate company-memory`, including scoped merge rules and deterministic activation lineage. | 8 | 0/1/2/client/adapter |
+| V6-MEMORY-025.4 | done | Company Memory Observability + Drift Gate Contract | Operators cannot trust session-start memory without live load status and automated drift detection on profile inputs. | Add deterministic dashboard/status surfaces and CI gate (`protheus ops:validate:company-memory`) that blocks promotion on scope/freshness/drift violations with explicit receipts. | 9 | 1/2/client/app |
+
+## LLM Provider Expansion to 41+ Source Coverage Intake (Doc `18OtHAyFxeZ5x_iXO7dCmKTQPLVGnVpAZNhmLeQKMVbE`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/18OtHAyFxeZ5x_iXO7dCmKTQPLVGnVpAZNhmLeQKMVbE/edit?usp=sharing
+
+Notes:
+- Primitive-first normalization: this intake extends existing inference/streaming gateway, provider routing, and observability lanes; no new inference primitive is introduced.
+- ID integrity check: `V6-INFERENCE-004.*` is available in SRS and is added as a new queued family.
+- Existing baseline coverage reused by this intake:
+  - model router and provider breadth baselines: `V10-COMPETITOR-001.2`, `V10-POWER-001.2`, `V6-INFERENCE-003.*`
+  - receipt and policy controls: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - multimodal/streaming and adapter governance surfaces: `V11-ECOSYSTEM-001.*`, `V10-CORE-001.*`
+  - cost/throughput observability baselines: `V6-OPS-001.*`, `V6-COCKPIT-*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed provider calls with deterministic request/response receipts
+  - Layer `1`: per-provider auth, context-budget, safety, and rate-limit policy gates
+  - Layer `2`: gateway template expansion, parity validation, and cost-aware routing controls
+  - `adapter`: thin provider shims in LLM gateway surfaces only
+  - `client`: thin `infring assimilate llms` activation and telemetry dashboards only
+
+Objective: expand governed LLM provider coverage to 41+ providers with deterministic parity checks, fallback routing, and cost/performance-aware selection under existing authority boundaries.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-INFERENCE-004.1 | done | Polyglot LLM Gateway Template v2 Contract | Provider proliferation creates integration drift unless all model backends inherit a canonical gateway template and security envelope. | Deliver reusable provider template (HTTP/REST auth, streaming, model-specific context budgets, fallback hooks) with deterministic lifecycle receipts and inherited policy gates. | 9 | 0/1/2/client/adapter |
+| V6-INFERENCE-004.2 | done | Bulk LLM Assimilation CLI Contract | Competitive provider breadth stalls when new models require one-off manual integration and registration. | Add bulk provider intake CLI (`infring assimilate llms --all` or `infring assimilate llms --top-20`) with deterministic per-provider receipts, bounded runtime targets, and fail-closed partial rollout handling. | 10 | 0/1/2/client/adapter |
+| V6-INFERENCE-004.3 | done | Per-Model Policy + Validation Gate Contract | Model capabilities drift (context/tool/multimodal/structured-output) without continuous parity validation under one gate. | Enforce CI parity lane (`protheus ops:validate:llms`) for context/tool/multimodal/structured-output compatibility and block promotion on drift, missing policy coverage, or missing receipts. | 10 | 0/1/2/client/adapter |
+| V6-INFERENCE-004.4 | done | Unified Provider Observability Contract | Operators cannot safely govern large provider fleets without normalized latency, success, usage, and cost visibility. | Extend dashboards with deterministic per-provider telemetry (latency, success, token usage, cost per unit) and runtime alerting for regressions across tiny-max/pure modes. | 8 | 1/2/client/app/adapter |
+| V6-INFERENCE-004.5 | done | Fallback + Cost-Optimization Router Contract | Spend and reliability regress unless routing automatically balances capability, cost, and fallback readiness under policy control. | Add deterministic routing policy that prioritizes performance, then cost, then open-source fallback, emitting full route-decision receipts and measurable cost-savings evidence. | 9 | 0/1/2/client |
+
+## Beat OpenFang on Raw Metrics & Capability Source Coverage Intake (Doc `1jRR8VsdVMToNlDz8yLf8lQ8EQCfkOT0B7gqqsCn0GuY`, 2026-03-17)
+
+Source references:
+- https://docs.google.com/document/d/1jRR8VsdVMToNlDz8yLf8lQ8EQCfkOT0B7gqqsCn0GuY/edit?usp=sharing
+
+Notes:
+- Primitive-first normalization: this intake is a metric-dominance execution track over existing runtime primitives; it introduces no parallel authority surfaces.
+- ID integrity check: `V6-BEAT-OPENFANG-*` is available and added as a new queued family.
+- Existing baseline coverage reused by this intake:
+  - provider and channel breadth tracks: `V6-INFERENCE-004.*`, `V6-ADAPTER-002.*`
+  - reliability/perf/observability baselines: `V6-OPS-001.*`, `V6-COCKPIT-*`, `V10-POWER-001.*`
+  - receipt and safety invariants: `V9-AUDIT-026`, `V6-SEC-T0-001`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed benchmark/stability/screen-loop events with deterministic receipts
+  - Layer `1`: benchmark policy gates, route budgets, and fail-closed acceptance thresholds
+  - Layer `2`: perf optimization, routing, stress-run orchestration, and leaderboard pipelines
+  - `client`/`app`: thin benchmark dashboards, marketplace UX, and report publication surfaces only
+
+Objective: close all remaining measurable gaps versus OpenFang across latency, memory, throughput, stability, vision loop, leaderboard rank, reliability perception, and marketplace usability (excluding binary size).
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-BEAT-OPENFANG-001 | done | Cold-Start Latency Dominance Contract | Perceived speed leadership is lost unless cold-start response stays within strict deterministic bounds across repeated trials. | Prove average cold-start-to-first-response latency at or below target threshold across 100+ runs with published receipts and benchmark artifacts. | 10 | 0/1/2/client |
+| V6-BEAT-OPENFANG-002 | done | Idle Memory Efficiency Contract | Runtime footprint credibility erodes unless idle RSS remains tightly bounded in tiny-max/pure modes. | Demonstrate bounded idle RSS after controlled settle windows with deterministic telemetry receipts and non-regression gates in perf lanes. | 9 | 0/1/2/client |
+| V6-BEAT-OPENFANG-003 | done | Throughput Supremacy Contract | Raw capability claims fail unless tiny-max throughput is measurably above competitor baselines under reproducible conditions. | Reach and sustain target ops/sec in canonical throughput benchmark lane with signed benchmark receipts and repeatable runner configuration. | 10 | 0/1/2/client |
+| V6-BEAT-OPENFANG-004 | done | 72-Hour Unattended Stability Contract | Enterprise trust collapses when long autonomous runs require babysitting or lose recoverability under pressure. | Complete 72-hour unattended multi-agent stress run with zero unrecovered failures and full checkpoint/recovery receipt lineage published. | 10 | 0/1/2/3 |
+| V6-BEAT-OPENFANG-005 | done | Native Realtime Screen-Share Vision Loop Contract | Viral screen-loop capability requires deterministic low-latency capture-reason-act cycles and auditable action lineage. | Deliver end-to-end capture->reason->plan->act loop within target latency envelope with deterministic per-cycle receipts and public demo evidence. | 9 | -1/0/1/2/adapter/client/app |
+| V6-BEAT-OPENFANG-006 | done | Multimodal Vision Quality Leadership Contract | Vision reliability claims are weak unless benchmarked quality/ranking outcomes are sustained against major public suites. | Achieve target multimodal benchmark placement with reproducible run artifacts, explicit model routing receipts, and non-regression quality gates. | 9 | 0/1/2/client/adapter |
+| V6-BEAT-OPENFANG-007 | done | LLM Provider Breadth Dominance Closure Contract | Provider breadth gap must be formally closed and tracked as a governed milestone rather than ad hoc progress claims. | Complete and verify `V6-INFERENCE-004.*` provider expansion goals with deterministic coverage receipts and published provider matrix proofs. | 8 | 0/1/2/client/adapter |
+| V6-BEAT-OPENFANG-008 | done | Messaging Channel Breadth Dominance Closure Contract | Channel breadth parity must be closed with policy/validation guarantees to avoid brittle adapter-count theater. | Complete and verify `V6-ADAPTER-002.*` channel expansion goals with deterministic parity-gate receipts and published active-channel matrix evidence. | 8 | 0/1/2/client/adapter |
+| V6-BEAT-OPENFANG-009 | done | Public Leaderboard Dominance Contract | Market perception lags unless published benchmark leaderboards show repeatable top placement on major suites. | Maintain top placement on selected major leaderboards with nightly pipeline artifacts, signed result receipts, and public report links. | 9 | 0/1/2/client/app |
+| V6-BEAT-OPENFANG-010 | done | One-Click Marketplace UX Dominance Contract | Non-technical adoption stalls unless install-to-first-run flow is faster and clearer than competitor UX baselines. | Ship and prove sub-target install-to-first-run workflow with deterministic install/run receipts, live previews/ratings, and user-facing demo evidence. | 8 | 1/2/client/app |
+
+## Unified Agent Dashboard Comprehensive Assimilation Source Coverage Intake (Doc `1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k/edit?usp=sharing
+
+Notes:
+- Source includes three overlapping proposal IDs (`V6-DASHBOARD-001`, `V6-DASHBOARD-002`, `V6-DASHBOARD-003`) describing one dashboard program with increasing detail/phasing.
+- Normalization: consolidated into one queued family `V6-DASHBOARD-001.*`; `002/003` semantics are treated as reinforcement and phased implementation detail to avoid duplicate contract trees.
+- Primitive-first normalization: this intake extends existing observability, receipts, memory, marketplace, channels, and workflow surfaces through a thin client/app control plane; no dashboard authority bypass is introduced.
+- Existing baseline coverage reused by this intake:
+  - receipts/audit and fail-closed constraints: `V9-AUDIT-026`, `V6-SEC-T0-001`
+  - swarm/session/runtime telemetry and graphs: `V6-SWARM-*`, `V6-OPS-001.*`, `V6-COCKPIT-*`
+  - memory and company-context surfaces: `V6-MEMORY-020.*`, `V6-MEMORY-023.*`, `V6-MEMORY-025.*`
+  - marketplace/install and adapter/channel coverage: `V6-APP-016.*`, `V6-ADAPTER-001.*`, `V6-ADAPTER-002.*`
+- Placement normalization from source:
+  - Layer `0`: all dashboard actions route through conduit and emit deterministic receipts
+  - Layer `1`: policy/permission gates for per-agent/per-channel/per-tool operations
+  - Layer `2`: live aggregation, replay, and dashboard-state orchestration
+  - `client`/`app`: dashboard UI and command surfaces only, non-authoritative
+
+Objective: deliver a unified control-plane dashboard that combines agent/scope visibility, live graphing, memory exploration, marketplace operations, logs/receipts, channel monitoring, and APM in one receipt-first surface.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-DASHBOARD-001.1 | done | Core Layout + Navigation Contract | Operator productivity degrades without one coherent, responsive control-plane shell spanning runtime domains. | Ship responsive SPA shell with sidebar/topbar/global search/quick actions, keyboard shortcuts, theme/accessibility modes, and deterministic UI-action receipts. | 8 | 1/2/client/app |
+| V6-DASHBOARD-001.2 | done | Agents + Swarms Unified Overview Contract | Multi-agent operations remain opaque without a live fleet view with direct control and filtering. | Provide card/list/tree views with live status/task/model/token/runtime metrics and receipted pause/resume/inspect/config/spawn actions. | 9 | 0/1/2/client/app |
+| V6-DASHBOARD-001.3 | done | Live Activity Graph + Session Replay Contract | Reasoning/tool handoffs are hard to debug unless flow topology and timeline replay are first-class. | Deliver interactive live graph (nodes/edges/status colors), node detail panes, timeline scrubber/playback, and exportable session artifacts linked to receipts. | 9 | 0/1/2/client/app |
+| V6-DASHBOARD-001.4 | done | Memory + Knowledge Explorer Contract | Memory trust drops when operators cannot inspect recall, freshness, decay, and cross-agent context relationships. | Provide tree/graph/timeline memory views with hybrid search, progressive disclosure, edit/tag/delete actions, and receipted company-memory freshness/sync indicators. | 8 | 0/1/2/client/app |
+| V6-DASHBOARD-001.5 | done | Tools + Marketplace Unified Surface Contract | Tool adoption and composition lag without one-click install, previews, and dependency/relation visibility. | Implement searchable marketplace/tool catalog with one-click install receipts, preview metadata, relation graphing, and curated bulk-pack ingestion controls. | 8 | 1/2/client/app/adapter |
+| V6-DASHBOARD-001.6 | done | Channels + Delivery Monitoring Contract | Channel fleet reliability is unmanageable without unified status, config, and delivery-flow diagnostics. | Provide per-channel health/config/delivery telemetry surfaces with retry/failure visualization and deterministic channel-action receipts. | 8 | 1/2/client/app/adapter |
+| V6-DASHBOARD-001.7 | done | Logs + Receipts + Audit Explorer Contract | Compliance and forensics require immutable, queryable traces rather than fragmented logs. | Ship unified log/receipt explorer with filter/search/hash-chain views and export paths (JSON/PDF/CSV), preserving immutable receipt linkage. | 9 | 0/1/2/client/app |
+| V6-DASHBOARD-001.8 | done | APM + Alerting Contract | Runtime incidents and cost burn cannot be controlled without real-time SLO metrics and alerts. | Deliver real-time metrics (latency/burn/error/throughput) by model/provider/channel, configurable alerts, and historical trend views with deterministic telemetry receipts. | 9 | 0/1/2/client/app |
+| V6-DASHBOARD-001.9 | done | Settings + Governance Control Contract | Safety and operator trust degrade unless global and per-agent controls are explicit, scoped, and auditable. | Add global/per-agent/per-channel settings editors (model, budgets, permissions, memory scope, safety toggles) with strict policy gating and deterministic config-change receipts. | 9 | 0/1/2/client/app |
+| V6-DASHBOARD-001.10 | done | Performance + Reliability Envelope Contract | Dashboard value collapses if UX latency, startup, mobile usability, and offline behavior are inconsistent. | Enforce non-functional targets for load/update latency, WebSocket-first realtime updates, offline cache behavior, mobile responsiveness, and fail-closed conduit-only execution paths. | 10 | 0/1/2/client/app |
+
+## Blind-Spot Hardening Intake Source Coverage (Doc `1rhlsnMmcJ2u3C3_QJgSkhK__SF0e27qTyeTFG7xagL8`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1rhlsnMmcJ2u3C3_QJgSkhK__SF0e27qTyeTFG7xagL8/edit?usp=sharing
+
+Notes:
+- Source is a ranked blind-spot/risk analysis and mitigation plan, not a pre-numbered SRS contract pack.
+- Normalization: mapped into new queued hardening family `V6-BLINDSPOT-001.*`.
+- “Next wave” findings (WAL explosion, partial artifacts, missing quotas/pruning, crash consistency, I/O observability) are mapped directly into the relevant contracts below.
+- Existing baseline coverage reused by this intake:
+  - storage/runtime and SQLite hardening: `V6-STORAGE-001.*`, `V3-SK-005`, `BL-046`
+  - receipt/observability/governance baselines: `V9-AUDIT-026`, `V8-COMPETE-001.8`, `V6-OPS-001.*`, `V6-COCKPIT-*`
+  - swarm/runtime resilience and queue controls: `V6-SWARM-*`, `V6-WORKFLOW-*`
+- Placement normalization from source:
+  - Layer `0`: fail-closed guards for quotas, circuit breakers, deadlock/consistency handling, and receipt lifecycle events
+  - Layer `1`: retention/quota/backoff/backup policy contracts and enforcement gates
+  - Layer `2`: cleanup schedulers, pruning/indexing lanes, pressure monitors, and distributed reconciliation routines
+  - `client`: thin ops surfaces and dashboards only, non-authoritative
+
+Objective: eliminate silent long-run failure modes (disk/memory bloat, receipt explosion, rate-limit stalls, deadlocks, drift, and restore gaps) before they surface under scale.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-BLINDSPOT-001.1 | done | Auxiliary Store Growth Control Contract | Temp queues, rejected buffers, partial assimilations, and snapshots silently accumulate until disk/memory collapse. | Enforce TTL/eviction and pressure-triggered cleanup across auxiliary store roots (including WAL/journal artifacts) with deterministic cleanup receipts and bounded growth SLOs. | 10 | 0/1/2/client |
+| V6-BLINDSPOT-001.2 | done | Receipt Pruning + Archive + Indexed Search Contract | Receipt volume scales faster than operator query capacity, causing observability and runtime lag. | Add policy-bound receipt retention/pruning with rollup archival and indexed search path; prove stable query latency at high receipt cardinality with deterministic retention receipts. | 10 | 0/1/2/client |
+| V6-BLINDSPOT-001.3 | done | Provider Rate-Limit Circuit Breaker Contract | High-concurrency swarms stall when shared providers hit sustained 429/rate limits. | Implement per-provider circuit breakers, quota-aware scheduling, and exponential backoff/jitter with deterministic breaker-state receipts and recovery proofs. | 10 | 0/1/2/client/adapter |
+| V6-BLINDSPOT-001.4 | done | Long-Run Memory Fragmentation + Pressure Compaction Contract | Long-lived runs suffer progressive RSS drift and eventual OOM without explicit pressure handling. | Add periodic compaction/allocator-pressure controls and fragmentation telemetry with deterministic pressure-action receipts and long-run RSS stability evidence. | 9 | 0/1/2/client |
+| V6-BLINDSPOT-001.5 | done | Swarm Deadlock/Livelock Detection Contract | Coordination loops can freeze at scale when contention/dependency cycles emerge under load. | Add deadlock/livelock detector, bounded wait timeouts, and deterministic recovery/escalation paths with receipts and stress-test proof at target swarm sizes. | 10 | 0/1/2/3 |
+| V6-BLINDSPOT-001.6 | done | Assimilation Idempotency + Orphan Recovery Contract | Re-running interrupted assimilations can corrupt state and leave orphaned partial artifacts. | Enforce idempotency keys, dry-run diffing, and crash-safe rollback/repair routines that clean orphaned artifacts with deterministic recovery receipts. | 9 | 0/1/2/client/adapter |
+| V6-BLINDSPOT-001.7 | done | Cross-Hardware Cold-Start Variance Control Contract | Performance claims degrade on ARM/low-RAM systems despite strong dev-machine benchmarks. | Add multi-architecture benchmark gates and hardware-profile tuning envelopes with deterministic per-profile receipts and variance thresholds. | 8 | -1/0/1/2/client |
+| V6-BLINDSPOT-001.8 | done | Distributed Config Drift Reconciliation Contract | Multi-node behavior diverges without explicit reconciliation and consistency verification across runtime configs. | Implement config reconciliation + drift detection with bounded convergence windows and deterministic reconciliation receipts across node sets. | 9 | 0/1/2/adapter/client |
+| V6-BLINDSPOT-001.9 | done | Scale-Grade Observability Sampling Contract | Full-fidelity telemetry at high agent counts overwhelms dashboards and incident triage paths. | Add sampling/aggregation/indexing strategy for high-scale metrics/logs with deterministic data-loss bounds and searchable trace continuity receipts. | 8 | 1/2/client/app |
+| V6-BLINDSPOT-001.10 | done | Backup/Restore + Migration Safety Contract | Hardware failure and upgrade events become catastrophic without deterministic snapshot/restore and migration tooling. | Provide `infring backup/restore` contracts with integrity verification, migration compatibility checks, and deterministic restore receipts proving state continuity. | 9 | 0/1/2/client |
+
+## OpenFang Security + MCP Closure Reinforcement Source Coverage Intake (Doc `1NIywKbf-jtR2bpHnpOVZrvC6lwePxPhAbktilixRgSA`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1NIywKbf-jtR2bpHnpOVZrvC6lwePxPhAbktilixRgSA/edit?usp=sharing
+
+Notes:
+- This source is a detailed restatement of the already-ingested OpenFang closure pack (`V6-OPENFANG-CLOSURE-001`) and maps to existing contracts that are already tracked as `done` in SRS.
+- No new contract IDs are introduced from this source to avoid duplicate contract trees.
+- Reinforcement mappings:
+  - thorn quarantine and sacrificial cell containment: `V6-SEC-THORN-001` (done)
+  - constitutional invariant enforcement at Layer 0: `V6-SEC-T0-001` (done)
+  - tamper-evident black-box audit chain: `V6-SEC-LEDGER-001` (done)
+  - attacker behavioral profiling and auto-containment: `V6-SEC-PSYCHE-001` (done)
+  - MCP client/server/template interop closure: `V8-MCP-001` (done)
+- Additional alignment from source:
+  - shared non-functional targets (latency, fail-closed behavior, stress evidence, and receipt-first enforcement) reinforce existing governance baselines: `V9-AUDIT-026`, `V6-SEC-010..017`, `V6-CONDUIT-002`.
+
+## Distributed Swarm Scaling to 1000+ Agents Source Coverage Intake (Doc `1l6o2fwgNf9N2AChBRSImXTKnoBWggBDjgvuus7CIAMY`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1l6o2fwgNf9N2AChBRSImXTKnoBWggBDjgvuus7CIAMY/edit?usp=sharing
+
+Notes:
+- Primitive-first normalization: this intake extends existing swarm/runtime/receipt/memory/safety planes into distributed operation; no parallel control plane is introduced.
+- ID integrity check: `V10-SWARM-INF-001.*` is available and added as a new queued family.
+- Existing baseline coverage reused by this intake:
+  - swarm routing/failure/recovery primitives: `V6-SWARM-*`
+  - constitutional/safety and blast containment: `V6-SEC-T0-001`, `V6-SEC-THORN-001`
+  - global receipt/audit invariants: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - memory consistency and coordination baselines: `V6-MEMORY-020.*`, `V6-MEMORY-024.*`, `V6-MEMORY-025.*`
+- Placement normalization from source:
+  - Layer `0`: node-local T0 checks and conduit-routed cross-node actions with deterministic signatures
+  - Layer `1`: distributed state/receipt consistency policies and shard ownership contracts
+  - Layer `2`: distributed scheduler/coordinator/handoff/rebalance orchestration
+  - Layer `-1`: hardware-class aware placement and deployment topology profiles
+  - `client`: thin cluster visibility and control surfaces only
+
+Objective: scale swarm execution from single-node operation to distributed 1000+ agent clusters with preserved safety invariants, receipt continuity, and memory coherence.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V10-SWARM-INF-001.1 | done | Distributed Safety Plane Enforcement Contract | Horizontal scale is unsafe unless each node enforces constitutional invariants before any local or cross-node action. | Enforce node-local compiled T0 checks and signed conduit RPC guards on all cross-node calls with deterministic deny/allow receipts and no bypass paths. | 10 | 0/1/2 |
+| V10-SWARM-INF-001.2 | done | Global Receipt Chain Replication Contract | Audit integrity collapses in clusters unless receipts remain globally ordered and tamper-evident across nodes. | Implement globally sequenced receipt replication (consensus-backed append + node signatures) with deterministic replay/verification receipts under node churn and failure. | 10 | 0/1/2 |
+| V10-SWARM-INF-001.3 | done | Sharded Distributed Agent State Contract | Single-node state ownership bottlenecks execution and recovery once agent counts exceed local resource ceilings. | Add consistent-hash state sharding with deterministic shard ownership/rebalancing receipts and safe migration under join/leave/failure events. | 9 | 0/1/2 |
+| V10-SWARM-INF-001.4 | done | Distributed Memory Coherence Contract | Cross-node memory diverges without deterministic conflict-resolution and compaction authority boundaries. | Deliver CRDT-backed or equivalent coherent shared memory updates with deterministic merge receipts, shard compaction leadership, and bounded conflict resolution windows. | 9 | 0/1/2 |
+| V10-SWARM-INF-001.5 | done | Distributed Coordinator + Re-Election Contract | Cluster orchestration fails under leader loss unless coordination and task assignment survive re-election quickly. | Implement distributed coordinator election and failover with sub-target recovery windows, deterministic leader-transition receipts, and no orphaned task ownership. | 10 | 0/1/2/3 |
+| V10-SWARM-INF-001.6 | done | Cross-Node Handoff + Work-Stealing Contract | Throughput and resilience degrade without deterministic handoff semantics and load balancing across uneven node pressure. | Add signed state-snapshot handoff and work-stealing protocols with bounded handoff latency, rollback-safe transfer receipts, and fairness/load evidence. | 9 | 0/1/2/3 |
+| V10-SWARM-INF-001.7 | done | Multi-Hardware Placement + Node Join Contract | Practical cluster scaling stalls unless node types (CPU/GPU/edge) can join securely and be scheduled by capability. | Implement authenticated node join/discovery, hardware-class capability profiles, and policy-bound placement decisions with deterministic join/schedule receipts. | 8 | -1/0/1/2 |
+| V10-SWARM-INF-001.8 | done | 1000-Agent Fault-Tolerance Proof Contract | Scaling claims are non-credible without demonstrated recovery under sustained load and node failure scenarios. | Run 10-node/1000-agent stress lane with 72-hour uptime target, simulated node failures, deterministic recovery receipts, and published throughput/latency/memory evidence artifacts. | 10 | -1/0/1/2/3/client |
+
+## Swarm Coordination Upgrade Reinforcement Source Coverage Intake (Doc `1uQENQVMKxzmUKzWVlplTP3_75q8wHLk4kueT87_h5L8`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1uQENQVMKxzmUKzWVlplTP3_75q8wHLk4kueT87_h5L8/edit?usp=sharing
+
+Notes:
+- Source reuses `V10-SWARM-INF-001` and overlaps directly with the existing queued distributed swarm family already present in SRS.
+- No new IDs are introduced to avoid duplicate contract trees.
+- Reinforcement mappings:
+  - decomposition/aggregation fast-path objectives map to existing `V10-SWARM-INF-001.3` and `V10-SWARM-INF-001.8`
+  - distributed work-stealing and load balancing map to existing `V10-SWARM-INF-001.6`
+  - global receipt sequencing/consistency maps to existing `V10-SWARM-INF-001.2`
+  - fault tolerance/retry and recovery guarantees map to existing `V10-SWARM-INF-001.5` and `V10-SWARM-INF-001.8`
+  - hardware-aware placement and flexible deployment maps to existing `V10-SWARM-INF-001.7`
+- Additional alignment from source:
+  - explicit “≤10s codex-scale assimilation” performance intent is recorded as a stricter aspirational SLA for benchmark/stress evidence under `V10-SWARM-INF-001.8` without creating a parallel authority path.
+
+## Monty Secure Rust Python Interpreter Assimilation Source Coverage Intake (Doc `1rRQ7JjzSZ7vXy_t1GE2wqvD24sXT5x4GLuBQucK4lys`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1rRQ7JjzSZ7vXy_t1GE2wqvD24sXT5x4GLuBQucK4lys/edit?usp=sharing
+- https://github.com/pydantic/monty
+
+Notes:
+- Source proposes a Monty-focused execution bridge for safe, fast agent code execution and resumable snapshots.
+- ID integrity check: `V6-EXECUTION-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing conduit/safety/execution/memory primitives rather than introducing a parallel code-execution authority path.
+- Existing baseline coverage reused by this intake:
+  - universal execution primitive baseline: `V3-039`
+  - safety and fail-closed policy enforcement: `V6-SEC-010..017`, `V6-SEC-T0-001`, `V6-CONDUIT-002`
+  - memory continuity and snapshot persistence surfaces: `V6-MEMORY-020.*`, `V6-MEMORY-025.*`
+  - receipt/audit guarantees: `V9-AUDIT-026`
+- Placement normalization from source:
+  - Layer `0`: sandboxed execution and external-call mediation through conduit with deterministic receipts
+  - Layer `1`: execution policy for function allowlists, resource limits, and snapshot eligibility
+  - Layer `2`: runtime bridge, snapshot integration, and hierarchy-aware output classification
+  - `client`/`app`: thin `infring assimilate monty` activation and observability surfaces only
+
+Objective: assimilate Monty as a secure, low-latency Python execution bridge for agent-generated code while preserving receipt-first safety and memory continuity contracts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-EXECUTION-001.1 | done | Monty Runtime Bridge Contract | Tool execution remains slower and less constrained unless a native sandboxed interpreter path is integrated under existing execution governance. | Integrate Monty runtime bridge as a conduit-routed execution backend with deterministic run receipts, resource limits, and non-bypass safety enforcement. | 9 | 0/1/2/client/adapter |
+| V6-EXECUTION-001.2 | done | Snapshot Persistence Integration Contract | Long-running tool workflows lose continuity unless execution snapshots can be persisted and resumed across sessions. | Connect Monty snapshot state to canonical memory/session continuity lanes with deterministic snapshot/resume receipts and bounded restore guarantees. | 8 | 0/1/2/client |
+| V6-EXECUTION-001.3 | done | Controlled External Function Mapping Contract | Sandbox guarantees weaken unless host function exposure is explicitly allowlisted and policy-scoped per execution context. | Route Monty external calls through governed tool registry mappings with strict allowlist policy, deny-by-default behavior, and deterministic call receipts. | 10 | 0/1/2/adapter/client |
+| V6-EXECUTION-001.4 | done | Hierarchy-Aware Execution Output Contract | Execution outputs become noisy/unusable unless they are classified into existing memory hierarchy and retention paths. | Classify and store execution outputs through jot/tag/node hierarchy with context-budget and staleness policies, emitting deterministic persistence receipts. | 8 | 0/1/2/client/app |
+
+## OS-Grade Memory Strategy Assimilation Source Coverage Intake (Doc `1RyD5n_SmsvFaj0ZYGW6y848mlvkxmoxjuQso_K0IV9w`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1RyD5n_SmsvFaj0ZYGW6y848mlvkxmoxjuQso_K0IV9w/edit?usp=sharing
+
+Notes:
+- Source is a curated strategy gap analysis (agent frameworks + OS memory patterns), not a pre-numbered SRS pack.
+- Normalization: mapped into new queued family `V6-MEMORY-026.*`.
+- Overlap handling:
+  - hybrid recall/reranking baseline already queued: `V6-MEMORY-024.1`
+  - decay/compaction pressure baseline: `V6-MEMORY-024.2`, `V6-BLINDSPOT-001.4`
+  - session continuity/freshness baseline: `V6-MEMORY-025.*`
+- Net-new focus from source:
+  - explicit pressure-band policy semantics (gentle/aggressive/emergency) with notifications,
+  - selective checkpoint persistence tiers with compression,
+  - periodic re-index contracts and stale-summary synthesis for old context,
+  - idle-agent nap/purgeable memory treatment for phone/edge viability.
+- Placement normalization from source:
+  - Layer `0`: memory pressure and persistence actions routed through conduit with deterministic receipts
+  - Layer `1`: policy tiers for pressure bands, checkpoint selectivity, retention, and summarization thresholds
+  - Layer `2`: re-indexing, summarization, and memory reclaim orchestration
+  - `client`/`app`: thin status/control surfaces only
+
+Objective: harden long-run memory behavior under scale and constrained hardware by combining hybrid retrieval, selective persistence, and OS-style pressure management patterns.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-MEMORY-026.1 | done | Hybrid Vector + Semantic Retrieval Tier Contract | Recall quality and efficiency degrade unless semantic/vector/recency signals are fused with policy-bound pruning. | Add optional hybrid retrieval tier combining semantic vectors, recency, and episodic weighting with deterministic prune/rebuild receipts and bounded storage growth proofs. | 9 | 0/1/2/client |
+| V6-MEMORY-026.2 | done | Memory Pressure Bands + Notification Contract | Sudden OOM behavior persists without explicit pressure bands and early warning controls for runtime actors. | Implement tiered pressure bands (gentle/aggressive/emergency), memory-pressure notifications, and deterministic reclaim/suspend/escalation receipts across swarm and phone profiles. | 10 | 0/1/2/client |
+| V6-MEMORY-026.3 | done | Selective Checkpoint Persistence + Compression Contract | Full-state checkpointing wastes memory/disk and slows recovery unless persistence is selective and compressed by policy. | Add selective checkpoint tiers (critical/active/transient) with compression and deterministic restore-path receipts proving bounded restart latency and no state-loss for critical scopes. | 9 | 0/1/2/client |
+| V6-MEMORY-026.4 | done | Aged Context Summarization + Decay Contract | Old conversational state becomes bloat unless it is summarized and decayed without losing high-value facts. | Introduce policy-bound aged-context summarization pipeline that emits summary lineage receipts and decays/archives low-value tails while preserving retrieval fidelity targets. | 8 | 0/1/2/client |
+| V6-MEMORY-026.5 | done | Periodic Re-Index + Idle Nap/Purgeable Memory Contract | Long-run performance drifts unless indexes refresh and idle memory regions become reclaimable on constrained hardware. | Add periodic re-index scheduler plus idle-agent nap/purgeable-memory marks with deterministic re-index/nap/wake receipts and mobile-profile non-regression evidence. | 8 | -1/0/1/2/client/app |
+
+## Paradigm Shift Priority Stack Reinforcement Source Coverage Intake (Doc `1qFzTXQHqFxf7TqIClf7ekFKET0ftZuwjyBD8em9kErU`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1qFzTXQHqFxf7TqIClf7ekFKET0ftZuwjyBD8em9kErU/edit?usp=sharing
+
+Notes:
+- Source is a strategic ranking/reframing document, not a pre-numbered SRS contract pack.
+- No new IDs are introduced from this source to avoid duplicate authority trees.
+- Reinforcement mappings:
+  - self-hosted sovereign/offline inference direction maps to existing local/offline model lanes: `V6-SUBSTRATE-003.*`, `V6-MODEL-004.1`, `V3-RACE-217`, `V3-RACE-336`
+  - thought-to-action and human-machine merge direction maps to existing trace + symbiosis contracts: `V3-RACE-005`, `V9-MERGE-001.*`, `V10-ULTIMATE-001.5`
+  - autonomous economic organism direction maps to existing economic autonomy lanes: `V10-ULTIMATE-001.4`, `V6-ECONOMY-001.*`, `V6-ECONOMY-002.*`
+  - memory-first execution direction maps to existing session/memory hydration and pressure-control contracts: `V6-MEMORY-025.*`, `V6-MEMORY-026.*`
+  - receipt-first development direction maps to existing immutable audit and governance gates: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`, `ops:dod:gate`, `ops:srs:full:regression`
+  - agent-as-process and strict isolation direction maps to existing sandbox/isolation primitives: `V6-SBOX-001`, `V3-RACE-002`, `V7-CANYON-001.4`
+  - self-replication direction maps to existing viral propagation and substrate expansion contracts: `V10-ULTIMATE-001.1`, `V9-VIRAL-001.*`, `V3-021`
+- Normalization from source language:
+  - this intake is treated as prioritization reinforcement and strategic weighting across existing families, not a net-new runtime authority branch.
+
+## Existing RSI Loop Audit Reinforcement Source Coverage Intake (Doc `1PcxqGJ9IdbraTo6jx59QZUnA9w4qwM0N5WN-69zc7Is`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1PcxqGJ9IdbraTo6jx59QZUnA9w4qwM0N5WN-69zc7Is/edit?usp=sharing
+
+Notes:
+- Source is an architectural confirmation + execution framing memo (repo-scan narrative and upgrade prompt), not a pre-numbered SRS contract pack.
+- No new IDs are introduced from this source to avoid duplicate RSI authority trees.
+- Reinforcement mappings:
+  - closed-loop strategy improvement (`propose -> trial -> validate -> promote`) maps to existing governed loop contracts: `V3-038`, `V3-LOOP-001`, `V3-RACE-177`, `V3-RACE-178`, `V3-RACE-179`
+  - model-catalog evolution and risk-tier routing maps to existing model authority lanes: `V3-RACE-004`, `V3-RACE-014`, `V3-ECO-001`
+  - safe self-modification via gated patch flow maps to existing hardening lanes: `V3-RACE-180`, `V8-RSI-IGNITION-001`
+  - RSI hash-chain integrity + rollback/recovery maps to existing continuity contracts: `V3-RACE-181`, `V8-BINARY-BLOB-001.*`, `V6-SEC-LEDGER-001`
+  - inherited-governance swarm expansion maps to existing spawn/viral contracts: `V3-RACE-182`, `V10-ULTIMATE-001.1`, `V9-VIRAL-001.*`
+  - always-on idle RSI execution maps to existing scheduler/background lanes: `V3-RACE-183`, `V6-PERSIST-001.*`
+  - RSI control-plane CLI (`protheusctl rsi ...`) maps to existing operator-surface contract: `V3-RACE-184`
+  - constitutional and receipt-first enforcement maps to existing root safety/audit lanes: `V8-DIRECTIVES-001.*`, `V6-SEC-T0-001`, `V9-AUDIT-026`
+- Normalization from source language:
+  - source references historical path names and framing language; SRS treats it as reinforcement of canonical governed RSI lanes already tracked in current contract families.
+
+## Bare-Metal ROI Sequencing Reinforcement Source Coverage Intake (Doc `1va7snB3qKrm7F3W8OZBB-PVcHsDpUoEE6oH5ZZxE6mM`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1va7snB3qKrm7F3W8OZBB-PVcHsDpUoEE6oH5ZZxE6mM/edit?usp=sharing
+
+Notes:
+- Source is a strategic ROI sequencing memo (kernel-adjacent vs full bare-metal timing), not a pre-numbered SRS contract pack.
+- No new IDs are introduced from this source to avoid duplicate substrate authority trees.
+- Reinforcement mappings:
+  - kernel-level security model emphasis (capability-scoped isolation, namespace boundaries, seccomp/LSM-style enforcement) maps to existing security/substrate lanes: `V7-CANYON-001.4`, `V6-SBOX-001`, `V3-RACE-345`, `V6-SUBSTRATE-007.4`, `V6-SEC-T0-001`
+  - scheduler-at-scale priority maps to existing swarm/distributed scheduling lanes: `V10-SWARM-INF-001.5`, `V10-SWARM-INF-001.6`, `V6-SWARM-007`, `V6-SOVEREIGN-003.4`
+  - virtual-memory and kernel personality progression maps to existing memory/substrate/os-template lanes: `V6-MEMORY-026.*`, `V6-SUBSTRATE-006.1`
+  - defer-full-bare-metal guidance (boot/drivers/network/filesystem as later phase) maps to existing substrate and provisioning baselines: `V6-SUBSTRATE-005.1`, `V6-SUBSTRATE-006.1`, `V3-RACE-348`, `V3-RACE-351`
+  - phase-first focus on user-space dominance and benchmark proofs aligns with current performance/ops lanes: `V8-COMPETE-001.*`, `V6-OPS-001.*`, `V6-ADAPTER-002.*`, `V6-INFERENCE-004.*`
+- Normalization from source language:
+  - this intake is treated as prioritization reinforcement over existing substrate roadmap contracts, not a request to fork a separate kernel program outside current governance boundaries.
+
+## Open Data Marketplace SRS Reinforcement Source Coverage Intake (Doc `1b4Jn6LG-4jvmbG8cbUa6ieyKYuw5fB5P710FQ3bLmMo`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1b4Jn6LG-4jvmbG8cbUa6ieyKYuw5fB5P710FQ3bLmMo/edit?usp=sharing
+
+Notes:
+- Source provides a complete SRS pack for `V6-NETWORK-002.1..002.5` (decentralized data marketplace), but this exact family is already present in canonical SRS.
+- No new IDs are introduced from this source to avoid duplicate network-marketplace authority trees.
+- 1:1 reinforcement mappings:
+  - decentralized data discovery catalog: `V6-NETWORK-002.1`
+  - secure capability/tokenized sharing with provenance: `V6-NETWORK-002.2`
+  - compute-to-data execution without raw transfer: `V6-NETWORK-002.3`
+  - knowledge-graph lineage integration: `V6-NETWORK-002.4`
+  - conduit-only enforcement + deterministic receipts: `V6-NETWORK-002.5`
+- Additional alignment from source:
+  - external marketplace references (Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing) remain adapter-side integration options under existing `adapter/client` ownership in the `V6-NETWORK-002.*` lane.
+  - acceptance examples (`protheus data search`, sharing grants, remote analysis) are already represented by current exit criteria language for this family.
+- Normalization from source language:
+  - this intake is treated as canonical reinforcement and prioritization evidence for the existing `V6-NETWORK-002.*` row set, not a request to fork a second marketplace contract family.
+
+## Neural Symbiosis Mode Reinforcement Source Coverage Intake (Doc `1jaZ-MNIC00sxA1ZQHQNMGTRW2zkGYWuvr-wIMepSvtA`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/1jaZ-MNIC00sxA1ZQHQNMGTRW2zkGYWuvr-wIMepSvtA/edit?usp=sharing
+
+Notes:
+- Source proposes `V6-NEURAL-SYMB-001.1..001.6` as a dedicated neural symbiosis pack; this intake is normalized as reinforcement over existing biological substrate, symbiosis, and safety families already tracked in SRS.
+- No new IDs are introduced from this source to avoid duplicate neural-authority trees.
+- Reinforcement mappings:
+  - spike-native protocol and biological signal ingress map to existing substrate contracts: `V6-SUBSTRATE-002.1`, `V6-SUBSTRATE-002.3`
+  - intent mapping from neural/non-invasive signals to governed action lanes maps to existing symbiosis bridges: `V3-028`, `V9-MERGE-001.5`, `V10-ULTIMATE-001.5`
+  - plasticity-style memory adaptation intent maps to existing memory evolution/compaction lanes: `V6-MEMORY-026.*`, `V8-RSI-IGNITION-002`
+  - handshake/activation and observability surfaces map to existing substrate enable/status lanes: `V6-SUBSTRATE-002.5`, `V6-OBSERVABILITY-*`
+  - kernel safety plane requirements (namespace isolation, seccomp-like filtering, emergency dampening) map to existing security/sandbox contracts: `V7-CANYON-001.4`, `V6-SBOX-001`, `V6-SEC-T0-001`
+  - alien merge feedback and organism UX framing map to existing merge/symbiosis/organism lanes: `V9-MERGE-001.3`, `V10-ULTIMATE-001.5`, `V8-ORGANISM-*`
+- Normalization from source language:
+  - this intake is treated as strategic reinforcement and phase sequencing guidance (user-space simulation first, hardware later) over canonical substrate/symbiosis contracts, not a request to create a parallel neural runtime outside conduit governance.
+
+## Universal Seed OS Team-Execution Pack Reinforcement Source Coverage Intake (Doc `16h9LZVuGjprsY1qKj2Oo4ZivsIqmhct_E3RcWNYbLhU`, 2026-03-18)
+
+Source references:
+- https://docs.google.com/document/d/16h9LZVuGjprsY1qKj2Oo4ZivsIqmhct_E3RcWNYbLhU/edit?usp=sharing
+
+Notes:
+- Source is a human-executable team assignment pack for V4 platform abstraction work; it aligns directly to the existing Universal Seed OS intake and related adaptation contracts.
+- No new IDs are introduced from this source to avoid duplicate seed/socket authority trees.
+- Reinforcement mappings:
+  - Phase A core foundation (`CORE-001/005/006/007/008/009`) maps to existing seed lanes: `V6-SEED-801`, `V6-SEED-802`, `V6-SEED-803`, `V6-SEED-804`, `V6-SEED-809`
+  - Phase B “18 GENERAL requirements” maps to baseline and verification lanes: `V6-SEED-804`, `V6-SEED-809`, `V6-SEED-811`
+  - Phase C system-specific sockets (Ubuntu/FreeBSD/NixOS/RPi/Alpine) maps to socket implementation wave and host adaptation packs: `V6-SEED-807`, `V3-RACE-211`, `V3-RACE-345`
+  - Phase D matrix/chaos/docs/perf proof maps to release-grade validation lanes: `V6-SEED-810`, `V6-SEED-811`
+  - CLI emphasis (`protheusctl socket *`, `protheusctl host adapt`) maps to existing socket lifecycle/operator surfaces: `V6-SEED-803`, `V6-SEED-810`
+- Additional alignment from source:
+  - acceptance targets for auto-activation latency, overhead envelope, and covenant checks are treated as execution targets under existing `V6-SEED-*` exit criteria and associated benchmark/verification gates.
+- Normalization from source language:
+  - this intake is treated as execution-detail reinforcement for the existing Universal Seed OS contract family, not a request to create a second platform-abstraction backlog branch.
 
 ## Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)
 
