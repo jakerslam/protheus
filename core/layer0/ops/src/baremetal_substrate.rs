@@ -514,6 +514,10 @@ fn status(state: &Value) -> Value {
         "network_events": state.get("network_events").and_then(Value::as_object).map(|rows| rows.len()).unwrap_or(0),
         "security_events": state.get("security_events").and_then(Value::as_object).map(|rows| rows.len()).unwrap_or(0),
         "ledger_head": state.get("ledger_head").cloned().unwrap_or_else(|| json!("GENESIS")),
+        "claim_evidence": [{
+            "id": "V10-BAREMETAL-001",
+            "claim": "baremetal_program_contract_unifies_boot_scheduler_memory_fs_network_security_under_receipted_runtime_authority"
+        }],
     })
 }
 

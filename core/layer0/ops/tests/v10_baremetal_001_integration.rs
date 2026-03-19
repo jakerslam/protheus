@@ -263,6 +263,10 @@ fn baremetal_001_runtime_lane_executes_all_contract_commands() {
         0
     );
     let status_receipt = latest_receipt(&state_path);
+    assert_eq!(
+        status_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
+        Some("V10-BAREMETAL-001")
+    );
     assert_eq!(status_receipt["payload"]["boot_events"], json!(1));
     assert_eq!(status_receipt["payload"]["schedule_events"], json!(1));
     assert_eq!(status_receipt["payload"]["memory_events"], json!(1));

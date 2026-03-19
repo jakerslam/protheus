@@ -35,6 +35,11 @@ function main() {
     assert(okPayload.type === 'srs_repair_lane_runner', 'unexpected payload type');
     assert(okPayload.mode === 'dry_run', 'dry-run payload missing mode');
     assert(okPayload.id === 'V6-SOVEREIGN-002.1', 'dry-run payload id mismatch');
+    assert(okPayload.route === 'srs_contract_runtime', 'dry-run payload route mismatch');
+    assert(
+      String(okPayload.receiptPath || '').includes('/local/state/ops/srs_contract_runtime/V6-SOVEREIGN-002.1/latest.json'),
+      'dry-run payload receiptPath mismatch',
+    );
   } catch (error) {
     failures.push({ case: 'dry-run', error: String(error && error.message ? error.message : error) });
   }
