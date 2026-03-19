@@ -132,6 +132,40 @@ fn parse_skill_version_value(raw: &str) -> Value {
     }
 }
 
+fn version_token(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in raw.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+        } else if matches!(ch, '.' | '-' | '_') && !out.ends_with('_') {
+            out.push('_');
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn default_migration_lane_path(root: &Path, skill_id: &str, from: &str, to: &str) -> PathBuf {
+    let from_token = if from.trim().is_empty() {
+        "new".to_string()
+    } else {
+        version_token(from)
+    };
+    let to_token = if to.trim().is_empty() {
+        "unknown".to_string()
+    } else {
+        version_token(to)
+    };
+    state_root(root)
+        .join("migrations")
+        .join("lanes")
+        .join(format!(
+            "{}_{}_to_{}.json",
+            slugify(skill_id),
+            from_token,
+            to_token
+        ))
+}
+
 fn conduit_enforcement(
     root: &Path,
     parsed: &crate::ParsedArgs,
@@ -1640,6 +1674,23 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     );
     let force_migration = parse_bool(parsed.flags.get("force-migration"), false);
     let allow_downgrade = parse_bool(parsed.flags.get("allow-downgrade"), false);
+    let deprecation_policy = clean(
+        parsed
+            .flags
+            .get("deprecation-policy")
+            .cloned()
+            .unwrap_or_else(|| "warn".to_string()),
+        40,
+    )
+    .to_ascii_lowercase();
+    let deprecation_ticket = clean(
+        parsed
+            .flags
+            .get("deprecation-ticket")
+            .cloned()
+            .unwrap_or_else(String::new),
+        120,
+    );
     let migration_reason = clean(
         parsed
             .flags
@@ -1702,6 +1753,22 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         (Some(prev), Some(next)) => version_cmp(next, prev).is_lt(),
         _ => false,
     };
+    let migration_lane_path = parsed
+        .flags
+        .get("migration-lane")
+        .map(PathBuf::from)
+        .map(|lane| {
+            if lane.is_absolute() {
+                lane
+            } else {
+                root.join(lane)
+            }
+        })
+        .unwrap_or_else(|| {
+            default_migration_lane_path(root, &id, &previous_version_raw, &requested_version)
+        });
+    let mut migration_lane_exists = migration_lane_path.exists();
+    let mut migration_lane_created = false;
     if strict && migration_required && !force_migration {
         return json!({
             "ok": false,
@@ -1712,7 +1779,8 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "previous_version": previous_version_raw,
                 "requested_version": requested_version,
                 "migration_required": true,
-                "forced_migration": false
+                "forced_migration": false,
+                "migration_lane_path": migration_lane_path.display().to_string()
             }
         });
     }
@@ -1725,7 +1793,8 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "compatibility": {
                 "previous_version": previous_version_raw,
                 "requested_version": requested_version,
-                "downgrade_detected": true
+                "downgrade_detected": true,
+                "migration_lane_path": migration_lane_path.display().to_string()
             }
         });
     }
@@ -1737,18 +1806,61 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "errors": ["migration_reason_required_for_forced_migration"]
         });
     }
+    if strict
+        && migration_required
+        && force_migration
+        && deprecation_policy == "enforce"
+        && deprecation_ticket.is_empty()
+    {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "skills_plane_install",
+            "errors": ["deprecation_ticket_required_for_enforced_migration"],
+            "compatibility": {
+                "deprecation_policy": deprecation_policy
+            }
+        });
+    }
     let mut migration_receipt_emitted = false;
     let migration_latest_path = state_root(root).join("migrations").join("latest.json");
     let migration_history_path = state_root(root).join("migrations").join("history.jsonl");
+    if migration_required && force_migration && !migration_lane_exists {
+        let lane_doc = json!({
+            "ok": true,
+            "type": "skills_plane_migration_lane",
+            "skill_id": id.clone(),
+            "from_version": previous_version_raw.clone(),
+            "to_version": requested_version.clone(),
+            "deprecation_policy": deprecation_policy.clone(),
+            "deprecation_ticket": if deprecation_ticket.is_empty() { Value::Null } else { Value::String(deprecation_ticket.clone()) },
+            "created_at": crate::now_iso(),
+            "reason": migration_reason.clone()
+        });
+        if write_json(&migration_lane_path, &lane_doc).is_ok() {
+            migration_lane_exists = true;
+            migration_lane_created = true;
+        } else if strict {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "skills_plane_install",
+                "errors": [format!("migration_lane_write_failed:{}", migration_lane_path.display())]
+            });
+        }
+    }
     if migration_required && force_migration {
         let mut migration_receipt = json!({
             "ok": true,
             "type": "skills_plane_migration_receipt",
-            "skill_id": id,
-            "from_version": previous_version_raw,
-            "to_version": requested_version,
+            "skill_id": id.clone(),
+            "from_version": previous_version_raw.clone(),
+            "to_version": requested_version.clone(),
             "forced_migration": true,
-            "reason": migration_reason,
+            "reason": migration_reason.clone(),
+            "migration_lane_path": migration_lane_path.display().to_string(),
+            "deprecation_policy": deprecation_policy.clone(),
+            "deprecation_ticket": if deprecation_ticket.is_empty() { Value::Null } else { Value::String(deprecation_ticket.clone()) },
             "ts": crate::now_iso()
         });
         migration_receipt["receipt_hash"] =
@@ -1801,8 +1913,13 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "migration_receipt_emitted": migration_receipt_emitted,
             "migration_latest_path": migration_latest_path.display().to_string(),
             "migration_history_path": migration_history_path.display().to_string(),
+            "migration_lane_path": migration_lane_path.display().to_string(),
+            "migration_lane_exists": migration_lane_exists,
+            "migration_lane_created": migration_lane_created,
             "downgrade_detected": downgrade_detected,
-            "allow_downgrade": allow_downgrade
+            "allow_downgrade": allow_downgrade,
+            "deprecation_policy": deprecation_policy.clone(),
+            "deprecation_ticket": if deprecation_ticket.is_empty() { Value::Null } else { Value::String(deprecation_ticket.clone()) }
         },
         "claim_evidence": [
             {
@@ -1821,6 +1938,8 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                     "migration_required": migration_required,
                     "forced_migration": force_migration,
                     "migration_receipt_emitted": migration_receipt_emitted,
+                    "migration_lane_exists": migration_lane_exists,
+                    "deprecation_policy": deprecation_policy.clone(),
                     "compatibility_gate_passed": true
                 }
             }
@@ -2023,6 +2142,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
 
     fn has_claim(receipt: &Value, claim_id: &str) -> bool {
         receipt
@@ -2141,15 +2261,13 @@ mod tests {
         ]);
         let second_out = run_install(root.path(), &second, true);
         assert_eq!(second_out.get("ok").and_then(Value::as_bool), Some(false));
-        assert!(
-            second_out
-                .get("errors")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default()
-                .iter()
-                .any(|row| row.as_str() == Some("backward_compat_break_requires_force_migration"))
-        );
+        assert!(second_out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.as_str() == Some("backward_compat_break_requires_force_migration")));
     }
 
     #[test]
@@ -2200,7 +2318,128 @@ mod tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
-        let latest = state_root(root.path()).join("migrations").join("latest.json");
+        let latest = state_root(root.path())
+            .join("migrations")
+            .join("latest.json");
         assert!(latest.exists());
+    }
+
+    #[test]
+    fn install_forced_migration_creates_default_migration_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let skill_dir = root.path().join("skills").join("compat-lane");
+        fs::create_dir_all(&skill_dir).expect("mkdir skill");
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: compat-lane\nversion: 1.2.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("write yaml");
+
+        let baseline = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+        ]);
+        let baseline_out = run_install(root.path(), &baseline, true);
+        assert_eq!(baseline_out.get("ok").and_then(Value::as_bool), Some(true));
+
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: compat-lane\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("rewrite yaml");
+        let forced = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+            "--force-migration=1".to_string(),
+            "--migration-reason=api_contract_rollup".to_string(),
+        ]);
+        let forced_out = run_install(root.path(), &forced, true);
+        assert_eq!(forced_out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            forced_out
+                .pointer("/compatibility/migration_lane_exists")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            forced_out
+                .pointer("/compatibility/migration_lane_created")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        let lane_path = forced_out
+            .pointer("/compatibility/migration_lane_path")
+            .and_then(Value::as_str)
+            .expect("lane path");
+        assert!(Path::new(lane_path).exists());
+    }
+
+    #[test]
+    fn install_enforced_deprecation_policy_requires_ticket() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let skill_dir = root.path().join("skills").join("compat-policy");
+        fs::create_dir_all(&skill_dir).expect("mkdir skill");
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: compat-policy\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("write yaml");
+
+        let baseline = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+        ]);
+        let baseline_out = run_install(root.path(), &baseline, true);
+        assert_eq!(baseline_out.get("ok").and_then(Value::as_bool), Some(true));
+
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: compat-policy\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("rewrite yaml");
+        let no_ticket = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+            "--force-migration=1".to_string(),
+            "--migration-reason=major_break".to_string(),
+            "--deprecation-policy=enforce".to_string(),
+        ]);
+        let no_ticket_out = run_install(root.path(), &no_ticket, true);
+        assert_eq!(
+            no_ticket_out.get("ok").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(no_ticket_out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.as_str() == Some("deprecation_ticket_required_for_enforced_migration")));
+
+        let with_ticket = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+            "--force-migration=1".to_string(),
+            "--migration-reason=major_break".to_string(),
+            "--deprecation-policy=enforce".to_string(),
+            "--deprecation-ticket=CHG-2026-0319".to_string(),
+        ]);
+        let with_ticket_out = run_install(root.path(), &with_ticket, true);
+        assert_eq!(
+            with_ticket_out.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            with_ticket_out
+                .pointer("/compatibility/deprecation_policy")
+                .and_then(Value::as_str),
+            Some("enforce")
+        );
     }
 }
