@@ -749,6 +749,60 @@ fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
 }
 
 #[test]
+fn v6_sec_remediate_fails_closed_when_scan_is_missing_in_strict_mode() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let exit = security_plane::run(
+        root,
+        &["remediate".to_string(), "--strict=1".to_string()],
+    );
+    assert_eq!(exit, 2, "strict remediation must fail without a prior scan");
+
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("security_plane_auto_remediation")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        latest.get("error").and_then(Value::as_str),
+        Some("scan_missing")
+    );
+    assert_claim(&latest, "V6-SEC-011");
+}
+
+#[test]
+fn v6_sec_skill_quarantine_requires_skill_id_in_strict_mode() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let exit = security_plane::run(
+        root,
+        &[
+            "skill-quarantine".to_string(),
+            "quarantine".to_string(),
+            "--strict=1".to_string(),
+        ],
+    );
+    assert_eq!(exit, 2, "strict quarantine must require --skill-id");
+
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("security_plane_skill_quarantine")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        latest.get("error").and_then(Value::as_str),
+        Some("skill_id_required")
+    );
+    assert_claim(&latest, "V6-SEC-SKILL-QUARANTINE-001");
+}
+
+#[test]
 fn v6_sec_connected_runtime_guards_detect_risk_markers() {
     let _guard = env_guard();
     let tmp = tempfile::tempdir().expect("tempdir");
