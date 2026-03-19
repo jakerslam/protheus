@@ -2202,6 +2202,54 @@ mod tests {
     }
 
     #[test]
+    fn registry_policy_denies_when_command_capability_mapping_cardinality_mismatches() {
+        let mut policy = test_policy();
+        policy
+            .command_required_capabilities
+            .remove("start_agent");
+        let gate = RegistryPolicyGate::new(policy);
+
+        let decision = gate.evaluate(&TsCommand::GetSystemStatus);
+        assert!(!decision.allow);
+        assert_eq!(
+            decision.reason,
+            "command_capability_mapping_cardinality_mismatch"
+        );
+    }
+
+    #[test]
+    fn registry_policy_denies_when_required_command_mapping_is_missing() {
+        let mut policy = test_policy();
+        policy
+            .command_required_capabilities
+            .remove("start_agent");
+        policy.command_required_capabilities.insert(
+            "synthetic_command".to_string(),
+            "agent.lifecycle".to_string(),
+        );
+        let gate = RegistryPolicyGate::new(policy);
+
+        let decision = gate.evaluate(&TsCommand::GetSystemStatus);
+        assert!(!decision.allow);
+        assert_eq!(
+            decision.reason,
+            "policy_missing_command_capability_mapping:start_agent"
+        );
+    }
+
+    #[test]
+    fn registry_policy_denies_policy_updates_without_constitution_safe_prefix() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy);
+        let decision = gate.evaluate(&TsCommand::ApplyPolicyUpdate {
+            patch_id: "unsafe/runtime_patch".to_string(),
+            patch: serde_json::json!({"safe": false}),
+        });
+        assert!(!decision.allow);
+        assert_eq!(decision.reason, "policy_update_must_be_constitution_safe");
+    }
+
+    #[test]
     fn stdio_roundtrip_returns_json_response() {
         let policy = test_policy();
         let gate = RegistryPolicyGate::new(policy.clone());

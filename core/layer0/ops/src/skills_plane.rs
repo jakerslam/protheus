@@ -3087,4 +3087,98 @@ mod tests {
         assert!(has_claim(&out, "V8-SKILL-007"));
         assert!(has_claim(&out, "V8-SKILL-009"));
     }
+
+    #[test]
+    fn chain_validate_rejects_version_mismatch_and_missing_smoke_when_strict() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let skills_dir = root.path().join("client/runtime/systems/skills/packages");
+        let skill_dir = skills_dir.join("chain-skill");
+        fs::create_dir_all(&skill_dir).expect("mkdir chain skill");
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: chain-skill\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("write yaml");
+
+        let chain_doc = root.path().join("chain.json");
+        write_json(
+            &chain_doc,
+            &json!({
+                "version": "v2",
+                "skills": [
+                    {"id": "chain-skill", "version": "1.0.0"}
+                ]
+            }),
+        )
+        .expect("write chain doc");
+
+        let parsed = crate::parse_args(&[
+            "chain-validate".to_string(),
+            format!("--chain-path={}", chain_doc.display()),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_chain_validate(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        let errors = out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| row.as_str().map(|value| value.to_string()))
+            .collect::<Vec<_>>();
+        assert!(
+            errors.iter().any(|row| row == "chain_version_invalid"),
+            "missing chain_version_invalid: {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|row| row == "chain_skill_smoke_missing:chain-skill"),
+            "missing chain_skill_smoke_missing: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn gallery_load_non_strict_allows_missing_signing_key_with_signature() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let package_dir = root.path().join("skills").join("gallery-demo");
+        fs::create_dir_all(&package_dir).expect("mkdir package");
+        fs::write(
+            package_dir.join("skill.yaml"),
+            "name: gallery-demo\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("write yaml");
+
+        let manifest_path = root.path().join("gallery_manifest.json");
+        write_json(
+            &manifest_path,
+            &json!({
+                "version": "v1",
+                "kind": "skill_gallery_manifest",
+                "templates": [
+                    {
+                        "id": "gallery-demo",
+                        "version": "v1",
+                        "human_reviewed": true,
+                        "package_rel": package_dir.display().to_string()
+                    }
+                ],
+                "signature": "sig:placeholder"
+            }),
+        )
+        .expect("write manifest");
+
+        std::env::remove_var("SKILLS_GALLERY_SIGNING_KEY");
+        let parsed = crate::parse_args(&[
+            "gallery".to_string(),
+            "ingest".to_string(),
+            format!("--manifest={}", manifest_path.display()),
+            "--strict=0".to_string(),
+        ]);
+        let out = run_gallery(root.path(), &parsed, false);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("op").and_then(Value::as_str), Some("ingest"));
+        assert!(has_claim(&out, "V6-SKILLS-001.6"));
+    }
 }
