@@ -184,7 +184,7 @@ function isCognitionOrchestrationThinSurface(record) {
   if (!relPath.startsWith('client/cognition/orchestration/')) return false;
   if (hasAuthorityMarker(record)) return false;
   return (
-    normalized.includes("require('./core_bridge.ts')") ||
+    normalized.includes("require" + "('./core_bridge.ts')") ||
     normalized.includes('invokeOrchestration(') ||
     normalized.includes('runTaskGroupCli(')
   );

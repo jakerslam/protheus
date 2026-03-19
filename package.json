@@ -524,7 +524,7 @@
     "autonomy:swarm:networks:status": "node client/runtime/systems/autonomy/swarm_sessions_bridge.ts networks_status --networkId=net-demo",
     "autonomy:swarm:demo": "node client/runtime/systems/autonomy/swarm_repl_demo.ts demo --kind=full",
     "ops:swarm:audit": "node tests/tooling/scripts/ci/swarm_protocol_audit_runner.mjs",
-    "ops:swarm:dominance": "node tests/tooling/scripts/ci/swarm_protocol_audit_runner.mjs",
+    "ops:swarm:dominance": "npm run -s ops:swarm:audit",
     "test:autonomy:swarm-runtime": "node tests/client-memory-tools/swarm_orchestration_runtime.test.js",
     "test:autonomy:swarm-smoothness": "node tests/client-memory-tools/swarm_runtime_smoothness.test.js",
     "test:autonomy:swarm-sessions-bridge": "node tests/client-memory-tools/swarm_sessions_bridge.test.js",
