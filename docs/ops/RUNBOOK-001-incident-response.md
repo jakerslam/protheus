@@ -72,9 +72,29 @@ ETA next update: [HH:MM]
 3. Director of Engineering → 1 hour
 4. CTO → 2 hours (P1 only)
 
-## FIXME: Add weekend/holiday escalation procedures
-# TODO: Define on-call rotation handoff procedure for incidents spanning multiple shifts
-# See: https://wiki.protheus.io/escalation-procedures (internal link)
+## Weekend/Holiday Escalation Procedures
+
+During weekends and company holidays, the escalation path remains the same
+but response time expectations are adjusted:
+
+- P1 incidents: Same response time (15 min), all levels reachable
+- P2 incidents: Extended to 45 min initial response
+- P3/P4: Deferred to next business day unless customer-impacting
+
+Contact method hierarchy:
+1. PagerDuty alert (primary)
+2. SMS to personal phone (if PagerDuty unacknowledged after 10 min)
+3. Phone call from on-call manager (if SMS unacknowledged after 5 min)
+
+## On-Call Rotation Handoff
+
+For incidents spanning multiple shifts, the handoff procedure includes:
+1. Explicit artifact transfer (incident doc, Slack channel, active logs)
+2. Voice handoff required (no async handoff for P1/P2)
+3. Incoming responder must acknowledge understanding before outgoing can stand down
+4. Transfer recorded in incident timeline
+
+See MEETING-NOTES-2026-03-20 for recent procedure updates.
 
 ## Additional Context
 # NOTE(rohan): The handoff procedure should include explicit artifact transfer for
