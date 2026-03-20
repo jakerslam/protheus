@@ -181,6 +181,39 @@ fn default_migration_lane_path(root: &Path, skill_id: &str, from: &str, to: &str
         ))
 }
 
+fn default_migration_lane_path_with_policy(
+    root: &Path,
+    skill_id: &str,
+    from: &str,
+    to: &str,
+    migration_lane: &str,
+) -> PathBuf {
+    let lane_token = slugify(migration_lane);
+    if lane_token.is_empty() {
+        return default_migration_lane_path(root, skill_id, from, to);
+    }
+    let from_token = if from.trim().is_empty() {
+        "new".to_string()
+    } else {
+        version_token(from)
+    };
+    let to_token = if to.trim().is_empty() {
+        "unknown".to_string()
+    } else {
+        version_token(to)
+    };
+    state_root(root)
+        .join("migrations")
+        .join("lanes")
+        .join(lane_token)
+        .join(format!(
+            "{}_{}_to_{}.json",
+            slugify(skill_id),
+            from_token,
+            to_token
+        ))
+}
+
 fn rollback_checkpoint_path(root: &Path, skill_id: &str) -> PathBuf {
     state_root(root)
         .join("migrations")
@@ -1777,6 +1810,30 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .unwrap_or("v1"),
         40,
     );
+    let backward_compat_policy = load_backward_compat_policy(root);
+    let backward_compat_policy_name = backward_compat_policy
+        .get("policy")
+        .and_then(Value::as_str)
+        .unwrap_or("semver_major")
+        .to_ascii_lowercase();
+    let backward_compat_min_version = clean(
+        backward_compat_policy
+            .get("min_version")
+            .and_then(Value::as_str)
+            .unwrap_or("v1"),
+        40,
+    );
+    let backward_compat_migration_lane = clean(
+        backward_compat_policy
+            .get("migration_lane")
+            .and_then(Value::as_str)
+            .unwrap_or("skill_forced_migration"),
+        120,
+    );
+    let backward_compat_receipt_required = backward_compat_policy
+        .get("receipt_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let force_migration = parse_bool(parsed.flags.get("force-migration"), false);
     let allow_downgrade = parse_bool(parsed.flags.get("allow-downgrade"), false);
     let deprecation_policy = clean(
@@ -1812,13 +1869,40 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "errors": ["skill_name_missing_in_yaml"]
         });
     }
-    if strict && parse_skill_version(&requested_version).is_none() {
+    let requested_parsed = parse_skill_version(&requested_version);
+    if strict && requested_parsed.is_none() {
         return json!({
             "ok": false,
             "strict": strict,
             "type": "skills_plane_install",
             "errors": [format!("skill_version_invalid:{}", requested_version)]
         });
+    }
+    let min_version_parsed = parse_skill_version(&backward_compat_min_version);
+    if strict && min_version_parsed.is_none() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "skills_plane_install",
+            "errors": [format!("compat_min_version_invalid:{}", backward_compat_min_version)]
+        });
+    }
+    if strict {
+        if let (Some(requested), Some(minimum)) = (requested_parsed, min_version_parsed) {
+            if version_cmp(requested, minimum).is_lt() {
+                return json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "skills_plane_install",
+                    "errors": ["requested_skill_version_below_minimum"],
+                    "compatibility": {
+                        "requested_version": requested_version,
+                        "min_version": backward_compat_min_version,
+                        "policy": backward_compat_policy_name
+                    }
+                });
+            }
+        }
     }
     let registry_path = state_root(root).join("registry.json");
     let mut registry = load_registry(&registry_path);
@@ -1850,9 +1934,11 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "errors": [format!("existing_skill_version_invalid:{}", previous_version_raw)]
         });
     }
-    let requested_parsed = parse_skill_version(&requested_version);
     let migration_required = match (previous_version, requested_parsed) {
-        (Some(prev), Some(next)) => next.major > prev.major,
+        (Some(prev), Some(next)) if backward_compat_policy_name == "semver_major" => {
+            next.major > prev.major
+        }
+        (Some(prev), Some(next)) => version_cmp(next, prev).is_gt(),
         _ => false,
     };
     let downgrade_detected = match (previous_version, requested_parsed) {
@@ -1871,7 +1957,13 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             }
         })
         .unwrap_or_else(|| {
-            default_migration_lane_path(root, &id, &previous_version_raw, &requested_version)
+            default_migration_lane_path_with_policy(
+                root,
+                &id,
+                &previous_version_raw,
+                &requested_version,
+                &backward_compat_migration_lane,
+            )
         });
     let mut migration_lane_exists = migration_lane_path.exists();
     let mut migration_lane_created = false;
@@ -1957,7 +2049,7 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             });
         }
     }
-    if migration_required && force_migration {
+    if migration_required && force_migration && backward_compat_receipt_required {
         let mut migration_receipt = json!({
             "ok": true,
             "type": "skills_plane_migration_receipt",
@@ -1969,6 +2061,7 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "migration_lane_path": migration_lane_path.display().to_string(),
             "deprecation_policy": deprecation_policy.clone(),
             "deprecation_ticket": if deprecation_ticket.is_empty() { Value::Null } else { Value::String(deprecation_ticket.clone()) },
+            "policy": backward_compat_policy_name.clone(),
             "ts": crate::now_iso()
         });
         migration_receipt["receipt_hash"] =
@@ -2051,6 +2144,10 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "rollback_checkpoint_written": rollback_checkpoint_written,
             "downgrade_detected": downgrade_detected,
             "allow_downgrade": allow_downgrade,
+            "policy": backward_compat_policy_name.clone(),
+            "min_version": backward_compat_min_version.clone(),
+            "migration_lane": backward_compat_migration_lane.clone(),
+            "receipt_required": backward_compat_receipt_required,
             "deprecation_policy": deprecation_policy.clone(),
             "deprecation_ticket": if deprecation_ticket.is_empty() { Value::Null } else { Value::String(deprecation_ticket.clone()) }
         },
@@ -2080,6 +2177,9 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                     "migration_receipt_emitted": migration_receipt_emitted,
                     "migration_lane_exists": migration_lane_exists,
                     "rollback_checkpoint_written": rollback_checkpoint_written,
+                    "policy": backward_compat_policy_name.clone(),
+                    "min_version": backward_compat_min_version.clone(),
+                    "receipt_required": backward_compat_receipt_required,
                     "deprecation_policy": deprecation_policy.clone(),
                     "compatibility_gate_passed": true
                 }
@@ -2387,39 +2487,32 @@ fn run_skill(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             return out;
         }
     }
-    let compatibility = if strict {
-        match evaluate_skill_run_backward_compat(root, &skill) {
-            Ok(summary) => summary,
-            Err(code) => {
-                let mut out = json!({
-                    "ok": false,
-                    "strict": strict,
-                    "type": "skills_plane_run",
-                    "errors": [format!("backward_compat_gate_failed:{code}")],
-                    "skill": skill,
-                    "compatibility": {
-                        "compatibility_gate_passed": false,
-                        "error": code
-                    },
-                    "claim_evidence": [
-                        {
-                            "id": "V8-SKILL-002",
-                            "claim": "skill_run_enforces_backward_compatibility_gates_before_execution",
-                            "evidence": {
-                                "compatibility_gate_passed": false
-                            }
+    let compatibility = match evaluate_skill_run_backward_compat(root, &skill) {
+        Ok(summary) => summary,
+        Err(code) => {
+            let mut out = json!({
+                "ok": false,
+                "strict": strict,
+                "type": "skills_plane_run",
+                "errors": [format!("backward_compat_gate_failed:{code}")],
+                "skill": skill,
+                "compatibility": {
+                    "compatibility_gate_passed": false,
+                    "error": code
+                },
+                "claim_evidence": [
+                    {
+                        "id": "V8-SKILL-002",
+                        "claim": "skill_run_enforces_backward_compatibility_gates_before_execution",
+                        "evidence": {
+                            "compatibility_gate_passed": false
                         }
-                    ]
-                });
-                out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-                return out;
-            }
+                    }
+                ]
+            });
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+            return out;
         }
-    } else {
-        json!({
-            "compatibility_gate_passed": true,
-            "strict_gate_checked": false
-        })
     };
     let event = json!({
         "ts": crate::now_iso(),
@@ -2618,6 +2711,31 @@ mod tests {
             .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
     }
 
+    fn write_backward_compat_contract(
+        root: &Path,
+        min_version: &str,
+        migration_lane: &str,
+        receipt_required: bool,
+    ) {
+        let contract_path = root.join("planes/contracts/srs/V8-SKILL-002.json");
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir contract parent");
+        }
+        write_json(
+            &contract_path,
+            &json!({
+                "id": "V8-SKILL-002",
+                "backward_compat": {
+                    "policy": "semver_major",
+                    "min_version": min_version,
+                    "migration_lane": migration_lane,
+                    "receipt_required": receipt_required
+                }
+            }),
+        )
+        .expect("write compat contract");
+    }
+
     #[test]
     fn create_requires_name() {
         let root = tempfile::tempdir().expect("tempdir");
@@ -2732,6 +2850,35 @@ mod tests {
             .unwrap_or_default()
             .iter()
             .any(|row| row.as_str() == Some("backward_compat_break_requires_force_migration")));
+    }
+
+    #[test]
+    fn install_rejects_requested_version_below_contract_min_version() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_backward_compat_contract(root.path(), "v2", "skill_forced_migration", true);
+
+        let skill_dir = root.path().join("skills").join("compat-min-version");
+        fs::create_dir_all(&skill_dir).expect("mkdir skill");
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            "name: compat-min-version\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
+        )
+        .expect("write yaml");
+
+        let parsed = crate::parse_args(&[
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_install(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert!(out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.as_str() == Some("requested_skill_version_below_minimum")));
     }
 
     #[test]
@@ -2898,6 +3045,7 @@ mod tests {
     #[test]
     fn install_forced_migration_creates_default_migration_lane() {
         let root = tempfile::tempdir().expect("tempdir");
+        write_backward_compat_contract(root.path(), "v1", "custom_lane_policy", true);
         let skill_dir = root.path().join("skills").join("compat-lane");
         fs::create_dir_all(&skill_dir).expect("mkdir skill");
         fs::write(
@@ -2945,6 +3093,10 @@ mod tests {
             .and_then(Value::as_str)
             .expect("lane path");
         assert!(Path::new(lane_path).exists());
+        assert!(
+            lane_path.contains("custom-lane-policy"),
+            "lane path should include policy lane namespace"
+        );
     }
 
     #[test]
@@ -3060,6 +3212,51 @@ mod tests {
             "--strict=1".to_string(),
         ]);
         let out = run_skill(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(has_claim(&out, "V8-SKILL-002"));
+    }
+
+    #[test]
+    fn run_non_strict_requires_backward_compat_gate() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&["run".to_string(), "--skill=unknown_skill".to_string()]);
+        let out = run_skill(root.path(), &parsed, false);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert!(out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("backward_compat_gate_failed:")));
+    }
+
+    #[test]
+    fn run_non_strict_allows_installed_skill_with_supported_version() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let registry_path = state_root(root.path()).join("registry.json");
+        fs::create_dir_all(registry_path.parent().unwrap_or_else(|| Path::new(".")))
+            .expect("mkdir registry");
+        write_json(
+            &registry_path,
+            &json!({
+                "installed": {
+                    "compat_skill": {
+                        "path": "skills/compat_skill",
+                        "version": "1.2.0"
+                    }
+                }
+            }),
+        )
+        .expect("write registry");
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--skill=compat_skill".to_string(),
+        ]);
+        let out = run_skill(root.path(), &parsed, false);
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert!(has_claim(&out, "V8-SKILL-002"));
     }
