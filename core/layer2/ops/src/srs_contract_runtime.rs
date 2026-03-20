@@ -201,6 +201,34 @@ fn runtime_lane_to_domain(path: &str) -> Option<&'static str> {
     }
 }
 
+fn parse_runtime_lane_argv(row: &Value, domain: &str) -> Vec<String> {
+    if let Some(raw_argv) = row.get("argv").and_then(Value::as_array) {
+        let mut argv = Vec::<String>::new();
+        for token in raw_argv {
+            let Some(text) = token.as_str() else {
+                continue;
+            };
+            let clean = text.trim();
+            if clean.is_empty() {
+                continue;
+            }
+            argv.push(clean.to_string());
+        }
+        if !argv.is_empty() {
+            return argv;
+        }
+    }
+
+    let action = row
+        .get("action")
+        .or_else(|| row.get("op"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("status");
+    vec![domain.to_string(), action.to_string()]
+}
+
 fn runtime_lane_targets(contract: &Value) -> Vec<DispatchTarget> {
     let mut targets = Vec::<DispatchTarget>::new();
     let mut seen = std::collections::BTreeSet::<String>::new();
@@ -219,13 +247,15 @@ fn runtime_lane_targets(contract: &Value) -> Vec<DispatchTarget> {
         let Some(domain) = runtime_lane_to_domain(path) else {
             continue;
         };
-        if !seen.insert(domain.to_string()) {
+        let argv = parse_runtime_lane_argv(row, domain);
+        let dedupe_key = argv.join("\u{1f}");
+        if !seen.insert(dedupe_key) {
             continue;
         }
         targets.push(DispatchTarget {
             plane: domain.to_string(),
             source_path: path.to_string(),
-            argv: vec![domain.to_string(), "status".to_string()],
+            argv,
         });
     }
     targets
@@ -311,7 +341,7 @@ pub fn contract_exists(root: &Path, id: &str) -> bool {
 }
 
 pub fn execute_contract(root: &Path, id: &str) -> Result<Value, String> {
-    execute_contract_with_options(root, id, true, false)
+    execute_contract_with_options(root, id, true, true)
 }
 
 fn execute_contract_with_options(
@@ -347,6 +377,11 @@ fn execute_contract_with_options(
     let dispatch_bin = std::env::var("PROTHEUS_SRS_DISPATCH_BIN")
         .ok()
         .filter(|row| !row.trim().is_empty())
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|path| path.to_str().map(|v| v.to_string()))
+        })
         .unwrap_or_else(|| "protheus-ops".to_string());
     let mut dispatch_results = Vec::<Value>::new();
     let mut dispatch_failed = 0usize;
@@ -392,7 +427,7 @@ fn execute_contract_with_options(
             },
             {
                 "id": "srs_contract_runtime_dispatch",
-                "claim": "runtime_lane_deliverables_dispatch_to_authoritative_plane_status_commands_with_receipt_aggregation",
+                "claim": "runtime_lane_deliverables_dispatch_to_authoritative_plane_commands_with_receipt_aggregation",
                 "evidence": {
                     "target_count": dispatch_targets.len(),
                     "dispatch_failed": dispatch_failed,
@@ -437,7 +472,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     match cmd.as_str() {
         "run-many" | "run-batch" => {
             let dispatch_enabled = parse_bool(parse_flag(argv, "dispatch"), true);
-            let dispatch_strict = parse_bool(parse_flag(argv, "dispatch-strict"), false);
+            let dispatch_strict = parse_bool(parse_flag(argv, "dispatch-strict"), true);
             let ids = match parse_id_list(root, argv) {
                 Ok(rows) => rows,
                 Err(code) => {
@@ -501,7 +536,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "run" => {
             let dispatch_enabled = parse_bool(parse_flag(argv, "dispatch"), true);
-            let dispatch_strict = parse_bool(parse_flag(argv, "dispatch-strict"), false);
+            let dispatch_strict = parse_bool(parse_flag(argv, "dispatch-strict"), true);
             let Some(id) = parse_id(argv) else {
                 print_json_line(&with_hash(json!({
                     "ok": false,
@@ -681,6 +716,28 @@ mod tests {
     }
 
     #[test]
+    fn runtime_lane_targets_honor_action_and_argv_overrides() {
+        let contract = json!({
+            "deliverables": [
+                {"type":"runtime_lane","path":"core/layer0/ops/src/canyon_plane.rs","action":"status"},
+                {"type":"runtime_lane","path":"core/layer0/ops/src/skills_plane.rs","argv":["skills-plane","run","--skill=compat_skill"]},
+                {"type":"runtime_lane","path":"core/layer0/ops/src/skills_plane.rs","argv":["skills-plane","run","--skill=compat_skill"]}
+            ]
+        });
+        let targets = runtime_lane_targets(&contract);
+        assert_eq!(targets.len(), 2);
+        assert!(targets
+            .iter()
+            .any(|row| row.argv == vec!["canyon-plane".to_string(), "status".to_string()]));
+        assert!(targets.iter().any(|row| row.argv
+            == vec![
+                "skills-plane".to_string(),
+                "run".to_string(),
+                "--skill=compat_skill".to_string()
+            ]));
+    }
+
+    #[test]
     #[cfg(unix)]
     fn execute_contract_dispatches_runtime_lanes_when_enabled() {
         let _guard = env_guard();
@@ -789,6 +846,54 @@ exit 1
         std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            receipt.pointer("/dispatch/failed").and_then(Value::as_u64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn execute_contract_defaults_to_dispatch_strict_mode() {
+        let _guard = env_guard();
+        let tmp = tempdir().expect("tmp");
+        let root = tmp.path();
+        let id = "V7-TEST-901.3";
+        let cpath = root.join(CONTRACT_ROOT).join(format!("{id}.json"));
+        if let Some(parent) = cpath.parent() {
+            fs::create_dir_all(parent).expect("mkdir");
+        }
+        fs::write(
+            &cpath,
+            serde_json::to_string_pretty(&json!({
+                "id": id,
+                "upgrade": "Dispatch Contract Strict Default",
+                "layer_map": "0/1/2",
+                "deliverables": [
+                    {"type":"runtime_lane","path":"core/layer0/ops/src/canyon_plane.rs"}
+                ]
+            }))
+            .expect("encode"),
+        )
+        .expect("write contract");
+
+        let dispatch_bin = root.join("mock_dispatch_fail_default.sh");
+        write_dispatch_script(
+            &dispatch_bin,
+            r#"#!/bin/sh
+printf '{"ok":false,"type":"mock_plane_status"}\n'
+exit 1
+"#,
+        );
+        std::env::set_var("PROTHEUS_SRS_DISPATCH_BIN", dispatch_bin.display().to_string());
+        let receipt = execute_contract(root, id).expect("execute");
+        std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
+
+        assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            receipt.pointer("/dispatch/strict").and_then(Value::as_bool),
+            Some(true)
+        );
         assert_eq!(
             receipt.pointer("/dispatch/failed").and_then(Value::as_u64),
             Some(1)
