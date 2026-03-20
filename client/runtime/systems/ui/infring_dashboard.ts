@@ -482,9 +482,75 @@ function htmlShell() {
   <link rel="stylesheet" href="/assets/infring_dashboard.css">
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <main style="max-width:980px;margin:32px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">
+      <h1 style="margin:0 0 8px 0">InfRing Dashboard</h1>
+      <p style="margin:0 0 8px 0;color:#bfd3f5">Loading dashboard UI...</p>
+      <p style="margin:0;color:#9eb9e4;font-size:12px">If this view remains blank, the compatibility renderer will auto-activate.</p>
+    </main>
+  </div>
   <script type="module" src="/assets/infring_dashboard_client.js"></script>
   <script defer src="/assets/infring_dashboard_fallback.js"></script>
+  <script>
+    (function () {
+      function esc(v) {
+        var s = String(v == null ? '' : v);
+        return s
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+      function short(v, n) {
+        var t = String(v == null ? '' : v).trim();
+        if (!t) return 'n/a';
+        if (t.length <= n) return t;
+        return t.slice(0, n) + '...';
+      }
+      function bootInlineFallback() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        if (root.getAttribute('data-dashboard-hydrated')) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/dashboard/snapshot', true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          if (root.getAttribute('data-dashboard-hydrated')) return;
+          if (xhr.status < 200 || xhr.status >= 300) {
+            root.innerHTML =
+              '<main style="max-width:980px;margin:32px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">' +
+              '<h1 style="margin:0 0 8px 0">InfRing Dashboard</h1>' +
+              '<p style="margin:0;color:#bfd3f5">UI compatibility fallback active.</p>' +
+              '<p style="margin:8px 0 0 0;color:#9eb9e4;font-size:12px">Snapshot endpoint temporarily unavailable.</p>' +
+              '</main>';
+            root.setAttribute('data-dashboard-hydrated', 'inline-fallback');
+            return;
+          }
+          var snap = null;
+          try { snap = JSON.parse(xhr.responseText || '{}'); } catch (e) { snap = null; }
+          if (!snap || typeof snap !== 'object') return;
+          var provider = snap && snap.app && snap.app.settings ? snap.app.settings.provider : 'n/a';
+          var model = snap && snap.app && snap.app.settings ? snap.app.settings.model : 'n/a';
+          var alerts = snap && snap.health && snap.health.alerts ? snap.health.alerts.count : 0;
+          root.innerHTML =
+            '<main style="max-width:1200px;margin:20px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">' +
+            '<h1 style="margin:0 0 6px 0">InfRing Dashboard</h1>' +
+            '<p style="margin:0;color:#bfd3f5">Compatibility UI active (core data live).</p>' +
+            '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">' +
+            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Provider</div><div style="font-size:18px;font-weight:700">' + esc(provider) + '</div></article>' +
+            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Model</div><div style="font-size:18px;font-weight:700">' + esc(model) + '</div></article>' +
+            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Open Alerts</div><div style="font-size:18px;font-weight:700">' + esc(alerts) + '</div></article>' +
+            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Receipt</div><div style="font-size:12px;font-family:ui-monospace,Menlo,monospace">' + esc(short(snap.receipt_hash, 28)) + '</div></article>' +
+            '</div>' +
+            '</main>';
+          root.setAttribute('data-dashboard-hydrated', 'inline-fallback');
+        };
+        xhr.send(null);
+      }
+      window.setTimeout(bootInlineFallback, 1400);
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -515,7 +581,7 @@ function transpileFallbackTs() {
   return ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
-      target: ts.ScriptTarget.ES2022,
+      target: ts.ScriptTarget.ES2018,
       sourceMap: false,
       removeComments: false,
     },
