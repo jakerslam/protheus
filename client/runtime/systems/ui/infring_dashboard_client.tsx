@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-import ReactFlow, { Background, Controls, MiniMap } from 'https://esm.sh/reactflow@11.11.4';
 
 type Dict = Record<string, any>;
 
@@ -189,50 +188,96 @@ function ActivityGraph({ snapshot }: { snapshot: Snapshot }) {
   );
   const appTurns = useMemo(() => (Array.isArray(snapshot.app?.turns) ? snapshot.app.turns : []), [snapshot]);
 
-  const flow = useMemo(() => {
-    const nodes: Array<any> = [{ id: 'chat-ui', position: { x: 40, y: 40 }, data: { label: 'chat-ui' }, style: { background: '#163042', color: '#e6f6ff', border: '1px solid #4de2c5' } }];
-    const edges: Array<any> = [];
+  const svg = useMemo(() => {
+    const nodes: Array<{ id: string; label: string; x: number; y: number; tone: 'root' | 'handoff' | 'turn' }> = [
+      { id: 'chat-ui', label: 'chat-ui', x: 90, y: 70, tone: 'root' },
+    ];
+    const edges: Array<{ from: string; to: string; label: string }> = [];
     handoffs.slice(0, 8).forEach((row: Dict, idx: number) => {
       const id = String(row.shadow || `shadow-${idx}`);
       nodes.push({
         id,
-        position: { x: 250 + idx * 140, y: idx % 2 === 0 ? 30 : 120 },
-        data: { label: id },
-        style: { background: '#2b2242', color: '#f4edff', border: '1px solid #a98bff' },
+        label: shortHash(id, 14),
+        x: 260 + idx * 110,
+        y: idx % 2 === 0 ? 54 : 118,
+        tone: 'handoff',
       });
       edges.push({
-        id: `handoff-${idx}`,
-        source: 'chat-ui',
-        target: id,
-        label: String(row.job_id || 'handoff'),
-        animated: true,
+        from: 'chat-ui',
+        to: id,
+        label: shortHash(row.job_id || 'handoff', 10),
       });
     });
     appTurns.slice(-4).forEach((turn: Dict, idx: number) => {
       const id = String(turn.turn_id || `turn-${idx}`);
       nodes.push({
         id,
-        position: { x: 120 + idx * 190, y: 220 },
-        data: { label: shortHash(id, 10) },
-        style: { background: '#3a3118', color: '#fff7dd', border: '1px solid #ffb347' },
+        label: shortHash(id, 10),
+        x: 170 + idx * 170,
+        y: 240,
+        tone: 'turn',
       });
       edges.push({
-        id: `turn-${idx}`,
-        source: 'chat-ui',
-        target: id,
-        label: String(turn.provider || 'turn'),
+        from: 'chat-ui',
+        to: id,
+        label: shortHash(turn.provider || 'turn', 9),
       });
     });
     return { nodes, edges };
   }, [handoffs, appTurns]);
 
+  const byId = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    for (const row of svg.nodes) map.set(row.id, { x: row.x, y: row.y });
+    return map;
+  }, [svg.nodes]);
+
   return (
-    <div className="h-[360px] rounded-xl border border-sky-200/20 bg-slate-950/50">
-      <ReactFlow nodes={flow.nodes} edges={flow.edges} fitView>
-        <Background color="#35516e" gap={20} />
-        <MiniMap pannable />
-        <Controls />
-      </ReactFlow>
+    <div className="h-[360px] rounded-xl border border-sky-200/20 bg-slate-950/50 p-2">
+      <svg viewBox="0 0 1150 320" className="h-full w-full">
+        {svg.edges.map((edge, idx) => {
+          const a = byId.get(edge.from);
+          const b = byId.get(edge.to);
+          if (!a || !b) return null;
+          return (
+            <g key={`edge-${idx}`}>
+              <line
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke="#4c79a6"
+                strokeWidth="1.6"
+                strokeDasharray="5 4"
+              />
+              <text
+                x={(a.x + b.x) / 2}
+                y={(a.y + b.y) / 2 - 6}
+                fill="#9ec6ef"
+                fontSize="9"
+                textAnchor="middle"
+              >
+                {edge.label}
+              </text>
+            </g>
+          );
+        })}
+        {svg.nodes.map((node) => (
+          <g key={node.id}>
+            <circle
+              cx={node.x}
+              cy={node.y}
+              r={node.tone === 'root' ? 20 : 14}
+              fill={node.tone === 'root' ? '#163042' : node.tone === 'handoff' ? '#2b2242' : '#3a3118'}
+              stroke={node.tone === 'root' ? '#4de2c5' : node.tone === 'handoff' ? '#a98bff' : '#ffb347'}
+              strokeWidth="1.7"
+            />
+            <text x={node.x} y={node.y + 26} fill="#e8f0ff" fontSize="10" textAnchor="middle">
+              {node.label}
+            </text>
+          </g>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -289,6 +334,13 @@ function App() {
   const agents = Array.isArray(snapshot?.collab?.dashboard?.agents) ? snapshot!.collab.dashboard.agents : [];
   const hotspots = Array.isArray(snapshot?.skills?.metrics?.run_hotspots) ? snapshot!.skills.metrics.run_hotspots : [];
   const handoffs = Array.isArray(snapshot?.collab?.dashboard?.handoff_history) ? snapshot!.collab.dashboard.handoff_history : [];
+
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+      root.setAttribute('data-dashboard-hydrated', 'react');
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
@@ -596,5 +648,4 @@ const rootNode = document.getElementById('root');
 if (!rootNode) {
   throw new Error('dashboard_root_missing');
 }
-rootNode.setAttribute('data-dashboard-hydrated', 'react');
 createRoot(rootNode).render(<App />);
