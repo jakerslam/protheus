@@ -50,6 +50,7 @@ function render(snapshot: Dict | null) {
   const receipts = rows(snapshot?.receipts?.recent).slice(0, 12);
   const logs = rows(snapshot?.logs?.recent).slice(0, 12);
   const checks = Object.entries(snapshot?.health?.checks || {}).slice(0, 12);
+  const turns = rows(snapshot?.app?.turns).slice(-12);
 
   root.innerHTML = `
     <main style="max-width:1200px;margin:20px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">
@@ -99,6 +100,32 @@ function render(snapshot: Dict | null) {
       </section>
 
       <section style="margin-top:14px;padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)">
+        <h2 style="margin:0 0 8px 0;font-size:14px">Chat Interface (compatibility mode)</h2>
+        <div style="font-size:12px;color:#b9ceef;margin-bottom:8px">Session: ${esc(snapshot?.app?.session_id || 'chat-ui-default')}</div>
+        <div style="max-height:220px;overflow:auto;border:1px solid rgba(122,163,255,.2);border-radius:8px;padding:8px;background:rgba(5,10,20,.5)">
+          ${
+            turns.length === 0
+              ? '<div style="font-size:12px;color:#b9ceef">No turns yet.</div>'
+              : turns
+                  .map(
+                    (turn) => `
+                      <article style="margin-bottom:8px;padding:6px;border:1px solid rgba(122,163,255,.16);border-radius:8px;background:rgba(10,16,28,.5)">
+                        <div style="font-size:11px;color:#95b7e7">${esc(short(turn.ts || 'n/a', 32))} · ${esc(turn.provider || 'unknown')}/${esc(turn.model || 'n/a')}</div>
+                        <div style="font-size:12px;color:#8fd0ff;margin-top:4px"><b>User:</b> ${esc(turn.user || '')}</div>
+                        <div style="font-size:12px;color:#9ff2cf;margin-top:4px"><b>Assistant:</b> ${esc(turn.assistant || '')}</div>
+                      </article>
+                    `
+                  )
+                  .join('')
+          }
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="fallback-chat-input" type="text" placeholder="Message chat-ui..." style="flex:1;border:1px solid rgba(122,163,255,.4);border-radius:8px;background:rgba(5,10,20,.9);color:#e6efff;padding:8px;font-size:12px" />
+          <button id="fallback-chat-send" type="button" style="border:1px solid rgba(77,226,197,.45);border-radius:8px;background:rgba(77,226,197,.14);color:#e8fff9;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Send</button>
+        </div>
+      </section>
+
+      <section style="margin-top:14px;padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)">
         <h2 style="margin:0 0 8px 0;font-size:14px">Recent Logs</h2>
         <ul style="margin:0;padding-left:18px;font-size:12px;color:#d3e1fa">
           ${logs.map((row) => `<li>${esc(short(row.ts || 'n/a', 24))} — ${esc(short(row.message || '', 100))}</li>`).join('')}
@@ -106,6 +133,30 @@ function render(snapshot: Dict | null) {
       </section>
     </main>
   `;
+
+  const sendBtn = root.querySelector('#fallback-chat-send') as HTMLButtonElement | null;
+  const inputEl = root.querySelector('#fallback-chat-input') as HTMLInputElement | null;
+  if (sendBtn && inputEl) {
+    sendBtn.onclick = async () => {
+      const text = String(inputEl.value || '').trim();
+      if (!text) return;
+      sendBtn.disabled = true;
+      try {
+        await fetch('/api/dashboard/action', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'app.chat', payload: { input: text } }),
+        });
+        inputEl.value = '';
+        const next = await fetchSnapshot();
+        render(next);
+      } catch {
+        // keep fallback resilient; update loop will retry snapshot anyway
+      } finally {
+        sendBtn.disabled = false;
+      }
+    };
+  }
 }
 
 function bootFallback() {
@@ -128,4 +179,3 @@ function bootFallback() {
 window.addEventListener('DOMContentLoaded', () => {
   window.setTimeout(bootFallback, 900);
 });
-
