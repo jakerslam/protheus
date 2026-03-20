@@ -1,6 +1,6 @@
 # TODO (Maintenance + Policy + SRS Execution Order)
 
-Updated: 2026-03-19 22:21 America/Denver
+Updated: 2026-03-20 07:45 America/Denver
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -281,6 +281,17 @@ Updated: 2026-03-19 22:21 America/Denver
   - 58 duplicated TS wrappers + 62 duplicated JS wrappers compacted to shared primitives.
   - Net wrapper source reduction: ~14.98 KB; targeted wrapper regression tests passing.
   - Stabilized post-compaction benchmark resample captured (`docs/client/reports/benchmark_matrix_resample_post_compaction_2026-03-20.json`); final sign-off still pending due shared baseline drift on throughput/install.
+
+31. `P1-DASHBOARD-WASM-001` Migrate dashboard runtime to Rust/WASM no-Node serving path after React/Tailwind parity freeze. `STATUS: QUEUED`
+- Context:
+- Current dashboard launch is TypeScript/Node-hosted for fast delivery (`infring dashboard`, `status --dashboard --web`), but long-term sovereignty target is no-Node runtime hosting.
+- Linked SRS:
+- `V6-DASHBOARD-001.1` through `V6-DASHBOARD-001.10` (runtime host hardening follow-through).
+- Exit criteria:
+- Define Rust authority lane that serves static dashboard assets and WebSocket stream without Node runtime dependency.
+- Port UI client to WASM-compatible build target and remove Node requirement from operator launch path.
+- Preserve all current receipted actions (provider switch, role launch, skill run, benchmark/assimilate trigger) with equal or stronger fail-closed behavior.
+- Publish before/after operator runbook documenting Node-hosted fallback and Rust/WASM primary path.
 
 ## Executed in this pass
 - Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.

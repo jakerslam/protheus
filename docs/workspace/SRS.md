@@ -9486,6 +9486,11 @@ Notes:
   - Layer `1`: policy/permission gates for per-agent/per-channel/per-tool operations
   - Layer `2`: live aggregation, replay, and dashboard-state orchestration
   - `client`/`app`: dashboard UI and command surfaces only, non-authoritative
+- Implementation update (2026-03-20):
+  - Added first-class TypeScript dashboard surface at `client/runtime/systems/ui/infring_dashboard.ts` with WebSocket live stream, lane-backed snapshot/action APIs, and deterministic UI action receipts under `client/runtime/local/state/ui/infring_dashboard/`.
+  - Added TypeScript React client shell at `client/runtime/systems/ui/infring_dashboard_client.tsx` + styling at `client/runtime/systems/ui/infring_dashboard.css`.
+  - CLI launch paths: `infring dashboard`, `infring status --dashboard --web`, and `npm run dashboard:serve`.
+  - Rust/WASM no-Node host cutover is explicitly queued in `docs/workspace/TODO.md` as `P1-DASHBOARD-WASM-001` to preserve sovereign-runtime target without blocking current client delivery.
 
 Objective: deliver a unified control-plane dashboard that combines agent/scope visibility, live graphing, memory exploration, marketplace operations, logs/receipts, channel monitoring, and APM in one receipt-first surface.
 

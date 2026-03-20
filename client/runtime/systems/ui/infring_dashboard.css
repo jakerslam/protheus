@@ -1,0 +1,83 @@
+:root {
+  --glass-bg: rgba(8, 15, 29, 0.82);
+  --line: rgba(122, 163, 255, 0.24);
+  --ink: #eaf2ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--ink);
+  font-family: "Space Grotesk", "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 8% 14%, rgba(77, 226, 197, 0.13), transparent 36%),
+    radial-gradient(circle at 92% 10%, rgba(255, 179, 71, 0.14), transparent 28%),
+    linear-gradient(140deg, #01040c 0%, #0a1224 44%, #121d37 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(9px);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.42);
+}
+
+.kpi-card {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(19, 31, 57, 0.86);
+  padding: 0.6rem 0.7rem;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  color: rgba(195, 212, 238, 0.9);
+}
+
+.kpi-value {
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.tile {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: rgba(17, 28, 52, 0.9);
+  padding: 0.7rem;
+}
+
+.input {
+  margin-top: 0.2rem;
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(122, 163, 255, 0.4);
+  background: rgba(5, 10, 20, 0.9);
+  color: #e6efff;
+  padding: 0.42rem 0.54rem;
+  font-size: 0.82rem;
+}
+
+.btn {
+  border: 1px solid rgba(77, 226, 197, 0.45);
+  border-radius: 0.6rem;
+  background: rgba(77, 226, 197, 0.14);
+  color: #e8fff9;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.42rem 0.56rem;
+}
+
+.btn:hover {
+  border-color: rgba(77, 226, 197, 0.75);
+  background: rgba(77, 226, 197, 0.2);
+}
