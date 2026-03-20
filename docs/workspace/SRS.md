@@ -9491,6 +9491,8 @@ Notes:
   - Added TypeScript React client shell at `client/runtime/systems/ui/infring_dashboard_client.tsx` + styling at `client/runtime/systems/ui/infring_dashboard.css`.
   - CLI launch paths: `infring dashboard`, `infring status --dashboard --web`, and `npm run dashboard:serve`.
   - Rust/WASM no-Node host cutover is explicitly queued in `docs/workspace/TODO.md` as `P1-DASHBOARD-WASM-001` to preserve sovereign-runtime target without blocking current client delivery.
+  - UX/perf pass shipped: command-deck-first layout, integrated chat panel over `app-plane run/history`, card-first fleet controls with quick actions, global search, and virtualized receipts/logs/memory explorer surfaces to reduce long-list render cost.
+  - Compatibility hardening shipped: inline no-module fallback renderer + fallback chat actions so the dashboard remains operable when external ESM/CDN imports fail.
 
 Objective: deliver a unified control-plane dashboard that combines agent/scope visibility, live graphing, memory exploration, marketplace operations, logs/receipts, channel monitoring, and APM in one receipt-first surface.
 

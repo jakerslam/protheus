@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 
 type Dict = Record<string, any>;
@@ -22,18 +22,15 @@ type SnapshotEnvelope = {
   snapshot?: Snapshot;
 };
 
+type Tone = 'ok' | 'warn' | 'bad';
+
 const SECTIONS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'agents', label: 'Agents + Swarms' },
-  { id: 'activity', label: 'Activity Graph' },
-  { id: 'memory', label: 'Memory' },
-  { id: 'tools', label: 'Marketplace' },
-  { id: 'channels', label: 'Channels' },
-  { id: 'receipts', label: 'Receipts' },
-  { id: 'logs', label: 'Logs' },
-  { id: 'apm', label: 'APM' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'command', label: 'Command Deck' },
+  { id: 'fleet', label: 'Agent Fleet' },
+  { id: 'graph', label: 'Activity Graph' },
+  { id: 'explorer', label: 'Explorer' },
+  { id: 'telemetry', label: 'Telemetry' },
+  { id: 'governance', label: 'Governance' },
 ];
 
 function cls(...parts: Array<string | false | null | undefined>): string {
@@ -43,7 +40,7 @@ function cls(...parts: Array<string | false | null | undefined>): string {
 function shortHash(value: unknown, size = 14): string {
   const text = String(value ?? '').trim();
   if (!text) return 'n/a';
-  return text.length <= size ? text : `${text.slice(0, size)}…`;
+  return text.length <= size ? text : `${text.slice(0, size)}...`;
 }
 
 function fmtNumber(value: unknown): string {
@@ -55,24 +52,31 @@ function fmtNumber(value: unknown): string {
   return num.toFixed(2);
 }
 
-function statusTone(status: unknown): 'ok' | 'warn' | 'bad' {
+function statusTone(status: unknown): Tone {
   const value = String(status ?? '').trim().toLowerCase();
   if (['pass', 'ok', 'running', 'active', 'success'].includes(value)) return 'ok';
   if (['warn', 'warning', 'pending', 'paused'].includes(value)) return 'warn';
   return 'bad';
 }
 
-function StatusChip({ status }: { status: unknown }) {
+function iconTone(tone: Tone): string {
+  if (tone === 'ok') return 'bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,.65)]';
+  if (tone === 'warn') return 'bg-amber-400 shadow-[0_0_16px_rgba(251,191,36,.65)]';
+  return 'bg-rose-400 shadow-[0_0_16px_rgba(251,113,133,.65)]';
+}
+
+function StatusPill({ status }: { status: unknown }) {
   const tone = statusTone(status);
   return (
     <span
       className={cls(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide',
-        tone === 'ok' && 'bg-emerald-300 text-emerald-950',
-        tone === 'warn' && 'bg-amber-300 text-amber-950',
-        tone === 'bad' && 'bg-rose-300 text-rose-950'
+        'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[.11em]',
+        tone === 'ok' && 'bg-emerald-500/25 text-emerald-100',
+        tone === 'warn' && 'bg-amber-500/20 text-amber-100',
+        tone === 'bad' && 'bg-rose-500/22 text-rose-100'
       )}
     >
+      <i className={cls('inline-block h-2 w-2 rounded-full', iconTone(tone))} />
       {String(status ?? 'unknown')}
     </span>
   );
@@ -107,7 +111,7 @@ async function postAction(action: string, payload: Dict): Promise<Dict> {
 function useDashboardState() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let stop = false;
@@ -140,9 +144,13 @@ function useDashboardState() {
       });
       socket.addEventListener('message', (event) => {
         if (stop) return;
-        const envelope = JSON.parse(String(event.data)) as SnapshotEnvelope;
-        if (envelope.type === 'snapshot' && envelope.snapshot) {
-          setSnapshot(envelope.snapshot);
+        try {
+          const envelope = JSON.parse(String(event.data)) as SnapshotEnvelope;
+          if (envelope.type === 'snapshot' && envelope.snapshot) {
+            setSnapshot(envelope.snapshot);
+          }
+        } catch {
+          // ignore malformed envelope, stream will continue
         }
       });
       socket.addEventListener('close', () => {
@@ -168,9 +176,7 @@ function useDashboardState() {
 
     return () => {
       stop = true;
-      if (reconnectTimer != null) {
-        window.clearTimeout(reconnectTimer);
-      }
+      if (reconnectTimer != null) window.clearTimeout(reconnectTimer);
       if (socket) {
         try {
           socket.close();
@@ -182,103 +188,77 @@ function useDashboardState() {
   return { snapshot, setSnapshot, connected, error, setError };
 }
 
-function ActivityGraph({ snapshot }: { snapshot: Snapshot }) {
-  const handoffs = useMemo(
-    () => (Array.isArray(snapshot.collab?.dashboard?.handoff_history) ? snapshot.collab.dashboard.handoff_history : []),
-    [snapshot]
+function containsQuery(query: string, fields: unknown[]): boolean {
+  if (!query) return true;
+  const haystack = fields
+    .map((value) => String(value == null ? '' : value).toLowerCase())
+    .join(' ');
+  return haystack.includes(query);
+}
+
+function SectionCard(props: { id: string; title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <section id={props.id} className="panel space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-[13px] font-semibold uppercase tracking-[.12em] text-sky-100">{props.title}</h2>
+          {props.subtitle ? <p className="text-xs text-slate-300">{props.subtitle}</p> : null}
+        </div>
+        {props.action ? <div>{props.action}</div> : null}
+      </header>
+      {props.children}
+    </section>
   );
-  const appTurns = useMemo(() => (Array.isArray(snapshot.app?.turns) ? snapshot.app.turns : []), [snapshot]);
+}
 
-  const svg = useMemo(() => {
-    const nodes: Array<{ id: string; label: string; x: number; y: number; tone: 'root' | 'handoff' | 'turn' }> = [
-      { id: 'chat-ui', label: 'chat-ui', x: 90, y: 70, tone: 'root' },
-    ];
-    const edges: Array<{ from: string; to: string; label: string }> = [];
-    handoffs.slice(0, 8).forEach((row: Dict, idx: number) => {
-      const id = String(row.shadow || `shadow-${idx}`);
-      nodes.push({
-        id,
-        label: shortHash(id, 14),
-        x: 260 + idx * 110,
-        y: idx % 2 === 0 ? 54 : 118,
-        tone: 'handoff',
-      });
-      edges.push({
-        from: 'chat-ui',
-        to: id,
-        label: shortHash(row.job_id || 'handoff', 10),
-      });
-    });
-    appTurns.slice(-4).forEach((turn: Dict, idx: number) => {
-      const id = String(turn.turn_id || `turn-${idx}`);
-      nodes.push({
-        id,
-        label: shortHash(id, 10),
-        x: 170 + idx * 170,
-        y: 240,
-        tone: 'turn',
-      });
-      edges.push({
-        from: 'chat-ui',
-        to: id,
-        label: shortHash(turn.provider || 'turn', 9),
-      });
-    });
-    return { nodes, edges };
-  }, [handoffs, appTurns]);
+function WindowedList<T>(props: {
+  items: T[];
+  rowHeight: number;
+  height: number;
+  overscan?: number;
+  emptyLabel?: string;
+  keyFor: (item: T, index: number) => string;
+  renderRow: (item: T, index: number) => React.ReactNode;
+}) {
+  const { items, rowHeight, height } = props;
+  const overscan = props.overscan ?? 6;
+  const [scrollTop, setScrollTop] = useState(0);
 
-  const byId = useMemo(() => {
-    const map = new Map<string, { x: number; y: number }>();
-    for (const row of svg.nodes) map.set(row.id, { x: row.x, y: row.y });
-    return map;
-  }, [svg.nodes]);
+  const totalHeight = items.length * rowHeight;
+  const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+  const end = Math.min(items.length, Math.ceil((scrollTop + height) / rowHeight) + overscan);
+  const visible = items.slice(start, end);
+
+  if (items.length === 0) {
+    return <div className="rounded-lg border border-slate-700/60 bg-slate-900/45 p-3 text-xs text-slate-400">{props.emptyLabel || 'No records'}</div>;
+  }
 
   return (
-    <div className="h-[360px] rounded-xl border border-sky-200/20 bg-slate-950/50 p-2">
-      <svg viewBox="0 0 1150 320" className="h-full w-full">
-        {svg.edges.map((edge, idx) => {
-          const a = byId.get(edge.from);
-          const b = byId.get(edge.to);
-          if (!a || !b) return null;
+    <div
+      style={{ height }}
+      className="overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-950/55"
+      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+    >
+      <div style={{ height: totalHeight, position: 'relative' }}>
+        {visible.map((item, offset) => {
+          const index = start + offset;
           return (
-            <g key={`edge-${idx}`}>
-              <line
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke="#4c79a6"
-                strokeWidth="1.6"
-                strokeDasharray="5 4"
-              />
-              <text
-                x={(a.x + b.x) / 2}
-                y={(a.y + b.y) / 2 - 6}
-                fill="#9ec6ef"
-                fontSize="9"
-                textAnchor="middle"
-              >
-                {edge.label}
-              </text>
-            </g>
+            <div
+              key={props.keyFor(item, index)}
+              style={{
+                position: 'absolute',
+                top: index * rowHeight,
+                left: 0,
+                right: 0,
+                height: rowHeight,
+              }}
+              className="px-2"
+            >
+              {props.renderRow(item, index)}
+            </div>
           );
         })}
-        {svg.nodes.map((node) => (
-          <g key={node.id}>
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={node.tone === 'root' ? 20 : 14}
-              fill={node.tone === 'root' ? '#163042' : node.tone === 'handoff' ? '#2b2242' : '#3a3118'}
-              stroke={node.tone === 'root' ? '#4de2c5' : node.tone === 'handoff' ? '#a98bff' : '#ffb347'}
-              strokeWidth="1.7"
-            />
-            <text x={node.x} y={node.y + 26} fill="#e8f0ff" fontSize="10" textAnchor="middle">
-              {node.label}
-            </text>
-          </g>
-        ))}
-      </svg>
+      </div>
     </div>
   );
 }
@@ -294,6 +274,8 @@ function App() {
   const [skillInput, setSkillInput] = useState('');
   const [chatInput, setChatInput] = useState('');
   const [chatTurns, setChatTurns] = useState<Dict[]>([]);
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
 
   useEffect(() => {
     if (!snapshot?.app?.settings) return;
@@ -304,22 +286,13 @@ function App() {
 
   useEffect(() => {
     const turns = Array.isArray(snapshot?.app?.turns) ? snapshot.app.turns : [];
-    if (turns.length > 0) {
-      setChatTurns(turns);
-    }
+    if (turns.length > 0) setChatTurns(turns);
   }, [snapshot?.app?.turn_count, snapshot?.app?.receipt_hash]);
 
-  const kpis = useMemo(() => {
-    const health = snapshot?.health || {};
-    const metrics = health.dashboard_metrics || {};
-    const collabAgents = Array.isArray(snapshot?.collab?.dashboard?.agents) ? snapshot.collab.dashboard.agents.length : 0;
-    return {
-      agents: collabAgents,
-      alerts: Number(health.alerts?.count || 0),
-      burn: Number(metrics.token_burn_cost_attribution?.latest_day_tokens || 0),
-      latency: metrics.vbrowser_session_surface?.stream_latency_ms,
-    };
-  }, [snapshot]);
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) root.setAttribute('data-dashboard-hydrated', 'react');
+  }, []);
 
   const runAction = async (action: string, payload: Dict): Promise<Dict | null> => {
     try {
@@ -338,374 +311,422 @@ function App() {
     }
   };
 
-  const receipts = Array.isArray(snapshot?.receipts?.recent) ? snapshot!.receipts.recent : [];
-  const logs = Array.isArray(snapshot?.logs?.recent) ? snapshot!.logs.recent : [];
-  const memories = Array.isArray(snapshot?.memory?.entries) ? snapshot!.memory.entries : [];
-  const checks = snapshot?.health?.checks ? Object.entries(snapshot.health.checks) : [];
-  const apmRows = Array.isArray(snapshot?.apm?.metrics) ? snapshot!.apm.metrics : [];
-  const agents = Array.isArray(snapshot?.collab?.dashboard?.agents) ? snapshot!.collab.dashboard.agents : [];
-  const hotspots = Array.isArray(snapshot?.skills?.metrics?.run_hotspots) ? snapshot!.skills.metrics.run_hotspots : [];
-  const handoffs = Array.isArray(snapshot?.collab?.dashboard?.handoff_history) ? snapshot!.collab.dashboard.handoff_history : [];
+  const receipts = useMemo(() => (Array.isArray(snapshot?.receipts?.recent) ? snapshot!.receipts.recent : []), [snapshot?.receipts]);
+  const logs = useMemo(() => (Array.isArray(snapshot?.logs?.recent) ? snapshot!.logs.recent : []), [snapshot?.logs]);
+  const memories = useMemo(() => (Array.isArray(snapshot?.memory?.entries) ? snapshot!.memory.entries : []), [snapshot?.memory]);
+  const checks = useMemo(() => (snapshot?.health?.checks ? Object.entries(snapshot.health.checks) : []), [snapshot?.health]);
+  const apmRows = useMemo(() => (Array.isArray(snapshot?.apm?.metrics) ? snapshot!.apm.metrics : []), [snapshot?.apm]);
+  const agents = useMemo(() => (Array.isArray(snapshot?.collab?.dashboard?.agents) ? snapshot!.collab.dashboard.agents : []), [snapshot?.collab]);
+  const hotspots = useMemo(() => (Array.isArray(snapshot?.skills?.metrics?.run_hotspots) ? snapshot!.skills.metrics.run_hotspots : []), [snapshot?.skills]);
+  const handoffs = useMemo(() => (Array.isArray(snapshot?.collab?.dashboard?.handoff_history) ? snapshot!.collab.dashboard.handoff_history : []), [snapshot?.collab]);
 
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (root) {
-      root.setAttribute('data-dashboard-hydrated', 'react');
+  const filteredReceipts = useMemo(
+    () => receipts.filter((row: Dict) => containsQuery(deferredSearch, [row.kind, row.path, row.mtime, row.size_bytes])),
+    [receipts, deferredSearch]
+  );
+  const filteredLogs = useMemo(
+    () => logs.filter((row: Dict) => containsQuery(deferredSearch, [row.ts, row.source, row.message])),
+    [logs, deferredSearch]
+  );
+  const filteredMemories = useMemo(
+    () => memories.filter((row: Dict) => containsQuery(deferredSearch, [row.scope, row.kind, row.path, row.mtime])),
+    [memories, deferredSearch]
+  );
+
+  const kpis = useMemo(() => {
+    const health = snapshot?.health || {};
+    const metrics = health.dashboard_metrics || {};
+    return {
+      agents: agents.length,
+      alerts: Number(health.alerts?.count || 0),
+      burn: Number(metrics.token_burn_cost_attribution?.latest_day_tokens || 0),
+      latency: metrics.vbrowser_session_surface?.stream_latency_ms,
+      turns: Number(snapshot?.app?.turn_count || 0),
+    };
+  }, [snapshot, agents.length]);
+
+  const graphNodes = useMemo(() => {
+    const nodes: Array<{ id: string; label: string; x: number; y: number; tone: Tone }> = [
+      { id: 'chat-ui', label: 'chat-ui', x: 88, y: 72, tone: 'ok' },
+    ];
+    handoffs.slice(0, 8).forEach((row: Dict, idx: number) => {
+      nodes.push({
+        id: String(row.shadow || `shadow-${idx}`),
+        label: shortHash(row.shadow || `shadow-${idx}`, 14),
+        x: 250 + idx * 106,
+        y: idx % 2 === 0 ? 56 : 120,
+        tone: statusTone(row.status || 'unknown'),
+      });
+    });
+    chatTurns.slice(-4).forEach((turn: Dict, idx: number) => {
+      nodes.push({
+        id: String(turn.turn_id || `turn-${idx}`),
+        label: shortHash(turn.turn_id || `turn-${idx}`, 10),
+        x: 170 + idx * 170,
+        y: 242,
+        tone: 'warn',
+      });
+    });
+    return nodes;
+  }, [handoffs, chatTurns]);
+
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    for (const row of graphNodes) map.set(row.id, { x: row.x, y: row.y });
+    return map;
+  }, [graphNodes]);
+
+  const graphEdges = useMemo(() => {
+    const edges: Array<{ from: string; to: string; label: string }> = [];
+    handoffs.slice(0, 8).forEach((row: Dict, idx: number) => {
+      edges.push({
+        from: 'chat-ui',
+        to: String(row.shadow || `shadow-${idx}`),
+        label: shortHash(row.job_id || 'handoff', 10),
+      });
+    });
+    chatTurns.slice(-4).forEach((turn: Dict, idx: number) => {
+      edges.push({
+        from: 'chat-ui',
+        to: String(turn.turn_id || `turn-${idx}`),
+        label: shortHash(turn.provider || 'turn', 8),
+      });
+    });
+    return edges;
+  }, [handoffs, chatTurns]);
+
+  const jumpTo = (id: string) => {
+    const node = document.getElementById(id);
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, []);
+  };
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
-      <div className="mx-auto flex max-w-[1600px] flex-col px-3 pb-8 pt-3 lg:flex-row lg:gap-4">
-        <aside className="glass mb-3 w-full rounded-2xl border border-sky-200/20 p-3 lg:sticky lg:top-3 lg:mb-0 lg:h-[calc(100vh-1.5rem)] lg:w-72">
-          <h1 className="text-lg font-bold tracking-wide">InfRing Dashboard</h1>
-          <p className="mt-1 text-xs text-slate-300">React + Tailwind + ReactFlow control plane</p>
-          <div className="mt-3 space-y-1">
-            {SECTIONS.map((section) => (
-              <a
-                key={section.id}
-                className="block rounded-lg border border-sky-200/20 bg-slate-900/50 px-3 py-2 text-sm transition hover:border-cyan-300/50 hover:bg-cyan-500/10"
-                href={`#${section.id}`}
-              >
-                {section.label}
-              </a>
-            ))}
+      <div className="mx-auto max-w-[1580px] px-3 pb-10 pt-3">
+        <header className="dashboard-head sticky top-3 z-40">
+          <div>
+            <h1 className="text-xl font-bold tracking-wide">InfRing Control Plane</h1>
+            <p className="text-xs text-slate-300">Fast command deck over Rust-core lanes with receipted actions.</p>
           </div>
-          <div className="mt-3 rounded-lg border border-sky-200/20 bg-slate-900/60 p-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className={cls('inline-block h-2 w-2 rounded-full', connected ? 'bg-emerald-400' : 'bg-rose-400')} />
-              <span>{connected ? 'Live stream connected' : 'Reconnecting stream'}</span>
-            </div>
-            <div className="mt-1 text-slate-300">Receipt: {shortHash(snapshot?.receipt_hash)}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="input h-9 min-w-[260px]"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search receipts, logs, memory, checks..."
+            />
+            <button className="btn" onClick={() => fetchSnapshot().then(setSnapshot).catch((err) => setError(String((err as Error).message || err)))}>
+              Refresh
+            </button>
           </div>
-        </aside>
+        </header>
 
-        <main className="w-full space-y-3">
-          <header className="glass sticky top-3 z-20 rounded-2xl border border-sky-200/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base font-semibold">Unified Agent Command Deck</h2>
-                <p className="text-xs text-slate-300">Dark neon grid theme with lane-backed actions.</p>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[260px_1fr]">
+          <aside className="panel h-fit lg:sticky lg:top-[88px]">
+            <h2 className="text-xs font-bold uppercase tracking-[.14em] text-slate-200">Navigation</h2>
+            <div className="mt-2 space-y-1">
+              {SECTIONS.map((section) => (
+                <button key={section.id} className="nav-chip" onClick={() => jumpTo(section.id)}>
+                  {section.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-2 text-xs">
+              <div className="flex items-center gap-2">
+                <i className={cls('inline-block h-2.5 w-2.5 rounded-full', connected ? iconTone('ok') : iconTone('bad'))} />
+                {connected ? 'Realtime stream online' : 'Realtime reconnecting'}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className="rounded-lg border border-cyan-300/60 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold"
-                  onClick={() => fetchSnapshot().then(setSnapshot).catch((err) => setError(String((err as Error).message || err)))}
-                >
-                  Refresh
-                </button>
-                <button
-                  className="rounded-lg border border-amber-300/60 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold"
-                  onClick={() => runAction('dashboard.benchmark', {})}
-                >
-                  Benchmark Surface
-                </button>
-                <button
-                  className="rounded-lg border border-emerald-300/60 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold"
-                  onClick={() => {
-                    const target = window.prompt('Assimilate target', 'codex');
-                    if (target) runAction('dashboard.assimilate', { target });
+              <div className="mono mt-1 text-[11px] text-slate-300">receipt {shortHash(snapshot?.receipt_hash, 24)}</div>
+            </div>
+          </aside>
+
+          <main className="space-y-3">
+            {error ? <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{error}</div> : null}
+
+            <SectionCard id="command" title="Command Deck" subtitle="Chat, top-level controls, and immediate action lanes.">
+              <div className="grid gap-3 xl:grid-cols-[1.2fr_.8fr]">
+                <article className="tile">
+                  <div className="mb-2 text-xs text-slate-300">chat-ui session <span className="mono">{String(snapshot?.app?.session_id || 'chat-ui-default')}</span></div>
+                  <div className="max-h-[300px] overflow-auto rounded-lg border border-slate-700/60 bg-slate-950/60 p-2">
+                    {chatTurns.length === 0 ? (
+                      <div className="text-xs text-slate-400">No turns yet. Send a message to start.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {chatTurns.slice(-20).map((turn: Dict, idx: number) => (
+                          <article key={`${turn.turn_id || 'turn'}-${idx}`} className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
+                            <div className="text-[11px] text-slate-400">{String(turn.ts || 'n/a')} · {String(turn.provider || 'unknown')}/{String(turn.model || 'n/a')}</div>
+                            <p className="mt-1 text-xs text-sky-100"><span className="font-semibold text-sky-300">User</span> {String(turn.user || '')}</p>
+                            <p className="mt-1 text-xs text-emerald-100"><span className="font-semibold text-emerald-300">Assistant</span> {String(turn.assistant || '')}</p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <form
+                    className="mt-2 flex gap-2"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      const text = chatInput.trim();
+                      if (!text) return;
+                      const response = await runAction('app.chat', { input: text });
+                      const turn = response && response.lane && response.lane.turn ? response.lane.turn : null;
+                      if (turn && typeof turn === 'object') setChatTurns((prev) => [...prev, turn]);
+                      setChatInput('');
+                    }}
+                  >
+                    <input className="input" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message chat-ui..." />
+                    <button className="btn" type="submit">Send</button>
+                  </form>
+                </article>
+
+                <article className="tile grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  <button className="action-btn" onClick={() => runAction('dashboard.assimilate', { target: 'codex' })}>Assimilate Target</button>
+                  <button className="action-btn" onClick={() => runAction('dashboard.benchmark', {})}>Benchmark Surface</button>
+                  <button className="action-btn" onClick={() => runAction('app.switchProvider', { provider, model })}>Reapply Provider/Model</button>
+                  <button className="action-btn" onClick={() => jumpTo('governance')}>Open Governance</button>
+
+                  <div className="mt-1 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    <div className="kpi-card"><div className="kpi-label">Active Agents</div><div className="kpi-value">{fmtNumber(kpis.agents)}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Open Alerts</div><div className="kpi-value">{fmtNumber(kpis.alerts)}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Daily Token Burn</div><div className="kpi-value">{fmtNumber(kpis.burn)}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Turns</div><div className="kpi-value">{fmtNumber(kpis.turns)}</div></div>
+                  </div>
+                </article>
+              </div>
+            </SectionCard>
+
+            <SectionCard id="fleet" title="Agent Fleet" subtitle="Card-first fleet view with direct quick actions.">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <article className="tile">
+                  <header className="flex items-center justify-between">
+                    <h3 className="font-semibold">chat-ui</h3>
+                    <StatusPill status="active" />
+                  </header>
+                  <div className="mt-2 text-xs text-slate-300">Provider {String(snapshot?.app?.settings?.provider || 'n/a')}</div>
+                  <div className="text-xs text-slate-300">Model {String(snapshot?.app?.settings?.model || 'n/a')}</div>
+                  <div className="text-xs text-slate-300">Turns {fmtNumber(snapshot?.app?.turn_count || 0)}</div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <button className="micro-btn" onClick={() => jumpTo('command')}>Open Chat</button>
+                    <button className="micro-btn" onClick={() => jumpTo('explorer')}>View Receipts</button>
+                  </div>
+                </article>
+                {agents.map((row: Dict, idx: number) => (
+                  <article key={`${row.shadow || 'shadow'}-${idx}`} className="tile">
+                    <header className="flex items-center justify-between">
+                      <h3 className="font-semibold">{String(row.shadow || 'shadow')}</h3>
+                      <StatusPill status={row.status || 'unknown'} />
+                    </header>
+                    <div className="mt-2 text-xs text-slate-300">Role {String(row.role || 'unknown')}</div>
+                    <div className="text-xs text-slate-300">Activated {String(row.activated_at || 'n/a')}</div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <button className="micro-btn" onClick={() => jumpTo('graph')}>Trace Flow</button>
+                      <button className="micro-btn" onClick={() => jumpTo('explorer')}>Memory</button>
+                      <button className="micro-btn" onClick={() => runAction('collab.launchRole', { team, role, shadow: String(row.shadow || `${team}-${role}`) })}>Respawn</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard id="graph" title="Activity Graph" subtitle="Live handoff topology and turn edges.">
+              <div className="rounded-xl border border-slate-700/60 bg-slate-950/60 p-2">
+                <svg viewBox="0 0 1140 320" className="h-[300px] w-full">
+                  {graphEdges.map((edge, idx) => {
+                    const a = nodeMap.get(edge.from);
+                    const b = nodeMap.get(edge.to);
+                    if (!a || !b) return null;
+                    return (
+                      <g key={`edge-${idx}`}>
+                        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#4c79a6" strokeWidth="1.6" strokeDasharray="5 4" />
+                        <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 6} fill="#9ec6ef" fontSize="9" textAnchor="middle">{edge.label}</text>
+                      </g>
+                    );
+                  })}
+                  {graphNodes.map((node) => {
+                    const tone = node.tone;
+                    return (
+                      <g key={node.id}>
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={node.id === 'chat-ui' ? 20 : 14}
+                          fill={tone === 'ok' ? '#163042' : tone === 'warn' ? '#3a3118' : '#3a1c26'}
+                          stroke={tone === 'ok' ? '#4de2c5' : tone === 'warn' ? '#ffb347' : '#fb7185'}
+                          strokeWidth="1.7"
+                        />
+                        <text x={node.x} y={node.y + 26} fill="#e8f0ff" fontSize="10" textAnchor="middle">{node.label}</text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            </SectionCard>
+
+            <SectionCard id="explorer" title="Explorer" subtitle="Virtualized receipts, logs, and memory with global filter.">
+              <div className="grid gap-3 xl:grid-cols-3">
+                <article className="tile">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-slate-300">Receipts</h3>
+                  <WindowedList
+                    items={filteredReceipts}
+                    rowHeight={44}
+                    height={300}
+                    emptyLabel="No receipts"
+                    keyFor={(row: Dict, idx) => `${row.path || 'receipt'}-${idx}`}
+                    renderRow={(row: Dict) => (
+                      <div className="mt-1 rounded-md border border-slate-700/60 bg-slate-900/50 px-2 py-1 text-[11px]">
+                        <div className="font-semibold text-slate-100">{String(row.kind || 'artifact')}</div>
+                        <div className="mono text-slate-300">{shortHash(row.path || '', 48)}</div>
+                      </div>
+                    )}
+                  />
+                </article>
+
+                <article className="tile">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-slate-300">Logs</h3>
+                  <WindowedList
+                    items={filteredLogs}
+                    rowHeight={56}
+                    height={300}
+                    emptyLabel="No logs"
+                    keyFor={(row: Dict, idx) => `${row.source || 'log'}-${idx}`}
+                    renderRow={(row: Dict) => (
+                      <div className="mt-1 rounded-md border border-slate-700/60 bg-slate-900/50 px-2 py-1 text-[11px]">
+                        <div className="mono text-slate-300">{shortHash(row.ts || 'n/a', 24)} · {shortHash(row.source || '', 24)}</div>
+                        <div className="text-slate-100">{shortHash(row.message || '', 70)}</div>
+                      </div>
+                    )}
+                  />
+                </article>
+
+                <article className="tile">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-slate-300">Memory</h3>
+                  <WindowedList
+                    items={filteredMemories}
+                    rowHeight={50}
+                    height={300}
+                    emptyLabel="No memory entries"
+                    keyFor={(row: Dict, idx) => `${row.path || 'memory'}-${idx}`}
+                    renderRow={(row: Dict) => (
+                      <div className="mt-1 rounded-md border border-slate-700/60 bg-slate-900/50 px-2 py-1 text-[11px]">
+                        <div className="text-slate-200">{String(row.scope || 'state')} · {String(row.kind || 'snapshot')}</div>
+                        <div className="mono text-slate-300">{shortHash(row.path || '', 48)}</div>
+                      </div>
+                    )}
+                  />
+                </article>
+              </div>
+            </SectionCard>
+
+            <SectionCard id="telemetry" title="Telemetry" subtitle="APM and channel checks with visual status at-a-glance.">
+              <div className="grid gap-3 xl:grid-cols-[1.2fr_.8fr]">
+                <article className="tile">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-slate-300">APM metrics</h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {apmRows.slice(0, 12).map((row: Dict) => (
+                      <div key={String(row.name || 'metric')} className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
+                        <div className="text-xs font-semibold text-slate-100">{String(row.name || 'metric')}</div>
+                        <div className="mt-1 text-[11px] text-slate-300">Value {fmtNumber(row.value)}</div>
+                        <div className="text-[11px] text-slate-300">Target {String(row.target || 'n/a')}</div>
+                        <div className="mt-1"><StatusPill status={row.status || 'unknown'} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+                <article className="tile">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-slate-300">Channel checks</h3>
+                  <div className="max-h-[340px] overflow-auto space-y-2">
+                    {checks.slice(0, 14).map(([name, row]: [string, any]) => (
+                      <div key={name} className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-semibold text-slate-100">{name}</div>
+                          <StatusPill status={row?.status || 'unknown'} />
+                        </div>
+                        <div className="mono mt-1 text-[11px] text-slate-300">{String(row?.source || 'n/a')}</div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
+            </SectionCard>
+
+            <SectionCard id="governance" title="Governance Controls" subtitle="Model, role, and skill actions with strict lane routing.">
+              <div className="grid gap-3 xl:grid-cols-3">
+                <form
+                  className="tile space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    runAction('app.switchProvider', { provider, model });
                   }}
                 >
-                  Assimilate
-                </button>
+                  <h3 className="font-semibold">Provider / Model</h3>
+                  <div>
+                    <label className="text-xs text-slate-300">Provider</label>
+                    <input className="input" value={provider} onChange={(e) => setProvider(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-300">Model</label>
+                    <input className="input" value={model} onChange={(e) => setModel(e.target.value)} />
+                  </div>
+                  <button className="btn">Switch</button>
+                </form>
+
+                <form
+                  className="tile space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    runAction('collab.launchRole', { team, role, shadow });
+                  }}
+                >
+                  <h3 className="font-semibold">Launch Team Role</h3>
+                  <div>
+                    <label className="text-xs text-slate-300">Team</label>
+                    <input className="input" value={team} onChange={(e) => setTeam(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-300">Role</label>
+                    <input className="input" value={role} onChange={(e) => setRole(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-300">Shadow</label>
+                    <input className="input" value={shadow} onChange={(e) => setShadow(e.target.value)} />
+                  </div>
+                  <button className="btn">Launch</button>
+                </form>
+
+                <form
+                  className="tile space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!skill.trim()) return;
+                    runAction('skills.run', { skill, input: skillInput });
+                  }}
+                >
+                  <h3 className="font-semibold">Run Skill</h3>
+                  <div>
+                    <label className="text-xs text-slate-300">Skill</label>
+                    <input className="input" value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="compat_skill" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-300">Input</label>
+                    <input className="input" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} placeholder="optional payload" />
+                  </div>
+                  <button className="btn">Run</button>
+                </form>
               </div>
-            </div>
-            {error ? <div className="mt-2 rounded-md bg-rose-500/20 px-2 py-1 text-xs text-rose-100">{error}</div> : null}
-          </header>
 
-          <section id="overview" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Overview</h3>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="kpi-card"><div className="kpi-label">Active Agents</div><div className="kpi-value">{fmtNumber(kpis.agents)}</div></div>
-              <div className="kpi-card"><div className="kpi-label">Open Alerts</div><div className="kpi-value">{fmtNumber(kpis.alerts)}</div></div>
-              <div className="kpi-card"><div className="kpi-label">Daily Token Burn</div><div className="kpi-value">{fmtNumber(kpis.burn)}</div></div>
-              <div className="kpi-card"><div className="kpi-label">Session Latency</div><div className="kpi-value">{kpis.latency == null ? 'n/a' : `${fmtNumber(kpis.latency)} ms`}</div></div>
-            </div>
-            <div className="mt-2 grid gap-1 text-xs text-slate-300">
-              <div>Updated: <span className="font-mono">{snapshot?.ts || 'n/a'}</span></div>
-              <div>Workspace: <span className="font-mono">{snapshot?.metadata?.root || 'n/a'}</span></div>
-            </div>
-          </section>
-
-          <section id="chat" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Chat Interface</h3>
-            <p className="mb-2 text-xs text-slate-300">
-              chat-ui session:
-              <span className="ml-1 font-mono">{String(snapshot?.app?.session_id || 'chat-ui-default')}</span>
-            </p>
-            <div className="max-h-[340px] overflow-auto rounded-xl border border-sky-200/20 bg-slate-950/55 p-3">
-              {chatTurns.length === 0 ? (
-                <div className="text-xs text-slate-400">No turns yet. Send a message to start.</div>
-              ) : (
-                <div className="space-y-3">
-                  {chatTurns.slice(-30).map((turn: Dict, idx: number) => (
-                    <article key={`${turn.turn_id || 'turn'}-${idx}`} className="space-y-1 rounded-lg border border-slate-700/60 bg-slate-900/45 p-2">
-                      <div className="text-[11px] text-slate-400">
-                        {String(turn.ts || 'n/a')} · {String(turn.provider || 'unknown')}/{String(turn.model || 'n/a')}
-                      </div>
-                      <div className="rounded bg-slate-800/70 px-2 py-1 text-xs text-sky-100">
-                        <span className="mr-2 font-semibold text-sky-300">User</span>
-                        {String(turn.user || '')}
-                      </div>
-                      <div className="rounded bg-slate-800/70 px-2 py-1 text-xs text-emerald-100">
-                        <span className="mr-2 font-semibold text-emerald-300">Assistant</span>
-                        {String(turn.assistant || '')}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
-            <form
-              className="mt-2 flex gap-2"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const text = chatInput.trim();
-                if (!text) return;
-                const response = await runAction('app.chat', { input: text });
-                const turn = response && response.lane && response.lane.turn ? response.lane.turn : null;
-                if (turn && typeof turn === 'object') {
-                  setChatTurns((prev) => [...prev, turn]);
-                }
-                setChatInput('');
-              }}
-            >
-              <input
-                className="input"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Message chat-ui..."
-              />
-              <button className="btn" type="submit">
-                Send
-              </button>
-            </form>
-          </section>
-
-          <section id="agents" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Agents + Swarms</h3>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-              <article className="tile">
-                <h4 className="font-semibold">chat-ui</h4>
-                <div className="mt-1 text-xs text-slate-300">Provider: {snapshot?.app?.settings?.provider || 'n/a'}</div>
-                <div className="text-xs text-slate-300">Model: {snapshot?.app?.settings?.model || 'n/a'}</div>
-                <div className="text-xs text-slate-300">Turns: {fmtNumber(snapshot?.app?.turn_count || 0)}</div>
-              </article>
-              {agents.map((row: Dict, idx: number) => (
-                <article key={`${row.shadow || 'shadow'}-${idx}`} className="tile">
-                  <h4 className="font-semibold">{String(row.shadow || 'shadow')}</h4>
-                  <div className="mt-1 text-xs text-slate-300">Role: {String(row.role || 'unknown')}</div>
-                  <div className="mt-1"><StatusChip status={row.status || 'unknown'} /></div>
-                  <div className="mt-1 text-xs text-slate-300">{String(row.activated_at || 'n/a')}</div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section id="activity" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Activity Graph</h3>
-            <ActivityGraph snapshot={snapshot || { ts: '' }} />
-            <div className="mt-2 overflow-auto">
-              <table className="table-auto min-w-full text-left text-xs">
-                <thead className="text-slate-300">
-                  <tr><th className="px-2 py-1">Shadow</th><th className="px-2 py-1">Job</th><th className="px-2 py-1">Hash</th><th className="px-2 py-1">Timestamp</th></tr>
-                </thead>
-                <tbody>
-                  {handoffs.slice(0, 10).map((row: Dict, idx: number) => (
-                    <tr key={`${row.handoff_hash || idx}`} className="border-t border-slate-700/50">
-                      <td className="px-2 py-1">{String(row.shadow || 'shadow')}</td>
-                      <td className="px-2 py-1">{String(row.job_id || 'n/a')}</td>
-                      <td className="px-2 py-1 font-mono">{shortHash(row.handoff_hash)}</td>
-                      <td className="px-2 py-1">{String(row.kickoff_ts || 'n/a')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="memory" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Memory + Knowledge</h3>
-            <div className="overflow-auto">
-              <table className="table-auto min-w-full text-left text-xs">
-                <thead className="text-slate-300">
-                  <tr><th className="px-2 py-1">Scope</th><th className="px-2 py-1">Kind</th><th className="px-2 py-1">Updated</th><th className="px-2 py-1">Path</th></tr>
-                </thead>
-                <tbody>
-                  {memories.slice(0, 20).map((row: Dict, idx: number) => (
-                    <tr key={`${row.path || idx}`} className="border-t border-slate-700/50">
-                      <td className="px-2 py-1">{String(row.scope || 'state')}</td>
-                      <td className="px-2 py-1">{String(row.kind || 'snapshot')}</td>
-                      <td className="px-2 py-1">{String(row.mtime || 'n/a')}</td>
-                      <td className="px-2 py-1 font-mono">{String(row.path || '')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="tools" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Tools + Marketplace</h3>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-              <article className="tile">
-                <h4 className="font-semibold">Skills Plane</h4>
-                <div className="mt-1 text-xs text-slate-300">Total: {fmtNumber(snapshot?.skills?.metrics?.skills_total)}</div>
-                <div className="text-xs text-slate-300">Installed: {fmtNumber(snapshot?.skills?.metrics?.skills_installed)}</div>
-                <div className="text-xs text-slate-300">Runs Window: {fmtNumber(snapshot?.skills?.metrics?.runs_window)}</div>
-              </article>
-              {hotspots.slice(0, 5).map((row: Dict, idx: number) => (
-                <article key={`${row.skill || row.name || idx}`} className="tile">
-                  <h4 className="font-semibold">{String(row.skill || row.name || 'skill')}</h4>
-                  <div className="mt-1 text-xs text-slate-300">Runs: {fmtNumber(row.runs)}</div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section id="channels" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Channels + Delivery</h3>
-            <div className="overflow-auto">
-              <table className="table-auto min-w-full text-left text-xs">
-                <thead className="text-slate-300">
-                  <tr><th className="px-2 py-1">Check</th><th className="px-2 py-1">Status</th><th className="px-2 py-1">Source</th></tr>
-                </thead>
-                <tbody>
-                  {checks.slice(0, 12).map(([name, row]: [string, any]) => (
-                    <tr key={name} className="border-t border-slate-700/50">
-                      <td className="px-2 py-1">{name}</td>
-                      <td className="px-2 py-1"><StatusChip status={row?.status || 'unknown'} /></td>
-                      <td className="px-2 py-1 font-mono">{String(row?.source || 'n/a')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="receipts" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Receipts + Audit Explorer</h3>
-            <div className="overflow-auto">
-              <table className="table-auto min-w-full text-left text-xs">
-                <thead className="text-slate-300">
-                  <tr><th className="px-2 py-1">Kind</th><th className="px-2 py-1">Updated</th><th className="px-2 py-1">Bytes</th><th className="px-2 py-1">Path</th></tr>
-                </thead>
-                <tbody>
-                  {receipts.slice(0, 20).map((row: Dict, idx: number) => (
-                    <tr key={`${row.path || idx}`} className="border-t border-slate-700/50">
-                      <td className="px-2 py-1">{String(row.kind || 'artifact')}</td>
-                      <td className="px-2 py-1">{String(row.mtime || 'n/a')}</td>
-                      <td className="px-2 py-1">{fmtNumber(row.size_bytes)}</td>
-                      <td className="px-2 py-1 font-mono">{String(row.path || '')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="logs" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Logs</h3>
-            <div className="overflow-auto">
-              <table className="table-auto min-w-full text-left text-xs">
-                <thead className="text-slate-300">
-                  <tr><th className="px-2 py-1">Timestamp</th><th className="px-2 py-1">Source</th><th className="px-2 py-1">Message</th></tr>
-                </thead>
-                <tbody>
-                  {logs.slice(0, 24).map((row: Dict, idx: number) => (
-                    <tr key={`${row.source || 'log'}-${idx}`} className="border-t border-slate-700/50">
-                      <td className="px-2 py-1">{String(row.ts || 'n/a')}</td>
-                      <td className="px-2 py-1 font-mono">{String(row.source || 'n/a')}</td>
-                      <td className="px-2 py-1">{String(row.message || '')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="apm" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">APM + Alerts</h3>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-              {apmRows.slice(0, 12).map((row: Dict) => (
-                <article key={String(row.name || 'metric')} className="tile">
-                  <h4 className="font-semibold">{String(row.name || 'metric')}</h4>
-                  <div className="mt-1 text-xs text-slate-300">Value: {fmtNumber(row.value)}</div>
-                  <div className="text-xs text-slate-300">Target: {String(row.target || 'n/a')}</div>
-                  <div className="mt-1"><StatusChip status={row.status || 'unknown'} /></div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section id="settings" className="glass rounded-2xl border border-sky-200/20 p-3">
-            <h3 className="mb-2 text-sm font-semibold">Settings + Governance</h3>
-            <div className="grid gap-2 xl:grid-cols-3">
-              <form
-                className="tile space-y-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  runAction('app.switchProvider', { provider, model });
-                }}
-              >
-                <h4 className="font-semibold">Provider / Model</h4>
-                <div>
-                  <label className="text-xs text-slate-300">Provider</label>
-                  <input className="input" value={provider} onChange={(e) => setProvider(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-300">Model</label>
-                  <input className="input" value={model} onChange={(e) => setModel(e.target.value)} />
-                </div>
-                <button className="btn">Switch Provider</button>
-              </form>
-
-              <form
-                className="tile space-y-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  runAction('collab.launchRole', { team, role, shadow });
-                }}
-              >
-                <h4 className="font-semibold">Launch Team Role</h4>
-                <div>
-                  <label className="text-xs text-slate-300">Team</label>
-                  <input className="input" value={team} onChange={(e) => setTeam(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-300">Role</label>
-                  <input className="input" value={role} onChange={(e) => setRole(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-300">Shadow</label>
-                  <input className="input" value={shadow} onChange={(e) => setShadow(e.target.value)} />
-                </div>
-                <button className="btn">Launch Role</button>
-              </form>
-
-              <form
-                className="tile space-y-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!skill.trim()) return;
-                  runAction('skills.run', { skill, input: skillInput });
-                }}
-              >
-                <h4 className="font-semibold">Run Skill</h4>
-                <div>
-                  <label className="text-xs text-slate-300">Skill</label>
-                  <input className="input" value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="compat_skill" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-300">Input</label>
-                  <input className="input" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} placeholder="optional payload" />
-                </div>
-                <button className="btn">Run Skill</button>
-              </form>
-            </div>
-          </section>
-        </main>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {hotspots.slice(0, 8).map((row: Dict, idx: number) => (
+                  <article key={`${row.skill || row.name || idx}`} className="tile">
+                    <h4 className="font-semibold">{String(row.skill || row.name || 'skill')}</h4>
+                    <div className="mt-1 text-xs text-slate-300">Runs {fmtNumber(row.runs)}</div>
+                  </article>
+                ))}
+              </div>
+            </SectionCard>
+          </main>
+        </div>
       </div>
     </div>
   );

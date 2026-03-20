@@ -1,6 +1,6 @@
 # TODO (Maintenance + Policy + SRS Execution Order)
 
-Updated: 2026-03-20 07:45 America/Denver
+Updated: 2026-03-20 08:47 America/Denver
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -292,6 +292,15 @@ Updated: 2026-03-20 07:45 America/Denver
 - Port UI client to WASM-compatible build target and remove Node requirement from operator launch path.
 - Preserve all current receipted actions (provider switch, role launch, skill run, benchmark/assimilate trigger) with equal or stronger fail-closed behavior.
 - Publish before/after operator runbook documenting Node-hosted fallback and Rust/WASM primary path.
+
+32. `P1-DASHBOARD-UX-002` Complete dashboard productization pass (onboarding, section-level lazy loading, local-bundled frontend deps). `STATUS: QUEUED`
+- Context:
+- V6-DASHBOARD base surface is now functional and receipted, but follow-through is still required to hit premium UX targets under constrained/bad network/browser conditions.
+- Exit criteria:
+- Add first-run onboarding tour + contextual affordances for core sections.
+- Add section-level lazy loading/code splitting for heavyweight panels.
+- Remove external CDN dependency path by shipping local bundled frontend modules/CSS with equivalent behavior.
+- Publish before/after interaction latency + scroll-jank evidence in benchmark report.
 
 ## Executed in this pass
 - Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
