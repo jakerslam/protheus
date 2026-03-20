@@ -238,7 +238,8 @@ fn runtime_lane_targets(contract: &Value) -> Vec<DispatchTarget> {
         .cloned()
         .unwrap_or_default();
     for row in &deliverables {
-        if row.get("type").and_then(Value::as_str) != Some("runtime_lane") {
+        let dtype = row.get("type").and_then(Value::as_str).unwrap_or_default();
+        if !matches!(dtype, "runtime_lane" | "core_authority") {
             continue;
         }
         let Some(path) = row.get("path").and_then(Value::as_str) else {
@@ -705,14 +706,16 @@ mod tests {
             "deliverables": [
                 {"type":"runtime_lane","path":"core/layer0/ops/src/canyon_plane.rs"},
                 {"type":"runtime_lane","path":"core/layer0/ops/src/skills_plane.rs"},
+                {"type":"core_authority","path":"core/layer0/ops/src/security_plane.rs"},
                 {"type":"runtime_lane","path":"core/layer0/ops/src/unknown_plane.rs"},
                 {"type":"runtime_lane","path":"core/layer0/ops/src/canyon_plane.rs"}
             ]
         });
         let targets = runtime_lane_targets(&contract);
-        assert_eq!(targets.len(), 2);
+        assert_eq!(targets.len(), 3);
         assert!(targets.iter().any(|row| row.plane == "canyon-plane"));
         assert!(targets.iter().any(|row| row.plane == "skills-plane"));
+        assert!(targets.iter().any(|row| row.plane == "security-plane"));
     }
 
     #[test]
