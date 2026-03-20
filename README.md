@@ -362,6 +362,8 @@ The Python package is intentionally thin and delegates all kernel authority to R
 | `npm run test:ci` | Deterministic CI-oriented test suite |
 | `npm run lint` | Type/system lint gate |
 | `npm run typecheck:systems` | Typecheck `client/runtime/systems/` lanes |
+| `npm run dashboard:serve` | Launch unified dashboard web UI on localhost |
+| `npm run dashboard:snapshot` | Emit one dashboard snapshot receipt as JSON |
 | `npm run guard:merge` | Merge guard for core quality/security gates |
 | `npm run ops:backlog:registry:sync` | Regenerate backlog registry/views from source backlog |
 | `npm run ops:backlog:registry:check` | Validate generated backlog artifacts are in sync |
@@ -392,7 +394,9 @@ Run `infring list` (or `infring --help`) for a categorized command index.
 - `infring demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
 - `infring version` and `infring update` provide version + update channel information.
 - Internal operator commands:
+  - `infring dashboard` -> launch unified web dashboard (localhost)
   - `infring status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)
+  - `infring status --dashboard --web` -> explicit web launch path for dashboard surface
   - `infring debug` -> parity/security diagnostics + recent log summary
   - `infring shadow <list|arise|pause|review|status>` -> direct shadow-army operations
   - `infring diagram ...` -> Mermaid diagram generator

@@ -6,6 +6,7 @@
 const COMMANDS = [
   { name: 'help', desc: 'Show CLI help and command list.' },
   { name: 'status', desc: 'Show daemon/control-plane status.' },
+  { name: 'dashboard', desc: 'Launch unified dashboard web UI (localhost).' },
   { name: 'alpha-check', desc: 'Run alpha readiness checks.' },
   { name: 'session <status|register|resume|send|list>', desc: 'Manage command-center sessions.' },
   { name: 'orchestration', desc: 'Rust-core orchestration invoke surface (coordinator/scratchpad/checkpoint).' },
