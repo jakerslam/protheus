@@ -8,9 +8,14 @@ const http = require('node:http');
 const { spawnSync } = require('node:child_process');
 const ts = require('typescript');
 const { WebSocketServer } = require('ws');
-const { ROOT, resolveBinary } = require('../ops/run_protheus_ops.js');
+const { ROOT } = require('../ops/run_protheus_ops.js');
 
 const DASHBOARD_DIR = __dirname;
+const OPS_BRIDGE_PATH = path.resolve(ROOT, 'client/runtime/systems/ops/run_protheus_ops.js');
+const OPENCLAW_FORK_STATIC_DIR = path.resolve(
+  ROOT,
+  'artifacts/openfang-analysis/openfang-repo/crates/openfang-api/static'
+);
 const CLIENT_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_client.tsx');
 const FALLBACK_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_fallback.ts');
 const CSS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard.css');
@@ -24,6 +29,7 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
 const DEFAULT_REFRESH_MS = 2000;
+const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
 
 function nowIso() {
   return new Date().toISOString();
@@ -52,6 +58,134 @@ function readText(filePath, fallback = '') {
   } catch {
     return fallback;
   }
+}
+
+function fileExists(filePath) {
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+function hasOpenclawForkUi() {
+  return (
+    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_head.html')) &&
+    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_body.html'))
+  );
+}
+
+function rebrandOpenclawText(text) {
+  return String(text || '')
+    .replace(/\bOpenFang\b/g, 'Infring')
+    .replace(/\bOPENFANG\b/g, 'INFRING')
+    .replace(/\bopenfang\b/g, 'infring')
+    .replace(/\bOpenClaw\b/g, 'Infring')
+    .replace(/\bOPENCLAW\b/g, 'INFRING')
+    .replace(/\bopenclaw\b/g, 'infring');
+}
+
+function buildOpenclawForkHtml() {
+  const head = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_head.html'), '');
+  const body = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_body.html'), '');
+  if (!head || !body) return '';
+  const cssTheme = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/theme.css'), '');
+  const cssLayout = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/layout.css'), '');
+  const cssComponents = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/components.css'), '');
+  const cssGithubDark = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/github-dark.min.css'), '');
+  const vendorMarked = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.js'), '');
+  const vendorHighlight = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.js'), '');
+  const vendorChart = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.js'), '');
+  const vendorAlpine = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.js'), '');
+  const apiJs = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'js/api.js'), '');
+  const appJs = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'js/app.js'), '');
+  const pageScripts = [
+    'overview',
+    'chat',
+    'agents',
+    'workflows',
+    'workflow-builder',
+    'channels',
+    'skills',
+    'hands',
+    'scheduler',
+    'settings',
+    'usage',
+    'sessions',
+    'logs',
+    'wizard',
+    'approvals',
+    'comms',
+    'runtime',
+  ]
+    .map((name) => readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, `js/pages/${name}.js`), ''))
+    .filter(Boolean)
+    .join('\n');
+
+  const html = [
+    head,
+    '<style>',
+    cssTheme,
+    cssLayout,
+    cssComponents,
+    cssGithubDark,
+    '</style>',
+    body,
+    '<script>',
+    vendorMarked,
+    '</script>',
+    '<script>',
+    vendorHighlight,
+    '</script>',
+    '<script>',
+    vendorChart,
+    '</script>',
+    '<script>',
+    apiJs,
+    appJs,
+    pageScripts,
+    '</script>',
+    '<script>',
+    vendorAlpine,
+    '</script>',
+    '</body></html>',
+  ].join('\n');
+  return rebrandOpenclawText(html);
+}
+
+function contentTypeForFile(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.html') return 'text/html; charset=utf-8';
+  if (ext === '.css') return 'text/css; charset=utf-8';
+  if (ext === '.js') return 'text/javascript; charset=utf-8';
+  if (ext === '.json') return 'application/json; charset=utf-8';
+  if (ext === '.ico') return 'image/x-icon';
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
+  if (ext === '.woff') return 'font/woff';
+  if (ext === '.woff2') return 'font/woff2';
+  return 'application/octet-stream';
+}
+
+function readOpenclawForkAsset(pathname) {
+  const requestPath = pathname === '/' || pathname === '/dashboard' ? '/index_body.html' : pathname;
+  const relative = requestPath.replace(/^\/+/, '');
+  const resolved = path.resolve(OPENCLAW_FORK_STATIC_DIR, relative);
+  if (!resolved.startsWith(OPENCLAW_FORK_STATIC_DIR)) return null;
+  if (!fileExists(resolved)) return null;
+  const ext = path.extname(resolved).toLowerCase();
+  const contentType = contentTypeForFile(resolved);
+  if (TEXT_EXTENSIONS.has(ext)) {
+    return {
+      body: rebrandOpenclawText(readText(resolved, '')),
+      contentType,
+    };
+  }
+  return {
+    body: fs.readFileSync(resolved),
+    contentType,
+  };
 }
 
 function parseJsonLoose(raw) {
@@ -125,14 +259,7 @@ function runLane(argv) {
     env,
     maxBuffer: 12 * 1024 * 1024,
   };
-  const bin = resolveBinary();
-  const proc = bin
-    ? spawnSync(bin, argv, opts)
-    : spawnSync(
-        'cargo',
-        ['run', '--quiet', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--', ...argv],
-        opts
-      );
+  const proc = spawnSync(process.execPath, [OPS_BRIDGE_PATH, ...argv], opts);
 
   const status = typeof proc.status === 'number' ? proc.status : 1;
   const stdout = typeof proc.stdout === 'string' ? proc.stdout : '';
@@ -444,6 +571,24 @@ function runAction(action, payload) {
       },
     };
   }
+  if (normalizedAction === 'dashboard.ui.switchControlsTab') {
+    const tab = cleanText(data.tab || 'swarm', 40) || 'swarm';
+    const ts = nowIso();
+    const eventPayload = { event: 'switch_controls_tab', tab, ts };
+    return {
+      ok: true,
+      status: 0,
+      argv: ['dashboard.ui.switchControlsTab'],
+      payload: {
+        ok: true,
+        type: 'infring_dashboard_ui_event',
+        event: eventPayload.event,
+        tab: eventPayload.tab,
+        ts: eventPayload.ts,
+        receipt_hash: sha256(JSON.stringify(eventPayload)),
+      },
+    };
+  }
   if (normalizedAction === 'app.switchProvider') {
     const provider = cleanText(data.provider || 'openai', 60) || 'openai';
     const model = cleanText(data.model || 'gpt-5', 100) || 'gpt-5';
@@ -521,6 +666,42 @@ function runAction(action, payload) {
   };
 }
 
+function compatAgentsFromSnapshot(snapshot) {
+  const rows =
+    snapshot &&
+    snapshot.collab &&
+    snapshot.collab.dashboard &&
+    Array.isArray(snapshot.collab.dashboard.agents)
+      ? snapshot.collab.dashboard.agents
+      : [];
+  const model =
+    snapshot && snapshot.app && snapshot.app.settings && snapshot.app.settings.model
+      ? String(snapshot.app.settings.model)
+      : 'gpt-5';
+  return rows.map((row, idx) => {
+    const id = cleanText(row && row.shadow ? row.shadow : `agent-${idx + 1}`, 120) || `agent-${idx + 1}`;
+    const status = cleanText(row && row.status ? row.status : 'running', 40) || 'running';
+    const state =
+      status === 'paused' || status === 'stopped' ? status : status === 'error' ? 'error' : 'running';
+    return {
+      id,
+      name: id,
+      state,
+      model_name: model,
+      role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
+      identity: { emoji: '🤖', archetype: 'assistant' },
+      capabilities: [],
+    };
+  });
+}
+
+function latestAssistantFromSnapshot(snapshot) {
+  const turns = snapshot && snapshot.app && Array.isArray(snapshot.app.turns) ? snapshot.app.turns : [];
+  if (turns.length === 0) return '';
+  const last = turns[turns.length - 1] || {};
+  return cleanText(last.assistant || last.response || last.output || '', 2000);
+}
+
 function htmlShell() {
   return `<!doctype html>
 <html lang="en">
@@ -529,10 +710,6 @@ function htmlShell() {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>InfRing Unified Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/reactflow@11.11.4/dist/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/infring_dashboard.css">
 </head>
 <body>
@@ -685,7 +862,8 @@ function bodyJson(req) {
 }
 
 function runServe(flags) {
-  const html = htmlShell();
+  const forkUiEnabled = hasOpenclawForkUi();
+  const html = forkUiEnabled ? buildOpenclawForkHtml() : htmlShell();
   const css = readText(CSS_PATH, '');
   const clientJs = transpileClientTs();
   const fallbackJs = transpileFallbackTs();
@@ -701,6 +879,13 @@ function runServe(flags) {
       if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
         sendText(res, 200, html, 'text/html; charset=utf-8');
         return;
+      }
+      if (forkUiEnabled && req.method === 'GET') {
+        const forkAsset = readOpenclawForkAsset(pathname);
+        if (forkAsset) {
+          sendText(res, 200, forkAsset.body, forkAsset.contentType);
+          return;
+        }
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard.css') {
         sendText(res, 200, css, 'text/css; charset=utf-8');
@@ -719,6 +904,121 @@ function runServe(flags) {
         writeSnapshotReceipt(latestSnapshot);
         sendJson(res, 200, latestSnapshot);
         return;
+      }
+      if (req.method === 'GET' && pathname === '/api/status') {
+        const agents = compatAgentsFromSnapshot(latestSnapshot);
+        sendJson(res, 200, {
+          ok: true,
+          version: 'infring-fork-ui',
+          agent_count: agents.length,
+          connected: true,
+          uptime_sec: 0,
+          ws: true,
+        });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/auth/check') {
+        sendJson(res, 200, {
+          ok: true,
+          mode: 'none',
+          user: 'operator',
+        });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/config') {
+        sendJson(res, 200, {
+          ok: true,
+          api_key: 'set',
+          provider: latestSnapshot && latestSnapshot.app && latestSnapshot.app.settings
+            ? latestSnapshot.app.settings.provider
+            : 'openai',
+          model: latestSnapshot && latestSnapshot.app && latestSnapshot.app.settings
+            ? latestSnapshot.app.settings.model
+            : 'gpt-5',
+        });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/agents') {
+        sendJson(res, 200, compatAgentsFromSnapshot(latestSnapshot));
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/agents') {
+        const payload = await bodyJson(req);
+        const requestedName = cleanText(payload && payload.name ? payload.name : '', 100);
+        const role = cleanText(payload && payload.role ? payload.role : 'analyst', 60) || 'analyst';
+        const shadow = requestedName || `ops-${role}-${Date.now()}`;
+        const laneResult = runAction('collab.launchRole', { team: flags.team || DEFAULT_TEAM, role, shadow });
+        writeActionReceipt('collab.launchRole', { team: flags.team || DEFAULT_TEAM, role, shadow }, laneResult);
+        latestSnapshot = buildSnapshot(flags);
+        writeSnapshotReceipt(latestSnapshot);
+        const created = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === shadow) || {
+          id: shadow,
+          name: shadow,
+          state: laneResult.ok ? 'running' : 'error',
+          model_name:
+            latestSnapshot && latestSnapshot.app && latestSnapshot.app.settings
+              ? latestSnapshot.app.settings.model
+              : 'gpt-5',
+        };
+        sendJson(res, laneResult.ok ? 200 : 400, created);
+        return;
+      }
+      if (pathname.startsWith('/api/agents/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const agentId = cleanText(parts[2] || '', 140);
+        if (req.method === 'GET' && parts.length === 3) {
+          const agent = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId);
+          if (!agent) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          sendJson(res, 200, agent);
+          return;
+        }
+        if (req.method === 'DELETE' && parts.length === 3) {
+          sendJson(res, 200, { ok: true, id: agentId, type: 'agent_delete_stub' });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'message') {
+          const payload = await bodyJson(req);
+          const input = cleanText(
+            payload && (payload.input || payload.message || payload.prompt || payload.text)
+              ? payload.input || payload.message || payload.prompt || payload.text
+              : '',
+            4000
+          );
+          if (!input) {
+            sendJson(res, 400, { ok: false, error: 'message_required' });
+            return;
+          }
+          const laneResult = runAction('app.chat', { input });
+          writeActionReceipt('app.chat', { input }, laneResult);
+          latestSnapshot = buildSnapshot(flags);
+          writeSnapshotReceipt(latestSnapshot);
+          const assistant = latestAssistantFromSnapshot(latestSnapshot);
+          sendJson(res, laneResult.ok ? 200 : 400, {
+            ok: !!laneResult.ok,
+            response: assistant,
+            turn: {
+              role: 'agent',
+              text: assistant,
+            },
+          });
+          return;
+        }
+        if (
+          (req.method === 'GET' && parts[3] === 'session') ||
+          (req.method === 'POST' && parts[3] === 'session' && (parts[4] === 'reset' || parts[4] === 'compact')) ||
+          (req.method === 'GET' && parts[3] === 'sessions') ||
+          (req.method === 'POST' && parts[3] === 'sessions') ||
+          (req.method === 'POST' && parts[3] === 'stop') ||
+          (req.method === 'POST' && parts[3] === 'clone') ||
+          (req.method === 'PATCH' && parts[3] === 'identity') ||
+          (req.method === 'PATCH' && parts[3] === 'config')
+        ) {
+          sendJson(res, 200, { ok: true, id: agentId, type: 'infring_openclaw_compat_stub' });
+          return;
+        }
       }
       if (req.method === 'POST' && pathname === '/api/dashboard/action') {
         const payload = await bodyJson(req);
@@ -745,6 +1045,14 @@ function runServe(flags) {
           type: 'infring_dashboard_healthz',
           ts: nowIso(),
           receipt_hash: latestSnapshot.receipt_hash,
+        });
+        return;
+      }
+      if (pathname.startsWith('/api/')) {
+        sendJson(res, 200, {
+          ok: true,
+          type: 'infring_openclaw_compat_stub',
+          path: pathname,
         });
         return;
       }
