@@ -164,6 +164,7 @@ fn print_node_free_command_list(mode: &str) {
         println!("Command list (Node-free fallback):");
     }
     for cmd in [
+        "dashboard",
         "status",
         "session <status|register|resume|send|list>",
         "rag <status|search|chat|memory>",
@@ -831,6 +832,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
 pub fn usage() {
     println!("Usage: infring <command> [flags]");
     println!("Try:");
+    println!("  infring dashboard");
     println!("  infring list");
     println!("  infring --help");
     println!("  infring setup");
@@ -1030,6 +1032,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             args: std::iter::once("--mode=help".to_string())
                 .chain(rest)
                 .collect(),
+            forward_stdin: false,
+        },
+        "dashboard" => Route {
+            script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js".to_string(),
+            args: std::iter::once("--web".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "status" => {
