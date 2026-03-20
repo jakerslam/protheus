@@ -14,7 +14,7 @@ const DASHBOARD_DIR = __dirname;
 const OPS_BRIDGE_PATH = path.resolve(ROOT, 'client/runtime/systems/ops/run_protheus_ops.js');
 const OPENCLAW_FORK_STATIC_DIR = path.resolve(
   ROOT,
-  'artifacts/openfang-analysis/openfang-repo/crates/openfang-api/static'
+  'client/runtime/systems/ui/openclaw_static'
 );
 const CLIENT_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_client.tsx');
 const FALLBACK_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_fallback.ts');
