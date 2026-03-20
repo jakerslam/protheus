@@ -24,6 +24,7 @@ type SnapshotEnvelope = {
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'chat', label: 'Chat' },
   { id: 'agents', label: 'Agents + Swarms' },
   { id: 'activity', label: 'Activity Graph' },
   { id: 'memory', label: 'Memory' },
@@ -291,6 +292,8 @@ function App() {
   const [shadow, setShadow] = useState('ops-analyst');
   const [skill, setSkill] = useState('');
   const [skillInput, setSkillInput] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatTurns, setChatTurns] = useState<Dict[]>([]);
 
   useEffect(() => {
     if (!snapshot?.app?.settings) return;
@@ -298,6 +301,13 @@ function App() {
     setProvider(String(settings.provider || 'openai'));
     setModel(String(settings.model || 'gpt-5'));
   }, [snapshot?.app?.settings]);
+
+  useEffect(() => {
+    const turns = Array.isArray(snapshot?.app?.turns) ? snapshot.app.turns : [];
+    if (turns.length > 0) {
+      setChatTurns(turns);
+    }
+  }, [snapshot?.app?.turn_count, snapshot?.app?.receipt_hash]);
 
   const kpis = useMemo(() => {
     const health = snapshot?.health || {};
@@ -311,7 +321,7 @@ function App() {
     };
   }, [snapshot]);
 
-  const runAction = async (action: string, payload: Dict) => {
+  const runAction = async (action: string, payload: Dict): Promise<Dict | null> => {
     try {
       setError('');
       const response = await postAction(action, payload);
@@ -321,8 +331,10 @@ function App() {
         const fresh = await fetchSnapshot();
         setSnapshot(fresh);
       }
+      return response;
     } catch (err) {
       setError(String((err as Error).message || err));
+      return null;
     }
   };
 
@@ -414,6 +426,61 @@ function App() {
               <div>Updated: <span className="font-mono">{snapshot?.ts || 'n/a'}</span></div>
               <div>Workspace: <span className="font-mono">{snapshot?.metadata?.root || 'n/a'}</span></div>
             </div>
+          </section>
+
+          <section id="chat" className="glass rounded-2xl border border-sky-200/20 p-3">
+            <h3 className="mb-2 text-sm font-semibold">Chat Interface</h3>
+            <p className="mb-2 text-xs text-slate-300">
+              chat-ui session:
+              <span className="ml-1 font-mono">{String(snapshot?.app?.session_id || 'chat-ui-default')}</span>
+            </p>
+            <div className="max-h-[340px] overflow-auto rounded-xl border border-sky-200/20 bg-slate-950/55 p-3">
+              {chatTurns.length === 0 ? (
+                <div className="text-xs text-slate-400">No turns yet. Send a message to start.</div>
+              ) : (
+                <div className="space-y-3">
+                  {chatTurns.slice(-30).map((turn: Dict, idx: number) => (
+                    <article key={`${turn.turn_id || 'turn'}-${idx}`} className="space-y-1 rounded-lg border border-slate-700/60 bg-slate-900/45 p-2">
+                      <div className="text-[11px] text-slate-400">
+                        {String(turn.ts || 'n/a')} · {String(turn.provider || 'unknown')}/{String(turn.model || 'n/a')}
+                      </div>
+                      <div className="rounded bg-slate-800/70 px-2 py-1 text-xs text-sky-100">
+                        <span className="mr-2 font-semibold text-sky-300">User</span>
+                        {String(turn.user || '')}
+                      </div>
+                      <div className="rounded bg-slate-800/70 px-2 py-1 text-xs text-emerald-100">
+                        <span className="mr-2 font-semibold text-emerald-300">Assistant</span>
+                        {String(turn.assistant || '')}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const text = chatInput.trim();
+                if (!text) return;
+                const response = await runAction('app.chat', { input: text });
+                const turn = response && response.lane && response.lane.turn ? response.lane.turn : null;
+                if (turn && typeof turn === 'object') {
+                  setChatTurns((prev) => [...prev, turn]);
+                }
+                setChatInput('');
+              }}
+            >
+              <input
+                className="input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Message chat-ui..."
+              />
+              <button className="btn" type="submit">
+                Send
+              </button>
+            </form>
           </section>
 
           <section id="agents" className="glass rounded-2xl border border-sky-200/20 p-3">

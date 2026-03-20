@@ -326,7 +326,7 @@ function asMetricRows(healthPayload) {
 function buildSnapshot(opts = {}) {
   const team = cleanText(opts.team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
   const healthLane = runLane(['health-status', 'dashboard']);
-  const appLane = runLane(['app-plane', 'status', '--app=chat-ui']);
+  const appLane = runLane(['app-plane', 'history', '--app=chat-ui']);
   const collabLane = runLane(['collab-plane', 'dashboard', `--team=${team}`]);
   const skillsLane = runLane(['skills-plane', 'dashboard']);
 
@@ -410,6 +410,22 @@ function runAction(action, payload) {
     const provider = cleanText(data.provider || 'openai', 60) || 'openai';
     const model = cleanText(data.model || 'gpt-5', 100) || 'gpt-5';
     return runLane(['app-plane', 'switch-provider', '--app=chat-ui', `--provider=${provider}`, `--model=${model}`]);
+  }
+  if (normalizedAction === 'app.chat') {
+    const input = cleanText(data.input || data.message || '', 2000);
+    if (!input) {
+      return {
+        ok: false,
+        status: 2,
+        argv: ['app-plane', 'run', '--app=chat-ui'],
+        payload: {
+          ok: false,
+          type: 'infring_dashboard_action_error',
+          error: 'chat_input_required',
+        },
+      };
+    }
+    return runLane(['app-plane', 'run', '--app=chat-ui', `--input=${input}`]);
   }
   if (normalizedAction === 'collab.launchRole') {
     const team = cleanText(data.team || DEFAULT_TEAM, 60) || DEFAULT_TEAM;
