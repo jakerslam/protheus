@@ -33,6 +33,24 @@ const SECTIONS = [
   { id: 'governance', label: 'Governance' },
 ];
 
+const TOUR_STEPS = [
+  {
+    title: 'Command Deck',
+    body: 'Start in Command Deck to chat with chat-ui, run top actions, and inspect live session state.',
+    focus: 'command',
+  },
+  {
+    title: 'Fleet + Graph',
+    body: 'Use Agent Fleet and Activity Graph together to trace handoffs and quickly respawn/update shadows.',
+    focus: 'fleet',
+  },
+  {
+    title: 'Explorer + Governance',
+    body: 'Search receipts/logs/memory from Explorer, then apply guarded model/role/skill controls in Governance.',
+    focus: 'explorer',
+  },
+] as const;
+
 function cls(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
@@ -275,6 +293,9 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatTurns, setChatTurns] = useState<Dict[]>([]);
   const [search, setSearch] = useState('');
+  const [focusView, setFocusView] = useState<string>('all');
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
 
   useEffect(() => {
@@ -292,6 +313,17 @@ function App() {
   useEffect(() => {
     const root = document.getElementById('root');
     if (root) root.setAttribute('data-dashboard-hydrated', 'react');
+  }, []);
+
+  useEffect(() => {
+    try {
+      const done = window.localStorage.getItem('infring_dashboard_tour_v1');
+      if (!done) {
+        setTourOpen(true);
+      }
+    } catch {
+      // ignore localStorage failures
+    }
   }, []);
 
   const runAction = async (action: string, payload: Dict): Promise<Dict | null> => {
@@ -396,11 +428,25 @@ function App() {
   }, [handoffs, chatTurns]);
 
   const jumpTo = (id: string) => {
-    const node = document.getElementById(id);
-    if (node) {
-      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFocusView(id);
+    window.setTimeout(() => {
+      const node = document.getElementById(id);
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
+  };
+
+  const show = (id: string): boolean => focusView === 'all' || focusView === id;
+
+  const finishTour = () => {
+    setTourOpen(false);
+    try {
+      window.localStorage.setItem('infring_dashboard_tour_v1', '1');
+    } catch {
+      // ignore localStorage failures
     }
   };
+
+  const stepMeta = TOUR_STEPS[Math.max(0, Math.min(tourStep, TOUR_STEPS.length - 1))];
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
@@ -427,24 +473,35 @@ function App() {
           <aside className="panel h-fit lg:sticky lg:top-[88px]">
             <h2 className="text-xs font-bold uppercase tracking-[.14em] text-slate-200">Navigation</h2>
             <div className="mt-2 space-y-1">
+              <button className={cls('nav-chip', focusView === 'all' && 'nav-chip-active')} onClick={() => setFocusView('all')}>
+                All Surfaces
+              </button>
               {SECTIONS.map((section) => (
-                <button key={section.id} className="nav-chip" onClick={() => jumpTo(section.id)}>
+                <button
+                  key={section.id}
+                  className={cls('nav-chip', focusView === section.id && 'nav-chip-active')}
+                  onClick={() => jumpTo(section.id)}
+                >
                   {section.label}
                 </button>
               ))}
             </div>
             <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-2 text-xs">
               <div className="flex items-center gap-2">
-                <i className={cls('inline-block h-2.5 w-2.5 rounded-full', connected ? iconTone('ok') : iconTone('bad'))} />
+                <i className={cls('inline-block h-2.5 w-2.5 rounded-full', connected ? iconTone('ok') : iconTone('bad'), connected && 'pulse-ok')} />
                 {connected ? 'Realtime stream online' : 'Realtime reconnecting'}
               </div>
               <div className="mono mt-1 text-[11px] text-slate-300">receipt {shortHash(snapshot?.receipt_hash, 24)}</div>
             </div>
+            <button className="btn mt-2 w-full" onClick={() => { setTourStep(0); setTourOpen(true); }}>
+              Show Guided Tour
+            </button>
           </aside>
 
           <main className="space-y-3">
             {error ? <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{error}</div> : null}
 
+            {show('command') ? (
             <SectionCard id="command" title="Command Deck" subtitle="Chat, top-level controls, and immediate action lanes.">
               <div className="grid gap-3 xl:grid-cols-[1.2fr_.8fr]">
                 <article className="tile">
@@ -496,7 +553,9 @@ function App() {
                 </article>
               </div>
             </SectionCard>
+            ) : null}
 
+            {show('fleet') ? (
             <SectionCard id="fleet" title="Agent Fleet" subtitle="Card-first fleet view with direct quick actions.">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 <article className="tile">
@@ -529,7 +588,9 @@ function App() {
                 ))}
               </div>
             </SectionCard>
+            ) : null}
 
+            {show('graph') ? (
             <SectionCard id="graph" title="Activity Graph" subtitle="Live handoff topology and turn edges.">
               <div className="rounded-xl border border-slate-700/60 bg-slate-950/60 p-2">
                 <svg viewBox="0 0 1140 320" className="h-[300px] w-full">
@@ -563,7 +624,9 @@ function App() {
                 </svg>
               </div>
             </SectionCard>
+            ) : null}
 
+            {show('explorer') ? (
             <SectionCard id="explorer" title="Explorer" subtitle="Virtualized receipts, logs, and memory with global filter.">
               <div className="grid gap-3 xl:grid-cols-3">
                 <article className="tile">
@@ -618,7 +681,9 @@ function App() {
                 </article>
               </div>
             </SectionCard>
+            ) : null}
 
+            {show('telemetry') ? (
             <SectionCard id="telemetry" title="Telemetry" subtitle="APM and channel checks with visual status at-a-glance.">
               <div className="grid gap-3 xl:grid-cols-[1.2fr_.8fr]">
                 <article className="tile">
@@ -650,7 +715,9 @@ function App() {
                 </article>
               </div>
             </SectionCard>
+            ) : null}
 
+            {show('governance') ? (
             <SectionCard id="governance" title="Governance Controls" subtitle="Model, role, and skill actions with strict lane routing.">
               <div className="grid gap-3 xl:grid-cols-3">
                 <form
@@ -725,9 +792,53 @@ function App() {
                 ))}
               </div>
             </SectionCard>
+            ) : null}
           </main>
         </div>
       </div>
+      {tourOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-3 md:items-center">
+          <article className="w-full max-w-[640px] rounded-2xl border border-sky-300/40 bg-slate-950/95 p-4 shadow-[0_0_45px_rgba(0,240,255,.24)]">
+            <div className="text-[11px] uppercase tracking-[.14em] text-slate-400">
+              Guided Tour {tourStep + 1} / {TOUR_STEPS.length}
+            </div>
+            <h3 className="mt-1 text-lg font-semibold text-sky-100">{stepMeta.title}</h3>
+            <p className="mt-1 text-sm text-slate-200">{stepMeta.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                className="micro-btn"
+                onClick={() => {
+                  setFocusView(stepMeta.focus);
+                  window.setTimeout(() => jumpTo(stepMeta.focus), 20);
+                }}
+              >
+                Focus This Section
+              </button>
+              <button className="micro-btn" onClick={finishTour}>
+                Skip Tour
+              </button>
+            </div>
+            <div className="mt-4 flex justify-between">
+              <button
+                className="btn"
+                onClick={() => setTourStep((prev) => Math.max(0, prev - 1))}
+                disabled={tourStep === 0}
+              >
+                Back
+              </button>
+              {tourStep < TOUR_STEPS.length - 1 ? (
+                <button className="btn" onClick={() => setTourStep((prev) => Math.min(TOUR_STEPS.length - 1, prev + 1))}>
+                  Next
+                </button>
+              ) : (
+                <button className="btn" onClick={finishTour}>
+                  Finish
+                </button>
+              )}
+            </div>
+          </article>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -48,6 +48,12 @@ body {
   padding: 12px;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(9px);
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.panel:hover {
+  border-color: rgba(77, 226, 197, 0.46);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
 }
 
 .tile {
@@ -55,6 +61,13 @@ body {
   border-radius: 12px;
   background: rgba(16, 29, 55, 0.84);
   padding: 10px;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.tile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(169, 139, 255, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.33);
 }
 
 .kpi-card {
@@ -92,6 +105,12 @@ body {
   transform: translateY(-1px);
   border-color: rgba(77, 226, 197, 0.62);
   background: rgba(31, 74, 84, 0.32);
+}
+
+.nav-chip-active {
+  border-color: rgba(77, 226, 197, 0.72);
+  background: rgba(31, 74, 84, 0.45);
+  box-shadow: 0 0 0 1px rgba(77, 226, 197, 0.3) inset;
 }
 
 .input {
@@ -161,6 +180,22 @@ body {
 
 .mono {
   font-family: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+@keyframes pulse-ok {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+.pulse-ok {
+  animation: pulse-ok 1.4s ease-out infinite;
 }
 
 @media (max-width: 1023px) {
