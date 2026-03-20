@@ -15,7 +15,7 @@ const LANE_ID: &str = "runtime_systems";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops runtime-systems <status|verify|run|build|manifest|bootstrap|package|settle> [--system-id=<id>|--lane-id=<id>] [flags]");
+    println!("  protheus-ops runtime-systems <status|verify|run|build|manifest|roi-sweep|bootstrap|package|settle> [--system-id=<id>|--lane-id=<id>] [flags]");
 }
 
 fn print_json_line(value: &Value) {
@@ -1311,6 +1311,53 @@ fn strict_for(system_id: &str, args: &[String]) -> bool {
     )
 }
 
+fn parse_limit(raw: Option<String>, fallback: usize, max: usize) -> usize {
+    let parsed = raw
+        .as_deref()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(fallback);
+    parsed.clamp(1, max.max(1))
+}
+
+fn family_roi_weight(family: &str) -> i64 {
+    match family {
+        "security_sandbox_redteam" => 130,
+        "f100_assurance" => 125,
+        "swarm_runtime_scaling" => 120,
+        "memory_depth_stack" => 116,
+        "learning_rsi_pipeline" => 112,
+        "automation_mission_stack" => 110,
+        "skills_runtime_pack" => 108,
+        "competitive_execution_moat" => 106,
+        "power_execution" => 104,
+        "organism_parallel_intelligence" => 102,
+        "ecosystem_scale_v11" => 100,
+        "ecosystem_scale_v8" => 95,
+        "swarm_orchestration" => 93,
+        _ => 80,
+    }
+}
+
+fn contract_roi_boost(id: &str) -> i64 {
+    if id.starts_with("V6-SECURITY-") || id.starts_with("V8-SECURITY-") {
+        25
+    } else if id.starts_with("V6-WORKFLOW-") || id.starts_with("V8-SWARM-") {
+        20
+    } else if id.starts_with("V6-MEMORY-") || id.starts_with("V8-MEMORY-") {
+        18
+    } else if id.starts_with("V7-F100-") {
+        16
+    } else if id.starts_with("V10-") || id.starts_with("V11-") {
+        12
+    } else {
+        0
+    }
+}
+
+fn profile_roi_score(profile: RuntimeSystemContractProfile) -> i64 {
+    family_roi_weight(profile.family) + contract_roi_boost(profile.id)
+}
+
 fn manifest_payload() -> Value {
     let profiles = actionable_profiles();
     let mut by_family: BTreeMap<String, usize> = BTreeMap::new();
@@ -1361,6 +1408,100 @@ fn status_payload(root: &Path, system_id: &str, command: &str) -> Value {
     });
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     out
+}
+
+fn roi_sweep_payload(root: &Path, args: &[String]) -> Result<Value, String> {
+    let profiles = actionable_profiles();
+    let limit = parse_limit(
+        lane_utils::parse_flag(args, "limit", true),
+        400,
+        profiles.len(),
+    );
+    let apply = lane_utils::parse_bool(
+        lane_utils::parse_flag(args, "apply", true).as_deref(),
+        true,
+    );
+    let strict = lane_utils::parse_bool(
+        lane_utils::parse_flag(args, "strict", true).as_deref(),
+        true,
+    );
+
+    let mut ranked = profiles
+        .iter()
+        .copied()
+        .map(|profile| (profile_roi_score(profile), profile))
+        .collect::<Vec<(i64, RuntimeSystemContractProfile)>>();
+    ranked.sort_by(|(score_a, profile_a), (score_b, profile_b)| {
+        score_b
+            .cmp(score_a)
+            .then_with(|| profile_a.id.cmp(profile_b.id))
+    });
+
+    let mut executed = Vec::<Value>::new();
+    let mut success = 0u64;
+    let mut failed = 0u64;
+    let mut failed_ids = Vec::<String>::new();
+    for (score, profile) in ranked.into_iter().take(limit) {
+        match execute_contract_lane(root, profile.id, apply, strict) {
+            Ok(result) => {
+                let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                if ok {
+                    success += 1;
+                } else {
+                    failed += 1;
+                    failed_ids.push(profile.id.to_string());
+                }
+                executed.push(json!({
+                    "id": profile.id,
+                    "family": profile.family,
+                    "roi_score": score,
+                    "ok": ok,
+                    "receipt_hash": result.get("receipt_hash").cloned().unwrap_or(Value::Null),
+                    "artifacts_count": result.get("artifacts").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0)
+                }));
+            }
+            Err(err) => {
+                failed += 1;
+                failed_ids.push(profile.id.to_string());
+                executed.push(json!({
+                    "id": profile.id,
+                    "family": profile.family,
+                    "roi_score": score,
+                    "ok": false,
+                    "error": err
+                }));
+            }
+        }
+    }
+
+    let mut out = json!({
+        "ok": failed == 0,
+        "type": "runtime_systems_roi_sweep",
+        "lane": LANE_ID,
+        "apply": apply,
+        "strict": strict,
+        "limit_requested": limit,
+        "selected_count": executed.len(),
+        "total_actionable_contracts": profiles.len(),
+        "success_count": success,
+        "failed_count": failed,
+        "failed_ids": failed_ids,
+        "executed": executed,
+        "claim_evidence": [{
+            "id": "runtime_systems_roi_top_contract_sweep",
+            "claim": "top_ranked_runtime_contracts_execute_with_fail_closed_receipted_lane",
+            "evidence": {
+                "limit_requested": limit,
+                "selected_count": success + failed,
+                "success_count": success,
+                "failed_count": failed,
+                "strict": strict,
+                "apply": apply
+            }
+        }]
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    Ok(out)
 }
 
 fn run_payload(
@@ -1480,16 +1621,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         usage();
         return 0;
     }
-    let system_id = system_id_from_args(&command, &argv[1..]);
-    if system_id.is_empty() {
-        print_json_line(&cli_error(argv, "system_id_missing", 2));
-        return 2;
-    }
-
-    let payload = match command.as_str() {
-        "manifest" => Ok(manifest_payload()),
-        "status" | "verify" => Ok(status_payload(root, &system_id, &command)),
-        _ => run_payload(root, &system_id, &command, &argv[1..]),
+    let payload = if command == "manifest" {
+        Ok(manifest_payload())
+    } else if command == "roi-sweep" {
+        roi_sweep_payload(root, &argv[1..])
+    } else {
+        let system_id = system_id_from_args(&command, &argv[1..]);
+        if system_id.is_empty() {
+            print_json_line(&cli_error(argv, "system_id_missing", 2));
+            return 2;
+        }
+        match command.as_str() {
+            "status" | "verify" => Ok(status_payload(root, &system_id, &command)),
+            _ => run_payload(root, &system_id, &command, &argv[1..]),
+        }
     };
 
     match payload {
@@ -1739,5 +1884,46 @@ mod tests {
             err.contains("specific_consensus_mode_mismatch"),
             "expected consensus mode gate failure, got {err}"
         );
+    }
+
+    #[test]
+    fn roi_sweep_defaults_to_400_and_orders_by_roi_score() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = roi_sweep_payload(root.path(), &[]).expect("roi sweep should run");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("limit_requested").and_then(Value::as_u64),
+            Some(400)
+        );
+        assert_eq!(out.get("selected_count").and_then(Value::as_u64), Some(400));
+        let executed = out
+            .get("executed")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(executed.len(), 400);
+        let mut prev = i64::MAX;
+        for row in executed {
+            let score = row.get("roi_score").and_then(Value::as_i64).unwrap_or(0);
+            assert!(score <= prev, "roi scores should be descending");
+            prev = score;
+        }
+    }
+
+    #[test]
+    fn roi_sweep_respects_limit_and_read_only_apply_flag() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = roi_sweep_payload(
+            root.path(),
+            &[
+                "--limit=7".to_string(),
+                "--apply=0".to_string(),
+                "--strict=1".to_string(),
+            ],
+        )
+        .expect("roi sweep should run");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("selected_count").and_then(Value::as_u64), Some(7));
+        assert_eq!(out.get("apply").and_then(Value::as_bool), Some(false));
     }
 }
