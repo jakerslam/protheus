@@ -53,11 +53,21 @@ function render(snapshot: Dict | null) {
   const turns = rows(snapshot?.app?.turns).slice(-20);
   const controlsOpen = (() => {
     try {
+      if (window.localStorage.getItem('infring_dashboard_controls_open_v2') === '1') return true;
       return window.localStorage.getItem('infring_dashboard_controls_open') === '1';
     } catch {
       return false;
     }
   })();
+  const theme = (() => {
+    try {
+      const raw = window.localStorage.getItem('infring_dashboard_theme_v2') || window.localStorage.getItem('infring_dashboard_theme_v1');
+      return raw === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  })();
+  document.documentElement.setAttribute('data-infring-theme', theme);
 
   root.innerHTML = `
     <main style="max-width:1120px;margin:20px auto;padding:14px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">
@@ -65,8 +75,13 @@ function render(snapshot: Dict | null) {
         <div>
           <h1 style="margin:0 0 4px 0;font-size:18px">InfRing - Unified Agent Deck</h1>
           <p style="margin:0;color:#bfd3f5;font-size:12px">Compatibility mode: clean chat default, advanced controls optional.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(122,163,255,.4);border-radius:999px;background:rgba(122,163,255,.14);color:#dce9ff;padding:5px 10px;font-size:11px;font-weight:700">Live</span>
+            <button id="fallback-controls-toggle" type="button" style="border:1px solid rgba(77,226,197,.45);border-radius:8px;background:rgba(77,226,197,.14);color:#e8fff9;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">${controlsOpen ? 'Close Controls' : 'Open Controls'}</button>
+            <button id="fallback-refresh" type="button" style="border:1px solid rgba(122,163,255,.4);border-radius:8px;background:rgba(122,163,255,.12);color:#dce9ff;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">Refresh</button>
+          </div>
         </div>
-        <button id="fallback-controls-toggle" type="button" style="border:1px solid rgba(77,226,197,.45);border-radius:8px;background:rgba(77,226,197,.14);color:#e8fff9;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer">${controlsOpen ? 'Close Controls' : 'Open Controls'}</button>
+        <button id="fallback-theme-toggle" type="button" style="border:1px solid rgba(122,163,255,.42);border-radius:999px;background:rgba(122,163,255,.14);color:#e5efff;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer">${theme === 'dark' ? 'Dark' : 'Light'}</button>
       </header>
 
       <section style="margin-top:12px;padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)">
@@ -110,7 +125,7 @@ function render(snapshot: Dict | null) {
         <h2 style="margin:0 0 8px 0;font-size:14px">Advanced Controls</h2>
 
         <details data-section="agents">
-          <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#d9e8ff">Agents & Swarms (${esc(agents.length)})</summary>
+          <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#d9e8ff">Swarm/Agent Management (${esc(agents.length)})</summary>
           <ul style="margin:8px 0 0 0;padding-left:18px;font-size:12px;color:#d3e1fa">
             ${agents.map((row) => `<li>${esc(row.shadow || 'shadow')} · ${esc(row.role || 'role')} · ${esc(row.status || 'unknown')}</li>`).join('')}
           </ul>
@@ -142,12 +157,14 @@ function render(snapshot: Dict | null) {
 
   const sendBtn = root.querySelector('#fallback-chat-send') as HTMLButtonElement | null;
   const inputEl = root.querySelector('#fallback-chat-input') as HTMLInputElement | null;
+  const themeToggle = root.querySelector('#fallback-theme-toggle') as HTMLButtonElement | null;
   const controlsToggle = root.querySelector('#fallback-controls-toggle') as HTMLButtonElement | null;
   const controlsPanel = root.querySelector('#fallback-controls-panel') as HTMLElement | null;
   const newAgentBtn = root.querySelector('#fallback-new-agent') as HTMLButtonElement | null;
   const newSwarmBtn = root.querySelector('#fallback-new-swarm') as HTMLButtonElement | null;
   const assimilateBtn = root.querySelector('#fallback-assimilate') as HTMLButtonElement | null;
   const benchmarkBtn = root.querySelector('#fallback-benchmark') as HTMLButtonElement | null;
+  const refreshBtn = root.querySelector('#fallback-refresh') as HTMLButtonElement | null;
 
   const postAction = async (action: string, payload: Dict) => {
     try {
@@ -167,11 +184,26 @@ function render(snapshot: Dict | null) {
       controlsPanel.style.display = open ? 'block' : 'none';
       controlsToggle.textContent = open ? 'Close Controls' : 'Open Controls';
       try {
+        window.localStorage.setItem('infring_dashboard_controls_open_v2', open ? '1' : '0');
         window.localStorage.setItem('infring_dashboard_controls_open', open ? '1' : '0');
       } catch {
         // ignore storage failures
       }
       await postAction('dashboard.ui.toggleControls', { open });
+    };
+  }
+
+  if (themeToggle) {
+    themeToggle.onclick = () => {
+      const next = theme === 'dark' ? 'light' : 'dark';
+      try {
+        window.localStorage.setItem('infring_dashboard_theme_v2', next);
+        window.localStorage.setItem('infring_dashboard_theme_v1', next);
+      } catch {
+        // ignore storage failures
+      }
+      document.documentElement.setAttribute('data-infring-theme', next);
+      render(snapshot);
     };
   }
 
@@ -207,6 +239,12 @@ function render(snapshot: Dict | null) {
   if (benchmarkBtn) {
     benchmarkBtn.onclick = async () => {
       await postAction('dashboard.benchmark', {});
+      const next = await fetchSnapshot();
+      render(next);
+    };
+  }
+  if (refreshBtn) {
+    refreshBtn.onclick = async () => {
       const next = await fetchSnapshot();
       render(next);
     };
