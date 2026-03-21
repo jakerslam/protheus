@@ -42,6 +42,9 @@ function chatPage() {
     modelSwitching: false,
     _modelCache: null,
     _modelCacheTime: 0,
+    conversationCache: {},
+    _persistTimer: null,
+    showScrollDown: false,
     slashCommands: [
       { cmd: '/help', desc: 'Show available commands' },
       { cmd: '/agents', desc: 'Switch to Agents page' },
@@ -164,8 +167,113 @@ function chatPage() {
       return null;
     },
 
+    cacheAgentConversation(agentId) {
+      if (!agentId) return;
+      if (!this.conversationCache) this.conversationCache = {};
+      try {
+        this.conversationCache[String(agentId)] = {
+          saved_at: Date.now(),
+          token_count: this.tokenCount || 0,
+          messages: JSON.parse(JSON.stringify(this.messages || [])),
+        };
+      } catch {}
+    },
+
+    cacheCurrentConversation() {
+      if (!this.currentAgent || !this.currentAgent.id) return;
+      this.cacheAgentConversation(this.currentAgent.id);
+    },
+
+    scheduleConversationPersist() {
+      var self = this;
+      if (this._persistTimer) clearTimeout(this._persistTimer);
+      this._persistTimer = setTimeout(function() {
+        self.cacheCurrentConversation();
+      }, 80);
+    },
+
+    restoreAgentConversation(agentId) {
+      if (!agentId || !this.conversationCache) return false;
+      const cached = this.conversationCache[String(agentId)];
+      if (!cached || !Array.isArray(cached.messages)) return false;
+      try {
+        this.messages = JSON.parse(JSON.stringify(cached.messages));
+        this.tokenCount = Number(cached.token_count || 0);
+        this.$nextTick(() => this.scrollToBottom());
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    normalizeSessionMessages(data) {
+      var source = [];
+      if (data && Array.isArray(data.messages)) {
+        source = data.messages;
+      } else if (data && Array.isArray(data.turns)) {
+        var turns = data.turns;
+        var turnRows = [];
+        turns.forEach(function(turn) {
+          var ts = turn && turn.ts ? turn.ts : Date.now();
+          if (turn && typeof turn.user === 'string' && turn.user.trim()) {
+            turnRows.push({ role: 'User', content: turn.user, ts: ts });
+          }
+          if (turn && typeof turn.assistant === 'string' && turn.assistant.trim()) {
+            turnRows.push({ role: 'Agent', content: turn.assistant, ts: ts });
+          }
+        });
+        source = turnRows;
+      } else {
+        source = [];
+      }
+      var self = this;
+      return source.map(function(m) {
+        var roleRaw = String((m && (m.role || m.type)) || '').toLowerCase();
+        var role = roleRaw.indexOf('user') >= 0 ? 'user' : (roleRaw.indexOf('system') >= 0 ? 'system' : 'agent');
+        var textSource = m && (m.content != null ? m.content : (m.text != null ? m.text : m.message));
+        if (role === 'user' && m && m.user != null) textSource = m.user;
+        if (role !== 'user' && m && m.assistant != null) textSource = m.assistant;
+        var text = typeof textSource === 'string' ? textSource : JSON.stringify(textSource || '');
+        text = self.sanitizeToolText(text);
+        if (role === 'agent') text = self.stripModelPrefix(text);
+
+        var tools = (m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
+          return {
+            id: (t.name || 'tool') + '-hist-' + idx,
+            name: t.name || 'unknown',
+            running: false,
+            expanded: false,
+            input: t.input || '',
+            result: t.result || '',
+            is_error: !!t.is_error
+          };
+        });
+        var images = (m && Array.isArray(m.images) ? m.images : []).map(function(img) {
+          return { file_id: img.file_id, filename: img.filename || 'image' };
+        });
+        var tsRaw = m && (m.ts || m.timestamp || m.created_at || m.createdAt) ? (m.ts || m.timestamp || m.created_at || m.createdAt) : null;
+        var ts = null;
+        if (typeof tsRaw === 'number') {
+          ts = tsRaw;
+        } else if (typeof tsRaw === 'string') {
+          var parsedTs = Date.parse(tsRaw);
+          ts = Number.isNaN(parsedTs) ? null : parsedTs;
+        }
+        var meta = typeof (m && m.meta) === 'string' ? m.meta : '';
+        if (!meta && m && (m.input_tokens || m.output_tokens)) {
+          meta = (m.input_tokens || 0) + ' in / ' + (m.output_tokens || 0) + ' out';
+        }
+        return { id: ++msgId, role: role, text: text, meta: meta, tools: tools, images: images, ts: ts };
+      });
+    },
+
     init() {
       var self = this;
+
+      if (typeof window !== 'undefined') {
+        window.__infringChatCache = window.__infringChatCache || {};
+        this.conversationCache = window.__infringChatCache;
+      }
 
       // Start tip cycle
       this.startTipCycle();
@@ -195,7 +303,6 @@ function chatPage() {
       // Load session + session list when agent changes
       this.$watch('currentAgent', function(agent) {
         if (agent) {
-          self.loadSession(agent.id);
           self.loadSessions(agent.id);
         }
       });
@@ -273,6 +380,10 @@ function chatPage() {
           self.showSlashMenu = false;
           self.showModelPicker = false;
         }
+      });
+
+      this.$nextTick(function() {
+        self.handleMessagesScroll();
       });
     },
 
@@ -545,20 +656,29 @@ function chatPage() {
           }).catch(function() {});
           break;
       }
+      this.scheduleConversationPersist();
     },
 
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
+      if (this.currentAgent && this.currentAgent.id && this.currentAgent.id !== resolved.id) {
+        this.cacheAgentConversation(this.currentAgent.id);
+      }
+      if (this.currentAgent && this.currentAgent.id === resolved.id) {
+        this.currentAgent = resolved;
+        this.loadSession(resolved.id, true);
+        return;
+      }
       this.currentAgent = resolved;
       Alpine.store('app').activeAgentId = resolved.id || null;
-      this.messages = [];
+      var restored = this.restoreAgentConversation(resolved.id);
+      if (!restored) this.messages = [];
       this.connectWs(resolved.id);
       // Show welcome tips on first use
-      if (!localStorage.getItem('of-chat-tips-seen')) {
-        var localMsgId = 0;
+      if (!restored && !localStorage.getItem('of-chat-tips-seen')) {
         this.messages.push({
-          id: ++localMsgId,
+          id: ++msgId,
           role: 'system',
           text: '**Welcome to OpenFang Chat!**\n\n' +
             '- Type `/` to see available commands\n' +
@@ -574,6 +694,8 @@ function chatPage() {
         });
         localStorage.setItem('of-chat-tips-seen', 'true');
       }
+      this.loadSession(resolved.id, restored);
+      this.loadSessions(resolved.id);
       // Focus input after agent selection
       var self = this;
       this.$nextTick(function() {
@@ -582,43 +704,20 @@ function chatPage() {
       });
     },
 
-    async loadSession(agentId) {
+    async loadSession(agentId, keepCurrent) {
       var self = this;
       try {
         var data = await OpenFangAPI.get('/api/agents/' + agentId + '/session');
-        if (data.messages && data.messages.length) {
-          self.messages = data.messages.map(function(m) {
-            var role = m.role === 'User' ? 'user' : (m.role === 'System' ? 'system' : 'agent');
-            var text = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-            // Sanitize any raw function-call text from history
-            text = self.sanitizeToolText(text);
-            if (role === 'agent') text = self.stripModelPrefix(text);
-            // Build tool cards from historical tool data
-            var tools = (m.tools || []).map(function(t, idx) {
-              return {
-                id: (t.name || 'tool') + '-hist-' + idx,
-                name: t.name || 'unknown',
-                running: false,
-                expanded: false,
-                input: t.input || '',
-                result: t.result || '',
-                is_error: !!t.is_error
-              };
-            });
-            var images = (m.images || []).map(function(img) {
-              return { file_id: img.file_id, filename: img.filename || 'image' };
-            });
-            var tsRaw = m.ts || m.timestamp || m.created_at || m.createdAt || null;
-            var ts = null;
-            if (typeof tsRaw === 'number') {
-              ts = tsRaw;
-            } else if (typeof tsRaw === 'string') {
-              var parsedTs = Date.parse(tsRaw);
-              ts = Number.isNaN(parsedTs) ? null : parsedTs;
-            }
-            return { id: ++msgId, role: role, text: text, meta: '', tools: tools, images: images, ts: ts };
-          });
+        var normalized = self.normalizeSessionMessages(data);
+        if (normalized.length) {
+          if (!keepCurrent || !self.messages || !self.messages.length || normalized.length >= self.messages.length) {
+            self.messages = normalized;
+          }
+          self.cacheAgentConversation(agentId);
           self.$nextTick(function() { self.scrollToBottom(); });
+        } else if (!keepCurrent) {
+          self.messages = [];
+          self.cacheAgentConversation(agentId);
         }
       } catch(e) { /* silent */ }
     },
@@ -634,6 +733,7 @@ function chatPage() {
     // Multi-session: create a new session
     async createSession() {
       if (!this.currentAgent) return;
+      this.cacheCurrentConversation();
       var label = prompt('Session name (optional):');
       if (label === null) return; // cancelled
       try {
@@ -642,8 +742,6 @@ function chatPage() {
         });
         await this.loadSessions(this.currentAgent.id);
         await this.loadSession(this.currentAgent.id);
-        this.messages = [];
-        this.scrollToBottom();
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.success('New session created');
       } catch(e) {
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Failed to create session');
@@ -653,9 +751,9 @@ function chatPage() {
     // Multi-session: switch to an existing session
     async switchSession(sessionId) {
       if (!this.currentAgent) return;
+      this.cacheCurrentConversation();
       try {
         await OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/sessions/' + sessionId + '/switch', {});
-        this.messages = [];
         await this.loadSession(this.currentAgent.id);
         await this.loadSessions(this.currentAgent.id);
         // Reconnect WebSocket for new session
@@ -962,12 +1060,14 @@ function chatPage() {
 
         case 'pong': break;
       }
+      this.scheduleConversationPersist();
     },
 
     // Format timestamp for display
     formatTime: function(ts) {
       if (!ts) return '';
       var d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
       var h = d.getHours();
       var m = d.getMinutes();
       var ampm = h >= 12 ? 'PM' : 'AM';
@@ -975,10 +1075,64 @@ function chatPage() {
       return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
     },
 
+    isSameDay: function(a, b) {
+      if (!a || !b) return false;
+      return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+      );
+    },
+
     // UI-safe timestamp formatter for templates
     messageTs: function(msg) {
       if (!msg || !msg.ts) return '';
-      return this.formatTime(msg.ts);
+      var ts = new Date(msg.ts);
+      if (Number.isNaN(ts.getTime())) return '';
+      var now = new Date();
+      if (this.isSameDay(ts, now)) return this.formatTime(ts);
+      var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      if (this.isSameDay(ts, yesterday)) {
+        return 'Yesterday at ' + this.formatTime(ts);
+      }
+      var dateText = ts.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return dateText + ' at ' + this.formatTime(ts);
+    },
+
+    messageDomId: function(msg, idx) {
+      var suffix = (msg && msg.id != null) ? String(msg.id) : String(idx || 0);
+      return 'chat-msg-' + suffix;
+    },
+
+    messagePreview: function(msg) {
+      if (!msg) return '';
+      var raw = '';
+      if (typeof msg.text === 'string' && msg.text.trim()) {
+        raw = msg.text;
+      } else if (Array.isArray(msg.tools) && msg.tools.length) {
+        raw = '[Processes] ' + msg.tools.map(function(tool) {
+          return tool && tool.name ? tool.name : 'tool';
+        }).join(', ');
+      } else {
+        raw = '[' + (msg.role || 'message') + ']';
+      }
+      var compact = raw.replace(/\s+/g, ' ').trim();
+      if (compact.length > 140) return compact.slice(0, 137) + '...';
+      return compact;
+    },
+
+    messageActorLabel: function(msg) {
+      if (!msg) return 'Message';
+      if (msg.role === 'user') return 'You';
+      if (msg.role === 'system') return 'System';
+      return 'Agent';
+    },
+
+    jumpToMessage: function(msg, idx) {
+      var id = this.messageDomId(msg, idx);
+      var target = document.getElementById(id);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
 
     // Mark chat-rendered error messages for styling
@@ -986,6 +1140,26 @@ function chatPage() {
       if (!msg || !msg.text) return false;
       var t = String(msg.text).toLowerCase();
       return t.startsWith('error:') || t.includes(' failed') || t.includes('exception');
+    },
+
+    messageHasTools: function(msg) {
+      return !!(msg && Array.isArray(msg.tools) && msg.tools.length);
+    },
+
+    allToolsCollapsed: function(msg) {
+      if (!this.messageHasTools(msg)) return true;
+      return !msg.tools.some(function(tool) {
+        return !!(tool && tool.expanded);
+      });
+    },
+
+    toggleMessageTools: function(msg) {
+      if (!this.messageHasTools(msg)) return;
+      var expand = this.allToolsCollapsed(msg);
+      msg.tools.forEach(function(tool) {
+        if (tool) tool.expanded = expand;
+      });
+      this.scheduleConversationPersist();
     },
 
     // Copy message text to clipboard
@@ -1062,6 +1236,7 @@ function chatPage() {
       this.messages.push({ id: ++msgId, role: 'user', text: finalText, meta: '', tools: [], images: msgImages, ts: Date.now() });
       this.scrollToBottom();
       localStorage.setItem('of-first-msg', 'true');
+      this.scheduleConversationPersist();
 
       // If already streaming, queue this message
       if (this.sending) {
@@ -1081,6 +1256,7 @@ function chatPage() {
       if (OpenFangAPI.wsSend(wsPayload)) {
         this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, tools: [], ts: Date.now() });
         this.scrollToBottom();
+        this.scheduleConversationPersist();
         return;
       }
 
@@ -1090,6 +1266,7 @@ function chatPage() {
       }
       this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, tools: [], ts: Date.now() });
       this.scrollToBottom();
+      this.scheduleConversationPersist();
 
       try {
         var httpBody = { message: finalText };
@@ -1099,17 +1276,32 @@ function chatPage() {
         var httpMeta = (res.input_tokens || 0) + ' in / ' + (res.output_tokens || 0) + ' out';
         if (res.cost_usd != null) httpMeta += ' | $' + res.cost_usd.toFixed(4);
         if (res.iterations) httpMeta += ' | ' + res.iterations + ' iter';
+        var httpTools = Array.isArray(res.tools)
+          ? res.tools.map(function(t, idx) {
+              return {
+                id: (t && t.id) || ('http-tool-' + Date.now() + '-' + idx),
+                name: (t && t.name) || 'tool',
+                running: false,
+                expanded: false,
+                input: (t && t.input) || '',
+                result: (t && t.result) || '',
+                is_error: !!(t && t.is_error),
+              };
+            })
+          : [];
         this.messages.push({
           id: ++msgId,
           role: 'agent',
           text: this.stripModelPrefix(this.sanitizeToolText(res.response || '')),
           meta: httpMeta,
-          tools: [],
+          tools: httpTools,
           ts: Date.now()
         });
+        this.scheduleConversationPersist();
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], ts: Date.now() });
+        this.scheduleConversationPersist();
       }
       this.sending = false;
       this.scrollToBottom();
@@ -1159,10 +1351,18 @@ function chatPage() {
       var el = document.getElementById('messages');
       if (el) self.$nextTick(function() {
         el.scrollTop = el.scrollHeight;
+        self.showScrollDown = false;
         // Debounce LaTeX rendering to avoid running on every streaming token
         if (self._latexTimer) clearTimeout(self._latexTimer);
         self._latexTimer = setTimeout(function() { renderLatex(el); }, 150);
       });
+    },
+
+    handleMessagesScroll(e) {
+      var el = e && e.target ? e.target : document.getElementById('messages');
+      if (!el) return;
+      var hiddenBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      this.showScrollDown = hiddenBottom > 120;
     },
 
     addFiles(files) {

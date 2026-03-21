@@ -2053,6 +2053,66 @@ mod tests {
     }
 
     #[test]
+    fn execute_ops_bridge_command_reports_spawn_error_when_binary_missing() {
+        let _guard = env_lock().lock().expect("env lock");
+        std::env::set_var(
+            "PROTHEUS_OPS_BIN",
+            "/definitely/missing/protheus-ops-bridge-bin",
+        );
+        let detail = super::execute_ops_bridge_command("spine", &[], None);
+        std::env::remove_var("PROTHEUS_OPS_BIN");
+
+        assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            detail.get("type").and_then(Value::as_str),
+            Some("spine_bridge_spawn_error")
+        );
+        assert_eq!(detail.get("exit_code").and_then(Value::as_i64), Some(1));
+        assert!(
+            detail
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .starts_with("spine_bridge_spawn_failed:"),
+            "expected explicit spawn failure reason: {detail}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn execute_ops_bridge_command_reports_timeout_when_child_exceeds_budget() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let script_path = temp.path().join("sleepy_bridge.sh");
+        fs::write(&script_path, "#!/bin/sh\nsleep 2\n").expect("write script");
+        fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))
+            .expect("chmod script");
+
+        std::env::set_var("PROTHEUS_OPS_BIN", script_path.display().to_string());
+        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "1000");
+        let detail = super::execute_ops_bridge_command("spine", &[], None);
+        std::env::remove_var("PROTHEUS_OPS_BIN");
+        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+
+        assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            detail.get("type").and_then(Value::as_str),
+            Some("spine_bridge_timeout")
+        );
+        assert_eq!(detail.get("exit_code").and_then(Value::as_i64), Some(124));
+        assert!(
+            detail
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .contains("spine_bridge_timeout:1000"),
+            "expected timeout reason to include budget: {detail}"
+        );
+    }
+
+    #[test]
     fn load_cockpit_summary_reports_missing_invalid_and_valid_sources() {
         let _guard = env_lock().lock().expect("env lock");
         let temp = tempfile::tempdir().expect("tempdir");
