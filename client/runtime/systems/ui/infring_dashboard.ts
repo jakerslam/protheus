@@ -98,6 +98,11 @@ const CLI_ALLOWLIST = new Set([
   'head',
   'tail',
   'stat',
+  'ps',
+  'top',
+  'free',
+  'vm_stat',
+  'vmstat',
 ]);
 const GIT_READ_ONLY = new Set(['status', 'diff', 'show', 'log', 'branch', 'rev-parse', 'ls-files']);
 const INFRINGD_READ_ONLY = new Set([
@@ -888,6 +893,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
     'You can ask for a CLI command when needed.',
     'If the user asks for opinion, explanation, or casual chat, answer directly without tools.',
     'Only request a tool call when factual repo/runtime data is required.',
+    'For system memory/process capability questions, use available tools (ps/vm_stat/vmstat/free/top or cat /proc/* where available) before claiming limitations.',
     `You may use at most ${TOOL_ITERATION_LIMIT} tool calls before giving a final answer.`,
     'Never claim inability without first attempting a valid tool call when tools are needed.',
     'Do not mention underlying base-model identity; respond as Infring runtime assistant.',
@@ -897,8 +903,8 @@ function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
     fullInfring
-      ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat (git remains read-only).'
-      : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat (git read-only).',
+      ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git remains read-only).'
+      : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git read-only).',
     'If tool history already contains what you need, return final.',
     '',
     `Conversation transcript:\n${transcript}`,
