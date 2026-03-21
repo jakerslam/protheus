@@ -45,8 +45,12 @@ function chatPage() {
     _chatMapWheelLockInstalled: false,
     conversationCache: {},
     _persistTimer: null,
+    _responseStartedAt: 0,
+    modelNoticeCache: {},
+    modelNoticeCacheKey: 'of-chat-model-notices-v1',
     showScrollDown: false,
     hoveredMessageDomId: '',
+    selectedMessageDomId: '',
     mapStepIndex: -1,
     activeMapPreviewDomId: '',
     activeMapPreviewDayKey: '',
@@ -60,9 +64,12 @@ function chatPage() {
     drawerConfigForm: {},
     drawerConfigSaving: false,
     drawerModelSaving: false,
+    drawerIdentitySaving: false,
     drawerEditingModel: false,
     drawerEditingProvider: false,
     drawerEditingFallback: false,
+    drawerEditingName: false,
+    drawerEditingEmoji: false,
     drawerNewModelValue: '',
     drawerNewProviderValue: '',
     drawerNewFallbackValue: '',
@@ -224,13 +231,89 @@ function chatPage() {
       const cached = this.conversationCache[String(agentId)];
       if (!cached || !Array.isArray(cached.messages)) return false;
       try {
-        this.messages = JSON.parse(JSON.stringify(cached.messages));
+        this.messages = this.mergeModelNoticesForAgent(agentId, JSON.parse(JSON.stringify(cached.messages)));
         this.tokenCount = Number(cached.token_count || 0);
         this.$nextTick(() => this.scrollToBottom());
         return true;
       } catch {
         return false;
       }
+    },
+
+    loadModelNoticeCache: function() {
+      try {
+        var raw = localStorage.getItem(this.modelNoticeCacheKey);
+        if (!raw) {
+          this.modelNoticeCache = {};
+          return;
+        }
+        var parsed = JSON.parse(raw);
+        this.modelNoticeCache = (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch {
+        this.modelNoticeCache = {};
+      }
+    },
+
+    persistModelNoticeCache: function() {
+      try {
+        localStorage.setItem(this.modelNoticeCacheKey, JSON.stringify(this.modelNoticeCache || {}));
+      } catch {}
+    },
+
+    rememberModelNotice: function(agentId, label, ts) {
+      if (!agentId || !label) return;
+      if (!this.modelNoticeCache || typeof this.modelNoticeCache !== 'object') {
+        this.modelNoticeCache = {};
+      }
+      var key = String(agentId);
+      if (!Array.isArray(this.modelNoticeCache[key])) this.modelNoticeCache[key] = [];
+      var list = this.modelNoticeCache[key];
+      var tsNum = Number(ts || Date.now());
+      var exists = list.some(function(entry) {
+        return entry && entry.label === label && Number(entry.ts || 0) === tsNum;
+      });
+      if (!exists) list.push({ label: label, ts: tsNum });
+      if (list.length > 120) this.modelNoticeCache[key] = list.slice(list.length - 120);
+      this.persistModelNoticeCache();
+    },
+
+    mergeModelNoticesForAgent: function(agentId, rows) {
+      var list = Array.isArray(rows) ? rows.slice() : [];
+      if (!agentId || !this.modelNoticeCache) return list;
+      var notices = this.modelNoticeCache[String(agentId)];
+      if (!Array.isArray(notices) || !notices.length) return list;
+      var existing = {};
+      list.forEach(function(msg) {
+        if (!msg) return;
+        var label = msg.notice_label || '';
+        if (!label && msg.role === 'system' && typeof msg.text === 'string' && /^Model switched to /i.test(msg.text.trim())) {
+          label = msg.text.trim();
+        }
+        if (!label) return;
+        existing[label + '|' + Number(msg.ts || 0)] = true;
+      });
+      for (var i = 0; i < notices.length; i++) {
+        var n = notices[i] || {};
+        var nLabel = String(n.label || '').trim();
+        if (!nLabel) continue;
+        var nTs = Number(n.ts || 0) || Date.now();
+        var nKey = nLabel + '|' + nTs;
+        if (existing[nKey]) continue;
+        list.push({
+          id: ++msgId,
+          role: 'system',
+          text: '',
+          meta: '',
+          tools: [],
+          is_notice: true,
+          notice_label: nLabel,
+          ts: nTs
+        });
+      }
+      list.sort(function(a, b) {
+        return Number((a && a.ts) || 0) - Number((b && b.ts) || 0);
+      });
+      return list;
     },
 
     normalizeSessionMessages(data) {
@@ -290,7 +373,17 @@ function chatPage() {
         if (!meta && m && (m.input_tokens || m.output_tokens)) {
           meta = (m.input_tokens || 0) + ' in / ' + (m.output_tokens || 0) + ' out';
         }
-        return { id: ++msgId, role: role, text: text, meta: meta, tools: tools, images: images, ts: ts };
+        var isNotice = false;
+        var noticeLabel = '';
+        if (role === 'system' && typeof text === 'string') {
+          var compact = text.trim();
+          if (/^Model switched to /i.test(compact)) {
+            isNotice = true;
+            noticeLabel = compact;
+            text = '';
+          }
+        }
+        return { id: ++msgId, role: role, text: text, meta: meta, tools: tools, images: images, ts: ts, is_notice: isNotice, notice_label: noticeLabel };
       });
     },
 
@@ -301,6 +394,7 @@ function chatPage() {
         window.__infringChatCache = window.__infringChatCache || {};
         this.conversationCache = window.__infringChatCache;
       }
+      this.loadModelNoticeCache();
 
       // Start tip cycle
       this.startTipCycle();
@@ -416,7 +510,7 @@ function chatPage() {
     },
 
     installChatMapWheelLock() {
-      var maps = document.querySelectorAll('.chat-map');
+      var maps = document.querySelectorAll('.chat-map-scroll');
       if (!maps || !maps.length) return;
       for (var i = 0; i < maps.length; i++) {
         var map = maps[i];
@@ -711,6 +805,9 @@ function chatPage() {
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
+      this.clearHoveredMessageHard();
+      this.activeMapPreviewDomId = '';
+      this.activeMapPreviewDayKey = '';
       if (this.currentAgent && this.currentAgent.id && this.currentAgent.id !== resolved.id) {
         this.cacheAgentConversation(this.currentAgent.id);
       }
@@ -761,15 +858,21 @@ function chatPage() {
       var self = this;
       try {
         var data = await OpenFangAPI.get('/api/agents/' + agentId + '/session');
-        var normalized = self.normalizeSessionMessages(data);
+        var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data));
         if (normalized.length) {
           if (!keepCurrent || !self.messages || !self.messages.length || normalized.length >= self.messages.length) {
             self.messages = normalized;
+            self.clearHoveredMessageHard();
+            self.activeMapPreviewDomId = '';
+            self.activeMapPreviewDayKey = '';
           }
           self.cacheAgentConversation(agentId);
           self.$nextTick(function() { self.scrollToBottom(); });
         } else if (!keepCurrent) {
           self.messages = [];
+          self.clearHoveredMessageHard();
+          self.activeMapPreviewDomId = '';
+          self.activeMapPreviewDayKey = '';
           self.cacheAgentConversation(agentId);
         }
       } catch(e) { /* silent */ }
@@ -1038,6 +1141,12 @@ function chatPage() {
           if (data.cost_usd != null) meta += ' | $' + data.cost_usd.toFixed(4);
           if (data.iterations) meta += ' | ' + data.iterations + ' iter';
           if (data.fallback_model) meta += ' | fallback: ' + data.fallback_model;
+          var wsDurationMs = Number(data.duration_ms || data.elapsed_ms || data.response_ms || 0);
+          if (!wsDurationMs && this._responseStartedAt) {
+            wsDurationMs = Math.max(0, Date.now() - this._responseStartedAt);
+          }
+          var wsDuration = this.formatResponseDuration(wsDurationMs);
+          if (wsDuration) meta += ' | ' + wsDuration;
           // Use server response if non-empty, otherwise preserve accumulated streamed text
           var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
           // Strip raw function-call JSON that some models leak as text
@@ -1049,6 +1158,7 @@ function chatPage() {
           }
           this.messages.push({ id: ++msgId, role: 'agent', text: finalText, meta: meta, tools: streamedTools, ts: Date.now() });
           this.sending = false;
+          this._responseStartedAt = 0;
           this.tokenCount = 0;
           this.scrollToBottom();
           var self3 = this;
@@ -1063,6 +1173,7 @@ function chatPage() {
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
           this.sending = false;
+          this._responseStartedAt = 0;
           this.tokenCount = 0;
           // No message bubble added — the agent was silent
           var selfSilent = this;
@@ -1074,6 +1185,7 @@ function chatPage() {
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
           this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + data.content, meta: '', tools: [], ts: Date.now() });
           this.sending = false;
+          this._responseStartedAt = 0;
           this.tokenCount = 0;
           this.scrollToBottom();
           var self2 = this;
@@ -1159,11 +1271,14 @@ function chatPage() {
 
     messagePreview: function(msg) {
       if (!msg) return '';
+      if (msg.is_notice && msg.notice_label) {
+        return String(msg.notice_label);
+      }
       var raw = '';
       if (typeof msg.text === 'string' && msg.text.trim()) {
         raw = msg.text;
       } else if (Array.isArray(msg.tools) && msg.tools.length) {
-        raw = '[Processes] ' + msg.tools.map(function(tool) {
+        raw = 'Tool calls: ' + msg.tools.map(function(tool) {
           return tool && tool.name ? tool.name : 'tool';
         }).join(', ');
       } else {
@@ -1174,11 +1289,134 @@ function chatPage() {
       return compact;
     },
 
+    messageMapPreview: function(msg) {
+      if (this.messageMapMarkerType(msg) === 'tool') {
+        return this.messageToolPreview(msg);
+      }
+      return this.messagePreview(msg);
+    },
+
+    messageToolPreview: function(msg) {
+      if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) {
+        return this.messagePreview(msg);
+      }
+      var self = this;
+      var compactToolText = function(value, maxLen) {
+        if (value == null) return '';
+        var raw = '';
+        if (typeof value === 'string') {
+          raw = value;
+        } else {
+          try {
+            raw = JSON.stringify(value);
+          } catch (e) {
+            raw = String(value);
+          }
+        }
+        var compact = raw.replace(/\s+/g, ' ').trim();
+        if (!compact) return '';
+        if (compact.length > maxLen) return compact.slice(0, maxLen - 3) + '...';
+        return compact;
+      };
+
+      var parts = msg.tools.map(function(tool) {
+        if (!tool) return '';
+        var name = tool.name ? String(tool.name) : 'tool';
+        var status = self.toolStatusText(tool);
+        var summary = status ? (name + ' [' + status + ']') : name;
+        var inputPreview = compactToolText(tool.input, 96);
+        var resultPreview = compactToolText(tool.result, 120);
+        var detail = '';
+        if (inputPreview && resultPreview) {
+          detail = inputPreview + ' -> ' + resultPreview;
+        } else {
+          detail = inputPreview || resultPreview;
+        }
+        if (detail) summary += ': ' + detail;
+        return summary;
+      }).filter(function(part) { return !!part; });
+
+      if (!parts.length) return 'Tool call';
+      var preview = parts.join(' | ');
+      if (preview.length > 220) return preview.slice(0, 217) + '...';
+      return preview;
+    },
+
+    isLongMessagePreview: function(msg) {
+      if (!msg) return false;
+      var raw = '';
+      if (typeof msg.text === 'string' && msg.text.trim()) {
+        raw = msg.text;
+      } else if (Array.isArray(msg.tools) && msg.tools.length) {
+        raw = msg.tools.map(function(tool) {
+          return tool && tool.name ? tool.name : 'tool';
+        }).join(', ');
+      }
+      if (!raw) return false;
+      var compact = raw.replace(/\s+/g, ' ').trim();
+      if (compact.length >= 220) return true;
+      if (raw.indexOf('\n\n') >= 0) return true;
+      return false;
+    },
+
+    isSelectedMessage: function(msg, idx) {
+      if (!this.selectedMessageDomId) return false;
+      return this.selectedMessageDomId === this.messageDomId(msg, idx);
+    },
+
     messageActorLabel: function(msg) {
       if (!msg) return 'Message';
+      if (msg.is_notice) return 'Model';
+      if (Array.isArray(msg.tools) && msg.tools.length && (!msg.text || !String(msg.text).trim())) {
+        return 'Tool';
+      }
       if (msg.role === 'user') return 'You';
       if (msg.role === 'system') return 'System';
       return 'Agent';
+    },
+
+    messageMapToolOutcome: function(msg) {
+      if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) return '';
+      var hasError = false;
+      var hasWarning = false;
+      for (var i = 0; i < msg.tools.length; i++) {
+        var tool = msg.tools[i] || {};
+        if (tool.running || this.isBlockedTool(tool)) {
+          hasWarning = true;
+          continue;
+        }
+        if (tool.is_error) {
+          hasError = true;
+        }
+      }
+      if (hasError) return 'error';
+      if (hasWarning) return 'warning';
+      return 'success';
+    },
+
+    messageMapMarkerType: function(msg) {
+      if (!msg) return '';
+      if (msg.is_notice) return 'model';
+      if (Array.isArray(msg.tools) && msg.tools.length) return 'tool';
+      return '';
+    },
+
+    messageMapShowMarker: function(msg) {
+      return this.messageMapMarkerType(msg) !== '';
+    },
+
+    messageMapMarkerTitle: function(msg) {
+      var type = this.messageMapMarkerType(msg);
+      if (type === 'model') {
+        return msg && msg.notice_label ? String(msg.notice_label) : 'Model switched';
+      }
+      if (type === 'tool') {
+        var outcome = this.messageMapToolOutcome(msg) || 'success';
+        if (outcome === 'error') return 'Tool call error';
+        if (outcome === 'warning') return 'Tool call warning';
+        return 'Tool call success';
+      }
+      return '';
     },
 
     messageDayKey: function(msg) {
@@ -1229,6 +1467,8 @@ function chatPage() {
       var id = this.messageDomId(msg, idx);
       var target = document.getElementById(id);
       if (!target) return;
+      this.selectedMessageDomId = id;
+      this.hoveredMessageDomId = id;
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       this.mapStepIndex = idx;
       this.centerChatMapOnMessage(id);
@@ -1247,6 +1487,7 @@ function chatPage() {
       if (!model) return;
       var provider = String(providerName || '').trim();
       var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
+      var ts = Date.now();
       this.messages.push({
         id: ++msgId,
         role: 'system',
@@ -1255,10 +1496,25 @@ function chatPage() {
         tools: [],
         is_notice: true,
         notice_label: label,
-        ts: Date.now()
+        ts: ts
       });
+      if (this.currentAgent && this.currentAgent.id) {
+        this.rememberModelNotice(this.currentAgent.id, label, ts);
+      }
       this.scrollToBottom();
       this.scheduleConversationPersist();
+    },
+
+    formatResponseDuration: function(ms) {
+      var num = Number(ms || 0);
+      if (!Number.isFinite(num) || num <= 0) return '';
+      if (num < 1000) return Math.round(num) + 'ms';
+      if (num < 60000) {
+        return (num < 10000 ? (num / 1000).toFixed(1) : Math.round(num / 1000)) + 's';
+      }
+      var min = Math.floor(num / 60000);
+      var sec = Math.round((num % 60000) / 1000);
+      return min + 'm ' + sec + 's';
     },
 
     stepMessageMap: function(list, dir) {
@@ -1274,7 +1530,7 @@ function chatPage() {
       if (!visibleIndexes.length) return;
 
       var activePos = -1;
-      var anchorDomId = String(this.hoveredMessageDomId || '');
+      var anchorDomId = String(this.selectedMessageDomId || '');
       if (anchorDomId) {
         for (var p = 0; p < visibleIndexes.length; p++) {
           var vi = visibleIndexes[p];
@@ -1315,9 +1571,12 @@ function chatPage() {
 
     setMapItemHover: function(msg, idx) {
       if (!msg) return;
+      var domId = this.messageDomId(msg, idx);
       this.suppressMapPreview = false;
-      this.activeMapPreviewDomId = this.messageDomId(msg, idx);
+      this.activeMapPreviewDomId = domId;
       this.activeMapPreviewDayKey = '';
+      this.selectedMessageDomId = domId;
+      this.mapStepIndex = idx;
       this.setHoveredMessage(msg, idx);
     },
 
@@ -1351,21 +1610,19 @@ function chatPage() {
 
     setHoveredMessage: function(msg, idx) {
       if (!msg && msg !== 0) {
-        this.hoveredMessageDomId = '';
+        this.hoveredMessageDomId = this.selectedMessageDomId || '';
         return;
       }
       this.hoveredMessageDomId = this.messageDomId(msg, idx);
-      if (typeof idx === 'number' && idx >= 0) this.mapStepIndex = idx;
-      this.centerChatMapOnMessage(this.hoveredMessageDomId);
     },
 
     clearHoveredMessage: function() {
-      // Keep the last hovered message linked for continuity.
-      return;
+      this.hoveredMessageDomId = this.selectedMessageDomId || '';
     },
 
     clearHoveredMessageHard: function() {
       this.hoveredMessageDomId = '';
+      this.selectedMessageDomId = '';
     },
 
     isHoveredMessage: function(msg, idx) {
@@ -1376,7 +1633,7 @@ function chatPage() {
     centerChatMapOnMessage: function(domId) {
       if (!domId) return;
       var map = null;
-      var maps = document.querySelectorAll('.chat-map');
+      var maps = document.querySelectorAll('.chat-map-scroll');
       for (var i = 0; i < maps.length; i++) {
         var candidate = maps[i];
         if (candidate && candidate.offsetParent !== null) {
@@ -1385,7 +1642,8 @@ function chatPage() {
         }
       }
       if (!map) return;
-      var item = map.querySelector('.chat-map-item[data-msg-dom-id="' + domId + '"]');
+      var host = map.closest('.chat-map') || map;
+      var item = host.querySelector('.chat-map-item[data-msg-dom-id="' + domId + '"]');
       if (!item) return;
       var topGuard = 28;
       var bottomGuard = 28;
@@ -1406,6 +1664,9 @@ function chatPage() {
       this.drawerEditingModel = false;
       this.drawerEditingProvider = false;
       this.drawerEditingFallback = false;
+      this.drawerEditingName = false;
+      this.drawerEditingEmoji = false;
+      this.drawerIdentitySaving = false;
       this.drawerNewModelValue = '';
       this.drawerNewProviderValue = '';
       this.drawerNewFallbackValue = '';
@@ -1443,6 +1704,8 @@ function chatPage() {
 
     closeAgentDrawer() {
       this.showAgentDrawer = false;
+      this.drawerEditingName = false;
+      this.drawerEditingEmoji = false;
     },
 
     toggleAgentDrawer() {
@@ -1487,6 +1750,29 @@ function chatPage() {
         OpenFangToast.error('Failed to save config: ' + e.message);
       }
       this.drawerConfigSaving = false;
+    },
+
+    async saveDrawerIdentity(part) {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      var payload = {};
+      if (part === 'name') {
+        payload.name = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
+      } else if (part === 'emoji') {
+        payload.emoji = String((this.drawerConfigForm && this.drawerConfigForm.emoji) || '').trim();
+      } else {
+        return;
+      }
+      this.drawerIdentitySaving = true;
+      try {
+        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        if (part === 'name') this.drawerEditingName = false;
+        if (part === 'emoji') this.drawerEditingEmoji = false;
+        OpenFangToast.success(part === 'name' ? 'Name updated' : 'Emoji updated');
+        await this.syncDrawerAgentAfterChange();
+      } catch(e) {
+        OpenFangToast.error('Failed to save ' + part + ': ' + e.message);
+      }
+      this.drawerIdentitySaving = false;
     },
 
     async changeDrawerModel() {
@@ -1575,6 +1861,14 @@ function chatPage() {
         txt.indexOf('permission') >= 0 ||
         txt.indexOf('fail-closed') >= 0
       );
+    },
+
+    isToolSuccessful: function(tool) {
+      if (!tool) return false;
+      if (tool.running) return false;
+      if (this.isBlockedTool(tool)) return false;
+      if (tool.is_error) return false;
+      return true;
     },
 
     toolStatusText: function(tool) {
@@ -1707,6 +2001,7 @@ function chatPage() {
       var wsPayload = { type: 'message', content: finalText };
       if (uploadedFiles && uploadedFiles.length) wsPayload.attachments = uploadedFiles;
       if (OpenFangAPI.wsSend(wsPayload)) {
+        this._responseStartedAt = Date.now();
         this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, tools: [], ts: Date.now() });
         this.scrollToBottom();
         this.scheduleConversationPersist();
@@ -1720,6 +2015,7 @@ function chatPage() {
       this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, tools: [], ts: Date.now() });
       this.scrollToBottom();
       this.scheduleConversationPersist();
+      var httpStartedAt = Date.now();
 
       try {
         var httpBody = { message: finalText };
@@ -1729,6 +2025,8 @@ function chatPage() {
         var httpMeta = (res.input_tokens || 0) + ' in / ' + (res.output_tokens || 0) + ' out';
         if (res.cost_usd != null) httpMeta += ' | $' + res.cost_usd.toFixed(4);
         if (res.iterations) httpMeta += ' | ' + res.iterations + ' iter';
+        var httpDuration = this.formatResponseDuration(Date.now() - httpStartedAt);
+        if (httpDuration) httpMeta += ' | ' + httpDuration;
         var httpTools = Array.isArray(res.tools)
           ? res.tools.map(function(t, idx) {
               return {
@@ -1756,6 +2054,7 @@ function chatPage() {
         this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], ts: Date.now() });
         this.scheduleConversationPersist();
       }
+      this._responseStartedAt = 0;
       this.sending = false;
       this.scrollToBottom();
       // Process next queued message
