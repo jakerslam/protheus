@@ -46,6 +46,28 @@ function chatPage() {
     conversationCache: {},
     _persistTimer: null,
     showScrollDown: false,
+    hoveredMessageDomId: '',
+    mapStepIndex: -1,
+    activeMapPreviewDomId: '',
+    activeMapPreviewDayKey: '',
+    suppressMapPreview: false,
+    _mapPreviewSuppressTimer: null,
+    collapsedMessageDays: {},
+    showAgentDrawer: false,
+    agentDrawerLoading: false,
+    agentDrawer: null,
+    drawerTab: 'info',
+    drawerConfigForm: {},
+    drawerConfigSaving: false,
+    drawerModelSaving: false,
+    drawerEditingModel: false,
+    drawerEditingProvider: false,
+    drawerEditingFallback: false,
+    drawerNewModelValue: '',
+    drawerNewProviderValue: '',
+    drawerNewFallbackValue: '',
+    drawerArchetypeOptions: ['Assistant', 'Researcher', 'Coder', 'Writer', 'DevOps', 'Support', 'Analyst', 'Custom'],
+    drawerVibeOptions: ['professional', 'friendly', 'technical', 'creative', 'concise', 'mentor'],
     slashCommands: [
       { cmd: '/help', desc: 'Show available commands' },
       { cmd: '/agents', desc: 'Switch to Agents page' },
@@ -177,6 +199,10 @@ function chatPage() {
           token_count: this.tokenCount || 0,
           messages: JSON.parse(JSON.stringify(this.messages || [])),
         };
+        var appStore = Alpine.store('app');
+        if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
+          appStore.saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+        }
       } catch {}
     },
 
@@ -396,19 +422,10 @@ function chatPage() {
         var map = maps[i];
         if (!map || map.__ofWheelLock) continue;
         map.__ofWheelLock = true;
-        map.__ofHover = false;
-        map.addEventListener('mouseenter', function(ev) {
-          var target = ev.currentTarget;
-          if (target) target.__ofHover = true;
-        });
-        map.addEventListener('mouseleave', function(ev) {
-          var target = ev.currentTarget;
-          if (target) target.__ofHover = false;
-        });
         map.addEventListener('wheel', function(ev) {
           var target = ev.currentTarget;
           if (!target) return;
-          if (!target.__ofHover) return;
+          if (!target.matches(':hover')) return;
           // Keep wheel behavior scoped to chat map so the page does not scroll beneath it.
           var delta = Number(ev.deltaY || 0);
           if (delta !== 0) {
@@ -475,31 +492,13 @@ function chatPage() {
         // Use server-resolved model/provider to stay in sync (fixes #387/#466)
         self.currentAgent.model_name = (resp && resp.model) || model.id;
         self.currentAgent.model_provider = (resp && resp.provider) || model.provider;
+        self.addModelSwitchNotice(self.currentAgent.model_name, self.currentAgent.model_provider);
         OpenFangToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
         self.modelSwitching = false;
       }).catch(function(e) {
         OpenFangToast.error('Switch failed: ' + e.message);
         self.modelSwitching = false;
-      });
-    },
-
-    onModelSwitcherWheel(ev) {
-      var list = this.filteredSwitcherModels || [];
-      if (!list.length) return;
-      var dir = Number(ev && ev.deltaY) > 0 ? 1 : -1;
-      var nextIdx = this.modelSwitcherIdx + dir;
-      if (nextIdx < 0) nextIdx = 0;
-      if (nextIdx > list.length - 1) nextIdx = list.length - 1;
-      if (nextIdx === this.modelSwitcherIdx) return;
-      this.modelSwitcherIdx = nextIdx;
-      this.$nextTick(function() {
-        var nodes = document.querySelectorAll('.model-switcher-item');
-        if (!nodes || !nodes.length) return;
-        var target = nodes[nextIdx];
-        if (target && target.scrollIntoView) {
-          target.scrollIntoView({ block: 'nearest' });
-        }
       });
     },
 
@@ -653,8 +652,7 @@ function chatPage() {
                 var resolvedProvider = (resp && resp.provider) || '';
                 self.currentAgent.model_name = resolvedModel;
                 if (resolvedProvider) { self.currentAgent.model_provider = resolvedProvider; }
-                self.messages.push({ id: ++msgId, role: 'system', text: 'Model switched to: `' + resolvedModel + '`' + (resolvedProvider ? ' (provider: `' + resolvedProvider + '`)' : ''), meta: '', tools: [] });
-                self.scrollToBottom();
+                self.addModelSwitchNotice(resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
               }).catch(function(e) { OpenFangToast.error('Model switch failed: ' + e.message); });
             } else {
               self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [] });
@@ -747,6 +745,9 @@ function chatPage() {
       }
       this.loadSession(resolved.id, restored);
       this.loadSessions(resolved.id);
+      if (this.showAgentDrawer) {
+        this.openAgentDrawer();
+      }
       // Focus input after agent selection
       var self = this;
       this.$nextTick(function() {
@@ -1180,11 +1181,411 @@ function chatPage() {
       return 'Agent';
     },
 
+    messageDayKey: function(msg) {
+      if (!msg || !msg.ts) return '';
+      var d = new Date(msg.ts);
+      if (Number.isNaN(d.getTime())) return '';
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    },
+
+    messageDayLabel: function(msg) {
+      if (!msg || !msg.ts) return 'Unknown day';
+      var d = new Date(msg.ts);
+      if (Number.isNaN(d.getTime())) return 'Unknown day';
+      return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    },
+
+    messageDayDomId: function(msg) {
+      var key = this.messageDayKey(msg);
+      return key ? ('chat-day-' + key) : '';
+    },
+
+    isMessageDayCollapsed: function(msg) {
+      var key = this.messageDayKey(msg);
+      if (!key) return false;
+      return !!(this.collapsedMessageDays && this.collapsedMessageDays[key]);
+    },
+
+    toggleMessageDayCollapse: function(msg) {
+      var key = this.messageDayKey(msg);
+      if (!key) return;
+      if (!this.collapsedMessageDays) this.collapsedMessageDays = {};
+      this.collapsedMessageDays[key] = !this.collapsedMessageDays[key];
+    },
+
+    isNewMessageDay: function(list, idx) {
+      if (!Array.isArray(list) || idx < 0 || idx >= list.length) return false;
+      if (idx === 0) return true;
+      var curr = this.messageDayKey(list[idx]);
+      var prev = this.messageDayKey(list[idx - 1]);
+      if (!curr) return false;
+      return curr !== prev;
+    },
+
     jumpToMessage: function(msg, idx) {
       var id = this.messageDomId(msg, idx);
       var target = document.getElementById(id);
       if (!target) return;
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.mapStepIndex = idx;
+      this.centerChatMapOnMessage(id);
+    },
+
+    jumpToMessageDay: function(msg) {
+      var key = this.messageDayKey(msg);
+      if (!key) return;
+      var target = document.querySelector('.chat-day-anchor[data-day="' + key + '"]');
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    addModelSwitchNotice: function(modelName, providerName) {
+      var model = String(modelName || '').trim();
+      if (!model) return;
+      var provider = String(providerName || '').trim();
+      var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
+      this.messages.push({
+        id: ++msgId,
+        role: 'system',
+        text: '',
+        meta: '',
+        tools: [],
+        is_notice: true,
+        notice_label: label,
+        ts: Date.now()
+      });
+      this.scrollToBottom();
+      this.scheduleConversationPersist();
+    },
+
+    stepMessageMap: function(list, dir) {
+      if (!Array.isArray(list) || !list.length) return;
+      this.suppressMapPreview = true;
+      this.activeMapPreviewDomId = '';
+      this.activeMapPreviewDayKey = '';
+      if (this._mapPreviewSuppressTimer) clearTimeout(this._mapPreviewSuppressTimer);
+      var visibleIndexes = [];
+      for (var i = 0; i < list.length; i++) {
+        if (!this.isMessageDayCollapsed(list[i])) visibleIndexes.push(i);
+      }
+      if (!visibleIndexes.length) return;
+
+      var activePos = -1;
+      var anchorDomId = String(this.hoveredMessageDomId || '');
+      if (anchorDomId) {
+        for (var p = 0; p < visibleIndexes.length; p++) {
+          var vi = visibleIndexes[p];
+          if (this.messageDomId(list[vi], vi) === anchorDomId) {
+            activePos = p;
+            break;
+          }
+        }
+      }
+      if (activePos < 0) {
+        for (var p2 = 0; p2 < visibleIndexes.length; p2++) {
+          if (visibleIndexes[p2] === this.mapStepIndex) {
+            activePos = p2;
+            break;
+          }
+        }
+      }
+
+      if (activePos < 0) {
+        activePos = dir > 0 ? 0 : (visibleIndexes.length - 1);
+      } else {
+        activePos = activePos + (dir > 0 ? 1 : -1);
+        if (activePos < 0) activePos = 0;
+        if (activePos > visibleIndexes.length - 1) activePos = visibleIndexes.length - 1;
+      }
+
+      var next = visibleIndexes[activePos];
+      var msg = list[next];
+      if (!msg) return;
+      this.setHoveredMessage(msg, next);
+      this.jumpToMessage(msg, next);
+      this.centerChatMapOnMessage(this.messageDomId(msg, next));
+      var self = this;
+      this._mapPreviewSuppressTimer = setTimeout(function() {
+        self.suppressMapPreview = false;
+      }, 220);
+    },
+
+    setMapItemHover: function(msg, idx) {
+      if (!msg) return;
+      this.suppressMapPreview = false;
+      this.activeMapPreviewDomId = this.messageDomId(msg, idx);
+      this.activeMapPreviewDayKey = '';
+      this.setHoveredMessage(msg, idx);
+    },
+
+    clearMapItemHover: function() {
+      this.activeMapPreviewDomId = '';
+      this.clearHoveredMessage();
+    },
+
+    setMapDayHover: function(msg) {
+      if (!msg) return;
+      this.suppressMapPreview = false;
+      this.activeMapPreviewDayKey = this.messageDayKey(msg);
+      this.activeMapPreviewDomId = '';
+    },
+
+    clearMapDayHover: function() {
+      this.activeMapPreviewDayKey = '';
+    },
+
+    isMapPreviewVisible: function(msg, idx) {
+      if (this.suppressMapPreview) return false;
+      if (!msg) return false;
+      return this.activeMapPreviewDomId === this.messageDomId(msg, idx);
+    },
+
+    isMapDayPreviewVisible: function(msg) {
+      if (this.suppressMapPreview) return false;
+      if (!msg) return false;
+      return this.activeMapPreviewDayKey === this.messageDayKey(msg);
+    },
+
+    setHoveredMessage: function(msg, idx) {
+      if (!msg && msg !== 0) {
+        this.hoveredMessageDomId = '';
+        return;
+      }
+      this.hoveredMessageDomId = this.messageDomId(msg, idx);
+      if (typeof idx === 'number' && idx >= 0) this.mapStepIndex = idx;
+      this.centerChatMapOnMessage(this.hoveredMessageDomId);
+    },
+
+    clearHoveredMessage: function() {
+      // Keep the last hovered message linked for continuity.
+      return;
+    },
+
+    clearHoveredMessageHard: function() {
+      this.hoveredMessageDomId = '';
+    },
+
+    isHoveredMessage: function(msg, idx) {
+      if (!this.hoveredMessageDomId) return false;
+      return this.hoveredMessageDomId === this.messageDomId(msg, idx);
+    },
+
+    centerChatMapOnMessage: function(domId) {
+      if (!domId) return;
+      var map = null;
+      var maps = document.querySelectorAll('.chat-map');
+      for (var i = 0; i < maps.length; i++) {
+        var candidate = maps[i];
+        if (candidate && candidate.offsetParent !== null) {
+          map = candidate;
+          break;
+        }
+      }
+      if (!map) return;
+      var item = map.querySelector('.chat-map-item[data-msg-dom-id="' + domId + '"]');
+      if (!item) return;
+      var topGuard = 28;
+      var bottomGuard = 28;
+      var viewport = Math.max(20, map.clientHeight - topGuard - bottomGuard);
+      var desired = item.offsetTop + (item.offsetHeight / 2) - (viewport / 2) - topGuard;
+      var max = Math.max(0, map.scrollHeight - map.clientHeight);
+      var nextTop = Math.max(0, Math.min(max, desired));
+      var diff = Math.abs(map.scrollTop - nextTop);
+      if (diff < 3) return;
+      map.scrollTo({ top: nextTop, behavior: this.suppressMapPreview ? 'auto' : 'smooth' });
+    },
+
+    async openAgentDrawer() {
+      if (!this.currentAgent || !this.currentAgent.id) return;
+      this.showAgentDrawer = true;
+      this.agentDrawerLoading = true;
+      this.drawerTab = 'info';
+      this.drawerEditingModel = false;
+      this.drawerEditingProvider = false;
+      this.drawerEditingFallback = false;
+      this.drawerNewModelValue = '';
+      this.drawerNewProviderValue = '';
+      this.drawerNewFallbackValue = '';
+      var base = this.resolveAgent(this.currentAgent) || this.currentAgent;
+      this.agentDrawer = Object.assign({}, base, {
+        _fallbacks: Array.isArray(base && base._fallbacks) ? base._fallbacks : []
+      });
+      this.drawerConfigForm = {
+        name: this.agentDrawer.name || '',
+        system_prompt: this.agentDrawer.system_prompt || '',
+        emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+        color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
+        archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
+        vibe: (this.agentDrawer.identity && this.agentDrawer.identity.vibe) || '',
+      };
+      try {
+        var full = await OpenFangAPI.get('/api/agents/' + this.currentAgent.id);
+        this.agentDrawer = Object.assign({}, base, full || {}, {
+          _fallbacks: Array.isArray(full && full.fallback_models) ? full.fallback_models : []
+        });
+        this.drawerConfigForm = {
+          name: this.agentDrawer.name || '',
+          system_prompt: this.agentDrawer.system_prompt || '',
+          emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+          color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
+          archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
+          vibe: (this.agentDrawer.identity && this.agentDrawer.identity.vibe) || '',
+        };
+      } catch(e) {
+        // Keep best-effort drawer data from current agent/store.
+      } finally {
+        this.agentDrawerLoading = false;
+      }
+    },
+
+    closeAgentDrawer() {
+      this.showAgentDrawer = false;
+    },
+
+    toggleAgentDrawer() {
+      if (this.showAgentDrawer) {
+        this.closeAgentDrawer();
+        return;
+      }
+      this.openAgentDrawer();
+    },
+
+    async syncDrawerAgentAfterChange() {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      try {
+        await Alpine.store('app').refreshAgents();
+      } catch {}
+      var refreshed = this.resolveAgent(this.agentDrawer.id);
+      if (refreshed) {
+        this.currentAgent = refreshed;
+      }
+      await this.openAgentDrawer();
+    },
+
+    async setDrawerMode(mode) {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      try {
+        await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/mode', { mode: mode });
+        OpenFangToast.success('Mode set to ' + mode);
+        await this.syncDrawerAgentAfterChange();
+      } catch(e) {
+        OpenFangToast.error('Failed to set mode: ' + e.message);
+      }
+    },
+
+    async saveDrawerConfig() {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      this.drawerConfigSaving = true;
+      try {
+        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        OpenFangToast.success('Config updated');
+        await this.syncDrawerAgentAfterChange();
+      } catch(e) {
+        OpenFangToast.error('Failed to save config: ' + e.message);
+      }
+      this.drawerConfigSaving = false;
+    },
+
+    async changeDrawerModel() {
+      if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewModelValue || '').trim()) return;
+      this.drawerModelSaving = true;
+      try {
+        var resp = await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/model', {
+          model: String(this.drawerNewModelValue || '').trim()
+        });
+        this.addModelSwitchNotice((resp && resp.model) || String(this.drawerNewModelValue || '').trim(), (resp && resp.provider) || this.agentDrawer.model_provider || '');
+        var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
+        OpenFangToast.success('Model changed' + providerInfo + ' (memory reset)');
+        this.drawerEditingModel = false;
+        this.drawerNewModelValue = '';
+        await this.syncDrawerAgentAfterChange();
+      } catch(e) {
+        OpenFangToast.error('Failed to change model: ' + e.message);
+      }
+      this.drawerModelSaving = false;
+    },
+
+    async changeDrawerProvider() {
+      if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewProviderValue || '').trim()) return;
+      this.drawerModelSaving = true;
+      try {
+        var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
+        var resp = await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/model', { model: combined });
+        this.addModelSwitchNotice((resp && resp.model) || this.agentDrawer.model_name || '', (resp && resp.provider) || String(this.drawerNewProviderValue || '').trim());
+        OpenFangToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : String(this.drawerNewProviderValue || '').trim()));
+        this.drawerEditingProvider = false;
+        this.drawerNewProviderValue = '';
+        await this.syncDrawerAgentAfterChange();
+      } catch(e) {
+        OpenFangToast.error('Failed to change provider: ' + e.message);
+      }
+      this.drawerModelSaving = false;
+    },
+
+    async addDrawerFallback() {
+      if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewFallbackValue || '').trim()) return;
+      var parts = String(this.drawerNewFallbackValue || '').trim().split('/');
+      var provider = parts.length > 1 ? parts[0] : this.agentDrawer.model_provider;
+      var model = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
+      if (!this.agentDrawer._fallbacks) this.agentDrawer._fallbacks = [];
+      this.agentDrawer._fallbacks.push({ provider: provider, model: model });
+      try {
+        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+          fallback_models: this.agentDrawer._fallbacks
+        });
+        OpenFangToast.success('Fallback added: ' + provider + '/' + model);
+        this.drawerEditingFallback = false;
+        this.drawerNewFallbackValue = '';
+      } catch(e) {
+        OpenFangToast.error('Failed to save fallbacks: ' + e.message);
+        this.agentDrawer._fallbacks.pop();
+      }
+    },
+
+    async removeDrawerFallback(idx) {
+      if (!this.agentDrawer || !this.agentDrawer.id || !Array.isArray(this.agentDrawer._fallbacks)) return;
+      var removed = this.agentDrawer._fallbacks.splice(idx, 1);
+      try {
+        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+          fallback_models: this.agentDrawer._fallbacks
+        });
+        OpenFangToast.success('Fallback removed');
+      } catch(e) {
+        OpenFangToast.error('Failed to save fallbacks: ' + e.message);
+        if (removed && removed.length) this.agentDrawer._fallbacks.splice(idx, 0, removed[0]);
+      }
+    },
+
+    isBlockedTool: function(tool) {
+      if (!tool) return false;
+      if (tool.blocked === true) return true;
+      var txt = String(tool.result || '').toLowerCase();
+      if (String(tool.status || '').toLowerCase() === 'blocked') return true;
+      if (!tool.is_error) return false;
+      return (
+        txt.indexOf('blocked') >= 0 ||
+        txt.indexOf('policy') >= 0 ||
+        txt.indexOf('denied') >= 0 ||
+        txt.indexOf('not allowed') >= 0 ||
+        txt.indexOf('forbidden') >= 0 ||
+        txt.indexOf('approval') >= 0 ||
+        txt.indexOf('permission') >= 0 ||
+        txt.indexOf('fail-closed') >= 0
+      );
+    },
+
+    toolStatusText: function(tool) {
+      if (!tool) return '';
+      if (tool.running) return 'running...';
+      if (this.isBlockedTool(tool)) return 'blocked';
+      if (tool.is_error) return 'error';
+      if (tool.result) {
+        return tool.result.length > 500 ? Math.round(tool.result.length / 1024) + 'KB' : 'done';
+      }
+      return 'done';
     },
 
     // Mark chat-rendered error messages for styling
