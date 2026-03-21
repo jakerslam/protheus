@@ -369,11 +369,46 @@ document.addEventListener('alpine:init', function() {
       var preview = {
         text: '',
         ts: Date.now(),
-        role: 'agent'
+        role: 'agent',
+        has_tools: false,
+        tool_state: '',
+        tool_label: ''
+      };
+      var toolStateRank = { success: 1, warning: 2, error: 3 };
+      var classifyTool = function(tool) {
+        if (!tool) return '';
+        if (tool.running) return 'warning';
+        var status = String(tool.status || '').toLowerCase();
+        var result = String(tool.result || '').toLowerCase();
+        var blocked = tool.blocked === true || status === 'blocked' ||
+          result.indexOf('blocked') >= 0 ||
+          result.indexOf('policy') >= 0 ||
+          result.indexOf('denied') >= 0 ||
+          result.indexOf('not allowed') >= 0 ||
+          result.indexOf('forbidden') >= 0 ||
+          result.indexOf('approval') >= 0 ||
+          result.indexOf('permission') >= 0 ||
+          result.indexOf('fail-closed') >= 0;
+        if (blocked) return 'warning';
+        if (tool.is_error) return 'error';
+        return 'success';
+      };
+      var summarizeTools = function(tools) {
+        if (!Array.isArray(tools) || !tools.length) return { has_tools: false, tool_state: '', tool_label: '' };
+        var state = 'success';
+        for (var ti = 0; ti < tools.length; ti++) {
+          var s = classifyTool(tools[ti]) || 'success';
+          if ((toolStateRank[s] || 0) > (toolStateRank[state] || 0)) state = s;
+        }
+        var label = state === 'error'
+          ? 'Tool error'
+          : (state === 'warning' ? 'Tool warning' : 'Tool success');
+        return { has_tools: true, tool_state: state, tool_label: label };
       };
       for (var i = list.length - 1; i >= 0; i--) {
         var msg = list[i] || {};
         var text = '';
+        var toolInfo = summarizeTools(msg.tools);
         if (typeof msg.text === 'string' && msg.text.trim()) {
           text = msg.text.replace(/\s+/g, ' ').trim();
         } else if (Array.isArray(msg.tools) && msg.tools.length) {
@@ -385,6 +420,9 @@ document.addEventListener('alpine:init', function() {
           preview.text = text;
           preview.ts = Number(msg.ts || Date.now());
           preview.role = String(msg.role || 'agent');
+          preview.has_tools = !!toolInfo.has_tools;
+          preview.tool_state = toolInfo.tool_state || '';
+          preview.tool_label = toolInfo.tool_label || '';
           break;
         }
       }
@@ -482,6 +520,18 @@ function app() {
     mobileMenuOpen: false,
     chatSidebarMode: 'default',
     chatSidebarQuery: '',
+    confirmArchiveAgentId: '',
+    archivedAgentIds: (() => {
+      try {
+        var raw = localStorage.getItem('openfang-archived-agent-ids');
+        var parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(function(id) { return String(id); });
+      } catch(_) {
+        return [];
+      }
+    })(),
+    sidebarSpawningAgent: false,
     connected: false,
     wsConnected: false,
     version: '0.1.0',
@@ -492,6 +542,11 @@ function app() {
     get chatSidebarAgents() {
       var list = (this.agents || []).slice();
       var self = this;
+      var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id); }));
+      list = list.filter(function(agent) {
+        if (!agent || !agent.id) return false;
+        return !archivedSet.has(String(agent.id));
+      });
       list.sort(function(a, b) {
         return self.sidebarAgentSortTs(b) - self.sidebarAgentSortTs(a);
       });
@@ -552,7 +607,7 @@ function app() {
         // Ctrl+N — new agent
         if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
           e.preventDefault();
-          self.navigate('agents');
+          self.createSidebarAgentChat();
         }
         // Ctrl+Shift+F — toggle focus mode
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
@@ -647,6 +702,7 @@ function app() {
         this.chatSidebarMode = 'default';
         this.chatSidebarQuery = '';
       }
+      this.confirmArchiveAgentId = '';
     },
 
     sidebarAgentSortTs(agent) {
@@ -662,17 +718,87 @@ function app() {
     },
 
     chatSidebarPreview(agent) {
-      if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent' };
+      if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '' };
       var store = Alpine.store('app');
       var preview = store && typeof store.getAgentChatPreview === 'function'
         ? store.getAgentChatPreview(agent.id)
         : null;
-      if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent' };
+      if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '' };
       return preview;
+    },
+
+    persistArchivedAgentIds() {
+      var seen = {};
+      var out = [];
+      (this.archivedAgentIds || []).forEach(function(id) {
+        var key = String(id || '').trim();
+        if (!key || seen[key]) return;
+        seen[key] = true;
+        out.push(key);
+      });
+      this.archivedAgentIds = out;
+      try {
+        localStorage.setItem('openfang-archived-agent-ids', JSON.stringify(out));
+      } catch(_) {}
+    },
+
+    archiveAgentFromSidebar(agent) {
+      if (!agent || !agent.id) return;
+      var agentId = String(agent.id);
+      if ((this.archivedAgentIds || []).indexOf(agentId) >= 0) return;
+      this.confirmArchiveAgentId = '';
+      this.archivedAgentIds = (this.archivedAgentIds || []).concat([agentId]);
+      this.persistArchivedAgentIds();
+      var store = Alpine.store('app');
+      if (store.activeAgentId === agent.id) {
+        var next = this.chatSidebarAgents.length ? this.chatSidebarAgents[0] : null;
+        if (next && next.id) {
+          store.activeAgentId = next.id;
+        } else {
+          store.activeAgentId = null;
+        }
+      }
+      OpenFangToast.success('Archived "' + (agent.name || agent.id) + '"');
+    },
+
+    async createSidebarAgentChat() {
+      if (this.sidebarSpawningAgent) return;
+      this.confirmArchiveAgentId = '';
+      this.sidebarSpawningAgent = true;
+      var now = new Date();
+      var hh = String(now.getHours()).padStart(2, '0');
+      var mm = String(now.getMinutes()).padStart(2, '0');
+      var ss = String(now.getSeconds()).padStart(2, '0');
+      var agentName = 'agent-' + hh + mm + ss;
+      var toml = '';
+      toml += 'name = "' + agentName + '"\n';
+      toml += 'description = "Sidebar quick-start agent"\n';
+      toml += 'module = "builtin:chat"\n';
+      toml += 'profile = "full"\n\n';
+      toml += '[model]\nprovider = "groq"\nmodel = "llama-3.3-70b-versatile"\n';
+      toml += 'system_prompt = """\nYou are a helpful assistant.\n"""\n';
+      try {
+        var res = await OpenFangAPI.post('/api/agents', { manifest_toml: toml });
+        if (!res || !res.agent_id) throw new Error('spawn_failed');
+        await Alpine.store('app').refreshAgents();
+        var created = (this.agents || []).find(function(a) { return a && a.id === res.agent_id; })
+          || { id: res.agent_id, name: agentName };
+        this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== String(res.agent_id); });
+        this.persistArchivedAgentIds();
+        Alpine.store('app').pendingAgent = created;
+        Alpine.store('app').activeAgentId = created.id;
+        this.navigate('chat');
+        this.closeAgentChatsSidebar();
+        OpenFangToast.success('Agent "' + (created.name || created.id || agentName) + '" created');
+      } catch(e) {
+        OpenFangToast.error('Failed to create agent: ' + (e && e.message ? e.message : 'unknown error'));
+      }
+      this.sidebarSpawningAgent = false;
     },
 
     selectAgentChatFromSidebar(agent) {
       if (!agent || !agent.id) return;
+      this.confirmArchiveAgentId = '';
       Alpine.store('app').activeAgentId = agent.id;
       this.navigate('chat');
       this.closeAgentChatsSidebar();
@@ -685,6 +811,9 @@ function app() {
       var now = new Date();
       var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
       if (sameDay) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      var y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      var isYesterday = d.getFullYear() === y.getFullYear() && d.getMonth() === y.getMonth() && d.getDate() === y.getDate();
+      if (isYesterday) return 'Yesterday';
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },
 
