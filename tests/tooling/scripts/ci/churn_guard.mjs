@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 // TODO(rkapoor): Add threshold validation for weekly churn % - Q2 2026
 import { execSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const OUT_JSON = 'core/local/artifacts/churn_guard_current.json';
@@ -39,6 +39,12 @@ function parseArgs(argv) {
 }
 
 function classifyPath(path) {
+  if (
+    path.startsWith('local/state/ops/daemon_control/') ||
+    /^local\/workspace\/memory\/dashboard-ui.*\.(log|pid)$/i.test(path)
+  ) {
+    return 'session_churn';
+  }
   if (SWARM_CODE_SURFACES.has(path) || SWARM_TEST_SURFACES.has(path)) {
     return 'swarm_surface_churn';
   }
@@ -181,6 +187,61 @@ function detectLikelyUnstagedMoves(rows) {
   return pairs;
 }
 
+function detectSessionChurnSignals() {
+  const issues = [];
+
+  try {
+    const raw = execSync('ps -ax -o pid=,ppid=,command=', { encoding: 'utf8' });
+    const rows = raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const dashboardHosts = rows.filter(
+      (line) =>
+        /ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(line) ||
+        /protheus-ops dashboard-ui serve/.test(line),
+    );
+    if (dashboardHosts.length > 1) {
+      issues.push({
+        type: 'duplicate_dashboard_hosts',
+        detail: `multiple dashboard host processes detected (${dashboardHosts.length})`,
+        sample: dashboardHosts.slice(0, 4),
+      });
+    }
+  } catch {
+    // ignore runtime process inspection failures
+  }
+
+  const dashboardPidPath = resolve('local/state/ops/daemon_control/dashboard_ui.pid');
+  if (existsSync(dashboardPidPath)) {
+    try {
+      const pid = String(readFileSync(dashboardPidPath, 'utf8') || '').trim();
+      if (pid) {
+        try {
+          const probe = execSync(`ps -p ${pid} -o pid=`, { encoding: 'utf8' }).trim();
+          if (!probe) {
+            issues.push({
+              type: 'stale_dashboard_pid_file',
+              detail: `dashboard_ui.pid points to non-running pid ${pid}`,
+              path: 'local/state/ops/daemon_control/dashboard_ui.pid',
+            });
+          }
+        } catch {
+          issues.push({
+            type: 'stale_dashboard_pid_file',
+            detail: `dashboard_ui.pid points to non-running pid ${pid}`,
+            path: 'local/state/ops/daemon_control/dashboard_ui.pid',
+          });
+        }
+      }
+    } catch {
+      // ignore pid-read failures
+    }
+  }
+
+  return issues;
+}
+
 function toMarkdown(payload) {
   const lines = [];
   lines.push('# Churn Guard (Current)');
@@ -194,6 +255,7 @@ function toMarkdown(payload) {
   lines.push(`- local_simulation_churn: ${payload.summary.local_simulation_churn}`);
   lines.push(`- lensmap_churn: ${payload.summary.lensmap_churn}`);
   lines.push(`- generated_report_churn: ${payload.summary.generated_report_churn}`);
+  lines.push(`- session_churn: ${payload.summary.session_churn}`);
   lines.push(`- governance_doc_churn: ${payload.summary.governance_doc_churn}`);
   lines.push(`- swarm_surface_churn: ${payload.summary.swarm_surface_churn}`);
   lines.push(`- swarm_companion_gaps: ${payload.summary.swarm_companion_gaps}`);
@@ -206,6 +268,19 @@ function toMarkdown(payload) {
   lines.push(`- commit_gate_pass: ${payload.summary.commit_gate_pass}`);
   lines.push(`- pass: ${payload.summary.pass}`);
   lines.push('');
+  if (payload.session_churn_signals.length > 0) {
+    lines.push('## Session Churn Signals');
+    lines.push('| Type | Detail |');
+    lines.push('| --- | --- |');
+    for (const signal of payload.session_churn_signals) {
+      lines.push(`| ${signal.type} | ${signal.detail} |`);
+    }
+    lines.push('');
+    lines.push(
+      'Remediation: keep one dashboard host process, clear stale dashboard pid state, and relaunch once.',
+    );
+    lines.push('');
+  }
   if (payload.likely_unstaged_moves.length > 0) {
     lines.push('## Likely Unstaged Move Pairs');
     lines.push('| From (deleted) | To (untracked) |');
@@ -244,6 +319,7 @@ function toMarkdown(payload) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const rows = parseStatus();
+  const sessionChurnSignals = detectSessionChurnSignals();
   const likelyUnstagedMoves = detectLikelyUnstagedMoves(rows);
   const swarmCompanionGaps = detectSwarmCompanionGaps(rows);
   const untrackedRows = rows.filter((row) => isUntracked(row.status));
@@ -251,6 +327,7 @@ function main() {
     'local_simulation_churn',
     'lensmap_churn',
     'generated_report_churn',
+    'session_churn',
   ]);
   const forbiddenCommitRows = rows.filter((row) => forbiddenCommitCategories.has(row.category));
   const governanceCommitRows = rows.filter((row) => row.category === 'governance_doc_churn');
@@ -261,7 +338,8 @@ function main() {
     (args.allowGovernanceDocChurn || governanceCommitRows.length === 0 || !governanceOnlyChurn) &&
     likelyUnstagedMoves.length === 0 &&
     swarmCompanionGaps.length === 0 &&
-    untrackedRows.length === 0;
+    untrackedRows.length === 0 &&
+    sessionChurnSignals.length === 0;
 
   const summary = {
     strict: args.strict,
@@ -270,6 +348,8 @@ function main() {
     local_simulation_churn: rows.filter((r) => r.category === 'local_simulation_churn').length,
     lensmap_churn: rows.filter((r) => r.category === 'lensmap_churn').length,
     generated_report_churn: rows.filter((r) => r.category === 'generated_report_churn').length,
+    session_churn:
+      rows.filter((r) => r.category === 'session_churn').length + sessionChurnSignals.length,
     governance_doc_churn: rows.filter((r) => r.category === 'governance_doc_churn').length,
     swarm_surface_churn: rows.filter((r) => r.category === 'swarm_surface_churn').length,
     swarm_companion_gaps: swarmCompanionGaps.length,
@@ -283,6 +363,7 @@ function main() {
     summary.local_simulation_churn === 0 &&
     summary.lensmap_churn === 0 &&
     summary.generated_report_churn === 0 &&
+    summary.session_churn === 0 &&
     (summary.governance_doc_churn === 0 || args.allowGovernanceDocChurn) &&
     summary.swarm_surface_churn === 0 &&
     summary.swarm_companion_gaps === 0 &&
@@ -296,6 +377,7 @@ function main() {
     type: 'churn_guard',
     generatedAt: new Date().toISOString(),
     summary,
+    session_churn_signals: sessionChurnSignals,
     likely_unstaged_moves: likelyUnstagedMoves,
     swarm_companion_gaps: swarmCompanionGaps,
     rows,

@@ -73,7 +73,7 @@ function render(snapshot: Dict | null) {
     <main style="max-width:1120px;margin:20px auto;padding:14px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">
       <header style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
         <div>
-          <h1 style="margin:0 0 4px 0;font-size:18px">InfRing - Unified Agent Deck</h1>
+          <h1 style="margin:0 0 4px 0;font-size:18px">Infring Dashboard (Legacy Fallback)</h1>
           <p style="margin:0;color:#bfd3f5;font-size:12px">Compatibility mode: clean chat default, advanced controls optional.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
             <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(122,163,255,.4);border-radius:999px;background:rgba(122,163,255,.14);color:#dce9ff;padding:5px 10px;font-size:11px;font-weight:700">Live</span>

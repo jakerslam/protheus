@@ -842,7 +842,7 @@ fn html_shell(refresh_ms: u64) -> String {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>InfRing Unified Dashboard</title>
+  <title>Infring Dashboard (Legacy Core Shell)</title>
   <style>
     :root {
       --bg: #070b14;
@@ -1042,7 +1042,7 @@ fn html_shell(refresh_ms: u64) -> String {
       <div class="top-left">
         <button id="themeToggle" class="btn" type="button">Light</button>
         <div>
-          <h1 class="title">InfRing - Unified Agent Deck</h1>
+          <h1 class="title">Infring Dashboard (Legacy Core Shell)</h1>
           <div class="muted" style="font-size:12px">Chat-first UI with advanced controls in side pane</div>
         </div>
       </div>

@@ -1643,7 +1643,7 @@ function htmlShell() {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>InfRing Unified Dashboard</title>
+  <title>Infring Dashboard (Legacy Shell)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/infring_dashboard.css">
 </head>
@@ -1799,10 +1799,17 @@ function bodyJson(req) {
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasOpenclawForkUi();
-  const html = forkUiEnabled ? buildOpenclawForkHtml() : htmlShell();
-  const css = readText(CSS_PATH, '');
-  const clientJs = transpileClientTs();
-  const fallbackJs = transpileFallbackTs();
+  let html = '';
+  let css = '';
+  let clientJs = '';
+  let fallbackJs = '';
+  const refreshUiAssets = () => {
+    html = forkUiEnabled ? buildOpenclawForkHtml() : htmlShell();
+    css = readText(CSS_PATH, '');
+    clientJs = transpileClientTs();
+    fallbackJs = transpileFallbackTs();
+  };
+  refreshUiAssets();
   let latestSnapshot = buildSnapshot(flags);
   writeSnapshotReceipt(latestSnapshot);
   let updating = false;
@@ -1813,6 +1820,7 @@ function runServe(flags) {
 
     try {
       if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
+        refreshUiAssets();
         sendText(res, 200, html, 'text/html; charset=utf-8');
         return;
       }
@@ -1824,14 +1832,17 @@ function runServe(flags) {
         }
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard.css') {
+        refreshUiAssets();
         sendText(res, 200, css, 'text/css; charset=utf-8');
         return;
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard_client.js') {
+        refreshUiAssets();
         sendText(res, 200, clientJs, 'text/javascript; charset=utf-8');
         return;
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard_fallback.js') {
+        refreshUiAssets();
         sendText(res, 200, fallbackJs, 'text/javascript; charset=utf-8');
         return;
       }
