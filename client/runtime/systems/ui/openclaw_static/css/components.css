@@ -310,6 +310,9 @@ tr:hover td { background: var(--surface2); }
 
 /* Messages / Chat */
 .chat-wrapper {
+  --chat-column-max: 840px;
+  --chat-nav-reserve: 92px;
+  --chat-column-shift: -12px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -322,19 +325,21 @@ tr:hover td { background: var(--surface2); }
   flex: 1;
   overflow-y: auto;
   padding: 20px 24px;
-  padding-bottom: 88px;
+  padding-bottom: 3rem;
   padding-right: 24px;
   position: relative;
   scroll-behavior: smooth;
-  overscroll-behavior: contain;
-  mask-image: linear-gradient(to bottom, #000 0%, #000 84%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 84%, transparent 100%);
+  overscroll-behavior-y: none;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 96%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 96%, transparent 100%);
 }
 
 .chat-thread {
-  width: 60%;
+  width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve)));
+  max-width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve)));
   margin: 0 auto;
   position: relative;
+  transform: translateX(var(--chat-column-shift));
 }
 
 .message {
@@ -506,9 +511,9 @@ tr:hover td { background: var(--surface2); }
 .chat-map {
   position: fixed;
   top: 78px;
-  right: 10px;
+  right: 8px;
   bottom: 102px;
-  width: 340px;
+  width: 56px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -516,15 +521,22 @@ tr:hover td { background: var(--surface2); }
   z-index: 24;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0;
-  pointer-events: none;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 55%, transparent) transparent;
+  pointer-events: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-map::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .chat-map-item {
-  width: 36px;
-  margin-left: auto;
+  width: 100%;
+  margin-left: 0;
   border: none;
   background: transparent;
   color: var(--text-dim);
@@ -1066,10 +1078,20 @@ mark.search-highlight {
 }
 
 .chat-input-lane {
-  width: 60%;
+  width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve)));
+  max-width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve)));
   margin-left: auto;
   margin-right: auto;
   position: relative;
+  transform: translateX(var(--chat-column-shift));
+}
+
+.sidebar + .main-content .chat-wrapper {
+  --chat-column-shift: -18px;
+}
+
+.sidebar.collapsed + .main-content .chat-wrapper {
+  --chat-column-shift: -10px;
 }
 
 .input-area textarea {
@@ -1258,18 +1280,27 @@ mark.search-highlight {
 }
 
 @media (max-width: 1280px) {
-  .chat-thread { width: 60%; }
+  .chat-wrapper {
+    --chat-column-max: 820px;
+    --chat-nav-reserve: 88px;
+  }
+  .chat-thread { width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve))); }
   .messages { padding-right: 24px; }
   .input-area { width: 100% !important; }
-  .chat-input-lane { width: 60%; }
+  .chat-input-lane { width: min(var(--chat-column-max), calc(100% - var(--chat-nav-reserve))); }
 }
 
 @media (max-width: 980px) {
-  .chat-thread { width: 100%; }
+  .chat-wrapper {
+    --chat-column-max: 100%;
+    --chat-nav-reserve: 0px;
+    --chat-column-shift: 0px;
+  }
+  .chat-thread { width: 100%; transform: none; }
   .messages { padding-right: 20px; }
   .chat-map { display: none; }
   .input-area { width: 100%; }
-  .chat-input-lane { width: 100%; }
+  .chat-input-lane { width: 100%; transform: none; }
   .chat-scroll-down { right: 20px; }
 }
 
@@ -1355,6 +1386,14 @@ mark.search-highlight {
   z-index: 100;
   overflow: hidden;
 }
+.model-switcher-dropdown-inline {
+  left: auto;
+  right: 0;
+}
+.composer-model-btn.active {
+  color: var(--text);
+  background: var(--surface2);
+}
 .model-switcher-search {
   display: flex;
   align-items: center;
@@ -1406,6 +1445,7 @@ mark.search-highlight {
   transition: background 0.1s;
 }
 .model-switcher-item:hover { background: var(--surface2); }
+.model-switcher-item.hovered { background: var(--surface2); }
 .model-switcher-item.active {
   background: var(--accent-subtle, rgba(59,130,246,0.08));
   cursor: default;
