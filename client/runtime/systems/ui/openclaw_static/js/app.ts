@@ -161,6 +161,13 @@ document.addEventListener('alpine:init', function() {
     showAuthPrompt: false,
     authMode: 'apikey',
     sessionUser: null,
+    notifications: [],
+    notificationsOpen: false,
+    unreadNotifications: 0,
+    notificationBubble: null,
+    _notificationBubbleTimer: null,
+    _notificationSeq: 0,
+    agentChatPreviews: {},
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
@@ -278,6 +285,182 @@ document.addEventListener('alpine:init', function() {
       this.showAuthPrompt = true;
     },
 
+    addNotification(payload) {
+      var p = payload || {};
+      var note = {
+        id: p.id || ('notif-' + (++this._notificationSeq) + '-' + Date.now()),
+        message: String(p.message || ''),
+        type: String(p.type || 'info'),
+        ts: Number(p.ts || Date.now()),
+        read: !!this.notificationsOpen
+      };
+      this.notifications.unshift(note);
+      if (this.notifications.length > 150) this.notifications = this.notifications.slice(0, 150);
+      this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
+      this.showNotificationBubble(note);
+    },
+
+    showNotificationBubble(note) {
+      var n = note || null;
+      if (!n) return;
+      this.notificationBubble = {
+        id: n.id,
+        message: n.message,
+        type: n.type,
+        ts: n.ts,
+      };
+      if (this._notificationBubbleTimer) clearTimeout(this._notificationBubbleTimer);
+      var self = this;
+      this._notificationBubbleTimer = setTimeout(function() {
+        self.notificationBubble = null;
+      }, 5200);
+    },
+
+    toggleNotifications() {
+      this.notificationsOpen = !this.notificationsOpen;
+      if (this.notificationsOpen) this.markAllNotificationsRead();
+    },
+
+    markNotificationRead(id) {
+      this.notifications = this.notifications.map(function(n) {
+        if (n.id === id) n.read = true;
+        return n;
+      });
+      this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
+    },
+
+    markAllNotificationsRead() {
+      this.notifications = this.notifications.map(function(n) {
+        n.read = true;
+        return n;
+      });
+      this.unreadNotifications = 0;
+    },
+
+    clearNotifications() {
+      this.notifications = [];
+      this.notificationsOpen = false;
+      this.unreadNotifications = 0;
+      this.notificationBubble = null;
+      if (this._notificationBubbleTimer) {
+        clearTimeout(this._notificationBubbleTimer);
+        this._notificationBubbleTimer = null;
+      }
+    },
+
+    reopenNotification(note) {
+      if (!note) return;
+      this.markNotificationRead(note.id);
+      this.showNotificationBubble(note);
+      this.notificationsOpen = false;
+    },
+
+    dismissNotificationBubble() {
+      this.notificationBubble = null;
+      if (this._notificationBubbleTimer) {
+        clearTimeout(this._notificationBubbleTimer);
+        this._notificationBubbleTimer = null;
+      }
+    },
+
+    saveAgentChatPreview(agentId, messages) {
+      if (!agentId) return;
+      var list = Array.isArray(messages) ? messages : [];
+      var preview = {
+        text: '',
+        ts: Date.now(),
+        role: 'agent'
+      };
+      for (var i = list.length - 1; i >= 0; i--) {
+        var msg = list[i] || {};
+        var text = '';
+        if (typeof msg.text === 'string' && msg.text.trim()) {
+          text = msg.text.replace(/\s+/g, ' ').trim();
+        } else if (Array.isArray(msg.tools) && msg.tools.length) {
+          text = '[Processes] ' + msg.tools.map(function(tool) {
+            return tool && tool.name ? tool.name : 'tool';
+          }).join(', ');
+        }
+        if (text) {
+          preview.text = text;
+          preview.ts = Number(msg.ts || Date.now());
+          preview.role = String(msg.role || 'agent');
+          break;
+        }
+      }
+      this.agentChatPreviews[String(agentId)] = preview;
+    },
+
+    getAgentChatPreview(agentId) {
+      if (!agentId) return null;
+      return this.agentChatPreviews[String(agentId)] || null;
+    },
+
+    coerceAgentTimestamp(value) {
+      if (value === null || typeof value === 'undefined' || value === '') return 0;
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value)) return 0;
+        return value < 1e12 ? Math.round(value * 1000) : Math.round(value);
+      }
+      var asNum = Number(value);
+      if (Number.isFinite(asNum) && String(value).trim() !== '') {
+        return asNum < 1e12 ? Math.round(asNum * 1000) : Math.round(asNum);
+      }
+      var asDate = Number(new Date(value).getTime());
+      return Number.isFinite(asDate) ? asDate : 0;
+    },
+
+    agentLastActivityTs(agent) {
+      if (!agent) return 0;
+      var latest = 0;
+      var keys = ['last_active_at', 'last_activity_at', 'last_message_at', 'last_seen_at', 'updated_at'];
+      for (var i = 0; i < keys.length; i++) {
+        var ts = this.coerceAgentTimestamp(agent[keys[i]]);
+        if (ts > latest) latest = ts;
+      }
+      if (agent.id) {
+        var preview = this.getAgentChatPreview(agent.id);
+        var previewTs = this.coerceAgentTimestamp(preview && preview.ts);
+        if (previewTs > latest) latest = previewTs;
+      }
+      return latest;
+    },
+
+    agentStatusState(agent) {
+      if (!agent) return 'offline';
+      var state = String(agent.state || '').toLowerCase();
+      var offlineHints = ['offline', 'archived', 'archive', 'terminated', 'stopped', 'crashed', 'error', 'failed', 'dead', 'disabled'];
+      for (var i = 0; i < offlineHints.length; i++) {
+        if (state.indexOf(offlineHints[i]) >= 0) return 'offline';
+      }
+      var ts = this.agentLastActivityTs(agent);
+      if (ts > 0) {
+        var ageMinutes = (Date.now() - ts) / 60000;
+        if (ageMinutes <= 10) return 'active';
+        if (ageMinutes <= 90) return 'idle';
+      }
+      var activeHints = ['running', 'active', 'connected', 'online'];
+      for (var j = 0; j < activeHints.length; j++) {
+        if (state.indexOf(activeHints[j]) >= 0) return 'idle';
+      }
+      if (state.indexOf('idle') >= 0 || state.indexOf('paused') >= 0 || state.indexOf('suspend') >= 0) return 'idle';
+      return 'offline';
+    },
+
+    agentStatusLabel(agent) {
+      var status = this.agentStatusState(agent);
+      if (status === 'active') return 'active';
+      if (status === 'idle') return 'idle';
+      return 'offline';
+    },
+
+    formatNotificationTime(ts) {
+      if (!ts) return '';
+      var d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    },
+
     clearApiKey() {
       OpenFangAPI.setAuthToken('');
       localStorage.removeItem('openfang-api-key');
@@ -297,12 +480,30 @@ function app() {
     })(),
     sidebarCollapsed: localStorage.getItem('openfang-sidebar') === 'collapsed',
     mobileMenuOpen: false,
+    chatSidebarMode: 'default',
+    chatSidebarQuery: '',
     connected: false,
     wsConnected: false,
     version: '0.1.0',
     agentCount: 0,
 
     get agents() { return Alpine.store('app').agents; },
+
+    get chatSidebarAgents() {
+      var list = (this.agents || []).slice();
+      var self = this;
+      list.sort(function(a, b) {
+        return self.sidebarAgentSortTs(b) - self.sidebarAgentSortTs(a);
+      });
+      var q = String(this.chatSidebarQuery || '').trim().toLowerCase();
+      if (!q) return list;
+      return list.filter(function(agent) {
+        var name = String((agent && agent.name) || (agent && agent.id) || '').toLowerCase();
+        var preview = self.chatSidebarPreview(agent);
+        var text = String((preview && preview.text) || '').toLowerCase();
+        return name.indexOf(q) >= 0 || text.indexOf(q) >= 0;
+      });
+    },
 
     init() {
       var self = this;
@@ -336,6 +537,7 @@ function app() {
           window.location.hash = hash;
         }
         if (validPages.indexOf(hash) >= 0) self.page = hash;
+        if (hash !== 'chat') self.closeAgentChatsSidebar();
       }
       window.addEventListener('hashchange', handleHash);
       handleHash();
@@ -360,13 +562,36 @@ function app() {
         // Escape — close mobile menu
         if (e.key === 'Escape') {
           self.mobileMenuOpen = false;
+          self.closeAgentChatsSidebar();
         }
+      });
+
+      document.addEventListener('click', function(e) {
+        if (self.chatSidebarMode !== 'agent_list' || self.page !== 'chat') return;
+        var target = e && e.target;
+        if (!target || !target.closest) {
+          self.closeAgentChatsSidebar();
+          return;
+        }
+        if (target.closest('[data-agent-chat-sidebar]')) return;
+        self.closeAgentChatsSidebar();
       });
 
       // Connection state listener
       OpenFangAPI.onConnectionChange(function(state) {
         Alpine.store('app').connectionState = state;
       });
+
+      if (!window.__openfangToastCaptureInstalled) {
+        window.addEventListener('openfang:toast', function(ev) {
+          var detail = (ev && ev.detail) ? ev.detail : {};
+          var store = Alpine.store('app');
+          if (store && typeof store.addNotification === 'function') {
+            store.addNotification(detail);
+          }
+        });
+        window.__openfangToastCaptureInstalled = true;
+      }
 
       // Initial data load
       this.pollStatus();
@@ -379,6 +604,7 @@ function app() {
       this.page = p;
       window.location.hash = p;
       this.mobileMenuOpen = false;
+      if (p !== 'chat') this.closeAgentChatsSidebar();
     },
 
     setTheme(mode) {
@@ -400,6 +626,66 @@ function app() {
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       localStorage.setItem('openfang-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
+    },
+
+    toggleAgentChatsSidebar() {
+      if (this.page !== 'chat') {
+        this.navigate('chat');
+      }
+      this.chatSidebarMode = this.chatSidebarMode === 'agent_list' ? 'default' : 'agent_list';
+      if (this.chatSidebarMode === 'agent_list') {
+        this.chatSidebarQuery = '';
+        if (this.sidebarCollapsed) {
+          this.sidebarCollapsed = false;
+          localStorage.setItem('openfang-sidebar', 'expanded');
+        }
+      }
+    },
+
+    closeAgentChatsSidebar() {
+      if (this.chatSidebarMode !== 'default') {
+        this.chatSidebarMode = 'default';
+        this.chatSidebarQuery = '';
+      }
+    },
+
+    sidebarAgentSortTs(agent) {
+      if (!agent) return 0;
+      var store = Alpine.store('app');
+      var preview = store && typeof store.getAgentChatPreview === 'function'
+        ? store.getAgentChatPreview(agent.id)
+        : null;
+      if (preview && preview.ts) return Number(preview.ts) || 0;
+      if (agent.updated_at) return Number(new Date(agent.updated_at).getTime()) || 0;
+      if (agent.created_at) return Number(new Date(agent.created_at).getTime()) || 0;
+      return 0;
+    },
+
+    chatSidebarPreview(agent) {
+      if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent' };
+      var store = Alpine.store('app');
+      var preview = store && typeof store.getAgentChatPreview === 'function'
+        ? store.getAgentChatPreview(agent.id)
+        : null;
+      if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent' };
+      return preview;
+    },
+
+    selectAgentChatFromSidebar(agent) {
+      if (!agent || !agent.id) return;
+      Alpine.store('app').activeAgentId = agent.id;
+      this.navigate('chat');
+      this.closeAgentChatsSidebar();
+    },
+
+    formatChatSidebarTime(ts) {
+      if (!ts) return '';
+      var d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      var now = new Date();
+      var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (sameDay) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },
 
     async pollStatus() {

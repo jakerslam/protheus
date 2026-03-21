@@ -3,13 +3,17 @@
 .app-layout {
   display: flex;
   height: 100vh;
+  box-sizing: border-box;
+  padding-top: 46px;
   overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
+  height: calc(100vh - 46px);
   background: var(--bg-primary);
+  border-top: 1px solid var(--border);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -102,31 +106,6 @@
   color: var(--text-muted);
   margin-top: 1px;
   letter-spacing: 0.5px;
-}
-
-.sidebar-status {
-  font-size: 11px;
-  color: var(--success);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.sidebar.collapsed .sidebar-status {
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.sidebar-status.offline { color: var(--error); }
-
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
 }
 
 .conn-badge {
@@ -225,6 +204,38 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.nav-sub-item {
+  margin-left: 18px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 12px;
+}
+
+.nav-sub-item .nav-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-sub-item-empty {
+  cursor: default;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.nav-icon.nav-combo-icon {
+  width: auto;
+  gap: 3px;
+}
+
+.nav-icon.nav-combo-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sidebar.collapsed .nav-sub-item {
+  margin-left: 0;
 }
 
 /* Sidebar toggle button */
@@ -332,7 +343,7 @@
   .sidebar {
     position: fixed;
     left: -300px;
-    top: 0;
+    top: 46px;
     bottom: 0;
     transition: left var(--transition-normal);
   }

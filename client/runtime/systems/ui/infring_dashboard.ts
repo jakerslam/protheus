@@ -41,6 +41,15 @@ const TOOL_OUTPUT_LIMIT = 5000;
 const CLI_MODE_SAFE = 'safe';
 const CLI_MODE_FULL_INFRING = 'full_infring';
 const DEFAULT_CLI_MODE = CLI_MODE_FULL_INFRING;
+const APP_VERSION = (() => {
+  try {
+    const pkg = require(path.resolve(ROOT, 'package.json'));
+    const v = pkg && typeof pkg.version === 'string' ? pkg.version.trim() : '';
+    return v || '0.1.0';
+  } catch {
+    return '0.1.0';
+  }
+})();
 const EFFECTIVE_LOC_EXTENSIONS = new Set([
   '.rs',
   '.ts',
@@ -1856,7 +1865,7 @@ function runServe(flags) {
         const agents = compatAgentsFromSnapshot(latestSnapshot);
         sendJson(res, 200, {
           ok: true,
-          version: 'infring-fork-ui',
+          version: APP_VERSION,
           agent_count: agents.length,
           connected: true,
           uptime_sec: 0,
