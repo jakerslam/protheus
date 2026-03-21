@@ -949,12 +949,12 @@ function chatPage() {
         case 'thinking':
           if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
             var thinkLabel = data.level ? 'Thinking (' + data.level + ')...' : 'Processing...';
-            this.messages.push({ id: ++msgId, role: 'agent', text: thinkLabel, meta: '', thinking: true, streaming: true, tools: [] });
+            this.messages.push({ id: ++msgId, role: 'agent', text: '*' + thinkLabel + '*', meta: '', thinking: true, streaming: true, tools: [] });
             this.scrollToBottom();
             this._resetTypingTimeout();
           } else if (data.level) {
             var lastThink = this.messages[this.messages.length - 1];
-            if (lastThink && lastThink.thinking) lastThink.text = 'Thinking (' + data.level + ')...';
+            if (lastThink && lastThink.thinking) lastThink.text = '*Thinking (' + data.level + ')...*';
           }
           break;
 
@@ -962,14 +962,14 @@ function chatPage() {
         case 'typing':
           if (data.state === 'start') {
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-              this.messages.push({ id: ++msgId, role: 'agent', text: 'Processing...', meta: '', thinking: true, streaming: true, tools: [] });
+              this.messages.push({ id: ++msgId, role: 'agent', text: '*Processing...*', meta: '', thinking: true, streaming: true, tools: [] });
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
           } else if (data.state === 'tool') {
             var typingMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
             if (typingMsg && (typingMsg.thinking || typingMsg.streaming)) {
-              typingMsg.text = 'Using ' + (data.tool || 'tool') + '...';
+              typingMsg.text = '*Using ' + (data.tool || 'tool') + '...*';
             }
             this._resetTypingTimeout();
           } else if (data.state === 'stop') {
@@ -994,7 +994,7 @@ function chatPage() {
               // Stream reasoning tokens to a collapsible panel
               if (!phaseMsg._reasoning) phaseMsg._reasoning = '';
               phaseMsg._reasoning += (data.detail || '') + '\n';
-              phaseMsg.text = '<details><summary>Reasoning...</summary>\n\n' + phaseMsg._reasoning + '</details>';
+              phaseMsg.text = '<details><summary><em>Reasoning...</em></summary>\n\n' + phaseMsg._reasoning + '</details>';
             } else if (phaseMsg.thinking) {
               // Only update text on messages still in thinking state (not yet
               // receiving streamed content) to avoid overwriting accumulated text.
@@ -1006,7 +1006,7 @@ function chatPage() {
               } else {
                 phaseDetail = data.detail || 'Working...';
               }
-              phaseMsg.text = phaseDetail;
+              phaseMsg.text = '*' + phaseDetail + '*';
             }
           }
           this.scrollToBottom();
