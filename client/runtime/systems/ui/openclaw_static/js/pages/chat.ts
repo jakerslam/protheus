@@ -42,6 +42,7 @@ function chatPage() {
     modelSwitching: false,
     _modelCache: null,
     _modelCacheTime: 0,
+    _chatMapWheelLockInstalled: false,
     conversationCache: {},
     _persistTimer: null,
     showScrollDown: false,
@@ -384,7 +385,38 @@ function chatPage() {
 
       this.$nextTick(function() {
         self.handleMessagesScroll();
+        self.installChatMapWheelLock();
       });
+    },
+
+    installChatMapWheelLock() {
+      var maps = document.querySelectorAll('.chat-map');
+      if (!maps || !maps.length) return;
+      for (var i = 0; i < maps.length; i++) {
+        var map = maps[i];
+        if (!map || map.__ofWheelLock) continue;
+        map.__ofWheelLock = true;
+        map.__ofHover = false;
+        map.addEventListener('mouseenter', function(ev) {
+          var target = ev.currentTarget;
+          if (target) target.__ofHover = true;
+        });
+        map.addEventListener('mouseleave', function(ev) {
+          var target = ev.currentTarget;
+          if (target) target.__ofHover = false;
+        });
+        map.addEventListener('wheel', function(ev) {
+          var target = ev.currentTarget;
+          if (!target) return;
+          if (!target.__ofHover) return;
+          // Keep wheel behavior scoped to chat map so the page does not scroll beneath it.
+          var delta = Number(ev.deltaY || 0);
+          if (delta !== 0) {
+            target.scrollTop += delta;
+          }
+          ev.preventDefault();
+        }, { passive: false });
+      }
     },
 
     get filteredModelPicker() {
@@ -449,6 +481,25 @@ function chatPage() {
       }).catch(function(e) {
         OpenFangToast.error('Switch failed: ' + e.message);
         self.modelSwitching = false;
+      });
+    },
+
+    onModelSwitcherWheel(ev) {
+      var list = this.filteredSwitcherModels || [];
+      if (!list.length) return;
+      var dir = Number(ev && ev.deltaY) > 0 ? 1 : -1;
+      var nextIdx = this.modelSwitcherIdx + dir;
+      if (nextIdx < 0) nextIdx = 0;
+      if (nextIdx > list.length - 1) nextIdx = list.length - 1;
+      if (nextIdx === this.modelSwitcherIdx) return;
+      this.modelSwitcherIdx = nextIdx;
+      this.$nextTick(function() {
+        var nodes = document.querySelectorAll('.model-switcher-item');
+        if (!nodes || !nodes.length) return;
+        var target = nodes[nextIdx];
+        if (target && target.scrollIntoView) {
+          target.scrollIntoView({ block: 'nearest' });
+        }
       });
     },
 
@@ -701,6 +752,7 @@ function chatPage() {
       this.$nextTick(function() {
         var el = document.getElementById('msg-input');
         if (el) el.focus();
+        self.installChatMapWheelLock();
       });
     },
 
