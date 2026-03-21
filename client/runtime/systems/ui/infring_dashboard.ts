@@ -16,10 +16,13 @@ const OPENCLAW_FORK_STATIC_DIR = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static'
 );
+const PROTHEUSD_DEBUG_BIN = path.resolve(ROOT, 'target/debug/protheusd');
+const PROTHEUSD_RELEASE_BIN = path.resolve(ROOT, 'target/release/protheusd');
 const CLIENT_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_client.tsx');
 const FALLBACK_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_fallback.ts');
 const CSS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard.css');
 const STATE_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
+const AGENT_SESSIONS_DIR = path.resolve(STATE_DIR, 'agent_sessions');
 const ACTION_DIR = path.resolve(STATE_DIR, 'actions');
 const ACTION_LATEST_PATH = path.resolve(ACTION_DIR, 'latest.json');
 const ACTION_HISTORY_PATH = path.resolve(ACTION_DIR, 'history.jsonl');
@@ -30,6 +33,90 @@ const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
 const DEFAULT_REFRESH_MS = 2000;
 const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
+const OLLAMA_BIN = 'ollama';
+const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
+const OLLAMA_TIMEOUT_MS = 45000;
+const TOOL_ITERATION_LIMIT = 1;
+const TOOL_OUTPUT_LIMIT = 5000;
+const EFFECTIVE_LOC_EXTENSIONS = new Set([
+  '.rs',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.py',
+  '.go',
+  '.java',
+  '.kt',
+  '.kts',
+  '.swift',
+  '.c',
+  '.cc',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.m',
+  '.mm',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.ps1',
+  '.rb',
+  '.php',
+  '.cs',
+  '.scala',
+  '.sql',
+  '.toml',
+  '.yaml',
+  '.yml',
+  '.json',
+]);
+const CLI_ALLOWLIST = new Set([
+  'protheus',
+  'protheus-ops',
+  'infringd',
+  'git',
+  'rg',
+  'ls',
+  'cat',
+  'pwd',
+  'wc',
+  'head',
+  'tail',
+  'stat',
+]);
+const GIT_READ_ONLY = new Set(['status', 'diff', 'show', 'log', 'branch', 'rev-parse', 'ls-files']);
+const INFRINGD_READ_ONLY = new Set([
+  'status',
+  'diagnostics',
+  'think',
+  'research',
+  'memory',
+  'orchestration',
+  'swarm-runtime',
+  'capability-profile',
+  'efficiency-status',
+  'embedded-core-status',
+]);
+const OPS_READ_ONLY = new Set([
+  'status',
+  'health-status',
+  'app-plane',
+  'collab-plane',
+  'skills-plane',
+  'memory-plane',
+  'security-plane',
+  'metrics-plane',
+  'benchmark-matrix',
+  'fixed-microbenchmark',
+  'top1-assurance',
+  'alpha-readiness',
+  'foundation-contract-gate',
+  'runtime-systems',
+  'dashboard-ui',
+]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -301,6 +388,515 @@ function runLane(argv) {
   };
 }
 
+function resolveProtheusdBin() {
+  if (fileExists(PROTHEUSD_DEBUG_BIN)) return PROTHEUSD_DEBUG_BIN;
+  if (fileExists(PROTHEUSD_RELEASE_BIN)) return PROTHEUSD_RELEASE_BIN;
+  return '';
+}
+
+function runProtheusdThink(prompt, sessionId) {
+  const bin = resolveProtheusdBin();
+  if (!bin) {
+    return {
+      ok: false,
+      status: 1,
+      stdout: '',
+      stderr: 'protheusd_binary_missing',
+      payload: null,
+      argv: ['think'],
+    };
+  }
+  const args = [
+    'think',
+    `--prompt=${cleanText(prompt || '', 4000)}`,
+    `--session-id=${cleanText(sessionId || 'dashboard-chat', 120)}`,
+  ];
+  const proc = spawnSync(bin, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: { ...process.env, PROTHEUS_ROOT: ROOT },
+    maxBuffer: 12 * 1024 * 1024,
+  });
+  const status = typeof proc.status === 'number' ? proc.status : 1;
+  const stdout = typeof proc.stdout === 'string' ? proc.stdout : '';
+  const stderr = typeof proc.stderr === 'string' ? proc.stderr : '';
+  const payload = parseJsonLoose(stdout);
+  return {
+    ok: status === 0 && !!payload,
+    status,
+    stdout,
+    stderr,
+    payload,
+    argv: [bin, ...args],
+  };
+}
+
+function commandExists(command) {
+  try {
+    const proc = spawnSync('which', [String(command || '')], {
+      cwd: ROOT,
+      stdio: 'ignore',
+      timeout: 1500,
+    });
+    return proc && proc.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeArg(value, maxLen = 180) {
+  return String(value == null ? '' : value).replace(/[\u0000\r\n]/g, ' ').trim().slice(0, maxLen);
+}
+
+function parseToolArgs(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((value) => sanitizeArg(value)).filter(Boolean).slice(0, 24);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .trim()
+      .split(/\s+/)
+      .map((value) => sanitizeArg(value))
+      .filter(Boolean)
+      .slice(0, 24);
+  }
+  return [];
+}
+
+function stripAnsi(value) {
+  return String(value == null ? '' : value)
+    .replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
+    .replace(/\u001B[PX^_].*?\u001B\\/g, '')
+    .replace(/\u001B[@-_]/g, '');
+}
+
+function collectTrackedFiles() {
+  try {
+    const proc = spawnSync('git', ['ls-files'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      timeout: 10000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    if (!proc || proc.status !== 0) return [];
+    return String(proc.stdout || '')
+      .split('\n')
+      .map((row) => row.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function isEffectiveLocPath(filePath) {
+  const lower = String(filePath || '').toLowerCase();
+  if (!lower) return false;
+  if (lower.includes('/node_modules/')) return false;
+  if (lower.includes('/target/')) return false;
+  if (lower.includes('/dist/')) return false;
+  if (lower.includes('/coverage/')) return false;
+  if (lower.includes('/.next/')) return false;
+  if (lower.endsWith('.min.js') || lower.endsWith('.min.css')) return false;
+  return EFFECTIVE_LOC_EXTENSIONS.has(path.extname(lower));
+}
+
+function effectiveLinesForContent(content) {
+  let count = 0;
+  const lines = String(content || '').split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('//')) continue;
+    if (trimmed.startsWith('#')) continue;
+    if (trimmed === '/*' || trimmed === '*/') continue;
+    if (trimmed.startsWith('*')) continue;
+    if (trimmed.startsWith('<!--') || trimmed.endsWith('-->')) continue;
+    count += 1;
+  }
+  return count;
+}
+
+function tryDeterministicRepoAnswer(input) {
+  const text = String(input || '').toLowerCase();
+  const asksFiles = /how many files|file count|number of files/.test(text);
+  const asksLoc = /effective loc|affective loc|lines of code|\bloc\b/.test(text);
+  if (!asksFiles && !asksLoc) return null;
+
+  const tracked = collectTrackedFiles();
+  if (!tracked.length) return null;
+
+  if (asksLoc) {
+    const sourceFiles = tracked.filter((row) => isEffectiveLocPath(row));
+    let effectiveLoc = 0;
+    let scannedFiles = 0;
+    for (const rel of sourceFiles) {
+      const abs = path.resolve(ROOT, rel);
+      try {
+        const raw = fs.readFileSync(abs, 'utf8');
+        effectiveLoc += effectiveLinesForContent(raw);
+        scannedFiles += 1;
+      } catch {}
+    }
+    const response = `Effective LoC is ${effectiveLoc.toLocaleString()} across ${scannedFiles.toLocaleString()} source-like tracked files (comments/blank lines excluded by heuristic).`;
+    return {
+      response,
+      tools: [
+        {
+          id: `tool-${Date.now()}-det-loc`,
+          name: 'git',
+          input: 'git ls-files',
+          result: `tracked_files=${tracked.length}; scanned_source_files=${scannedFiles}; effective_loc=${effectiveLoc}`,
+          is_error: false,
+          running: false,
+          expanded: false,
+        },
+      ],
+    };
+  }
+
+  const response = `This repo currently has ${tracked.length.toLocaleString()} tracked files.`;
+  return {
+    response,
+    tools: [
+      {
+        id: `tool-${Date.now()}-det-files`,
+        name: 'git',
+        input: 'git ls-files',
+        result: `tracked_files=${tracked.length}`,
+        is_error: false,
+        running: false,
+        expanded: false,
+      },
+    ],
+  };
+}
+
+function cliInvocationAllowed(command, args) {
+  const cmd = sanitizeArg(command, 80);
+  if (!CLI_ALLOWLIST.has(cmd)) {
+    return { ok: false, error: `command_not_allowed:${cmd}` };
+  }
+  const first = sanitizeArg(args && args[0] ? args[0] : '', 80);
+  if (cmd === 'git' && first && !GIT_READ_ONLY.has(first)) {
+    return { ok: false, error: `git_subcommand_blocked:${first}` };
+  }
+  if ((cmd === 'infringd' || cmd === 'protheus') && first && !INFRINGD_READ_ONLY.has(first)) {
+    return { ok: false, error: `runtime_subcommand_blocked:${first}` };
+  }
+  if (cmd === 'protheus-ops' && first && !OPS_READ_ONLY.has(first)) {
+    return { ok: false, error: `ops_subcommand_blocked:${first}` };
+  }
+  return { ok: true, command: cmd };
+}
+
+function runCliTool(command, args = []) {
+  const normalizedArgs = parseToolArgs(args);
+  const gate = cliInvocationAllowed(command, normalizedArgs);
+  const input = [sanitizeArg(command, 80), ...normalizedArgs].filter(Boolean).join(' ');
+  if (!gate.ok) {
+    return {
+      ok: false,
+      name: sanitizeArg(command, 80) || 'cli',
+      input,
+      result: `blocked: ${gate.error}`,
+      is_error: true,
+      exit_code: 126,
+    };
+  }
+  try {
+    const proc = spawnSync(gate.command, normalizedArgs, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: { ...process.env, PROTHEUS_ROOT: ROOT },
+      timeout: 30000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const status = typeof proc.status === 'number' ? proc.status : 1;
+    const stdout = typeof proc.stdout === 'string' ? proc.stdout : '';
+    const stderr = typeof proc.stderr === 'string' ? proc.stderr : '';
+    const output = cleanText([stdout.trim(), stderr.trim()].filter(Boolean).join('\n\n') || '(no output)', TOOL_OUTPUT_LIMIT);
+    return {
+      ok: status === 0,
+      name: gate.command,
+      input,
+      result: output,
+      is_error: status !== 0,
+      exit_code: status,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      name: gate.command,
+      input,
+      result: `failed: ${cleanText(error && error.message ? error.message : String(error), 260)}`,
+      is_error: true,
+      exit_code: 1,
+    };
+  }
+}
+
+function extractJsonDirective(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  let payload = parseJsonLoose(text);
+  if (!payload) {
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced && fenced[1]) {
+      payload = parseJsonLoose(fenced[1]);
+    }
+  }
+  if (!payload || typeof payload !== 'object') return null;
+  const type = cleanText(payload.type || payload.tool || '', 40).toLowerCase();
+  if (type === 'final' || type === 'answer') {
+    return {
+      type: 'final',
+      response: cleanText(payload.response || payload.answer || payload.text || '', 6000),
+    };
+  }
+  if (type === 'tool_call' || type === 'run_cli' || payload.command) {
+    return {
+      type: 'tool_call',
+      command: sanitizeArg(payload.command || 'protheus-ops', 80),
+      args: parseToolArgs(payload.args || payload.argv || payload.input || ''),
+      reason: cleanText(payload.reason || '', 220),
+    };
+  }
+  return null;
+}
+
+function configuredOllamaModel(snapshot) {
+  const raw =
+    snapshot &&
+    snapshot.app &&
+    snapshot.app.settings &&
+    snapshot.app.settings.model
+      ? String(snapshot.app.settings.model)
+      : '';
+  if (!raw) return OLLAMA_MODEL_FALLBACK;
+  if (raw.startsWith('ollama/')) return cleanText(raw.replace(/^ollama\//, ''), 120) || OLLAMA_MODEL_FALLBACK;
+  if (raw.includes('/')) return OLLAMA_MODEL_FALLBACK;
+  return cleanText(raw, 120) || OLLAMA_MODEL_FALLBACK;
+}
+
+function runOllamaPrompt(model, prompt) {
+  const selectedModel = cleanText(model || OLLAMA_MODEL_FALLBACK, 120) || OLLAMA_MODEL_FALLBACK;
+  try {
+    const proc = spawnSync(OLLAMA_BIN, ['run', selectedModel, String(prompt || '')], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: { ...process.env, PROTHEUS_ROOT: ROOT },
+      timeout: OLLAMA_TIMEOUT_MS,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const rawStatus = typeof proc.status === 'number' ? proc.status : null;
+    const stdout = stripAnsi(typeof proc.stdout === 'string' ? proc.stdout : '');
+    const stderr = stripAnsi(typeof proc.stderr === 'string' ? proc.stderr : '');
+    const timedOut =
+      (proc && proc.error && String(proc.error.code || '') === 'ETIMEDOUT') ||
+      (typeof proc.signal === 'string' && proc.signal.length > 0);
+    const output = stdout.trim();
+    const ok = !!output && (rawStatus === 0 || timedOut || rawStatus === null);
+    return {
+      ok,
+      status: rawStatus == null ? (ok ? 0 : 1) : rawStatus,
+      output,
+      error: stderr.trim(),
+      model: selectedModel,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 1,
+      output: '',
+      error: cleanText(error && error.message ? error.message : String(error), 260),
+      model: selectedModel,
+    };
+  }
+}
+
+function roleLabelFromMessage(row) {
+  const role = cleanText(row && row.role ? row.role : '', 20).toLowerCase();
+  if (role === 'user') return 'User';
+  if (role === 'agent' || role === 'assistant') return 'Agent';
+  return 'System';
+}
+
+function promptTranscript(session) {
+  const rows = Array.isArray(session && session.messages) ? session.messages.slice(-8) : [];
+  return rows
+    .map((row) => `${roleLabelFromMessage(row)}: ${cleanText(row && row.content ? row.content : '', 600)}`)
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
+  const transcript = promptTranscript(session) || '(empty)';
+  const toolHistory = toolSteps.length
+    ? toolSteps
+        .map((step, idx) => `#${idx + 1} ${step.input}\nexit=${step.exit_code}\n${step.result}`)
+        .join('\n\n')
+    : '(none)';
+  const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
+  return [
+    'You are Infring runtime chat assistant.',
+    `Active agent: ${agentName}`,
+    'You can ask for a CLI command when needed.',
+    'If the user asks for opinion, explanation, or casual chat, answer directly without tools.',
+    'Only request a tool call when factual repo/runtime data is required.',
+    'Return ONLY one JSON object with no markdown.',
+    'Final answer schema:',
+    '{"type":"final","response":"<text response to user>"}',
+    'Tool call schema:',
+    '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
+    'Allowed commands: protheus, protheus-ops, infringd, git, rg, ls, cat, pwd, wc, head, tail, stat.',
+    'If tool history already contains what you need, return final.',
+    '',
+    `Conversation transcript:\n${transcript}`,
+    '',
+    `Latest user message:\n${cleanText(input, 3600)}`,
+    '',
+    `Tool history:\n${toolHistory}`,
+  ].join('\n');
+}
+
+function buildToolFollowupPrompt({ agent, input, toolStep }) {
+  const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
+  const toolSummary = toolStep
+    ? `Tool: ${toolStep.input}\nExit: ${toolStep.exit_code}\nOutput:\n${cleanText(toolStep.result || '', 3600)}`
+    : 'Tool: (none)';
+  return [
+    'You are Infring runtime chat assistant.',
+    `Active agent: ${agentName}`,
+    'Use the tool result to answer the user clearly.',
+    'Return ONLY one JSON object with no markdown.',
+    '{"type":"final","response":"<answer>"}',
+    '',
+    `User request:\n${cleanText(input, 3200)}`,
+    '',
+    toolSummary,
+  ].join('\n');
+}
+
+function runLlmChatWithCli(agent, session, input, snapshot) {
+  const deterministic = tryDeterministicRepoAnswer(input);
+  if (deterministic) {
+    return {
+      ok: true,
+      status: 0,
+      response: deterministic.response,
+      model: 'deterministic-repo-query',
+      tools: Array.isArray(deterministic.tools) ? deterministic.tools : [],
+      iterations: 1,
+    };
+  }
+
+  let model = configuredOllamaModel(snapshot);
+  const toolSteps = [];
+  const prompt = buildToolPrompt({ agent, session, input, toolSteps });
+  let llm = runOllamaPrompt(model, prompt);
+  if (!llm.ok && model !== OLLAMA_MODEL_FALLBACK) {
+    model = OLLAMA_MODEL_FALLBACK;
+    llm = runOllamaPrompt(model, prompt);
+  }
+  if (!llm.ok) {
+    return {
+      ok: false,
+      error: cleanText(llm.error || 'ollama_run_failed', 260),
+      status: llm.status || 1,
+      tools: toolSteps,
+    };
+  }
+
+  const directive = extractJsonDirective(llm.output);
+  if (!directive) {
+    return {
+      ok: true,
+      status: 0,
+      response: cleanText(llm.output, 4000),
+      model,
+      tools: [],
+      iterations: 1,
+    };
+  }
+
+  if (directive.type === 'final') {
+    return {
+      ok: true,
+      status: 0,
+      response: cleanText(directive.response || llm.output, 4000),
+      model,
+      tools: [],
+      iterations: 1,
+    };
+  }
+
+  if (directive.type === 'tool_call') {
+    const toolStep = runCliTool(directive.command, directive.args);
+    const normalizedTool = {
+      id: `tool-${Date.now()}-0`,
+      name: toolStep.name,
+      input: toolStep.input,
+      result: toolStep.result,
+      is_error: !!toolStep.is_error,
+      running: false,
+      expanded: false,
+      exit_code: toolStep.exit_code,
+    };
+    toolSteps.push(normalizedTool);
+
+    const followPrompt = buildToolFollowupPrompt({ agent, input, toolStep: normalizedTool });
+    let follow = runOllamaPrompt(model, followPrompt);
+    if (!follow.ok && model !== OLLAMA_MODEL_FALLBACK) {
+      model = OLLAMA_MODEL_FALLBACK;
+      follow = runOllamaPrompt(model, followPrompt);
+    }
+    let finalResponse = '';
+    if (follow.ok) {
+      const followDirective = extractJsonDirective(follow.output);
+      if (followDirective && followDirective.type === 'final') {
+        finalResponse = cleanText(followDirective.response || follow.output, 4000);
+      } else {
+        finalResponse = cleanText(follow.output, 4000);
+      }
+    }
+    if (!finalResponse) {
+      finalResponse = toolStep.is_error
+        ? `Tool execution failed: ${toolStep.result}`
+        : cleanText(toolStep.result, 4000);
+    }
+    return {
+      ok: true,
+      status: 0,
+      response: finalResponse,
+      model,
+      tools: toolSteps.map((row) => ({
+        id: row.id,
+        name: row.name,
+        input: row.input,
+        result: row.result,
+        is_error: row.is_error,
+        running: false,
+        expanded: false,
+      })),
+      iterations: 2,
+    };
+  }
+
+  return {
+    ok: true,
+    status: 0,
+    response: cleanText(llm.output, 4000) || 'No response produced by the model.',
+    model,
+    tools: [],
+    iterations: 1,
+  };
+}
+
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -313,6 +909,186 @@ function writeJson(filePath, value) {
 function appendJsonl(filePath, value) {
   ensureDir(path.dirname(filePath));
   fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, 'utf8');
+}
+
+function readJson(filePath, fallback = null) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function safeAgentSessionFile(agentId) {
+  const value = cleanText(agentId || 'agent', 140).replace(/[^a-zA-Z0-9._-]+/g, '_');
+  return value || 'agent';
+}
+
+function runtimeChatSessionId(agentId, activeSessionId) {
+  const agentPart = safeAgentSessionFile(agentId || 'agent');
+  const sessionPart = safeAgentSessionFile(activeSessionId || 'default');
+  const combined = `${agentPart}__${sessionPart}`;
+  return cleanText(combined, 120).replace(/[^a-zA-Z0-9._-]+/g, '_') || 'chat-ui-default';
+}
+
+function agentSessionPath(agentId) {
+  return path.resolve(AGENT_SESSIONS_DIR, `${safeAgentSessionFile(agentId)}.json`);
+}
+
+function parseTs(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return Date.now();
+}
+
+function turnsToSessionMessages(turns = []) {
+  const rows = [];
+  for (const turn of turns) {
+    const ts = parseTs(turn && turn.ts ? turn.ts : null);
+    const user = turn && typeof turn.user === 'string' ? turn.user : '';
+    const assistant = turn && typeof turn.assistant === 'string' ? turn.assistant : '';
+    if (user.trim()) {
+      rows.push({ role: 'User', content: user, ts });
+    }
+    if (assistant.trim()) {
+      rows.push({ role: 'Agent', content: assistant, ts });
+    }
+  }
+  return rows;
+}
+
+function normalizeSessionState(state, snapshot) {
+  const seededMessages = turnsToSessionMessages(
+    snapshot && snapshot.app && Array.isArray(snapshot.app.turns) ? snapshot.app.turns : []
+  );
+  const fallback = {
+    active_session_id: 'default',
+    sessions: [
+      {
+        session_id: 'default',
+        label: 'Default',
+        created_at: nowIso(),
+        updated_at: nowIso(),
+        messages: seededMessages,
+      },
+    ],
+  };
+  const normalized = state && typeof state === 'object' ? state : fallback;
+  if (!Array.isArray(normalized.sessions) || normalized.sessions.length === 0) {
+    normalized.sessions = fallback.sessions;
+  }
+  normalized.sessions = normalized.sessions.map((session, idx) => {
+    const sessionId =
+      cleanText(session && session.session_id ? session.session_id : '', 80) || `session_${idx + 1}`;
+    return {
+      session_id: sessionId,
+      label: cleanText(session && session.label ? session.label : 'Session', 80) || 'Session',
+      created_at: session && session.created_at ? session.created_at : nowIso(),
+      updated_at: session && session.updated_at ? session.updated_at : nowIso(),
+      messages: Array.isArray(session && session.messages) ? session.messages : [],
+    };
+  });
+  if (
+    !normalized.active_session_id ||
+    !normalized.sessions.some((session) => session.session_id === normalized.active_session_id)
+  ) {
+    normalized.active_session_id = normalized.sessions[0].session_id;
+  }
+  return normalized;
+}
+
+function loadAgentSession(agentId, snapshot) {
+  const filePath = agentSessionPath(agentId);
+  const state = readJson(filePath, null);
+  const normalized = normalizeSessionState(state, snapshot);
+  writeJson(filePath, normalized);
+  return normalized;
+}
+
+function saveAgentSession(agentId, state) {
+  writeJson(agentSessionPath(agentId), state);
+}
+
+function activeSession(state) {
+  let session = state.sessions.find((row) => row.session_id === state.active_session_id);
+  if (!session) {
+    session = state.sessions[0];
+    state.active_session_id = session ? session.session_id : 'default';
+  }
+  if (!session) {
+    session = {
+      session_id: 'default',
+      label: 'Default',
+      created_at: nowIso(),
+      updated_at: nowIso(),
+      messages: [],
+    };
+    state.sessions.push(session);
+    state.active_session_id = session.session_id;
+  }
+  return session;
+}
+
+function appendAgentConversation(agentId, snapshot, userText, assistantText, metaText = '', assistantTools = []) {
+  const state = loadAgentSession(agentId, snapshot);
+  const session = activeSession(state);
+  const nowMs = Date.now();
+  if (userText && String(userText).trim()) {
+    session.messages.push({ role: 'User', content: String(userText), ts: nowMs });
+  }
+  if (assistantText && String(assistantText).trim()) {
+    const normalizedTools = Array.isArray(assistantTools)
+      ? assistantTools
+          .map((tool, idx) => ({
+            id: cleanText(tool && tool.id ? tool.id : `tool-${idx + 1}`, 80) || `tool-${idx + 1}`,
+            name: cleanText(tool && tool.name ? tool.name : 'cli', 80) || 'cli',
+            input: cleanText(tool && tool.input ? tool.input : '', 400),
+            result: cleanText(tool && tool.result ? tool.result : '', TOOL_OUTPUT_LIMIT),
+            is_error: !!(tool && tool.is_error),
+            running: false,
+            expanded: false,
+          }))
+          .filter((tool) => tool.name)
+      : [];
+    session.messages.push({
+      role: 'Agent',
+      content: String(assistantText),
+      meta: cleanText(metaText || '', 120),
+      tools: normalizedTools,
+      ts: nowMs,
+    });
+  }
+  if (session.messages.length > 800) {
+    session.messages = session.messages.slice(-800);
+  }
+  session.updated_at = nowIso();
+  saveAgentSession(agentId, state);
+  return state;
+}
+
+function compactAgentConversation(agentId, snapshot) {
+  const state = loadAgentSession(agentId, snapshot);
+  const session = activeSession(state);
+  const keep = Math.min(200, session.messages.length);
+  if (keep > 0) {
+    session.messages = session.messages.slice(-keep);
+  }
+  session.updated_at = nowIso();
+  saveAgentSession(agentId, state);
+  return state;
+}
+
+function sessionList(state) {
+  return state.sessions.map((session) => ({
+    session_id: session.session_id,
+    label: session.label || 'Session',
+    message_count: Array.isArray(session.messages) ? session.messages.length : 0,
+    updated_at: session.updated_at || nowIso(),
+    active: session.session_id === state.active_session_id,
+  }));
 }
 
 function recentFiles(rootDir, { limit = 25, maxDepth = 4, include }) {
@@ -1007,6 +1783,11 @@ function runServe(flags) {
         }
         if (req.method === 'POST' && parts[3] === 'message') {
           const payload = await bodyJson(req);
+          const agent = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId);
+          if (!agent) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
           const input = cleanText(
             payload && (payload.input || payload.message || payload.prompt || payload.text)
               ? payload.input || payload.message || payload.prompt || payload.text
@@ -1017,26 +1798,197 @@ function runServe(flags) {
             sendJson(res, 400, { ok: false, error: 'message_required' });
             return;
           }
-          const laneResult = runAction('app.chat', { input });
-          writeActionReceipt('app.chat', { input }, laneResult);
+          const state = loadAgentSession(agentId, latestSnapshot);
+          const session = activeSession(state);
+          const chatSessionId = runtimeChatSessionId(agentId, session.session_id);
+          const llmResult = runLlmChatWithCli(agent, session, input, latestSnapshot);
+          let laneResult;
+          let tools = [];
+          let assistantRaw = '';
+          let iterations = 1;
+          if (llmResult && llmResult.ok) {
+            tools = Array.isArray(llmResult.tools) ? llmResult.tools : [];
+            assistantRaw = String(llmResult.response || '');
+            iterations = parsePositiveInt(llmResult.iterations || 1, 1, 1, 8);
+            laneResult = {
+              ok: true,
+              status: 0,
+              stdout: '',
+              stderr: '',
+              argv: ['ollama', 'run', llmResult.model || OLLAMA_MODEL_FALLBACK],
+              payload: {
+                ok: true,
+                type: 'infring_dashboard_ollama_chat',
+                model: llmResult.model || OLLAMA_MODEL_FALLBACK,
+                response: assistantRaw,
+                tools,
+                iterations,
+                session_id: chatSessionId,
+              },
+            };
+          } else {
+            laneResult = runLane([
+              'app-plane',
+              'run',
+              '--app=chat-ui',
+              `--session-id=${chatSessionId}`,
+              `--input=${input}`,
+            ]);
+            const payloadObj = laneResult && laneResult.payload && typeof laneResult.payload === 'object'
+              ? laneResult.payload
+              : null;
+            const assistantFromLane =
+              payloadObj &&
+              typeof payloadObj.response === 'string'
+                ? payloadObj.response
+                : payloadObj &&
+                  payloadObj.turn &&
+                  typeof payloadObj.turn.assistant === 'string'
+                  ? payloadObj.turn.assistant
+                  : '';
+            assistantRaw = String(assistantFromLane || '');
+            if (!assistantRaw) {
+              const failures = [];
+              if (llmResult && llmResult.error) {
+                failures.push(`ollama: ${cleanText(llmResult.error, 180)}`);
+              }
+              if (laneResult && !laneResult.ok) {
+                const laneDetail = cleanText(
+                  String(laneResult.stderr || laneResult.stdout || laneResult.status || 'failed'),
+                  180
+                );
+                failures.push(`app-plane: ${laneDetail}`);
+              }
+              assistantRaw =
+                failures.length > 0
+                  ? `I couldn't reach a chat model backend (${failures.join('; ')}). Start Ollama or configure app-plane and try again.`
+                  : 'I could not produce a response from the chat backend. Please try again.';
+              laneResult = {
+                ok: true,
+                status: 0,
+                stdout: '',
+                stderr: '',
+                argv: ['chat-backend', 'fallback-message'],
+                payload: {
+                  ok: true,
+                  type: 'infring_dashboard_chat_backend_unavailable',
+                  response: assistantRaw,
+                  session_id: chatSessionId,
+                },
+              };
+            }
+          }
+          writeActionReceipt('app.chat', { input, agent_id: agentId, session_id: chatSessionId }, laneResult);
           latestSnapshot = buildSnapshot(flags);
           writeSnapshotReceipt(latestSnapshot);
-          const assistant = latestAssistantFromSnapshot(latestSnapshot);
+          const assistant = assistantRaw.slice(0, 4000);
+          const inputTokens = Math.max(1, Math.round(String(input).length / 4));
+          const outputTokens = Math.max(1, Math.round(String(assistant || '').length / 4));
+          const meta = `${inputTokens} in / ${outputTokens} out`;
+          appendAgentConversation(agentId, latestSnapshot, input, assistant, meta, tools);
           sendJson(res, laneResult.ok ? 200 : 400, {
             ok: !!laneResult.ok,
+            agent_id: agentId,
+            session_id: chatSessionId,
             response: assistant,
+            tools,
             turn: {
               role: 'agent',
               text: assistant,
             },
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            cost_usd: 0,
+            iterations,
+          });
+          return;
+        }
+        if (req.method === 'GET' && parts[3] === 'session') {
+          const state = loadAgentSession(agentId, latestSnapshot);
+          const session = activeSession(state);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            session_id: session.session_id,
+            messages: Array.isArray(session.messages) ? session.messages : [],
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'reset') {
+          const state = loadAgentSession(agentId, latestSnapshot);
+          const session = activeSession(state);
+          session.messages = [];
+          session.updated_at = nowIso();
+          saveAgentSession(agentId, state);
+          sendJson(res, 200, { ok: true, id: agentId, message: 'Session reset' });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'compact') {
+          compactAgentConversation(agentId, latestSnapshot);
+          sendJson(res, 200, { ok: true, id: agentId, message: 'Session compacted' });
+          return;
+        }
+        if (req.method === 'GET' && parts[3] === 'sessions') {
+          const state = loadAgentSession(agentId, latestSnapshot);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            sessions: sessionList(state),
+            active_session_id: state.active_session_id,
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'sessions' && parts.length === 4) {
+          const payload = await bodyJson(req);
+          const state = loadAgentSession(agentId, latestSnapshot);
+          const sessionId = `session_${Date.now().toString(36)}`;
+          const label =
+            cleanText(payload && payload.label ? payload.label : '', 80) ||
+            `Session ${state.sessions.length + 1}`;
+          state.sessions.push({
+            session_id: sessionId,
+            label,
+            created_at: nowIso(),
+            updated_at: nowIso(),
+            messages: [],
+          });
+          state.active_session_id = sessionId;
+          saveAgentSession(agentId, state);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            created: sessionId,
+            sessions: sessionList(state),
+            active_session_id: state.active_session_id,
           });
           return;
         }
         if (
-          (req.method === 'GET' && parts[3] === 'session') ||
-          (req.method === 'POST' && parts[3] === 'session' && (parts[4] === 'reset' || parts[4] === 'compact')) ||
-          (req.method === 'GET' && parts[3] === 'sessions') ||
-          (req.method === 'POST' && parts[3] === 'sessions') ||
+          req.method === 'POST' &&
+          parts[3] === 'sessions' &&
+          parts.length >= 6 &&
+          parts[5] === 'switch'
+        ) {
+          const targetSessionId = cleanText(parts[4] || '', 80);
+          const state = loadAgentSession(agentId, latestSnapshot);
+          const exists = state.sessions.some((session) => session.session_id === targetSessionId);
+          if (!exists) {
+            sendJson(res, 404, { ok: false, error: 'session_not_found', session_id: targetSessionId });
+            return;
+          }
+          state.active_session_id = targetSessionId;
+          saveAgentSession(agentId, state);
+          const session = activeSession(state);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            session_id: targetSessionId,
+            messages: Array.isArray(session.messages) ? session.messages : [],
+            sessions: sessionList(state),
+          });
+          return;
+        }
+        if (
           (req.method === 'POST' && parts[3] === 'stop') ||
           (req.method === 'POST' && parts[3] === 'clone') ||
           (req.method === 'PATCH' && parts[3] === 'identity') ||

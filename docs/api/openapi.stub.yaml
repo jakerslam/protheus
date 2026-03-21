@@ -1,34 +1,67 @@
 openapi: 3.1.0
 info:
-  title: InfRing Runtime API Stub
-  version: 0.1.0
+  title: InfRing Dashboard Runtime API
+  version: 0.2.0
   description: >-
-    Initial OpenAPI stub for contract-backed runtime/daemon interfaces.
+    Authoritative API contract for the Rust-core `dashboard-ui` runtime lane
+    (`protheus-ops dashboard-ui serve`). This replaces the prior placeholder stub.
 servers:
-  - url: http://localhost:7070
+  - url: http://127.0.0.1:41111
+    description: Default local dashboard host (port is configurable at runtime)
 paths:
-  /health:
+  /healthz:
     get:
-      summary: Runtime health status
+      summary: Dashboard health probe
+      operationId: getDashboardHealthz
+      tags: [health]
       responses:
         '200':
-          description: Health payload
-  /contracts/{id}/status:
+          description: Health payload with latest snapshot receipt hash when available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardHealthz'
+  /api/dashboard/snapshot:
     get:
-      summary: Contract runtime status by id
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
+      summary: Get current dashboard snapshot
+      operationId: getDashboardSnapshot
+      tags: [dashboard]
       responses:
         '200':
-          description: Contract status payload
-        '404':
-          description: Contract status not found
+          description: Latest dashboard state snapshot and receipt metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSnapshot'
+  /api/dashboard/action:
+    post:
+      summary: Execute a dashboard action and return updated snapshot
+      operationId: postDashboardAction
+      tags: [dashboard]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DashboardActionRequest'
+      responses:
+        '200':
+          description: Action accepted and applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardActionResponse'
+        '400':
+          description: Action rejected (fail-closed response, `ok=false`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardActionResponse'
 components:
   schemas:
+    ClaimEvidence:
+      type: object
+      additionalProperties: true
     ReceiptEnvelope:
       type: object
       properties:
@@ -36,9 +69,58 @@ components:
           type: boolean
         type:
           type: string
+        strict:
+          type: boolean
+        ts:
+          type: string
+          format: date-time
         receipt_hash:
           type: string
         claim_evidence:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/ClaimEvidence'
+      required: [ok, type]
+      additionalProperties: true
+    DashboardHealthz:
+      allOf:
+        - $ref: '#/components/schemas/ReceiptEnvelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [infring_dashboard_healthz]
+    DashboardSnapshot:
+      allOf:
+        - $ref: '#/components/schemas/ReceiptEnvelope'
+        - type: object
+          description: Snapshot payload is intentionally extensible and contract-backed.
+          additionalProperties: true
+    DashboardActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          description: Action lane selector (example: `app.chat`, `agent.select`)
+        payload:
+          type: object
+          description: Action-specific payload
+          additionalProperties: true
+      required: [action]
+      additionalProperties: false
+    DashboardActionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ReceiptEnvelope'
+        - type: object
+          properties:
+            action:
+              type: string
+            action_receipt:
+              type: object
+              additionalProperties: true
+            lane:
+              type: object
+              additionalProperties: true
+            snapshot:
+              $ref: '#/components/schemas/DashboardSnapshot'
+          additionalProperties: true

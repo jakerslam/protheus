@@ -3,4 +3,4 @@
 | ADR | Status | Title | Links |
 |---|---|---|---|
 | 0001 | accepted | State Kernel Control Plane | /docs/client/STATE_KERNEL.md |
-
+| 0002 | accepted | Rust-Core Dashboard API Authority | /docs/client/adr/0002-rust-core-dashboard-authority.md |
