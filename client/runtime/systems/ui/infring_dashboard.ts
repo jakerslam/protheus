@@ -38,6 +38,8 @@ const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
 const TOOL_ITERATION_LIMIT = 1;
 const TOOL_OUTPUT_LIMIT = 5000;
+const CLI_MODE_SAFE = 'safe';
+const CLI_MODE_FULL_INFRING = 'full_infring';
 const EFFECTIVE_LOC_EXTENSIONS = new Set([
   '.rs',
   '.ts',
@@ -117,6 +119,7 @@ const OPS_READ_ONLY = new Set([
   'runtime-systems',
   'dashboard-ui',
 ]);
+let ACTIVE_CLI_MODE = CLI_MODE_SAFE;
 
 function nowIso() {
   return new Date().toISOString();
@@ -319,6 +322,15 @@ function parseJsonLoose(raw) {
   return null;
 }
 
+function normalizeCliMode(value) {
+  const raw = cleanText(value || '', 80).toLowerCase();
+  if (!raw) return CLI_MODE_SAFE;
+  if (raw === 'full' || raw === 'full_infring' || raw === 'full-infring') {
+    return CLI_MODE_FULL_INFRING;
+  }
+  return CLI_MODE_SAFE;
+}
+
 function parseFlags(argv = []) {
   const out = {
     mode: 'serve',
@@ -327,6 +339,7 @@ function parseFlags(argv = []) {
     team: DEFAULT_TEAM,
     refreshMs: DEFAULT_REFRESH_MS,
     pretty: true,
+    cliMode: normalizeCliMode(process.env.INFRING_DASHBOARD_CLI_MODE || ''),
   };
 
   let modeSet = false;
@@ -357,6 +370,10 @@ function parseFlags(argv = []) {
     }
     if (value === '--pretty=0' || value === '--pretty=false') {
       out.pretty = false;
+      continue;
+    }
+    if (value.startsWith('--cli-mode=')) {
+      out.cliMode = normalizeCliMode(value.split('=').slice(1).join('='));
       continue;
     }
   }
@@ -579,17 +596,18 @@ function cliInvocationAllowed(command, args) {
   if (!CLI_ALLOWLIST.has(cmd)) {
     return { ok: false, error: `command_not_allowed:${cmd}` };
   }
+  const fullInfring = ACTIVE_CLI_MODE === CLI_MODE_FULL_INFRING;
   const first = sanitizeArg(args && args[0] ? args[0] : '', 80);
   if (cmd === 'git' && first && !GIT_READ_ONLY.has(first)) {
     return { ok: false, error: `git_subcommand_blocked:${first}` };
   }
-  if ((cmd === 'infringd' || cmd === 'protheus') && first && !INFRINGD_READ_ONLY.has(first)) {
+  if (!fullInfring && (cmd === 'infringd' || cmd === 'protheus') && first && !INFRINGD_READ_ONLY.has(first)) {
     return { ok: false, error: `runtime_subcommand_blocked:${first}` };
   }
-  if (cmd === 'protheus-ops' && first && !OPS_READ_ONLY.has(first)) {
+  if (!fullInfring && cmd === 'protheus-ops' && first && !OPS_READ_ONLY.has(first)) {
     return { ok: false, error: `ops_subcommand_blocked:${first}` };
   }
-  return { ok: true, command: cmd };
+  return { ok: true, command: cmd, mode: ACTIVE_CLI_MODE };
 }
 
 function runCliTool(command, args = []) {
@@ -742,6 +760,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
         .join('\n\n')
     : '(none)';
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
+  const fullInfring = ACTIVE_CLI_MODE === CLI_MODE_FULL_INFRING;
   return [
     'You are Infring runtime chat assistant.',
     `Active agent: ${agentName}`,
@@ -753,7 +772,9 @@ function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
     '{"type":"final","response":"<text response to user>"}',
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
-    'Allowed commands: protheus, protheus-ops, infringd, git, rg, ls, cat, pwd, wc, head, tail, stat.',
+    fullInfring
+      ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat (git remains read-only).'
+      : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat (git read-only).',
     'If tool history already contains what you need, return final.',
     '',
     `Conversation transcript:\n${transcript}`,
@@ -1254,6 +1275,7 @@ function asMetricRows(healthPayload) {
 
 function buildSnapshot(opts = {}) {
   const team = cleanText(opts.team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
+  const cliMode = normalizeCliMode(opts.cliMode || ACTIVE_CLI_MODE);
   const healthLane = runLane(['health-status', 'dashboard']);
   const appLane = runLane(['app-plane', 'history', '--app=chat-ui']);
   const collabLane = runLane(['collab-plane', 'dashboard', `--team=${team}`]);
@@ -1272,6 +1294,7 @@ function buildSnapshot(opts = {}) {
       root: ROOT,
       team,
       refresh_ms: opts.refreshMs || DEFAULT_REFRESH_MS,
+      cli_mode: cliMode,
       authority: 'rust_core_lanes',
       lanes: {
         health: healthLane.argv.join(' '),
@@ -1664,6 +1687,7 @@ function bodyJson(req) {
 }
 
 function runServe(flags) {
+  ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasOpenclawForkUi();
   const html = forkUiEnabled ? buildOpenclawForkHtml() : htmlShell();
   const css = readText(CSS_PATH, '');
@@ -1716,6 +1740,7 @@ function runServe(flags) {
           connected: true,
           uptime_sec: 0,
           ws: true,
+          cli_mode: ACTIVE_CLI_MODE,
         });
         return;
       }
@@ -1737,6 +1762,7 @@ function runServe(flags) {
           model: latestSnapshot && latestSnapshot.app && latestSnapshot.app.settings
             ? latestSnapshot.app.settings.model
             : 'gpt-5',
+          cli_mode: ACTIVE_CLI_MODE,
         });
         return;
       }
@@ -1878,7 +1904,11 @@ function runServe(flags) {
               };
             }
           }
-          writeActionReceipt('app.chat', { input, agent_id: agentId, session_id: chatSessionId }, laneResult);
+          writeActionReceipt(
+            'app.chat',
+            { input, agent_id: agentId, session_id: chatSessionId, cli_mode: ACTIVE_CLI_MODE },
+            laneResult
+          );
           latestSnapshot = buildSnapshot(flags);
           writeSnapshotReceipt(latestSnapshot);
           const assistant = assistantRaw.slice(0, 4000);
@@ -2108,6 +2138,7 @@ function runServe(flags) {
       port: flags.port,
       refresh_ms: flags.refreshMs,
       team: flags.team,
+      cli_mode: ACTIVE_CLI_MODE,
       receipt_hash: latestSnapshot.receipt_hash,
       snapshot_path: path.relative(ROOT, SNAPSHOT_LATEST_PATH),
       action_path: path.relative(ROOT, ACTION_LATEST_PATH),
@@ -2135,6 +2166,7 @@ function runServe(flags) {
 
 function run(argv = process.argv.slice(2)) {
   const flags = parseFlags(argv);
+  ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   if (flags.mode === 'snapshot' || flags.mode === 'status') {
     const snapshot = buildSnapshot(flags);
     writeSnapshotReceipt(snapshot);
