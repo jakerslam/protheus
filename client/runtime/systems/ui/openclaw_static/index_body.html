@@ -29,40 +29,83 @@
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode }">
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen }">
-    <div class="sidebar-header">
-      <div class="sidebar-header-text">
-        <div class="sidebar-logo">
-          <div class="brand-mark" aria-hidden="true">&infin;</div>
-          <div>
-            <h1>OPENFANG</h1>
-            <div class="version" x-text="'v' + version"></div>
-          </div>
+    <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <div
+        class="chat-sidebar-manager"
+        x-show="page === 'chat' && chatSidebarMode === 'agent_list'"
+        x-transition.opacity
+        data-agent-chat-sidebar
+      >
+        <div class="chat-sidebar-manager-head">
+          <span>Agent Chats</span>
+          <button class="chat-sidebar-manager-close" @click="closeAgentChatsSidebar()" title="Close">&times;</button>
+        </div>
+        <div class="chat-sidebar-manager-search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" x-model="chatSidebarQuery" placeholder="Search chats...">
+        </div>
+        <div class="chat-sidebar-manager-list">
+          <template x-if="!chatSidebarAgents.length">
+            <div class="chat-sidebar-empty">No matching agent chats</div>
+          </template>
+          <template x-for="agent in chatSidebarAgents" :key="'agent-chat-' + agent.id">
+            <button class="chat-sidebar-item" :class="{ active: $store.app.activeAgentId === agent.id }" @click="selectAgentChatFromSidebar(agent)">
+              <div class="chat-sidebar-item-avatar">
+                <img
+                  x-show="agent.avatar_url"
+                  :src="agent.avatar_url || ''"
+                  :alt="(agent.name || agent.id || 'agent') + ' avatar'"
+                  loading="lazy"
+                />
+                <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
+                <span x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
+              </div>
+              <div class="chat-sidebar-item-main">
+                <div class="chat-sidebar-item-row">
+                  <span class="chat-sidebar-item-name-wrap">
+                    <span class="agent-status-dot agent-status-dot-inline" :class="'status-' + $store.app.agentStatusState(agent)" :title="'Agent status: ' + $store.app.agentStatusLabel(agent)" aria-hidden="true"></span>
+                    <span class="chat-sidebar-item-name" x-text="agent.name || agent.id"></span>
+                  </span>
+                  <span class="chat-sidebar-item-time" x-text="formatChatSidebarTime(chatSidebarPreview(agent).ts)"></span>
+                </div>
+                <div class="chat-sidebar-item-preview" x-text="chatSidebarPreview(agent).text"></div>
+              </div>
+            </button>
+          </template>
         </div>
       </div>
-    </div>
-
-    <div class="sidebar-status" :class="{ offline: !connected && !$store.app.booting }">
-      <span class="status-dot"></span>
-      <span class="sidebar-label" x-show="connected" x-text="agentCount + ' agent(s) running'"></span>
-      <span class="sidebar-label" x-show="$store.app.booting && !connected" class="conn-reconnecting">Connecting...</span>
-      <span class="sidebar-label" x-show="!connected && !$store.app.booting && $store.app.connectionState === 'reconnecting'" class="conn-reconnecting">Reconnecting...</span>
-      <span class="sidebar-label" x-show="!connected && !$store.app.booting && $store.app.connectionState !== 'reconnecting'" x-text="'disconnected' + ($store.app.lastError ? ' — ' + $store.app.lastError : '')">disconnected</span>
-      <span class="conn-badge sidebar-label" :class="wsConnected ? 'ws' : 'http'" x-text="wsConnected ? 'WS' : 'HTTP'" x-show="connected"></span>
-    </div>
-
-    <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
-      <!-- Chat — primary action -->
-      <div class="nav-section" x-data="{ collapsed: false }" aria-label="Chat">
+      <!-- Agents conversations — primary action -->
+      <div class="nav-section" x-data="{ collapsed: false }" aria-label="Agent conversations">
         <div class="nav-section-title" @click="collapsed = !collapsed">
-          <span class="nav-label">Chat</span>
+          <span class="nav-label">Agents</span>
           <span class="nav-section-chevron" :style="collapsed ? '' : 'transform:rotate(90deg)'">&rsaquo;</span>
         </div>
         <template x-if="!collapsed">
           <div x-transition>
-            <a class="nav-item" :class="{ active: page === 'chat' }" @click="navigate('chat')" :aria-current="page === 'chat' ? 'page' : false">
-              <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-              <span class="nav-label">Chat</span>
+            <a class="nav-item" :class="{ active: page === 'chat' && !$store.app.activeAgentId }" @click="navigate('chat')" :aria-current="page === 'chat' && !$store.app.activeAgentId ? 'page' : false">
+              <span class="nav-icon nav-combo-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              </span>
+              <span class="nav-label">Agents</span>
             </a>
+            <template x-for="agent in chatSidebarAgents" :key="'nav-agent-' + agent.id">
+              <a
+                class="nav-item nav-sub-item"
+                :class="{ active: page === 'chat' && $store.app.activeAgentId === agent.id }"
+                @click="selectAgentChatFromSidebar(agent)"
+                :aria-current="page === 'chat' && $store.app.activeAgentId === agent.id ? 'page' : false"
+              >
+                <span class="nav-icon">
+                  <span class="agent-status-dot agent-status-dot-inline" :class="'status-' + $store.app.agentStatusState(agent)" :title="'Agent status: ' + $store.app.agentStatusLabel(agent)" aria-hidden="true"></span>
+                </span>
+                <span class="nav-label truncate" x-text="agent.name || agent.id"></span>
+              </a>
+            </template>
+            <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="!chatSidebarAgents.length">
+              <span class="nav-icon" aria-hidden="true">&#8722;</span>
+              <span class="nav-label">No agents</span>
+            </div>
           </div>
         </template>
       </div>
@@ -99,10 +142,6 @@
         </div>
         <template x-if="!collapsed">
           <div x-transition>
-            <a class="nav-item" :class="{ active: page === 'agents' }" @click="navigate('agents')" :aria-current="page === 'agents' ? 'page' : false">
-              <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-              <span class="nav-label">Agent Manager</span>
-            </a>
             <a class="nav-item" :class="{ active: page === 'sessions' }" @click="navigate('sessions')" :aria-current="page === 'sessions' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m12 2-10 5 10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
               <span class="nav-label">Sessions</span>
@@ -110,10 +149,6 @@
             <a class="nav-item" :class="{ active: page === 'approvals' }" @click="navigate('approvals')" :aria-current="page === 'approvals' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
               <span class="nav-label">Approvals</span>
-            </a>
-            <a class="nav-item" :class="{ active: page === 'comms' }" @click="navigate('comms')" :aria-current="page === 'comms' ? 'page' : false">
-              <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></span>
-              <span class="nav-label">Comms</span>
             </a>
           </div>
         </template>
@@ -184,12 +219,11 @@
       </div>
     </div>
 
-    <div class="sidebar-footer">
+    <div class="sidebar-footer" x-show="$store.app.sessionUser">
       <div x-show="$store.app.sessionUser" style="padding:4px 16px;display:flex;align-items:center;justify-content:space-between">
         <span class="text-xs text-dim" x-text="$store.app.sessionUser" style="letter-spacing:0.5px"></span>
         <button @click="$store.app.sessionLogout()" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px;opacity:0.7" title="Sign out">Logout</button>
       </div>
-      <div class="sidebar-label text-xs text-dim" style="padding:0 16px 4px;letter-spacing:0.5px">Ctrl+K agents | Ctrl+N new</div>
     </div>
     <button class="sidebar-toggle" @click="toggleSidebar()" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'" aria-label="Toggle sidebar">
       <svg class="sidebar-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -207,11 +241,18 @@
   <main class="main-content">
     <div class="global-topbar">
       <div class="global-topbar-left">
+        <div class="topbar-brand">
+          <div class="brand-mark" aria-hidden="true">&infin;</div>
+          <div>
+            <div class="topbar-brand-title">INFRING</div>
+            <div class="topbar-brand-version" x-text="'v' + version"></div>
+          </div>
+        </div>
         <div class="global-topbar-page-slot"></div>
       </div>
       <div class="global-topbar-right">
         <div class="global-topbar-controls">
-          <span class="health-indicator" :class="connected ? 'health-ok' : 'health-down'" x-text="connected ? 'Live' : 'Disconnected'"></span>
+          <span class="health-indicator" :class="connected ? 'health-ok' : 'health-down'" x-text="connected ? (agentCount + ' agent(s) running') : 'Disconnected'"></span>
           <button class="btn btn-ghost btn-sm topbar-icon-btn" @click="location.reload()" title="Refresh" aria-label="Refresh">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 2v6h-6"></path>
@@ -225,6 +266,41 @@
           <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light">&#9788;</button>
           <button class="theme-opt" :class="{ active: themeMode === 'system' }" @click="setTheme('system')" title="System">&#9675;</button>
           <button class="theme-opt" :class="{ active: themeMode === 'dark' }" @click="setTheme('dark')" title="Dark">&#9790;</button>
+        </div>
+        <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
+          <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
+              <path d="M9 17a3 3 0 0 0 6 0"></path>
+            </svg>
+            <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
+          </button>
+          <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+            <div class="notif-dropdown-head">
+              <span>Notifications</span>
+              <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
+            </div>
+            <template x-if="!$store.app.notifications.length">
+              <div class="notif-empty">No notifications yet</div>
+            </template>
+            <div class="notif-list" x-show="$store.app.notifications.length">
+              <template x-for="note in $store.app.notifications" :key="note.id">
+                <button class="notif-item" :class="{ unread: !note.read }" @click="$store.app.reopenNotification(note)">
+                  <span class="notif-item-dot" :class="'type-' + note.type"></span>
+                  <span class="notif-item-msg" x-text="note.message"></span>
+                  <span class="notif-item-time" x-text="$store.app.formatNotificationTime(note.ts)"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="notif-bubble" x-show="$store.app.notificationBubble" x-transition:enter="transition ease-out duration-160" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
+            <div class="notif-bubble-head">
+              <span class="notif-item-dot" :class="'type-' + (($store.app.notificationBubble && $store.app.notificationBubble.type) || 'info')"></span>
+              <span class="notif-bubble-time" x-text="$store.app.notificationBubble ? $store.app.formatNotificationTime($store.app.notificationBubble.ts) : ''"></span>
+              <button class="notif-bubble-close" @click.stop="$store.app.dismissNotificationBubble()" aria-label="Dismiss notification">&times;</button>
+            </div>
+            <div class="notif-bubble-msg" x-text="$store.app.notificationBubble ? $store.app.notificationBubble.message : ''"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -571,104 +647,271 @@
     <!-- Page: Chat -->
     <template x-if="page === 'chat'">
       <div x-data="chatPage" class="chat-wrapper">
-        <div class="page-header">
-          <div class="flex items-center gap-2" style="min-width:260px">
-            <select
-              class="form-select"
-              :value="currentAgent ? currentAgent.id : ''"
-              @change="selectAgent($event.target.value)"
-              style="min-width:240px"
-            >
-              <option value="">Select an agent</option>
-              <template x-for="agent in ($store.app.agents || [])" :key="agent.id">
-                <option :value="agent.id" x-text="agent.name + ' · ' + (agent.model_name || '')"></option>
-              </template>
-            </select>
-            <button class="btn btn-ghost btn-sm" @click="navigate('agents')">Manage</button>
-          </div>
-          <h2>Chat</h2>
+        <!-- Keep selector wiring for later use, but hide visual control for now -->
+        <div style="display:none" aria-hidden="true">
+          <select
+            class="form-select"
+            :value="currentAgent ? currentAgent.id : ''"
+            @change="selectAgent($event.target.value)"
+            style="min-width:240px"
+            tabindex="-1"
+          >
+            <option value="">Select an agent</option>
+            <template x-for="agent in ($store.app.agents || [])" :key="agent.id">
+              <option :value="agent.id" x-text="agent.name + ' · ' + (agent.model_name || '')"></option>
+            </template>
+          </select>
         </div>
+
+        <template x-if="currentAgent">
+          <div class="chat-thread-topline">
+            <div class="chat-thread-profile-center">
+              <div class="chat-thread-profile" @click="toggleAgentDrawer()" role="button" tabindex="0" title="Agent details" @keydown.enter.prevent="toggleAgentDrawer()" @keydown.space.prevent="toggleAgentDrawer()">
+                <div class="chat-thread-profile-avatar">
+                  <img
+                    x-show="currentAgent && currentAgent.avatar_url"
+                    :src="currentAgent && currentAgent.avatar_url ? currentAgent.avatar_url : ''"
+                    :alt="currentAgent ? ((currentAgent.name || currentAgent.id || 'agent') + ' avatar') : 'agent avatar'"
+                    loading="lazy"
+                  />
+                  <span
+                    x-show="currentAgent && (!currentAgent.avatar_url) && currentAgent.identity && currentAgent.identity.emoji"
+                    x-text="currentAgent && currentAgent.identity ? currentAgent.identity.emoji : ''"
+                  ></span>
+                  <span
+                    x-show="currentAgent && (!currentAgent.avatar_url) && (!currentAgent.identity || !currentAgent.identity.emoji)"
+                    aria-hidden="true"
+                  >&infin;</span>
+                </div>
+                <div class="chat-thread-profile-meta">
+                  <span class="agent-status-dot chat-title-status-dot" :class="'status-' + $store.app.agentStatusState(currentAgent)" :title="'Agent status: ' + $store.app.agentStatusLabel(currentAgent)" aria-hidden="true"></span>
+                  <div class="chat-thread-profile-name" x-text="currentAgent ? (currentAgent.name || currentAgent.id || 'Agent') : ''"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div class="chat-agent-drawer-backdrop" x-show="showAgentDrawer" x-transition.opacity @click="closeAgentDrawer()"></div>
+        <aside class="chat-agent-drawer" x-show="showAgentDrawer" x-transition:enter="transition ease-out duration-180" x-transition:enter-start="opacity-0 translate-x-4" x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-140" x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-4" @click.outside="closeAgentDrawer()">
+          <div class="chat-agent-drawer-head">
+            <div class="chat-agent-drawer-title">Agent Details</div>
+            <button class="chat-agent-drawer-close" @click="closeAgentDrawer()" aria-label="Close details">&times;</button>
+          </div>
+          <div class="chat-agent-drawer-body">
+            <div class="text-xs text-dim" x-show="agentDrawerLoading">Loading...</div>
+            <div class="tabs chat-agent-drawer-tabs" x-show="agentDrawer">
+              <div class="tab" :class="{ active: drawerTab === 'info' }" @click="drawerTab = 'info'">Info</div>
+              <div class="tab" :class="{ active: drawerTab === 'config' }" @click="drawerTab = 'config'">Config</div>
+            </div>
+            <template x-if="agentDrawer">
+              <div>
+                <div x-show="drawerTab === 'info'" class="detail-grid">
+                  <div class="detail-row"><span class="detail-label">ID</span><span class="detail-value text-xs" style="word-break:break-all" x-text="agentDrawer.id || '-'"></span></div>
+                  <div class="detail-row"><span class="detail-label">State</span><span class="badge" :class="'badge-' + String((agentDrawer.state || 'unknown')).toLowerCase()" x-text="agentDrawer.state || 'unknown'"></span></div>
+                  <div class="detail-row"><span class="detail-label">Mode</span>
+                    <select class="form-select" style="width:140px" :value="agentDrawer.mode || 'full'" @change="setDrawerMode($event.target.value)">
+                      <option value="observe">Observe</option><option value="assist">Assist</option><option value="full">Full</option>
+                    </select>
+                  </div>
+                  <div class="detail-row"><span class="detail-label">Profile</span><span class="detail-value" x-text="agentDrawer.profile || '-'"></span></div>
+                  <div class="detail-row"><span class="detail-label">Provider</span>
+                    <template x-if="!drawerEditingProvider">
+                      <span>
+                        <span class="detail-value" x-text="agentDrawer.model_provider || '-'"></span>
+                        <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="drawerEditingProvider = true; drawerNewProviderValue = agentDrawer.model_provider || ''">Change</button>
+                      </span>
+                    </template>
+                    <template x-if="drawerEditingProvider">
+                      <span class="flex gap-1" style="align-items:center">
+                        <input class="form-input" style="width:160px;font-size:12px" x-model="drawerNewProviderValue" placeholder="provider" @keydown.enter="changeDrawerProvider()" @keydown.escape="drawerEditingProvider = false">
+                        <button class="btn btn-primary btn-sm" @click="changeDrawerProvider()" :disabled="drawerModelSaving" style="padding:2px 10px">
+                          <span x-show="!drawerModelSaving">Save</span><span x-show="drawerModelSaving">...</span>
+                        </button>
+                        <button class="btn btn-ghost btn-sm" @click="drawerEditingProvider = false" style="padding:2px 8px">Cancel</button>
+                      </span>
+                    </template>
+                  </div>
+                  <div class="detail-row"><span class="detail-label">Model</span>
+                    <template x-if="!drawerEditingModel">
+                      <span>
+                        <span class="detail-value" x-text="agentDrawer.model_name || '-'"></span>
+                        <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="drawerEditingModel = true; drawerNewModelValue = (agentDrawer.model_provider || '') + '/' + (agentDrawer.model_name || '')">Change</button>
+                      </span>
+                    </template>
+                    <template x-if="drawerEditingModel">
+                      <span class="flex gap-1" style="align-items:center">
+                        <input class="form-input" style="width:240px;font-size:12px" x-model="drawerNewModelValue" placeholder="provider/model" @keydown.enter="changeDrawerModel()" @keydown.escape="drawerEditingModel = false">
+                        <button class="btn btn-primary btn-sm" @click="changeDrawerModel()" :disabled="drawerModelSaving" style="padding:2px 10px">
+                          <span x-show="!drawerModelSaving">Save</span><span x-show="drawerModelSaving">...</span>
+                        </button>
+                        <button class="btn btn-ghost btn-sm" @click="drawerEditingModel = false" style="padding:2px 8px">Cancel</button>
+                      </span>
+                    </template>
+                  </div>
+                  <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value" x-text="agentDrawer.created_at ? new Date(agentDrawer.created_at).toLocaleString() : '-'"></span></div>
+                  <div class="detail-row" style="align-items:flex-start">
+                    <span class="detail-label">Fallbacks</span>
+                    <div class="detail-value" style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+                      <template x-if="agentDrawer._fallbacks && agentDrawer._fallbacks.length">
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                          <template x-for="(fb, fidx) in agentDrawer._fallbacks" :key="'chat-fb-' + fidx">
+                            <div class="flex gap-1 items-center">
+                              <span class="badge badge-muted" x-text="fb.provider + '/' + fb.model"></span>
+                              <button class="btn btn-ghost btn-sm" style="padding:1px 4px;font-size:10px;color:var(--danger)" @click="removeDrawerFallback(fidx)">&times;</button>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                      <template x-if="!agentDrawer._fallbacks || !agentDrawer._fallbacks.length">
+                        <span class="text-dim">None</span>
+                      </template>
+                      <template x-if="!drawerEditingFallback">
+                        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;margin-top:4px" @click="drawerEditingFallback = true; drawerNewFallbackValue = ''">+ Add</button>
+                      </template>
+                      <template x-if="drawerEditingFallback">
+                        <div class="flex gap-1 mt-1" style="align-items:center">
+                          <input class="form-input" style="width:220px;font-size:12px" x-model="drawerNewFallbackValue" placeholder="provider/model" @keydown.enter="addDrawerFallback()" @keydown.escape="drawerEditingFallback = false">
+                          <button class="btn btn-primary btn-sm" @click="addDrawerFallback()" style="padding:2px 10px;font-size:11px">Add</button>
+                          <button class="btn btn-ghost btn-sm" @click="drawerEditingFallback = false" style="padding:2px 8px;font-size:11px">Cancel</button>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+                <div x-show="drawerTab === 'config'">
+                  <div class="form-group"><label>Name</label><input class="form-input" x-model="drawerConfigForm.name"></div>
+                  <div class="form-group"><label>System Prompt</label><textarea class="form-textarea" x-model="drawerConfigForm.system_prompt" style="height:96px"></textarea></div>
+                  <div class="form-group"><label>Emoji</label><input class="form-input" x-model="drawerConfigForm.emoji" placeholder="e.g. 🤖"></div>
+                  <div class="form-group"><label>Color</label><input type="color" x-model="drawerConfigForm.color" style="width:48px;height:32px;border:none;cursor:pointer;background:none"></div>
+                  <div class="form-group"><label>Archetype</label>
+                    <select class="form-select" x-model="drawerConfigForm.archetype">
+                      <option value="">None</option>
+                      <template x-for="a in drawerArchetypeOptions" :key="'drawer-arch-' + a"><option :value="a.toLowerCase()" x-text="a"></option></template>
+                    </select>
+                  </div>
+                  <div class="form-group"><label>Vibe</label>
+                    <select class="form-select" x-model="drawerConfigForm.vibe">
+                      <option value="">None</option>
+                      <template x-for="v in drawerVibeOptions" :key="'drawer-vibe-' + v"><option :value="v" x-text="v.charAt(0).toUpperCase() + v.slice(1)"></option></template>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" @click="saveDrawerConfig()" :disabled="drawerConfigSaving">
+                    <span x-show="!drawerConfigSaving">Save Config</span><span x-show="drawerConfigSaving">Saving...</span>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </aside>
 
         <div class="messages" id="messages" @scroll.passive="handleMessagesScroll($event)" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="handleDrop($event); dragOver = false">
           <template x-if="!currentAgent">
             <div class="empty-state">
               <h4>No agent selected</h4>
               <p class="hint">Create or select an agent to start chatting.</p>
-              <button class="btn btn-primary btn-sm" @click="navigate('agents')">Open Agent Manager</button>
+              <button class="btn btn-primary btn-sm" @click="toggleAgentChatsSidebar()">Agents</button>
             </div>
           </template>
 
           <template x-if="currentAgent">
-            <div class="chat-thread">
-              <template x-for="(msg, idx) in messages" :key="msg.id || idx">
-                <div
-                  class="message"
-                  :id="messageDomId(msg, idx)"
-                  :class="msg.role + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '')"
-                >
-                  <div class="message-avatar" x-show="msg.role === 'agent'">
-                    <span class="agent-mark" aria-hidden="true">&infin;</span>
-                  </div>
-                  <div class="message-body">
-                    <div class="message-bubble" x-show="msg.thinking" style="background:transparent;border:none;padding:4px 0">
-                      <div class="typing-dots"><span></span><span></span><span></span></div>
-                    </div>
-                    <div
-                      class="message-bubble"
-                      :class="{ 'message-error': isErrorMessage(msg), 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
-                      x-show="msg.text && msg.text.trim() && !msg.thinking"
-                      x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
-                    ></div>
-                    <template x-if="msg.images && msg.images.length">
-                      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
-                        <template x-for="img in msg.images" :key="img.file_id">
-                          <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
-                            <img :src="'/api/uploads/' + img.file_id" :alt="img.filename || 'uploaded image'" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid var(--border);cursor:pointer" loading="lazy">
-                          </a>
-                        </template>
+            <div>
+              <div class="chat-thread">
+                <template x-for="(msg, idx) in messages" :key="msg.id || idx">
+                  <div class="chat-message-block">
+                    <template x-if="msg.is_notice">
+                      <div class="chat-day-divider chat-event-divider">
+                        <span class="chat-day-divider-line" aria-hidden="true"></span>
+                        <span class="chat-day-divider-label" x-text="msg.notice_label || 'Model switched'"></span>
+                        <span class="chat-day-divider-line" aria-hidden="true"></span>
                       </div>
                     </template>
-                    <template x-for="tool in (msg.tools || [])" :key="tool.id">
-                      <div class="tool-card" :class="{ 'tool-card-error': tool.is_error }" :data-tool="tool.name">
-                        <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
-                          <template x-if="tool.running"><div class="tool-card-spinner"></div></template>
-                          <template x-if="!tool.running && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
-                          <template x-if="!tool.running && tool.is_error"><span class="tool-icon-err">&#10007;</span></template>
-                          <span class="tool-card-icon" x-html="toolIcon(tool.name)"></span>
-                          <span class="tool-card-name" x-text="tool.name"></span>
-                          <span class="text-xs text-dim" x-text="tool.running ? 'running...' : (tool.is_error ? 'error' : (tool.result ? (tool.result.length > 500 ? Math.round(tool.result.length/1024) + 'KB' : 'done') : 'done'))" style="margin-left:auto"></span>
-                          <span class="tool-expand-chevron" x-text="tool.expanded ? '▲' : '▼'"></span>
-                        </div>
-                        <div class="tool-card-body" x-show="tool.expanded" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-                          <div x-show="tool.input" style="margin-bottom:6px">
-                            <div class="tool-section-label">Input</div>
-                            <pre class="tool-pre" x-text="formatToolJson(tool.input)"></pre>
-                          </div>
-                          <div x-show="tool.result">
-                            <div class="tool-section-label">Result <span class="text-xs text-muted" x-show="tool.result && tool.result.length > 200" x-text="'(' + tool.result.length + ' chars)'"></span></div>
-                            <pre class="tool-pre" :class="{ 'tool-pre-error': tool.is_error, 'tool-pre-short': !tool.is_error && tool.result && tool.result.length < 100, 'tool-pre-medium': !tool.is_error && tool.result && tool.result.length >= 100 && tool.result.length < 500 }" x-text="formatToolJson(tool.result)"></pre>
-                          </div>
-                        </div>
+                    <template x-if="isNewMessageDay(messages, idx)">
+                      <div class="chat-day-anchor chat-day-divider" :id="messageDayDomId(msg)" :data-day="messageDayKey(msg)">
+                        <span class="chat-day-divider-line" aria-hidden="true"></span>
+                        <span class="chat-day-divider-label" x-text="messageDayLabel(msg)"></span>
+                        <span class="chat-day-divider-line" aria-hidden="true"></span>
                       </div>
                     </template>
                     <div
-                      class="message-stats-row"
-                      x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
+                      class="message"
+                      x-show="!msg.is_notice"
+                      :id="messageDomId(msg, idx)"
+                      :class="msg.role + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
+                      @mouseenter="setHoveredMessage(msg, idx)"
+                      @mouseleave="clearHoveredMessage()"
                     >
-                      <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
-                        <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                        <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-                      </button>
-                      <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
-                        <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-                        <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
-                      </button>
-                      <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
-                      <span class="message-stat-meta" x-text="msg.meta" x-show="msg.meta"></span>
+                      <div class="message-avatar" x-show="msg.role === 'agent'">
+                        <span class="agent-mark" aria-hidden="true">&infin;</span>
+                      </div>
+                      <div class="message-body">
+                        <div class="message-bubble" x-show="msg.thinking" style="background:transparent;border:none;padding:4px 0">
+                          <div class="typing-dots"><span></span><span></span><span></span></div>
+                        </div>
+                        <div
+                          class="message-bubble"
+                          :class="{ 'message-error': isErrorMessage(msg), 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
+                          x-show="msg.text && msg.text.trim() && !msg.thinking"
+                          x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
+                        ></div>
+                        <template x-if="msg.images && msg.images.length">
+                          <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
+                            <template x-for="img in msg.images" :key="img.file_id">
+                              <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
+                                <img :src="'/api/uploads/' + img.file_id" :alt="img.filename || 'uploaded image'" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid var(--border);cursor:pointer" loading="lazy">
+                              </a>
+                            </template>
+                          </div>
+                        </template>
+                        <template x-for="tool in (msg.tools || [])" :key="tool.id">
+                          <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool) }" :data-tool="tool.name">
+                            <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
+                              <template x-if="tool.running"><div class="tool-card-spinner"></div></template>
+                              <template x-if="!tool.running && isBlockedTool(tool)">
+                                <span class="tool-icon-blocked" aria-hidden="true">
+                                  <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 3 5 6v6c0 5.2 3.6 8.6 7 10 3.4-1.4 7-4.8 7-10V6l-7-3z"></path>
+                                  </svg>
+                                </span>
+                              </template>
+                              <template x-if="!tool.running && !isBlockedTool(tool) && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
+                              <template x-if="!tool.running && tool.is_error && !isBlockedTool(tool)"><span class="tool-icon-err">&#10007;</span></template>
+                              <span class="tool-card-icon" x-html="toolIcon(tool.name)"></span>
+                              <span class="tool-card-name" x-text="tool.name"></span>
+                              <span class="text-xs" :class="isBlockedTool(tool) ? 'tool-status-blocked' : 'text-dim'" x-text="toolStatusText(tool)" style="margin-left:auto"></span>
+                              <span class="tool-expand-chevron" x-text="tool.expanded ? '▲' : '▼'"></span>
+                            </div>
+                            <div class="tool-card-body" x-show="tool.expanded" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                              <div x-show="tool.input" style="margin-bottom:6px">
+                                <div class="tool-section-label">Input</div>
+                                <pre class="tool-pre" x-text="formatToolJson(tool.input)"></pre>
+                              </div>
+                              <div x-show="tool.result">
+                                <div class="tool-section-label">Result <span class="text-xs text-muted" x-show="tool.result && tool.result.length > 200" x-text="'(' + tool.result.length + ' chars)'"></span></div>
+                                <pre class="tool-pre" :class="{ 'tool-pre-error': tool.is_error, 'tool-pre-short': !tool.is_error && tool.result && tool.result.length < 100, 'tool-pre-medium': !tool.is_error && tool.result && tool.result.length >= 100 && tool.result.length < 500 }" x-text="formatToolJson(tool.result)"></pre>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                        <div
+                          class="message-stats-row"
+                          x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
+                        >
+                          <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
+                            <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                          </button>
+                          <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
+                            <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                            <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+                          </button>
+                          <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
+                          <span class="message-stat-meta" x-text="msg.meta" x-show="msg.meta"></span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
           </template>
           <div x-show="dragOver" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--surface);opacity:0.92;border:2px dashed var(--accent);border-radius:8px;pointer-events:none">
@@ -676,18 +919,37 @@
           </div>
         </div>
         <div class="chat-map" x-show="currentAgent && messages && messages.length > 0" aria-label="Message map">
-          <template x-for="(msg, idx) in messages" :key="'map-' + (msg.id || idx)">
-            <button class="chat-map-item" :class="'role-' + (msg.role || 'agent')" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
-              <span class="chat-map-bar"></span>
-              <div class="chat-map-preview">
-                <div class="chat-map-preview-meta">
-                  <span class="chat-map-preview-role" x-text="messageActorLabel(msg)"></span>
-                  <span class="chat-map-preview-time" x-text="messageTs(msg)"></span>
+          <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(messages, -1)" title="Previous message" aria-label="Previous message">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+          </button>
+          <div class="chat-map-spacer" aria-hidden="true"></div>
+              <template x-for="(msg, idx) in messages" :key="'map-' + (msg.id || idx)">
+                <div class="chat-map-entry">
+                  <template x-if="isNewMessageDay(messages, idx)">
+                <button class="chat-map-day" type="button" @click="toggleMessageDayCollapse(msg)" @mouseenter="setMapDayHover(msg)" @mouseleave="clearMapDayHover()" :aria-label="'Messages for ' + messageDayLabel(msg)">
+                  <span class="chat-map-day-chevron" x-text="isMessageDayCollapsed(msg) ? '▸' : '▾'" aria-hidden="true"></span>
+                  <span class="chat-map-day-icon" aria-hidden="true">&#9728;</span>
+                  <div class="chat-map-preview chat-map-day-preview" x-show="isMapDayPreviewVisible(msg)" x-transition.opacity>
+                    <div class="chat-map-preview-day" x-text="messageDayLabel(msg)"></div>
+                  </div>
+                </button>
+                  </template>
+              <button x-show="!isMessageDayCollapsed(msg)" class="chat-map-item" :data-msg-dom-id="messageDomId(msg, idx)" :class="['role-' + (msg.role || 'agent'), isHoveredMessage(msg, idx) ? 'hover-linked' : '']" @mouseenter="setMapItemHover(msg, idx)" @mouseleave="clearMapItemHover()" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
+                <span class="chat-map-bar"></span>
+                <div class="chat-map-preview" x-show="isMapPreviewVisible(msg, idx)" x-transition.opacity>
+                  <div class="chat-map-preview-meta">
+                    <span class="chat-map-preview-role" x-text="messageActorLabel(msg)"></span>
+                    <span class="chat-map-preview-time" x-text="messageTs(msg)"></span>
+                  </div>
+                  <div class="chat-map-preview-text" x-text="messagePreview(msg)"></div>
                 </div>
-                <div class="chat-map-preview-text" x-text="messagePreview(msg)"></div>
-              </div>
-            </button>
+              </button>
+            </div>
           </template>
+          <div class="chat-map-spacer" aria-hidden="true"></div>
+          <button class="chat-map-jump chat-map-jump-down" type="button" @click="stepMessageMap(messages, 1)" title="Next message" aria-label="Next message">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
         </div>
         <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
@@ -724,10 +986,7 @@
                   @input="$el.style.height='auto';$el.style.height=Math.min($el.scrollHeight,150)+'px'"
                 ></textarea>
                 <div class="composer-actions-right">
-                  <button class="composer-icon-btn" :class="{ 'btn-recording': recording }" @mousedown="startRecording()" @mouseup="stopRecording()" @mouseleave="if(recording) stopRecording()" title="Hold to record voice">
-                    <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                    <span x-show="recording" class="recording-dot"></span>
-                  </button>
+                  <span class="model-inline-label" x-show="currentAgent" x-text="modelDisplayName"></span>
                   <div class="model-switcher-inline" x-show="currentAgent" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                     <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" :disabled="sending" title="Switch model (Ctrl+M)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -747,7 +1006,7 @@
                         <div class="tool-card-spinner"></div>
                         <span class="text-xs text-dim">Switching...</span>
                       </div>
-                      <div class="model-switcher-list" x-show="!modelSwitching" @wheel.prevent="onModelSwitcherWheel($event)">
+                      <div class="model-switcher-list" x-show="!modelSwitching">
                         <template x-if="groupedSwitcherModels.length === 0">
                           <div style="padding:16px;text-align:center" class="text-xs text-dim">No models found</div>
                         </template>
@@ -776,6 +1035,10 @@
                       </div>
                     </div>
                   </div>
+                  <button class="composer-icon-btn" :class="{ 'btn-recording': recording }" @mousedown="startRecording()" @mouseup="stopRecording()" @mouseleave="if(recording) stopRecording()" title="Hold to record voice">
+                    <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                    <span x-show="recording" class="recording-dot"></span>
+                  </button>
                   <template x-if="!sending">
                     <button class="btn-send" @click="sendMessage()" :disabled="!inputText.trim() && !(attachments && attachments.length)" title="Send">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -876,16 +1139,34 @@
               <!-- Message list -->
               <template x-if="currentAgent">
                 <div class="chat-thread">
-                  <template x-for="(msg, $index) in filteredMessages" :key="msg.id">
-                    <div
-                      class="message"
-                      :id="messageDomId(msg, $index)"
-                      :class="msg.role + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped($index) ? ' grouped' : '')"
-                    >
-                      <div class="message-avatar" x-show="msg.role === 'agent'">
-                        <span class="agent-mark" aria-hidden="true">&infin;</span>
-                      </div>
-                      <div class="message-body">
+                  <template x-for="(msg, idx) in filteredMessages" :key="msg.id">
+                    <div class="chat-message-block">
+                      <template x-if="msg.is_notice">
+                        <div class="chat-day-divider chat-event-divider">
+                          <span class="chat-day-divider-line" aria-hidden="true"></span>
+                          <span class="chat-day-divider-label" x-text="msg.notice_label || 'Model switched'"></span>
+                          <span class="chat-day-divider-line" aria-hidden="true"></span>
+                        </div>
+                      </template>
+                      <template x-if="isNewMessageDay(filteredMessages, idx)">
+                        <div class="chat-day-anchor chat-day-divider" :id="messageDayDomId(msg)" :data-day="messageDayKey(msg)">
+                          <span class="chat-day-divider-line" aria-hidden="true"></span>
+                          <span class="chat-day-divider-label" x-text="messageDayLabel(msg)"></span>
+                          <span class="chat-day-divider-line" aria-hidden="true"></span>
+                        </div>
+                      </template>
+                      <div
+                        class="message"
+                        x-show="!msg.is_notice"
+                        :id="messageDomId(msg, idx)"
+                        :class="msg.role + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
+                        @mouseenter="setHoveredMessage(msg, idx)"
+                        @mouseleave="clearHoveredMessage()"
+                      >
+                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                          <span class="agent-mark" aria-hidden="true">&infin;</span>
+                        </div>
+                        <div class="message-body">
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble" x-show="msg.thinking" style="background:transparent;border:none;padding:4px 0">
                           <div class="typing-dots"><span></span><span></span><span></span></div>
@@ -903,14 +1184,21 @@
                           </div>
                         </template>
                         <template x-for="tool in (msg.tools || [])" :key="tool.id">
-                          <div class="tool-card" :class="{ 'tool-card-error': tool.is_error }" :data-tool="tool.name">
+                          <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool) }" :data-tool="tool.name">
                             <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
                               <template x-if="tool.running"><div class="tool-card-spinner"></div></template>
-                              <template x-if="!tool.running && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
-                              <template x-if="!tool.running && tool.is_error"><span class="tool-icon-err">&#10007;</span></template>
+                              <template x-if="!tool.running && isBlockedTool(tool)">
+                                <span class="tool-icon-blocked" aria-hidden="true">
+                                  <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 3 5 6v6c0 5.2 3.6 8.6 7 10 3.4-1.4 7-4.8 7-10V6l-7-3z"></path>
+                                  </svg>
+                                </span>
+                              </template>
+                              <template x-if="!tool.running && !isBlockedTool(tool) && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
+                              <template x-if="!tool.running && tool.is_error && !isBlockedTool(tool)"><span class="tool-icon-err">&#10007;</span></template>
                               <span class="tool-card-icon" x-html="toolIcon(tool.name)"></span>
                               <span class="tool-card-name" x-text="tool.name"></span>
-                              <span class="text-xs text-dim" x-text="tool.running ? 'running...' : (tool.is_error ? 'error' : (tool.result ? (tool.result.length > 500 ? Math.round(tool.result.length/1024) + 'KB' : 'done') : 'done'))" style="margin-left:auto"></span>
+                              <span class="text-xs" :class="isBlockedTool(tool) ? 'tool-status-blocked' : 'text-dim'" x-text="toolStatusText(tool)" style="margin-left:auto"></span>
                               <span class="tool-expand-chevron" x-text="tool.expanded ? '▲' : '▼'"></span>
                             </div>
                             <!-- Render generated images above the raw result -->
@@ -957,6 +1245,7 @@
                           <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
                           <span class="message-stat-meta" x-text="msg.meta" x-show="msg.meta"></span>
                         </div>
+                        </div>
                       </div>
                     </div>
                   </template>
@@ -969,18 +1258,37 @@
               </div>
             </div>
             <div class="chat-map" x-show="currentAgent && filteredMessages && filteredMessages.length > 0" aria-label="Message map">
+              <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(filteredMessages, -1)" title="Previous message" aria-label="Previous message">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+              </button>
+              <div class="chat-map-spacer" aria-hidden="true"></div>
               <template x-for="(msg, idx) in filteredMessages" :key="'map-filtered-' + (msg.id || idx)">
-                <button class="chat-map-item" :class="'role-' + (msg.role || 'agent')" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
-                  <span class="chat-map-bar"></span>
-                  <div class="chat-map-preview">
-                    <div class="chat-map-preview-meta">
-                      <span class="chat-map-preview-role" x-text="messageActorLabel(msg)"></span>
-                      <span class="chat-map-preview-time" x-text="messageTs(msg)"></span>
+                <div class="chat-map-entry">
+                  <template x-if="isNewMessageDay(filteredMessages, idx)">
+                    <button class="chat-map-day" type="button" @click="toggleMessageDayCollapse(msg)" @mouseenter="setMapDayHover(msg)" @mouseleave="clearMapDayHover()" :aria-label="'Messages for ' + messageDayLabel(msg)">
+                      <span class="chat-map-day-chevron" x-text="isMessageDayCollapsed(msg) ? '▸' : '▾'" aria-hidden="true"></span>
+                      <span class="chat-map-day-icon" aria-hidden="true">&#9728;</span>
+                      <div class="chat-map-preview chat-map-day-preview" x-show="isMapDayPreviewVisible(msg)" x-transition.opacity>
+                        <div class="chat-map-preview-day" x-text="messageDayLabel(msg)"></div>
+                      </div>
+                    </button>
+                  </template>
+                  <button x-show="!isMessageDayCollapsed(msg)" class="chat-map-item" :data-msg-dom-id="messageDomId(msg, idx)" :class="['role-' + (msg.role || 'agent'), isHoveredMessage(msg, idx) ? 'hover-linked' : '']" @mouseenter="setMapItemHover(msg, idx)" @mouseleave="clearMapItemHover()" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
+                    <span class="chat-map-bar"></span>
+                    <div class="chat-map-preview" x-show="isMapPreviewVisible(msg, idx)" x-transition.opacity>
+                      <div class="chat-map-preview-meta">
+                        <span class="chat-map-preview-role" x-text="messageActorLabel(msg)"></span>
+                        <span class="chat-map-preview-time" x-text="messageTs(msg)"></span>
+                      </div>
+                      <div class="chat-map-preview-text" x-text="messagePreview(msg)"></div>
                     </div>
-                    <div class="chat-map-preview-text" x-text="messagePreview(msg)"></div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               </template>
+              <div class="chat-map-spacer" aria-hidden="true"></div>
+              <button class="chat-map-jump chat-map-jump-down" type="button" @click="stepMessageMap(filteredMessages, 1)" title="Next message" aria-label="Next message">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
             </div>
             <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
@@ -1036,10 +1344,7 @@
                             x-model="inputText"
                             :class="{ 'streaming-active': sending }"></textarea>
                   <div class="composer-actions-right">
-                    <button class="composer-icon-btn" :class="{ 'btn-recording': recording }" @mousedown="startRecording()" @mouseup="stopRecording()" @mouseleave="if(recording) stopRecording()" title="Hold to record voice">
-                      <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                      <span x-show="recording" class="recording-dot"></span>
-                    </button>
+                    <span class="model-inline-label" x-show="currentAgent" x-text="modelDisplayName"></span>
                     <div class="model-switcher-inline" x-show="currentAgent" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                       <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" :disabled="sending" title="Switch model (Ctrl+M)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -1059,7 +1364,7 @@
                           <div class="tool-card-spinner"></div>
                           <span class="text-xs text-dim">Switching...</span>
                         </div>
-                        <div class="model-switcher-list" x-show="!modelSwitching" @wheel.prevent="onModelSwitcherWheel($event)">
+                        <div class="model-switcher-list" x-show="!modelSwitching">
                           <template x-if="groupedSwitcherModels.length === 0">
                             <div style="padding:16px;text-align:center" class="text-xs text-dim">No models found</div>
                           </template>
@@ -1088,6 +1393,10 @@
                         </div>
                       </div>
                     </div>
+                    <button class="composer-icon-btn" :class="{ 'btn-recording': recording }" @mousedown="startRecording()" @mouseup="stopRecording()" @mouseleave="if(recording) stopRecording()" title="Hold to record voice">
+                      <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                      <span x-show="recording" class="recording-dot"></span>
+                    </button>
                     <template x-if="!sending">
                       <button class="btn-send" @click="sendMessage()" :disabled="!inputText.trim() && !attachments.length">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -5308,9 +5617,6 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
   </main>
 </div>
-
-<!-- Toast notification container -->
-<div id="toast-container" class="toast-container" aria-live="polite"></div>
 
 <script>
 if ('serviceWorker' in navigator) {

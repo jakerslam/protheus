@@ -3,55 +3,25 @@
 
 // ── Toast Notification System ──
 var OpenFangToast = (function() {
-  var _container = null;
   var _toastId = 0;
-
-  function getContainer() {
-    if (!_container) {
-      _container = document.getElementById('toast-container');
-      if (!_container) {
-        _container = document.createElement('div');
-        _container.id = 'toast-container';
-        _container.className = 'toast-container';
-        document.body.appendChild(_container);
-      }
-    }
-    return _container;
-  }
 
   function toast(message, type, duration) {
     type = type || 'info';
     duration = duration || 4000;
     var id = ++_toastId;
-    var el = document.createElement('div');
-    el.className = 'toast toast-' + type;
-    el.setAttribute('data-toast-id', id);
 
-    var msgSpan = document.createElement('span');
-    msgSpan.className = 'toast-msg';
-    msgSpan.textContent = message;
-    el.appendChild(msgSpan);
-
-    var closeBtn = document.createElement('button');
-    closeBtn.className = 'toast-close';
-    closeBtn.textContent = '\u00D7';
-    closeBtn.onclick = function() { dismissToast(el); };
-    el.appendChild(closeBtn);
-
-    el.onclick = function(e) { if (e.target === el) dismissToast(el); };
-    getContainer().appendChild(el);
-
-    // Auto-dismiss
-    if (duration > 0) {
-      setTimeout(function() { dismissToast(el); }, duration);
-    }
+    try {
+      window.dispatchEvent(new CustomEvent('openfang:toast', {
+        detail: {
+          id: id,
+          message: String(message || ''),
+          type: type,
+          ts: Date.now(),
+          duration: duration
+        }
+      }));
+    } catch(_) {}
     return id;
-  }
-
-  function dismissToast(el) {
-    if (!el || el.classList.contains('toast-dismiss')) return;
-    el.classList.add('toast-dismiss');
-    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
   }
 
   function success(msg, duration) { return toast(msg, 'success', duration); }
