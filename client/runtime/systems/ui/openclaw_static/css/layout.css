@@ -29,12 +29,22 @@
 
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
-  padding: 16px 8px;
+  padding: 16px 0;
 }
 
 .sidebar.collapsed .sidebar-logo {
+  width: auto;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-header-text {
   width: 100%;
   justify-content: center;
+  align-items: center;
+}
+
+.sidebar.collapsed .sidebar-logo > div:not(.brand-mark) {
+  display: none;
 }
 
 .sidebar.collapsed .sidebar-header h1,
@@ -47,13 +57,20 @@
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   min-height: 60px;
+}
+
+.sidebar-header-text {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -125,8 +142,9 @@
 .conn-badge.ws,
 .conn-badge.http {
   border: 1px solid color-mix(in srgb, #fff 38%, transparent);
-  border-top-color: color-mix(in srgb, #fff 70%, transparent);
+  border-top-color: color-mix(in srgb, #fff 38%, transparent);
   border-bottom-color: color-mix(in srgb, #000 16%, transparent);
+  border-right-color: color-mix(in srgb, #000 16%, transparent);
   backdrop-filter: blur(8px) saturate(1.08);
   -webkit-backdrop-filter: blur(8px) saturate(1.08);
 }
@@ -182,8 +200,9 @@
   color: var(--bg-primary);
   font-weight: 600;
   border: 1px solid color-mix(in srgb, var(--accent) 64%, transparent);
-  border-top-color: color-mix(in srgb, #fff 62%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 64%, transparent);
   border-bottom-color: color-mix(in srgb, var(--accent) 90%, #000 10%);
+  border-right-color: color-mix(in srgb, var(--accent) 90%, #000 10%);
   box-shadow: var(--shadow-sm), 0 2px 8px rgba(59, 130, 246, 0.24);
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
@@ -210,16 +229,30 @@
 
 /* Sidebar toggle button */
 .sidebar-toggle {
+  width: 100%;
   padding: 10px 16px;
   border-top: 1px solid var(--border);
   cursor: pointer;
-  text-align: center;
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
   color: var(--text-muted);
-  transition: color var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
-.sidebar-toggle:hover { color: var(--text); }
+.sidebar-toggle:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.sidebar-toggle-icon {
+  width: 16px;
+  height: 16px;
+}
 
 /* Main content area */
 .main-content {

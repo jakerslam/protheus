@@ -214,7 +214,7 @@ Updated: 2026-03-20 08:47 America/Denver
 - All tests passing: `npm run -s test:cognition:orchestration`.
 - Integration test: full orchestration flow in `tests/client/cognition/coordinator.test.js` with scope + task-group completion assertions.
 
-25. `P0-AUDIT-SEC-001` Close remaining automatable security implementation-depth gaps (fail-closed and branch coverage), not just receipt presence. `STATUS: QUEUED`
+25. `P0-AUDIT-SEC-001` Close remaining automatable security implementation-depth gaps (fail-closed and branch coverage), not just receipt presence. `STATUS: DONE`
 - Context:
 - Latest audit highlights call out depth/branch coverage gaps across security, skills backward-compat, and conduit strict-mode fail-closed paths.
 - Linked audit docs:
@@ -226,8 +226,28 @@ Updated: 2026-03-20 08:47 America/Denver
   - `core/layer2/conduit/src/lib.rs`
 - `cargo test` suites for those modules pass.
 - `npm run -s ops:srs:full:regression` remains `fail=0`, `warn=0`.
+- Progress (2026-03-20):
+- Added strict fail-closed regression tests in `core/layer0/ops/tests/v6_security_hardening_integration.rs`:
+  - unsupported secrets provider strict reject (`unsupported_provider:*`)
+  - empty audit history pass path (no false strict block)
+- Added backward-compat regression tests in `core/layer0/ops/tests/v6_skills_batch10_integration.rs`:
+  - downgrade rejection without `--allow-downgrade`
+  - forced migration rejection without `--migration-reason`
+- Added conduit bridge fail-closed tests in `core/layer2/conduit/src/lib.rs`:
+  - explicit bridge spawn failure path
+  - bridge timeout path with bounded timeout budget
+- Validation receipts:
+  - `cargo test -p protheus-ops-core --test v6_security_hardening_integration` PASS
+  - `cargo test -p protheus-ops-core --test v6_skills_batch10_integration` PASS
+  - `cargo test -p conduit --lib` PASS
+  - `npm run -s ops:srs:full:regression` PASS (`fail=0`, `warn=0`)
+- Validation refresh (2026-03-21):
+  - `cargo test -p protheus-ops-core --test v6_security_hardening_integration -- --test-threads=1` PASS (`18 passed`)
+  - `cargo test -p protheus-ops-core --test v6_skills_batch10_integration -- --test-threads=1` PASS (`8 passed`)
+  - `cargo test -p conduit --lib -- --test-threads=1` PASS (`33 passed`)
+  - `npm run -s ops:srs:full:regression` PASS (`fail=0`, `warn=0`, `pass=3063`)
 
-26. `P0-DOCS-API-001` Close documentation maturity gaps for regression insurance (API + security + deployment + ADR hygiene). `STATUS: QUEUED`
+26. `P0-DOCS-API-001` Close documentation maturity gaps for regression insurance (API + security + deployment + ADR hygiene). `STATUS: DONE`
 - Context:
 - Documentation audits still list API reference completeness as partial and OpenAPI as a stub.
 - Linked audit docs:
@@ -236,6 +256,14 @@ Updated: 2026-03-20 08:47 America/Denver
 - Replace `docs/api/openapi.stub.yaml` with authoritative generated/maintained API spec.
 - Ensure runbook/deployment/security docs cross-link from a single operator index.
 - Add/refresh ADR index coverage for new architecture/security decisions.
+- Progress (2026-03-20):
+- Replaced placeholder OpenAPI stub content with authoritative `dashboard-ui` API contract in `docs/api/openapi.stub.yaml` (`/healthz`, `/api/dashboard/snapshot`, `/api/dashboard/action`).
+- Added single-entry operator cross-link index: `docs/ops/INDEX.md` and linked it from `docs/api/README.md`.
+- Refreshed ADR coverage with accepted dashboard authority decision:
+  - `docs/client/adr/0002-rust-core-dashboard-authority.md`
+  - `docs/client/adr/INDEX.md` updated with ADR 0002.
+- Validation refresh (2026-03-21):
+  - `npm run -s ops:srs:full:regression` PASS with docs evidence intact (`doneWithoutNonBacklogEvidence=0`).
 
 27. `P1-PERF-THROUGHPUT-001` Recover throughput headroom with measured, reproducible benchmarks (without benchmark theater). `STATUS: QUEUED`
 - Context:
@@ -247,7 +275,7 @@ Updated: 2026-03-20 08:47 America/Denver
 - Publish before/after benchmark artifacts with reproducible command path.
 - Keep cold start/idle/install non-regressive within agreed tolerance.
 
-28. `P0-HMAN-TRACK-001` Keep non-automatable audit blockers visible and packetized for operator action. `STATUS: QUEUED`
+28. `P0-HMAN-TRACK-001` Keep non-automatable audit blockers visible and packetized for operator action. `STATUS: DONE`
 - Context:
 - Human-only/certification/hardware items are outside automatable closure but must stay tracked.
 - Exit criteria:
@@ -257,6 +285,16 @@ Updated: 2026-03-20 08:47 America/Denver
   - `HMAN-086/087` (third-party/high-assurance verification),
   - `HMAN-092` (MCU proof flash session).
 - No hidden blockers: all remain visible in reports with exact required evidence.
+- Progress (2026-03-20):
+- Added live blocker board: `local/workspace/reports/HMAN_BLOCKERS_STATUS_BOARD.md`.
+- Board includes per-HMAN evidence-pattern checks for all required IDs and currently shows all targeted packets as `missing` (explicitly visible, no hidden blockers).
+- Validation refresh (2026-03-21):
+  - `npm run -s ops:blocked-external:plan` PASS (`blocked_external_count=30`).
+  - `npm run -s ops:blocked-external:evidence` PASS (`total=30`, all explicit).
+  - `npm run -s ops:blocked-external:top10` PASS (ranked board refreshed).
+  - `npm run -s ops:blocked-external:packet-audit` PASS (`artifact_present_readme_unfilled=30` visible).
+  - `npm run -s ops:blocked-external:reconcile` PASS (`ready_for_reconcile=0`, no hidden closures).
+  - `npm run -s ops:blocked-external:human-map` PASS (human-action map refreshed).
 
 29. `P0-EVOLUTION-COMPACTION-001` Prepare V9 ruthless compaction round with hard guardrails before code surgery. `STATUS: QUEUED`
 - Scope:

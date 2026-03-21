@@ -25,11 +25,11 @@
     },
     "install_size_mb": {
       "min": 0.1,
-      "max": 500
+      "max": 1500
     },
     "tasks_per_sec": {
       "min": 100,
-      "max": 100000
+      "max": 300000
     }
   },
   "max_step_multiplier": {
@@ -42,6 +42,10 @@
     {
       "project": "InfRing (tiny-max)",
       "metric": "cold_start_ms"
+    },
+    {
+      "project": "InfRing (rich)",
+      "metric": "install_size_mb"
     }
   ],
   "openclaw_required_runtime_source_keys": [

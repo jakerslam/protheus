@@ -46,4 +46,14 @@ Fail-closed lanes typically emit:
 - Compatibility-sensitive lanes should pin explicit versions in payloads/contracts.
 - Backward-compatibility controls must fail closed in strict mode.
 
-See also: [OpenAPI Stub](./openapi.stub.yaml)
+## Authoritative OpenAPI
+
+- Dashboard runtime API spec: [openapi.stub.yaml](./openapi.stub.yaml)
+- Runtime authority: `core/layer0/ops/src/dashboard_ui.rs` (`/healthz`, `/api/dashboard/snapshot`, `/api/dashboard/action`)
+
+## Operator Cross-Links
+
+- Operator index: [docs/ops/INDEX.md](../ops/INDEX.md)
+- Security policy: [SECURITY.md](../../SECURITY.md)
+- Deployment procedures: [RUNBOOK-002](../ops/RUNBOOK-002-deployment-procedures.md)
+- ADR registry: [docs/client/adr/INDEX.md](../client/adr/INDEX.md)

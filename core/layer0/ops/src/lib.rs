@@ -401,9 +401,47 @@ fn stable_json_string(value: &Value) -> String {
     }
 }
 
+fn stable_json_hash_update(value: &Value, hasher: &mut Sha256) {
+    match value {
+        Value::Null => hasher.update(b"null"),
+        Value::Bool(true) => hasher.update(b"true"),
+        Value::Bool(false) => hasher.update(b"false"),
+        Value::Number(n) => hasher.update(n.to_string().as_bytes()),
+        Value::String(s) => {
+            let quoted = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
+            hasher.update(quoted.as_bytes());
+        }
+        Value::Array(arr) => {
+            hasher.update(b"[");
+            for (idx, item) in arr.iter().enumerate() {
+                if idx > 0 {
+                    hasher.update(b",");
+                }
+                stable_json_hash_update(item, hasher);
+            }
+            hasher.update(b"]");
+        }
+        Value::Object(map) => {
+            let mut keys = map.keys().cloned().collect::<Vec<_>>();
+            keys.sort_unstable();
+            hasher.update(b"{");
+            for (idx, key) in keys.iter().enumerate() {
+                if idx > 0 {
+                    hasher.update(b",");
+                }
+                let quoted = serde_json::to_string(key).unwrap_or_else(|_| "\"\"".to_string());
+                hasher.update(quoted.as_bytes());
+                hasher.update(b":");
+                stable_json_hash_update(map.get(key).unwrap_or(&Value::Null), hasher);
+            }
+            hasher.update(b"}");
+        }
+    }
+}
+
 pub fn deterministic_receipt_hash(value: &Value) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(stable_json_string(value).as_bytes());
+    stable_json_hash_update(value, &mut hasher);
     hex::encode(hasher.finalize())
 }
 
@@ -1254,6 +1292,42 @@ mod tests {
         let v = vec![100.0, 200.0, 300.0, 400.0, 500.0];
         let p95 = percentile(&v, 0.95).unwrap();
         assert_eq!(p95, 500.0);
+    }
+
+    #[test]
+    fn deterministic_receipt_hash_matches_stable_json_reference_hash() {
+        let payload = json!({
+            "z": [1, 2, 3, {"a": true, "b": null}],
+            "a": {
+                "nested": {
+                    "text": "hello \"world\"",
+                    "num": 42.5
+                }
+            },
+            "flag": false
+        });
+        let mut reference = Sha256::new();
+        reference.update(stable_json_string(&payload).as_bytes());
+        let expected = hex::encode(reference.finalize());
+        assert_eq!(deterministic_receipt_hash(&payload), expected);
+    }
+
+    #[test]
+    fn deterministic_receipt_hash_is_key_order_invariant() {
+        let left = json!({
+            "alpha": 1,
+            "beta": {"x": 2, "y": 3},
+            "gamma": [4, 5]
+        });
+        let right = json!({
+            "gamma": [4, 5],
+            "beta": {"y": 3, "x": 2},
+            "alpha": 1
+        });
+        assert_eq!(
+            deterministic_receipt_hash(&left),
+            deterministic_receipt_hash(&right)
+        );
     }
 
     #[test]
