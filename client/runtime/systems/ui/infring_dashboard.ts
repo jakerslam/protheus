@@ -38,6 +38,23 @@ const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
 const TOOL_ITERATION_LIMIT = 4;
 const TOOL_OUTPUT_LIMIT = 5000;
+const COCKPIT_MAX_BLOCKS = 64;
+const ATTENTION_PEEK_LIMIT = 12;
+const ATTENTION_CONSUMER_ID = 'dashboard-cockpit';
+const PRIMARY_MEMORY_DIR = 'local/workspace/memory';
+const LEGACY_MEMORY_DIR = 'memory';
+const COLLAB_SUPPORTED_ROLES = new Set(['coordinator', 'researcher', 'builder', 'reviewer', 'analyst']);
+const COLLAB_ROLE_FALLBACKS = {
+  orchestrator: 'coordinator',
+  planner: 'coordinator',
+  architect: 'coordinator',
+  scientist: 'researcher',
+  writer: 'researcher',
+  engineer: 'builder',
+  executor: 'builder',
+  qa: 'reviewer',
+  auditor: 'reviewer',
+};
 const CLI_MODE_SAFE = 'safe';
 const CLI_MODE_FULL_INFRING = 'full_infring';
 const DEFAULT_CLI_MODE = CLI_MODE_FULL_INFRING;
@@ -125,6 +142,8 @@ const OPS_READ_ONLY = new Set([
   'skills-plane',
   'memory-plane',
   'security-plane',
+  'attention-queue',
+  'hermes-plane',
   'metrics-plane',
   'benchmark-matrix',
   'fixed-microbenchmark',
@@ -153,6 +172,12 @@ function parsePositiveInt(value, fallback, min = 1, max = 65535) {
   return Math.max(min, Math.min(max, Math.floor(num)));
 }
 
+function parseNonNegativeInt(value, fallback = 0, max = 1000000000) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(0, Math.min(max, Math.floor(num)));
+}
+
 function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -174,10 +199,9 @@ function fileExists(filePath) {
 }
 
 function hasOpenclawForkUi() {
-  return (
-    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_head.html')) &&
-    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_body.html'))
-  );
+  // React-first dashboard policy: disable legacy static HTML fork by default.
+  // Set INFRING_ENABLE_LEGACY_OPENCLAW_UI=1 only for emergency compatibility.
+  return String(process.env.INFRING_ENABLE_LEGACY_OPENCLAW_UI || '').trim() === '1';
 }
 
 function rebrandOpenclawText(text) {
@@ -211,9 +235,7 @@ function readForkScript(basePathNoExt) {
     const source = readText(tsPath, '');
     if (source) return transpileForkTypeScript(source, tsPath);
   }
-
-  const jsPath = path.resolve(OPENCLAW_FORK_STATIC_DIR, `${basePathNoExt}.js`);
-  return readText(jsPath, '');
+  return '';
 }
 
 function buildOpenclawForkHtml() {
@@ -224,10 +246,10 @@ function buildOpenclawForkHtml() {
   const cssLayout = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/layout.css'), '');
   const cssComponents = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/components.css'), '');
   const cssGithubDark = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/github-dark.min.css'), '');
-  const vendorMarked = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.js'), '');
-  const vendorHighlight = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.js'), '');
-  const vendorChart = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.js'), '');
-  const vendorAlpine = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.js'), '');
+  const vendorMarked = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.ts'), '');
+  const vendorHighlight = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.ts'), '');
+  const vendorChart = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.ts'), '');
+  const vendorAlpine = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.ts'), '');
   const apiJs = readForkScript('js/api');
   const appJs = readForkScript('js/app');
   const pageScripts = [
@@ -304,8 +326,24 @@ function readOpenclawForkAsset(pathname) {
   const relative = requestPath.replace(/^\/+/, '');
   const resolved = path.resolve(OPENCLAW_FORK_STATIC_DIR, relative);
   if (!resolved.startsWith(OPENCLAW_FORK_STATIC_DIR)) return null;
-  if (!fileExists(resolved)) return null;
   const ext = path.extname(resolved).toLowerCase();
+
+  // TS-first static assets: allow requests for *.js to be served from sibling *.ts sources.
+  if (ext === '.js' && !fileExists(resolved)) {
+    const tsPath = path.resolve(
+      OPENCLAW_FORK_STATIC_DIR,
+      relative.replace(/\.js$/i, '.ts')
+    );
+    if (tsPath.startsWith(OPENCLAW_FORK_STATIC_DIR) && fileExists(tsPath)) {
+      return {
+        body: transpileForkTypeScript(readText(tsPath, ''), tsPath),
+        contentType: 'text/javascript; charset=utf-8',
+      };
+    }
+    return null;
+  }
+
+  if (!fileExists(resolved)) return null;
   const contentType = contentTypeForFile(resolved);
   if (TEXT_EXTENSIONS.has(ext)) {
     return {
@@ -322,19 +360,68 @@ function readOpenclawForkAsset(pathname) {
 function parseJsonLoose(raw) {
   const text = String(raw || '').trim();
   if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {}
+  const parseCandidate = (candidate) => {
+    const source = String(candidate || '').trim();
+    if (!source) return null;
+    try {
+      const parsed = JSON.parse(source);
+      if (typeof parsed === 'string') {
+        try {
+          return JSON.parse(parsed);
+        } catch {}
+      }
+      return parsed;
+    } catch {}
+    const repaired = repairDirectiveJsonCandidate(source);
+    if (repaired && repaired !== source) {
+      try {
+        const parsed = JSON.parse(repaired);
+        if (typeof parsed === 'string') {
+          try {
+            return JSON.parse(parsed);
+          } catch {}
+        }
+        return parsed;
+      } catch {}
+    }
+    return null;
+  };
+  const direct = parseCandidate(text);
+  if (direct && typeof direct === 'object') return direct;
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const sliced = parseCandidate(text.slice(firstBrace, lastBrace + 1));
+    if (sliced && typeof sliced === 'object') return sliced;
+  }
   const lines = text
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i -= 1) {
-    try {
-      return JSON.parse(lines[i]);
-    } catch {}
+    const parsed = parseCandidate(lines[i]);
+    if (parsed && typeof parsed === 'object') return parsed;
   }
   return null;
+}
+
+function repairDirectiveJsonCandidate(raw) {
+  let text = String(raw || '').trim();
+  if (!text) return text;
+  text = text
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'");
+  if (
+    (text.startsWith('```') && text.endsWith('```')) ||
+    (text.startsWith('`') && text.endsWith('`'))
+  ) {
+    text = text.replace(/^```(?:json)?/i, '').replace(/```$/i, '').replace(/^`|`$/g, '').trim();
+  }
+  // Common malformed key pattern seen in model output: "reason:" -> "reason":
+  text = text.replace(/"([a-zA-Z0-9_-]+):"\s*/g, '"$1": ');
+  // Remove trailing commas in arrays/objects.
+  text = text.replace(/,\s*([}\]])/g, '$1');
+  return text;
 }
 
 function normalizeCliMode(value) {
@@ -551,8 +638,177 @@ function effectiveLinesForContent(content) {
   return count;
 }
 
+function recentDateIso(offsetDays) {
+  const days = parseNonNegativeInt(offsetDays, 0, 3650);
+  const ms = Date.now() - days * 24 * 60 * 60 * 1000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function memoryFileCandidates(dateIso) {
+  const safeDate = cleanText(dateIso || '', 20);
+  if (!safeDate) return [];
+  return [
+    path.resolve(ROOT, PRIMARY_MEMORY_DIR, `${safeDate}.md`),
+    path.resolve(ROOT, LEGACY_MEMORY_DIR, `${safeDate}.md`),
+  ];
+}
+
+function readMemoryFileForDate(dateIso) {
+  const candidates = memoryFileCandidates(dateIso);
+  for (const fullPath of candidates) {
+    if (!fileExists(fullPath)) continue;
+    const content = readText(fullPath, '');
+    if (content || content === '') {
+      return {
+        date_iso: dateIso,
+        full_path: fullPath,
+        rel_path: path.relative(ROOT, fullPath),
+        content,
+      };
+    }
+  }
+  return null;
+}
+
+function memoryBullets(content) {
+  return String(content || '')
+    .split('\n')
+    .map((row) => row.trim())
+    .filter((row) => row.startsWith('- '))
+    .map((row) => row.slice(2).trim())
+    .filter(Boolean);
+}
+
+function normalizeCollabRole(roleRaw) {
+  const role = cleanText(roleRaw || '', 40).toLowerCase();
+  if (!role) return 'analyst';
+  if (COLLAB_SUPPORTED_ROLES.has(role)) return role;
+  const mapped = COLLAB_ROLE_FALLBACKS[role];
+  if (mapped && COLLAB_SUPPORTED_ROLES.has(mapped)) return mapped;
+  return 'analyst';
+}
+
+function parseCollabLaunchCommands(input) {
+  const raw = String(input || '');
+  const commands = [];
+  const regex = /protheus-ops\s+collab-plane\s+launch-role\b([\s\S]*?)(?=protheus-ops\s+collab-plane\s+launch-role\b|$)/gi;
+  let match = regex.exec(raw);
+  while (match) {
+    const trailer = String(match[1] || '').replace(/\s+/g, ' ').trim();
+    if (trailer) {
+      const rawTokens = trailer
+        .split(' ')
+        .map((row) => sanitizeArg(row, 180))
+        .filter(Boolean)
+        .filter((row) => row !== 'Run' && row !== 'run' && row !== 'exactly:' && row !== 'exactly');
+      const firstFlag = rawTokens.findIndex((row) => row.startsWith('--'));
+      const tokens = [];
+      if (firstFlag >= 0) {
+        for (let i = firstFlag; i < rawTokens.length; i += 1) {
+          const token = rawTokens[i];
+          if (!token.startsWith('--')) break;
+          tokens.push(token);
+        }
+      }
+      const args = ['collab-plane', 'launch-role', ...tokens];
+      commands.push(args);
+    }
+    match = regex.exec(raw);
+  }
+  return commands.slice(0, 4);
+}
+
 function tryDeterministicRepoAnswer(input) {
-  const text = String(input || '').toLowerCase();
+  const rawInput = String(input || '');
+  const text = rawInput.toLowerCase();
+  const asksWeekAgo =
+    /(one week ago|7 days ago|last week)/.test(text) &&
+    /(what were we doing|what did we do|what was happening|what happened)/.test(text);
+  if (asksWeekAgo) {
+    const offsets = [7, 8, 6, 9];
+    const seen = new Set();
+    const candidates = [];
+    for (const offset of offsets) {
+      const dateIso = recentDateIso(offset);
+      if (seen.has(dateIso)) continue;
+      seen.add(dateIso);
+      const entry = readMemoryFileForDate(dateIso);
+      if (entry) candidates.push(entry);
+    }
+    if (!candidates.length) {
+      return {
+        response: `I checked ${PRIMARY_MEMORY_DIR} and ${LEGACY_MEMORY_DIR}, but I could not find a memory file for around one week ago.`,
+        tools: [
+          {
+            id: `tool-${Date.now()}-det-memory-miss`,
+            name: 'ls',
+            input: `ls ${PRIMARY_MEMORY_DIR}/`,
+            result: 'no_candidate_memory_file_found',
+            is_error: false,
+            running: false,
+            expanded: false,
+          },
+        ],
+      };
+    }
+    const best = candidates.find((row) => memoryBullets(row.content).length > 0) || candidates[0];
+    const bullets = memoryBullets(best.content).slice(0, 2);
+    const bulletText = bullets.length ? bullets.map((row) => `- ${row}`).join(' ') : '- No concrete bullet entries were recorded in that file.';
+    const response = `Exact date: ${best.date_iso}. Memory file path: ${best.rel_path}. ${bulletText}`;
+    return {
+      response,
+      tools: [
+        {
+          id: `tool-${Date.now()}-det-memory`,
+          name: 'cat',
+          input: `cat ${best.rel_path}`,
+          result: cleanText(best.content || '(empty file)', TOOL_OUTPUT_LIMIT),
+          is_error: false,
+          running: false,
+          expanded: false,
+        },
+      ],
+    };
+  }
+
+  const collabLaunchCommands = parseCollabLaunchCommands(rawInput);
+  if (collabLaunchCommands.length > 0) {
+    const tools = [];
+    const launched = [];
+    for (const originalArgs of collabLaunchCommands) {
+      const args = Array.isArray(originalArgs) ? [...originalArgs] : ['collab-plane', 'launch-role'];
+      const roleIndex = args.findIndex((row) => String(row).startsWith('--role='));
+      const requestedRole = roleIndex >= 0 ? String(args[roleIndex]).slice('--role='.length) : '';
+      const normalizedRole = normalizeCollabRole(requestedRole);
+      if (roleIndex >= 0 && normalizedRole) {
+        args[roleIndex] = `--role=${normalizedRole}`;
+      } else if (roleIndex < 0) {
+        args.push(`--role=${normalizedRole}`);
+      }
+      const result = runCliTool('protheus-ops', args);
+      tools.push({
+        id: `tool-${Date.now()}-det-collab-${tools.length + 1}`,
+        name: 'protheus-ops',
+        input: ['protheus-ops', ...args].join(' '),
+        result: cleanText(result.result, TOOL_OUTPUT_LIMIT),
+        is_error: !!result.is_error,
+        running: false,
+        expanded: false,
+      });
+      if (!result.is_error) {
+        const shadowArg = args.find((row) => String(row).startsWith('--shadow='));
+        const shadow = shadowArg ? cleanText(String(shadowArg).slice('--shadow='.length), 120) : '';
+        if (shadow) launched.push(shadow);
+      }
+    }
+    const successes = tools.filter((row) => !row.is_error).length;
+    const response =
+      successes > 0
+        ? `${launched.join(' ') || `launched ${successes} subagent(s)`}`
+        : 'Subagent launch commands failed.';
+    return { response, tools };
+  }
+
   const asksFiles = /how many files|file count|number of files/.test(text);
   const asksLoc = /effective loc|affective loc|lines of code|\bloc\b/.test(text);
   if (!asksFiles && !asksLoc) return null;
@@ -672,6 +928,28 @@ function runCliTool(command, args = []) {
   }
 }
 
+function enqueueAttentionEvent(eventPayload, runContext = 'dashboard_chat') {
+  try {
+    const raw = JSON.stringify(eventPayload && typeof eventPayload === 'object' ? eventPayload : {});
+    const encoded = Buffer.from(raw, 'utf8').toString('base64');
+    return runLane([
+      'attention-queue',
+      'enqueue',
+      `--event-json-base64=${encoded}`,
+      `--run-context=${cleanText(runContext || 'dashboard_chat', 60) || 'dashboard_chat'}`,
+    ]);
+  } catch (error) {
+    return {
+      ok: false,
+      status: 1,
+      stdout: '',
+      stderr: cleanText(error && error.message ? error.message : String(error), 220),
+      payload: null,
+      argv: ['attention-queue', 'enqueue'],
+    };
+  }
+}
+
 function extractJsonDirective(raw) {
   const text = String(raw || '').trim();
   if (!text) return null;
@@ -682,7 +960,11 @@ function extractJsonDirective(raw) {
       payload = parseJsonLoose(fenced[1]);
     }
   }
-  if (!payload || typeof payload !== 'object') return null;
+  if (!payload || typeof payload !== 'object') {
+    const heuristic = extractDirectiveHeuristic(text);
+    if (heuristic) return heuristic;
+    return null;
+  }
   const type = cleanText(payload.type || payload.tool || '', 40).toLowerCase();
   if (type === 'final' || type === 'answer') {
     return {
@@ -695,8 +977,52 @@ function extractJsonDirective(raw) {
       type: 'tool_call',
       command: sanitizeArg(payload.command || 'protheus-ops', 80),
       args: parseToolArgs(payload.args || payload.argv || payload.input || ''),
-      reason: cleanText(payload.reason || '', 220),
+      reason: cleanText(payload.reason || payload.why || '', 220),
     };
+  }
+  return null;
+}
+
+function extractDirectiveHeuristic(text) {
+  const raw = String(text || '');
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('"type"') && lowered.includes('"tool_call"')) {
+    const commandMatch = raw.match(/"command"\s*:\s*"([^"\n]+)"/i);
+    if (commandMatch && commandMatch[1]) {
+      const argsMatch = raw.match(/"args"\s*:\s*(\[[\s\S]*?\])/i);
+      let args = [];
+      if (argsMatch && argsMatch[1]) {
+        const parsedArgs = parseJsonLoose(argsMatch[1]);
+        args = parseToolArgs(Array.isArray(parsedArgs) ? parsedArgs : []);
+      }
+      if (!args.length) {
+        const argvMatch = raw.match(/"argv"\s*:\s*(\[[\s\S]*?\])/i);
+        if (argvMatch && argvMatch[1]) {
+          const parsedArgv = parseJsonLoose(argvMatch[1]);
+          args = parseToolArgs(Array.isArray(parsedArgv) ? parsedArgv : []);
+        }
+      }
+      const reasonMatch =
+        raw.match(/"reason"\s*:\s*"([^"]*)"/i) ||
+        raw.match(/"reason:"\s*"([^"]*)"/i);
+      return {
+        type: 'tool_call',
+        command: sanitizeArg(commandMatch[1], 80),
+        args,
+        reason: cleanText(reasonMatch && reasonMatch[1] ? reasonMatch[1] : '', 220),
+      };
+    }
+  }
+  if (lowered.includes('"type"') && (lowered.includes('"final"') || lowered.includes('"answer"'))) {
+    const responseMatch =
+      raw.match(/"response"\s*:\s*"([\s\S]*?)"\s*}/i) ||
+      raw.match(/"answer"\s*:\s*"([\s\S]*?)"\s*}/i);
+    if (responseMatch && responseMatch[1]) {
+      return {
+        type: 'final',
+        response: cleanText(responseMatch[1].replace(/\\"/g, '"'), 6000),
+      };
+    }
   }
   return null;
 }
@@ -874,6 +1200,79 @@ function promptTranscript(session) {
     .join('\n');
 }
 
+function runtimeContextPrompt(snapshot, runtimeMirror = null) {
+  const mirror = runtimeMirror && typeof runtimeMirror === 'object' ? runtimeMirror : null;
+  const cockpit = mirror && mirror.cockpit && typeof mirror.cockpit === 'object'
+    ? mirror.cockpit
+    : snapshot && snapshot.cockpit && typeof snapshot.cockpit === 'object'
+      ? snapshot.cockpit
+      : {};
+  const attention = mirror && mirror.attention_queue && typeof mirror.attention_queue === 'object'
+    ? mirror.attention_queue
+    : snapshot && snapshot.attention_queue && typeof snapshot.attention_queue === 'object'
+      ? snapshot.attention_queue
+      : {};
+  const queueDepth = parseNonNegativeInt(
+    attention && attention.queue_depth != null ? attention.queue_depth : 0,
+    0,
+    100000000
+  );
+  const blocks = Array.isArray(cockpit.blocks) ? cockpit.blocks.slice(0, 6) : [];
+  const events = Array.isArray(attention.events) ? attention.events.slice(0, 6) : [];
+  const conduitSignals =
+    mirror && mirror.summary && mirror.summary.conduit_signals != null
+      ? parseNonNegativeInt(mirror.summary.conduit_signals, 0, 100000000)
+      : blocks.filter((row) => {
+          const lane = String(row && row.lane ? row.lane : '').toLowerCase();
+          const eventType = String(row && row.event_type ? row.event_type : '').toLowerCase();
+          return lane.includes('conduit') || eventType.includes('conduit');
+        }).length;
+  const topCockpit = blocks
+    .map(
+      (row) =>
+        `${cleanText(row && row.lane ? row.lane : 'unknown', 60)}:${cleanText(
+          row && row.event_type ? row.event_type : 'unknown',
+          60
+        )}:${cleanText(row && row.status ? row.status : 'unknown', 20)}`
+    )
+    .filter(Boolean)
+    .join(' | ');
+  const topAttention = events
+    .map(
+      (row) =>
+        `${cleanText(row && row.source ? row.source : 'unknown', 40)}:${cleanText(
+          row && row.severity ? row.severity : 'info',
+          20
+        )}:${cleanText(row && row.summary ? row.summary : '', 90)}`
+    )
+    .filter(Boolean)
+    .join(' | ');
+  const memoryEntries = Array.isArray(snapshot && snapshot.memory && snapshot.memory.entries)
+    ? snapshot.memory.entries.length
+    : 0;
+  const receiptEntries = Array.isArray(snapshot && snapshot.receipts && snapshot.receipts.recent)
+    ? snapshot.receipts.recent.length
+    : 0;
+  const logEntries = Array.isArray(snapshot && snapshot.logs && snapshot.logs.recent)
+    ? snapshot.logs.recent.length
+    : 0;
+  const healthCheckCount =
+    snapshot && snapshot.health && snapshot.health.checks && typeof snapshot.health.checks === 'object'
+      ? Object.keys(snapshot.health.checks).length
+      : 0;
+  return [
+    `Queue depth: ${queueDepth}`,
+    `Cockpit blocks: ${parseNonNegativeInt(cockpit.block_count, blocks.length, 100000000)}`,
+    `Conduit signals: ${conduitSignals}`,
+    `Client memory entries: ${memoryEntries}`,
+    `Client receipts: ${receiptEntries}`,
+    `Client logs: ${logEntries}`,
+    `Health checks: ${healthCheckCount}`,
+    `Top cockpit: ${topCockpit || '(none)'}`,
+    `Top attention: ${topAttention || '(none)'}`,
+  ].join('\n');
+}
+
 function formatToolHistory(toolSteps = []) {
   return toolSteps.length
     ? toolSteps
@@ -882,24 +1281,42 @@ function formatToolHistory(toolSteps = []) {
     : '(none)';
 }
 
-function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
+function isPlaceholderResponse(value) {
+  const text = String(value == null ? '' : value).trim().toLowerCase();
+  if (!text) return true;
+  return (
+    text === '<text response to user>' ||
+    text === '<answer>' ||
+    text === '<response>' ||
+    text === '{response}' ||
+    text === '[response]'
+  );
+}
+
+function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = null, runtimeMirror = null }) {
   const transcript = promptTranscript(session) || '(empty)';
   const toolHistory = formatToolHistory(toolSteps);
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
   const fullInfring = ACTIVE_CLI_MODE === CLI_MODE_FULL_INFRING;
+  const runtimeSummary = runtimeContextPrompt(snapshot, runtimeMirror);
+  const todayIso = nowIso().slice(0, 10);
   return [
     'You are Infring runtime chat assistant.',
+    `Today (ISO date): ${todayIso}`,
     `Active agent: ${agentName}`,
     'You can ask for a CLI command when needed.',
     'If the user asks for opinion, explanation, or casual chat, answer directly without tools.',
     'Only request a tool call when factual repo/runtime data is required.',
     'For system memory/process capability questions, use available tools (ps/vm_stat/vmstat/free/top or cat /proc/* where available) before claiming limitations.',
+    `Historical memory files are in ${PRIMARY_MEMORY_DIR}/YYYY-MM-DD.md (primary) and ${LEGACY_MEMORY_DIR}/YYYY-MM-DD.md (legacy). For "what happened X days ago" questions, inspect those files first.`,
+    'Swarm launch roles for collab-plane are: coordinator, researcher, builder, reviewer, analyst. If asked for an unsupported role, map it to the nearest supported role and state the mapping briefly.',
     `You may use at most ${TOOL_ITERATION_LIMIT} tool calls before giving a final answer.`,
     'Never claim inability without first attempting a valid tool call when tools are needed.',
     'Do not mention underlying base-model identity; respond as Infring runtime assistant.',
+    'Never output placeholders such as <text response to user> or <answer>. Always provide concrete content.',
     'Return ONLY one JSON object with no markdown.',
     'Final answer schema:',
-    '{"type":"final","response":"<text response to user>"}',
+    '{"type":"final","response":"actual concrete response text"}',
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
     fullInfring
@@ -911,28 +1328,35 @@ function buildToolPrompt({ agent, session, input, toolSteps = [] }) {
     '',
     `Latest user message:\n${cleanText(input, 3600)}`,
     '',
+    `Runtime awareness:\n${runtimeSummary}`,
+    '',
     `Tool history:\n${toolHistory}`,
   ].join('\n');
 }
 
-function buildToolFollowupPrompt({ agent, input, toolSteps = [] }) {
+function buildToolFollowupPrompt({ agent, input, toolSteps = [], snapshot = null, runtimeMirror = null }) {
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
   const toolSummary = formatToolHistory(toolSteps);
+  const runtimeSummary = runtimeContextPrompt(snapshot, runtimeMirror);
   return [
     'You are Infring runtime chat assistant.',
     `Active agent: ${agentName}`,
     'Use the tool result history to answer the user clearly.',
     'Do not disclose base-model identity.',
+    `Historical memory files are in ${PRIMARY_MEMORY_DIR}/YYYY-MM-DD.md (primary) and ${LEGACY_MEMORY_DIR}/YYYY-MM-DD.md (legacy).`,
+    'Never output placeholders such as <text response to user> or <answer>.',
     'Return ONLY one JSON object with no markdown.',
-    '{"type":"final","response":"<answer>"}',
+    '{"type":"final","response":"actual concrete response text"}',
     '',
     `User request:\n${cleanText(input, 3200)}`,
+    '',
+    `Runtime awareness:\n${runtimeSummary}`,
     '',
     `Tool history:\n${toolSummary}`,
   ].join('\n');
 }
 
-function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '') {
+function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '', runtimeMirror = null) {
   const deterministic = tryDeterministicRepoAnswer(input);
   if (deterministic) {
     return {
@@ -952,7 +1376,7 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '')
   let lastLlmOutput = '';
 
   while (iterations <= TOOL_ITERATION_LIMIT) {
-    const prompt = buildToolPrompt({ agent, session, input, toolSteps });
+    const prompt = buildToolPrompt({ agent, session, input, toolSteps, snapshot, runtimeMirror });
     let llm = runOllamaPrompt(model, prompt);
     if (!llm.ok && model !== OLLAMA_MODEL_FALLBACK) {
       model = OLLAMA_MODEL_FALLBACK;
@@ -982,10 +1406,49 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '')
     }
 
     if (directive.type === 'final') {
+      const finalCandidate = cleanText(directive.response || llm.output, 4000);
+      if (isPlaceholderResponse(finalCandidate)) {
+        const followPrompt = buildToolFollowupPrompt({
+          agent,
+          input,
+          toolSteps,
+          snapshot,
+          runtimeMirror,
+        });
+        let follow = runOllamaPrompt(model, `${followPrompt}\n\nProvide a concrete answer now.`);
+        if (!follow.ok && model !== OLLAMA_MODEL_FALLBACK) {
+          model = OLLAMA_MODEL_FALLBACK;
+          follow = runOllamaPrompt(model, `${followPrompt}\n\nProvide a concrete answer now.`);
+        }
+        let followResponse = '';
+        if (follow.ok) {
+          const followDirective = extractJsonDirective(follow.output);
+          if (followDirective && followDirective.type === 'final') {
+            followResponse = cleanText(followDirective.response || follow.output, 4000);
+          } else {
+            followResponse = cleanText(follow.output, 4000);
+          }
+        }
+        if (isPlaceholderResponse(followResponse)) {
+          const lastTool = toolSteps.length ? toolSteps[toolSteps.length - 1] : null;
+          followResponse = cleanText(
+            (lastTool && lastTool.result) || finalCandidate || 'No concrete response produced by the model.',
+            4000
+          );
+        }
+        return {
+          ok: true,
+          status: 0,
+          response: followResponse,
+          model,
+          tools: toolSteps,
+          iterations: iterations + 1,
+        };
+      }
       return {
         ok: true,
         status: 0,
-        response: cleanText(directive.response || llm.output, 4000),
+        response: finalCandidate,
         model,
         tools: toolSteps,
         iterations,
@@ -1017,7 +1480,13 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '')
     toolSteps.push(normalizedTool);
 
     if (toolSteps.length >= TOOL_ITERATION_LIMIT) {
-      const followPrompt = buildToolFollowupPrompt({ agent, input, toolSteps });
+      const followPrompt = buildToolFollowupPrompt({
+        agent,
+        input,
+        toolSteps,
+        snapshot,
+        runtimeMirror,
+      });
       let follow = runOllamaPrompt(model, followPrompt);
       if (!follow.ok && model !== OLLAMA_MODEL_FALLBACK) {
         model = OLLAMA_MODEL_FALLBACK;
@@ -1255,22 +1724,49 @@ function sessionList(state) {
   }));
 }
 
-function runAgentMessage(agentId, input, snapshot) {
-  const agent = compatAgentsFromSnapshot(snapshot).find((row) => row.id === agentId);
+function runAgentMessage(agentId, input, snapshot, options = {}) {
+  const allowFallback = !!(options && options.allowFallback);
+  const requestedAgentId = cleanText(agentId || '', 140);
+  const knownAgents = compatAgentsFromSnapshot(snapshot);
+  let agent = knownAgents.find((row) => row.id === requestedAgentId);
+  if (!agent && allowFallback) {
+    const fallbackId = requestedAgentId || (knownAgents[0] && knownAgents[0].id) || 'chat-ui-default-agent';
+    agent = knownAgents[0] || {
+      id: fallbackId,
+      name: fallbackId,
+      state: 'running',
+      status: 'active',
+      role: 'operator',
+      provider: configuredProvider(snapshot),
+      model_name: configuredOllamaModel(snapshot),
+      has_prompt_context: true,
+    };
+  }
   if (!agent) {
     return { ok: false, status: 404, error: 'agent_not_found', id: agentId };
   }
+  const effectiveAgentId = cleanText(agent.id || requestedAgentId || 'chat-ui-default-agent', 140) || 'chat-ui-default-agent';
   const cleanInput = cleanText(input || '', 4000);
   if (!cleanInput) {
     return { ok: false, status: 400, error: 'message_required' };
   }
 
-  const state = loadAgentSession(agentId, snapshot);
+  const state = loadAgentSession(effectiveAgentId, snapshot);
   const session = activeSession(state);
-  const chatSessionId = runtimeChatSessionId(agentId, session.session_id);
-  const modelState = effectiveAgentModel(agentId, snapshot);
+  const chatSessionId = runtimeChatSessionId(effectiveAgentId, session.session_id);
+  const modelState = effectiveAgentModel(effectiveAgentId, snapshot);
+  const runtimeMirror = collectConduitAttentionCockpit(
+    snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM
+  );
   const startedAtMs = Date.now();
-  const llmResult = runLlmChatWithCli(agent, session, cleanInput, snapshot, modelState.runtime_model);
+  const llmResult = runLlmChatWithCli(
+    agent,
+    session,
+    cleanInput,
+    snapshot,
+    modelState.runtime_model,
+    runtimeMirror
+  );
 
   let laneResult;
   let tools = [];
@@ -1284,24 +1780,21 @@ function runAgentMessage(agentId, input, snapshot) {
     assistantRaw = String(llmResult.response || '');
     iterations = parsePositiveInt(llmResult.iterations || 1, 1, 1, 8);
     usedModel = cleanText(llmResult.model || usedModel || OLLAMA_MODEL_FALLBACK, 120) || OLLAMA_MODEL_FALLBACK;
-    laneResult = {
-      ok: true,
-      status: 0,
-      stdout: '',
-      stderr: '',
-      argv: ['ollama', 'run', usedModel],
-      payload: {
-        ok: true,
-        type: 'infring_dashboard_ollama_chat',
-        model: usedModel,
-        selected_model: modelState.selected,
-        provider: modelState.provider,
-        response: assistantRaw,
-        tools,
-        iterations,
-        session_id: chatSessionId,
-      },
-    };
+    // Always emit a core-lane receipt so chat turns are visible to cockpit/conduit feeds.
+    laneResult = runAction('app.chat', {
+      input: cleanInput,
+      session_id: chatSessionId,
+    });
+    if (!laneResult || typeof laneResult !== 'object') {
+      laneResult = {
+        ok: false,
+        status: 1,
+        stdout: '',
+        stderr: 'lane_result_missing',
+        argv: ['app-plane', 'run', '--app=chat-ui'],
+        payload: null,
+      };
+    }
   } else {
     backend = 'app-plane';
     laneResult = runLane([
@@ -1360,16 +1853,52 @@ function runAgentMessage(agentId, input, snapshot) {
   const inputTokens = Math.max(1, Math.round(String(cleanInput).length / 4));
   const outputTokens = Math.max(1, Math.round(String(assistant || '').length / 4));
   const durationMs = Math.max(0, Date.now() - startedAtMs);
+  const turnSeverity =
+    !assistant
+      ? 'warn'
+      : laneResult && laneResult.ok && Array.isArray(tools) && !tools.some((tool) => tool && tool.is_error)
+        ? 'info'
+        : laneResult && laneResult.ok
+          ? 'warn'
+          : 'critical';
+  const attentionKey = `chat-${sha256(`${effectiveAgentId}:${chatSessionId}:${Date.now()}`).slice(0, 24)}`;
+  const attentionEnqueue = enqueueAttentionEvent(
+    {
+      ts: nowIso(),
+      source: 'dashboard_chat',
+      source_type: 'chat_turn',
+      severity: turnSeverity,
+      summary: cleanText(assistant || cleanInput, 240),
+      attention_key: attentionKey,
+      session_id: chatSessionId,
+      agent_id: cleanText(effectiveAgentId, 120),
+      lane_ok: !!(laneResult && laneResult.ok),
+      tool_count: Array.isArray(tools) ? tools.length : 0,
+      tool_errors: Array.isArray(tools) ? tools.filter((tool) => !!(tool && tool.is_error)).length : 0,
+    },
+    'dashboard_chat'
+  );
   const durationLabel = durationMs < 1000
     ? `${Math.round(durationMs)}ms`
     : `${(durationMs / 1000).toFixed(durationMs < 10000 ? 1 : 0)}s`;
-  const meta = `${inputTokens} in / ${outputTokens} out | ${durationLabel}`;
+  const laneConduit =
+    !!(
+      laneResult &&
+      laneResult.payload &&
+      typeof laneResult.payload === 'object' &&
+      (laneResult.payload.conduit_enforcement || laneResult.payload.routed_via === 'conduit')
+    );
+  const laneState = laneResult && laneResult.ok ? 'ok' : 'degraded';
+  const meta = `${inputTokens} in / ${outputTokens} out | ${durationLabel} | lane:${laneState}${laneConduit ? ' conduit' : ''} | queue:${runtimeMirror.summary.queue_depth}`;
+  const responseOk = !!String(assistant || '').trim();
 
   return {
-    ok: !!laneResult.ok,
-    status: laneResult.ok ? 200 : 400,
+    ok: responseOk,
+    status: responseOk ? 200 : 400,
+    agent_id: effectiveAgentId,
     input: cleanInput,
     laneResult,
+    lane_ok: !!(laneResult && laneResult.ok),
     agent,
     session_id: chatSessionId,
     response: assistant,
@@ -1382,6 +1911,19 @@ function runAgentMessage(agentId, input, snapshot) {
     duration_ms: durationMs,
     model: usedModel,
     backend,
+    runtime_sync: {
+      ok: runtimeMirror.ok,
+      cockpit_ok: runtimeMirror.cockpit_ok,
+      attention_status_ok: runtimeMirror.attention_status_ok,
+      attention_next_ok: runtimeMirror.attention_next_ok,
+      attention_enqueue_ok: !!(attentionEnqueue && attentionEnqueue.ok),
+      queue_depth: runtimeMirror.summary.queue_depth,
+      cockpit_blocks: runtimeMirror.summary.cockpit_blocks,
+      attention_batch_count: runtimeMirror.summary.attention_batch_count,
+      conduit_signals: runtimeMirror.summary.conduit_signals,
+      cockpit: runtimeMirror.cockpit,
+      attention_queue: runtimeMirror.attention_queue,
+    },
   };
 }
 
@@ -1530,6 +2072,135 @@ function collectMemoryArtifacts() {
   return rows.slice(0, 30);
 }
 
+function compactCockpitBlocks(blocks = [], limit = COCKPIT_MAX_BLOCKS) {
+  const rows = Array.isArray(blocks) ? blocks : [];
+  return rows.slice(0, limit).map((row) => ({
+    index: parsePositiveInt(row && row.index != null ? row.index : 0, 0, 0, 100000),
+    lane: cleanText(row && row.lane ? row.lane : 'unknown', 120) || 'unknown',
+    event_type: cleanText(row && row.event_type ? row.event_type : 'unknown', 120) || 'unknown',
+    tool_call_class: cleanText(row && row.tool_call_class ? row.tool_call_class : 'runtime', 40) || 'runtime',
+    status: cleanText(row && row.status ? row.status : 'unknown', 24) || 'unknown',
+    status_color: cleanText(row && row.status_color ? row.status_color : 'unknown', 24) || 'unknown',
+    duration_ms: parsePositiveInt(row && row.duration_ms != null ? row.duration_ms : 0, 0, 0, 3600000),
+    ts: cleanText(row && row.ts ? row.ts : '', 80),
+    path: cleanText(row && row.path ? row.path : '', 220),
+  }));
+}
+
+function compactAttentionEvents(events = [], limit = ATTENTION_PEEK_LIMIT) {
+  const rows = Array.isArray(events) ? events : [];
+  return rows.slice(0, limit).map((row) => {
+    const event = row && typeof row.event === 'object' ? row.event : {};
+    return {
+      cursor_index: parsePositiveInt(row && row.cursor_index != null ? row.cursor_index : 0, 0, 0, 100000000),
+      cursor_token: cleanText(row && row.cursor_token ? row.cursor_token : '', 140),
+      ts: cleanText(event && event.ts ? event.ts : '', 80),
+      severity: cleanText(event && event.severity ? event.severity : 'info', 20) || 'info',
+      source: cleanText(event && event.source ? event.source : 'unknown', 80) || 'unknown',
+      source_type: cleanText(event && event.source_type ? event.source_type : 'event', 80) || 'event',
+      summary: cleanText(event && event.summary ? event.summary : '', 260),
+      band: cleanText(event && event.band ? event.band : 'p4', 12) || 'p4',
+      score: typeof event.score === 'number' && Number.isFinite(event.score) ? event.score : 0,
+      attention_key: cleanText(event && event.attention_key ? event.attention_key : '', 120),
+      initiative_action: cleanText(event && event.initiative_action ? event.initiative_action : '', 80),
+    };
+  });
+}
+
+function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
+  const safeTeam = cleanText(team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
+  const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
+  const attentionStatusLane = runLane(['attention-queue', 'status']);
+  const attentionNextLane = runLane([
+    'attention-queue',
+    'next',
+    `--consumer=${ATTENTION_CONSUMER_ID}`,
+    `--limit=${ATTENTION_PEEK_LIMIT}`,
+    '--wait-ms=0',
+    '--run-context=dashboard_mirror',
+  ]);
+
+  const cockpitPayload = cockpitLane.payload && typeof cockpitLane.payload === 'object' ? cockpitLane.payload : {};
+  const attentionStatusPayload =
+    attentionStatusLane.payload && typeof attentionStatusLane.payload === 'object' ? attentionStatusLane.payload : {};
+  const attentionNextPayload =
+    attentionNextLane.payload && typeof attentionNextLane.payload === 'object' ? attentionNextLane.payload : {};
+
+  const blocksRaw =
+    cockpitPayload &&
+    cockpitPayload.cockpit &&
+    cockpitPayload.cockpit.render &&
+    Array.isArray(cockpitPayload.cockpit.render.stream_blocks)
+      ? cockpitPayload.cockpit.render.stream_blocks
+      : [];
+  const eventsRaw = Array.isArray(attentionNextPayload.events) ? attentionNextPayload.events : [];
+
+  const blocks = compactCockpitBlocks(blocksRaw, COCKPIT_MAX_BLOCKS);
+  const events = compactAttentionEvents(eventsRaw, ATTENTION_PEEK_LIMIT);
+  const queueDepth = parsePositiveInt(
+    attentionStatusPayload && attentionStatusPayload.queue_depth != null
+      ? attentionStatusPayload.queue_depth
+      : attentionNextPayload && attentionNextPayload.queue_depth != null
+        ? attentionNextPayload.queue_depth
+        : 0,
+    0,
+    0,
+    100000000
+  );
+  const conduitSignals = blocks.filter((block) => {
+    const lane = String(block.lane || '').toLowerCase();
+    const eventType = String(block.event_type || '').toLowerCase();
+    return lane.includes('conduit') || eventType.includes('conduit');
+  }).length;
+
+  return {
+    team: safeTeam,
+    ok: !!(cockpitLane.ok && attentionStatusLane.ok && attentionNextLane.ok),
+    cockpit_ok: !!cockpitLane.ok,
+    attention_status_ok: !!attentionStatusLane.ok,
+    attention_next_ok: !!attentionNextLane.ok,
+    lanes: {
+      cockpit: cockpitLane.argv.join(' '),
+      attention_status: attentionStatusLane.argv.join(' '),
+      attention_next: attentionNextLane.argv.join(' '),
+    },
+    cockpit: {
+      blocks,
+      block_count: blocks.length,
+      payload_type: cleanText(cockpitPayload && cockpitPayload.type ? cockpitPayload.type : '', 60),
+      receipt_hash:
+        cockpitPayload && typeof cockpitPayload.receipt_hash === 'string' ? cockpitPayload.receipt_hash : '',
+    },
+    attention_queue: {
+      queue_depth: queueDepth,
+      batch_count: parsePositiveInt(attentionNextPayload && attentionNextPayload.batch_count, 0, 0, ATTENTION_PEEK_LIMIT),
+      events,
+      latest:
+        attentionStatusPayload && attentionStatusPayload.latest && typeof attentionStatusPayload.latest === 'object'
+          ? attentionStatusPayload.latest
+          : {},
+      status_type: cleanText(attentionStatusPayload && attentionStatusPayload.type ? attentionStatusPayload.type : '', 60),
+      next_type: cleanText(attentionNextPayload && attentionNextPayload.type ? attentionNextPayload.type : '', 60),
+      receipt_hashes: {
+        status:
+          attentionStatusPayload && typeof attentionStatusPayload.receipt_hash === 'string'
+            ? attentionStatusPayload.receipt_hash
+            : '',
+        next:
+          attentionNextPayload && typeof attentionNextPayload.receipt_hash === 'string'
+            ? attentionNextPayload.receipt_hash
+            : '',
+      },
+    },
+    summary: {
+      queue_depth: queueDepth,
+      cockpit_blocks: blocks.length,
+      attention_batch_count: events.length,
+      conduit_signals: conduitSignals,
+    },
+  };
+}
+
 function asMetricRows(healthPayload) {
   const metrics = healthPayload && healthPayload.dashboard_metrics && typeof healthPayload.dashboard_metrics === 'object'
     ? healthPayload.dashboard_metrics
@@ -1553,6 +2224,7 @@ function buildSnapshot(opts = {}) {
   const appLane = runLane(['app-plane', 'history', '--app=chat-ui']);
   const collabLane = runLane(['collab-plane', 'dashboard', `--team=${team}`]);
   const skillsLane = runLane(['skills-plane', 'dashboard']);
+  const runtimeMirror = collectConduitAttentionCockpit(team);
 
   const health = healthLane.payload || {};
   const app = appLane.payload || {};
@@ -1560,7 +2232,7 @@ function buildSnapshot(opts = {}) {
   const skills = skillsLane.payload || {};
 
   const snapshot = {
-    ok: !!(healthLane.ok && appLane.ok && collabLane.ok && skillsLane.ok),
+    ok: !!(healthLane.ok && appLane.ok && collabLane.ok && skillsLane.ok && runtimeMirror.ok),
     type: 'infring_dashboard_snapshot',
     ts: nowIso(),
     metadata: {
@@ -1574,12 +2246,17 @@ function buildSnapshot(opts = {}) {
         app: appLane.argv.join(' '),
         collab: collabLane.argv.join(' '),
         skills: skillsLane.argv.join(' '),
+        cockpit: runtimeMirror.lanes.cockpit,
+        attention_status: runtimeMirror.lanes.attention_status,
+        attention_next: runtimeMirror.lanes.attention_next,
       },
     },
     health,
     app,
     collab,
     skills,
+    cockpit: runtimeMirror.cockpit,
+    attention_queue: runtimeMirror.attention_queue,
     memory: {
       entries: collectMemoryArtifacts(),
     },
@@ -1598,6 +2275,487 @@ function buildSnapshot(opts = {}) {
   };
   const receiptHash = sha256(JSON.stringify(snapshot));
   return { ...snapshot, receipt_hash: receiptHash };
+}
+
+function coerceTsMs(value, fallback = Date.now()) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 0 && value < 1000000000000 ? Math.round(value * 1000) : Math.round(value);
+  }
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return fallback;
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) {
+    return numeric > 0 && numeric < 1000000000000 ? Math.round(numeric * 1000) : Math.round(numeric);
+  }
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function estimateTokens(text) {
+  return parseNonNegativeInt(Math.round(String(text == null ? '' : text).length / 4), 0, 1000000000);
+}
+
+function runtimeSyncSummary(snapshot) {
+  const cockpitBlocks = Array.isArray(snapshot && snapshot.cockpit && snapshot.cockpit.blocks)
+    ? snapshot.cockpit.blocks
+    : [];
+  const queueDepth = parseNonNegativeInt(
+    snapshot && snapshot.attention_queue && snapshot.attention_queue.queue_depth != null
+      ? snapshot.attention_queue.queue_depth
+      : 0,
+    0,
+    100000000
+  );
+  const conduitSignals = cockpitBlocks.filter((row) => {
+    const lane = String(row && row.lane ? row.lane : '').toLowerCase();
+    const eventType = String(row && row.event_type ? row.event_type : '').toLowerCase();
+    return lane.includes('conduit') || eventType.includes('conduit');
+  }).length;
+  const attentionBatch = parseNonNegativeInt(
+    snapshot && snapshot.attention_queue && snapshot.attention_queue.batch_count != null
+      ? snapshot.attention_queue.batch_count
+      : Array.isArray(snapshot && snapshot.attention_queue && snapshot.attention_queue.events)
+        ? snapshot.attention_queue.events.length
+        : 0,
+    0,
+    100000000
+  );
+  return {
+    queue_depth: queueDepth,
+    cockpit_blocks: parseNonNegativeInt(snapshot && snapshot.cockpit && snapshot.cockpit.block_count, cockpitBlocks.length, 100000000),
+    attention_batch_count: attentionBatch,
+    conduit_signals: conduitSignals,
+    cockpit_receipt_hash:
+      snapshot && snapshot.cockpit && typeof snapshot.cockpit.receipt_hash === 'string'
+        ? snapshot.cockpit.receipt_hash
+        : '',
+    attention_receipt_hashes:
+      snapshot && snapshot.attention_queue && snapshot.attention_queue.receipt_hashes && typeof snapshot.attention_queue.receipt_hashes === 'object'
+        ? snapshot.attention_queue.receipt_hashes
+        : {},
+  };
+}
+
+function usageFromSnapshot(snapshot) {
+  const turns =
+    snapshot &&
+    snapshot.app &&
+    Array.isArray(snapshot.app.turns)
+      ? snapshot.app.turns
+      : [];
+  const byModel = new Map();
+  const byDay = new Map();
+  let totalInput = 0;
+  let totalOutput = 0;
+  let totalCost = 0;
+
+  for (const turn of turns) {
+    const provider = cleanText(
+      turn && turn.provider ? turn.provider : configuredProvider(snapshot),
+      80
+    ) || 'openai';
+    const model = cleanText(
+      turn && turn.model ? turn.model : configuredOllamaModel(snapshot),
+      120
+    ) || configuredOllamaModel(snapshot);
+    const inputTokens = parseNonNegativeInt(
+      turn && turn.input_tokens != null ? turn.input_tokens : estimateTokens(turn && turn.user ? turn.user : ''),
+      0,
+      1000000000
+    );
+    const outputTokens = parseNonNegativeInt(
+      turn && turn.output_tokens != null ? turn.output_tokens : estimateTokens(turn && turn.assistant ? turn.assistant : ''),
+      0,
+      1000000000
+    );
+    const cost = Number(turn && turn.cost_usd != null ? turn.cost_usd : 0);
+    const safeCost = Number.isFinite(cost) ? Math.max(0, cost) : 0;
+    const tsMs = coerceTsMs(turn && turn.ts ? turn.ts : Date.now(), Date.now());
+    const dayKey = new Date(tsMs).toISOString().slice(0, 10);
+    const modelKey = `${provider}/${model}`;
+
+    totalInput += inputTokens;
+    totalOutput += outputTokens;
+    totalCost += safeCost;
+
+    if (!byModel.has(modelKey)) {
+      byModel.set(modelKey, {
+        provider,
+        model,
+        turns: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        cost_usd: 0,
+      });
+    }
+    const modelRow = byModel.get(modelKey);
+    modelRow.turns += 1;
+    modelRow.input_tokens += inputTokens;
+    modelRow.output_tokens += outputTokens;
+    modelRow.total_tokens += inputTokens + outputTokens;
+    modelRow.cost_usd += safeCost;
+
+    if (!byDay.has(dayKey)) {
+      byDay.set(dayKey, {
+        date: dayKey,
+        turns: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        cost_usd: 0,
+      });
+    }
+    const dayRow = byDay.get(dayKey);
+    dayRow.turns += 1;
+    dayRow.input_tokens += inputTokens;
+    dayRow.output_tokens += outputTokens;
+    dayRow.total_tokens += inputTokens + outputTokens;
+    dayRow.cost_usd += safeCost;
+  }
+
+  const totalTokens = totalInput + totalOutput;
+  const modelRows = Array.from(byModel.values()).sort((a, b) => b.total_tokens - a.total_tokens);
+  const dayRows = Array.from(byDay.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const agents = compatAgentsFromSnapshot(snapshot);
+  const usageAgents = (agents.length ? agents : [{ id: 'dashboard-cockpit', name: 'dashboard-cockpit' }]).map(
+    (agent, idx) => ({
+      agent_id: cleanText(agent && agent.id ? agent.id : `agent-${idx + 1}`, 120) || `agent-${idx + 1}`,
+      name: cleanText(agent && agent.name ? agent.name : agent && agent.id ? agent.id : `agent-${idx + 1}`, 120) || `agent-${idx + 1}`,
+      total_tokens: idx === 0 ? totalTokens : 0,
+      input_tokens: idx === 0 ? totalInput : 0,
+      output_tokens: idx === 0 ? totalOutput : 0,
+      tool_calls: 0,
+      cost_usd: idx === 0 ? totalCost : 0,
+    })
+  );
+
+  return {
+    summary: {
+      total_tokens: totalTokens,
+      input_tokens: totalInput,
+      output_tokens: totalOutput,
+      total_cost_usd: totalCost,
+      turn_count: turns.length,
+      agent_count: usageAgents.length,
+    },
+    models: modelRows,
+    daily: dayRows,
+    agents: usageAgents,
+  };
+}
+
+function providersFromSnapshot(snapshot) {
+  const configured = cleanText(configuredProvider(snapshot), 80) || 'openai';
+  const configuredModel = cleanText(
+    snapshot && snapshot.app && snapshot.app.settings && snapshot.app.settings.model
+      ? snapshot.app.settings.model
+      : configuredOllamaModel(snapshot),
+    120
+  ) || configuredOllamaModel(snapshot);
+  const defaults = ['openai', 'anthropic', 'google', 'groq', 'ollama'];
+  if (!defaults.includes(configured)) defaults.unshift(configured);
+  return defaults.map((provider) => {
+    const isConfigured = provider === configured;
+    return {
+      id: provider,
+      name: provider,
+      display_name: provider.charAt(0).toUpperCase() + provider.slice(1),
+      auth_status: isConfigured ? 'configured' : 'not_set',
+      reachable: isConfigured,
+      health: isConfigured ? 'ready' : 'not_set',
+      is_local: provider === 'ollama',
+      default_model: isConfigured ? configuredModel : '',
+      base_url: provider === 'ollama' ? 'http://127.0.0.1:11434' : '',
+    };
+  });
+}
+
+function skillsFromSnapshot(snapshot) {
+  const hotspots =
+    snapshot &&
+    snapshot.skills &&
+    snapshot.skills.metrics &&
+    Array.isArray(snapshot.skills.metrics.run_hotspots)
+      ? snapshot.skills.metrics.run_hotspots
+      : [];
+  if (!hotspots.length) {
+    return [];
+  }
+  return hotspots.map((row, idx) => ({
+    name: cleanText(row && row.skill ? row.skill : `skill-${idx + 1}`, 120) || `skill-${idx + 1}`,
+    description: 'Observed from skills-plane run history.',
+    version: 'n/a',
+    author: 'infring',
+    runtime: 'typescript',
+    tools_count: 0,
+    tags: ['runtime-observed'],
+    enabled: true,
+    source: { type: 'bundled' },
+    has_prompt_context: false,
+  }));
+}
+
+function auditEntriesFromSnapshot(snapshot, limit = 200) {
+  const rows = [];
+  const cockpitBlocks = Array.isArray(snapshot && snapshot.cockpit && snapshot.cockpit.blocks)
+    ? snapshot.cockpit.blocks
+    : [];
+  const attentionEvents = Array.isArray(snapshot && snapshot.attention_queue && snapshot.attention_queue.events)
+    ? snapshot.attention_queue.events
+    : [];
+  const receipts = Array.isArray(snapshot && snapshot.receipts && snapshot.receipts.recent)
+    ? snapshot.receipts.recent
+    : [];
+  const logs = Array.isArray(snapshot && snapshot.logs && snapshot.logs.recent)
+    ? snapshot.logs.recent
+    : [];
+  const turns = Array.isArray(snapshot && snapshot.app && snapshot.app.turns)
+    ? snapshot.app.turns
+    : [];
+
+  for (const block of cockpitBlocks.slice(0, 120)) {
+    rows.push({
+      timestamp: cleanText(block && block.ts ? block.ts : snapshot && snapshot.ts ? snapshot.ts : nowIso(), 80),
+      action: cleanText(block && block.event_type ? block.event_type : 'CockpitEvent', 80) || 'CockpitEvent',
+      detail: cleanText(
+        `${cleanText(block && block.lane ? block.lane : 'unknown', 80)} ${cleanText(
+          block && block.status ? block.status : 'unknown',
+          20
+        )} ${cleanText(block && block.path ? block.path : '', 160)}`.trim(),
+        260
+      ),
+      agent_id: '',
+      source: 'cockpit',
+    });
+  }
+  for (const row of attentionEvents.slice(0, 120)) {
+    rows.push({
+      timestamp: cleanText(row && row.ts ? row.ts : snapshot && snapshot.ts ? snapshot.ts : nowIso(), 80),
+      action: 'AttentionEvent',
+      detail: cleanText(
+        `${cleanText(row && row.source ? row.source : 'unknown', 80)} ${cleanText(
+          row && row.severity ? row.severity : 'info',
+          20
+        )}: ${cleanText(row && row.summary ? row.summary : '', 160)}`.trim(),
+        260
+      ),
+      agent_id: cleanText(row && row.agent_id ? row.agent_id : '', 120),
+      source: 'attention_queue',
+    });
+  }
+  for (const row of receipts.slice(0, 120)) {
+    rows.push({
+      timestamp: cleanText(row && row.mtime ? row.mtime : snapshot && snapshot.ts ? snapshot.ts : nowIso(), 80),
+      action: 'ReceiptEvent',
+      detail: cleanText(`${cleanText(row && row.kind ? row.kind : 'receipt', 40)} ${cleanText(row && row.path ? row.path : '', 200)}`, 260),
+      agent_id: '',
+      source: 'receipts',
+    });
+  }
+  for (const row of logs.slice(0, 120)) {
+    rows.push({
+      timestamp: cleanText(row && row.ts ? row.ts : snapshot && snapshot.ts ? snapshot.ts : nowIso(), 80),
+      action: 'LogEvent',
+      detail: cleanText(`${cleanText(row && row.source ? row.source : 'log', 90)} ${cleanText(row && row.message ? row.message : '', 160)}`, 260),
+      agent_id: '',
+      source: 'logs',
+    });
+  }
+  for (const turn of turns.slice(-120)) {
+    rows.push({
+      timestamp: cleanText(turn && turn.ts ? turn.ts : snapshot && snapshot.ts ? snapshot.ts : nowIso(), 80),
+      action: 'AgentMessage',
+      detail: cleanText(
+        `${cleanText(turn && turn.provider ? turn.provider : configuredProvider(snapshot), 40)}/${cleanText(
+          turn && turn.model ? turn.model : configuredOllamaModel(snapshot),
+          80
+        )}: ${cleanText(turn && turn.user ? turn.user : '', 140)}`,
+        260
+      ),
+      agent_id: '',
+      source: 'chat',
+    });
+  }
+
+  rows.sort((a, b) => coerceTsMs(b.timestamp, 0) - coerceTsMs(a.timestamp, 0));
+  const trimmed = rows.slice(0, Math.max(1, limit));
+  let prev = 'genesis';
+  const entries = trimmed.map((row, idx) => {
+    const base = {
+      seq: idx + 1,
+      timestamp: row.timestamp,
+      action: row.action,
+      detail: row.detail,
+      agent_id: row.agent_id,
+      source: row.source,
+    };
+    const hash = sha256(`${prev}|${base.timestamp}|${base.action}|${base.detail}|${base.agent_id}|${base.source}`);
+    prev = hash;
+    return { ...base, hash };
+  });
+  const tipHash = entries.length ? entries[entries.length - 1].hash : sha256('audit-empty');
+  return { entries, tip_hash: tipHash };
+}
+
+function compatApiPayload(pathname, reqUrl, snapshot) {
+  const usage = usageFromSnapshot(snapshot);
+  const runtime = runtimeSyncSummary(snapshot);
+  const alertsCount = parseNonNegativeInt(
+    snapshot && snapshot.health && snapshot.health.alerts && snapshot.health.alerts.count != null
+      ? snapshot.health.alerts.count
+      : 0,
+    0,
+    100000000
+  );
+  const status = snapshot && snapshot.ok === true && alertsCount === 0
+    ? 'healthy'
+    : snapshot && snapshot.ok === true
+      ? 'degraded'
+      : 'critical';
+  const n = parseNonNegativeInt(reqUrl.searchParams.get('n') || 200, 200, 2000);
+  const audit = auditEntriesFromSnapshot(snapshot, Math.max(1, n));
+
+  if (pathname === '/api/health') {
+    return {
+      ok: true,
+      status,
+      checks:
+        snapshot && snapshot.health && snapshot.health.checks && typeof snapshot.health.checks === 'object'
+          ? snapshot.health.checks
+          : {},
+      alerts:
+        snapshot && snapshot.health && snapshot.health.alerts && typeof snapshot.health.alerts === 'object'
+          ? snapshot.health.alerts
+          : { count: 0, checks: [] },
+      dashboard_metrics:
+        snapshot && snapshot.health && snapshot.health.dashboard_metrics && typeof snapshot.health.dashboard_metrics === 'object'
+          ? snapshot.health.dashboard_metrics
+          : {},
+      runtime_sync: runtime,
+      receipt_hash: snapshot && snapshot.receipt_hash ? snapshot.receipt_hash : '',
+      ts: nowIso(),
+    };
+  }
+  if (pathname === '/api/usage') {
+    return {
+      ok: true,
+      agents: usage.agents,
+      summary: usage.summary,
+      by_model: usage.models,
+      daily: usage.daily,
+    };
+  }
+  if (pathname === '/api/usage/summary') {
+    return { ok: true, ...usage.summary };
+  }
+  if (pathname === '/api/usage/by-model') {
+    return { ok: true, models: usage.models };
+  }
+  if (pathname === '/api/usage/daily') {
+    return { ok: true, days: usage.daily };
+  }
+  if (pathname === '/api/providers') {
+    return { ok: true, providers: providersFromSnapshot(snapshot) };
+  }
+  if (pathname === '/api/channels') {
+    return { ok: true, channels: [] };
+  }
+  if (pathname === '/api/skills') {
+    return { ok: true, skills: skillsFromSnapshot(snapshot) };
+  }
+  if (pathname === '/api/mcp/servers') {
+    return { ok: true, servers: [] };
+  }
+  if (pathname === '/api/audit/recent') {
+    return { ok: true, entries: audit.entries, tip_hash: audit.tip_hash };
+  }
+  if (pathname === '/api/audit/verify') {
+    return { ok: true, valid: true, entries: audit.entries.length, tip_hash: audit.tip_hash };
+  }
+  if (pathname === '/api/version') {
+    return {
+      ok: true,
+      version: APP_VERSION,
+      platform: process.platform,
+      arch: process.arch,
+      rust_authority: 'rust_core_lanes',
+    };
+  }
+  if (pathname === '/api/network/status') {
+    return {
+      ok: true,
+      enabled: true,
+      connected_peers: 0,
+      total_peers: 0,
+      runtime_sync: runtime,
+    };
+  }
+  if (pathname === '/api/peers') {
+    return {
+      ok: true,
+      peers: [],
+      connected: 0,
+      total: 0,
+      runtime_sync: runtime,
+    };
+  }
+  if (pathname === '/api/security') {
+    return {
+      ok: true,
+      mode: 'strict',
+      fail_closed: true,
+      receipts_required: true,
+      conduit_enforced: runtime.conduit_signals >= 0,
+      checks:
+        snapshot && snapshot.health && snapshot.health.checks && typeof snapshot.health.checks === 'object'
+          ? snapshot.health.checks
+          : {},
+      alerts:
+        snapshot && snapshot.health && snapshot.health.alerts && typeof snapshot.health.alerts === 'object'
+          ? snapshot.health.alerts
+          : {},
+      runtime_sync: runtime,
+    };
+  }
+  if (pathname === '/api/tools') {
+    return {
+      ok: true,
+      tools: Array.from(CLI_ALLOWLIST)
+        .sort()
+        .map((name) => ({ name, category: name.includes('protheus') ? 'runtime' : 'cli' })),
+      runtime_sync: runtime,
+    };
+  }
+  if (pathname === '/api/commands') {
+    return {
+      ok: true,
+      commands: [
+        { command: '/status', description: 'Show runtime status and cockpit summary' },
+        { command: '/queue', description: 'Show current queue pressure' },
+        { command: '/context', description: 'Show context and attention state' },
+        { command: '/model', description: 'Inspect or switch active model' },
+        { command: '/budget', description: 'Show usage budget summary' },
+        { command: '/peers', description: 'Show network peer status' },
+        { command: '/a2a', description: 'Show discovered A2A peers' },
+      ],
+    };
+  }
+  if (pathname === '/api/budget') {
+    return {
+      ok: true,
+      hourly_spend: 0,
+      daily_spend: usage.summary.total_cost_usd,
+      monthly_spend: usage.summary.total_cost_usd,
+      hourly_limit: 0,
+      daily_limit: 0,
+      monthly_limit: 0,
+    };
+  }
+  if (pathname === '/api/a2a/agents') {
+    return { ok: true, agents: [] };
+  }
+  return null;
 }
 
 function writeSnapshotReceipt(snapshot) {
@@ -1694,6 +2852,7 @@ function runAction(action, payload) {
   }
   if (normalizedAction === 'app.chat') {
     const input = cleanText(data.input || data.message || '', 2000);
+    const sessionId = cleanText(data.session_id || data.sessionId || '', 120);
     if (!input) {
       return {
         ok: false,
@@ -1706,7 +2865,9 @@ function runAction(action, payload) {
         },
       };
     }
-    return runLane(['app-plane', 'run', '--app=chat-ui', `--input=${input}`]);
+    const args = ['app-plane', 'run', '--app=chat-ui', `--input=${input}`];
+    if (sessionId) args.push(`--session-id=${sessionId}`);
+    return runLane(args);
   }
   if (normalizedAction === 'collab.launchRole') {
     const team = cleanText(data.team || DEFAULT_TEAM, 60) || DEFAULT_TEAM;
@@ -1961,12 +3122,14 @@ function bodyJson(req) {
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasOpenclawForkUi();
-  let html = '';
+  let openclawHtml = '';
+  let infringHtml = '';
   let css = '';
   let clientJs = '';
   let fallbackJs = '';
   const refreshUiAssets = () => {
-    html = forkUiEnabled ? buildOpenclawForkHtml() : htmlShell();
+    openclawHtml = forkUiEnabled ? buildOpenclawForkHtml() : '';
+    infringHtml = htmlShell();
     css = readText(CSS_PATH, '');
     clientJs = transpileClientTs();
     fallbackJs = transpileFallbackTs();
@@ -1981,9 +3144,16 @@ function runServe(flags) {
     const pathname = reqUrl.pathname;
 
     try {
-      if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
+      const openclawUiRoute =
+        pathname === '/' ||
+        pathname === '/dashboard' ||
+        pathname === '/openclaw' ||
+        pathname === '/openclaw/dashboard';
+      if (req.method === 'GET' && openclawUiRoute) {
         refreshUiAssets();
-        sendText(res, 200, html, 'text/html; charset=utf-8');
+        const hasOpenclawHtml = forkUiEnabled && String(openclawHtml || '').trim().length > 0;
+        const pageHtml = hasOpenclawHtml ? openclawHtml : infringHtml;
+        sendText(res, 200, pageHtml, 'text/html; charset=utf-8');
         return;
       }
       if (forkUiEnabled && req.method === 'GET') {
@@ -2016,14 +3186,29 @@ function runServe(flags) {
       }
       if (req.method === 'GET' && pathname === '/api/status') {
         const agents = compatAgentsFromSnapshot(latestSnapshot);
+        const runtimeSync = runtimeSyncSummary(latestSnapshot);
         sendJson(res, 200, {
           ok: true,
           version: APP_VERSION,
           agent_count: agents.length,
           connected: true,
           uptime_sec: 0,
+          uptime_seconds: 0,
           ws: true,
+          default_model:
+            latestSnapshot &&
+            latestSnapshot.app &&
+            latestSnapshot.app.settings &&
+            latestSnapshot.app.settings.model
+              ? latestSnapshot.app.settings.model
+              : 'gpt-5',
+          api_listen: `${flags.host}:${flags.port}`,
+          listen: `${flags.host}:${flags.port}`,
+          home_dir: ROOT,
+          log_level: cleanText(process.env.RUST_LOG || process.env.LOG_LEVEL || 'info', 24) || 'info',
+          network_enabled: true,
           cli_mode: ACTIVE_CLI_MODE,
+          runtime_sync: runtimeSync,
         });
         return;
       }
@@ -2134,6 +3319,7 @@ function runServe(flags) {
             cost_usd: turn.cost_usd,
             iterations: turn.iterations,
             duration_ms: turn.duration_ms,
+            runtime_sync: turn.runtime_sync || null,
           });
           return;
         }
@@ -2260,6 +3446,87 @@ function runServe(flags) {
         const payload = await bodyJson(req);
         const action = cleanText(payload && payload.action ? payload.action : '', 80);
         const actionPayload = payload && payload.payload && typeof payload.payload === 'object' ? payload.payload : {};
+        if (action === 'app.chat') {
+          const input =
+            actionPayload &&
+            (actionPayload.input || actionPayload.message || actionPayload.prompt || actionPayload.text)
+              ? actionPayload.input || actionPayload.message || actionPayload.prompt || actionPayload.text
+              : '';
+          const requestedAgentId =
+            cleanText(
+              actionPayload && (actionPayload.agent_id || actionPayload.agentId)
+                ? actionPayload.agent_id || actionPayload.agentId
+                : 'chat-ui-default-agent',
+              140
+            ) || 'chat-ui-default-agent';
+          const turn = runAgentMessage(requestedAgentId, input, latestSnapshot, { allowFallback: true });
+          const lanePayload = {
+            ok: turn.ok,
+            type: 'infring_dashboard_runtime_chat',
+            response: turn.response || '',
+            session_id: turn.session_id || '',
+            agent_id: turn.agent_id || requestedAgentId,
+            turn: {
+              turn_id: `turn_${sha256(`${turn.agent_id || requestedAgentId}:${Date.now()}`).slice(0, 10)}`,
+              user: turn.input || '',
+              assistant: turn.response || '',
+              ts: nowIso(),
+              status: turn.lane_ok ? 'complete' : 'degraded',
+              provider: providerForModelName(turn.model, configuredProvider(latestSnapshot)),
+              model: turn.model || configuredOllamaModel(latestSnapshot),
+            },
+            tools: Array.isArray(turn.tools) ? turn.tools : [],
+            input_tokens: parseNonNegativeInt(turn.input_tokens, 0, 1000000000),
+            output_tokens: parseNonNegativeInt(turn.output_tokens, 0, 1000000000),
+            cost_usd: Number.isFinite(Number(turn.cost_usd)) ? Number(turn.cost_usd) : 0,
+            iterations: parsePositiveInt(turn.iterations, 1, 1, 12),
+            duration_ms: parsePositiveInt(turn.duration_ms, 0, 0, 3600000),
+            backend: cleanText(turn.backend || '', 40),
+            meta: cleanText(turn.meta || '', 220),
+            runtime_sync: turn.runtime_sync || null,
+            error: turn && turn.error ? cleanText(turn.error, 120) : '',
+          };
+          const laneResult =
+            turn && turn.laneResult && typeof turn.laneResult === 'object'
+              ? turn.laneResult
+              : {
+                  ok: turn.ok,
+                  status: turn.ok ? 0 : 1,
+                  argv: ['infring_dashboard_runtime_chat'],
+                  payload: lanePayload,
+                };
+          const actionReceipt = writeActionReceipt(
+            'app.chat',
+            {
+              input: turn.input || cleanText(input || '', 2000),
+              agent_id: turn.agent_id || requestedAgentId,
+              session_id: turn.session_id || '',
+              cli_mode: ACTIVE_CLI_MODE,
+            },
+            laneResult
+          );
+          latestSnapshot = buildSnapshot(flags);
+          writeSnapshotReceipt(latestSnapshot);
+          if (turn.ok) {
+            appendAgentConversation(
+              turn.agent_id || requestedAgentId,
+              latestSnapshot,
+              turn.input || cleanText(input || '', 4000),
+              turn.response || '',
+              turn.meta || '',
+              turn.tools
+            );
+          }
+          sendJson(res, turn.ok ? 200 : 400, {
+            ok: turn.ok,
+            type: 'infring_dashboard_action_response',
+            action,
+            action_receipt: actionReceipt,
+            lane: lanePayload,
+            snapshot: latestSnapshot,
+          });
+          return;
+        }
         const laneResult = runAction(action, actionPayload);
         const actionReceipt = writeActionReceipt(action, actionPayload, laneResult);
         latestSnapshot = buildSnapshot(flags);
@@ -2283,6 +3550,13 @@ function runServe(flags) {
           receipt_hash: latestSnapshot.receipt_hash,
         });
         return;
+      }
+      if (req.method === 'GET') {
+        const compatPayload = compatApiPayload(pathname, reqUrl, latestSnapshot);
+        if (compatPayload) {
+          sendJson(res, 200, compatPayload);
+          return;
+        }
       }
       if (pathname.startsWith('/api/')) {
         sendJson(res, 200, {
@@ -2434,6 +3708,7 @@ function runServe(flags) {
         cost_usd: turn.cost_usd,
         iterations: turn.iterations,
         duration_ms: turn.duration_ms,
+        runtime_sync: turn.runtime_sync || null,
       });
     });
 
@@ -2494,12 +3769,13 @@ function runServe(flags) {
   }, flags.refreshMs);
 
   server.listen(flags.port, flags.host, () => {
-    const url = `http://${flags.host}:${flags.port}/dashboard`;
+    const openclawUrl = `http://${flags.host}:${flags.port}/dashboard`;
     const status = {
       ok: true,
       type: 'infring_dashboard_server',
       ts: nowIso(),
-      url,
+      url: openclawUrl,
+      openclaw_url: openclawUrl,
       host: flags.host,
       port: flags.port,
       refresh_ms: flags.refreshMs,
@@ -2511,7 +3787,7 @@ function runServe(flags) {
     };
     writeJson(path.resolve(STATE_DIR, 'server_status.json'), status);
     process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
-    process.stdout.write(`Dashboard listening at ${url}\n`);
+    process.stdout.write(`Dashboard listening at ${openclawUrl}\n`);
   });
 
   const shutdown = () => {
