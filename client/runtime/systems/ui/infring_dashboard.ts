@@ -236,7 +236,8 @@ function readForkScript(basePathNoExt) {
     const source = readText(tsPath, '');
     if (source) return transpileForkTypeScript(source, tsPath);
   }
-  return '';
+  const jsPath = path.resolve(OPENCLAW_FORK_STATIC_DIR, `${basePathNoExt}.js`);
+  return readText(jsPath, '');
 }
 
 function buildOpenclawForkHtml() {
@@ -247,10 +248,18 @@ function buildOpenclawForkHtml() {
   const cssLayout = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/layout.css'), '');
   const cssComponents = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'css/components.css'), '');
   const cssGithubDark = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/github-dark.min.css'), '');
-  const vendorMarked = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.ts'), '');
-  const vendorHighlight = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.ts'), '');
-  const vendorChart = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.ts'), '');
-  const vendorAlpine = readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.ts'), '');
+  const vendorMarked =
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.ts'), '') ||
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/marked.min.js'), '');
+  const vendorHighlight =
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.ts'), '') ||
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/highlight.min.js'), '');
+  const vendorChart =
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.ts'), '') ||
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/chart.umd.min.js'), '');
+  const vendorAlpine =
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.ts'), '') ||
+    readText(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'vendor/alpine.min.js'), '');
   const apiJs = readForkScript('js/api');
   const appJs = readForkScript('js/app');
   const pageScripts = [
@@ -3124,16 +3133,8 @@ function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasOpenclawForkUi();
   let openclawHtml = '';
-  let infringHtml = '';
-  let css = '';
-  let clientJs = '';
-  let fallbackJs = '';
   const refreshUiAssets = () => {
     openclawHtml = forkUiEnabled ? buildOpenclawForkHtml() : '';
-    infringHtml = htmlShell();
-    css = readText(CSS_PATH, '');
-    clientJs = transpileClientTs();
-    fallbackJs = transpileFallbackTs();
   };
   refreshUiAssets();
   let latestSnapshot = buildSnapshot(flags);
@@ -3153,8 +3154,15 @@ function runServe(flags) {
       if (req.method === 'GET' && openclawUiRoute) {
         refreshUiAssets();
         const hasOpenclawHtml = forkUiEnabled && String(openclawHtml || '').trim().length > 0;
-        const pageHtml = hasOpenclawHtml ? openclawHtml : infringHtml;
-        sendText(res, 200, pageHtml, 'text/html; charset=utf-8');
+        if (!hasOpenclawHtml) {
+          sendJson(res, 503, {
+            ok: false,
+            type: 'infring_dashboard_primary_ui_missing',
+            error: 'legacy_dashboard_removed',
+          });
+          return;
+        }
+        sendText(res, 200, openclawHtml, 'text/html; charset=utf-8');
         return;
       }
       if (forkUiEnabled && req.method === 'GET') {
@@ -3165,18 +3173,30 @@ function runServe(flags) {
         }
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard.css') {
-        refreshUiAssets();
-        sendText(res, 200, css, 'text/css; charset=utf-8');
+        sendJson(res, 410, {
+          ok: false,
+          type: 'infring_dashboard_legacy_asset_removed',
+          asset: pathname,
+          error: 'legacy_dashboard_removed',
+        });
         return;
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard_client.js') {
-        refreshUiAssets();
-        sendText(res, 200, clientJs, 'text/javascript; charset=utf-8');
+        sendJson(res, 410, {
+          ok: false,
+          type: 'infring_dashboard_legacy_asset_removed',
+          asset: pathname,
+          error: 'legacy_dashboard_removed',
+        });
         return;
       }
       if (req.method === 'GET' && pathname === '/assets/infring_dashboard_fallback.js') {
-        refreshUiAssets();
-        sendText(res, 200, fallbackJs, 'text/javascript; charset=utf-8');
+        sendJson(res, 410, {
+          ok: false,
+          type: 'infring_dashboard_legacy_asset_removed',
+          asset: pathname,
+          error: 'legacy_dashboard_removed',
+        });
         return;
       }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
