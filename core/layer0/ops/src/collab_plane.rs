@@ -16,6 +16,7 @@ const STATE_SCOPE: &str = "collab_plane";
 const DASHBOARD_CONTRACT_PATH: &str = "planes/contracts/collab/team_dashboard_contract_v1.json";
 const LAUNCHER_CONTRACT_PATH: &str = "planes/contracts/collab/role_launcher_contract_v1.json";
 const SCHEDULER_CONTRACT_PATH: &str = "planes/contracts/collab/team_schedule_contract_v1.json";
+const THROTTLE_CONTRACT_PATH: &str = "planes/contracts/collab/team_throttle_contract_v1.json";
 const CONTINUITY_CONTRACT_PATH: &str = "planes/contracts/collab/team_continuity_contract_v1.json";
 
 fn usage() {
@@ -29,6 +30,9 @@ fn usage() {
     );
     println!(
         "  protheus-ops collab-plane schedule --op=<upsert|kickoff|list> [--team=<id>] [--job=<id>] [--cron=<expr>] [--shadows=a,b] [--strict=1|0]"
+    );
+    println!(
+        "  protheus-ops collab-plane throttle --plane=<id> [--team=<id>] [--max-depth=<n>] [--strategy=priority-shed] [--strict=1|0]"
     );
     println!(
         "  protheus-ops collab-plane continuity --op=<checkpoint|reconstruct|status> [--team=<id>] [--state-json=<json>] [--strict=1|0]"
@@ -76,6 +80,7 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
         "dashboard" => vec!["V6-COLLAB-001.1", "V6-COLLAB-001.4"],
         "launch-role" => vec!["V6-COLLAB-001.2", "V6-COLLAB-001.4"],
         "schedule" => vec!["V6-COLLAB-001.3", "V6-COLLAB-001.4"],
+        "throttle" => vec!["V6-COLLAB-001.3", "V6-COLLAB-001.4"],
         "continuity" => vec!["V6-COLLAB-001.5", "V6-COLLAB-001.4"],
         _ => vec!["V6-COLLAB-001.4"],
     }
@@ -124,6 +129,12 @@ fn continuity_reconstruct_path(root: &Path, team: &str) -> PathBuf {
     state_root(root)
         .join("continuity")
         .join("reconstructed")
+        .join(format!("{team}.json"))
+}
+
+fn throttle_state_path(root: &Path, team: &str) -> PathBuf {
+    state_root(root)
+        .join("throttle")
         .join(format!("{team}.json"))
 }
 
@@ -634,6 +645,174 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out
 }
 
+fn run_throttle(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
+    let contract = load_json_or(
+        root,
+        THROTTLE_CONTRACT_PATH,
+        json!({
+            "version": "v1",
+            "kind": "collab_team_throttle_contract",
+            "min_depth": 1,
+            "max_depth": 1000000,
+            "allowed_strategies": ["priority-shed", "pause-noncritical", "batch-sync"]
+        }),
+    );
+    let mut errors = Vec::<String>::new();
+    if contract
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != "v1"
+    {
+        errors.push("collab_throttle_contract_version_must_be_v1".to_string());
+    }
+    if contract
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != "collab_team_throttle_contract"
+    {
+        errors.push("collab_throttle_contract_kind_invalid".to_string());
+    }
+
+    let team = team_slug(
+        parsed
+            .flags
+            .get("team")
+            .map(String::as_str)
+            .unwrap_or("default-team"),
+    );
+    let plane = clean(
+        parsed
+            .flags
+            .get("plane")
+            .cloned()
+            .or_else(|| parsed.positional.get(1).cloned())
+            .unwrap_or_default(),
+        120,
+    );
+    if plane.is_empty() {
+        errors.push("collab_throttle_plane_required".to_string());
+    }
+    let min_depth = contract
+        .get("min_depth")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let max_depth_allowed = contract
+        .get("max_depth")
+        .and_then(Value::as_u64)
+        .unwrap_or(1_000_000);
+    let max_depth = parse_u64(parsed.flags.get("max-depth"), 75);
+    if strict && (max_depth < min_depth || max_depth > max_depth_allowed) {
+        errors.push("collab_throttle_max_depth_out_of_range".to_string());
+    }
+    let strategy = clean(
+        parsed
+            .flags
+            .get("strategy")
+            .cloned()
+            .unwrap_or_else(|| "priority-shed".to_string()),
+        80,
+    )
+    .to_ascii_lowercase();
+    let allowed_strategies = contract
+        .get("allowed_strategies")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![json!("priority-shed")])
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|v| clean(v, 80).to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    if strict && !allowed_strategies.iter().any(|v| v == &strategy) {
+        errors.push("collab_throttle_strategy_invalid".to_string());
+    }
+    if !errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "collab_plane_throttle",
+            "errors": errors
+        });
+    }
+
+    let state_path = throttle_state_path(root, &team);
+    let mut throttle_state = read_json(&state_path).unwrap_or_else(|| {
+        json!({
+            "version": "v1",
+            "team": team,
+            "policies": []
+        })
+    });
+    let mut policies = throttle_state
+        .get("policies")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let policy = json!({
+        "plane": plane,
+        "max_depth": max_depth,
+        "strategy": strategy,
+        "active": true,
+        "updated_at": crate::now_iso()
+    });
+    let mut replaced = false;
+    for row in &mut policies {
+        if row.get("plane").and_then(Value::as_str) == Some(plane.as_str()) {
+            *row = policy.clone();
+            replaced = true;
+        }
+    }
+    if !replaced {
+        policies.push(policy.clone());
+    }
+    throttle_state["policies"] = Value::Array(policies.clone());
+    throttle_state["updated_at"] = Value::String(crate::now_iso());
+    let _ = write_json(&state_path, &throttle_state);
+    let _ = append_jsonl(
+        &state_root(root).join("throttle").join("history.jsonl"),
+        &json!({
+            "type": "collab_throttle",
+            "team": team,
+            "plane": plane,
+            "max_depth": max_depth,
+            "strategy": strategy,
+            "ts": crate::now_iso()
+        }),
+    );
+
+    let mut out = json!({
+        "ok": true,
+        "strict": strict,
+        "type": "collab_plane_throttle",
+        "lane": "core/layer0/ops",
+        "team": team,
+        "plane": plane,
+        "max_depth": max_depth,
+        "strategy": strategy,
+        "policy": policy,
+        "state": throttle_state,
+        "artifact": {
+            "path": state_path.display().to_string(),
+            "sha256": sha256_hex_str(&Value::Array(policies.clone()).to_string())
+        },
+        "claim_evidence": [
+            {
+                "id": "V6-COLLAB-001.3",
+                "claim": "team_scheduler_and_throttle_policies_support_deterministic_backpressure_controls",
+                "evidence": {
+                    "team": team,
+                    "plane": plane,
+                    "strategy": strategy,
+                    "max_depth": max_depth
+                }
+            }
+        ]
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
 fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -877,6 +1056,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "dashboard" => run_dashboard(root, &parsed, strict),
         "launch-role" | "launch" => run_launch_role(root, &parsed, strict),
         "schedule" => run_schedule(root, &parsed, strict),
+        "throttle" => run_throttle(root, &parsed, strict),
         "continuity" => run_continuity(root, &parsed, strict),
         _ => json!({
             "ok": false,
@@ -902,5 +1082,32 @@ mod tests {
         let parsed = crate::parse_args(&["dashboard".to_string(), "--bypass=1".to_string()]);
         let out = conduit_enforcement(root.path(), &parsed, true, "dashboard");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn throttle_persists_plane_policy() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "throttle".to_string(),
+            "--team=ops".to_string(),
+            "--plane=backlog_delivery_plane".to_string(),
+            "--max-depth=75".to_string(),
+            "--strategy=priority-shed".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_throttle(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("policy")
+                .and_then(|v| v.get("plane"))
+                .and_then(Value::as_str),
+            Some("backlog_delivery_plane")
+        );
+        assert_eq!(
+            out.get("policy")
+                .and_then(|v| v.get("max_depth"))
+                .and_then(Value::as_u64),
+            Some(75)
+        );
     }
 }

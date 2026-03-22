@@ -363,6 +363,30 @@ function App() {
   const receipts = useMemo(() => (Array.isArray(snapshot?.receipts?.recent) ? snapshot.receipts.recent : []), [snapshot?.receipts]);
   const logs = useMemo(() => (Array.isArray(snapshot?.logs?.recent) ? snapshot.logs.recent : []), [snapshot?.logs]);
   const alertsCount = Number(snapshot?.health?.alerts?.count || 0);
+  const queueDepth = Number(snapshot?.attention_queue?.queue_depth || 0);
+  const syncMode = asText(snapshot?.attention_queue?.backpressure?.sync_mode || 'live_sync');
+  const backpressureLevel = asText(snapshot?.attention_queue?.backpressure?.level || 'normal');
+  const criticalAttention = Number(snapshot?.attention_queue?.priority_counts?.critical || 0);
+  const criticalAttentionTotal = Number(snapshot?.attention_queue?.critical_total_count || criticalAttention);
+  const criticalEventsFull = useMemo(
+    () => (Array.isArray(snapshot?.attention_queue?.critical_events_full) ? snapshot.attention_queue.critical_events_full : []),
+    [snapshot?.attention_queue]
+  );
+  const conduitSignals = Number(snapshot?.cockpit?.metrics?.conduit_signals || 0);
+  const conduitChannels = Number(snapshot?.cockpit?.metrics?.conduit_channels_observed || conduitSignals);
+  const conduitTargetSignals = Number(snapshot?.attention_queue?.backpressure?.target_conduit_signals || 4);
+  const conduitScaleRequired = !!snapshot?.attention_queue?.backpressure?.scale_required;
+  const benchmarkCheck = (snapshot?.health?.checks?.benchmark_sanity || {}) as Dict;
+  const benchmarkStatus = asText(benchmarkCheck.status || 'unknown');
+  const benchmarkAgeSec = Number(benchmarkCheck.age_seconds ?? -1);
+  const memoryStream = (snapshot?.memory?.stream || {}) as Dict;
+  const ingestControl = (snapshot?.memory?.ingest_control || {}) as Dict;
+  const healthCoverage = (snapshot?.health?.coverage || {}) as Dict;
+  const runtimeRecommendation = (snapshot?.runtime_recommendation || {}) as Dict;
+  const runtimeRolePlan = useMemo(
+    () => (Array.isArray(runtimeRecommendation.role_plan) ? runtimeRecommendation.role_plan : []),
+    [runtimeRecommendation]
+  );
 
   const toggleControls = async (next?: boolean) => {
     const open = typeof next === 'boolean' ? next : !controlsOpen;
@@ -401,7 +425,7 @@ function App() {
     setSending(false);
   };
 
-  const quickAction = async (kind: 'new_agent' | 'new_swarm' | 'assimilate' | 'benchmark' | 'open_controls' | 'swarm') => {
+  const quickAction = async (kind: 'new_agent' | 'new_swarm' | 'assimilate' | 'benchmark' | 'open_controls' | 'swarm' | 'runtime_swarm') => {
     if (kind === 'new_agent') {
       await runAction('collab.launchRole', { team, role: 'analyst', shadow: `${team}-analyst` });
       return;
@@ -418,6 +442,10 @@ function App() {
       await runAction('dashboard.benchmark', {});
       return;
     }
+    if (kind === 'runtime_swarm') {
+      await runAction('dashboard.runtime.executeSwarmRecommendation', {});
+      return;
+    }
     await toggleControls(true);
     if (kind === 'swarm') {
       setOpenPanes((prev) => ({ ...prev, swarm: true }));
@@ -428,7 +456,14 @@ function App() {
   const recentTurns = chatTurns.slice(-40);
   const recentReceipts = receipts.slice(0, 18);
   const recentLogs = logs.slice(0, 18);
-  const recentChecks = checks.slice(0, 16);
+  const recentChecks = useMemo(() => {
+    const sorted = checks.slice().sort((a, b) => {
+      if (a[0] === 'benchmark_sanity') return -1;
+      if (b[0] === 'benchmark_sanity') return 1;
+      return String(a[0]).localeCompare(String(b[0]));
+    });
+    return sorted.slice(0, 16);
+  }, [checks]);
 
   return (
     <div className="dash-root min-h-screen bg-transparent text-slate-100">
@@ -478,8 +513,12 @@ function App() {
               </p>
             </div>
             <div className="chat-head-stats">
+              <span>Queue {fmtNumber(queueDepth)}</span>
+              <span>Sync {syncMode === 'batch_sync' ? 'batch' : 'live'}</span>
+              <span>Critical {fmtNumber(criticalAttention)} / {fmtNumber(criticalAttentionTotal)}</span>
               <span>Turns {fmtNumber(snapshot?.app?.turn_count || 0)}</span>
               <span>Alerts {fmtNumber(alertsCount)}</span>
+              <span>Benchmark {benchmarkStatus}</span>
               <span>Receipt {shortText(snapshot?.receipt_hash || 'n/a', 16)}</span>
             </div>
           </header>
@@ -541,6 +580,9 @@ function App() {
             </button>
             <button className="chip-btn" onClick={() => quickAction('swarm')}>
               Swarm Tab
+            </button>
+            <button className="chip-btn" onClick={() => quickAction('runtime_swarm')}>
+              Runtime Swarm
             </button>
           </section>
 
@@ -657,6 +699,97 @@ function App() {
 
               {pane.id === 'health' ? (
                 <div className="space-y-2">
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Runtime Link</h3>
+                      <StatusPill status={syncMode === 'batch_sync' ? 'warning' : 'live'} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Queue {fmtNumber(queueDepth)} · Backpressure {backpressureLevel}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Conduit {fmtNumber(conduitSignals)} signals / {fmtNumber(conduitChannels)} channels
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Target channels {fmtNumber(conduitTargetSignals)}
+                      {conduitScaleRequired ? ' · scale-up recommended' : ''}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Critical attention {fmtNumber(criticalAttention)} visible / {fmtNumber(criticalAttentionTotal)} total
+                    </div>
+                  </article>
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Health Coverage</h3>
+                      <StatusPill status={Number(healthCoverage.gap_count || 0) > 0 ? 'warning' : 'stable'} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Checks {fmtNumber(healthCoverage.count || 0)} (prev {fmtNumber(healthCoverage.previous_count || 0)})
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Gaps {fmtNumber(healthCoverage.gap_count || 0)}
+                    </div>
+                    {Array.isArray(healthCoverage.retired_checks) && healthCoverage.retired_checks.length > 0 ? (
+                      <div className="mono mt-1 text-[11px] text-slate-300">
+                        Retired: {shortText((healthCoverage.retired_checks as string[]).join(', '), 140)}
+                      </div>
+                    ) : null}
+                  </article>
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Critical Queue</h3>
+                      <StatusPill status={criticalEventsFull.length > 0 ? 'warning' : 'ok'} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Full critical queue: {fmtNumber(criticalEventsFull.length)}
+                    </div>
+                    <div className="mt-2 space-y-1 max-h-40 overflow-auto pr-1">
+                      {criticalEventsFull.slice(0, 20).map((row: Dict, idx: number) => (
+                        <div key={`critical-${idx}`} className="rounded-md border border-rose-900/45 bg-rose-950/30 px-2 py-1 text-[11px]">
+                          <div className="mono text-rose-200">
+                            {shortText(row.ts || 'n/a', 22)} · {shortText(row.severity || 'info', 12)} · {shortText(row.band || 'p4', 6)}
+                          </div>
+                          <div className="text-slate-100">{shortText(row.summary || '', 120)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Swarm Recommendation</h3>
+                      <StatusPill status={runtimeRecommendation.recommended ? 'warning' : 'ok'} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      {runtimeRecommendation.recommended
+                        ? 'Telemetry remediation loop recommended'
+                        : 'No swarm telemetry intervention required'}
+                    </div>
+                    {runtimeRolePlan.length > 0 ? (
+                      <div className="mono mt-1 text-[11px] text-slate-300">
+                        Roles: {shortText(runtimeRolePlan.map((row: Dict) => asText(row.role || 'agent')).join(', '), 140)}
+                      </div>
+                    ) : null}
+                    {runtimeRecommendation.throttle_required ? (
+                      <div className="mono mt-1 text-[11px] text-slate-300">
+                        Throttle: {shortText(runtimeRecommendation.throttle_command || 'collab-plane throttle', 140)}
+                      </div>
+                    ) : null}
+                    {runtimeRecommendation.recommended ? (
+                      <button className="micro-btn mt-2" onClick={() => runAction('dashboard.runtime.executeSwarmRecommendation', {})}>
+                        Run Telemetry Remediation
+                      </button>
+                    ) : null}
+                  </article>
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Benchmark Sanity</h3>
+                      <StatusPill status={benchmarkStatus} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      {benchmarkAgeSec >= 0 ? `Age ${fmtNumber(benchmarkAgeSec)}s` : 'Age n/a'}
+                    </div>
+                    <div className="mono mt-1 text-[11px] text-slate-300">{asText(benchmarkCheck.source || 'n/a')}</div>
+                  </article>
                   {recentChecks.map(([name, row]: [string, any]) => (
                     <div key={name} className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
@@ -682,6 +815,24 @@ function App() {
 
               {pane.id === 'logs' ? (
                 <div className="space-y-2">
+                  <article className="tile compact">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Memory Stream</h3>
+                      <StatusPill status={memoryStream.changed ? 'warning' : 'live'} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Seq {fmtNumber(memoryStream.seq || 0)} · Delta {fmtNumber(memoryStream.change_count || 0)}
+                    </div>
+                    <div className="mono mt-1 text-[11px] text-slate-300">
+                      {shortText(
+                        Array.isArray(memoryStream.latest_paths) ? memoryStream.latest_paths.join(', ') : 'no recent diffs',
+                        120
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-300">
+                      Ingest {ingestControl.paused ? 'paused (non-critical)' : 'live'} · dropped {fmtNumber(ingestControl.dropped_count || 0)}
+                    </div>
+                  </article>
                   {recentLogs.map((row: Dict, idx: number) => (
                     <div key={`${asText(row.source || 'log')}-${idx}`} className="rounded-md border border-slate-700/60 bg-slate-900/50 px-2 py-1 text-[11px]">
                       <div className="mono text-slate-300">
