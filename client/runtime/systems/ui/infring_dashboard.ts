@@ -199,9 +199,10 @@ function fileExists(filePath) {
 }
 
 function hasOpenclawForkUi() {
-  // React-first dashboard policy: disable legacy static HTML fork by default.
-  // Set INFRING_ENABLE_LEGACY_OPENCLAW_UI=1 only for emergency compatibility.
-  return String(process.env.INFRING_ENABLE_LEGACY_OPENCLAW_UI || '').trim() === '1';
+  return (
+    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_head.html')) &&
+    fileExists(path.resolve(OPENCLAW_FORK_STATIC_DIR, 'index_body.html'))
+  );
 }
 
 function rebrandOpenclawText(text) {
