@@ -335,22 +335,28 @@ function main() {
   writeFileSync(resolve(OUT_JSON), `${JSON.stringify(payload, null, 2)}\n`);
   writeFileSync(resolve(OUT_MD), toMarkdown(payload));
 
-  if (violations.length === 0 && statePath) {
+  if (statePath) {
     ensureParent(statePath);
+    const statePayload = {
+      ok: violations.length === 0,
+      type: 'benchmark_sanity_gate',
+      generated_at: payload.generated_at,
+      ts: payload.generated_at,
+      source_report: reportPath,
+      runtime_source_report: runtimeSourcePath,
+      report_type: currentReportType,
+      shared_throughput_source: throughputSource(runtimeReport),
+      lane: 'benchmark_sanity',
+      event_type: 'benchmark_sanity_gate',
+      status: violations.length === 0 ? 'ok' : 'fail',
+      health_status: violations.length === 0 ? 'pass' : 'fail',
+      summary: payload.summary,
+      violations: payload.violations,
+      projects: latestStateRows(rows),
+    };
     writeFileSync(
       resolve(statePath),
-      `${JSON.stringify(
-        {
-          generated_at: payload.generated_at,
-          source_report: reportPath,
-          runtime_source_report: runtimeSourcePath,
-          report_type: currentReportType,
-          shared_throughput_source: throughputSource(runtimeReport),
-          projects: latestStateRows(rows),
-        },
-        null,
-        2,
-      )}\n`,
+      `${JSON.stringify(statePayload, null, 2)}\n`,
     );
   }
 
