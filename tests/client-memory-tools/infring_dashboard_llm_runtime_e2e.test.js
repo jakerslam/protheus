@@ -131,12 +131,95 @@ async function run() {
       && s.collab
     );
     assert.strictEqual(summary.checks.snapshot_layers_present, true, 'snapshot should expose cockpit/attention/memory/receipts/logs/app/collab');
+    summary.checks.attention_priority_split = !!(
+      s.attention_queue
+      && s.attention_queue.priority_counts
+      && Number.isFinite(Number(s.attention_queue.priority_counts.critical))
+      && Number.isFinite(Number(s.attention_queue.priority_counts.telemetry))
+      && Array.isArray(s.attention_queue.critical_events)
+      && Array.isArray(s.attention_queue.critical_events_full)
+      && Number.isFinite(Number(s.attention_queue.critical_total_count))
+      && Array.isArray(s.attention_queue.telemetry_events)
+    );
+    assert.strictEqual(summary.checks.attention_priority_split, true, 'attention queue should expose critical/telemetry split');
+    summary.checks.backpressure_signal_present = !!(
+      s.attention_queue
+      && s.attention_queue.backpressure
+      && typeof s.attention_queue.backpressure.sync_mode === 'string'
+      && typeof s.attention_queue.backpressure.level === 'string'
+    );
+    assert.strictEqual(summary.checks.backpressure_signal_present, true, 'attention queue should expose backpressure signals');
+    const expectedSyncMode = Number((s.attention_queue && s.attention_queue.queue_depth) || 0) >= 75 ? 'batch_sync' : 'live_sync';
+    summary.checks.backpressure_mode_consistent = String(s.attention_queue.backpressure.sync_mode) === expectedSyncMode;
+    assert.strictEqual(summary.checks.backpressure_mode_consistent, true, 'sync mode should follow queue depth threshold policy');
+    summary.checks.conduit_scale_target_present = !!(
+      s.attention_queue
+      && s.attention_queue.backpressure
+      && Number.isFinite(Number(s.attention_queue.backpressure.target_conduit_signals))
+      && Number(s.attention_queue.backpressure.target_conduit_signals) >= 4
+      && typeof s.attention_queue.backpressure.scale_required === 'boolean'
+    );
+    assert.strictEqual(summary.checks.conduit_scale_target_present, true, 'backpressure should include conduit scale target');
+    summary.checks.cockpit_metrics_present = !!(
+      s.cockpit
+      && s.cockpit.metrics
+      && s.cockpit.metrics.duration_ms
+      && Number.isFinite(Number(s.cockpit.metrics.duration_ms.avg))
+      && Number.isFinite(Number(s.cockpit.metrics.duration_ms.p95))
+      && Number.isFinite(Number(s.cockpit.metrics.duration_ms.max))
+      && s.cockpit.metrics.status_counts
+      && s.cockpit.metrics.lane_counts
+      && Array.isArray(s.cockpit.metrics.slowest_blocks)
+      && Array.isArray(s.cockpit.trend)
+    );
+    assert.strictEqual(summary.checks.cockpit_metrics_present, true, 'cockpit metrics and trend should be present');
+    summary.checks.memory_stream_present = !!(
+      s.memory
+      && s.memory.stream
+      && typeof s.memory.stream.enabled === 'boolean'
+      && typeof s.memory.stream.changed === 'boolean'
+      && Number.isFinite(Number(s.memory.stream.seq))
+    );
+    assert.strictEqual(summary.checks.memory_stream_present, true, 'memory stream diff metadata should be present');
+    summary.checks.memory_ingest_control_present = !!(
+      s.memory
+      && s.memory.ingest_control
+      && typeof s.memory.ingest_control.paused === 'boolean'
+      && Number.isFinite(Number(s.memory.ingest_control.pause_threshold))
+      && Number.isFinite(Number(s.memory.ingest_control.resume_threshold))
+    );
+    assert.strictEqual(summary.checks.memory_ingest_control_present, true, 'memory ingest control should expose predictive drain state');
+    summary.checks.benchmark_sanity_health_present = !!(
+      s.health
+      && s.health.checks
+      && s.health.checks.benchmark_sanity
+      && typeof s.health.checks.benchmark_sanity.status === 'string'
+    );
+    assert.strictEqual(summary.checks.benchmark_sanity_health_present, true, 'health should expose benchmark_sanity check');
+    summary.checks.health_coverage_present = !!(
+      s.health
+      && s.health.coverage
+      && Number.isFinite(Number(s.health.coverage.count))
+      && Number.isFinite(Number(s.health.coverage.previous_count))
+      && Number.isFinite(Number(s.health.coverage.gap_count))
+    );
+    assert.strictEqual(summary.checks.health_coverage_present, true, 'health should expose coverage delta');
     summary.evidence.snapshot = {
       queue_depth: Number((s.attention_queue && s.attention_queue.queue_depth) || 0),
       cockpit_blocks: Number((s.cockpit && s.cockpit.block_count) || 0),
       memory_entries: Array.isArray(s.memory && s.memory.entries) ? s.memory.entries.length : 0,
       receipt_count: Array.isArray(s.receipts && s.receipts.recent) ? s.receipts.recent.length : 0,
       log_count: Array.isArray(s.logs && s.logs.recent) ? s.logs.recent.length : 0,
+      sync_mode: String((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.sync_mode) || ''),
+      backpressure_level: String((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.level) || ''),
+      target_conduit_signals: Number((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.target_conduit_signals) || 0),
+      conduit_scale_required: !!(s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.scale_required),
+      critical_attention: Number((s.attention_queue && s.attention_queue.priority_counts && s.attention_queue.priority_counts.critical) || 0),
+      critical_attention_total: Number((s.attention_queue && s.attention_queue.critical_total_count) || 0),
+      conduit_channels_observed: Number((s.cockpit && s.cockpit.metrics && s.cockpit.metrics.conduit_channels_observed) || 0),
+      benchmark_sanity_status: String((s.health && s.health.checks && s.health.checks.benchmark_sanity && s.health.checks.benchmark_sanity.status) || ''),
+      health_coverage_gap_count: Number((s.health && s.health.coverage && s.health.coverage.gap_count) || 0),
+      memory_ingest_paused: !!(s.memory && s.memory.ingest_control && s.memory.ingest_control.paused),
     };
 
     const telemetry = await postAction(
@@ -158,6 +241,12 @@ async function run() {
       queue_depth: telemetrySync ? telemetrySync.queue_depth : null,
       cockpit_blocks: telemetrySync ? telemetrySync.cockpit_blocks : null,
       conduit_signals: telemetrySync ? telemetrySync.conduit_signals : null,
+      sync_mode: telemetrySync ? telemetrySync.sync_mode : null,
+      backpressure_level: telemetrySync ? telemetrySync.backpressure_level : null,
+      target_conduit_signals: telemetrySync ? telemetrySync.target_conduit_signals : null,
+      conduit_scale_required: telemetrySync ? telemetrySync.conduit_scale_required : null,
+      critical_attention_total: telemetrySync ? telemetrySync.critical_attention_total : null,
+      benchmark_sanity_status: telemetrySync ? telemetrySync.benchmark_sanity_status : null,
       response_excerpt: String(telemetryLane.response || '').slice(0, 240),
     };
 
@@ -244,6 +333,146 @@ async function run() {
       lane_response: String(swarmLane.response || '').slice(0, 240),
       tool_inputs: swarmTools.map((tool) => String(tool && tool.input ? tool.input : '')).slice(0, 6),
       collab_contains: { coordinatorShadow, researcherShadow },
+    };
+
+    const runtimeSwarm = await postAction(
+      BASE_URL,
+      'dashboard.runtime.executeSwarmRecommendation',
+      {}
+    );
+    assert.strictEqual(runtimeSwarm.status, 200, 'runtime swarm recommendation action should return 200');
+    const runtimeSwarmLane = runtimeSwarm.body && runtimeSwarm.body.lane ? runtimeSwarm.body.lane : {};
+    summary.checks.runtime_swarm_recommendation_executed = !!(
+      runtimeSwarm.body
+      && runtimeSwarm.body.ok
+      && runtimeSwarmLane.recommendation
+      && Array.isArray(runtimeSwarmLane.turns)
+      && runtimeSwarmLane.turns.length >= 1
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_recommendation_executed,
+      true,
+      'runtime swarm recommendation should execute at least one role turn'
+    );
+    summary.checks.runtime_swarm_policy_payload_present = Array.isArray(runtimeSwarmLane.policies);
+    assert.strictEqual(
+      summary.checks.runtime_swarm_policy_payload_present,
+      true,
+      'runtime swarm recommendation should include policy execution payload'
+    );
+    summary.checks.runtime_swarm_role_plan_present = Array.isArray(
+      runtimeSwarmLane.recommendation && runtimeSwarmLane.recommendation.role_plan
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_role_plan_present,
+      true,
+      'runtime swarm recommendation should expose role plan'
+    );
+    const throttleRequired = !!(
+      runtimeSwarmLane.recommendation && runtimeSwarmLane.recommendation.throttle_required
+    );
+    summary.checks.runtime_swarm_throttle_applied_when_required =
+      !throttleRequired ||
+      (Array.isArray(runtimeSwarmLane.policies)
+        && runtimeSwarmLane.policies.some(
+          (row) => row && row.policy === 'queue_throttle' && row.required === true && row.applied === true
+        ));
+    assert.strictEqual(
+      summary.checks.runtime_swarm_throttle_applied_when_required,
+      true,
+      'runtime swarm recommendation should apply queue throttle when required'
+    );
+    summary.evidence.runtime_swarm = {
+      recommendation: runtimeSwarmLane.recommendation || null,
+      executed_count: Number(runtimeSwarmLane.executed_count || 0),
+      policies: Array.isArray(runtimeSwarmLane.policies) ? runtimeSwarmLane.policies : [],
+      launches: Array.isArray(runtimeSwarmLane.launches) ? runtimeSwarmLane.launches : [],
+      turns: Array.isArray(runtimeSwarmLane.turns)
+        ? runtimeSwarmLane.turns.map((row) => ({
+            role: row.role,
+            shadow: row.shadow,
+            ok: row.ok,
+            response_excerpt: String(row.response || '').slice(0, 200),
+          }))
+        : [],
+    };
+
+    const archiveShadow = `e2e-${suffix}-archive`;
+    const statusBeforeArchive = await fetchJson(`${BASE_URL}/api/status`);
+    assert.strictEqual(statusBeforeArchive.status, 200, 'status-before-archive should return 200');
+    const beforeArchiveCount = Number(
+      statusBeforeArchive.body && statusBeforeArchive.body.agent_count != null
+        ? statusBeforeArchive.body.agent_count
+        : 0
+    );
+
+    const createArchiveAgent = await fetchJson(
+      `${BASE_URL}/api/agents`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ name: archiveShadow, role: 'analyst' }),
+      }
+    );
+    assert.strictEqual(createArchiveAgent.status, 200, 'archive-target agent create should return 200');
+
+    const statusAfterCreate = await fetchJson(`${BASE_URL}/api/status`);
+    assert.strictEqual(statusAfterCreate.status, 200, 'status-after-create should return 200');
+    const afterCreateCount = Number(
+      statusAfterCreate.body && statusAfterCreate.body.agent_count != null
+        ? statusAfterCreate.body.agent_count
+        : 0
+    );
+    summary.checks.archive_create_increments_count = afterCreateCount >= beforeArchiveCount;
+
+    const archiveResult = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}`, {
+      method: 'DELETE',
+    });
+    assert.strictEqual(archiveResult.status, 200, 'archive should return 200');
+    summary.checks.archive_delete_acknowledged = !!(
+      archiveResult.body
+      && archiveResult.body.archived === true
+      && archiveResult.body.state === 'inactive'
+    );
+
+    const statusAfterArchive = await fetchJson(`${BASE_URL}/api/status`);
+    assert.strictEqual(statusAfterArchive.status, 200, 'status-after-archive should return 200');
+    const afterArchiveCount = Number(
+      statusAfterArchive.body && statusAfterArchive.body.agent_count != null
+        ? statusAfterArchive.body.agent_count
+        : 0
+    );
+    summary.checks.archive_reduces_agent_count = afterArchiveCount <= Math.max(0, afterCreateCount - 1);
+
+    const agentsAfterArchive = await fetchJson(`${BASE_URL}/api/agents`);
+    assert.strictEqual(agentsAfterArchive.status, 200, 'agents-after-archive should return 200');
+    const agentRows = Array.isArray(agentsAfterArchive.body) ? agentsAfterArchive.body : [];
+    summary.checks.archived_hidden_from_agent_list = !agentRows.some((row) => row && row.id === archiveShadow);
+
+    const archivedMessage = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}/message`, {
+      method: 'POST',
+      body: JSON.stringify({ message: 'still there?' }),
+    });
+    summary.checks.archived_agent_message_blocked = archivedMessage.status === 409
+      && archivedMessage.body
+      && archivedMessage.body.error === 'agent_inactive';
+    assert.strictEqual(summary.checks.archived_agent_message_blocked, true, 'archived agent should reject chat message');
+
+    const archivedGet = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}`);
+    assert.strictEqual(archivedGet.status, 200, 'get archived agent should return 200 inactive record');
+    summary.checks.archived_agent_state_inactive = !!(
+      archivedGet.body
+      && archivedGet.body.state === 'inactive'
+      && archivedGet.body.archived === true
+    );
+    summary.evidence.archive = {
+      target_agent: archiveShadow,
+      counts: {
+        before_archive: beforeArchiveCount,
+        after_create: afterCreateCount,
+        after_archive: afterArchiveCount,
+      },
+      delete_response: archiveResult.body || {},
+      inactive_get: archivedGet.body || {},
     };
 
     summary.ok = Object.values(summary.checks).every(Boolean);

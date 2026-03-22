@@ -693,15 +693,34 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
             continue;
         }
         if let Some(payload) = read_json(&latest) {
-            let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or_else(|| {
+                let status = payload
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .trim()
+                    .to_ascii_lowercase();
+                matches!(
+                    status.as_str(),
+                    "ok" | "pass" | "healthy" | "running" | "active" | "success"
+                )
+            });
             let ty = clean(
                 payload
                     .get("type")
                     .and_then(Value::as_str)
+                    .or_else(|| payload.get("event_type").and_then(Value::as_str))
                     .unwrap_or("unknown"),
                 120,
             );
-            let ts = clean(payload.get("ts").and_then(Value::as_str).unwrap_or(""), 80);
+            let ts = clean(
+                payload
+                    .get("ts")
+                    .and_then(Value::as_str)
+                    .or_else(|| payload.get("generated_at").and_then(Value::as_str))
+                    .unwrap_or(""),
+                80,
+            );
             rows.push(json!({
                 "lane": lane,
                 "type": ty,
@@ -812,6 +831,13 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         );
         let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let class = classify_tool_call(&ty).to_string();
+        let payload = row.get("payload").cloned().unwrap_or(Value::Null);
+        let conduit_enforced = payload.get("conduit_enforcement").is_some()
+            || payload
+                .get("routed_via")
+                .and_then(Value::as_str)
+                .map(|v| v.eq_ignore_ascii_case("conduit"))
+                .unwrap_or(false);
         let block = json!({
             "index": idx + 1,
             "lane": lane,
@@ -819,6 +845,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "tool_call_class": class,
             "status": if ok { "ok" } else { "fail" },
             "status_color": status_color(ok, classify_tool_call(&ty)),
+            "conduit_enforced": conduit_enforced,
             "duration_ms": ((idx as u64 * 13) % 240) + 8,
             "ts": row.get("ts").cloned().unwrap_or(Value::Null),
             "path": row.get("latest_path").cloned().unwrap_or(Value::Null)
@@ -948,5 +975,81 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let path = continuity_snapshot_path(root.path(), "session-a");
         assert!(path.to_string_lossy().contains("session-a"));
+    }
+
+    #[test]
+    fn cockpit_latest_reader_accepts_status_and_event_type_fallbacks() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("benchmark_sanity");
+        let latest = lane_dir.join("latest.json");
+        let _ = write_json(
+            &latest,
+            &json!({
+                "status": "ok",
+                "event_type": "benchmark_sanity_gate",
+                "generated_at": "2026-03-22T00:00:00.000Z"
+            }),
+        );
+
+        let rows = collect_recent_ops_latest(root.path(), 16);
+        let row = rows
+            .iter()
+            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("benchmark_sanity"))
+            .expect("benchmark_sanity row should be present");
+
+        assert_eq!(row.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            row.get("type").and_then(Value::as_str),
+            Some("benchmark_sanity_gate")
+        );
+        assert_eq!(
+            row.get("ts").and_then(Value::as_str),
+            Some("2026-03-22T00:00:00.000Z")
+        );
+    }
+
+    #[test]
+    fn cockpit_marks_conduit_enforced_from_lane_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("alpha_lane");
+        let latest = lane_dir.join("latest.json");
+        let _ = write_json(
+            &latest,
+            &json!({
+                "ok": true,
+                "type": "alpha_task",
+                "ts": "2026-03-22T00:00:00.000Z",
+                "conduit_enforcement": {
+                    "ok": true,
+                    "type": "alpha_conduit_enforcement"
+                }
+            }),
+        );
+
+        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let out = run_cockpit(root.path(), &parsed, true);
+        let blocks = out["cockpit"]["render"]["stream_blocks"]
+            .as_array()
+            .expect("stream blocks");
+        let row = blocks
+            .iter()
+            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("alpha_lane"))
+            .expect("alpha lane block should be present");
+        assert_eq!(
+            row.get("conduit_enforced").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 }

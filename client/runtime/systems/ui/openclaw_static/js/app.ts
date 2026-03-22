@@ -742,11 +742,17 @@ function app() {
       } catch(_) {}
     },
 
-    archiveAgentFromSidebar(agent) {
+    async archiveAgentFromSidebar(agent) {
       if (!agent || !agent.id) return;
       var agentId = String(agent.id);
       if ((this.archivedAgentIds || []).indexOf(agentId) >= 0) return;
       this.confirmArchiveAgentId = '';
+      try {
+        await OpenFangAPI.del('/api/agents/' + encodeURIComponent(agentId));
+      } catch(e) {
+        OpenFangToast.error('Failed to archive agent: ' + (e && e.message ? e.message : 'unknown error'));
+        return;
+      }
       this.archivedAgentIds = (this.archivedAgentIds || []).concat([agentId]);
       this.persistArchivedAgentIds();
       var store = Alpine.store('app');
@@ -758,6 +764,7 @@ function app() {
           store.activeAgentId = null;
         }
       }
+      await store.refreshAgents();
       OpenFangToast.success('Archived "' + (agent.name || agent.id) + '"');
     },
 

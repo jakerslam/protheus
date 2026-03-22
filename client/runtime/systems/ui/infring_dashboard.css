@@ -244,6 +244,7 @@ body {
 .chat-bubble.assistant {
   border: 1px solid var(--line);
   background: var(--bg-soft);
+  line-height: 1.5;
 }
 
 :root[data-infring-theme='light'] .chat-bubble.user {
