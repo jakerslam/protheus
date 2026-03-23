@@ -1747,7 +1747,8 @@
     "ops:benchmark:repro": "npm run -s ops:benchmark:refresh && npm run -s ops:benchmark:sanity",
     "ops:flaky:quarantine:audit": "node tests/tooling/scripts/ci/flaky_quarantine_audit.mjs --strict=1",
     "ops:test-priority:audit": "node tests/tooling/scripts/ci/test_priority_manifest_audit.mjs --strict=1",
-    "ops:strategic-contracts:audit": "node tests/tooling/scripts/ci/strategic_contract_registry_audit.mjs --strict=1"
+    "ops:strategic-contracts:audit": "node tests/tooling/scripts/ci/strategic_contract_registry_audit.mjs --strict=1",
+    "test:ops:dashboard-stress": "node tests/tooling/scripts/dashboard_stress_smoke.mjs"
   },
   "bin": {
     "infring": "./client/cli/bin/protheus",
@@ -1759,10 +1760,10 @@
     "protheus-top": "./client/cli/bin/protheus-top"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "ws": "^8.19.0",
     "@vitest/coverage-v8": "^2.1.8",
-    "vitest": "^2.1.8"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8",
+    "ws": "^8.19.0"
   },
   "dependencies": {
     "socket.io": "^4.8.3",

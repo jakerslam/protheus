@@ -256,8 +256,8 @@ fn extract_runtime_metrics(runtime_json: &Value) -> Option<(f64, f64, f64)> {
         get_f64(metrics, "cold_start_p50_ms").or_else(|| get_f64(metrics, "cold_start_p95_ms"))?;
     let idle_memory_mb =
         get_f64(metrics, "idle_rss_p50_mb").or_else(|| get_f64(metrics, "idle_rss_p95_mb"))?;
-    let install_size_mb = get_f64(metrics, "full_install_total_mb")
-        .or_else(|| get_f64(metrics, "install_artifact_total_mb"))?;
+    let install_size_mb = get_f64(metrics, "install_artifact_total_mb")
+        .or_else(|| get_f64(metrics, "full_install_total_mb"))?;
     Some((cold_start_ms, idle_memory_mb, install_size_mb))
 }
 

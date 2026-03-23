@@ -29,6 +29,13 @@ const ACTION_HISTORY_PATH = path.resolve(ACTION_DIR, 'history.jsonl');
 const COLLAB_TEAM_STATE_DIR = path.resolve(ROOT, 'core/local/state/ops/collab_plane/teams');
 const SNAPSHOT_LATEST_PATH = path.resolve(STATE_DIR, 'latest_snapshot.json');
 const SNAPSHOT_HISTORY_PATH = path.resolve(STATE_DIR, 'snapshot_history.jsonl');
+const SNAPSHOT_HISTORY_MAX_BYTES = 100 * 1024 * 1024;
+const SNAPSHOT_HISTORY_MAX_LINES = 10_000;
+const SNAPSHOT_HISTORY_RETAIN_LINES = 1_000;
+const SNAPSHOT_HISTORY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const SNAPSHOT_HISTORY_COMPACT_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_HISTORY_APPEND_MIN_INTERVAL_MS = 30 * 1000;
+const SNAPSHOT_HISTORY_WARNING_BYTES = 500 * 1024 * 1024;
 const ATTENTION_DEFERRED_PATH = path.resolve(STATE_DIR, 'attention_deferred.json');
 const ARCHIVED_AGENTS_PATH = path.resolve(STATE_DIR, 'archived_agents.json');
 const AGENT_CONTRACTS_PATH = path.resolve(STATE_DIR, 'agent_contracts.json');
@@ -2586,6 +2593,194 @@ function appendJsonl(filePath, value) {
   fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, 'utf8');
 }
 
+function fileSizeBytes(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    return Number.isFinite(stat.size) ? stat.size : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function countFileLines(filePath) {
+  try {
+    const out = spawnSync('wc', ['-l', filePath], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    if (out.status !== 0 || typeof out.stdout !== 'string') return 0;
+    const token = out.stdout.trim().split(/\s+/)[0];
+    return parseNonNegativeInt(token, 0, 1_000_000_000);
+  } catch {
+    return 0;
+  }
+}
+
+function tailFileLines(filePath, lineCount) {
+  const desired = parsePositiveInt(lineCount, SNAPSHOT_HISTORY_RETAIN_LINES, 1, 200_000);
+  try {
+    const out = spawnSync('tail', ['-n', String(desired), filePath], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    if (out.status !== 0 || typeof out.stdout !== 'string') return [];
+    return out.stdout
+      .split('\n')
+      .map((row) => row.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function compactSnapshotHistory(reason = 'periodic', force = false) {
+  const nowMs = Date.now();
+  const bytesBefore = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
+  let linesBefore = parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000);
+  let lineCountChecked = false;
+  const ensureLinesBefore = () => {
+    if (!lineCountChecked) {
+      linesBefore = countFileLines(SNAPSHOT_HISTORY_PATH);
+      lineCountChecked = true;
+    }
+    return linesBefore;
+  };
+  const exceededByBytes = bytesBefore > SNAPSHOT_HISTORY_MAX_BYTES;
+  const warning = bytesBefore > SNAPSHOT_HISTORY_WARNING_BYTES;
+  const dueByCadence =
+    force || !snapshotHistoryMaintenanceState.last_compact_at || (nowMs - coerceTsMs(snapshotHistoryMaintenanceState.last_compact_at, 0)) >= SNAPSHOT_HISTORY_COMPACT_INTERVAL_MS;
+  if (!dueByCadence && !exceededByBytes) {
+    snapshotHistoryMaintenanceState = {
+      ...snapshotHistoryMaintenanceState,
+      exceeded: false,
+      warning,
+      bytes_before: bytesBefore,
+      bytes_after: bytesBefore,
+      lines_before: parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000),
+      lines_after: parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000),
+    };
+    return snapshotHistoryMaintenanceState;
+  }
+  const exceeded = exceededByBytes || ensureLinesBefore() > SNAPSHOT_HISTORY_MAX_LINES;
+  if (!exceeded && !force) {
+    snapshotHistoryMaintenanceState = {
+      ...snapshotHistoryMaintenanceState,
+      last_reason: cleanText(reason, 80) || 'periodic',
+      exceeded,
+      warning,
+      bytes_before: bytesBefore,
+      bytes_after: bytesBefore,
+      lines_before: linesBefore,
+      lines_after: linesBefore,
+    };
+    return snapshotHistoryMaintenanceState;
+  }
+
+  const rawLines = tailFileLines(SNAPSHOT_HISTORY_PATH, SNAPSHOT_HISTORY_RETAIN_LINES);
+  if (rawLines.length === 0 && (bytesBefore > 0 || linesBefore > 0)) {
+    snapshotHistoryMaintenanceState = {
+      ...snapshotHistoryMaintenanceState,
+      last_reason: `${cleanText(reason, 40) || 'periodic'}:tail_failed`,
+      exceeded,
+      warning,
+      bytes_before: bytesBefore,
+      bytes_after: bytesBefore,
+      lines_before: linesBefore,
+      lines_after: linesBefore,
+    };
+    return snapshotHistoryMaintenanceState;
+  }
+  const cutoffMs = nowMs - SNAPSHOT_HISTORY_MAX_AGE_MS;
+  let retained = [];
+  for (const line of rawLines) {
+    const payload = parseJsonLoose(line);
+    const tsMs = coerceTsMs(
+      payload && typeof payload === 'object'
+        ? payload.ts || payload.created_at || payload.updated_at || payload.at
+        : 0,
+      0
+    );
+    if (tsMs > 0 && tsMs < cutoffMs) continue;
+    retained.push(line);
+  }
+  if (retained.length === 0) {
+    retained = rawLines.slice(-SNAPSHOT_HISTORY_RETAIN_LINES);
+  }
+  retained = retained.slice(-SNAPSHOT_HISTORY_RETAIN_LINES);
+
+  ensureDir(path.dirname(SNAPSHOT_HISTORY_PATH));
+  const tmpPath = `${SNAPSHOT_HISTORY_PATH}.tmp`;
+  const body = retained.length > 0 ? `${retained.join('\n')}\n` : '';
+  try {
+    fs.writeFileSync(tmpPath, body, 'utf8');
+    fs.renameSync(tmpPath, SNAPSHOT_HISTORY_PATH);
+  } catch {
+    try {
+      fs.rmSync(tmpPath, { force: true });
+    } catch {}
+  }
+
+  const bytesAfter = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
+  const linesAfter = countFileLines(SNAPSHOT_HISTORY_PATH);
+  const trimmedEntries = Math.max(0, linesBefore - linesAfter);
+  const removedBytes = Math.max(0, bytesBefore - bytesAfter);
+  snapshotHistoryMaintenanceState = {
+    last_compact_at: nowIso(),
+    last_reason: cleanText(reason, 80) || 'periodic',
+    bytes_before: bytesBefore,
+    bytes_after: bytesAfter,
+    lines_before: linesBefore,
+    lines_after: linesAfter,
+    trimmed_entries: trimmedEntries,
+    removed_bytes: removedBytes,
+    exceeded: bytesAfter > SNAPSHOT_HISTORY_MAX_BYTES || linesAfter > SNAPSHOT_HISTORY_MAX_LINES,
+    warning: bytesAfter > SNAPSHOT_HISTORY_WARNING_BYTES,
+    compact_count: parseNonNegativeInt(snapshotHistoryMaintenanceState.compact_count, 0, 1_000_000) + 1,
+  };
+  return snapshotHistoryMaintenanceState;
+}
+
+function snapshotStorageTelemetry() {
+  const bytes = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
+  const lines = parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000);
+  const sizeMb = Math.round((bytes / (1024 * 1024)) * 1000) / 1000;
+  return {
+    snapshot_history: {
+      path: path.relative(ROOT, SNAPSHOT_HISTORY_PATH),
+      size_bytes: bytes,
+      size_mb: sizeMb,
+      lines,
+      limits: {
+        max_bytes: SNAPSHOT_HISTORY_MAX_BYTES,
+        max_lines: SNAPSHOT_HISTORY_MAX_LINES,
+        retain_lines: SNAPSHOT_HISTORY_RETAIN_LINES,
+        max_age_ms: SNAPSHOT_HISTORY_MAX_AGE_MS,
+        append_min_interval_ms: SNAPSHOT_HISTORY_APPEND_MIN_INTERVAL_MS,
+        compact_interval_ms: SNAPSHOT_HISTORY_COMPACT_INTERVAL_MS,
+      },
+      warning: bytes > SNAPSHOT_HISTORY_WARNING_BYTES,
+      exceeded: bytes > SNAPSHOT_HISTORY_MAX_BYTES || lines > SNAPSHOT_HISTORY_MAX_LINES,
+      maintenance: snapshotHistoryMaintenanceState,
+    },
+  };
+}
+
+function bootstrapSnapshotHistoryState() {
+  const bytes = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
+  const lines = countFileLines(SNAPSHOT_HISTORY_PATH);
+  snapshotHistoryMaintenanceState = {
+    ...snapshotHistoryMaintenanceState,
+    bytes_after: bytes,
+    lines_after: lines,
+    warning: bytes > SNAPSHOT_HISTORY_WARNING_BYTES,
+    exceeded: bytes > SNAPSHOT_HISTORY_MAX_BYTES || lines > SNAPSHOT_HISTORY_MAX_LINES,
+  };
+}
+
 function readJson(filePath, fallback = null) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -3741,6 +3936,20 @@ let ingressControllerState = {
   delay_ms: 0,
   reason: '',
   since: '',
+};
+let snapshotHistoryLastAppendAtMs = 0;
+let snapshotHistoryMaintenanceState = {
+  last_compact_at: '',
+  last_reason: 'idle',
+  bytes_before: 0,
+  bytes_after: 0,
+  lines_before: 0,
+  lines_after: 0,
+  trimmed_entries: 0,
+  removed_bytes: 0,
+  exceeded: false,
+  warning: false,
+  compact_count: 0,
 };
 
 function loadAttentionDeferredState() {
@@ -6279,6 +6488,7 @@ function buildSnapshot(opts = {}) {
   );
   snapshot.runtime_recommendation = runtimeSwarmRecommendation(snapshot);
   snapshot.runtime_autoheal = runtimeAutohealTelemetry();
+  snapshot.storage = snapshotStorageTelemetry();
   const receiptHash = sha256(JSON.stringify(snapshot));
   return { ...snapshot, receipt_hash: receiptHash };
 }
@@ -7293,9 +7503,24 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
   return null;
 }
 
-function writeSnapshotReceipt(snapshot) {
+function writeSnapshotReceipt(snapshot, options = {}) {
   writeJson(SNAPSHOT_LATEST_PATH, snapshot);
-  appendJsonl(SNAPSHOT_HISTORY_PATH, snapshot);
+  const forceHistory = !!(options && options.forceHistory);
+  const nowMs = Date.now();
+  const appendDue =
+    forceHistory || (nowMs - parseNonNegativeInt(snapshotHistoryLastAppendAtMs, 0, 1000000000000)) >= SNAPSHOT_HISTORY_APPEND_MIN_INTERVAL_MS;
+  if (appendDue) {
+    appendJsonl(SNAPSHOT_HISTORY_PATH, snapshot);
+    snapshotHistoryLastAppendAtMs = nowMs;
+    const bytesAfterAppend = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
+    snapshotHistoryMaintenanceState = {
+      ...snapshotHistoryMaintenanceState,
+      lines_after: parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000) + 1,
+      bytes_after: bytesAfterAppend,
+      warning: bytesAfterAppend > SNAPSHOT_HISTORY_WARNING_BYTES,
+    };
+  }
+  compactSnapshotHistory(appendDue ? 'append' : 'periodic', false);
 }
 
 function writeActionReceipt(action, payload, laneResult) {
@@ -9838,13 +10063,15 @@ function bodyJson(req) {
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasPrimaryDashboardUi();
+  bootstrapSnapshotHistoryState();
+  compactSnapshotHistory('startup', true);
   let dashboardHtml = '';
   const refreshUiAssets = () => {
     dashboardHtml = forkUiEnabled ? buildPrimaryDashboardHtml() : '';
   };
   refreshUiAssets();
   let latestSnapshot = buildSnapshot(flags);
-  writeSnapshotReceipt(latestSnapshot);
+  writeSnapshotReceipt(latestSnapshot, { forceHistory: true });
   let updating = false;
   let enforcingContracts = false;
   let lastContractEnforceAtMs = 0;
@@ -9858,7 +10085,9 @@ function runServe(flags) {
       ...flags,
       contract_enforcement: contractEnforcement,
     });
-    writeSnapshotReceipt(latestSnapshot);
+    writeSnapshotReceipt(latestSnapshot, {
+      forceHistory: !!(options && options.force_history),
+    });
     const finishedMs = Date.now();
     const buildDurationMs = Math.max(0, finishedMs - startedMs);
     lastSnapshotBuildDurationMs = buildDurationMs;
@@ -9975,6 +10204,7 @@ function runServe(flags) {
           cli_mode: ACTIVE_CLI_MODE,
           runtime_sync: runtimeSync,
           agent_lifecycle: latestSnapshot && latestSnapshot.agent_lifecycle ? latestSnapshot.agent_lifecycle : null,
+          storage: latestSnapshot && latestSnapshot.storage ? latestSnapshot.storage : snapshotStorageTelemetry(),
         });
         return;
       }
@@ -11385,6 +11615,10 @@ function runServe(flags) {
     enforceAgentContractsNow('interval');
   }, AGENT_CONTRACT_ENFORCE_INTERVAL_MS);
 
+  const compactInterval = setInterval(() => {
+    compactSnapshotHistory('interval', false);
+  }, SNAPSHOT_HISTORY_COMPACT_INTERVAL_MS);
+
   server.listen(flags.port, flags.host, () => {
     const dashboardUrl = `http://${flags.host}:${flags.port}/dashboard`;
     const status = {
@@ -11401,6 +11635,7 @@ function runServe(flags) {
       receipt_hash: latestSnapshot.receipt_hash,
       snapshot_path: path.relative(ROOT, SNAPSHOT_LATEST_PATH),
       action_path: path.relative(ROOT, ACTION_LATEST_PATH),
+      snapshot_storage: snapshotStorageTelemetry().snapshot_history,
     };
     writeJson(path.resolve(STATE_DIR, 'server_status.json'), status);
     process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
@@ -11410,6 +11645,7 @@ function runServe(flags) {
   const shutdown = () => {
     clearInterval(interval);
     clearInterval(contractInterval);
+    clearInterval(compactInterval);
     closeAllTerminalSessions('dashboard_shutdown');
     for (const client of wsClients) {
       try {
@@ -11528,6 +11764,7 @@ function run(argv = process.argv.slice(2)) {
     return ok ? 0 : 1;
   }
   if (flags.mode === 'snapshot' || flags.mode === 'status') {
+    bootstrapSnapshotHistoryState();
     const snapshot = buildSnapshot(flags);
     writeSnapshotReceipt(snapshot);
     const body = `${JSON.stringify(snapshot, null, flags.pretty ? 2 : 0)}${flags.pretty ? '\n' : ''}`;

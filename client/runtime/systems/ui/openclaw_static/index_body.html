@@ -789,11 +789,11 @@
                     loading="lazy"
                   />
                   <span
-                    x-show="agentDrawer && (!agentDrawer.avatar_url) && ((drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer.identity && agentDrawer.identity.emoji))"
-                    x-text="(drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer.identity && agentDrawer.identity.emoji) || ''"
+                    x-show="agentDrawer && (!agentDrawer.avatar_url) && ((drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer && agentDrawer.identity && agentDrawer.identity.emoji))"
+                    x-text="(drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer && agentDrawer.identity && agentDrawer.identity.emoji) || ''"
                   ></span>
                   <span
-                    x-show="agentDrawer && (!agentDrawer.avatar_url) && !((drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer.identity && agentDrawer.identity.emoji))"
+                    x-show="agentDrawer && (!agentDrawer.avatar_url) && !((drawerConfigForm && drawerConfigForm.emoji) || (agentDrawer && agentDrawer.identity && agentDrawer.identity.emoji))"
                     aria-hidden="true"
                   >&infin;</span>
                 </div>
