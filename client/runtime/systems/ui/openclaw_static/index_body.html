@@ -50,16 +50,19 @@
           </template>
           <template x-for="agent in chatSidebarAgents" :key="'agent-chat-' + agent.id">
             <button class="chat-sidebar-item" :class="{ active: $store.app.activeAgentId === agent.id }" @click="selectAgentChatFromSidebar(agent)">
-              <div class="chat-sidebar-item-avatar">
-                <img
-                  x-show="agent.avatar_url"
-                  :src="agent.avatar_url || ''"
-                  :alt="(agent.name || agent.id || 'agent') + ' avatar'"
-                  loading="lazy"
-                />
-                <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
-                <span x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
-              </div>
+              <span class="chat-sidebar-item-avatar-wrap">
+                <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
+                <div class="chat-sidebar-item-avatar">
+                  <img
+                    x-show="agent.avatar_url"
+                    :src="agent.avatar_url || ''"
+                    :alt="(agent.name || agent.id || 'agent') + ' avatar'"
+                    loading="lazy"
+                  />
+                  <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
+                  <span x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
+                </div>
+              </span>
               <div class="chat-sidebar-item-main">
                 <div class="chat-sidebar-item-row">
                   <span class="chat-sidebar-item-name-wrap">
@@ -103,15 +106,18 @@
                 :aria-current="page === 'chat' && $store.app.activeAgentId === agent.id ? 'page' : false"
               >
                 <span class="nav-icon nav-agent-icon">
-                  <span class="nav-agent-avatar">
-                    <img
-                      x-show="agent.avatar_url"
-                      :src="agent.avatar_url || ''"
-                      :alt="(agent.name || agent.id || 'agent') + ' avatar'"
-                      loading="lazy"
-                    />
-                    <span class="nav-agent-avatar-emoji" x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
-                    <span class="nav-agent-avatar-fallback" x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
+                  <span class="nav-agent-avatar-wrap">
+                    <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
+                    <span class="nav-agent-avatar">
+                      <img
+                        x-show="agent.avatar_url"
+                        :src="agent.avatar_url || ''"
+                        :alt="(agent.name || agent.id || 'agent') + ' avatar'"
+                        loading="lazy"
+                      />
+                      <span class="nav-agent-avatar-emoji" x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
+                      <span class="nav-agent-avatar-fallback" x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
+                    </span>
                   </span>
                   <span class="agent-status-dot nav-agent-status" :class="'status-' + $store.app.agentStatusState(agent)" :title="'Agent status: ' + $store.app.agentStatusLabel(agent)" aria-hidden="true"></span>
                 </span>
@@ -367,8 +373,12 @@
           title="Authentication (coming soon)"
           aria-label="Authentication"
         >
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M3 8a5 5 0 1 1 9.584 2.042L16 10v2h-2v2h-2v2h-2.586l-1.707-1.707A5 5 0 0 1 3 8zm5-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"></path>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="7.25" cy="11.25" r="3.75"></circle>
+            <path d="M11 11.25h10"></path>
+            <path d="M17 11.25v3"></path>
+            <path d="M14.5 11.25v2"></path>
+            <path d="M7.25 9.5v0"></path>
           </svg>
         </button>
       </div>
