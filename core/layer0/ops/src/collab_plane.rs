@@ -15,6 +15,7 @@ const STATE_SCOPE: &str = "collab_plane";
 
 const DASHBOARD_CONTRACT_PATH: &str = "planes/contracts/collab/team_dashboard_contract_v1.json";
 const LAUNCHER_CONTRACT_PATH: &str = "planes/contracts/collab/role_launcher_contract_v1.json";
+const TERMINATION_CONTRACT_PATH: &str = "planes/contracts/collab/role_termination_contract_v1.json";
 const SCHEDULER_CONTRACT_PATH: &str = "planes/contracts/collab/team_schedule_contract_v1.json";
 const THROTTLE_CONTRACT_PATH: &str = "planes/contracts/collab/team_throttle_contract_v1.json";
 const CONTINUITY_CONTRACT_PATH: &str = "planes/contracts/collab/team_continuity_contract_v1.json";
@@ -27,6 +28,9 @@ fn usage() {
     );
     println!(
         "  protheus-ops collab-plane launch-role --role=<id> [--team=<id>] [--shadow=<id>] [--strict=1|0]"
+    );
+    println!(
+        "  protheus-ops collab-plane terminate-role --shadow=<id> [--team=<id>] [--reason=<id>] [--strict=1|0]"
     );
     println!(
         "  protheus-ops collab-plane schedule --op=<upsert|kickoff|list> [--team=<id>] [--job=<id>] [--cron=<expr>] [--shadows=a,b] [--strict=1|0]"
@@ -79,6 +83,13 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
     match action {
         "dashboard" => vec!["V6-COLLAB-001.1", "V6-COLLAB-001.4"],
         "launch-role" => vec!["V6-COLLAB-001.2", "V6-COLLAB-001.4"],
+        "terminate-role" | "remove-role" | "revoke-role" | "stop-role" | "archive-role" => {
+            vec![
+                "V6-COLLAB-001.2",
+                "V6-COLLAB-001.4",
+                "V6-AGENT-LIFECYCLE-001.2",
+            ]
+        }
         "schedule" => vec!["V6-COLLAB-001.3", "V6-COLLAB-001.4"],
         "throttle" => vec!["V6-COLLAB-001.3", "V6-COLLAB-001.4"],
         "continuity" => vec!["V6-COLLAB-001.5", "V6-COLLAB-001.4"],
@@ -423,6 +434,226 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
                     "team": team,
                     "role": role,
                     "shadow": shadow
+                }
+            }
+        ]
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
+fn run_terminate_role(
+    root: &Path,
+    parsed: &crate::ParsedArgs,
+    strict: bool,
+    action: &str,
+) -> Value {
+    let contract = load_json_or(
+        root,
+        TERMINATION_CONTRACT_PATH,
+        json!({
+            "version": "v1",
+            "kind": "collab_role_termination_contract",
+            "allowed_actions": ["terminate-role", "remove-role", "revoke-role", "stop-role", "archive-role"],
+            "require_shadow": true
+        }),
+    );
+    let mut errors = Vec::<String>::new();
+    if contract
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != "v1"
+    {
+        errors.push("collab_role_termination_contract_version_must_be_v1".to_string());
+    }
+    if contract
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != "collab_role_termination_contract"
+    {
+        errors.push("collab_role_termination_contract_kind_invalid".to_string());
+    }
+
+    let team = team_slug(
+        parsed
+            .flags
+            .get("team")
+            .map(String::as_str)
+            .unwrap_or("default-team"),
+    );
+    let action_clean = clean(action, 40).to_ascii_lowercase();
+    let allowed_actions = contract
+        .get("allowed_actions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![json!("terminate-role")])
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|v| clean(v, 40).to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    if strict && !allowed_actions.iter().any(|row| row == &action_clean) {
+        errors.push("collab_role_termination_action_invalid".to_string());
+    }
+
+    let shadow = clean(
+        parsed
+            .flags
+            .get("shadow")
+            .cloned()
+            .or_else(|| parsed.flags.get("agent").cloned())
+            .or_else(|| parsed.positional.get(1).cloned())
+            .unwrap_or_default(),
+        120,
+    );
+    let require_shadow = contract
+        .get("require_shadow")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    if strict && require_shadow && shadow.is_empty() {
+        errors.push("collab_role_termination_shadow_required".to_string());
+    }
+
+    if !errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "collab_plane_terminate_role",
+            "errors": errors
+        });
+    }
+
+    let reason = clean(
+        parsed
+            .flags
+            .get("reason")
+            .cloned()
+            .unwrap_or_else(|| action_clean.clone()),
+        120,
+    );
+    let team_path = team_state_path(root, &team);
+    let mut team_state = read_json(&team_path).unwrap_or_else(|| {
+        json!({
+            "version": "v1",
+            "team": team,
+            "agents": [],
+            "tasks": [],
+            "handoffs": []
+        })
+    });
+
+    let mut agents = team_state
+        .get("agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let before_agents = agents.len();
+    agents.retain(|row| {
+        if shadow.is_empty() {
+            return true;
+        }
+        row.get("shadow").and_then(Value::as_str) != Some(shadow.as_str())
+    });
+    let removed_count = before_agents.saturating_sub(agents.len());
+    team_state["agents"] = Value::Array(agents.clone());
+
+    let mut tasks = team_state
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let before_tasks = tasks.len();
+    tasks.retain(|row| {
+        if shadow.is_empty() {
+            return true;
+        }
+        let assigned = ["shadow", "agent", "assignee", "owner"]
+            .iter()
+            .any(|key| row.get(key).and_then(Value::as_str) == Some(shadow.as_str()));
+        !assigned
+    });
+    let released_task_count = before_tasks.saturating_sub(tasks.len());
+    team_state["tasks"] = Value::Array(tasks.clone());
+
+    let mut handoffs = team_state
+        .get("handoffs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if removed_count > 0 || released_task_count > 0 {
+        handoffs.push(json!({
+            "type": "agent_terminated",
+            "team": team,
+            "shadow": shadow,
+            "action": action_clean,
+            "reason": reason,
+            "terminated_at": crate::now_iso(),
+            "removed_count": removed_count,
+            "released_task_count": released_task_count,
+            "termination_hash": sha256_hex_str(&format!("{}:{}:{}:{}", team, shadow, action_clean, reason))
+        }));
+        if handoffs.len() > 2_000 {
+            handoffs = handoffs[handoffs.len().saturating_sub(2_000)..].to_vec();
+        }
+    }
+    team_state["handoffs"] = Value::Array(handoffs.clone());
+    let _ = write_json(&team_path, &team_state);
+
+    if removed_count > 0 || released_task_count > 0 {
+        let _ = append_jsonl(
+            &state_root(root).join("terminate").join("history.jsonl"),
+            &json!({
+                "type": "collab_role_termination",
+                "team": team,
+                "shadow": shadow,
+                "action": action_clean,
+                "reason": reason,
+                "removed_count": removed_count,
+                "released_task_count": released_task_count,
+                "ts": crate::now_iso()
+            }),
+        );
+    }
+
+    let mut out = json!({
+        "ok": true,
+        "strict": strict,
+        "type": "collab_plane_terminate_role",
+        "lane": "core/layer0/ops",
+        "team": team,
+        "shadow": shadow,
+        "action": action_clean,
+        "reason": reason,
+        "removed_count": removed_count,
+        "released_task_count": released_task_count,
+        "team_state": {
+            "agent_count": agents.len(),
+            "task_count": tasks.len(),
+            "handoff_count": handoffs.len()
+        },
+        "artifact": {
+            "path": team_path.display().to_string(),
+            "sha256": sha256_hex_str(&team_state.to_string())
+        },
+        "claim_evidence": [
+            {
+                "id": "V6-COLLAB-001.2",
+                "claim": "role_lifecycle_supports_deterministic_termination_with_receipts_and_team_state_cleanup",
+                "evidence": {
+                    "team": team,
+                    "shadow": shadow,
+                    "removed_count": removed_count,
+                    "released_task_count": released_task_count
+                }
+            },
+            {
+                "id": "V6-AGENT-LIFECYCLE-001.2",
+                "claim": "auto_termination_path_removes_idle_agents_from_authority_state",
+                "evidence": {
+                    "team": team,
+                    "shadow": shadow,
+                    "removed_count": removed_count
                 }
             }
         ]
@@ -1055,6 +1286,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "status" => status(root),
         "dashboard" => run_dashboard(root, &parsed, strict),
         "launch-role" | "launch" => run_launch_role(root, &parsed, strict),
+        "terminate-role" | "remove-role" | "revoke-role" | "stop-role" | "archive-role" => {
+            run_terminate_role(root, &parsed, strict, command.as_str())
+        }
         "schedule" => run_schedule(root, &parsed, strict),
         "throttle" => run_throttle(root, &parsed, strict),
         "continuity" => run_continuity(root, &parsed, strict),
@@ -1108,6 +1342,62 @@ mod tests {
                 .and_then(|v| v.get("max_depth"))
                 .and_then(Value::as_u64),
             Some(75)
+        );
+    }
+
+    #[test]
+    fn terminate_role_removes_shadow_and_is_idempotent() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let team_path = team_state_path(root.path(), "ops");
+        let _ = write_json(
+            &team_path,
+            &json!({
+                "version": "v1",
+                "team": "ops",
+                "agents": [
+                    {"shadow": "ops-a", "role": "analyst", "status": "active", "activated_at": "2026-03-22T00:00:00Z"},
+                    {"shadow": "ops-b", "role": "researcher", "status": "active", "activated_at": "2026-03-22T00:00:00Z"}
+                ],
+                "tasks": [
+                    {"id": "task-1", "assignee": "ops-a"},
+                    {"id": "task-2", "assignee": "ops-b"}
+                ],
+                "handoffs": []
+            }),
+        );
+
+        let parsed = crate::parse_args(&[
+            "terminate-role".to_string(),
+            "--team=ops".to_string(),
+            "--shadow=ops-a".to_string(),
+            "--reason=test".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_terminate_role(root.path(), &parsed, true, "terminate-role");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("removed_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            out.get("released_task_count").and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let team_state = read_json(&team_path).expect("team state");
+        let agents = team_state
+            .get("agents")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(
+            agents[0].get("shadow").and_then(Value::as_str),
+            Some("ops-b")
+        );
+
+        let out_second = run_terminate_role(root.path(), &parsed, true, "terminate-role");
+        assert_eq!(out_second.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out_second.get("removed_count").and_then(Value::as_u64),
+            Some(0)
         );
     }
 }

@@ -90,6 +90,9 @@ const DEFAULT_CONTEXT_WINDOW_TOKENS = 8192;
 const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 75;
 const AGENT_CONTRACT_MAX_IDLE_AGENTS = 5;
+const AGENT_RECONCILE_TERMINATION_BATCH = 12;
+const AGENT_RECONCILE_TERMINATION_COOLDOWN_MS = 4000;
+const AGENT_IDLE_TERMINATION_MS = 5 * 60 * 1000;
 const AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN = 20;
 const AGENT_ROGUE_SPIKE_WINDOW_MS = 60 * 1000;
 const COCKPIT_MAX_BLOCKS = 64;
@@ -2251,6 +2254,9 @@ function normalizeArchivedAgentsState(state) {
 
 let archivedAgentsCache = null;
 let agentContractsCache = null;
+let agentTerminationSweepState = {
+  last_run_ms: 0,
+};
 
 function loadArchivedAgentsState() {
   if (archivedAgentsCache) return archivedAgentsCache;
@@ -2341,6 +2347,12 @@ function normalizeAgentContractsState(state) {
     const expirySeconds = contract.expiry_seconds == null
       ? null
       : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, 7 * 24 * 60 * 60);
+    const spawnedAtMs = coerceTsMs(
+      contract.spawned_at || contract.activated_at || contract.created_at || nowIso(),
+      Date.now()
+    );
+    const spawnedAt = new Date(spawnedAtMs).toISOString();
+    const explicitExpiresAt = cleanText(contract.expires_at || '', 80);
     contracts[agentId] = {
       contract_id: cleanText(contract.contract_id || contract.id || `contract-${sha256(agentId).slice(0, 16)}`, 80),
       agent_id: agentId,
@@ -2348,10 +2360,8 @@ function normalizeAgentContractsState(state) {
       owner: cleanText(contract.owner || 'dashboard_session', 120),
       termination_condition: normalizeTerminationCondition(contract.termination_condition),
       expiry_seconds: expirySeconds,
-      spawned_at: cleanText(contract.spawned_at || nowIso(), 80) || nowIso(),
-      expires_at: expirySeconds && !contract.expires_at
-        ? new Date(Date.now() + expirySeconds * 1000).toISOString()
-        : cleanText(contract.expires_at || '', 80),
+      spawned_at: spawnedAt,
+      expires_at: explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : ''),
       revoked_at: cleanText(contract.revoked_at || '', 80),
       completed_at: cleanText(contract.completed_at || '', 80),
       completion_source: cleanText(contract.completion_source || '', 120),
@@ -2514,6 +2524,14 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
   const payload = spawnPayload && typeof spawnPayload === 'object' ? spawnPayload : {};
   const contractInput = payload.contract && typeof payload.contract === 'object' ? payload.contract : {};
   const explicitIndefinite = contractInput.indefinite === true || payload.indefinite === true;
+  const spawnedAtInput =
+    contractInput.spawned_at ||
+    payload.spawned_at ||
+    payload.activated_at ||
+    options.spawned_at ||
+    now;
+  const spawnedAtMs = coerceTsMs(spawnedAtInput, Date.now());
+  const spawnedAtIso = new Date(spawnedAtMs).toISOString();
   const expirySeconds = explicitIndefinite
     ? null
     : parsePositiveInt(
@@ -2530,6 +2548,10 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
   const condition = normalizeTerminationCondition(
     contractInput.termination_condition || payload.termination_condition || 'task_or_timeout'
   );
+  const explicitExpiresAt = cleanText(
+    contractInput.expires_at || payload.expires_at || options.expires_at || '',
+    80
+  );
   return {
     contract_id:
       cleanText(
@@ -2541,8 +2563,8 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     owner,
     termination_condition: condition,
     expiry_seconds: expirySeconds,
-    spawned_at: now,
-    expires_at: expirySeconds ? new Date(Date.now() + expirySeconds * 1000).toISOString() : '',
+    spawned_at: spawnedAtIso,
+    expires_at: explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : ''),
     revoked_at: '',
     completed_at: '',
     completion_source: '',
@@ -2637,22 +2659,43 @@ function attemptLaneTermination(agentId, team = DEFAULT_TEAM) {
   const cleanId = cleanText(agentId || '', 140);
   const cleanTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const attempts = [];
+  let removedCount = 0;
+  let releasedTaskCount = 0;
+  let command = '';
   const candidates = [
     ['collab-plane', 'terminate-role', `--team=${cleanTeam}`, `--shadow=${cleanId}`, '--strict=1'],
-    ['collab-plane', 'revoke-role', `--team=${cleanTeam}`, `--shadow=${cleanId}`, '--strict=1'],
-    ['collab-plane', 'remove-role', `--team=${cleanTeam}`, `--shadow=${cleanId}`, '--strict=1'],
-    ['collab-plane', 'stop-role', `--team=${cleanTeam}`, `--shadow=${cleanId}`, '--strict=1'],
-    ['collab-plane', 'archive-role', `--team=${cleanTeam}`, `--shadow=${cleanId}`, '--strict=1'],
   ];
   for (const argv of candidates) {
     const lane = runLane(argv);
-    attempts.push(laneOutcome(lane));
-    if (lane && lane.ok) break;
+    const removed = parseNonNegativeInt(
+      lane && lane.payload && lane.payload.removed_count != null ? lane.payload.removed_count : 0,
+      0,
+      100000000
+    );
+    const released = parseNonNegativeInt(
+      lane && lane.payload && lane.payload.released_task_count != null ? lane.payload.released_task_count : 0,
+      0,
+      100000000
+    );
+    attempts.push({
+      ...laneOutcome(lane),
+      removed_count: removed,
+      released_task_count: released,
+    });
+    if (lane && lane.ok) {
+      removedCount = removed;
+      releasedTaskCount = released;
+      command = cleanText(argv[1] || '', 80);
+      break;
+    }
   }
   return {
     ok: attempts.some((entry) => entry && entry.ok),
     attempts,
     command_count: attempts.length,
+    removed_count: removedCount,
+    released_task_count: releasedTaskCount,
+    command,
   };
 }
 
@@ -2789,6 +2832,11 @@ function enforceAgentContracts(snapshot, options = {}) {
   const nowMs = Date.now();
   const activeRows = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeIds = new Set(activeRows.map((row) => cleanText(row && row.id ? row.id : '', 140)).filter(Boolean));
+  const activeRowById = new Map(
+    activeRows
+      .map((row) => [cleanText(row && row.id ? row.id : '', 140), row])
+      .filter(([id]) => !!id)
+  );
   const team =
     cleanText(
       options.team || (snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM),
@@ -2803,24 +2851,49 @@ function enforceAgentContracts(snapshot, options = {}) {
     state.contracts = {};
     changed = true;
   }
+  const defaultExpirySeconds = parsePositiveInt(
+    defaults.default_expiry_seconds,
+    AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
+    1,
+    7 * 24 * 60 * 60
+  );
+  const defaultTerminationCondition = defaults.auto_expire_on_complete === false ? 'timeout' : 'task_or_timeout';
 
   for (const row of activeRows) {
     const id = cleanText(row && row.id ? row.id : '', 140);
     if (!id) continue;
+    const activatedAt = cleanText(row && row.activated_at ? row.activated_at : '', 80);
     if (!state.contracts[id]) {
       state.contracts[id] = deriveAgentContract(id, {
         mission: `Assist with assigned mission for ${id}.`,
         owner: 'dashboard_auto',
-        expiry_seconds: parsePositiveInt(
-          defaults.default_expiry_seconds,
-          AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
-          1,
-          7 * 24 * 60 * 60
-        ),
-        termination_condition: defaults.auto_expire_on_complete === false ? 'timeout' : 'task_or_timeout',
+        expiry_seconds: defaultExpirySeconds,
+        termination_condition: defaultTerminationCondition,
+        activated_at: activatedAt,
+        spawned_at: activatedAt,
+      }, {
+        spawned_at: activatedAt,
       });
       changed = true;
+      continue;
     }
+    const existing = state.contracts[id];
+    if (!existing || existing.status !== 'active') continue;
+    const activatedAtMs = coerceTsMs(activatedAt, 0);
+    const spawnedAtMs = coerceTsMs(existing.spawned_at, 0);
+    const shouldAlignSpawn = activatedAtMs > 0 && (spawnedAtMs <= 0 || activatedAtMs < (spawnedAtMs - 1000));
+    if (!shouldAlignSpawn) continue;
+    existing.spawned_at = new Date(activatedAtMs).toISOString();
+    const expirySeconds =
+      existing.expiry_seconds == null
+        ? null
+        : parsePositiveInt(existing.expiry_seconds, defaultExpirySeconds, 1, 7 * 24 * 60 * 60);
+    if (expirySeconds != null) {
+      existing.expires_at = new Date(activatedAtMs + (expirySeconds * 1000)).toISOString();
+    }
+    existing.updated_at = nowIso();
+    state.contracts[id] = existing;
+    changed = true;
   }
 
   for (const [agentId, contract] of Object.entries(state.contracts || {})) {
@@ -2838,6 +2911,47 @@ function enforceAgentContracts(snapshot, options = {}) {
 
   if (changed) {
     state = saveAgentContractsState(state);
+  }
+
+  const reconciled = [];
+  const reconcileCandidates = activeRows
+    .map((row) => {
+      const id = cleanText(row && row.id ? row.id : '', 140);
+      if (!id) return null;
+      const contract = state.contracts && state.contracts[id] ? state.contracts[id] : null;
+      const archived = isAgentArchived(id);
+      if (!archived && (!contract || contract.status === 'active')) return null;
+      return {
+        id,
+        archived,
+        activated_at: cleanText(row && row.activated_at ? row.activated_at : '', 80),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (!!a.archived !== !!b.archived) return a.archived ? -1 : 1;
+      return coerceTsMs(a.activated_at, 0) - coerceTsMs(b.activated_at, 0);
+    })
+    .slice(0, AGENT_RECONCILE_TERMINATION_BATCH);
+  const canSweepTerminate =
+    reconcileCandidates.length > 0 &&
+    (nowMs - parseNonNegativeInt(agentTerminationSweepState.last_run_ms, 0, 1000000000000)) >=
+      AGENT_RECONCILE_TERMINATION_COOLDOWN_MS;
+  if (canSweepTerminate) {
+    agentTerminationSweepState.last_run_ms = nowMs;
+    for (const candidate of reconcileCandidates) {
+      const lane = attemptLaneTermination(candidate.id, team);
+      if (lane.ok && parseNonNegativeInt(lane.removed_count, 0, 100000000) > 0) {
+        reconciled.push({
+          agent_id: candidate.id,
+          command: cleanText(lane.command || '', 80),
+          removed_count: parseNonNegativeInt(lane.removed_count, 0, 100000000),
+          released_task_count: parseNonNegativeInt(lane.released_task_count, 0, 100000000),
+          archived: !!candidate.archived,
+        });
+        closeTerminalSession(candidate.id, 'agent_contract_reconcile');
+      }
+    }
   }
 
   const terminations = [];
@@ -2859,10 +2973,54 @@ function enforceAgentContracts(snapshot, options = {}) {
     }
   }
 
+  const latestState = loadAgentContractsState();
+  const idleThreshold = parsePositiveInt(
+    latestState && latestState.defaults ? latestState.defaults.max_idle_agents : AGENT_CONTRACT_MAX_IDLE_AGENTS,
+    AGENT_CONTRACT_MAX_IDLE_AGENTS,
+    1,
+    1000
+  );
+  const idleCandidates = [];
+  for (const [agentId, contract] of Object.entries((latestState && latestState.contracts) || {})) {
+    const id = cleanText(agentId || '', 140);
+    if (!id || !contract || contract.status !== 'active') continue;
+    if (!activeIds.has(id)) continue;
+    const sessionState = loadAgentSession(id, snapshot);
+    const session = activeSession(sessionState);
+    const updatedMs = coerceTsMs(session && session.updated_at ? session.updated_at : 0, 0);
+    const idleForMs = updatedMs > 0 ? Math.max(0, nowMs - updatedMs) : Number.MAX_SAFE_INTEGER;
+    if (idleForMs < AGENT_IDLE_TERMINATION_MS) continue;
+    idleCandidates.push({
+      id,
+      idleForMs,
+      role: cleanText(
+        activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
+        80
+      ),
+    });
+  }
+  idleCandidates.sort((a, b) => b.idleForMs - a.idleForMs);
+  const idleExcess = Math.max(0, idleCandidates.length - idleThreshold);
+  let idleTerminatedCount = 0;
+  for (const candidate of idleCandidates.slice(0, idleExcess)) {
+    const terminated = terminateAgentForContract(candidate.id, snapshot, 'idle_cap_exceeded', {
+      source: 'agent_contract_idle_cap',
+      terminated_by: 'idle_cap_enforcer',
+      role: candidate.role,
+      team,
+    });
+    if (terminated.terminated) {
+      terminations.push(terminated);
+      idleTerminatedCount += 1;
+    }
+  }
+
   const finalState = loadAgentContractsState();
   return {
-    changed: changed || terminations.length > 0,
+    changed: changed || reconciled.length > 0 || terminations.length > 0,
     terminated: terminations,
+    reconciled,
+    idle_terminated_count: idleTerminatedCount,
     active_contracts: Object.values(finalState.contracts || {}).filter((row) => row && row.status === 'active').length,
   };
 }
@@ -3981,7 +4139,7 @@ function sessionList(state) {
 
 function runAgentMessage(agentId, input, snapshot, options = {}) {
   const allowFallback = !!(options && options.allowFallback);
-  const requestedAgentId = cleanText(agentId || '', 140);
+  let requestedAgentId = cleanText(agentId || '', 140);
   const dashboardFallbackAgent = 'chat-ui-default-agent';
   const canAutoReviveDashboardFallback =
     allowFallback && (!requestedAgentId || requestedAgentId === dashboardFallbackAgent);
@@ -3997,6 +4155,8 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
         },
         { owner: 'dashboard_chat', force: true }
       );
+    } else if (allowFallback) {
+      requestedAgentId = '';
     } else {
       const archivedMeta = archivedAgentMeta(requestedAgentId);
       return {
@@ -6097,6 +6257,7 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
       id,
       name: id,
       state,
+      activated_at: cleanText(row && row.activated_at ? row.activated_at : '', 80),
       model_name: modelState.selected,
       model_provider: modelState.provider,
       runtime_model: modelState.runtime_model,
@@ -7928,18 +8089,18 @@ function runServe(flags) {
             cleanText(
               actionPayload && (actionPayload.agent_id || actionPayload.agentId)
                 ? actionPayload.agent_id || actionPayload.agentId
-                : 'chat-ui-default-agent',
+                : '',
               140
-            ) || 'chat-ui-default-agent';
+            ) || '';
           const turn = runAgentMessage(requestedAgentId, input, latestSnapshot, { allowFallback: true });
           const lanePayload = {
             ok: turn.ok,
             type: 'infring_dashboard_runtime_chat',
             response: turn.response || '',
             session_id: turn.session_id || '',
-            agent_id: turn.agent_id || requestedAgentId,
+            agent_id: turn.agent_id || requestedAgentId || 'chat-ui-default-agent',
             turn: {
-              turn_id: `turn_${sha256(`${turn.agent_id || requestedAgentId}:${Date.now()}`).slice(0, 10)}`,
+              turn_id: `turn_${sha256(`${turn.agent_id || requestedAgentId || 'chat-ui-default-agent'}:${Date.now()}`).slice(0, 10)}`,
               user: turn.input || '',
               assistant: turn.response || '',
               ts: nowIso(),
