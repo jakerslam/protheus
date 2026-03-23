@@ -509,6 +509,8 @@ if ($machinePath -notlike "*$InstallDir*") {
 Write-Host "[infring install] installed: infring, infringctl, infringd"
 Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"
 Write-Host "[infring install] open a new terminal and run: infring --help"
+Write-Host "[infring install] quickstart: infring gateway"
+Write-Host "[infring install] stop: infring gateway stop"
 
 if ($script:SourceFallbackTmp -and (Test-Path $script:SourceFallbackTmp.FullName)) {
   Remove-Item -Force -Recurse $script:SourceFallbackTmp.FullName

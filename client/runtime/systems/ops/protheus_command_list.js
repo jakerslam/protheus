@@ -5,6 +5,7 @@
 
 const COMMANDS = [
   { name: 'help', desc: 'Show CLI help and command list.' },
+  { name: 'gateway [start|stop|restart|status]', desc: 'One-command runtime gateway (boots rich dashboard by default).' },
   { name: 'status', desc: 'Show daemon/control-plane status.' },
   { name: 'dashboard', desc: 'Launch unified dashboard web UI (localhost).' },
   { name: 'alpha-check', desc: 'Run alpha readiness checks.' },

@@ -37,6 +37,23 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 .collect(),
             forward_stdin: false,
         }),
+        "gateway" => {
+            let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
+            let (subcommand, passthrough_start_idx) = match first.as_deref() {
+                Some("start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick" | "diagnostics") => {
+                    (first.unwrap_or_else(|| "start".to_string()), 1usize)
+                }
+                Some("boot") => ("start".to_string(), 1usize),
+                _ => ("start".to_string(), 0usize),
+            };
+            Some(Route {
+                script_rel: "core://daemon-control".to_string(),
+                args: std::iter::once(subcommand)
+                    .chain(rest.iter().skip(passthrough_start_idx).cloned())
+                    .collect(),
+                forward_stdin: false,
+            })
+        }
         "stop" => Some(Route {
             script_rel: "core://daemon-control".to_string(),
             args: std::iter::once("stop".to_string())
