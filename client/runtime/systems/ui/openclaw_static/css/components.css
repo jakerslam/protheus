@@ -496,7 +496,7 @@ tr:hover td { background: var(--surface2); }
   bottom: 0;
   left: 0;
   background: color-mix(in srgb, var(--bg) 48%, transparent);
-  z-index: 940;
+  z-index: 17000;
 }
 
 .chat-agent-drawer {
@@ -508,7 +508,7 @@ tr:hover td { background: var(--surface2); }
   border-left: 1px solid var(--border);
   background: var(--bg-primary);
   box-shadow: var(--shadow-md);
-  z-index: 950;
+  z-index: 17010;
   display: flex;
   flex-direction: column;
 }
@@ -862,9 +862,10 @@ tr:hover td { background: var(--surface2); }
 }
 
 .message.user .message-bubble {
+  --user-border-top: color-mix(in srgb, var(--accent) 34%, transparent);
   background: color-mix(in srgb, var(--user-bg) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  border-top-color: var(--user-border-top);
   border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
   border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
   border-right-style: solid;
@@ -1659,8 +1660,10 @@ mark.search-highlight {
 
 /* Tool call cards — premium design with category icons */
 .tool-card {
+  --tool-border-top: color-mix(in srgb, var(--border) 100%, transparent);
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top-color: var(--tool-border-top);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
   margin: 8px 0;
@@ -2166,7 +2169,7 @@ mark.search-highlight {
 .input-area.terminal-mode .composer-plus-wrap > .composer-icon-btn:hover {
   color: #fff;
   background: transparent;
-  transform: scale(1.25);
+  transform: scale(1.5);
 }
 
 .input-area.terminal-mode .composer-plus-wrap > .composer-icon-btn:hover svg {
@@ -2247,8 +2250,10 @@ mark.search-highlight {
 .health-indicator {
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
-  border-bottom-color: color-mix(in srgb, #000 16%, transparent) !important;
-  border-right-color: color-mix(in srgb, #000 16%, transparent) !important;
+  border-top-color: color-mix(in srgb, #000 16%, transparent) !important;
+  border-left-color: color-mix(in srgb, #000 16%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, #fff 38%, transparent) !important;
+  border-right-color: color-mix(in srgb, #fff 38%, transparent) !important;
 }
 
 .chat-scroll-down {
@@ -3111,11 +3116,23 @@ mark.search-highlight {
 }
 
 body[data-theme='dark'] .message.user .message-bubble {
-  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 12px rgba(78, 139, 255, 0.28), 0 0 2px rgba(78, 139, 255, 0.2);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 12px color-mix(in srgb, var(--user-border-top) 88%, transparent), 0 0 2px color-mix(in srgb, var(--user-border-top) 72%, transparent);
+}
+
+body[data-theme='dark'] .tool-card {
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 10px color-mix(in srgb, var(--tool-border-top) 72%, transparent), 0 0 2px color-mix(in srgb, var(--tool-border-top) 58%, transparent);
 }
 
 body[data-theme='dark'] .message.terminal .message-bubble {
   box-shadow: 0 0 0 0.5px rgba(114, 255, 92, 0.12) inset, 0 0 12px rgba(114, 255, 92, 0.26), 0 0 2px rgba(114, 255, 92, 0.18);
+}
+
+body[data-theme='dark'] .input-area.terminal-mode .composer-shell {
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.42), 6px 0 12px -14px rgba(0, 0, 0, 0.42), 0 10px 18px -18px rgba(0, 0, 0, 0.66), 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(149, 255, 99, 0.2) inset, 0 0 10px rgba(114, 255, 92, 0.24);
+}
+
+body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.46), 6px 0 12px -14px rgba(0, 0, 0, 0.46), 0 10px 18px -18px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(149, 255, 99, 0.32), 0 0 0 1px rgba(149, 255, 99, 0.24) inset, 0 0 14px rgba(114, 255, 92, 0.3);
 }
 
 .sidebar-nav {
@@ -3228,6 +3245,25 @@ body[data-theme='dark'] .message.terminal .message-bubble {
   border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
   border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
   border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
+  color: var(--text);
+}
+
+.nav-item.nav-agent-row.active {
+  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
+  border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
+  color: var(--text);
+}
+
+.nav-item.nav-agent-row.active .nav-agent-name,
+.nav-item.nav-agent-row.active .nav-agent-preview {
+  color: var(--text);
+}
+
+.nav-item.nav-agent-row.active .nav-agent-time {
+  color: var(--text-dim);
 }
 
 .chat-sidebar-item-avatar {

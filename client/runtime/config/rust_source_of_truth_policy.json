@@ -51,7 +51,7 @@
         ]
       },
       {
-        "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+        "path": "client/runtime/systems/ops/protheus_status_dashboard.js",
         "required_tokens": [
           "status",
           "runProtheusOps"
