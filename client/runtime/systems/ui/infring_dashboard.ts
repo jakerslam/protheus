@@ -36,6 +36,10 @@ const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
 const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
 const BENCHMARK_SANITY_STATE_PATH = path.resolve(ROOT, 'core/local/state/ops/benchmark_sanity/latest.json');
 const BENCHMARK_SANITY_GATE_PATH = path.resolve(ROOT, 'core/local/artifacts/benchmark_sanity_gate_current.json');
+const BENCHMARK_SANITY_GATE_SCRIPT_PATH = path.resolve(
+  ROOT,
+  'tests/tooling/scripts/ci/benchmark_sanity_gate.mjs'
+);
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
@@ -65,12 +69,24 @@ const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
+const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const RUNTIME_COCKPIT_STALE_DORMANT_ARCHIVE_AGE_MS = 24 * 60 * 60 * 1000;
+const RUNTIME_COCKPIT_CRITICAL_LANE_KEYS = new Set([
+  'app_plane',
+  'collab_plane',
+  'skills_plane',
+  'hermes_plane',
+  'security_plane',
+  'benchmark_sanity',
+  'attention_queue',
+]);
 const RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN = 16;
+const RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS = 10;
 const RUNTIME_COORDINATION_RECOVERY_COOLDOWN_MS = 120_000;
 const RUNTIME_COORDINATION_RECOVERY_MAX_SHADOWS = 24;
 const RUNTIME_COARSE_THROTTLE_MAX_DEPTH = 60;
 const RUNTIME_COARSE_THROTTLE_STRATEGY = 'pause-noncritical';
-const RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT = 4;
+const RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT = 8;
 const RUNTIME_COARSE_DRAIN_MIN_BATCH = 24;
 const RUNTIME_ATTENTION_DRAIN_MIN_BATCH = 16;
 const RUNTIME_ATTENTION_DRAIN_MAX_BATCH = 96;
@@ -96,6 +112,8 @@ const RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS = 24 * 60 * 60;
 const RUNTIME_SPINE_CANARY_COOLDOWN_MS = 30 * 60 * 1000;
 const RUNTIME_SPINE_CANARY_MAX_EYES = 1;
 const DASHBOARD_BENCHMARK_STALE_SECONDS = 48 * 60 * 60;
+const RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
+const RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS = 10 * 60;
 const RUNTIME_TREND_WINDOW = 120;
 const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
 const OLLAMA_BIN = 'ollama';
@@ -126,7 +144,8 @@ const AGENT_TERMINATION_TEAM_DISCOVERY_CACHE_MS = 5 * 1000;
 const AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN = 20;
 const AGENT_ROGUE_SPIKE_WINDOW_MS = 60 * 1000;
 const COCKPIT_MAX_BLOCKS = 64;
-const LANE_SYNC_TIMEOUT_MS = 8 * 1000;
+const LANE_SYNC_TIMEOUT_MS = 1500;
+const LANE_ACTION_TIMEOUT_MS = 8 * 1000;
 const ATTENTION_PEEK_LIMIT = 12;
 const ATTENTION_CRITICAL_LIMIT = 64;
 const ATTENTION_MICRO_BATCH_WINDOW_MS = 50;
@@ -289,6 +308,26 @@ function parseNonNegativeInt(value, fallback = 0, max = 1000000000) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
   return Math.max(0, Math.min(max, Math.floor(num)));
+}
+
+function normalizeLaneKey(value) {
+  return cleanText(value || '', 120)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function cockpitStaleIsActionable(row) {
+  const status = cleanText(row && row.status ? row.status : '', 24).toLowerCase();
+  if (status === 'fail' || status === 'error' || status === 'critical') return true;
+  const laneKey = normalizeLaneKey(row && row.lane ? row.lane : '');
+  if (RUNTIME_COCKPIT_CRITICAL_LANE_KEYS.has(laneKey)) return true;
+  const ageMs = parseNonNegativeInt(
+    row && row.age_ms != null ? row.age_ms : 0,
+    0,
+    30 * 24 * 60 * 60 * 1000
+  );
+  return ageMs <= RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS;
 }
 
 function inferContextWindowFromModelName(modelName, fallback = DEFAULT_CONTEXT_WINDOW_TOKENS) {
@@ -698,7 +737,13 @@ function parseFlags(argv = []) {
   return out;
 }
 
-function runLane(argv) {
+function runLane(argv, options = {}) {
+  const timeoutMs = parsePositiveInt(
+    options && options.timeout_ms != null ? options.timeout_ms : LANE_SYNC_TIMEOUT_MS,
+    LANE_SYNC_TIMEOUT_MS,
+    250,
+    60000
+  );
   const env = { ...process.env, PROTHEUS_ROOT: ROOT };
   const opts = {
     cwd: ROOT,
@@ -706,7 +751,7 @@ function runLane(argv) {
     stdio: 'pipe',
     env,
     maxBuffer: 12 * 1024 * 1024,
-    timeout: LANE_SYNC_TIMEOUT_MS,
+    timeout: timeoutMs,
     killSignal: 'SIGKILL',
   };
   const proc = spawnSync(process.execPath, [OPS_BRIDGE_PATH, ...argv], opts);
@@ -720,14 +765,14 @@ function runLane(argv) {
         ok: false,
         type: 'infring_dashboard_lane_timeout',
         error: 'lane_timeout',
-        timeout_ms: LANE_SYNC_TIMEOUT_MS,
+        timeout_ms: timeoutMs,
       }
     : null);
   return {
     ok: status === 0 && !!payload && !timedOut,
     status,
     stdout,
-    stderr: timedOut && !stderr ? `lane_timeout_${LANE_SYNC_TIMEOUT_MS}ms` : stderr,
+    stderr: timedOut && !stderr ? `lane_timeout_${timeoutMs}ms` : stderr,
     payload,
     argv,
     timed_out: timedOut,
@@ -2205,6 +2250,93 @@ function isPlaceholderResponse(value) {
   );
 }
 
+function isPromptEchoResponse(value, prompt) {
+  const output = cleanText(value == null ? '' : String(value), 4000).trim();
+  const input = cleanText(prompt == null ? '' : String(prompt), 4000).trim();
+  if (!output || !input) return false;
+  if (output === input) return true;
+  const normalizedOutput = output.replace(/^\[[^\]]+\]\s*/, '').trim();
+  return normalizedOutput === input;
+}
+
+function runtimeCouplingFallbackResponse(input, runtime = {}) {
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const conduitSignals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
+  const targetSignals = Math.max(
+    1,
+    parsePositiveInt(
+      runtime && runtime.target_conduit_signals,
+      RUNTIME_AUTO_BALANCE_THRESHOLD,
+      1,
+      128
+    )
+  );
+  const staleBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
+  const benchmarkMirrorStatus =
+    cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : 'unknown', 24) ||
+    'unknown';
+  const benchmarkCockpitStatus =
+    cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : 'unknown', 24) ||
+    'unknown';
+  const benchmarkAgeSeconds = parsePositiveInt(
+    runtime && runtime.benchmark_sanity_age_seconds != null ? runtime.benchmark_sanity_age_seconds : -1,
+    -1,
+    -1,
+    1000000000
+  );
+  const benchmarkStale = benchmarkAgeSeconds < 0 || benchmarkAgeSeconds > DASHBOARD_BENCHMARK_STALE_SECONDS;
+  const benchmarkStatus = benchmarkStale
+    ? `${benchmarkMirrorStatus}(stale:${benchmarkCockpitStatus})`
+    : benchmarkCockpitStatus;
+  const memoryPaused = !!(runtime && runtime.memory_ingest_paused);
+  const signalDeficit = Math.max(0, targetSignals - conduitSignals);
+  const lowSignal = conduitSignals < targetSignals;
+  const chronicStale = staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN;
+  const asksForStatus = /dashboard|system|runtime|telemetry|queue|conduit|cockpit|pain|improv|connection|coupling|reliab|autonom/i.test(
+    String(input || '').toLowerCase()
+  );
+
+  const painPoints = [];
+  if (lowSignal) painPoints.push(`Conduit under target (${conduitSignals}/${targetSignals}).`);
+  if (chronicStale) painPoints.push(`Cockpit stale blocks remain high (${staleBlocks}).`);
+  if (benchmarkCockpitStatus === 'fail' && !benchmarkStale) {
+    painPoints.push('Benchmark sanity cockpit lane is failing.');
+  } else if (benchmarkStale) {
+    painPoints.push('Benchmark sanity cockpit lane is stale; auto-refresh recommended.');
+  }
+  if (memoryPaused && queueDepth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH) {
+    painPoints.push('Memory ingest is paused while queue pressure is already low.');
+  }
+  if (queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) painPoints.push(`Queue depth is elevated (${queueDepth}).`);
+  if (!painPoints.length) painPoints.push('No critical pressure detected in current telemetry.');
+
+  const improvements = [];
+  if (lowSignal) {
+    improvements.push(
+      `Auto-heal conduit watchdog whenever low signals persist or stale blocks are chronic (currently deficit ${signalDeficit}).`
+    );
+  }
+  if (chronicStale) {
+    improvements.push(
+      `Run stale cockpit lane refresh + queue drain automatically even below depth ${RUNTIME_DRAIN_TRIGGER_DEPTH}.`
+    );
+  }
+  if (memoryPaused && queueDepth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH) {
+    improvements.push('Auto-resume memory ingest once queue depth is below the safe resume threshold.');
+  }
+  improvements.push('Keep predictive drain workers lifecycle-bound and dissolve them once queue depth recovers.');
+  improvements.push('Emit reliability escalation receipts when SLO gates fail so humans are explicitly paged.');
+
+  if (!asksForStatus) {
+    return `I'm in fallback mode because the hosted backend returned a prompt-echo response. Current telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}. Please retry; I can still answer from runtime telemetry.`;
+  }
+  return [
+    `Current dashboard telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}, benchmark cockpit ${benchmarkStatus}.`,
+    `Top pain points: ${painPoints.slice(0, 5).join(' ')}`,
+    `Recommended fixes: ${improvements.slice(0, 5).join(' ')}`,
+  ].join('\n\n');
+}
+
 function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = null, runtimeMirror = null }) {
   const transcript = promptTranscript(session) || '(empty)';
   const toolHistory = formatToolHistory(toolSteps);
@@ -3585,6 +3717,12 @@ let runtimeSpineCanaryState = {
   last_run_at: '',
   run_count: 0,
 };
+let benchmarkRefreshState = {
+  last_run_ms: 0,
+  last_run_at: '',
+  run_count: 0,
+  last_status: 'idle',
+};
 let coordinationRecoveryState = {
   last_run_ms: 0,
   last_run_at: '',
@@ -3959,11 +4097,16 @@ function memoryIngestControlState(queueDepth = 0, memoryEntryCount = 0) {
   const depth = parseNonNegativeInt(queueDepth, 0, 100000000);
   const entryCount = parseNonNegativeInt(memoryEntryCount, 0, 100000000);
   const entryPressure = entryCount >= MEMORY_ENTRY_BACKPRESSURE_THRESHOLD;
-  if (!memoryIngestCircuit.paused && (depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH || entryPressure)) {
+  const severeEntryPressure = entryCount >= MEMORY_ENTRY_BACKPRESSURE_THRESHOLD * 2;
+  const entryPressureWithQueue = entryPressure && depth >= RUNTIME_INGRESS_DAMPEN_DEPTH;
+  if (
+    !memoryIngestCircuit.paused &&
+    (depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH || entryPressureWithQueue || severeEntryPressure)
+  ) {
     memoryIngestCircuit = {
       paused: true,
       since: nowIso(),
-      reason: entryPressure ? 'memory_entry_pressure' : 'predictive_queue_drain',
+      reason: severeEntryPressure || entryPressureWithQueue ? 'memory_entry_pressure' : 'predictive_queue_drain',
       trigger_queue_depth: depth,
       trigger_memory_entries: entryCount,
       transition_count: parseNonNegativeInt(memoryIngestCircuit.transition_count, 0, 1000000) + 1,
@@ -3971,12 +4114,15 @@ function memoryIngestControlState(queueDepth = 0, memoryEntryCount = 0) {
   } else if (
     memoryIngestCircuit.paused &&
     depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH &&
-    entryCount < MEMORY_ENTRY_BACKPRESSURE_THRESHOLD
+    entryCount < MEMORY_ENTRY_BACKPRESSURE_THRESHOLD * 2
   ) {
     memoryIngestCircuit = {
       paused: false,
       since: nowIso(),
-      reason: 'queue_recovered',
+      reason:
+        entryCount >= MEMORY_ENTRY_BACKPRESSURE_THRESHOLD
+          ? 'queue_recovered_tolerated_entry_pressure'
+          : 'queue_recovered',
       trigger_queue_depth: depth,
       trigger_memory_entries: entryCount,
       transition_count: parseNonNegativeInt(memoryIngestCircuit.transition_count, 0, 1000000) + 1,
@@ -4365,6 +4511,13 @@ function runtimeAutohealTelemetry() {
       stale_max_age_seconds: RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS,
       cooldown_ms: RUNTIME_SPINE_CANARY_COOLDOWN_MS,
     },
+    benchmark_refresh: {
+      last_run_at: cleanText(benchmarkRefreshState.last_run_at || '', 80),
+      run_count: parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000),
+      last_status: cleanText(benchmarkRefreshState.last_status || 'idle', 40) || 'idle',
+      stale_max_age_seconds: RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS,
+      cooldown_ms: RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+    },
     coordination_recovery: {
       last_run_at: cleanText(coordinationRecoveryState.last_run_at || '', 80),
       run_count: parseNonNegativeInt(coordinationRecoveryState.run_count, 0, 100000000),
@@ -4407,9 +4560,14 @@ function benchmarkSanitySnapshot() {
     }
   }
   const stale = ageSeconds < 0 || ageSeconds > DASHBOARD_BENCHMARK_STALE_SECONDS;
-  if (status === 'pass' && stale) {
-    status = 'warn';
-    detail = detail ? `${detail};stale` : 'stale';
+  if (stale) {
+    if (status === 'pass') {
+      status = 'warn';
+      detail = detail ? `${detail};stale` : 'stale';
+    } else if (status === 'fail') {
+      status = 'warn';
+      detail = detail ? `${detail};stale_fail` : 'stale_fail';
+    }
   }
   return {
     status,
@@ -5020,6 +5178,22 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
           ? payloadObj.turn.assistant
           : '';
     assistantRaw = String(assistantFromLane || '');
+    if (isPromptEchoResponse(assistantRaw, cleanInput)) {
+      assistantRaw = runtimeCouplingFallbackResponse(cleanInput, runtimeSync);
+      laneResult = {
+        ok: true,
+        status: 0,
+        stdout: '',
+        stderr: '',
+        argv: ['chat-backend', 'hosted-echo-fallback'],
+        payload: {
+          ok: true,
+          type: 'infring_dashboard_chat_backend_echo_fallback',
+          response: assistantRaw,
+          session_id: chatSessionId,
+        },
+      };
+    }
     if (!assistantRaw) {
       const failures = [];
       if (llmResult && llmResult.error) {
@@ -5366,32 +5540,41 @@ function collectMemoryArtifacts() {
 
 function compactCockpitBlocks(blocks = [], limit = COCKPIT_MAX_BLOCKS) {
   const rows = Array.isArray(blocks) ? blocks : [];
-  return rows.slice(0, limit).map((row) => ({
-    index: parsePositiveInt(row && row.index != null ? row.index : 0, 0, 0, 100000),
-    lane: cleanText(row && row.lane ? row.lane : 'unknown', 120) || 'unknown',
-    event_type: cleanText(row && row.event_type ? row.event_type : 'unknown', 120) || 'unknown',
-    tool_call_class: cleanText(row && row.tool_call_class ? row.tool_call_class : 'runtime', 40) || 'runtime',
-    status: cleanText(row && row.status ? row.status : 'unknown', 24) || 'unknown',
-    status_color: cleanText(row && row.status_color ? row.status_color : 'unknown', 24) || 'unknown',
-    duration_ms: parsePositiveInt(row && row.duration_ms != null ? row.duration_ms : 0, 0, 0, 3600000),
-    duration_source: cleanText(row && row.duration_source ? row.duration_source : '', 24),
-    is_stale: !!(row && row.is_stale === true),
-    stale_block_threshold_ms: parsePositiveInt(
-      row && row.stale_block_threshold_ms != null ? row.stale_block_threshold_ms : RUNTIME_COCKPIT_STALE_BLOCK_MS,
-      RUNTIME_COCKPIT_STALE_BLOCK_MS,
-      1000,
-      24 * 60 * 60 * 1000
-    ),
-    ts: cleanText(row && row.ts ? row.ts : '', 80),
-    path: cleanText(row && row.path ? row.path : '', 220),
-    conduit_enforced:
-      !!(
-        row &&
-        ((row.conduit_enforced === true) ||
-          (row.conduit_enforcement && typeof row.conduit_enforcement === 'object') ||
-          cleanText(row && row.routed_via ? row.routed_via : '', 40).toLowerCase() === 'conduit')
+  return rows.slice(0, limit).map((row) => {
+    const ts = cleanText(row && row.ts ? row.ts : '', 80);
+    const durationMs = parsePositiveInt(row && row.duration_ms != null ? row.duration_ms : 0, 0, 0, 3600000);
+    const parsedTsMs = Date.parse(ts);
+    const ageMs = Number.isFinite(parsedTsMs)
+      ? Math.max(0, Date.now() - parsedTsMs)
+      : durationMs;
+    return {
+      index: parsePositiveInt(row && row.index != null ? row.index : 0, 0, 0, 100000),
+      lane: cleanText(row && row.lane ? row.lane : 'unknown', 120) || 'unknown',
+      event_type: cleanText(row && row.event_type ? row.event_type : 'unknown', 120) || 'unknown',
+      tool_call_class: cleanText(row && row.tool_call_class ? row.tool_call_class : 'runtime', 40) || 'runtime',
+      status: cleanText(row && row.status ? row.status : 'unknown', 24) || 'unknown',
+      status_color: cleanText(row && row.status_color ? row.status_color : 'unknown', 24) || 'unknown',
+      duration_ms: durationMs,
+      age_ms: parseNonNegativeInt(ageMs, durationMs, 30 * 24 * 60 * 60 * 1000),
+      duration_source: cleanText(row && row.duration_source ? row.duration_source : '', 24),
+      is_stale: !!(row && row.is_stale === true),
+      stale_block_threshold_ms: parsePositiveInt(
+        row && row.stale_block_threshold_ms != null ? row.stale_block_threshold_ms : RUNTIME_COCKPIT_STALE_BLOCK_MS,
+        RUNTIME_COCKPIT_STALE_BLOCK_MS,
+        1000,
+        24 * 60 * 60 * 1000
       ),
-  }));
+      ts,
+      path: cleanText(row && row.path ? row.path : '', 220),
+      conduit_enforced:
+        !!(
+          row &&
+          ((row.conduit_enforced === true) ||
+            (row.conduit_enforcement && typeof row.conduit_enforcement === 'object') ||
+            cleanText(row && row.routed_via ? row.routed_via : '', 40).toLowerCase() === 'conduit')
+        ),
+    };
+  });
 }
 
 function compactAttentionEvents(events = [], limit = ATTENTION_PEEK_LIMIT) {
@@ -5508,19 +5691,14 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     1000,
     24 * 60 * 60 * 1000
   );
-  const staleCockpitBlocks = blocks.filter(
+  const staleCockpitBlocksRaw = blocks.filter(
     (row) =>
       (row && row.is_stale === true) ||
       parseNonNegativeInt(row && row.duration_ms, 0, 3600000) >= staleBlockThresholdMs
   );
-  const activeCockpitBlocks = blocks.filter((row) => !staleCockpitBlocks.includes(row));
-  const activeCockpitBlockCount = parseNonNegativeInt(
-    cockpitMetricsRaw && cockpitMetricsRaw.active_block_count != null
-      ? cockpitMetricsRaw.active_block_count
-      : activeCockpitBlocks.length,
-    activeCockpitBlocks.length,
-    100000000
-  );
+  const staleCockpitBlocksActionable = staleCockpitBlocksRaw.filter((row) => cockpitStaleIsActionable(row));
+  const staleCockpitBlocksDormant = staleCockpitBlocksRaw.filter((row) => !cockpitStaleIsActionable(row));
+  const activeCockpitBlocksRaw = blocks.filter((row) => !staleCockpitBlocksRaw.includes(row));
   const totalCockpitBlockCount = parseNonNegativeInt(
     cockpitMetricsRaw && cockpitMetricsRaw.total_block_count != null
       ? cockpitMetricsRaw.total_block_count
@@ -5533,11 +5711,26 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     blocks.length,
     100000000
   );
-  const staleCockpitBlockCount = parseNonNegativeInt(
+  const staleCockpitBlockRawCount = parseNonNegativeInt(
     cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
       ? cockpitMetricsRaw.stale_block_count
-      : staleCockpitBlocks.length,
-    staleCockpitBlocks.length,
+      : staleCockpitBlocksRaw.length,
+    staleCockpitBlocksRaw.length,
+    100000000
+  );
+  const staleCockpitBlockCount = parseNonNegativeInt(
+    staleCockpitBlocksActionable.length,
+    staleCockpitBlocksActionable.length,
+    100000000
+  );
+  const staleCockpitDormantBlockCount = parseNonNegativeInt(
+    staleCockpitBlocksDormant.length,
+    Math.max(0, staleCockpitBlockRawCount - staleCockpitBlockCount),
+    100000000
+  );
+  const activeCockpitBlockCount = parseNonNegativeInt(
+    totalCockpitBlockCount - staleCockpitBlockCount,
+    Math.max(0, totalCockpitBlockCount - staleCockpitBlockCount),
     100000000
   );
   const cockpitFreshCoverage = Number(
@@ -5546,12 +5739,27 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
   const cockpitStaleRatio = Number(
     (totalCockpitBlockCount > 0 ? staleCockpitBlockCount / totalCockpitBlockCount : 0).toFixed(3)
   );
+  const cockpitStaleRawRatio = Number(
+    (totalCockpitBlockCount > 0 ? staleCockpitBlockRawCount / totalCockpitBlockCount : 0).toFixed(3)
+  );
+  const cockpitStaleDormantRatio = Number(
+    (totalCockpitBlockCount > 0 ? staleCockpitDormantBlockCount / totalCockpitBlockCount : 0).toFixed(3)
+  );
   const staleLaneMap = {};
-  for (const row of staleCockpitBlocks) {
+  for (const row of staleCockpitBlocksActionable) {
     const lane = cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown';
     staleLaneMap[lane] = parseNonNegativeInt(staleLaneMap[lane], 0, 100000000) + 1;
   }
+  const staleDormantLaneMap = {};
+  for (const row of staleCockpitBlocksDormant) {
+    const lane = cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown';
+    staleDormantLaneMap[lane] = parseNonNegativeInt(staleDormantLaneMap[lane], 0, 100000000) + 1;
+  }
   const staleLanesTop = Object.entries(staleLaneMap)
+    .map(([lane, count]) => ({ lane, count: parseNonNegativeInt(count, 0, 100000000) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+  const staleDormantLanesTop = Object.entries(staleDormantLaneMap)
     .map(([lane, count]) => ({ lane, count: parseNonNegativeInt(count, 0, 100000000) }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
@@ -5661,7 +5869,7 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     standard: parseNonNegativeInt(laneCountsStatusRaw.standard, priorityCounts.standard, 100000000),
     background: parseNonNegativeInt(laneCountsStatusRaw.background, priorityCounts.background, 100000000),
   };
-  const conduitSignalsActiveFromBlocks = activeCockpitBlocks.filter((block) => {
+  const conduitSignalsActiveFromBlocks = activeCockpitBlocksRaw.filter((block) => {
     const lane = String(block.lane || '').toLowerCase();
     const eventType = String(block.event_type || '').toLowerCase();
     return lane.includes('conduit') || eventType.includes('conduit') || !!block.conduit_enforced;
@@ -5764,7 +5972,9 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     conduit_channels_observed: conduitChannelsObserved,
     cockpit_blocks: activeCockpitBlockCount,
     cockpit_total_blocks: blocks.length,
-    cockpit_stale_blocks: staleCockpitBlocks.length,
+    cockpit_stale_blocks: staleCockpitBlockCount,
+    cockpit_stale_blocks_raw: staleCockpitBlockRawCount,
+    cockpit_stale_blocks_dormant: staleCockpitDormantBlockCount,
     critical_attention: priorityCounts.critical,
     telemetry_attention: eventSplit.counts.telemetry,
     standard_attention: eventSplit.counts.standard,
@@ -5801,10 +6011,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
         active_block_count: activeCockpitBlockCount,
         total_block_count: totalCockpitBlockCount,
         stale_block_count: staleCockpitBlockCount,
+        stale_block_actionable_count: staleCockpitBlockCount,
+        stale_block_raw_count: staleCockpitBlockRawCount,
+        stale_block_dormant_count: staleCockpitDormantBlockCount,
         stale_block_threshold_ms: staleBlockThresholdMs,
         stale_block_ratio: cockpitStaleRatio,
+        stale_block_raw_ratio: cockpitStaleRawRatio,
+        stale_block_dormant_ratio: cockpitStaleDormantRatio,
         fresh_block_ratio: cockpitFreshCoverage,
         stale_lanes_top: staleLanesTop,
+        stale_lanes_dormant_top: staleDormantLanesTop,
         stream_coarse: cockpitStreamCoarse,
         signal_quality: cockpitSignalQuality,
       },
@@ -5925,11 +6141,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       conduit_scale_required: conduitScaleRequired,
       cockpit_to_conduit_ratio: cockpitConduitRatio,
       cockpit_stale_blocks: staleCockpitBlockCount,
+      cockpit_stale_blocks_raw: staleCockpitBlockRawCount,
+      cockpit_stale_blocks_dormant: staleCockpitDormantBlockCount,
       cockpit_stale_ratio: cockpitStaleRatio,
+      cockpit_stale_raw_ratio: cockpitStaleRawRatio,
+      cockpit_stale_dormant_ratio: cockpitStaleDormantRatio,
       cockpit_fresh_ratio: cockpitFreshCoverage,
       cockpit_stream_coarse: cockpitStreamCoarse,
       cockpit_signal_quality: cockpitSignalQuality,
       cockpit_stale_lanes_top: staleLanesTop,
+      cockpit_stale_lanes_dormant_top: staleDormantLanesTop,
       attention_critical: priorityCounts.critical,
       attention_critical_total: criticalEventsFull.length,
       attention_telemetry: priorityCounts.telemetry,
@@ -6383,6 +6604,26 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
+  const staleCockpitBlocksRaw = parseNonNegativeInt(
+    snapshot &&
+      snapshot.cockpit &&
+      snapshot.cockpit.metrics &&
+      snapshot.cockpit.metrics.stale_block_raw_count != null
+      ? snapshot.cockpit.metrics.stale_block_raw_count
+      : staleCockpitBlocks,
+    staleCockpitBlocks,
+    100000000
+  );
+  const staleCockpitBlocksDormant = parseNonNegativeInt(
+    snapshot &&
+      snapshot.cockpit &&
+      snapshot.cockpit.metrics &&
+      snapshot.cockpit.metrics.stale_block_dormant_count != null
+      ? snapshot.cockpit.metrics.stale_block_dormant_count
+      : Math.max(0, staleCockpitBlocksRaw - staleCockpitBlocks),
+    Math.max(0, staleCockpitBlocksRaw - staleCockpitBlocks),
+    100000000
+  );
   const cockpitStaleRatio = Number.isFinite(
     Number(cockpitMetrics && cockpitMetrics.stale_block_ratio != null ? cockpitMetrics.stale_block_ratio : Number.NaN)
   )
@@ -6407,9 +6648,61 @@ function runtimeSyncSummary(snapshot) {
   )
     ? Number(cockpitMetrics.fresh_block_ratio)
     : Number((1 - cockpitStaleRatio).toFixed(3));
+  const cockpitStaleRawRatio = Number.isFinite(
+    Number(cockpitMetrics && cockpitMetrics.stale_block_raw_ratio != null ? cockpitMetrics.stale_block_raw_ratio : Number.NaN)
+  )
+    ? Number(cockpitMetrics.stale_block_raw_ratio)
+    : Number(
+        (
+          staleCockpitBlocksRaw /
+          Math.max(
+            1,
+            parseNonNegativeInt(
+              snapshot && snapshot.cockpit && snapshot.cockpit.total_block_count != null
+                ? snapshot.cockpit.total_block_count
+                : cockpitBlocks.length,
+              cockpitBlocks.length,
+              100000000
+            )
+          )
+        ).toFixed(3)
+      );
+  const cockpitStaleDormantRatio = Number.isFinite(
+    Number(
+      cockpitMetrics && cockpitMetrics.stale_block_dormant_ratio != null
+        ? cockpitMetrics.stale_block_dormant_ratio
+        : Number.NaN
+    )
+  )
+    ? Number(cockpitMetrics.stale_block_dormant_ratio)
+    : Number(
+        (
+          staleCockpitBlocksDormant /
+          Math.max(
+            1,
+            parseNonNegativeInt(
+              snapshot && snapshot.cockpit && snapshot.cockpit.total_block_count != null
+                ? snapshot.cockpit.total_block_count
+                : cockpitBlocks.length,
+              cockpitBlocks.length,
+              100000000
+            )
+          )
+        ).toFixed(3)
+      );
   const cockpitStaleLanesTop =
     cockpitMetrics && Array.isArray(cockpitMetrics.stale_lanes_top)
       ? cockpitMetrics.stale_lanes_top
+          .map((row) => ({
+            lane: cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown',
+            count: parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000),
+          }))
+          .filter((row) => row.count > 0)
+          .slice(0, 6)
+      : [];
+  const cockpitStaleDormantLanesTop =
+    cockpitMetrics && Array.isArray(cockpitMetrics.stale_lanes_dormant_top)
+      ? cockpitMetrics.stale_lanes_dormant_top
           .map((row) => ({
             lane: cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown',
             count: parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000),
@@ -6462,9 +6755,14 @@ function runtimeSyncSummary(snapshot) {
     deferred_attention: deferredAttention,
     deferred_mode: deferredMode,
     cockpit_stale_blocks: staleCockpitBlocks,
+    cockpit_stale_blocks_raw: staleCockpitBlocksRaw,
+    cockpit_stale_blocks_dormant: staleCockpitBlocksDormant,
     cockpit_stale_ratio: cockpitStaleRatio,
+    cockpit_stale_raw_ratio: cockpitStaleRawRatio,
+    cockpit_stale_dormant_ratio: cockpitStaleDormantRatio,
     cockpit_fresh_ratio: cockpitFreshRatio,
     cockpit_stale_lanes_top: cockpitStaleLanesTop,
+    cockpit_stale_lanes_dormant_top: cockpitStaleDormantLanesTop,
     cockpit_signal_quality: cockpitSignalQuality,
     cockpit_stream_coarse: cockpitStreamCoarse,
     spine_success_rate: spineSuccessRate,
@@ -7122,6 +7420,7 @@ function runtimeMirrorFromSnapshot(snapshot, team = DEFAULT_TEAM) {
 function runAction(action, payload) {
   const normalizedAction = cleanText(action, 80);
   const data = payload && typeof payload === 'object' ? payload : {};
+  const runActionLane = (argv) => runLane(argv, { timeout_ms: LANE_ACTION_TIMEOUT_MS });
   if (normalizedAction === 'dashboard.ui.toggleControls') {
     const open = !!(data && data.open);
     const ts = nowIso();
@@ -7181,7 +7480,7 @@ function runAction(action, payload) {
   if (normalizedAction === 'app.switchProvider') {
     const provider = cleanText(data.provider || 'openai', 60) || 'openai';
     const model = cleanText(data.model || 'gpt-5', 100) || 'gpt-5';
-    return runLane(['app-plane', 'switch-provider', '--app=chat-ui', `--provider=${provider}`, `--model=${model}`]);
+    return runActionLane(['app-plane', 'switch-provider', '--app=chat-ui', `--provider=${provider}`, `--model=${model}`]);
   }
   if (normalizedAction === 'app.chat') {
     const input = cleanText(data.input || data.message || '', 2000);
@@ -7200,14 +7499,14 @@ function runAction(action, payload) {
     }
     const args = ['app-plane', 'run', '--app=chat-ui', `--input=${input}`];
     if (sessionId) args.push(`--session-id=${sessionId}`);
-    return runLane(args);
+    return runActionLane(args);
   }
   if (normalizedAction === 'collab.launchRole') {
     const team = cleanText(data.team || DEFAULT_TEAM, 60) || DEFAULT_TEAM;
     const role = cleanText(data.role || 'analyst', 60) || 'analyst';
     const shadow =
       cleanText(data.shadow || `${team}-${role}-shadow`, 80) || `${team}-${role}-shadow`;
-    return runLane([
+    return runActionLane([
       'collab-plane',
       'launch-role',
       `--team=${team}`,
@@ -7232,11 +7531,11 @@ function runAction(action, payload) {
     }
     const args = ['skills-plane', 'run', `--skill=${skill}`];
     if (input) args.push(`--input=${input}`);
-    return runLane(args);
+    return runActionLane(args);
   }
   if (normalizedAction === 'dashboard.assimilate') {
     const target = cleanText(data.target || 'codex', 120) || 'codex';
-    return runLane([
+    return runActionLane([
       'app-plane',
       'run',
       '--app=chat-ui',
@@ -7244,7 +7543,7 @@ function runAction(action, payload) {
     ]);
   }
   if (normalizedAction === 'dashboard.benchmark') {
-    return runLane(['health-status', 'dashboard']);
+    return runActionLane(['health-status', 'dashboard']);
   }
   return {
     ok: false,
@@ -7729,6 +8028,9 @@ function staleLaneRefreshCommand(laneName, team) {
   const lane = cleanText(laneName || '', 120).toLowerCase();
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   if (!lane) return null;
+  if (lane.includes('benchmark')) {
+    return ['benchmark-autonomy-gate', 'status', '--strict=1'];
+  }
   if (lane.includes('collab')) {
     return ['collab-plane', 'dashboard', `--team=${normalizedTeam}`, '--strict=1'];
   }
@@ -7740,6 +8042,39 @@ function staleLaneRefreshCommand(laneName, team) {
   }
   if (lane.includes('app')) {
     return ['app-plane', 'history', '--app=chat-ui'];
+  }
+  if (lane.includes('security')) {
+    return ['security-plane', 'status', '--strict=1'];
+  }
+  if (lane.includes('backlog')) {
+    return ['backlog-delivery-plane', 'status', '--strict=1'];
+  }
+  if (lane.includes('top1')) {
+    return ['top1-assurance', 'status', '--strict=1'];
+  }
+  if (lane.includes('enterprise')) {
+    return ['enterprise-hardening', 'status', '--strict=1'];
+  }
+  if (lane.includes('f100')) {
+    return ['f100-reliability-certification', 'status', '--strict=1'];
+  }
+  if (lane.includes('canyon')) {
+    return ['canyon-plane', 'status', '--strict=1'];
+  }
+  if (lane.includes('adaptive')) {
+    return ['adaptive-intelligence', 'status', '--strict=1'];
+  }
+  if (lane.includes('metakernel')) {
+    return ['metakernel', 'status', '--strict=1'];
+  }
+  if (lane.includes('research')) {
+    return ['research-plane', 'status', '--strict=1'];
+  }
+  if (lane.includes('mcp')) {
+    return ['mcp-plane', 'status', '--strict=1'];
+  }
+  if (lane.includes('eval')) {
+    return ['eval-plane', 'status', '--strict=1'];
   }
   if (lane.includes('hermes') || lane.includes('cockpit') || lane.includes('conduit')) {
     return ['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1'];
@@ -7767,10 +8102,15 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
     : [];
   const signalDeficitPressure =
     signalDeficit > 0 && queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH;
+  const chronicCoordinationPathology =
+    staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN && signalDeficit > 0;
+  const staleAutohealNeeded = staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
   const required =
     (signal.coarse && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     signalDeficitPressure ||
-    stalePressure;
+    stalePressure ||
+    chronicCoordinationPathology ||
+    staleAutohealNeeded;
   if (!required) {
     return {
       required: false,
@@ -7796,7 +8136,8 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
     `--strategy=${RUNTIME_COARSE_THROTTLE_STRATEGY}`,
     '--strict=1',
   ];
-  const laneDemotionLane = runLane(laneDemotionCommand);
+  const laneDemotionRequired = queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH || signalDeficit > 0;
+  const laneDemotionLane = laneDemotionRequired ? runLane(laneDemotionCommand) : null;
   const laneDemotionApplied = !!(
     laneDemotionLane &&
     laneDemotionLane.ok &&
@@ -7804,10 +8145,19 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
     laneDemotionLane.payload.ok !== false
   );
 
-  const roleOrder = ['researcher', 'builder', 'analyst'];
+  const staleOnlyMode =
+    staleAutohealNeeded &&
+    !signalDeficitPressure &&
+    !stalePressure &&
+    !chronicCoordinationPathology;
+  const roleOrder = staleOnlyMode ? ['builder', 'researcher', 'analyst'] : ['researcher', 'builder', 'analyst'];
   const requestedRoleCount =
     signalDeficit >= 8 ? 3 : signalDeficit >= 4 ? 2 : 1;
-  const scaleRoleCount = signal.coarse ? Math.max(2, requestedRoleCount) : requestedRoleCount;
+  const scaleRoleCount = staleOnlyMode
+    ? 1
+    : signal.coarse
+    ? Math.max(2, requestedRoleCount)
+    : requestedRoleCount;
   const scaleRoles = roleOrder.slice(0, Math.max(1, Math.min(roleOrder.length, scaleRoleCount)));
   const scaleLanes = scaleRoles.map((role) => {
     const shadow = cleanText(`${normalizedTeam}-coarse-${role}`, 120) || `${normalizedTeam}-coarse-${role}`;
@@ -7898,12 +8248,12 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
     stale_blocks: staleBlocks,
     stale_lanes_top: staleLanesTop,
     lane_demotion: {
-      required: true,
+      required: laneDemotionRequired,
       applied: laneDemotionApplied,
       max_depth: laneDemotionMaxDepth,
       strategy: RUNTIME_COARSE_THROTTLE_STRATEGY,
-      command: `protheus-ops ${laneDemotionCommand.join(' ')}`,
-      lane: laneOutcome(laneDemotionLane),
+      command: laneDemotionRequired ? `protheus-ops ${laneDemotionCommand.join(' ')}` : '',
+      lane: laneDemotionLane ? laneOutcome(laneDemotionLane) : null,
     },
     conduit_scale_up: {
       required: true,
@@ -7931,7 +8281,14 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     recommendation && recommendation.slo_gate && typeof recommendation.slo_gate === 'object'
       ? recommendation.slo_gate
       : null;
-  const required = !!(recommendation && recommendation.reliability_gate_required) || !!(sloGate && sloGate.required);
+  const staleMetricsWithPathology =
+    !!(sloGate && sloGate.stale_metrics) &&
+    parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
+      RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+  const required =
+    !!(recommendation && recommendation.reliability_gate_required) ||
+    !!(sloGate && sloGate.required) ||
+    staleMetricsWithPathology;
   const escalationOpenRate = Number(
     recommendation && recommendation.human_escalation_open_rate != null
       ? recommendation.human_escalation_open_rate
@@ -7957,7 +8314,11 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     runtime && runtime.receipt_latency_p99_ms != null ? runtime.receipt_latency_p99_ms : Number.NaN
   );
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
-  const sourceType = failedChecks.length > 0 ? 'runtime_slo_gate' : 'spine_success_rate';
+  const sourceType = failedChecks.length > 0
+    ? 'runtime_slo_gate'
+    : staleMetricsWithPathology
+    ? 'runtime_slo_stale_metrics'
+    : 'spine_success_rate';
   if (!required) {
     return {
       required: false,
@@ -7996,9 +8357,10 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     `handoffs/agent ${Number.isFinite(handoffsPerAgent) ? handoffsPerAgent.toFixed(2) : 'unknown'}`,
     `queue ${queueDepth}`,
     `p99 ${Number.isFinite(p99Latency) ? p99Latency.toFixed(0) : 'unknown'}ms`,
+    staleMetricsWithPathology ? 'stale metrics with persistent cockpit pathology.' : '',
     failedChecks.length ? `failed checks: ${failedChecks.join(', ')}` : 'failed checks: none',
     'no open human escalations.',
-  ].join('; ');
+  ].filter(Boolean).join('; ');
   const lane = enqueueAttentionEvent(
     {
       ts: nowIso(),
@@ -8116,11 +8478,126 @@ function maybeRunSpineMetricsCanary(recommendation, runtime) {
   };
 }
 
+function maybeRefreshBenchmarkSanity(runtime) {
+  const cockpitStatus =
+    cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : 'unknown', 24) ||
+    'unknown';
+  const mirrorStatus =
+    cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : cockpitStatus, 24) ||
+    cockpitStatus;
+  const ageSeconds = parsePositiveInt(
+    runtime && runtime.benchmark_sanity_age_seconds != null ? runtime.benchmark_sanity_age_seconds : -1,
+    -1,
+    -1,
+    1000000000
+  );
+  const stale = ageSeconds < 0 || ageSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
+  const failing = cockpitStatus === 'fail' || mirrorStatus === 'fail';
+  const required = failing || stale;
+  if (!required) {
+    return {
+      required: false,
+      applied: false,
+      reason: 'benchmark_sanity_fresh',
+      command: '',
+      lane: null,
+      cockpit_status: cockpitStatus,
+      mirror_status: mirrorStatus,
+      age_seconds: ageSeconds,
+      cooldown_ms: RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+      last_run_at: cleanText(benchmarkRefreshState.last_run_at || '', 80),
+      run_count: parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000),
+    };
+  }
+  const nowMs = Date.now();
+  const sinceLastMs = Math.max(
+    0,
+    nowMs - parseNonNegativeInt(benchmarkRefreshState.last_run_ms, 0, 1000000000000)
+  );
+  if (sinceLastMs < RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS) {
+    return {
+      required: true,
+      applied: false,
+      reason: 'cooldown_active',
+      command: '',
+      lane: null,
+      cockpit_status: cockpitStatus,
+      mirror_status: mirrorStatus,
+      age_seconds: ageSeconds,
+      cooldown_ms: RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+      since_last_ms: sinceLastMs,
+      last_run_at: cleanText(benchmarkRefreshState.last_run_at || '', 80),
+      run_count: parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000),
+    };
+  }
+  if (!fs.existsSync(BENCHMARK_SANITY_GATE_SCRIPT_PATH)) {
+    benchmarkRefreshState.last_run_ms = nowMs;
+    benchmarkRefreshState.last_run_at = nowIso();
+    benchmarkRefreshState.last_status = 'script_missing';
+    return {
+      required: true,
+      applied: false,
+      reason: 'script_missing',
+      command: `node ${path.relative(ROOT, BENCHMARK_SANITY_GATE_SCRIPT_PATH)} --strict=1`,
+      lane: null,
+      cockpit_status: cockpitStatus,
+      mirror_status: mirrorStatus,
+      age_seconds: ageSeconds,
+      cooldown_ms: RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+      since_last_ms: sinceLastMs,
+      last_run_at: cleanText(benchmarkRefreshState.last_run_at || '', 80),
+      run_count: parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000),
+    };
+  }
+  const command = ['node', path.relative(ROOT, BENCHMARK_SANITY_GATE_SCRIPT_PATH), '--strict=1'];
+  const run = spawnSync(command[0], command.slice(1), {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  const refreshSnapshot = benchmarkSanitySnapshot();
+  const ran = !run.error;
+  const applied = ran;
+  benchmarkRefreshState.last_run_ms = nowMs;
+  benchmarkRefreshState.last_run_at = nowIso();
+  benchmarkRefreshState.last_status = cleanText(refreshSnapshot.status || (applied ? 'refreshed' : 'failed'), 40) || 'unknown';
+  if (applied) {
+    benchmarkRefreshState.run_count =
+      parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000) + 1;
+  }
+  return {
+    required: true,
+    applied,
+    reason:
+      run.error
+        ? `spawn_failed:${cleanText(run.error.message || String(run.error), 120)}`
+        : run.status === 0
+        ? 'refreshed_ok'
+        : 'refreshed_gate_failed',
+    command: command.join(' '),
+    lane: null,
+    cockpit_status: cockpitStatus,
+    mirror_status: mirrorStatus,
+    refreshed_status: cleanText(refreshSnapshot.status || '', 24),
+    refreshed_detail: cleanText(refreshSnapshot.detail || '', 220),
+    refreshed_age_seconds: parsePositiveInt(refreshSnapshot.age_seconds, -1, -1, 1000000000),
+    age_seconds: ageSeconds,
+    cooldown_ms: RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+    since_last_ms: sinceLastMs,
+    last_run_at: cleanText(benchmarkRefreshState.last_run_at || '', 80),
+    run_count: parseNonNegativeInt(benchmarkRefreshState.run_count, 0, 100000000),
+    exit_status: parsePositiveInt(run.status, -1, -1, 255),
+  };
+}
+
 function maybeAutoHealConduit(runtime, team) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const signals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
   const staleCockpitBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
   const stalePressure = staleCockpitBlocks > 0 && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const chronicCoordinationPathology =
+    staleCockpitBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN;
   const threshold = Math.max(
     parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128),
     RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS
@@ -8146,7 +8623,8 @@ function maybeAutoHealConduit(runtime, team) {
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
     queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
     stalePressure ||
-    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS
+    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
+    chronicCoordinationPathology
   );
   if (!required) {
     return {
@@ -8467,6 +8945,9 @@ function runtimeSwarmRecommendation(snapshot) {
   const stalePressure =
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 &&
     parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const staleAutohealNeeded =
+    parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
+    RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
   const team = DEFAULT_TEAM;
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeSwarmAgents = parseNonNegativeInt(agents.length, 0, 100000000);
@@ -8484,6 +8965,7 @@ function runtimeSwarmRecommendation(snapshot) {
     !!runtime.conduit_scale_required ||
     parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000) > 0 ||
     stalePressure ||
+    staleAutohealNeeded ||
     (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     swarmScaleRequired ||
     reliabilityPosture.degraded ||
@@ -8501,7 +8983,8 @@ function runtimeSwarmRecommendation(snapshot) {
     builder:
       heavyCockpitLoad ||
       runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
-      stalePressure,
+      stalePressure ||
+      staleAutohealNeeded,
     reviewer:
       swarmScaleRequired ||
       runtime.health_coverage_gap_count > 0 ||
@@ -8550,6 +9033,17 @@ function runtimeSwarmRecommendation(snapshot) {
     runtime.conduit_signals < Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
     (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH);
   const memoryResumeEligible = !!runtime.memory_ingest_paused && runtime.queue_depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH;
+  const benchmarkAgeSeconds = parsePositiveInt(
+    runtime && runtime.benchmark_sanity_age_seconds != null ? runtime.benchmark_sanity_age_seconds : -1,
+    -1,
+    -1,
+    1000000000
+  );
+  const benchmarkRefreshRequired =
+    cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : '', 24) === 'fail' ||
+    cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : '', 24) === 'fail' ||
+    benchmarkAgeSeconds < 0 ||
+    benchmarkAgeSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
   const drainAgents = trackedRuntimeDrainAgents(snapshot);
   const predictiveDrainRequired = runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const predictiveDrainRelease = runtime.queue_depth <= RUNTIME_DRAIN_CLEAR_DEPTH && drainAgents.length > 0;
@@ -8558,7 +9052,8 @@ function runtimeSwarmRecommendation(snapshot) {
   const coarseSignalRemediationRequired =
     (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     (coarseSignalDeficit > 0 && runtime.queue_depth >= RUNTIME_INGRESS_DAMPEN_DEPTH) ||
-    stalePressure;
+    stalePressure ||
+    staleAutohealNeeded;
   const spineMetricsStale = !!runtime.spine_metrics_stale;
   const spineMetricsLatestAgeSeconds = parseNonNegativeInt(
     runtime && runtime.spine_metrics_latest_age_seconds != null ? runtime.spine_metrics_latest_age_seconds : 0,
@@ -8573,6 +9068,7 @@ function runtimeSwarmRecommendation(snapshot) {
     adaptiveHealthRequired ||
     conduitAutoBalanceRequired ||
     memoryResumeEligible ||
+    benchmarkRefreshRequired ||
     spineCanaryRequired ||
     predictiveDrainRequired ||
     predictiveDrainRelease;
@@ -8647,6 +9143,9 @@ function runtimeSwarmRecommendation(snapshot) {
       `protheus-ops collab-plane launch-role --team=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}` +
       ` --role=researcher --shadow=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}-conduit-watchdog --strict=1`,
     memory_resume_eligible: memoryResumeEligible,
+    benchmark_refresh_required: benchmarkRefreshRequired,
+    benchmark_sanity_age_seconds: benchmarkAgeSeconds,
+    benchmark_refresh_max_age_seconds: RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS,
     predictive_drain_required: predictiveDrainRequired && predictiveDrainAllowed,
     predictive_drain_release: predictiveDrainRelease,
     predictive_drain_allowed: predictiveDrainAllowed,
@@ -8730,6 +9229,31 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     last_run_at: cleanText(spineCanary.last_run_at || '', 80),
     run_count: parseNonNegativeInt(spineCanary.run_count, 0, 100000000),
     lane: spineCanary.lane,
+  });
+
+  const benchmarkRefresh = maybeRefreshBenchmarkSanity(runtime);
+  policies.push({
+    policy: 'benchmark_sanity_refresh',
+    required: !!benchmarkRefresh.required,
+    applied: !!benchmarkRefresh.applied,
+    reason: cleanText(benchmarkRefresh.reason || '', 120),
+    command: benchmarkRefresh.command || '',
+    cockpit_status: cleanText(benchmarkRefresh.cockpit_status || 'unknown', 24) || 'unknown',
+    mirror_status: cleanText(benchmarkRefresh.mirror_status || 'unknown', 24) || 'unknown',
+    refreshed_status: cleanText(benchmarkRefresh.refreshed_status || '', 24),
+    refreshed_detail: cleanText(benchmarkRefresh.refreshed_detail || '', 220),
+    age_seconds: parsePositiveInt(benchmarkRefresh.age_seconds, -1, -1, 1000000000),
+    refreshed_age_seconds: parsePositiveInt(benchmarkRefresh.refreshed_age_seconds, -1, -1, 1000000000),
+    cooldown_ms: parseNonNegativeInt(
+      benchmarkRefresh.cooldown_ms,
+      RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS,
+      1000000000
+    ),
+    since_last_ms: parseNonNegativeInt(benchmarkRefresh.since_last_ms, 0, 1000000000),
+    last_run_at: cleanText(benchmarkRefresh.last_run_at || '', 80),
+    run_count: parseNonNegativeInt(benchmarkRefresh.run_count, 0, 100000000),
+    exit_status: parsePositiveInt(benchmarkRefresh.exit_status, -1, -1, 255),
+    lane: benchmarkRefresh.lane,
   });
 
   const recommendationSloGate =
@@ -9325,13 +9849,28 @@ function runServe(flags) {
   let enforcingContracts = false;
   let lastContractEnforceAtMs = 0;
   let lastContractLoopRunAtMs = 0;
+  let nextSnapshotRefreshAtMs = 0;
+  let lastSnapshotBuildDurationMs = 0;
 
-  const refreshSnapshot = (contractEnforcement = null) => {
+  const refreshSnapshot = (contractEnforcement = null, options = {}) => {
+    const startedMs = Date.now();
     latestSnapshot = buildSnapshot({
       ...flags,
       contract_enforcement: contractEnforcement,
     });
     writeSnapshotReceipt(latestSnapshot);
+    const finishedMs = Date.now();
+    const buildDurationMs = Math.max(0, finishedMs - startedMs);
+    lastSnapshotBuildDurationMs = buildDurationMs;
+    const cadenceMs = parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000);
+    const deferOnSlow = !(options && options.defer_on_slow === false);
+    if (deferOnSlow) {
+      if (buildDurationMs > cadenceMs) {
+        nextSnapshotRefreshAtMs = finishedMs + Math.min(15_000, Math.max(cadenceMs, buildDurationMs));
+      } else if (nextSnapshotRefreshAtMs > 0 && finishedMs >= nextSnapshotRefreshAtMs) {
+        nextSnapshotRefreshAtMs = 0;
+      }
+    }
     return latestSnapshot;
   };
   try {
@@ -10268,11 +10807,15 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/healthz') {
+        const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
         sendJson(res, 200, {
           ok: true,
           type: 'infring_dashboard_healthz',
           ts: nowIso(),
           receipt_hash: latestSnapshot.receipt_hash,
+          snapshot_age_ms: snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : null,
+          snapshot_build_ms: parseNonNegativeInt(lastSnapshotBuildDurationMs, 0, 1000000000),
+          next_snapshot_refresh_ms: parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000),
         });
         return;
       }
@@ -10395,28 +10938,65 @@ function runServe(flags) {
     const runtime = runtimeSyncSummary(latestSnapshot);
     const queueVelocityPerMin = queueDepthVelocity(runtimeTrendSeries);
     const stall = runtimeStallSignals(runtime, runtimeTrendSeries);
+    const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+    // Treat stall signatures as actionable only when there is real queue pressure.
+    // This avoids running heavy recovery lanes while the queue is healthy.
+    const stallActionable = !!stall.detected && queueDepth >= RUNTIME_STALL_QUEUE_MIN_DEPTH;
     const stalePressure =
       parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 &&
-      parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+      queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+    const staleAutohealNeeded =
+      parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
+      RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+    const chronicCoordinationPathology =
+      parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
+        RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN &&
+      parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000) <
+        Math.max(
+          1,
+          parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128)
+        );
     const signalFloor = Math.max(
       RUNTIME_STALL_CONDUIT_FLOOR,
       Math.floor(Math.max(1, runtime.target_conduit_signals) * 0.5)
     );
-    const conduitScalePressure = !!runtime.conduit_scale_required && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+    const conduitScalePressure =
+      !!runtime.conduit_scale_required &&
+      (
+        runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+        chronicCoordinationPathology
+      );
+    const memoryResumeNeeded =
+      !!runtime.memory_ingest_paused &&
+      runtime.queue_depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH;
+    const benchmarkRefreshNeeded =
+      cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : '', 24) === 'fail' ||
+      cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : '', 24) === 'fail' ||
+      parsePositiveInt(
+        runtime && runtime.benchmark_sanity_age_seconds != null ? runtime.benchmark_sanity_age_seconds : -1,
+        -1,
+        -1,
+        1000000000
+      ) > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
     const emergency =
       runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ||
       stalePressure ||
+      chronicCoordinationPathology ||
       (runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH && runtime.conduit_signals < signalFloor) ||
       queueVelocityPerMin >= 4 ||
-      stall.detected;
+      stallActionable;
     const required =
       runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
       runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
       runtime.health_coverage_gap_count > 0 ||
       conduitScalePressure ||
+      chronicCoordinationPathology ||
+      staleAutohealNeeded ||
+      memoryResumeNeeded ||
+      benchmarkRefreshNeeded ||
       cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit' ||
       queueVelocityPerMin >= 4 ||
-      stall.detected ||
+      stallActionable ||
       emergency;
     const cadenceMs = emergency
       ? RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS
@@ -10456,7 +11036,7 @@ function runServe(flags) {
     let stallRecovery = null;
     let ok = !!(lanePayload && lanePayload.ok);
     const stallRecoveryRequired =
-      !!stall.detected &&
+      stallActionable &&
       (
         !!stall.coordination_pathology ||
         parseNonNegativeInt(runtimeAutohealState.failure_count, 0, 100000000) >=
@@ -10765,6 +11345,7 @@ function runServe(flags) {
   });
 
   const interval = setInterval(() => {
+    if (Date.now() < parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000)) return;
     if (updating) return;
     updating = true;
     try {
