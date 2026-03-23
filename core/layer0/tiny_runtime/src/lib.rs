@@ -60,4 +60,3 @@ mod tests {
         assert!(normalized_capacity_score(1024, 16) < 100);
     }
 }
-

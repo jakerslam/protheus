@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-use conduit::{CommandEnvelope, ConduitPolicy, ConduitSecurityContext, ResponseEnvelope, TsCommand};
+use conduit::{
+    CommandEnvelope, ConduitPolicy, ConduitSecurityContext, ResponseEnvelope, TsCommand,
+};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -51,16 +53,12 @@ fn write_policy_file(
 }
 
 fn signed_envelope(policy: &ConduitPolicy, request_id: &str) -> CommandEnvelope {
-    let security = ConduitSecurityContext::from_policy(
-        policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
+    let security =
+        ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
     let ts_ms = 1_732_000_000_000;
     let command = TsCommand::GetSystemStatus;
-    let metadata = security.mint_security_metadata("daemon-it", request_id, ts_ms, &command, 60_000);
+    let metadata =
+        security.mint_security_metadata("daemon-it", request_id, ts_ms, &command, 60_000);
     CommandEnvelope {
         schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
         schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
@@ -78,20 +76,15 @@ fn retarget_command(
     client_id: &str,
 ) {
     envelope.command = command;
-    envelope.security = ConduitSecurityContext::from_policy(
-        policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    )
-    .mint_security_metadata(
-        client_id,
-        &envelope.request_id,
-        envelope.ts_ms,
-        &envelope.command,
-        60_000,
-    );
+    envelope.security =
+        ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret")
+            .mint_security_metadata(
+                client_id,
+                &envelope.request_id,
+                envelope.ts_ms,
+                &envelope.command,
+                60_000,
+            );
 }
 
 fn spawn_daemon(policy_path: &std::path::Path) -> std::process::Child {
@@ -235,7 +228,10 @@ fn conduit_daemon_fail_closes_invalid_edge_json_bridge_payload() {
             ..
         } => {
             assert_eq!(status, "edge_bridge_error");
-            assert_eq!(violation_reason.as_deref(), Some("edge_bridge_parse_failed"));
+            assert_eq!(
+                violation_reason.as_deref(),
+                Some("edge_bridge_parse_failed")
+            );
         }
         other => panic!("unexpected event: {other:?}"),
     }

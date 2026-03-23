@@ -536,7 +536,10 @@ fn v6_sec_016_rejects_unsupported_provider_in_strict_mode() {
             "--strict=1".to_string(),
         ],
     );
-    assert_eq!(exit, 2, "strict mode must fail-closed on unsupported provider");
+    assert_eq!(
+        exit, 2,
+        "strict mode must fail-closed on unsupported provider"
+    );
     let latest = read_json(&latest_path(root));
     assert_eq!(
         latest.get("type").and_then(Value::as_str),
@@ -578,11 +581,15 @@ fn v6_sec_014_audit_logs_handles_empty_event_history_without_false_blocks() {
         Some(0)
     );
     assert_eq!(
-        latest.pointer("/summary/failed_events").and_then(Value::as_u64),
+        latest
+            .pointer("/summary/failed_events")
+            .and_then(Value::as_u64),
         Some(0)
     );
     assert_eq!(
-        latest.pointer("/summary/audit_blocked").and_then(Value::as_bool),
+        latest
+            .pointer("/summary/audit_blocked")
+            .and_then(Value::as_bool),
         Some(false)
     );
     assert_claim(&latest, "V6-SEC-014");
@@ -612,7 +619,10 @@ fn v6_sec_contract_and_skill_path_lanes_fail_closed_in_strict_mode() {
         contract_latest.get("type").and_then(Value::as_str),
         Some("security_plane_contract_lane")
     );
-    assert_eq!(contract_latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        contract_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
     assert!(
         contract_latest
             .get("mismatch_flags")
@@ -662,7 +672,10 @@ fn v6_sec_contract_and_skill_path_lanes_fail_closed_in_strict_mode() {
         quarantine_latest.get("type").and_then(Value::as_str),
         Some("security_plane_skill_quarantine")
     );
-    assert_eq!(quarantine_latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        quarantine_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
     assert_eq!(
         quarantine_latest.get("error").and_then(Value::as_str),
         Some("skill_id_required")
@@ -675,11 +688,11 @@ fn v6_sec_011_remediation_requires_scan_state_in_strict_mode() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    let exit = security_plane::run(
-        root,
-        &["remediate".to_string(), "--strict=1".to_string()],
+    let exit = security_plane::run(root, &["remediate".to_string(), "--strict=1".to_string()]);
+    assert_eq!(
+        exit, 2,
+        "strict remediation must fail without scan artifacts"
     );
-    assert_eq!(exit, 2, "strict remediation must fail without scan artifacts");
     let latest = read_json(&latest_path(root));
     assert_eq!(
         latest.get("type").and_then(Value::as_str),
@@ -716,15 +729,21 @@ fn v6_sec_015_threat_model_medium_boundary_is_receipted_and_thresholded() {
     );
     let allow_latest = read_json(&latest_path(root));
     assert_eq!(
-        allow_latest.pointer("/event/severity").and_then(Value::as_str),
+        allow_latest
+            .pointer("/event/severity")
+            .and_then(Value::as_str),
         Some("medium")
     );
     assert_eq!(
-        allow_latest.pointer("/event/risk_score").and_then(Value::as_u64),
+        allow_latest
+            .pointer("/event/risk_score")
+            .and_then(Value::as_u64),
         Some(50)
     );
     assert_eq!(
-        allow_latest.pointer("/event/blocked").and_then(Value::as_bool),
+        allow_latest
+            .pointer("/event/blocked")
+            .and_then(Value::as_bool),
         Some(false)
     );
 
@@ -745,15 +764,21 @@ fn v6_sec_015_threat_model_medium_boundary_is_receipted_and_thresholded() {
     );
     let block_latest = read_json(&latest_path(root));
     assert_eq!(
-        block_latest.pointer("/event/severity").and_then(Value::as_str),
+        block_latest
+            .pointer("/event/severity")
+            .and_then(Value::as_str),
         Some("medium")
     );
     assert_eq!(
-        block_latest.pointer("/event/risk_score").and_then(Value::as_u64),
+        block_latest
+            .pointer("/event/risk_score")
+            .and_then(Value::as_u64),
         Some(50)
     );
     assert_eq!(
-        block_latest.pointer("/event/blocked").and_then(Value::as_bool),
+        block_latest
+            .pointer("/event/blocked")
+            .and_then(Value::as_bool),
         Some(true)
     );
     assert_claim(&block_latest, "V6-SEC-015");

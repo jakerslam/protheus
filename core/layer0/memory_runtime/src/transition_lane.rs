@@ -229,8 +229,10 @@ fn default_policy(root: &Path) -> TransitionPolicy {
         paths: TransitionPaths {
             latest_path: root.join("local/state/client/memory/rust_transition/latest.json"),
             receipts_path: root.join("local/state/client/memory/rust_transition/receipts.jsonl"),
-            selector_path: root.join("local/state/client/memory/rust_transition/backend_selector.json"),
-            benchmark_path: root.join("local/state/client/memory/rust_transition/benchmark_history.json"),
+            selector_path: root
+                .join("local/state/client/memory/rust_transition/backend_selector.json"),
+            benchmark_path: root
+                .join("local/state/client/memory/rust_transition/benchmark_history.json"),
             benchmark_latest_path: root
                 .join("local/state/client/memory/rust_transition/benchmark_latest.json"),
             benchmark_report_path: root.join("benchmarks/memory-stage1.md"),
@@ -749,11 +751,13 @@ mod tests {
     fn evaluate_auto_selector_matches_threshold_gate() {
         let root = unique_temp_dir("transition-lane-auto-selector");
         let policy_path = root.join("policy.json");
-        fs::create_dir_all(root.join("local/state/client/memory/rust_transition")).expect("mkdir state");
+        fs::create_dir_all(root.join("local/state/client/memory/rust_transition"))
+            .expect("mkdir state");
         fs::write(&policy_path, "{}").expect("write policy");
         let policy = load_policy(&root, &policy_path);
         let scope_id = policy_scope_id(&policy);
-        let history_path = root.join("local/state/client/memory/rust_transition/benchmark_history.json");
+        let history_path =
+            root.join("local/state/client/memory/rust_transition/benchmark_history.json");
         let rows = (0..12)
             .map(|idx| {
                 json!({

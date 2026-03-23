@@ -77,7 +77,12 @@ mod tests {
     fn put_and_get_are_versioned_and_deterministic() {
         let mut store = StorageEngine::default();
         let first = store
-            .put("local/state/kernel", "{\"ok\":true}", None, 1_762_100_000_000)
+            .put(
+                "local/state/kernel",
+                "{\"ok\":true}",
+                None,
+                1_762_100_000_000,
+            )
             .expect("first put");
         assert_eq!(first.version, 1);
 
