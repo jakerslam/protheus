@@ -80,6 +80,10 @@ const RUNTIME_STALL_QUEUE_MIN_DEPTH = 60;
 const RUNTIME_STALL_ESCALATION_FAILURE_THRESHOLD = 3;
 const RUNTIME_STALL_DRAIN_LIMIT = 96;
 const RUNTIME_SPINE_SUCCESS_TARGET_MIN = 0.9;
+const RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS = 250;
+const RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS = 400;
+const RUNTIME_SLO_QUEUE_DEPTH_MAX = 60;
+const RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN = 0.01;
 const RUNTIME_HANDOFFS_PER_AGENT_MIN = 0.1;
 const RUNTIME_HANDOFFS_AGENT_FLOOR = 20;
 const RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -4446,6 +4450,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   const session = activeSession(state);
   const chatSessionId = runtimeChatSessionId(effectiveAgentId, session.session_id);
   const modelState = effectiveAgentModel(effectiveAgentId, snapshot);
+  const runtimeSync = runtimeSyncSummary(snapshot);
   const runtimeMirror = collectConduitAttentionCockpit(
     snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM
   );
@@ -4670,6 +4675,14 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
       benchmark_sanity_source: runtimeMirror.summary.benchmark_sanity_source || 'benchmark_sanity_state',
       benchmark_sanity_cockpit_status: runtimeMirror.summary.benchmark_sanity_cockpit_status || 'unknown',
       benchmark_sanity_age_seconds: parsePositiveInt(runtimeMirror.summary.benchmark_sanity_age_seconds, -1, -1, 1000000000),
+      receipt_latency_p95_ms:
+        runtimeSync && runtimeSync.receipt_latency_p95_ms != null
+          ? Number(runtimeSync.receipt_latency_p95_ms)
+          : null,
+      receipt_latency_p99_ms:
+        runtimeSync && runtimeSync.receipt_latency_p99_ms != null
+          ? Number(runtimeSync.receipt_latency_p99_ms)
+          : null,
       health_coverage_gap_count: parseNonNegativeInt(
         snapshot && snapshot.health && snapshot.health.coverage && snapshot.health.coverage.gap_count != null
           ? snapshot.health.coverage.gap_count
@@ -5726,6 +5739,18 @@ function runtimeSyncSummary(snapshot) {
     typeof dashboardMetrics.human_escalation_open_rate === 'object'
       ? dashboardMetrics.human_escalation_open_rate
       : {};
+  const receiptLatencyP95Metric =
+    dashboardMetrics &&
+    dashboardMetrics.receipt_latency_p95_ms &&
+    typeof dashboardMetrics.receipt_latency_p95_ms === 'object'
+      ? dashboardMetrics.receipt_latency_p95_ms
+      : {};
+  const receiptLatencyP99Metric =
+    dashboardMetrics &&
+    dashboardMetrics.receipt_latency_p99_ms &&
+    typeof dashboardMetrics.receipt_latency_p99_ms === 'object'
+      ? dashboardMetrics.receipt_latency_p99_ms
+      : {};
   const collabMetric =
     dashboardMetrics &&
     dashboardMetrics.collab_team_surface &&
@@ -5748,6 +5773,16 @@ function runtimeSyncSummary(snapshot) {
   const spineSuccessRateRaw = Number(spineSuccessMetric && spineSuccessMetric.value != null ? spineSuccessMetric.value : Number.NaN);
   const humanEscalationOpenRateRaw = Number(
     escalationMetric && escalationMetric.value != null ? escalationMetric.value : Number.NaN
+  );
+  const receiptLatencyP95Raw = Number(
+    receiptLatencyP95Metric && receiptLatencyP95Metric.value != null
+      ? receiptLatencyP95Metric.value
+      : Number.NaN
+  );
+  const receiptLatencyP99Raw = Number(
+    receiptLatencyP99Metric && receiptLatencyP99Metric.value != null
+      ? receiptLatencyP99Metric.value
+      : Number.NaN
   );
   const dopamineScoreRaw = Number(dopamineMetric && dopamineMetric.value != null ? dopamineMetric.value : Number.NaN);
   const handoffCountRaw =
@@ -5895,6 +5930,14 @@ function runtimeSyncSummary(snapshot) {
       0,
       100000000
     ),
+    receipt_latency_p95_ms: Number.isFinite(receiptLatencyP95Raw) ? Number(receiptLatencyP95Raw) : null,
+    receipt_latency_p95_status:
+      cleanText(receiptLatencyP95Metric && receiptLatencyP95Metric.status ? receiptLatencyP95Metric.status : 'unknown', 24) ||
+      'unknown',
+    receipt_latency_p99_ms: Number.isFinite(receiptLatencyP99Raw) ? Number(receiptLatencyP99Raw) : null,
+    receipt_latency_p99_status:
+      cleanText(receiptLatencyP99Metric && receiptLatencyP99Metric.status ? receiptLatencyP99Metric.status : 'unknown', 24) ||
+      'unknown',
     human_escalation_open_rate: humanEscalationOpenRate,
     human_escalation_status:
       cleanText(escalationMetric && escalationMetric.status ? escalationMetric.status : 'unknown', 24) || 'unknown',
@@ -6884,6 +6927,143 @@ function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0) {
   };
 }
 
+function runtimeSloGate(runtime, reliabilityPosture = null) {
+  const spineSuccessRateRaw = Number(
+    runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN
+  );
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const latencyP95Raw = Number(
+    runtime && runtime.receipt_latency_p95_ms != null ? runtime.receipt_latency_p95_ms : Number.NaN
+  );
+  const latencyP99Raw = Number(
+    runtime && runtime.receipt_latency_p99_ms != null ? runtime.receipt_latency_p99_ms : Number.NaN
+  );
+  const escalationOpenRateRaw = Number(
+    runtime && runtime.human_escalation_open_rate != null ? runtime.human_escalation_open_rate : Number.NaN
+  );
+  const spineKnown = Number.isFinite(spineSuccessRateRaw);
+  const p95Known = Number.isFinite(latencyP95Raw);
+  const p99Known = Number.isFinite(latencyP99Raw);
+  const escalationKnown = Number.isFinite(escalationOpenRateRaw);
+  const spineValue = spineKnown ? Number(spineSuccessRateRaw) : null;
+  const p95Value = p95Known ? Number(latencyP95Raw) : null;
+  const p99Value = p99Known ? Number(latencyP99Raw) : null;
+  const escalationValue = escalationKnown ? Number(escalationOpenRateRaw) : 0;
+
+  const checkRows = [
+    {
+      id: 'spine_success_rate',
+      known: spineKnown,
+      status: spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN ? 'fail' : spineKnown ? 'pass' : 'unknown',
+      value: spineValue,
+      target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+      operator: '>=',
+    },
+    {
+      id: 'receipt_latency_p95_ms',
+      known: p95Known,
+      status:
+        p95Known && p95Value > RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS
+          ? 'fail'
+          : p95Known
+          ? 'pass'
+          : 'unknown',
+      value: p95Value,
+      target: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
+      operator: '<=',
+    },
+    {
+      id: 'receipt_latency_p99_ms',
+      known: p99Known,
+      status:
+        p99Known && p99Value > RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS
+          ? 'fail'
+          : p99Known
+          ? 'pass'
+          : 'unknown',
+      value: p99Value,
+      target: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
+      operator: '<=',
+    },
+    {
+      id: 'queue_depth',
+      known: true,
+      status: queueDepth > RUNTIME_SLO_QUEUE_DEPTH_MAX ? 'fail' : 'pass',
+      value: queueDepth,
+      target: RUNTIME_SLO_QUEUE_DEPTH_MAX,
+      operator: '<=',
+    },
+  ];
+
+  const primaryFailedChecks = checkRows.filter((row) => row.status === 'fail').map((row) => row.id);
+  const baseDegraded = primaryFailedChecks.length > 0;
+  const escalationRequired =
+    baseDegraded ||
+    !!(reliabilityPosture && reliabilityPosture.degraded) ||
+    (spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN);
+  const escalationStatus =
+    !escalationRequired
+      ? 'pass'
+      : escalationKnown && escalationValue > RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN
+      ? 'pass'
+      : escalationKnown
+      ? 'fail'
+      : 'unknown';
+  const escalationCheck = {
+    id: 'human_escalation_open_rate',
+    known: escalationKnown,
+    status: escalationStatus,
+    value: escalationKnown ? escalationValue : null,
+    target: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
+    operator: escalationRequired ? '>' : 'n/a',
+    required: escalationRequired,
+  };
+  checkRows.push(escalationCheck);
+
+  const failedChecks = checkRows
+    .filter((row) => row.status === 'fail' && (row.id !== 'human_escalation_open_rate' || escalationRequired))
+    .map((row) => row.id);
+  const failedPrimary = primaryFailedChecks.length;
+  const severeLatency =
+    (p99Known && p99Value > RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS * 1.5) ||
+    (p95Known && p95Value > RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS * 1.5);
+  const severeSpine = spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN * 0.75;
+  const severeBacklog = queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH;
+  const severity =
+    failedChecks.length === 0
+      ? 'ok'
+      : severeLatency || severeSpine || severeBacklog || failedPrimary >= 2
+      ? 'critical'
+      : 'warn';
+  const required = failedChecks.length > 0;
+  const containmentRequired =
+    required &&
+    (queueDepth > RUNTIME_SLO_QUEUE_DEPTH_MAX || severeLatency || severeSpine || failedPrimary > 0);
+  const blockScale = required && (severity === 'critical' || failedPrimary > 0);
+  const summary =
+    required
+      ? `SLO gate ${severity}: ${failedChecks.join(', ')}`
+      : `SLO gate ok: queue ${queueDepth}/${RUNTIME_SLO_QUEUE_DEPTH_MAX}, spine ${spineKnown ? (spineValue * 100).toFixed(1) : 'unknown'}%.`;
+
+  return {
+    required,
+    severity,
+    block_scale: blockScale,
+    containment_required: containmentRequired,
+    escalation_required: escalationRequired,
+    failed_checks: failedChecks,
+    checks: checkRows,
+    summary: cleanText(summary, 260),
+    thresholds: {
+      spine_success_rate_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+      receipt_latency_p95_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
+      receipt_latency_p99_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
+      queue_depth_max: RUNTIME_SLO_QUEUE_DEPTH_MAX,
+      escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
+    },
+  };
+}
+
 function staleLaneRefreshCommand(laneName, team) {
   const lane = cleanText(laneName || '', 120).toLowerCase();
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
@@ -7080,14 +7260,37 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
 }
 
 function maybeEmitReliabilityEscalation(recommendation, runtime) {
-  const required = !!(recommendation && recommendation.reliability_gate_required);
-  const escalationStarved = !!(recommendation && recommendation.escalation_starved);
+  const sloGate =
+    recommendation && recommendation.slo_gate && typeof recommendation.slo_gate === 'object'
+      ? recommendation.slo_gate
+      : null;
+  const required = !!(recommendation && recommendation.reliability_gate_required) || !!(sloGate && sloGate.required);
+  const escalationOpenRate = Number(
+    recommendation && recommendation.human_escalation_open_rate != null
+      ? recommendation.human_escalation_open_rate
+      : runtime && runtime.human_escalation_open_rate != null
+      ? runtime.human_escalation_open_rate
+      : Number.NaN
+  );
+  const escalationKnown = Number.isFinite(escalationOpenRate);
+  const escalationStarved =
+    !!(recommendation && recommendation.escalation_starved) ||
+    (required && escalationKnown && escalationOpenRate <= RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN);
   const spineRate = Number(
     recommendation && recommendation.spine_success_rate != null ? recommendation.spine_success_rate : Number.NaN
   );
   const handoffsPerAgent = Number(
     recommendation && recommendation.handoffs_per_agent != null ? recommendation.handoffs_per_agent : Number.NaN
   );
+  const failedChecks =
+    sloGate && Array.isArray(sloGate.failed_checks)
+      ? sloGate.failed_checks.map((row) => cleanText(row, 80)).filter(Boolean).slice(0, 8)
+      : [];
+  const p99Latency = Number(
+    runtime && runtime.receipt_latency_p99_ms != null ? runtime.receipt_latency_p99_ms : Number.NaN
+  );
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const sourceType = failedChecks.length > 0 ? 'runtime_slo_gate' : 'spine_success_rate';
   if (!required) {
     return {
       required: false,
@@ -7121,13 +7324,20 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
       last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
     };
   }
-  const summary = `Spine success ${Number.isFinite(spineRate) ? (spineRate * 100).toFixed(1) : 'unknown'}% below ${(RUNTIME_SPINE_SUCCESS_TARGET_MIN * 100).toFixed(0)}%; no open human escalations; handoffs/agent ${Number.isFinite(handoffsPerAgent) ? handoffsPerAgent.toFixed(2) : 'unknown'}.`;
+  const summary = [
+    `Spine success ${Number.isFinite(spineRate) ? (spineRate * 100).toFixed(1) : 'unknown'}%`,
+    `handoffs/agent ${Number.isFinite(handoffsPerAgent) ? handoffsPerAgent.toFixed(2) : 'unknown'}`,
+    `queue ${queueDepth}`,
+    `p99 ${Number.isFinite(p99Latency) ? p99Latency.toFixed(0) : 'unknown'}ms`,
+    failedChecks.length ? `failed checks: ${failedChecks.join(', ')}` : 'failed checks: none',
+    'no open human escalations.',
+  ].join('; ');
   const lane = enqueueAttentionEvent(
     {
       ts: nowIso(),
       severity: 'critical',
       source: 'runtime_reliability_guard',
-      source_type: 'spine_success_rate',
+      source_type: sourceType,
       summary: cleanText(summary, 260),
       band: 'p0',
       priority_lane: 'critical',
@@ -7140,7 +7350,12 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
         conduit_signals: parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000),
         spine_success_rate: Number.isFinite(spineRate) ? spineRate : null,
         spine_success_target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+        receipt_latency_p99_ms: Number.isFinite(p99Latency) ? p99Latency : null,
+        receipt_latency_p99_target_ms: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
         handoffs_per_agent: Number.isFinite(handoffsPerAgent) ? handoffsPerAgent : null,
+        escalation_open_rate: escalationKnown ? escalationOpenRate : null,
+        escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
+        failed_checks: failedChecks,
       },
     },
     'runtime_reliability_guard'
@@ -7515,11 +7730,12 @@ function runtimeSwarmRecommendation(snapshot) {
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeSwarmAgents = parseNonNegativeInt(agents.length, 0, 100000000);
   const reliabilityPosture = runtimeReliabilityPosture(runtime, activeSwarmAgents);
+  const sloGate = runtimeSloGate(runtime, reliabilityPosture);
   const swarmScalePressure =
     runtime.queue_depth >= RUNTIME_DRAIN_HIGH_LOAD_DEPTH &&
     activeSwarmAgents < RUNTIME_DRAIN_AGENT_HIGH_LOAD_TARGET;
-  const swarmScaleRequired = swarmScalePressure && !reliabilityPosture.degraded;
-  const swarmScaleBlockedByReliability = swarmScalePressure && reliabilityPosture.degraded;
+  const swarmScaleRequired = swarmScalePressure && !reliabilityPosture.degraded && !sloGate.block_scale;
+  const swarmScaleBlockedByReliability = swarmScalePressure && (reliabilityPosture.degraded || sloGate.block_scale);
   const shouldRecommendBase =
     runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
     runtime.critical_attention_total >= 5 ||
@@ -7529,26 +7745,33 @@ function runtimeSwarmRecommendation(snapshot) {
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
     cockpitSignal.coarse ||
     swarmScaleRequired ||
-    reliabilityPosture.degraded;
+    reliabilityPosture.degraded ||
+    sloGate.required;
   const heavyCockpitLoad = runtime.cockpit_blocks >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD;
   const roleOrder = ['coordinator', 'researcher', 'builder', 'reviewer', 'analyst'];
   const roleRequired = {
-    coordinator: shouldRecommendBase || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded,
+    coordinator: shouldRecommendBase || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded || sloGate.required,
     researcher:
       shouldRecommendBase ||
       runtime.critical_attention_total >= 5 ||
       !!runtime.conduit_scale_required ||
-      reliabilityPosture.degraded,
+      reliabilityPosture.degraded ||
+      sloGate.required,
     builder:
       heavyCockpitLoad ||
       runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
       parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0,
-    reviewer: swarmScaleRequired || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded,
+    reviewer:
+      swarmScaleRequired ||
+      runtime.health_coverage_gap_count > 0 ||
+      reliabilityPosture.degraded ||
+      sloGate.required,
     analyst:
       runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
       runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
       runtime.health_coverage_gap_count > 0 ||
-      reliabilityPosture.degraded,
+      reliabilityPosture.degraded ||
+      sloGate.required,
   };
   const rolePrompts = {
     coordinator:
@@ -7579,8 +7802,9 @@ function runtimeSwarmRecommendation(snapshot) {
     ingressControl.level === 'shed' ||
     ingressControl.level === 'circuit' ||
     cockpitSignal.coarse ||
-    reliabilityPosture.degraded;
-  const adaptiveHealthRequired = runtime.queue_depth >= 80 || runtime.health_coverage_gap_count > 0;
+    reliabilityPosture.degraded ||
+    !!sloGate.containment_required;
+  const adaptiveHealthRequired = runtime.queue_depth >= 80 || runtime.health_coverage_gap_count > 0 || sloGate.required;
   const conduitAutoBalanceRequired =
     runtime.conduit_signals < Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
     cockpitSignal.coarse;
@@ -7588,7 +7812,7 @@ function runtimeSwarmRecommendation(snapshot) {
   const drainAgents = trackedRuntimeDrainAgents(snapshot);
   const predictiveDrainRequired = runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const predictiveDrainRelease = runtime.queue_depth <= RUNTIME_DRAIN_CLEAR_DEPTH && drainAgents.length > 0;
-  const predictiveDrainAllowed = !reliabilityPosture.degraded;
+  const predictiveDrainAllowed = !reliabilityPosture.degraded && !sloGate.block_scale;
   const shouldRecommend =
     rolePlan.length > 0 ||
     throttleRequired ||
@@ -7627,7 +7851,13 @@ function runtimeSwarmRecommendation(snapshot) {
     handoffs_per_agent: reliabilityPosture.handoffs_per_agent,
     handoffs_per_agent_min: reliabilityPosture.handoffs_per_agent_min,
     handoff_coverage_weak: reliabilityPosture.handoff_coverage_weak,
-    reliability_gate_required: reliabilityPosture.degraded,
+    reliability_gate_required: reliabilityPosture.degraded || !!sloGate.required,
+    slo_gate: sloGate,
+    slo_gate_required: !!sloGate.required,
+    slo_gate_severity: cleanText(sloGate && sloGate.severity ? sloGate.severity : 'ok', 24) || 'ok',
+    slo_gate_block_scale: !!sloGate.block_scale,
+    slo_gate_failed_checks: Array.isArray(sloGate && sloGate.failed_checks) ? sloGate.failed_checks.slice(0, 8) : [],
+    slo_gate_summary: cleanText(sloGate && sloGate.summary ? sloGate.summary : '', 260),
     swarm_scale_required: swarmScaleRequired,
     swarm_scale_pressure: swarmScalePressure,
     swarm_scale_blocked_by_reliability: swarmScaleBlockedByReliability,
@@ -7720,6 +7950,68 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     ingress_control: throttle.ingress_control || ingressControl,
     max_depth: throttle.max_depth || RUNTIME_THROTTLE_MAX_DEPTH,
     lane: throttle.lane,
+  });
+
+  const recommendationSloGate =
+    recommendation && recommendation.slo_gate && typeof recommendation.slo_gate === 'object'
+      ? recommendation.slo_gate
+      : runtimeSloGate(runtime, runtimeReliabilityPosture(runtime, parseNonNegativeInt(recommendation && recommendation.active_swarm_agents, 0, 100000000)));
+  const sloGateRequired = !!(recommendationSloGate && recommendationSloGate.required);
+  const sloGateContainmentRequired = !!(recommendationSloGate && recommendationSloGate.containment_required);
+  let sloGateLane = null;
+  let sloGateCommand = '';
+  if (sloGateRequired && sloGateContainmentRequired) {
+    const maxDepth = Math.min(
+      RUNTIME_THROTTLE_MAX_DEPTH,
+      Math.max(40, parseNonNegativeInt(runtime && runtime.queue_depth, RUNTIME_THROTTLE_MAX_DEPTH, 100000000))
+    );
+    const command = [
+      'collab-plane',
+      'throttle',
+      `--team=${cleanText(recommendation.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}`,
+      `--plane=${RUNTIME_THROTTLE_PLANE}`,
+      `--max-depth=${maxDepth}`,
+      `--strategy=${RUNTIME_THROTTLE_STRATEGY}`,
+      '--strict=1',
+    ];
+    sloGateCommand = `protheus-ops ${command.join(' ')}`;
+    sloGateLane = runLane(command);
+  }
+  const sloGateApplied =
+    !sloGateRequired ||
+    !sloGateContainmentRequired ||
+    !!(sloGateLane && sloGateLane.ok && sloGateLane.payload && sloGateLane.payload.ok !== false);
+  policies.push({
+    policy: 'runtime_slo_gate',
+    required: sloGateRequired,
+    applied: sloGateApplied,
+    severity: cleanText(
+      recommendationSloGate && recommendationSloGate.severity ? recommendationSloGate.severity : 'ok',
+      24
+    ) || 'ok',
+    block_scale: !!(recommendationSloGate && recommendationSloGate.block_scale),
+    containment_required: sloGateContainmentRequired,
+    failed_checks:
+      recommendationSloGate && Array.isArray(recommendationSloGate.failed_checks)
+        ? recommendationSloGate.failed_checks.slice(0, 10)
+        : [],
+    checks:
+      recommendationSloGate && Array.isArray(recommendationSloGate.checks)
+        ? recommendationSloGate.checks.slice(0, 8)
+        : [],
+    summary: cleanText(recommendationSloGate && recommendationSloGate.summary ? recommendationSloGate.summary : '', 260),
+    thresholds:
+      recommendationSloGate && recommendationSloGate.thresholds && typeof recommendationSloGate.thresholds === 'object'
+        ? recommendationSloGate.thresholds
+        : {
+            spine_success_rate_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+            receipt_latency_p95_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
+            receipt_latency_p99_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
+            queue_depth_max: RUNTIME_SLO_QUEUE_DEPTH_MAX,
+            escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
+          },
+    command: sloGateCommand,
+    lane: sloGateLane ? laneOutcome(sloGateLane) : null,
   });
 
   const reliabilityGateRequired = !!(recommendation && recommendation.reliability_gate_required);
