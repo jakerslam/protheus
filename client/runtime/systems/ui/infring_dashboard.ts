@@ -75,6 +75,9 @@ const RUNTIME_INGRESS_DELAY_MS = 100;
 const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
+const RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS = 3;
+const RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS = 3;
+const RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS = 20;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const RUNTIME_COCKPIT_STALE_DORMANT_ARCHIVE_AGE_MS = 24 * 60 * 60 * 1000;
@@ -2248,12 +2251,21 @@ function formatToolHistory(toolSteps = []) {
 function isPlaceholderResponse(value) {
   const text = String(value == null ? '' : value).trim().toLowerCase();
   if (!text) return true;
+  const normalized = text.replace(/^["'`]+|["'`]+$/g, '').trim();
+  if (!normalized) return true;
+  if (
+    normalized.includes('actual concrete response text') ||
+    /"response"\s*:\s*"actual concrete response text"/.test(normalized) ||
+    /^{\s*"type"\s*:\s*"final"\s*,\s*"response"\s*:\s*"actual concrete response text"\s*}$/.test(normalized)
+  ) {
+    return true;
+  }
   return (
-    text === '<text response to user>' ||
-    text === '<answer>' ||
-    text === '<response>' ||
-    text === '{response}' ||
-    text === '[response]'
+    normalized === '<text response to user>' ||
+    normalized === '<answer>' ||
+    normalized === '<response>' ||
+    normalized === '{response}' ||
+    normalized === '[response]'
   );
 }
 
@@ -2335,7 +2347,7 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
   improvements.push('Emit reliability escalation receipts when SLO gates fail so humans are explicitly paged.');
 
   if (!asksForStatus) {
-    return `I'm in fallback mode because the hosted backend returned a prompt-echo response. Current telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}. Please retry; I can still answer from runtime telemetry.`;
+    return `Hosted model backend returned an echo instead of an answer. Current telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}. Retrying with a recovery backend is recommended.`;
   }
   return [
     `Current dashboard telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}, benchmark cockpit ${benchmarkStatus}.`,
@@ -2367,7 +2379,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
     'Never output placeholders such as <text response to user> or <answer>. Always provide concrete content.',
     'Return ONLY one JSON object with no markdown.',
     'Final answer schema:',
-    '{"type":"final","response":"actual concrete response text"}',
+    '{"type":"final","response":"Hello! How can I help?"}',
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
     fullInfring
@@ -2397,7 +2409,7 @@ function buildToolFollowupPrompt({ agent, input, toolSteps = [], snapshot = null
     `Historical memory files are in ${PRIMARY_MEMORY_DIR}/YYYY-MM-DD.md (primary) and ${LEGACY_MEMORY_DIR}/YYYY-MM-DD.md (legacy).`,
     'Never output placeholders such as <text response to user> or <answer>.',
     'Return ONLY one JSON object with no markdown.',
-    '{"type":"final","response":"actual concrete response text"}',
+    '{"type":"final","response":"Hello! How can I help?"}',
     '',
     `User request:\n${cleanText(input, 3200)}`,
     '',
@@ -2446,10 +2458,11 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
     lastLlmOutput = llm.output;
     const directive = extractJsonDirective(llm.output);
     if (!directive) {
+      const rawResponse = cleanText(llm.output, 4000);
       return {
         ok: true,
         status: 0,
-        response: cleanText(llm.output, 4000),
+        response: isPlaceholderResponse(rawResponse) ? ASSISTANT_EMPTY_FALLBACK_RESPONSE : rawResponse,
         model,
         tools: toolSteps,
         iterations,
@@ -2483,7 +2496,7 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
         if (isPlaceholderResponse(followResponse)) {
           const lastTool = toolSteps.length ? toolSteps[toolSteps.length - 1] : null;
           followResponse = cleanText(
-            (lastTool && lastTool.result) || finalCandidate || 'No concrete response produced by the model.',
+            (lastTool && lastTool.result) || ASSISTANT_EMPTY_FALLBACK_RESPONSE,
             4000
           );
         }
@@ -2507,10 +2520,13 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
     }
 
     if (directive.type !== 'tool_call') {
+      const directiveFallback = cleanText(llm.output, 4000) || ASSISTANT_EMPTY_FALLBACK_RESPONSE;
       return {
         ok: true,
         status: 0,
-        response: cleanText(llm.output, 4000) || 'No response produced by the model.',
+        response: isPlaceholderResponse(directiveFallback)
+          ? ASSISTANT_EMPTY_FALLBACK_RESPONSE
+          : directiveFallback,
         model,
         tools: toolSteps,
         iterations,
@@ -2552,11 +2568,14 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
           finalResponse = cleanText(follow.output, 4000);
         }
       }
+      if (isPlaceholderResponse(finalResponse)) {
+        finalResponse = '';
+      }
       if (!finalResponse) {
         const last = toolSteps[toolSteps.length - 1];
         finalResponse = last && last.is_error
           ? `Tool execution failed: ${last.result}`
-          : cleanText((last && last.result) || lastLlmOutput || 'No response produced by the model.', 4000);
+          : cleanText((last && last.result) || lastLlmOutput || ASSISTANT_EMPTY_FALLBACK_RESPONSE, 4000);
       }
       return {
         ok: true,
@@ -3892,6 +3911,7 @@ let conduitWatchdogState = {
   last_success_ms: 0,
   last_success_at: '',
   failure_count: 0,
+  active_shadows: [],
 };
 let runtimeAutohealState = {
   last_run_ms: 0,
@@ -3901,11 +3921,15 @@ let runtimeAutohealState = {
   last_stage: 'idle',
   last_stall_detected: false,
   last_stall_signature: '',
+  conduit_deficit_streak: 0,
+  stale_raw_streak: 0,
 };
 let reliabilityEscalationState = {
   last_emit_ms: 0,
   last_emit_at: '',
   emit_count: 0,
+  last_receipt_ms: 0,
+  last_receipt_reason: '',
 };
 let runtimeSpineCanaryState = {
   last_run_ms: 0,
@@ -4694,6 +4718,8 @@ function runtimeAutohealTelemetry() {
     last_stage: cleanText(runtimeAutohealState.last_stage || 'idle', 40) || 'idle',
     stall_detected: !!runtimeAutohealState.last_stall_detected,
     stall_signature: cleanText(runtimeAutohealState.last_stall_signature || '', 240),
+    conduit_deficit_streak: parseNonNegativeInt(runtimeAutohealState.conduit_deficit_streak, 0, 100000000),
+    stale_raw_streak: parseNonNegativeInt(runtimeAutohealState.stale_raw_streak, 0, 100000000),
     cadence_ms: {
       normal: RUNTIME_AUTONOMY_HEAL_INTERVAL_MS,
       emergency: RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS,
@@ -4703,6 +4729,9 @@ function runtimeAutohealTelemetry() {
       last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
       last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
       failure_count: parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000),
+      active_shadows: Array.isArray(conduitWatchdogState.active_shadows)
+        ? conduitWatchdogState.active_shadows.slice(0, 8)
+        : [],
       min_signal_floor: RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS,
       stale_ms: RUNTIME_CONDUIT_WATCHDOG_STALE_MS,
       cooldown_ms: RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS,
@@ -4710,6 +4739,7 @@ function runtimeAutohealTelemetry() {
     reliability_escalation: {
       last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
       emit_count: parseNonNegativeInt(reliabilityEscalationState.emit_count, 0, 100000000),
+      last_receipt_reason: cleanText(reliabilityEscalationState.last_receipt_reason || '', 80),
       cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
       spine_success_target_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
       handoffs_per_agent_min: RUNTIME_HANDOFFS_PER_AGENT_MIN,
@@ -5388,20 +5418,56 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
           : '';
     assistantRaw = String(assistantFromLane || '');
     if (isPromptEchoResponse(assistantRaw, cleanInput)) {
-      assistantRaw = runtimeCouplingFallbackResponse(cleanInput, runtimeSync);
-      laneResult = {
-        ok: true,
-        status: 0,
-        stdout: '',
-        stderr: '',
-        argv: ['chat-backend', 'hosted-echo-fallback'],
-        payload: {
+      const echoRecovery = runLlmChatWithCli(
+        agent,
+        session,
+        cleanInput,
+        snapshot,
+        modelState.runtime_model,
+        runtimeMirror
+      );
+      const recoveredResponse =
+        echoRecovery && echoRecovery.ok
+          ? cleanText(echoRecovery.response || '', 4000)
+          : '';
+      if (recoveredResponse && !isPromptEchoResponse(recoveredResponse, cleanInput)) {
+        backend = 'ollama-recovery';
+        assistantRaw = recoveredResponse;
+        tools = Array.isArray(echoRecovery.tools) ? echoRecovery.tools : [];
+        iterations = parsePositiveInt(echoRecovery.iterations || iterations, iterations, 1, 8);
+        usedModel =
+          cleanText(echoRecovery.model || modelState.runtime_model || usedModel || OLLAMA_MODEL_FALLBACK, 120) ||
+          OLLAMA_MODEL_FALLBACK;
+        laneResult = {
           ok: true,
-          type: 'infring_dashboard_chat_backend_echo_fallback',
-          response: assistantRaw,
-          session_id: chatSessionId,
-        },
-      };
+          status: 0,
+          stdout: '',
+          stderr: '',
+          argv: ['chat-backend', 'hosted-echo-recovered'],
+          payload: {
+            ok: true,
+            type: 'infring_dashboard_chat_backend_echo_recovered',
+            response: assistantRaw,
+            session_id: chatSessionId,
+            model: usedModel,
+          },
+        };
+      } else {
+        assistantRaw = runtimeCouplingFallbackResponse(cleanInput, runtimeSync);
+        laneResult = {
+          ok: true,
+          status: 0,
+          stdout: '',
+          stderr: '',
+          argv: ['chat-backend', 'hosted-echo-fallback'],
+          payload: {
+            ok: true,
+            type: 'infring_dashboard_chat_backend_echo_fallback',
+            response: assistantRaw,
+            session_id: chatSessionId,
+          },
+        };
+      }
     }
     if (!assistantRaw) {
       const failures = [];
@@ -8544,6 +8610,49 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     : staleMetricsWithPathology
     ? 'runtime_slo_stale_metrics'
     : 'spine_success_rate';
+  const maybeWriteReliabilityReceipt = (reason, laneResult, extra = {}) => {
+    const nowMs = Date.now();
+    const previousReason = cleanText(reliabilityEscalationState.last_receipt_reason || '', 80);
+    const sinceLastMs = Math.max(
+      0,
+      nowMs - parseNonNegativeInt(reliabilityEscalationState.last_receipt_ms, 0, 1000000000000)
+    );
+    const normalizedReason = cleanText(reason || 'unknown', 80) || 'unknown';
+    if (
+      previousReason === normalizedReason &&
+      sinceLastMs < RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS
+    ) {
+      return;
+    }
+    const fallbackLane = {
+      ok: normalizedReason === 'queued' || normalizedReason === 'escalation_rate_nonzero',
+      status: 0,
+      argv: ['runtime-reliability-escalation', normalizedReason],
+      payload: {
+        ok: normalizedReason === 'queued' || normalizedReason === 'escalation_rate_nonzero',
+        type: 'runtime_reliability_escalation',
+        reason: normalizedReason,
+      },
+    };
+    writeActionReceipt(
+      'runtime.reliabilityEscalation',
+      {
+        reason: normalizedReason,
+        source_type: sourceType,
+        queue_depth: queueDepth,
+        conduit_signals: parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000),
+        cockpit_blocks: parseNonNegativeInt(runtime && runtime.cockpit_blocks, 0, 100000000),
+        spine_success_rate: Number.isFinite(spineRate) ? spineRate : null,
+        receipt_latency_p99_ms: Number.isFinite(p99Latency) ? p99Latency : null,
+        failed_checks: failedChecks,
+        escalation_open_rate: escalationKnown ? escalationOpenRate : null,
+        ...extra,
+      },
+      laneResult || fallbackLane
+    );
+    reliabilityEscalationState.last_receipt_ms = nowMs;
+    reliabilityEscalationState.last_receipt_reason = normalizedReason;
+  };
   if (!required) {
     return {
       required: false,
@@ -8555,6 +8664,9 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     };
   }
   if (!escalationStarved) {
+    maybeWriteReliabilityReceipt('escalation_rate_nonzero', null, {
+      detail: 'human_escalations_present_or_not_starved',
+    });
     return {
       required: true,
       applied: false,
@@ -8567,6 +8679,9 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
   const nowMs = Date.now();
   const sinceLastMs = Math.max(0, nowMs - parseNonNegativeInt(reliabilityEscalationState.last_emit_ms, 0, 1000000000000));
   if (sinceLastMs < RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS) {
+    maybeWriteReliabilityReceipt('cooldown_active', null, {
+      since_last_ms: sinceLastMs,
+    });
     return {
       required: true,
       applied: false,
@@ -8621,6 +8736,9 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
     reliabilityEscalationState.emit_count =
       parseNonNegativeInt(reliabilityEscalationState.emit_count, 0, 100000000) + 1;
   }
+  maybeWriteReliabilityReceipt(applied ? 'queued' : 'enqueue_failed', lane, {
+    since_last_ms: sinceLastMs,
+  });
   return {
     required: true,
     applied,
@@ -8820,19 +8938,74 @@ function maybeAutoHealConduit(runtime, team) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const signals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
   const staleCockpitBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
-  const stalePressure = staleCockpitBlocks > 0 && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const staleCockpitBlocksRaw = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, 0, 100000000);
+  const staleCockpitDormantBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_dormant, 0, 100000000);
+  const stalePressure =
+    (staleCockpitBlocks > 0 || staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS) &&
+    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const chronicCoordinationPathology =
-    staleCockpitBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN;
+    staleCockpitBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN ||
+    staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS;
   const threshold = Math.max(
     parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128),
     RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS
   );
   const lowSignals = signals < threshold;
+  const signalDeficit = Math.max(0, threshold - signals);
   const nowMs = Date.now();
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const knownShadows = Array.isArray(conduitWatchdogState.active_shadows)
+    ? conduitWatchdogState.active_shadows
+        .map((row) => cleanText(row, 120))
+        .filter(Boolean)
+    : [];
+  const terminateShadows = (shadowIds, reason = 'conduit_recovered') => {
+    const lanes = [];
+    let allOk = true;
+    for (const shadow of shadowIds) {
+      const lane = runLane([
+        'collab-plane',
+        'terminate-role',
+        `--team=${normalizedTeam}`,
+        `--shadow=${shadow}`,
+        `--reason=${cleanText(reason, 80) || 'conduit_recovered'}`,
+        '--strict=1',
+      ]);
+      lanes.push(laneOutcome(lane));
+      if (!(lane && lane.ok)) allOk = false;
+    }
+    return { lanes, ok: allOk };
+  };
   if (!lowSignals) {
+    let release = null;
+    if (knownShadows.length > 0) {
+      release = terminateShadows(knownShadows, 'conduit_recovered');
+      if (release.ok) conduitWatchdogState.active_shadows = [];
+    }
     conduitWatchdogState = {
       ...conduitWatchdogState,
       low_signals_since_ms: 0,
+    };
+    return {
+      required: false,
+      triggered: false,
+      recovered: true,
+      queue_depth: queueDepth,
+      conduit_signals: signals,
+      stale_cockpit_blocks: staleCockpitBlocks,
+      stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
+      stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
+      signal_deficit: signalDeficit,
+      low_signal: lowSignals,
+      threshold,
+      stale_for_ms: 0,
+      lane: release && release.lanes && release.lanes.length ? release.lanes[0] : null,
+      lanes: release ? { terminate: release.lanes } : null,
+      active_shadows: Array.isArray(conduitWatchdogState.active_shadows)
+        ? conduitWatchdogState.active_shadows.slice(0, 8)
+        : [],
+      last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
+      last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
     };
   }
   const lowSince = lowSignals
@@ -8844,13 +9017,17 @@ function maybeAutoHealConduit(runtime, team) {
     conduitWatchdogState.low_signals_since_ms = lowSince;
   }
   const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
-  const required = lowSignals && (
-    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
-    queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
-    stalePressure ||
-    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
-    chronicCoordinationPathology
-  );
+  const required =
+    lowSignals &&
+    (
+      queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+      queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
+      stalePressure ||
+      staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
+      chronicCoordinationPathology ||
+      staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+      signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3))
+    );
   if (!required) {
     return {
       required: false,
@@ -8859,10 +9036,14 @@ function maybeAutoHealConduit(runtime, team) {
       queue_depth: queueDepth,
       conduit_signals: signals,
       stale_cockpit_blocks: staleCockpitBlocks,
+      stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
+      stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
+      signal_deficit: signalDeficit,
       low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
       lane: null,
+      active_shadows: knownShadows.slice(0, 8),
       last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
       last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
     };
@@ -8870,7 +9051,9 @@ function maybeAutoHealConduit(runtime, team) {
   const triggerReady =
     staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
     stalePressure ||
-    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+    staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+    signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3));
   const canAttempt =
     triggerReady &&
     (nowMs - parseNonNegativeInt(conduitWatchdogState.last_attempt_ms, 0, 1000000000000)) >=
@@ -8882,15 +9065,18 @@ function maybeAutoHealConduit(runtime, team) {
       queue_depth: queueDepth,
       conduit_signals: signals,
       stale_cockpit_blocks: staleCockpitBlocks,
+      stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
+      stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
+      signal_deficit: signalDeficit,
       low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
       lane: null,
+      active_shadows: knownShadows.slice(0, 8),
       last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
       last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
     };
   }
-  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const drainLimit = Math.min(
     RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
     Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
@@ -8916,14 +9102,31 @@ function maybeAutoHealConduit(runtime, team) {
   }
   const healthLane = runLane(['health-status', 'dashboard']);
   const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
-  const roleLane = runLane([
-    'collab-plane',
-    'launch-role',
-    `--team=${normalizedTeam}`,
-    '--role=researcher',
-    `--shadow=${normalizedTeam}-conduit-watchdog`,
-    '--strict=1',
-  ]);
+  const desiredWatchdogCount = Math.min(4, Math.max(1, Math.ceil(Math.max(1, signalDeficit) / 2)));
+  const desiredShadows = Array.from({ length: desiredWatchdogCount }, (_, idx) => `${normalizedTeam}-conduit-watchdog-${idx + 1}`);
+  const spawnTargets = desiredShadows.filter((shadow) => !knownShadows.includes(shadow));
+  const retireTargets = knownShadows.filter((shadow) => !desiredShadows.includes(shadow));
+  const roleLanes = [];
+  let roleOk = true;
+  for (let idx = 0; idx < spawnTargets.length; idx += 1) {
+    const shadow = spawnTargets[idx];
+    const role = chronicCoordinationPathology && idx % 2 === 1 ? 'builder' : 'researcher';
+    const roleLane = runLane([
+      'collab-plane',
+      'launch-role',
+      `--team=${normalizedTeam}`,
+      `--role=${role}`,
+      `--shadow=${shadow}`,
+      '--strict=1',
+    ]);
+    roleLanes.push({
+      shadow,
+      role,
+      lane: laneOutcome(roleLane),
+    });
+    if (!(roleLane && roleLane.ok)) roleOk = false;
+  }
+  const retire = terminateShadows(retireTargets, 'conduit_scale_down');
   const ok = !!(
     drainLane &&
     drainLane.ok &&
@@ -8931,8 +9134,8 @@ function maybeAutoHealConduit(runtime, team) {
     healthLane.ok &&
     cockpitLane &&
     cockpitLane.ok &&
-    roleLane &&
-    roleLane.ok &&
+    roleOk &&
+    retire.ok &&
     (compactLane == null || compactLane.ok)
   );
   conduitWatchdogState.last_attempt_ms = nowMs;
@@ -8942,6 +9145,7 @@ function maybeAutoHealConduit(runtime, team) {
     conduitWatchdogState.last_success_at = nowIso();
     conduitWatchdogState.failure_count = 0;
     conduitWatchdogState.low_signals_since_ms = 0;
+    conduitWatchdogState.active_shadows = desiredShadows;
   } else {
     conduitWatchdogState.failure_count = parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000) + 1;
   }
@@ -8952,17 +9156,24 @@ function maybeAutoHealConduit(runtime, team) {
     queue_depth: queueDepth,
     conduit_signals: signals,
     stale_cockpit_blocks: staleCockpitBlocks,
+    stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
+    stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
+    signal_deficit: signalDeficit,
     low_signal: lowSignals,
     threshold,
     stale_for_ms: staleForMs,
     failure_count: parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000),
     lane: laneOutcome(drainLane),
+    active_shadows: Array.isArray(conduitWatchdogState.active_shadows)
+      ? conduitWatchdogState.active_shadows.slice(0, 8)
+      : [],
     lanes: {
       drain: laneOutcome(drainLane),
       compact: compactLane ? laneOutcome(compactLane) : null,
       health: laneOutcome(healthLane),
       cockpit: laneOutcome(cockpitLane),
-      role: laneOutcome(roleLane),
+      roles: roleLanes,
+      terminate: retire.lanes,
     },
     drain_limit: drainLimit,
     last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
@@ -11169,6 +11380,36 @@ function runServe(flags) {
     const queueVelocityPerMin = queueDepthVelocity(runtimeTrendSeries);
     const stall = runtimeStallSignals(runtime, runtimeTrendSeries);
     const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+    const targetSignals = parsePositiveInt(
+      runtime && runtime.target_conduit_signals,
+      RUNTIME_AUTO_BALANCE_THRESHOLD,
+      1,
+      128
+    );
+    const conduitSignals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
+    const signalDeficit = Math.max(0, targetSignals - conduitSignals);
+    const staleRawBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, 0, 100000000);
+    if (signalDeficit > 0) {
+      runtimeAutohealState.conduit_deficit_streak =
+        parseNonNegativeInt(runtimeAutohealState.conduit_deficit_streak, 0, 100000000) + 1;
+    } else {
+      runtimeAutohealState.conduit_deficit_streak = 0;
+    }
+    if (staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS) {
+      runtimeAutohealState.stale_raw_streak =
+        parseNonNegativeInt(runtimeAutohealState.stale_raw_streak, 0, 100000000) + 1;
+    } else {
+      runtimeAutohealState.stale_raw_streak = 0;
+    }
+    const persistentConduitDeficit =
+      signalDeficit > 0 &&
+      parseNonNegativeInt(runtimeAutohealState.conduit_deficit_streak, 0, 100000000) >=
+        RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS;
+    const persistentStaleRaw =
+      staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS &&
+      parseNonNegativeInt(runtimeAutohealState.stale_raw_streak, 0, 100000000) >=
+        RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS;
+    const persistentCoordinationDegradation = persistentConduitDeficit || persistentStaleRaw;
     // Treat stall signatures as actionable only when there is real queue pressure.
     // This avoids running heavy recovery lanes while the queue is healthy.
     const stallActionable = !!stall.detected && queueDepth >= RUNTIME_STALL_QUEUE_MIN_DEPTH;
@@ -11185,7 +11426,8 @@ function runServe(flags) {
         Math.max(
           1,
           parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128)
-        );
+        ) ||
+      (staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS && signalDeficit > 0);
     const signalFloor = Math.max(
       RUNTIME_STALL_CONDUIT_FLOOR,
       Math.floor(Math.max(1, runtime.target_conduit_signals) * 0.5)
@@ -11194,7 +11436,8 @@ function runServe(flags) {
       !!runtime.conduit_scale_required &&
       (
         runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
-        chronicCoordinationPathology
+        chronicCoordinationPathology ||
+        persistentCoordinationDegradation
       );
     const memoryResumeNeeded =
       !!runtime.memory_ingest_paused &&
@@ -11212,6 +11455,7 @@ function runServe(flags) {
       runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ||
       stalePressure ||
       chronicCoordinationPathology ||
+      persistentCoordinationDegradation ||
       (runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH && runtime.conduit_signals < signalFloor) ||
       queueVelocityPerMin >= 4 ||
       stallActionable;
@@ -11221,6 +11465,7 @@ function runServe(flags) {
       runtime.health_coverage_gap_count > 0 ||
       conduitScalePressure ||
       chronicCoordinationPathology ||
+      persistentCoordinationDegradation ||
       staleAutohealNeeded ||
       memoryResumeNeeded ||
       benchmarkRefreshNeeded ||
@@ -11244,6 +11489,7 @@ function runServe(flags) {
         cadence_ms: cadenceMs,
         queue_velocity_per_min: queueVelocityPerMin,
         stall,
+        persistent_coordination_degradation: persistentCoordinationDegradation,
       };
     }
     if ((nowMs - parseNonNegativeInt(runtimeAutohealState.last_run_ms, 0, 1000000000000)) < cadenceMs) {
@@ -11258,6 +11504,45 @@ function runServe(flags) {
         cadence_ms: cadenceMs,
         queue_velocity_per_min: queueVelocityPerMin,
         stall,
+        persistent_coordination_degradation: persistentCoordinationDegradation,
+      };
+    }
+
+    const conduitOnlyEligible =
+      persistentCoordinationDegradation &&
+      queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH &&
+      parseNonNegativeInt(runtime && runtime.health_coverage_gap_count, 0, 100000000) === 0 &&
+      !stallActionable &&
+      !benchmarkRefreshNeeded;
+    if (conduitOnlyEligible) {
+      const conduitOnly = maybeAutoHealConduit(runtime, flags.team || DEFAULT_TEAM);
+      const ok = !conduitOnly.required || !!conduitOnly.applied || !conduitOnly.triggered;
+      runtimeAutohealState.last_run_ms = nowMs;
+      runtimeAutohealState.last_run_at = nowIso();
+      runtimeAutohealState.last_result = ok ? 'executed' : 'degraded';
+      runtimeAutohealState.last_stage = 'conduit_watchdog';
+      runtimeAutohealState.last_stall_detected = !!stall.detected;
+      runtimeAutohealState.last_stall_signature = cleanText(stall.signature || '', 240);
+      runtimeAutohealState.failure_count = ok
+        ? 0
+        : parseNonNegativeInt(runtimeAutohealState.failure_count, 0, 100000000) + 1;
+      return {
+        executed: true,
+        required,
+        emergency,
+        cadence_ms: cadenceMs,
+        queue_velocity_per_min: queueVelocityPerMin,
+        ok,
+        lane_payload: {
+          ok,
+          policy: 'conduit_watchdog_autorestart',
+          conduit_watchdog: conduitOnly,
+        },
+        stall,
+        stage: 'conduit_watchdog',
+        stall_recovery: null,
+        source,
+        persistent_coordination_degradation: persistentCoordinationDegradation,
       };
     }
 
@@ -11299,6 +11584,7 @@ function runServe(flags) {
       stage,
       stall_recovery: stallRecovery,
       source,
+      persistent_coordination_degradation: persistentCoordinationDegradation,
     };
   };
 
@@ -11750,7 +12036,8 @@ function run(argv = process.argv.slice(2)) {
       applyChatConfig && nextEnabled
         ? runAction('app.switchProvider', { provider: nextProvider, model: nextModel })
         : null;
-    const ok = !switchLane || !!switchLane.ok;
+    const switchApplied = !switchLane || !!switchLane.ok;
+    const ok = true;
     const payload = {
       ok,
       type: 'infring_dashboard_test_agent_model',
@@ -11758,10 +12045,15 @@ function run(argv = process.argv.slice(2)) {
       config: saved,
       apply_chat_config: applyChatConfig,
       switched_chat_provider: !!switchLane,
+      switched_chat_provider_ok: switchApplied,
+      chat_switch_warning:
+        switchLane && !switchLane.ok
+          ? 'chat_provider_switch_failed_but_test_agent_model_saved'
+          : '',
       switch_lane: switchLane ? laneOutcome(switchLane) : null,
     };
     fs.writeFileSync(1, `${JSON.stringify(payload, null, flags.pretty ? 2 : 0)}${flags.pretty ? '\n' : ''}`, 'utf8');
-    return ok ? 0 : 1;
+    return 0;
   }
   if (flags.mode === 'snapshot' || flags.mode === 'status') {
     bootstrapSnapshotHistoryState();

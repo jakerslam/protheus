@@ -55,12 +55,20 @@ function chatPage() {
     _modelCache: null,
     _modelCacheTime: 0,
     _chatMapWheelLockInstalled: false,
+    sessionLoading: false,
+    _sessionLoadSeq: 0,
+    messageHydration: {},
+    _forcedHydrateById: {},
+    _renderWindowRaf: 0,
+    showFreshArchetypeTiles: false,
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     _persistTimer: null,
     _responseStartedAt: 0,
     modelNoticeCache: {},
     modelNoticeCacheKey: 'of-chat-model-notices-v1',
+    modelUsageCache: {},
+    modelUsageCacheKey: 'of-chat-model-usage-v1',
     showScrollDown: false,
     hoveredMessageDomId: '',
     selectedMessageDomId: '',
@@ -80,6 +88,7 @@ function chatPage() {
     drawerConfigSaving: false,
     drawerModelSaving: false,
     drawerIdentitySaving: false,
+    drawerSavePending: false,
     drawerEditingModel: false,
     drawerEditingProvider: false,
     drawerEditingFallback: false,
@@ -90,6 +99,108 @@ function chatPage() {
     drawerNewFallbackValue: '',
     drawerArchetypeOptions: ['Assistant', 'Researcher', 'Coder', 'Writer', 'DevOps', 'Support', 'Analyst', 'Custom'],
     drawerVibeOptions: ['professional', 'friendly', 'technical', 'creative', 'concise', 'mentor'],
+    chatArchetypeTemplates: [
+      {
+        name: 'General Assistant',
+        category: 'General',
+        description: 'Versatile helper for everyday tasks and recommendations.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'full',
+        archetype: 'assistant',
+        system_prompt: 'You are a helpful, friendly assistant. Provide clear, accurate, and concise responses. Ask clarifying questions when needed.'
+      },
+      {
+        name: 'Code Helper',
+        category: 'Development',
+        description: 'Programming-focused agent for writing, reviewing, and debugging.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'coding',
+        archetype: 'coder',
+        system_prompt: 'You are an expert programmer. Help users write clean, efficient code. Explain your reasoning and follow best practices.'
+      },
+      {
+        name: 'Researcher',
+        category: 'Research',
+        description: 'Analytical agent for complex topics and synthesis.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'research',
+        archetype: 'researcher',
+        system_prompt: 'You are a research analyst. Break down complex topics with clear structure and concise findings.'
+      },
+      {
+        name: 'Writer',
+        category: 'Writing',
+        description: 'Creative drafting, editing, and tone adaptation.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'full',
+        archetype: 'writer',
+        system_prompt: 'You are a skilled writer and editor. Help users create polished content and offer constructive improvements.'
+      },
+      {
+        name: 'Data Analyst',
+        category: 'Development',
+        description: 'Data analysis, SQL/Python queries, and interpretation.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'coding',
+        archetype: 'analyst',
+        system_prompt: 'You are a data analysis expert. Help with dataset analysis, SQL/Python queries, and actionable interpretation.'
+      },
+      {
+        name: 'DevOps Engineer',
+        category: 'Development',
+        description: 'CI/CD, infra, containers, and deployment reliability.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'automation',
+        archetype: 'devops',
+        system_prompt: 'You are a DevOps engineer. Help with CI/CD pipelines, Docker, infrastructure, deployment, and reliability.'
+      },
+      {
+        name: 'Customer Support',
+        category: 'Business',
+        description: 'Empathetic and professional issue resolution.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'messaging',
+        archetype: 'support',
+        system_prompt: 'You are a professional support agent. Be empathetic, concise, and solution-oriented.'
+      },
+      {
+        name: 'Tutor',
+        category: 'General',
+        description: 'Step-by-step explanations adapted to learner level.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'full',
+        archetype: 'assistant',
+        system_prompt: 'You are a patient tutor. Explain step-by-step, check understanding, and adapt to learner pace.'
+      },
+      {
+        name: 'API Designer',
+        category: 'Development',
+        description: 'REST design, schema consistency, and versioning.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'coding',
+        archetype: 'coder',
+        system_prompt: 'You are an API design expert. Design clean RESTful APIs with robust schemas, error handling, and versioning.'
+      },
+      {
+        name: 'Meeting Notes',
+        category: 'Business',
+        description: 'Summaries with decisions and action items.',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        profile: 'minimal',
+        archetype: 'analyst',
+        system_prompt: 'You summarize meetings into key decisions, action items, highlights, and follow-up questions.'
+      }
+    ],
     slashCommands: [
       { cmd: '/help', desc: 'Show available commands' },
       { cmd: '/agents', desc: 'Switch to Agents page' },
@@ -225,8 +336,14 @@ function chatPage() {
 
     get modelDisplayName() {
       if (!this.currentAgent) return '';
-      var name = this.currentAgent.model_name || '';
-      var short = name.replace(/-\d{8}$/, '');
+      var selected = String(this.currentAgent.model_name || '').trim();
+      var runtime = String(this.currentAgent.runtime_model || '').trim();
+      if (selected.toLowerCase() === 'auto') {
+        var resolved = runtime ? runtime.replace(/-\d{8}$/, '') : '';
+        var autoLabel = resolved ? ('Auto: ' + resolved) : 'Auto';
+        return autoLabel.length > 24 ? autoLabel.substring(0, 22) + '\u2026' : autoLabel;
+      }
+      var short = selected.replace(/-\d{8}$/, '');
       return short.length > 24 ? short.substring(0, 22) + '\u2026' : short;
     },
 
@@ -240,8 +357,7 @@ function chatPage() {
       var models = this._modelCache || [];
       var provFilter = this.modelSwitcherProviderFilter;
       var textFilter = this.modelSwitcherFilter ? this.modelSwitcherFilter.toLowerCase() : '';
-      if (!provFilter && !textFilter) return models;
-      return models.filter(function(m) {
+      var filtered = models.filter(function(m) {
         if (provFilter && m.provider !== provFilter) return false;
         if (textFilter) {
           return m.id.toLowerCase().indexOf(textFilter) !== -1 ||
@@ -250,6 +366,23 @@ function chatPage() {
         }
         return true;
       });
+      var self = this;
+      filtered.sort(function(a, b) {
+        var aId = String((a && a.id) || '').trim();
+        var bId = String((b && b.id) || '').trim();
+        var activeId = self.currentAgent ? String(self.currentAgent.model_name || '').trim() : '';
+        var aActive = aId && aId === activeId ? 1 : 0;
+        var bActive = bId && bId === activeId ? 1 : 0;
+        if (bActive !== aActive) return bActive - aActive;
+        var aUsage = self.modelUsageTs(aId);
+        var bUsage = self.modelUsageTs(bId);
+        if (bUsage !== aUsage) return bUsage - aUsage;
+        var aProvider = String((a && a.provider) || '').toLowerCase();
+        var bProvider = String((b && b.provider) || '').toLowerCase();
+        if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
+        return aId.toLowerCase().localeCompare(bId.toLowerCase());
+      });
+      return filtered;
     },
 
     get groupedSwitcherModels() {
@@ -262,6 +395,20 @@ function chatPage() {
       return order.map(function(p) {
         return { provider: p.charAt(0).toUpperCase() + p.slice(1), models: groups[p] };
       });
+    },
+
+    modelSwitcherItemName: function(m) {
+      var model = m || {};
+      var provider = String(model.provider || '').trim();
+      var id = String(model.id || '').trim();
+      var display = String(model.display_name || id).trim();
+      var isAutoRow = provider.toLowerCase() === 'auto' || id.toLowerCase() === 'auto';
+      if (!isAutoRow) return provider + ':' + display;
+      var activeAuto = this.currentAgent && String(this.currentAgent.model_name || '').trim().toLowerCase() === 'auto';
+      var runtime = activeAuto ? String(this.currentAgent.runtime_model || '').trim() : '';
+      if (!runtime) return 'Auto';
+      var short = runtime.replace(/-\d{8}$/, '');
+      return short ? ('Auto: ' + short) : 'Auto';
     },
 
     pickDefaultAgent(agents) {
@@ -292,6 +439,20 @@ function chatPage() {
       }
       if (typeof agentOrId === 'object' && agentOrId.id) return agentOrId;
       return null;
+    },
+
+    setStoreActiveAgentId: function(agentId) {
+      var store = Alpine.store('app');
+      if (!store) return;
+      if (typeof store.setActiveAgentId === 'function') {
+        store.setActiveAgentId(agentId || null);
+        return;
+      }
+      store.activeAgentId = agentId || null;
+      try {
+        if (store.activeAgentId) localStorage.setItem('infring-last-active-agent-id', String(store.activeAgentId));
+        else localStorage.removeItem('infring-last-active-agent-id');
+      } catch {}
     },
 
     cacheAgentConversation(agentId) {
@@ -332,7 +493,7 @@ function chatPage() {
         this.messages = this.mergeModelNoticesForAgent(agentId, JSON.parse(JSON.stringify(cached.messages)));
         this.tokenCount = Number(cached.token_count || 0);
         this.recomputeContextEstimate();
-        this.$nextTick(() => this.scrollToBottom());
+        this.$nextTick(() => this.scrollToBottomImmediate());
         return true;
       } catch {
         return false;
@@ -492,6 +653,48 @@ function chatPage() {
       return !!InfringAPI.wsSend({ type: 'command', command: 'context', silent: true });
     },
 
+    normalizeModelUsageKey: function(modelId) {
+      return String(modelId || '').trim().toLowerCase();
+    },
+
+    loadModelUsageCache: function() {
+      try {
+        var raw = localStorage.getItem(this.modelUsageCacheKey);
+        if (!raw) {
+          this.modelUsageCache = {};
+          return;
+        }
+        var parsed = JSON.parse(raw);
+        this.modelUsageCache = parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        this.modelUsageCache = {};
+      }
+    },
+
+    persistModelUsageCache: function() {
+      try {
+        localStorage.setItem(this.modelUsageCacheKey, JSON.stringify(this.modelUsageCache || {}));
+      } catch {}
+    },
+
+    modelUsageTs: function(modelId) {
+      var key = this.normalizeModelUsageKey(modelId);
+      if (!key || !this.modelUsageCache || typeof this.modelUsageCache !== 'object') return 0;
+      var ts = Number(this.modelUsageCache[key] || 0);
+      return Number.isFinite(ts) && ts > 0 ? ts : 0;
+    },
+
+    touchModelUsage: function(modelId, ts) {
+      var key = this.normalizeModelUsageKey(modelId);
+      if (!key) return;
+      if (!this.modelUsageCache || typeof this.modelUsageCache !== 'object') {
+        this.modelUsageCache = {};
+      }
+      var stamp = Number(ts || Date.now());
+      this.modelUsageCache[key] = Number.isFinite(stamp) && stamp > 0 ? stamp : Date.now();
+      this.persistModelUsageCache();
+    },
+
     loadModelNoticeCache: function() {
       try {
         var raw = localStorage.getItem(this.modelNoticeCacheKey);
@@ -534,7 +737,6 @@ function chatPage() {
         /^Model switched to /i.test(String(label || '').trim()) ? 'model' : 'info'
       );
       var normalizedIcon = String(noticeIcon || '').trim();
-      if (!normalizedIcon && normalizedType === 'info') normalizedIcon = 'i';
       var exists = list.some(function(entry) {
         return (
           entry &&
@@ -578,7 +780,6 @@ function chatPage() {
           /^Model switched to /i.test(nLabel) ? 'model' : 'info'
         );
         var nIcon = String(n.icon || n.notice_icon || '').trim();
-        if (!nIcon && nType === 'info') nIcon = 'i';
         var nKey = nType + '|' + nLabel + '|' + nTs;
         if (existing[nKey]) continue;
         list.push({
@@ -676,7 +877,6 @@ function chatPage() {
               /^Model switched to /i.test(noticeLabel) ? 'model' : 'info'
             );
             noticeIcon = String(m.notice_icon || '').trim();
-            if (!noticeIcon && noticeType === 'info') noticeIcon = 'i';
           }
         }
         if (!isNotice && role === 'system' && typeof text === 'string') {
@@ -719,6 +919,7 @@ function chatPage() {
         window.__infringChatCache = this.conversationCache;
       }
       this.loadModelNoticeCache();
+      this.loadModelUsageCache();
 
       // Start tip cycle
       this.startTipCycle();
@@ -875,6 +1076,7 @@ function chatPage() {
       this.$nextTick(function() {
         self.handleMessagesScroll();
         self.installChatMapWheelLock();
+        self.scheduleMessageRenderWindowUpdate();
       });
 
       InfringAPI.get('/api/status').then(function(status) {
@@ -1028,6 +1230,8 @@ function chatPage() {
         // Use server-resolved model/provider to stay in sync (fixes #387/#466)
         self.currentAgent.model_name = (resp && resp.model) || model.id;
         self.currentAgent.model_provider = (resp && resp.provider) || model.provider;
+        self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || self.currentAgent.model_name;
+        self.touchModelUsage(self.currentAgent.model_name || self.currentAgent.runtime_model || model.id);
         self.addModelSwitchNotice(self.currentAgent.model_name, self.currentAgent.model_provider);
         InfringToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
@@ -1182,6 +1386,7 @@ function chatPage() {
                 var resolvedProvider = (resp && resp.provider) || '';
                 self.currentAgent.model_name = resolvedModel;
                 if (resolvedProvider) { self.currentAgent.model_provider = resolvedProvider; }
+                self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || resolvedModel;
                 self.addModelSwitchNotice(resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
               }).catch(function(e) { InfringToast.error('Model switch failed: ' + e.message); });
             } else {
@@ -1200,7 +1405,7 @@ function chatPage() {
           InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;
-          Alpine.store('app').activeAgentId = null;
+          self.setStoreActiveAgentId(null);
           self.messages = [];
           window.dispatchEvent(new Event('close-chat'));
           break;
@@ -1241,6 +1446,9 @@ function chatPage() {
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
+      var store = Alpine.store('app');
+      var pendingFreshId = store && store.pendingFreshAgentId ? String(store.pendingFreshAgentId) : '';
+      var forceFreshSession = pendingFreshId && String(resolved.id) === pendingFreshId;
       this.clearHoveredMessageHard();
       this.activeMapPreviewDomId = '';
       this.activeMapPreviewDayKey = '';
@@ -1249,14 +1457,32 @@ function chatPage() {
       }
       if (this.currentAgent && this.currentAgent.id === resolved.id) {
         this.currentAgent = resolved;
-        this.loadSession(resolved.id, true);
+        this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
+        if (forceFreshSession) {
+          this.messages = [];
+          this.showFreshArchetypeTiles = true;
+          if (this.conversationCache) {
+            delete this.conversationCache[String(resolved.id)];
+            this.persistConversationCache();
+          }
+          InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+        }
+        this.loadSession(resolved.id, !forceFreshSession);
+        if (forceFreshSession && store) store.pendingFreshAgentId = null;
         return;
       }
       this.currentAgent = resolved;
-      Alpine.store('app').activeAgentId = resolved.id || null;
+      if (store) this.setStoreActiveAgentId(resolved.id || null);
+      this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
       this.setContextWindowFromCurrentAgent();
-      var restored = this.restoreAgentConversation(resolved.id);
+      if (forceFreshSession && this.conversationCache) {
+        delete this.conversationCache[String(resolved.id)];
+        this.persistConversationCache();
+        InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+      }
+      var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) this.messages = [];
+      this.showFreshArchetypeTiles = !!forceFreshSession;
       this.connectWs(resolved.id);
       // Show welcome tips on first use
       if (!restored && !localStorage.getItem('of-chat-tips-seen')) {
@@ -1284,21 +1510,132 @@ function chatPage() {
       if (this.showAgentDrawer) {
         this.openAgentDrawer();
       }
+      if (forceFreshSession && store) {
+        store.pendingFreshAgentId = null;
+      }
       // Focus input after agent selection
       var self = this;
       this.$nextTick(function() {
         var el = document.getElementById('msg-input');
         if (el) el.focus();
+        self.scrollToBottomImmediate();
+        self.stabilizeBottomScroll();
         self.installChatMapWheelLock();
+        self.scheduleMessageRenderWindowUpdate();
       });
+    },
+
+    shouldRenderMessage(msg, idx) {
+      if (!msg || msg.is_notice) return true;
+      if (!this.currentAgent) return true;
+      var id = this.messageDomId(msg, idx);
+      if (this.messageHydration && this.messageHydration[id]) return true;
+      // Always hydrate newest messages for streaming responsiveness.
+      if (idx >= (this.messages.length - 24)) return true;
+      return false;
+    },
+
+    forceMessageRender(msg, idx, ttlMs) {
+      if (!msg) return;
+      var id = this.messageDomId(msg, idx);
+      if (!id) return;
+      var ttl = Number(ttlMs || 0);
+      var until = Date.now() + (ttl > 0 ? ttl : 6000);
+      if (!this._forcedHydrateById || typeof this._forcedHydrateById !== 'object') {
+        this._forcedHydrateById = {};
+      }
+      this._forcedHydrateById[id] = until;
+      this.scheduleMessageRenderWindowUpdate();
+    },
+
+    scheduleMessageRenderWindowUpdate(container) {
+      var self = this;
+      if (this._renderWindowRaf && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this._renderWindowRaf);
+        this._renderWindowRaf = 0;
+      }
+      var run = function() {
+        self._renderWindowRaf = 0;
+        self.updateMessageRenderWindow(container);
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        this._renderWindowRaf = requestAnimationFrame(run);
+      } else {
+        setTimeout(run, 0);
+      }
+    },
+
+    updateMessageRenderWindow(container) {
+      var el = this.resolveMessagesScroller(container || null);
+      if (!el || !this.currentAgent) return;
+      var viewportHeight = Number(el.clientHeight || 0);
+      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return;
+      var minY = Math.max(0, el.scrollTop - viewportHeight);
+      var maxY = el.scrollTop + (viewportHeight * 2);
+      var next = {};
+      var blocks = el.querySelectorAll('.chat-message-block[data-msg-idx]');
+      for (var i = 0; i < blocks.length; i++) {
+        var block = blocks[i];
+        if (!block || !block.id) continue;
+        var top = Number(block.offsetTop || 0);
+        var height = Number(block.offsetHeight || 0);
+        if (!Number.isFinite(height) || height <= 0) height = 48;
+        var bottom = top + height;
+        if (bottom >= minY && top <= maxY) next[block.id] = true;
+      }
+      var now = Date.now();
+      var forced = this._forcedHydrateById || {};
+      Object.keys(forced).forEach(function(id) {
+        var until = Number(forced[id] || 0);
+        if (until > now) {
+          next[id] = true;
+        } else {
+          delete forced[id];
+        }
+      });
+      if (this.selectedMessageDomId) next[this.selectedMessageDomId] = true;
+      if (this.hoveredMessageDomId) next[this.hoveredMessageDomId] = true;
+      this.messageHydration = next;
+    },
+
+    async applyChatArchetypeTemplate(templateDef) {
+      if (!this.currentAgent || !this.currentAgent.id || !templateDef) return;
+      var agentId = this.currentAgent.id;
+      var provider = String(templateDef.provider || '').trim();
+      var model = String(templateDef.model || '').trim();
+      try {
+        if (provider && model) {
+          await InfringAPI.put('/api/agents/' + agentId + '/model', {
+            model: provider + '/' + model
+          });
+        }
+        await InfringAPI.patch('/api/agents/' + agentId + '/config', {
+          system_prompt: String(templateDef.system_prompt || '').trim(),
+          archetype: String(templateDef.archetype || '').trim(),
+          profile: String(templateDef.profile || '').trim()
+        });
+        this.addNoticeEvent({
+          notice_label: 'Initialized agent as ' + String(templateDef.name || 'template'),
+          notice_type: 'info',
+          ts: Date.now()
+        });
+        this.showFreshArchetypeTiles = false;
+        await this.syncDrawerAgentAfterChange();
+        InfringToast.success('Applied ' + String(templateDef.name || 'template'));
+      } catch (e) {
+        InfringToast.error('Failed to apply archetype template: ' + e.message);
+      }
     },
 
     async loadSession(agentId, keepCurrent) {
       var self = this;
+      var loadSeq = ++this._sessionLoadSeq;
+      this.sessionLoading = true;
       try {
         var data = await InfringAPI.get('/api/agents/' + agentId + '/session');
         var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data));
         if (normalized.length) {
+          self.showFreshArchetypeTiles = false;
           if (!keepCurrent || !self.messages || !self.messages.length || normalized.length >= self.messages.length) {
             self.messages = normalized;
             self.clearHoveredMessageHard();
@@ -1307,7 +1644,10 @@ function chatPage() {
             self.recomputeContextEstimate();
           }
           self.cacheAgentConversation(agentId);
-          self.$nextTick(function() { self.scrollToBottom(); });
+          self.$nextTick(function() {
+            self.scrollToBottomImmediate();
+            self.stabilizeBottomScroll();
+          });
         } else if (!keepCurrent) {
           self.messages = [];
           self.clearHoveredMessageHard();
@@ -1315,8 +1655,21 @@ function chatPage() {
           self.activeMapPreviewDayKey = '';
           self.recomputeContextEstimate();
           self.cacheAgentConversation(agentId);
+          self.$nextTick(function() {
+            self.scrollToBottomImmediate();
+            self.stabilizeBottomScroll();
+          });
         }
       } catch(e) { /* silent */ }
+      finally {
+        if (self._sessionLoadSeq === loadSeq) {
+          self.$nextTick(function() {
+            self.scrollToBottomImmediate();
+            self.stabilizeBottomScroll();
+            self.sessionLoading = false;
+          });
+        }
+      }
     },
 
     // Multi-session: load session list for current agent
@@ -1431,7 +1784,7 @@ function chatPage() {
 
       if (this.currentAgent && this.currentAgent.id && (!targetId || String(this.currentAgent.id) === targetId)) {
         this.currentAgent = null;
-        Alpine.store('app').activeAgentId = null;
+        this.setStoreActiveAgentId(null);
         this.showAgentDrawer = false;
       }
 
@@ -2106,6 +2459,11 @@ function chatPage() {
       return 'Agent';
     },
 
+    isRenameNotice: function(msg) {
+      if (!msg || !msg.is_notice) return false;
+      return /^changed name from /i.test(String(msg.notice_label || '').trim());
+    },
+
     messageMapToolOutcome: function(msg) {
       if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) return '';
       var hasError = false;
@@ -2205,6 +2563,7 @@ function chatPage() {
 
     jumpToMessage: function(msg, idx) {
       var id = this.messageDomId(msg, idx);
+      this.forceMessageRender(msg, idx, 9000);
       var target = document.getElementById(id);
       if (!target) return;
       this.selectedMessageDomId = id;
@@ -2231,7 +2590,9 @@ function chatPage() {
         /^Model switched to /i.test(label) ? 'model' : 'info'
       );
       var icon = String(notice.notice_icon || notice.icon || '').trim();
-      if (!icon && type === 'info') icon = 'i';
+      if (type === 'info' && /^changed name from /i.test(label)) {
+        icon = '';
+      }
       var tsRaw = Number(notice.ts || 0);
       var ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
       this.messages.push({
@@ -2258,6 +2619,7 @@ function chatPage() {
       if (!model) return;
       var provider = String(providerName || '').trim();
       var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
+      this.touchModelUsage(model);
       this.addNoticeEvent({ notice_label: label, notice_type: 'model', ts: Date.now() });
     },
 
@@ -2269,7 +2631,6 @@ function chatPage() {
       this.addNoticeEvent({
         notice_label: 'changed name from ' + fromName + ' to ' + toName,
         notice_type: 'info',
-        notice_icon: 'i',
         ts: Date.now()
       });
     },
@@ -2341,6 +2702,7 @@ function chatPage() {
     setMapItemHover: function(msg, idx) {
       if (!msg) return;
       var domId = this.messageDomId(msg, idx);
+      this.forceMessageRender(msg, idx, 9000);
       this.suppressMapPreview = false;
       this.activeMapPreviewDomId = domId;
       this.activeMapPreviewDayKey = '';
@@ -2437,6 +2799,7 @@ function chatPage() {
       this.drawerEditingName = false;
       this.drawerEditingEmoji = false;
       this.drawerIdentitySaving = false;
+      this.drawerSavePending = false;
       this.drawerNewModelValue = '';
       this.drawerNewProviderValue = '';
       this.drawerNewFallbackValue = '';
@@ -2506,6 +2869,78 @@ function chatPage() {
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
         InfringToast.error('Failed to set mode: ' + e.message);
+      }
+    },
+
+    async saveDrawerAll() {
+      if (!this.agentDrawer || !this.agentDrawer.id || this.drawerSavePending) return;
+      var agentId = this.agentDrawer.id;
+      var previousName = String((this.agentDrawer && this.agentDrawer.name) || (this.currentAgent && this.currentAgent.name) || '').trim();
+      var requestedName = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
+      var previousFallbacks = Array.isArray(this.agentDrawer._fallbacks) ? this.agentDrawer._fallbacks.slice() : [];
+      var appendedFallback = false;
+      this.drawerSavePending = true;
+      this.drawerConfigSaving = true;
+      this.drawerModelSaving = true;
+      this.drawerIdentitySaving = true;
+      try {
+        var configPayload = Object.assign({}, this.drawerConfigForm || {});
+        if (this.drawerEditingFallback && String(this.drawerNewFallbackValue || '').trim()) {
+          var fallbackParts = String(this.drawerNewFallbackValue || '').trim().split('/');
+          var fallbackProvider = fallbackParts.length > 1 ? fallbackParts[0] : this.agentDrawer.model_provider;
+          var fallbackModel = fallbackParts.length > 1 ? fallbackParts.slice(1).join('/') : fallbackParts[0];
+          if (!Array.isArray(this.agentDrawer._fallbacks)) this.agentDrawer._fallbacks = [];
+          this.agentDrawer._fallbacks.push({ provider: fallbackProvider, model: fallbackModel });
+          appendedFallback = true;
+          configPayload.fallback_models = this.agentDrawer._fallbacks;
+        } else if (Array.isArray(this.agentDrawer._fallbacks)) {
+          configPayload.fallback_models = this.agentDrawer._fallbacks;
+        }
+
+        var configResponse = await InfringAPI.patch('/api/agents/' + agentId + '/config', configPayload);
+        if (configResponse && configResponse.rename_notice) {
+          this.addNoticeEvent(configResponse.rename_notice);
+        } else if (requestedName && requestedName !== previousName) {
+          this.addAgentRenameNotice(previousName, requestedName);
+        }
+
+        if (this.drawerEditingProvider && String(this.drawerNewProviderValue || '').trim()) {
+          var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
+          var providerResp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
+          this.addModelSwitchNotice(
+            (providerResp && providerResp.model) || this.agentDrawer.model_name || '',
+            (providerResp && providerResp.provider) || String(this.drawerNewProviderValue || '').trim()
+          );
+        } else if (this.drawerEditingModel && String(this.drawerNewModelValue || '').trim()) {
+          var modelResp = await InfringAPI.put('/api/agents/' + agentId + '/model', {
+            model: String(this.drawerNewModelValue || '').trim()
+          });
+          this.addModelSwitchNotice(
+            (modelResp && modelResp.model) || String(this.drawerNewModelValue || '').trim(),
+            (modelResp && modelResp.provider) || this.agentDrawer.model_provider || ''
+          );
+        }
+
+        this.drawerEditingName = false;
+        this.drawerEditingEmoji = false;
+        this.drawerEditingModel = false;
+        this.drawerEditingProvider = false;
+        this.drawerEditingFallback = false;
+        this.drawerNewModelValue = '';
+        this.drawerNewProviderValue = '';
+        this.drawerNewFallbackValue = '';
+        InfringToast.success('Agent settings saved');
+        await this.syncDrawerAgentAfterChange();
+      } catch (e) {
+        if (appendedFallback) {
+          this.agentDrawer._fallbacks = previousFallbacks;
+        }
+        InfringToast.error('Failed to save agent settings: ' + e.message);
+      } finally {
+        this.drawerSavePending = false;
+        this.drawerConfigSaving = false;
+        this.drawerModelSaving = false;
+        this.drawerIdentitySaving = false;
       }
     },
 
@@ -2774,6 +3209,7 @@ function chatPage() {
 
     async sendTerminalMessage() {
       if (!this.currentAgent || !this.inputText.trim()) return;
+      this.showFreshArchetypeTiles = false;
       var command = this.inputText.trim();
       this.inputText = '';
       this.terminalSelectionStart = 0;
@@ -2795,6 +3231,7 @@ function chatPage() {
         return;
       }
       if (!this.currentAgent || (!this.inputText.trim() && !this.attachments.length)) return;
+      this.showFreshArchetypeTiles = false;
       var text = this.inputText.trim();
 
       // Handle slash commands
@@ -3030,7 +3467,7 @@ function chatPage() {
           InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;
-          Alpine.store('app').activeAgentId = null;
+          self.setStoreActiveAgentId(null);
           self.messages = [];
           InfringToast.success('Agent "' + name + '" stopped');
           Alpine.store('app').refreshAgents();
@@ -3056,7 +3493,7 @@ function chatPage() {
     syncMapSelectionToScroll: function(container) {
       var el = this.resolveMessagesScroller(container);
       if (!el || !this.currentAgent || !Array.isArray(this.messages) || !this.messages.length) return;
-      var nodes = el.querySelectorAll('.message[id^="chat-msg-"]');
+      var nodes = el.querySelectorAll('.chat-message-block[id^="chat-msg-"]');
       if (!nodes || !nodes.length) return;
       var viewport = el.getBoundingClientRect();
       var viewportCenterY = viewport.top + (viewport.height / 2);
@@ -3094,15 +3531,37 @@ function chatPage() {
 
     scrollToBottom() {
       var self = this;
-      var el = this.resolveMessagesScroller();
-      if (el) self.$nextTick(function() {
-        el.scrollTop = el.scrollHeight;
-        self.showScrollDown = false;
-        self.syncMapSelectionToScroll(el);
-        // Debounce LaTeX rendering to avoid running on every streaming token
-        if (self._latexTimer) clearTimeout(self._latexTimer);
-        self._latexTimer = setTimeout(function() { renderLatex(el); }, 150);
+      self.$nextTick(function() {
+        self.scrollToBottomImmediate();
       });
+    },
+
+    scrollToBottomImmediate() {
+      var el = this.resolveMessagesScroller();
+      if (!el) return;
+      el.scrollTop = el.scrollHeight;
+      this.showScrollDown = false;
+      this.syncMapSelectionToScroll(el);
+      this.scheduleMessageRenderWindowUpdate(el);
+      // Debounce LaTeX rendering to avoid running on every streaming token
+      if (this._latexTimer) clearTimeout(this._latexTimer);
+      this._latexTimer = setTimeout(function() { renderLatex(el); }, 150);
+    },
+
+    stabilizeBottomScroll: function() {
+      var self = this;
+      var tries = 3;
+      var tick = function() {
+        var el = self.resolveMessagesScroller();
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+        if (--tries > 0) {
+          if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
+          else setTimeout(tick, 16);
+        }
+      };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
+      else setTimeout(tick, 0);
     },
 
     handleMessagesScroll(e) {
@@ -3120,6 +3579,7 @@ function chatPage() {
       } else {
         self.syncMapSelectionToScroll(el);
       }
+      this.scheduleMessageRenderWindowUpdate(el);
     },
 
     addFiles(files) {

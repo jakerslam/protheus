@@ -31,6 +31,7 @@ const SHARED_THROUGHPUT_SAMPLE_MS: u64 = 800;
 const SHARED_THROUGHPUT_ROUNDS: usize = 5;
 const SHARED_THROUGHPUT_WARMUP_ROUNDS: usize = 2;
 const SHARED_THROUGHPUT_DEFAULT_UNCACHED: bool = true;
+const SHARED_THROUGHPUT_WORK_FACTOR: u32 = 16;
 const BENCHMARK_PREFLIGHT_ENABLED_DEFAULT: bool = true;
 const BENCHMARK_PREFLIGHT_MAX_LOAD_PER_CORE_DEFAULT: f64 = 0.90;
 const BENCHMARK_PREFLIGHT_MAX_NOISE_CV_PCT_DEFAULT: f64 = 12.5;
@@ -641,12 +642,11 @@ fn measure_pure_workspace(
 }
 
 fn live_tasks_per_sec(sample_ms: u64) -> f64 {
-    const WORK_FACTOR: u32 = 16;
     let target = Duration::from_millis(sample_ms.max(100));
     let started = Instant::now();
     let mut tasks = 0u64;
     while started.elapsed() < target {
-        for idx in 0..WORK_FACTOR {
+        for idx in 0..SHARED_THROUGHPUT_WORK_FACTOR {
             let payload = format!("task-{tasks}-work-{idx}");
             let digest = Sha256::digest(payload.as_bytes());
             black_box(digest);
@@ -659,6 +659,10 @@ fn live_tasks_per_sec(sample_ms: u64) -> f64 {
     } else {
         tasks as f64 / secs
     }
+}
+
+fn effective_hash_ops_per_sec(tasks_per_sec: f64) -> f64 {
+    ((tasks_per_sec * SHARED_THROUGHPUT_WORK_FACTOR as f64) * 100.0).round() / 100.0
 }
 
 fn pre_sample_cache_bust(workload_seed: &str, round_idx: usize) {
@@ -859,6 +863,14 @@ fn stabilized_tasks_per_sec(rounds: usize, sample_ms: u64, uncached: bool) -> Th
 fn attach_shared_throughput(measured: &mut Map<String, Value>, tasks_per_sec: f64) {
     measured.insert("tasks_per_sec".to_string(), json!(tasks_per_sec));
     measured.insert(
+        "effective_hash_ops_per_sec".to_string(),
+        json!(effective_hash_ops_per_sec(tasks_per_sec)),
+    );
+    measured.insert(
+        "throughput_work_factor".to_string(),
+        json!(SHARED_THROUGHPUT_WORK_FACTOR),
+    );
+    measured.insert(
         "throughput_source".to_string(),
         Value::String(SHARED_THROUGHPUT_SOURCE.to_string()),
     );
@@ -1032,6 +1044,10 @@ fn measure_openclaw(
             "tasks_per_sec".to_string(),
             json!(throughput_sampling.tasks_per_sec),
         );
+        metrics.insert(
+            "effective_hash_ops_per_sec".to_string(),
+            json!(effective_hash_ops_per_sec(throughput_sampling.tasks_per_sec)),
+        );
     }
     if let Some(meta) = runtime_source.as_object_mut() {
         meta.insert(
@@ -1050,7 +1066,14 @@ fn measure_openclaw(
             "tasks_sample_ms".to_string(),
             json!(SHARED_THROUGHPUT_SAMPLE_MS),
         );
-        meta.insert("tasks_work_factor".to_string(), json!(16));
+        meta.insert(
+            "tasks_work_factor".to_string(),
+            json!(SHARED_THROUGHPUT_WORK_FACTOR),
+        );
+        meta.insert(
+            "effective_hash_ops_per_sec".to_string(),
+            json!(effective_hash_ops_per_sec(throughput_sampling.tasks_per_sec)),
+        );
         meta.insert(
             "tasks_phase".to_string(),
             Value::String("pre_profile_sampling_shared".to_string()),
