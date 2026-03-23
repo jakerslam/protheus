@@ -512,7 +512,15 @@ function chatPage() {
       } catch {}
     },
 
-    rememberModelNotice: function(agentId, label, ts) {
+    normalizeNoticeType: function(value, fallbackType) {
+      var fallback = String(fallbackType || 'info').toLowerCase();
+      if (fallback !== 'model' && fallback !== 'info') fallback = 'info';
+      var raw = String(value || '').toLowerCase().trim();
+      if (raw === 'model' || raw === 'info') return raw;
+      return fallback;
+    },
+
+    rememberModelNotice: function(agentId, label, ts, noticeType, noticeIcon) {
       if (!agentId || !label) return;
       if (!this.modelNoticeCache || typeof this.modelNoticeCache !== 'object') {
         this.modelNoticeCache = {};
@@ -521,10 +529,21 @@ function chatPage() {
       if (!Array.isArray(this.modelNoticeCache[key])) this.modelNoticeCache[key] = [];
       var list = this.modelNoticeCache[key];
       var tsNum = Number(ts || Date.now());
+      var normalizedType = this.normalizeNoticeType(
+        noticeType,
+        /^Model switched to /i.test(String(label || '').trim()) ? 'model' : 'info'
+      );
+      var normalizedIcon = String(noticeIcon || '').trim();
+      if (!normalizedIcon && normalizedType === 'info') normalizedIcon = 'i';
       var exists = list.some(function(entry) {
-        return entry && entry.label === label && Number(entry.ts || 0) === tsNum;
+        return (
+          entry &&
+          entry.label === label &&
+          Number(entry.ts || 0) === tsNum &&
+          String(entry.type || '') === normalizedType
+        );
       });
-      if (!exists) list.push({ label: label, ts: tsNum });
+      if (!exists) list.push({ label: label, ts: tsNum, type: normalizedType, icon: normalizedIcon });
       if (list.length > 120) this.modelNoticeCache[key] = list.slice(list.length - 120);
       this.persistModelNoticeCache();
     },
@@ -535,6 +554,7 @@ function chatPage() {
       var notices = this.modelNoticeCache[String(agentId)];
       if (!Array.isArray(notices) || !notices.length) return list;
       var existing = {};
+      var self = this;
       list.forEach(function(msg) {
         if (!msg) return;
         var label = msg.notice_label || '';
@@ -542,14 +562,24 @@ function chatPage() {
           label = msg.text.trim();
         }
         if (!label) return;
-        existing[label + '|' + Number(msg.ts || 0)] = true;
+        var type = self.normalizeNoticeType(
+          msg.notice_type,
+          /^Model switched to /i.test(String(label || '').trim()) ? 'model' : 'info'
+        );
+        existing[type + '|' + label + '|' + Number(msg.ts || 0)] = true;
       });
       for (var i = 0; i < notices.length; i++) {
         var n = notices[i] || {};
         var nLabel = String(n.label || '').trim();
         if (!nLabel) continue;
         var nTs = Number(n.ts || 0) || Date.now();
-        var nKey = nLabel + '|' + nTs;
+        var nType = this.normalizeNoticeType(
+          n.type || n.notice_type,
+          /^Model switched to /i.test(nLabel) ? 'model' : 'info'
+        );
+        var nIcon = String(n.icon || n.notice_icon || '').trim();
+        if (!nIcon && nType === 'info') nIcon = 'i';
+        var nKey = nType + '|' + nLabel + '|' + nTs;
         if (existing[nKey]) continue;
         list.push({
           id: ++msgId,
@@ -559,6 +589,8 @@ function chatPage() {
           tools: [],
           is_notice: true,
           notice_label: nLabel,
+          notice_type: nType,
+          notice_icon: nIcon,
           ts: nTs
         });
       }
@@ -630,12 +662,30 @@ function chatPage() {
         }
         var isNotice = false;
         var noticeLabel = '';
-        if (role === 'system' && typeof text === 'string') {
+        var noticeType = '';
+        var noticeIcon = '';
+        if (m && (m.is_notice || m.notice_label || m.notice_type)) {
+          var explicitLabel = String(m.notice_label || '').trim();
+          var inferredLabel = typeof text === 'string' ? text.trim() : '';
+          noticeLabel = explicitLabel || inferredLabel;
+          if (noticeLabel) {
+            isNotice = true;
+            text = '';
+            noticeType = self.normalizeNoticeType(
+              m.notice_type,
+              /^Model switched to /i.test(noticeLabel) ? 'model' : 'info'
+            );
+            noticeIcon = String(m.notice_icon || '').trim();
+            if (!noticeIcon && noticeType === 'info') noticeIcon = 'i';
+          }
+        }
+        if (!isNotice && role === 'system' && typeof text === 'string') {
           var compact = text.trim();
           if (/^Model switched to /i.test(compact)) {
             isNotice = true;
             noticeLabel = compact;
             text = '';
+            noticeType = 'model';
           }
         }
         return {
@@ -648,6 +698,8 @@ function chatPage() {
           ts: ts,
           is_notice: isNotice,
           notice_label: noticeLabel,
+          notice_type: noticeType,
+          notice_icon: noticeIcon,
           terminal: isTerminal,
           cwd: m && m.cwd ? String(m.cwd) : '',
           agent_id: m && m.agent_id ? String(m.agent_id) : '',
@@ -2028,7 +2080,10 @@ function chatPage() {
 
     messageActorLabel: function(msg) {
       if (!msg) return 'Message';
-      if (msg.is_notice) return 'Model';
+      if (msg.is_notice) {
+        if (this.normalizeNoticeType(msg.notice_type, 'model') === 'info') return '\u24d8 Info';
+        return 'Model';
+      }
       if (msg.terminal) return 'Terminal';
       if (Array.isArray(msg.tools) && msg.tools.length && (!msg.text || !String(msg.text).trim())) {
         return 'Tool';
@@ -2072,7 +2127,9 @@ function chatPage() {
 
     messageMapMarkerType: function(msg) {
       if (!msg) return '';
-      if (msg.is_notice) return 'model';
+      if (msg.is_notice) {
+        return this.normalizeNoticeType(msg.notice_type, 'model') === 'info' ? 'info' : 'model';
+      }
       if (msg.terminal) return 'terminal';
       if (Array.isArray(msg.tools) && msg.tools.length) return 'tool';
       return '';
@@ -2086,6 +2143,9 @@ function chatPage() {
       var type = this.messageMapMarkerType(msg);
       if (type === 'model') {
         return msg && msg.notice_label ? String(msg.notice_label) : 'Model switched';
+      }
+      if (type === 'info') {
+        return msg && msg.notice_label ? String(msg.notice_label) : 'Info';
       }
       if (type === 'tool') {
         var outcome = this.messageMapToolOutcome(msg) || 'success';
@@ -2162,12 +2222,18 @@ function chatPage() {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
-    addModelSwitchNotice: function(modelName, providerName) {
-      var model = String(modelName || '').trim();
-      if (!model) return;
-      var provider = String(providerName || '').trim();
-      var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
-      var ts = Date.now();
+    addNoticeEvent: function(notice) {
+      if (!notice || typeof notice !== 'object') return;
+      var label = String(notice.notice_label || notice.label || '').trim();
+      if (!label) return;
+      var type = this.normalizeNoticeType(
+        notice.notice_type || notice.type,
+        /^Model switched to /i.test(label) ? 'model' : 'info'
+      );
+      var icon = String(notice.notice_icon || notice.icon || '').trim();
+      if (!icon && type === 'info') icon = 'i';
+      var tsRaw = Number(notice.ts || 0);
+      var ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
       this.messages.push({
         id: ++msgId,
         role: 'system',
@@ -2176,13 +2242,36 @@ function chatPage() {
         tools: [],
         is_notice: true,
         notice_label: label,
+        notice_type: type,
+        notice_icon: icon,
         ts: ts
       });
       if (this.currentAgent && this.currentAgent.id) {
-        this.rememberModelNotice(this.currentAgent.id, label, ts);
+        this.rememberModelNotice(this.currentAgent.id, label, ts, type, icon);
       }
       this.scrollToBottom();
       this.scheduleConversationPersist();
+    },
+
+    addModelSwitchNotice: function(modelName, providerName) {
+      var model = String(modelName || '').trim();
+      if (!model) return;
+      var provider = String(providerName || '').trim();
+      var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
+      this.addNoticeEvent({ notice_label: label, notice_type: 'model', ts: Date.now() });
+    },
+
+    addAgentRenameNotice: function(previousName, nextName) {
+      var fromName = String(previousName || '').trim();
+      var toName = String(nextName || '').trim();
+      if (!toName || fromName === toName) return;
+      if (!fromName) fromName = 'Unnamed agent';
+      this.addNoticeEvent({
+        notice_label: 'changed name from ' + fromName + ' to ' + toName,
+        notice_type: 'info',
+        notice_icon: 'i',
+        ts: Date.now()
+      });
     },
 
     formatResponseDuration: function(ms) {
@@ -2422,9 +2511,16 @@ function chatPage() {
 
     async saveDrawerConfig() {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
+      var previousName = String((this.agentDrawer && this.agentDrawer.name) || (this.currentAgent && this.currentAgent.name) || '').trim();
+      var requestedName = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       this.drawerConfigSaving = true;
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        if (response && response.rename_notice) {
+          this.addNoticeEvent(response.rename_notice);
+        } else if (requestedName && requestedName !== previousName) {
+          this.addAgentRenameNotice(previousName, requestedName);
+        }
         InfringToast.success('Config updated');
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
@@ -2436,6 +2532,7 @@ function chatPage() {
     async saveDrawerIdentity(part) {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       var payload = {};
+      var previousName = String((this.agentDrawer && this.agentDrawer.name) || (this.currentAgent && this.currentAgent.name) || '').trim();
       if (part === 'name') {
         payload.name = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       } else if (part === 'emoji') {
@@ -2445,7 +2542,12 @@ function chatPage() {
       }
       this.drawerIdentitySaving = true;
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        if (response && response.rename_notice) {
+          this.addNoticeEvent(response.rename_notice);
+        } else if (part === 'name' && payload.name && payload.name !== previousName) {
+          this.addAgentRenameNotice(previousName, payload.name);
+        }
         if (part === 'name') this.drawerEditingName = false;
         if (part === 'emoji') this.drawerEditingEmoji = false;
         InfringToast.success(part === 'name' ? 'Name updated' : 'Emoji updated');
