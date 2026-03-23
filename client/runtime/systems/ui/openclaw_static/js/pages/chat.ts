@@ -61,6 +61,11 @@ function chatPage() {
     _forcedHydrateById: {},
     _renderWindowRaf: 0,
     showFreshArchetypeTiles: false,
+    freshInitTemplateDef: null,
+    freshInitTemplateName: '',
+    freshInitName: '',
+    freshInitEmoji: '🤖',
+    freshInitLaunching: false,
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     _persistTimer: null,
@@ -332,6 +337,25 @@ function chatPage() {
         this.contextUsagePercent + '% full\n' +
         ' ' + this.formatTokenK(this.contextApproxTokens) + ' / ' + this.formatTokenK(this.contextWindow) + ' tokens used\n\n' +
         ' Infring dynamically prunes its context';
+    },
+
+    get activeGitBranchLabel() {
+      var agentBranch = this.currentAgent && this.currentAgent.git_branch
+        ? String(this.currentAgent.git_branch).trim()
+        : '';
+      if (agentBranch) return agentBranch;
+      try {
+        var store = Alpine.store('app');
+        var branch = store && store.gitBranch ? String(store.gitBranch).trim() : '';
+        return branch || '';
+      } catch(_) {
+        return '';
+      }
+    },
+
+    get freshInitCanLaunch() {
+      var hasName = String(this.freshInitName || '').trim().length > 0;
+      return !!(this.showFreshArchetypeTiles && !this.freshInitLaunching && hasName && this.freshInitTemplateDef);
     },
 
     get modelDisplayName() {
@@ -1461,14 +1485,33 @@ function chatPage() {
         if (forceFreshSession) {
           this.messages = [];
           this.showFreshArchetypeTiles = true;
+          this.freshInitTemplateDef = null;
+          this.freshInitTemplateName = '';
+          this.freshInitLaunching = false;
+          this.freshInitName = String(resolved.name || resolved.id || '').trim() || String(resolved.id || '');
+          this.freshInitEmoji = String(
+            (resolved.identity && resolved.identity.emoji) ||
+            (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
+            '🤖'
+          ).trim() || '🤖';
           if (this.conversationCache) {
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
           }
           InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+          this.connectWs(resolved.id);
+          this.loadSessions(resolved.id);
+          this.requestContextTelemetry(true);
+          var selfFreshCurrent = this;
+          this.$nextTick(function() {
+            selfFreshCurrent.scrollToBottomImmediate();
+            selfFreshCurrent.stabilizeBottomScroll();
+            selfFreshCurrent.installChatMapWheelLock();
+            selfFreshCurrent.scheduleMessageRenderWindowUpdate();
+          });
+        } else {
+          this.loadSession(resolved.id, true);
         }
-        this.loadSession(resolved.id, !forceFreshSession);
-        if (forceFreshSession && store) store.pendingFreshAgentId = null;
         return;
       }
       this.currentAgent = resolved;
@@ -1483,9 +1526,20 @@ function chatPage() {
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) this.messages = [];
       this.showFreshArchetypeTiles = !!forceFreshSession;
+      if (forceFreshSession) {
+        this.freshInitTemplateDef = null;
+        this.freshInitTemplateName = '';
+        this.freshInitLaunching = false;
+        this.freshInitName = String(resolved.name || resolved.id || '').trim() || String(resolved.id || '');
+        this.freshInitEmoji = String(
+          (resolved.identity && resolved.identity.emoji) ||
+          (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
+          '🤖'
+        ).trim() || '🤖';
+      }
       this.connectWs(resolved.id);
       // Show welcome tips on first use
-      if (!restored && !localStorage.getItem('of-chat-tips-seen')) {
+      if (!restored && !this.showFreshArchetypeTiles && !localStorage.getItem('of-chat-tips-seen')) {
         this.messages.push({
           id: ++msgId,
           role: 'system',
@@ -1504,14 +1558,13 @@ function chatPage() {
         });
         localStorage.setItem('of-chat-tips-seen', 'true');
       }
-      this.loadSession(resolved.id, restored);
+      if (!forceFreshSession) {
+        this.loadSession(resolved.id, restored);
+      }
       this.loadSessions(resolved.id);
       this.requestContextTelemetry(true);
       if (this.showAgentDrawer) {
         this.openAgentDrawer();
-      }
-      if (forceFreshSession && store) {
-        store.pendingFreshAgentId = null;
       }
       // Focus input after agent selection
       var self = this;
@@ -1598,11 +1651,32 @@ function chatPage() {
       this.messageHydration = next;
     },
 
+    isFreshInitTemplateSelected(templateDef) {
+      if (!templateDef) return false;
+      var key = String(templateDef.name || '').trim();
+      return !!key && key === String(this.freshInitTemplateName || '').trim();
+    },
+
     async applyChatArchetypeTemplate(templateDef) {
-      if (!this.currentAgent || !this.currentAgent.id || !templateDef) return;
+      if (!templateDef) return;
+      this.freshInitTemplateDef = templateDef;
+      this.freshInitTemplateName = String(templateDef.name || '').trim();
+    },
+
+    async launchFreshAgentInitialization() {
+      if (!this.currentAgent || !this.currentAgent.id) return;
+      if (this.freshInitLaunching) return;
+      if (!this.freshInitTemplateDef) {
+        InfringToast.info('Select an archetype first.');
+        return;
+      }
       var agentId = this.currentAgent.id;
+      var templateDef = this.freshInitTemplateDef;
       var provider = String(templateDef.provider || '').trim();
       var model = String(templateDef.model || '').trim();
+      var agentName = String(this.freshInitName || '').trim() || String(this.currentAgent.name || this.currentAgent.id || '').trim() || String(agentId);
+      var agentEmoji = String(this.freshInitEmoji || '').trim() || '🤖';
+      this.freshInitLaunching = true;
       try {
         if (provider && model) {
           await InfringAPI.put('/api/agents/' + agentId + '/model', {
@@ -1610,6 +1684,8 @@ function chatPage() {
           });
         }
         await InfringAPI.patch('/api/agents/' + agentId + '/config', {
+          name: agentName,
+          identity: { emoji: agentEmoji },
           system_prompt: String(templateDef.system_prompt || '').trim(),
           archetype: String(templateDef.archetype || '').trim(),
           profile: String(templateDef.profile || '').trim()
@@ -1620,10 +1696,25 @@ function chatPage() {
           ts: Date.now()
         });
         this.showFreshArchetypeTiles = false;
+        this.freshInitTemplateDef = null;
+        this.freshInitTemplateName = '';
+        this.freshInitLaunching = false;
+        try {
+          var store = Alpine.store('app');
+          if (store) {
+            store.pendingFreshAgentId = null;
+            if (typeof store.refreshAgents === 'function') {
+              await store.refreshAgents();
+            }
+          }
+        } catch(_) {}
         await this.syncDrawerAgentAfterChange();
-        InfringToast.success('Applied ' + String(templateDef.name || 'template'));
+        await this.loadSession(agentId, false);
+        this.requestContextTelemetry(true);
+        InfringToast.success('Launched ' + String(templateDef.name || 'agent setup'));
       } catch (e) {
-        InfringToast.error('Failed to apply archetype template: ' + e.message);
+        this.freshInitLaunching = false;
+        InfringToast.error('Failed to initialize agent: ' + e.message);
       }
     },
 
@@ -3234,6 +3325,10 @@ function chatPage() {
     },
 
     async sendTerminalMessage() {
+      if (this.showFreshArchetypeTiles) {
+        InfringToast.info('Launch agent initialization before running terminal commands.');
+        return;
+      }
       if (!this.currentAgent || !this.inputText.trim()) return;
       this.showFreshArchetypeTiles = false;
       var command = this.inputText.trim();
@@ -3254,6 +3349,10 @@ function chatPage() {
     async sendMessage() {
       if (this.terminalMode) {
         await this.sendTerminalMessage();
+        return;
+      }
+      if (this.showFreshArchetypeTiles) {
+        InfringToast.info('Launch agent initialization before chatting.');
         return;
       }
       if (!this.currentAgent || (!this.inputText.trim() && !this.attachments.length)) return;

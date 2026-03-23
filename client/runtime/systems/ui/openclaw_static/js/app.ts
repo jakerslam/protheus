@@ -153,6 +153,7 @@ document.addEventListener('alpine:init', function() {
     connectionState: 'connected',
     lastError: '',
     version: '0.1.0',
+    gitBranch: '',
     agentCount: 0,
     pendingAgent: null,
     pendingFreshAgentId: null,
@@ -230,6 +231,7 @@ document.addEventListener('alpine:init', function() {
         this.booting = false;
         this.lastError = '';
         this.version = s.version || '0.1.0';
+        this.gitBranch = s.git_branch ? String(s.git_branch) : (this.gitBranch || '');
         this.agentCount = s.agent_count || 0;
       } catch(e) {
         this.connected = false;
