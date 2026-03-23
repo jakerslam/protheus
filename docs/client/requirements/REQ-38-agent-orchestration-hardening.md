@@ -47,8 +47,8 @@ Out of scope:
 
 **Evidence:**
 - Coordinator implementation in `client/cognition/orchestration/coordinator.ts`
-- Test: `tests/client/cognition/coordinator.test.js` (partitioning, dedupe, severity merge)
-- Test: `tests/client/cognition/orchestration.integration.test.js` (multi-agent integration)
+- Test: `tests/client/cognition/coordinator.test.ts` (partitioning, dedupe, severity merge)
+- Test: `tests/client/cognition/orchestration.integration.test.ts` (multi-agent integration)
 
 ---
 
@@ -65,7 +65,7 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/scratchpad.ts`
-- Test: `tests/client/cognition/scratchpad.test.js` (read/write/schema/cleanup)
+- Test: `tests/client/cognition/scratchpad.test.ts` (read/write/schema/cleanup)
 
 ---
 
@@ -82,8 +82,8 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/checkpoint.ts`
-- Test: `tests/client/cognition/checkpoint.test.js` (10 items / 2min + timeout recovery)
-- Test: `tests/client/cognition/partial.checkpoint.test.js` (checkpoint fallback retrieval)
+- Test: `tests/client/cognition/checkpoint.test.ts` (10 items / 2min + timeout recovery)
+- Test: `tests/client/cognition/partial.checkpoint.test.ts` (checkpoint fallback retrieval)
 
 ---
 
@@ -99,9 +99,9 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/scope.ts`
-- Test: `tests/client/cognition/scope.validation.test.js` (valid scope formats)
-- Test: `tests/client/cognition/scope.overlap.test.js` (overlap detection)
-- Test: `tests/client/cognition/scope.violation.test.js` (violation logging)
+- Test: `tests/client/cognition/scope.validation.test.ts` (valid scope formats)
+- Test: `tests/client/cognition/scope.overlap.test.ts` (overlap detection)
+- Test: `tests/client/cognition/scope.violation.test.ts` (violation logging)
 
 ---
 
@@ -119,8 +119,8 @@ Out of scope:
 
 **Evidence:**
 - Schema file: `client/cognition/orchestration/schemas/finding-v1.json`
-- Test: `tests/client/cognition/schema.validation.test.js` (valid/invalid payloads)
-- Test: `tests/client/cognition/schema.enforcement.test.js` (rejection of non-compliant)
+- Test: `tests/client/cognition/schema.validation.test.ts` (valid/invalid payloads)
+- Test: `tests/client/cognition/schema.enforcement.test.ts` (rejection of non-compliant)
 
 ---
 
@@ -137,9 +137,9 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/completion.ts`
-- Test: `tests/client/cognition/completion.tracking.test.js` (status tracking)
-- Test: `tests/client/cognition/completion.notification.test.js` (parent notification)
-- Test: `tests/client/cognition/completion.aggregate.test.js` (auto-aggregation)
+- Test: `tests/client/cognition/completion.tracking.test.ts` (status tracking)
+- Test: `tests/client/cognition/completion.notification.test.ts` (parent notification)
+- Test: `tests/client/cognition/completion.aggregate.test.ts` (auto-aggregation)
 
 ---
 
@@ -155,9 +155,9 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/taskgroup.ts`
-- Test: `tests/client/cognition/taskgroup.tagging.test.js` (metadata tagging)
-- Test: `tests/client/cognition/taskgroup.query.test.js` (group querying)
-- Test: `tests/client/cognition/taskgroup.metadata.test.js` (metadata completeness)
+- Test: `tests/client/cognition/taskgroup.tagging.test.ts` (metadata tagging)
+- Test: `tests/client/cognition/taskgroup.query.test.ts` (group querying)
+- Test: `tests/client/cognition/taskgroup.metadata.test.ts` (metadata completeness)
 
 ---
 
@@ -173,9 +173,9 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/partial.ts`
-- Test: `tests/client/cognition/partial.session.test.js` (session history retrieval)
-- Test: `tests/client/cognition/partial.checkpoint.test.js` (checkpoint fallback)
-- Test: `tests/client/cognition/partial.decision.test.js` (parent decision flow)
+- Test: `tests/client/cognition/partial.session.test.ts` (session history retrieval)
+- Test: `tests/client/cognition/partial.checkpoint.test.ts` (checkpoint fallback)
+- Test: `tests/client/cognition/partial.decision.test.ts` (parent decision flow)
 
 ## Verification Requirements
 

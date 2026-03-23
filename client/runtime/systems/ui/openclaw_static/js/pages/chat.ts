@@ -583,6 +583,72 @@ function chatPage() {
       }
     },
 
+    isAutoModelSelected() {
+      return !!(
+        this.currentAgent &&
+        String(this.currentAgent.model_name || '').trim().toLowerCase() === 'auto'
+      );
+    },
+
+    formatAutoRouteMeta(route) {
+      if (!route || typeof route !== 'object') return '';
+      var provider = String(route.provider || route.selected_provider || '').trim();
+      var model = String(route.model || route.selected_model || route.selected_model_id || '').trim();
+      if (!model) return '';
+      var shortModel = model;
+      if (shortModel.indexOf('/') >= 0) {
+        shortModel = shortModel.split('/').slice(-1)[0];
+      }
+      var reason = String(route.reason || '').trim();
+      if (reason.length > 80) reason = reason.slice(0, 77) + '...';
+      var prefix = provider ? ('Auto -> ' + provider + '/' + shortModel) : ('Auto -> ' + shortModel);
+      return reason ? (prefix + ' (' + reason + ')') : prefix;
+    },
+
+    applyAutoRouteTelemetry(data) {
+      if (!data || typeof data !== 'object') return null;
+      var route = null;
+      if (data.auto_route && typeof data.auto_route === 'object') {
+        route = data.auto_route;
+      } else if (data.route && typeof data.route === 'object') {
+        route = data.route;
+      }
+      if (!route) return null;
+      if (!this.currentAgent) return route;
+      if (!this.isAutoModelSelected()) return route;
+      var provider = String(route.provider || route.selected_provider || this.currentAgent.model_provider || '').trim();
+      var model = String(route.model || route.selected_model || route.selected_model_id || '').trim();
+      if (provider) this.currentAgent.model_provider = provider;
+      if (model) {
+        this.currentAgent.runtime_model = model.indexOf('/') >= 0 ? model.split('/').slice(-1)[0] : model;
+        this.touchModelUsage(this.currentAgent.runtime_model);
+      }
+      this.setContextWindowFromCurrentAgent();
+      return route;
+    },
+
+    async fetchAutoRoutePreflight(message, uploadedFiles) {
+      if (!this.currentAgent || !this.isAutoModelSelected()) return null;
+      var text = String(message || '').trim();
+      if (!text) return null;
+      var files = Array.isArray(uploadedFiles) ? uploadedFiles : [];
+      var hasVision = files.some(function(f) {
+        return String(f && f.content_type ? f.content_type : '').toLowerCase().indexOf('image/') === 0;
+      });
+      try {
+        var result = await InfringAPI.post('/api/route/auto', {
+          agent_id: this.currentAgent.id,
+          message: text,
+          token_count: this.estimateTokensFromText(text),
+          has_vision: hasVision,
+          attachments: files,
+        });
+        if (result && result.route && typeof result.route === 'object') return result.route;
+        if (result && (result.selected_model || result.selected_provider)) return result;
+      } catch (_) {}
+      return null;
+    },
+
     inferContextWindowFromModelId(modelId) {
       var value = String(modelId || '').toLowerCase();
       if (!value) return 0;
@@ -2167,6 +2233,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.applyContextTelemetry(data);
+          var wsRoute = this.applyAutoRouteTelemetry(data);
           // Collect streamed text before removing streaming messages
           var streamedText = '';
           var streamedTools = [];
@@ -2200,6 +2267,8 @@ function chatPage() {
           }
           var wsDuration = this.formatResponseDuration(wsDurationMs);
           if (wsDuration) meta += ' | ' + wsDuration;
+          var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
+          if (wsRouteMeta) meta += ' | ' + wsRouteMeta;
           // Use server response if non-empty, otherwise preserve accumulated streamed text
           var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
           finalText = this.stripModelPrefix(finalText);
@@ -3523,13 +3592,25 @@ function chatPage() {
     async _sendPayload(finalText, uploadedFiles, msgImages) {
       this.sending = true;
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
+      var preflightRoute = await this.fetchAutoRoutePreflight(finalText, uploadedFiles);
+      var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
+      if (preflightRoute) this.applyAutoRouteTelemetry({ auto_route: preflightRoute });
 
       // Try WebSocket first
       var wsPayload = { type: 'message', content: finalText };
       if (uploadedFiles && uploadedFiles.length) wsPayload.attachments = uploadedFiles;
       if (InfringAPI.wsSend(wsPayload)) {
         this._responseStartedAt = Date.now();
-        this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, tools: [], ts: Date.now() });
+        this.messages.push({
+          id: ++msgId,
+          role: 'agent',
+          text: '',
+          meta: preflightMeta || '',
+          thinking: true,
+          streaming: true,
+          tools: [],
+          ts: Date.now()
+        });
         this.scrollToBottom();
         this.scheduleConversationPersist();
         return;
@@ -3539,7 +3620,15 @@ function chatPage() {
       if (!InfringAPI.isWsConnected()) {
         InfringToast.info('Using HTTP mode (no streaming)');
       }
-      this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, tools: [], ts: Date.now() });
+      this.messages.push({
+        id: ++msgId,
+        role: 'agent',
+        text: '',
+        meta: preflightMeta || '',
+        thinking: true,
+        tools: [],
+        ts: Date.now()
+      });
       this.scrollToBottom();
       this.scheduleConversationPersist();
       var httpStartedAt = Date.now();
@@ -3549,12 +3638,15 @@ function chatPage() {
         if (uploadedFiles && uploadedFiles.length) httpBody.attachments = uploadedFiles;
         var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', httpBody);
         this.applyContextTelemetry(res);
+        var httpRoute = this.applyAutoRouteTelemetry(res);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var httpMeta = (res.input_tokens || 0) + ' in / ' + (res.output_tokens || 0) + ' out';
         if (res.cost_usd != null) httpMeta += ' | $' + res.cost_usd.toFixed(4);
         if (res.iterations) httpMeta += ' | ' + res.iterations + ' iter';
         var httpDuration = this.formatResponseDuration(Date.now() - httpStartedAt);
         if (httpDuration) httpMeta += ' | ' + httpDuration;
+        var httpRouteMeta = this.formatAutoRouteMeta(httpRoute || preflightRoute);
+        if (httpRouteMeta) httpMeta += ' | ' + httpRouteMeta;
         var httpTools = Array.isArray(res.tools)
           ? res.tools.map(function(t, idx) {
               return {

@@ -17,6 +17,10 @@ const CLIENT_CSS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_dashboard.css'
 );
+const CHAT_PAGE_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/openclaw_static/js/pages/chat.ts'
+);
 const SNAPSHOT_PATH = path.resolve(
   ROOT,
   'client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json'
@@ -199,12 +203,51 @@ function assertContract0064() {
   );
 }
 
+function assertContract008() {
+  const laneSource = readUtf8(TARGET);
+  const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
+  assertContains(
+    laneSource,
+    "pathname === '/api/route/auto' || pathname === '/route/auto'",
+    'auto-route endpoint route guard missing'
+  );
+  assertContains(
+    laneSource,
+    'const route = planAutoRoute(input, latestSnapshot, {',
+    'auto-route endpoint planner call missing'
+  );
+  assertContains(
+    laneSource,
+    'auto_route: turn.auto_route || null,',
+    'turn auto-route metadata propagation missing'
+  );
+  assertContains(
+    laneSource,
+    'routed_model: autoRoutePayload.model,',
+    'lane payload routed model binding missing'
+  );
+  assertContains(
+    chatSource,
+    "var result = await InfringAPI.post('/api/route/auto', {",
+    'chat preflight auto-route request missing'
+  );
+  assertContains(
+    chatSource,
+    "var prefix = provider ? ('Auto -> ' + provider + '/' + shortModel) : ('Auto -> ' + shortModel);",
+    'chat auto-route metadata formatting missing'
+  );
+}
+
 function runContract(contract) {
   runSnapshotAssertions();
   if (contract === 'V6-DASHBOARD-006.1') return assertContract0061();
   if (contract === 'V6-DASHBOARD-006.2') return assertContract0062();
   if (contract === 'V6-DASHBOARD-006.3') return assertContract0063();
   if (contract === 'V6-DASHBOARD-006.4') return assertContract0064();
+  if (contract === 'V6-DASHBOARD-008.1') return assertContract008();
+  if (contract === 'V6-DASHBOARD-008.2') return assertContract008();
+  if (contract === 'V6-DASHBOARD-008.3') return assertContract008();
+  if (contract === 'V6-DASHBOARD-008.4') return assertContract008();
   assert.fail(`unsupported_contract:${contract}`);
 }
 
