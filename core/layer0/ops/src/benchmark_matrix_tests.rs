@@ -134,6 +134,18 @@ fn attach_shared_throughput_marks_shared_baseline_source() {
         Some(7777.0)
     );
     assert_eq!(
+        measured
+            .get("effective_hash_ops_per_sec")
+            .and_then(Value::as_f64),
+        Some(124432.0)
+    );
+    assert_eq!(
+        measured
+            .get("throughput_work_factor")
+            .and_then(Value::as_u64),
+        Some(SHARED_THROUGHPUT_WORK_FACTOR as u64)
+    );
+    assert_eq!(
         measured.get("throughput_source").and_then(Value::as_str),
         Some(SHARED_THROUGHPUT_SOURCE)
     );

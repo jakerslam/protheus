@@ -453,10 +453,15 @@ async function run() {
     assert.strictEqual(clientLayer.status, 200, 'client-layer query should return 200');
     const clientLane = clientLayer.body && clientLayer.body.lane ? clientLayer.body.lane : {};
     const clientText = String(clientLane.response || '');
+    const clientTextLower = clientText.trim().toLowerCase();
+    const placeholderLikeResponse =
+      clientTextLower === '<text response to user>' ||
+      clientTextLower === 'actual concrete response text' ||
+      clientTextLower.includes('"response":"actual concrete response text"');
     summary.checks.client_layer_visibility = Boolean(
       clientLayer.body
       && clientLayer.body.ok
-      && clientText.trim().toLowerCase() !== '<text response to user>'
+      && !placeholderLikeResponse
       && /memory|receipt|log|health|attention|cockpit/i.test(clientText)
     );
     assert.strictEqual(summary.checks.client_layer_visibility, true, 'client-layer response should expose runtime surfaces');
