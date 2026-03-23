@@ -573,6 +573,8 @@ main() {
   echo "[infring install] installed: infring, infringctl, infringd"
   echo "[infring install] aliases: protheus, protheusctl, protheusd"
   echo "[infring install] run: infring --help"
+  echo "[infring install] quickstart: infring gateway"
+  echo "[infring install] stop: infring gateway stop"
 
   case ":$PATH:" in
     *":$INSTALL_DIR:"*)
