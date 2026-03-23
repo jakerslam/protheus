@@ -1,0 +1,54 @@
+{
+  "id": "V6-RUNTIME-CLEANUP-001.4",
+  "upgrade": "Device-Aware Cleanup Profile Contract",
+  "section": "SRS Expansion Wave (March 2026)",
+  "impact": 9,
+  "layer_map": "-1/0/1/2/client/app",
+  "conduit_only_boundary": false,
+  "todo_bucket": "repair_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-RUNTIME-CLEANUP-001.4/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-RUNTIME-CLEANUP-001.4.json"
+    },
+    {
+      "type": "runtime_lane",
+      "path": "core/layer0/ops/src/runtime_systems.rs",
+      "argv": [
+        "runtime-systems",
+        "run",
+        "--system-id=V6-RUNTIME-CLEANUP-001.4",
+        "--strict=1",
+        "--apply=1"
+      ]
+    },
+    {
+      "type": "runtime",
+      "path": "core/layer0/ops/src/runtime_systems.rs"
+    },
+    {
+      "type": "runtime",
+      "path": "core/layer0/ops/src/runtime_system_contracts.rs"
+    },
+    {
+      "type": "test",
+      "path": "core/layer0/ops/src/runtime_systems.rs"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-RUNTIME-CLEANUP-001.4",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-RUNTIME-CLEANUP-001.4",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-23T00:00:00Z",
+    "notes": "Implements Device-Aware Cleanup Profile Contract in authoritative runtime_systems lane with strict receipts and state artifacts."
+  }
+}
