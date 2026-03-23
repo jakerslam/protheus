@@ -157,6 +157,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
+  box-sizing: border-box;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
@@ -164,6 +165,7 @@
   transition: all var(--transition-fast);
   text-decoration: none;
   border: 1px solid transparent;
+  overflow: hidden;
   white-space: nowrap;
   font-weight: 500;
 }

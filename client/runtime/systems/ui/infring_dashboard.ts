@@ -296,6 +296,11 @@ const OPS_READ_ONLY = new Set([
   'dashboard-ui',
 ]);
 let ACTIVE_CLI_MODE = DEFAULT_CLI_MODE;
+const GIT_BRANCH_CACHE_MS = 15_000;
+let gitBranchCache = {
+  value: '',
+  fetched_at: 0,
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -306,6 +311,31 @@ function cleanText(value, maxLen = 120) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLen);
+}
+
+function currentGitBranch() {
+  const now = Date.now();
+  if (gitBranchCache.value && (now - gitBranchCache.fetched_at) < GIT_BRANCH_CACHE_MS) {
+    return gitBranchCache.value;
+  }
+  try {
+    const proc = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 1500,
+      maxBuffer: 64 * 1024,
+    });
+    if (proc && proc.status === 0) {
+      const raw = String(proc.stdout || '').trim();
+      const value = cleanText(raw || 'main', 80) || 'main';
+      gitBranchCache = { value, fetched_at: now };
+      return value;
+    }
+  } catch {}
+  const fallback = gitBranchCache.value || 'main';
+  gitBranchCache = { value: fallback, fetched_at: now };
+  return fallback;
 }
 
 function parsePositiveInt(value, fallback, min = 1, max = 65535) {
@@ -10407,6 +10437,7 @@ function runServe(flags) {
             latestSnapshot.app.settings.model
               ? latestSnapshot.app.settings.model
               : 'gpt-5',
+          git_branch: currentGitBranch(),
           api_listen: `${flags.host}:${flags.port}`,
           listen: `${flags.host}:${flags.port}`,
           home_dir: ROOT,

@@ -936,21 +936,6 @@
           <template x-if="currentAgent">
             <div class="chat-thread-shell">
               <div class="chat-thread" :class="{ 'chat-thread-loading': sessionLoading }">
-                <div class="chat-archetype-tiles" x-show="showFreshArchetypeTiles && (!messages || !messages.length)">
-                  <div class="chat-archetype-title">Initialize Agent</div>
-                  <div class="chat-archetype-subtitle">Pick a starting archetype and prompt profile</div>
-                  <div class="chat-archetype-grid">
-                    <template x-for="t in chatArchetypeTemplates" :key="'chat-arch-' + t.name">
-                      <button class="chat-archetype-tile" @click="applyChatArchetypeTemplate(t)">
-                        <span class="chat-archetype-tile-head">
-                          <span class="chat-archetype-name" x-text="t.name"></span>
-                          <span class="badge badge-dim" x-text="t.category"></span>
-                        </span>
-                        <span class="chat-archetype-desc" x-text="t.description"></span>
-                      </button>
-                    </template>
-                  </div>
-                </div>
                 <template x-for="(msg, idx) in messages" :key="msg.id || idx">
                   <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">
                     <template x-if="msg.is_notice">
@@ -1158,6 +1143,40 @@
                 </template>
               </div>
             </template>
+            <div class="chat-init-panel" x-show="showFreshArchetypeTiles">
+              <div class="chat-archetype-title">Initialize Agent</div>
+              <div class="chat-archetype-subtitle">Pick a starting archetype, then launch the agent.</div>
+              <div class="chat-init-identity-row">
+                <span class="chat-init-avatar-preview" aria-hidden="true">
+                  <span x-show="!currentAgent || !currentAgent.avatar_url" x-text="freshInitEmoji || ((currentAgent && currentAgent.identity && currentAgent.identity.emoji) || '🤖')"></span>
+                  <img
+                    x-show="currentAgent && currentAgent.avatar_url"
+                    :src="currentAgent && currentAgent.avatar_url ? currentAgent.avatar_url : ''"
+                    :alt="currentAgent ? ((currentAgent.name || currentAgent.id || 'agent') + ' avatar') : 'agent avatar'"
+                    loading="lazy"
+                  />
+                </span>
+                <input class="form-input chat-init-emoji-input" x-model="freshInitEmoji" maxlength="6" placeholder="🤖" title="Icon / Emoji">
+                <input class="form-input chat-init-name-input" x-model="freshInitName" maxlength="100" placeholder="Agent name" title="Agent name">
+              </div>
+              <div class="chat-archetype-grid chat-init-grid">
+                <template x-for="t in chatArchetypeTemplates" :key="'chat-arch-' + t.name">
+                  <button class="chat-archetype-tile" :class="{ selected: isFreshInitTemplateSelected(t) }" @click="applyChatArchetypeTemplate(t)">
+                    <span class="chat-archetype-tile-head">
+                      <span class="chat-archetype-name" x-text="t.name"></span>
+                      <span class="badge badge-dim" x-text="t.category"></span>
+                    </span>
+                    <span class="chat-archetype-desc" x-text="t.description"></span>
+                  </button>
+                </template>
+              </div>
+              <div class="chat-init-launch-row">
+                <button class="btn btn-primary chat-init-launch-btn" @click="launchFreshAgentInitialization()" :disabled="!freshInitCanLaunch">
+                  <span x-show="!freshInitLaunching">Launch</span>
+                  <span x-show="freshInitLaunching">Launching...</span>
+                </button>
+              </div>
+            </div>
             <div class="input-row">
               <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="addFiles($event.target.files); $event.target.value = ''" style="display:none">
               <div class="composer-shell" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
@@ -1192,6 +1211,7 @@
                   id="msg-input"
                   rows="1"
                   x-model="inputText"
+                  :disabled="showFreshArchetypeTiles && !freshInitLaunching"
                   :placeholder="terminalMode ? '' : (recording ? 'Recording... release to send' : (currentAgent ? ('Message ' + (currentAgent.name || currentAgent.id || 'agent') + '...') : 'Message agent...'))"
                   :class="{ 'streaming-active': sending, 'terminal-textarea': terminalMode }"
                   @focus="if(terminalMode){setTerminalCursorFocus(true, $event)}"
@@ -1257,12 +1277,12 @@
                     <span x-show="recording" class="recording-dot"></span>
                   </button>
                   <template x-if="terminalMode">
-                    <button class="btn-send btn-send-terminal" @click="sendMessage()" :disabled="!inputText.trim()" title="Run command">
+                    <button class="btn-send btn-send-terminal" @click="sendMessage()" :disabled="showFreshArchetypeTiles || !inputText.trim()" title="Run command">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
                     </button>
                   </template>
                   <template x-if="!terminalMode && !sending">
-                    <button class="btn-send" @click="sendMessage()" :disabled="!inputText.trim() && !(attachments && attachments.length)" title="Send">
+                    <button class="btn-send" @click="sendMessage()" :disabled="showFreshArchetypeTiles || (!inputText.trim() && !(attachments && attachments.length))" title="Send">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
                     </button>
                   </template>
@@ -1275,6 +1295,15 @@
               </div>
             </div>
             <div class="context-ring-row">
+              <div class="chat-branch-indicator" x-show="activeGitBranchLabel" :title="'Active branch: ' + activeGitBranchLabel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="6" cy="6" r="3"></circle>
+                  <circle cx="18" cy="18" r="3"></circle>
+                  <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
+                  <path d="M18 15V9"></path>
+                </svg>
+                <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+              </div>
               <div class="context-ring" :data-tooltip="contextRingTooltip" tabindex="0">
                 <svg viewBox="0 0 36 36" aria-hidden="true">
                   <circle class="context-ring-track" cx="18" cy="18" r="14" pathLength="100"></circle>
