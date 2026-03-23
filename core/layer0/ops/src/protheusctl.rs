@@ -276,7 +276,7 @@ fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<
             Some(0)
         }
         "client/runtime/systems/edge/mobile_ops_top.ts"
-        | "client/runtime/systems/ops/protheus_status_dashboard.js" => {
+        | "client/runtime/systems/ops/protheus_status_dashboard.ts" => {
             if !json_mode {
                 eprintln!("Node.js is unavailable; falling back to core daemon status output.");
             }
@@ -1072,7 +1072,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 let (force_node_ui, filtered) = split_dashboard_runtime_flags(rest);
                 if force_node_ui {
                     Route {
-                        script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js"
+                        script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
                             .to_string(),
                         args: std::iter::once("--web".to_string())
                             .chain(filtered)
@@ -1099,7 +1099,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     let (force_node_ui, filtered) = split_dashboard_runtime_flags(rest);
                     if force_node_ui {
                         Route {
-                            script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js"
+                            script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
                                 .to_string(),
                             args: filtered,
                             forward_stdin: false,
@@ -1636,7 +1636,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             | "client/runtime/systems/ops/protheus_version_cli.js"
             | "client/runtime/systems/ops/protheus_diagram.js"
             | "client/runtime/systems/ops/protheus_completion.js"
-            | "client/runtime/systems/ops/protheus_status_dashboard.js"
+            | "client/runtime/systems/ops/protheus_status_dashboard.ts"
             | "client/runtime/systems/ops/protheus_debug_diagnostics.js"
             | "client/runtime/systems/personas/shadow_cli.js"
             | "client/runtime/systems/tools/cli_suggestion_engine.js"

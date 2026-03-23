@@ -40,7 +40,7 @@
     "client/runtime/systems/ops/protheus_command_list.js",
     "client/runtime/systems/ops/protheus_control_plane.js",
     "client/runtime/systems/ops/protheus_debug_diagnostics.js",
-    "client/runtime/systems/ops/protheus_status_dashboard.js",
+    "client/runtime/systems/ops/protheus_status_dashboard.ts",
     "client/runtime/systems/ops/rust50_migration_program.ts",
     "client/runtime/systems/ops/rust_hotpath_inventory.ts",
     "client/runtime/systems/ops/security_layer_inventory_gate.ts",

@@ -53,7 +53,7 @@ fs.writeFileSync(
         tasks_per_sec: 10.0,
       },
       step_change_exemptions: [],
-      openclaw_required_runtime_source_keys: ['mode', 'tasks_source', 'tasks_sample_ms'],
+      infring_required_runtime_source_keys: ['mode', 'tasks_source', 'tasks_sample_ms'],
     },
     null,
     2,

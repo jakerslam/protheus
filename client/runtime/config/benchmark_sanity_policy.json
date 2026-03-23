@@ -48,7 +48,7 @@
       "metric": "install_size_mb"
     }
   ],
-  "openclaw_required_runtime_source_keys": [
+  "infring_required_runtime_source_keys": [
     "mode",
     "tasks_source",
     "tasks_sample_ms"

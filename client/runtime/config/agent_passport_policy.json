@@ -12,7 +12,7 @@
     "role": "system",
     "tenant_id": "local",
     "org_id": "protheus",
-    "framework_id": "openclaw",
+    "framework_id": "infring",
     "model_id": "unknown"
   },
   "state": {
