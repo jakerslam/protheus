@@ -367,11 +367,8 @@
           title="Authentication (coming soon)"
           aria-label="Authentication"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="8" cy="12" r="4"></circle>
-            <path d="M12 12h10"></path>
-            <path d="M18 9.5v5"></path>
-            <path d="M21 10.5v3"></path>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M3 8a5 5 0 1 1 9.584 2.042L16 10v2h-2v2h-2v2h-2.586l-1.707-1.707A5 5 0 0 1 3 8zm5-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"></path>
           </svg>
         </button>
       </div>
@@ -808,17 +805,11 @@
                 </button>
               </div>
               <div class="chat-agent-identity-edit" x-show="drawerEditingEmoji">
-                <input class="form-input" style="font-size:12px;max-width:120px" x-model="drawerConfigForm.emoji" placeholder="🤖" @keydown.enter="saveDrawerIdentity('emoji')" @keydown.escape="drawerEditingEmoji = false">
-                <button class="btn btn-primary btn-sm" @click="saveDrawerIdentity('emoji')" :disabled="drawerIdentitySaving" style="padding:2px 10px">
-                  <span x-show="!drawerIdentitySaving">Save</span><span x-show="drawerIdentitySaving">...</span>
-                </button>
+                <input class="form-input" style="font-size:12px;max-width:120px" x-model="drawerConfigForm.emoji" placeholder="🤖" @keydown.enter.prevent="drawerEditingEmoji = false" @keydown.escape="drawerEditingEmoji = false">
                 <button class="btn btn-ghost btn-sm" @click="drawerEditingEmoji = false" style="padding:2px 8px">Cancel</button>
               </div>
               <div class="chat-agent-identity-edit" x-show="drawerEditingName">
-                <input class="form-input" style="font-size:12px;flex:1 1 auto" x-model="drawerConfigForm.name" placeholder="Agent name" @keydown.enter="saveDrawerIdentity('name')" @keydown.escape="drawerEditingName = false">
-                <button class="btn btn-primary btn-sm" @click="saveDrawerIdentity('name')" :disabled="drawerIdentitySaving" style="padding:2px 10px">
-                  <span x-show="!drawerIdentitySaving">Save</span><span x-show="drawerIdentitySaving">...</span>
-                </button>
+                <input class="form-input" style="font-size:12px;flex:1 1 auto" x-model="drawerConfigForm.name" placeholder="Agent name" @keydown.enter.prevent="drawerEditingName = false" @keydown.escape="drawerEditingName = false">
                 <button class="btn btn-ghost btn-sm" @click="drawerEditingName = false" style="padding:2px 8px">Cancel</button>
               </div>
             </div>
@@ -846,10 +837,7 @@
                     </template>
                     <template x-if="drawerEditingProvider">
                       <span class="flex gap-1" style="align-items:center">
-                        <input class="form-input" style="width:160px;font-size:12px" x-model="drawerNewProviderValue" placeholder="provider" @keydown.enter="changeDrawerProvider()" @keydown.escape="drawerEditingProvider = false">
-                        <button class="btn btn-primary btn-sm" @click="changeDrawerProvider()" :disabled="drawerModelSaving" style="padding:2px 10px">
-                          <span x-show="!drawerModelSaving">Save</span><span x-show="drawerModelSaving">...</span>
-                        </button>
+                        <input class="form-input" style="width:160px;font-size:12px" x-model="drawerNewProviderValue" placeholder="provider" @keydown.enter.prevent="drawerEditingProvider = false" @keydown.escape="drawerEditingProvider = false">
                         <button class="btn btn-ghost btn-sm" @click="drawerEditingProvider = false" style="padding:2px 8px">Cancel</button>
                       </span>
                     </template>
@@ -863,10 +851,7 @@
                     </template>
                     <template x-if="drawerEditingModel">
                       <span class="flex gap-1" style="align-items:center">
-                        <input class="form-input" style="width:240px;font-size:12px" x-model="drawerNewModelValue" placeholder="provider/model" @keydown.enter="changeDrawerModel()" @keydown.escape="drawerEditingModel = false">
-                        <button class="btn btn-primary btn-sm" @click="changeDrawerModel()" :disabled="drawerModelSaving" style="padding:2px 10px">
-                          <span x-show="!drawerModelSaving">Save</span><span x-show="drawerModelSaving">...</span>
-                        </button>
+                        <input class="form-input" style="width:240px;font-size:12px" x-model="drawerNewModelValue" placeholder="provider/model" @keydown.enter.prevent="drawerEditingModel = false" @keydown.escape="drawerEditingModel = false">
                         <button class="btn btn-ghost btn-sm" @click="drawerEditingModel = false" style="padding:2px 8px">Cancel</button>
                       </span>
                     </template>
@@ -918,8 +903,10 @@
                       <template x-for="v in drawerVibeOptions" :key="'drawer-vibe-' + v"><option :value="v" x-text="v.charAt(0).toUpperCase() + v.slice(1)"></option></template>
                     </select>
                   </div>
-                  <button class="btn btn-primary" @click="saveDrawerConfig()" :disabled="drawerConfigSaving">
-                    <span x-show="!drawerConfigSaving">Save Config</span><span x-show="drawerConfigSaving">Saving...</span>
+                </div>
+                <div class="chat-agent-drawer-save-row">
+                  <button class="btn btn-primary chat-agent-drawer-save-btn" @click="saveDrawerAll()" :disabled="drawerSavePending || agentDrawerLoading">
+                    <span x-show="!drawerSavePending">Save</span><span x-show="drawerSavePending">Saving...</span>
                   </button>
                 </div>
               </div>
@@ -937,19 +924,35 @@
           </template>
 
           <template x-if="currentAgent">
-            <div>
-              <div class="chat-thread">
+            <div class="chat-thread-shell">
+              <div class="chat-thread" :class="{ 'chat-thread-loading': sessionLoading }">
+                <div class="chat-archetype-tiles" x-show="showFreshArchetypeTiles && (!messages || !messages.length)">
+                  <div class="chat-archetype-title">Initialize Agent</div>
+                  <div class="chat-archetype-subtitle">Pick a starting archetype and prompt profile</div>
+                  <div class="chat-archetype-grid">
+                    <template x-for="t in chatArchetypeTemplates" :key="'chat-arch-' + t.name">
+                      <button class="chat-archetype-tile" @click="applyChatArchetypeTemplate(t)">
+                        <span class="chat-archetype-tile-head">
+                          <span class="chat-archetype-name" x-text="t.name"></span>
+                          <span class="badge badge-dim" x-text="t.category"></span>
+                        </span>
+                        <span class="chat-archetype-desc" x-text="t.description"></span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
                 <template x-for="(msg, idx) in messages" :key="msg.id || idx">
-                  <div class="chat-message-block">
+                  <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">
                     <template x-if="msg.is_notice">
                       <div class="chat-day-divider chat-event-divider">
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
                         <span class="chat-day-divider-label">
                           <span
                             class="chat-event-info-icon"
-                            x-show="msg.notice_type === 'info'"
+                            x-show="msg.notice_type === 'info' && !isRenameNotice(msg)"
+                            x-text="msg.notice_icon || 'i'"
                             aria-hidden="true"
-                          >i</span>
+                          ></span>
                           <span x-text="msg.notice_label || 'Model switched'"></span>
                         </span>
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
@@ -962,86 +965,105 @@
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
                       </div>
                     </template>
-                    <div
-                      class="message"
-                      x-show="!msg.is_notice"
-                      :id="messageDomId(msg, idx)"
-                      :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
-                      @mouseenter="setHoveredMessage(msg, idx)"
-                      @mouseleave="clearHoveredMessage()"
-                    >
-                      <div class="message-avatar" x-show="msg.role === 'agent'">
-                        <span class="agent-mark" aria-hidden="true">&infin;</span>
-                      </div>
-                      <div class="message-body">
-                        <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
-                        <div class="message-bubble" x-show="msg.thinking" style="background:transparent;border:none;padding:4px 0">
-                          <div class="typing-dots"><span></span><span></span><span></span></div>
+                    <template x-if="!msg.is_notice && shouldRenderMessage(msg, idx)">
+                      <div
+                        class="message"
+                        :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
+                        @mouseenter="setHoveredMessage(msg, idx)"
+                        @mouseleave="clearHoveredMessage()"
+                      >
+                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                          <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
-                        <div
-                          class="message-bubble"
-                          :class="{ 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
-                          x-show="msg.text && msg.text.trim() && !msg.thinking"
-                          x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
-                        ></div>
-                        <template x-if="msg.images && msg.images.length">
-                          <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
-                            <template x-for="img in msg.images" :key="img.file_id">
-                              <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
-                                <img :src="'/api/uploads/' + img.file_id" :alt="img.filename || 'uploaded image'" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid var(--border);cursor:pointer" loading="lazy">
-                              </a>
-                            </template>
+                        <div class="message-body">
+                          <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
+                          <div class="message-bubble" x-show="msg.thinking" style="background:transparent;border:none;padding:4px 0">
+                            <div class="typing-dots"><span></span><span></span><span></span></div>
                           </div>
-                        </template>
-                        <template x-for="tool in (msg.tools || [])" :key="tool.id">
-                          <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool), 'tool-card-success': isToolSuccessful(tool), 'tool-card-thought': isThoughtTool(tool) }" :data-tool="tool.name">
-                            <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
-                              <template x-if="tool.running"><div class="tool-card-spinner"></div></template>
-                              <template x-if="!tool.running && isBlockedTool(tool)">
-                                <span class="tool-icon-blocked" aria-hidden="true">
-                                  <svg viewBox="0 0 24 24" focusable="false">
-                                    <path d="M12 3 5 6v6c0 5.2 3.6 8.6 7 10 3.4-1.4 7-4.8 7-10V6l-7-3z"></path>
-                                  </svg>
-                                </span>
+                          <div
+                            class="message-bubble"
+                            :class="{ 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
+                            x-show="msg.text && msg.text.trim() && !msg.thinking"
+                            x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
+                          ></div>
+                          <template x-if="msg.images && msg.images.length">
+                            <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
+                              <template x-for="img in msg.images" :key="img.file_id">
+                                <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
+                                  <img :src="'/api/uploads/' + img.file_id" :alt="img.filename || 'uploaded image'" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid var(--border);cursor:pointer" loading="lazy">
+                                </a>
                               </template>
-                              <template x-if="!tool.running && !isBlockedTool(tool) && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
-                              <template x-if="!tool.running && tool.is_error && !isBlockedTool(tool)"><span class="tool-icon-err">&#10007;</span></template>
-                              <span class="tool-card-icon" x-html="toolIcon(tool.name)"></span>
-                              <span class="tool-card-name" x-text="toolDisplayName(tool)"></span>
-                              <span class="text-xs" :class="{ 'tool-status-blocked': isBlockedTool(tool), 'tool-status-success': isToolSuccessful(tool), 'text-dim': !isBlockedTool(tool) && !isToolSuccessful(tool) }" x-text="toolStatusText(tool)" style="margin-left:auto"></span>
-                              <span class="tool-expand-chevron" x-text="tool.expanded ? '▾' : '▸'"></span>
                             </div>
-                            <div class="tool-card-body" x-show="tool.expanded" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-                              <div x-show="tool.input" style="margin-bottom:6px">
-                                <div class="tool-section-label">Input</div>
-                                <pre class="tool-pre" x-text="formatToolJson(tool.input)"></pre>
+                          </template>
+                          <template x-for="tool in (msg.tools || [])" :key="tool.id">
+                            <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool), 'tool-card-success': isToolSuccessful(tool), 'tool-card-thought': isThoughtTool(tool) }" :data-tool="tool.name">
+                              <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
+                                <template x-if="tool.running"><div class="tool-card-spinner"></div></template>
+                                <template x-if="!tool.running && isBlockedTool(tool)">
+                                  <span class="tool-icon-blocked" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false">
+                                      <path d="M12 3 5 6v6c0 5.2 3.6 8.6 7 10 3.4-1.4 7-4.8 7-10V6l-7-3z"></path>
+                                    </svg>
+                                  </span>
+                                </template>
+                                <template x-if="!tool.running && !isBlockedTool(tool) && !tool.is_error"><span class="tool-icon-ok">&#10003;</span></template>
+                                <template x-if="!tool.running && tool.is_error && !isBlockedTool(tool)"><span class="tool-icon-err">&#10007;</span></template>
+                                <span class="tool-card-icon" x-html="toolIcon(tool.name)"></span>
+                                <span class="tool-card-name" x-text="toolDisplayName(tool)"></span>
+                                <span class="text-xs" :class="{ 'tool-status-blocked': isBlockedTool(tool), 'tool-status-success': isToolSuccessful(tool), 'text-dim': !isBlockedTool(tool) && !isToolSuccessful(tool) }" x-text="toolStatusText(tool)" style="margin-left:auto"></span>
+                                <span class="tool-expand-chevron" x-text="tool.expanded ? '▾' : '▸'"></span>
                               </div>
-                              <div x-show="tool.result">
-                                <div class="tool-section-label">Result <span class="text-xs text-muted" x-show="tool.result && tool.result.length > 200" x-text="'(' + tool.result.length + ' chars)'"></span></div>
-                                <pre class="tool-pre" :class="{ 'tool-pre-error': tool.is_error, 'tool-pre-short': !tool.is_error && tool.result && tool.result.length < 100, 'tool-pre-medium': !tool.is_error && tool.result && tool.result.length >= 100 && tool.result.length < 500 }" x-text="formatToolJson(tool.result)"></pre>
+                              <div class="tool-card-body" x-show="tool.expanded" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                                <div x-show="tool.input" style="margin-bottom:6px">
+                                  <div class="tool-section-label">Input</div>
+                                  <pre class="tool-pre" x-text="formatToolJson(tool.input)"></pre>
+                                </div>
+                                <div x-show="tool.result">
+                                  <div class="tool-section-label">Result <span class="text-xs text-muted" x-show="tool.result && tool.result.length > 200" x-text="'(' + tool.result.length + ' chars)'"></span></div>
+                                  <pre class="tool-pre" :class="{ 'tool-pre-error': tool.is_error, 'tool-pre-short': !tool.is_error && tool.result && tool.result.length < 100, 'tool-pre-medium': !tool.is_error && tool.result && tool.result.length >= 100 && tool.result.length < 500 }" x-text="formatToolJson(tool.result)"></pre>
+                                </div>
                               </div>
                             </div>
+                          </template>
+                          <div
+                            class="message-stats-row"
+                            x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
+                          >
+                            <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
+                              <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                              <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                            </button>
+                            <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
+                              <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
+                              <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                            </button>
+                            <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
+                            <span class="message-stat-meta" x-text="msg.meta" x-show="msg.meta"></span>
                           </div>
-                        </template>
-                        <div
-                          class="message-stats-row"
-                          x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
-                        >
-                          <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
-                            <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-                          </button>
-                          <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
-                            <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
-                            <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-                          </button>
-                          <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
-                          <span class="message-stat-meta" x-text="msg.meta" x-show="msg.meta"></span>
                         </div>
                       </div>
-                    </div>
+                    </template>
+                    <template x-if="!msg.is_notice && !shouldRenderMessage(msg, idx)">
+                      <div class="message message-placeholder-shell" :class="messageRoleClass(msg)">
+                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                          <span class="agent-mark" aria-hidden="true">&infin;</span>
+                        </div>
+                        <div class="message-body">
+                          <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
+                          <div class="message-bubble message-placeholder-bubble">
+                            <span class="message-placeholder-line skeleton" aria-hidden="true"></span>
+                          </div>
+                          <div class="message-stats-row message-stats-row-static">
+                            <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
                   </div>
                 </template>
+              </div>
+              <div class="chat-loading-overlay" x-show="sessionLoading">
+                <div class="spinner"></div>
               </div>
             </div>
           </template>
@@ -1077,7 +1099,7 @@
                 </span>
                 <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'info'">
                   <span class="chat-map-marker chat-map-marker-info" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v7"></path><path d="M12 7h.01"></path></svg>
+                    <span class="chat-event-info-icon chat-map-info-icon" x-text="msg.notice_icon || 'i'"></span>
                   </span>
                 </span>
                 <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'tool'">
@@ -1202,7 +1224,7 @@
                               <div class="model-switcher-item" :class="{'active': currentAgent && m.id === currentAgent.model_name, 'hovered': filteredSwitcherModels.indexOf(m) === modelSwitcherIdx}" @click="switchModel(m)" @mouseenter="modelSwitcherIdx = filteredSwitcherModels.indexOf(m)">
                                 <div style="flex:1;min-width:0">
                                   <div style="display:flex;align-items:center;gap:6px">
-                                    <span class="model-switcher-item-name" x-text="m.provider + ':' + (m.display_name || m.id)"></span>
+                                    <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
                                     <span class="model-switcher-tier" :class="'tier-' + (m.tier || 'balanced').toLowerCase()" x-text="m.tier || 'Balanced'"></span>
                                   </div>
                                   <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
@@ -1345,9 +1367,10 @@
                           <span class="chat-day-divider-label">
                             <span
                               class="chat-event-info-icon"
-                              x-show="msg.notice_type === 'info'"
+                              x-show="msg.notice_type === 'info' && !isRenameNotice(msg)"
+                              x-text="msg.notice_icon || 'i'"
                               aria-hidden="true"
-                            >i</span>
+                            ></span>
                             <span x-text="msg.notice_label || 'Model switched'"></span>
                           </span>
                           <span class="chat-day-divider-line" aria-hidden="true"></span>
@@ -1491,7 +1514,7 @@
                     </span>
                     <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'info'">
                       <span class="chat-map-marker chat-map-marker-info" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v7"></path><path d="M12 7h.01"></path></svg>
+                        <span class="chat-event-info-icon chat-map-info-icon" x-text="msg.notice_icon || 'i'"></span>
                       </span>
                     </span>
                     <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'tool'">
@@ -1634,7 +1657,7 @@
                                 <div class="model-switcher-item" :class="{'active': currentAgent && m.id === currentAgent.model_name, 'hovered': filteredSwitcherModels.indexOf(m) === modelSwitcherIdx}" @click="switchModel(m)" @mouseenter="modelSwitcherIdx = filteredSwitcherModels.indexOf(m)">
                                   <div style="flex:1;min-width:0">
                                     <div style="display:flex;align-items:center;gap:6px">
-                                      <span class="model-switcher-item-name" x-text="m.provider + ':' + (m.display_name || m.id)"></span>
+                                      <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
                                       <span class="model-switcher-tier" :class="'tier-' + (m.tier || 'balanced').toLowerCase()" x-text="m.tier || 'Balanced'"></span>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
