@@ -1,8 +1,8 @@
-// OpenFang API Client — Fetch wrapper, WebSocket manager, auth injection, toast notifications
+// Infring API Client — Fetch wrapper, WebSocket manager, auth injection, toast notifications
 'use strict';
 
 // ── Toast Notification System ──
-var OpenFangToast = (function() {
+var InfringToast = (function() {
   var _toastId = 0;
 
   function toast(message, type, duration) {
@@ -11,7 +11,7 @@ var OpenFangToast = (function() {
     var id = ++_toastId;
 
     try {
-      window.dispatchEvent(new CustomEvent('openfang:toast', {
+      window.dispatchEvent(new CustomEvent('infring:toast', {
         detail: {
           id: id,
           message: String(message || ''),
@@ -87,7 +87,7 @@ var OpenFangToast = (function() {
 
 // ── Friendly Error Messages ──
 function friendlyError(status, serverMsg) {
-  if (status === 0 || !status) return 'Cannot reach daemon — is openfang running?';
+  if (status === 0 || !status) return 'Cannot reach daemon — is infring running?';
   if (status === 401) return 'Not authorized — check your API key';
   if (status === 403) return 'Permission denied';
   if (status === 404) return serverMsg || 'Resource not found';
@@ -99,7 +99,7 @@ function friendlyError(status, serverMsg) {
 }
 
 // ── API Client ──
-var OpenFangAPI = (function() {
+var InfringAPI = (function() {
   var BASE = window.location.origin;
   var WS_BASE = BASE.replace(/^http/, 'ws');
   var _authToken = '';
@@ -137,7 +137,7 @@ var OpenFangAPI = (function() {
             var store = Alpine.store('app');
             if (store && !store.showAuthPrompt) {
               _authToken = '';
-              localStorage.removeItem('openfang-api-key');
+              localStorage.removeItem('infring-api-key');
               store.showAuthPrompt = true;
             }
           } catch(e2) { /* ignore Alpine errors */ }
@@ -161,7 +161,7 @@ var OpenFangAPI = (function() {
     }).catch(function(e) {
       if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
         setConnectionState('disconnected');
-        throw new Error('Cannot connect to daemon — is openfang running?');
+        throw new Error('Cannot connect to daemon — is infring running?');
       }
       throw e;
     });
@@ -201,7 +201,7 @@ var OpenFangAPI = (function() {
         _reconnectAttempts = 0;
         setConnectionState('connected');
         if (_reconnectAttempt > 0) {
-          OpenFangToast.success('Reconnected');
+          InfringToast.success('Reconnected');
           _reconnectAttempt = 0;
         }
         if (_wsCallbacks.onOpen) _wsCallbacks.onOpen();
@@ -222,7 +222,7 @@ var OpenFangAPI = (function() {
           _reconnectAttempt = _reconnectAttempts;
           setConnectionState('reconnecting');
           if (_reconnectAttempts === 1) {
-            OpenFangToast.warn('Connection lost, reconnecting...');
+            InfringToast.warn('Connection lost, reconnecting...');
           }
           var delay = Math.min(1000 * Math.pow(2, _reconnectAttempts - 1), 10000);
           _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, delay);
@@ -230,7 +230,7 @@ var OpenFangAPI = (function() {
         }
         if (_wsAgentId && _reconnectAttempts >= MAX_RECONNECT) {
           setConnectionState('disconnected');
-          OpenFangToast.error('Connection lost — switched to HTTP mode', 0);
+          InfringToast.error('Connection lost — switched to HTTP mode', 0);
         }
         if (_wsCallbacks.onClose) _wsCallbacks.onClose();
       };

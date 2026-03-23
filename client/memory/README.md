@@ -60,7 +60,7 @@ To ensure context-free continuity for Moltbook:
 
 ## LLM Model Switching Prep
 
-This logic will work for any OpenClaw agent, even if model weights/sessions switch, as long as:
+This logic will work for any Infring agent, even if model weights/sessions switch, as long as:
 - The workspace filesystem is retained
 - Read/write access to `/.client/runtime/config/moltbook/` remains
 - No restrictions on agent-specific file read ops

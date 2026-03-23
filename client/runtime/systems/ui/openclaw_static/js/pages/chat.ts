@@ -1,4 +1,4 @@
-// OpenFang Chat Page — Agent chat with markdown + streaming
+// Infring Chat Page — Agent chat with markdown + streaming
 'use strict';
 
 function chatPage() {
@@ -21,7 +21,7 @@ function chatPage() {
     contextWindow: 8192,
     contextApproxTokens: 0,
     terminalMode: false,
-    terminalCwd: '/Users/jay/.openclaw/workspace',
+    terminalCwd: '/workspace',
     terminalShortcutHint: 'Ctrl+\\',
     terminalCursorFocused: false,
     terminalSelectionStart: 0,
@@ -132,7 +132,7 @@ function chatPage() {
     get thinkingEnabled() { return this.thinkingMode !== 'off'; },
 
     get terminalPromptPath() {
-      return this.terminalCwd || '/Users/jay/.openclaw/workspace';
+      return this.terminalCwd || '/workspace';
     },
 
     get terminalPromptPrefix() {
@@ -477,7 +477,7 @@ function chatPage() {
         return Promise.resolve();
       }
       var self = this;
-      return OpenFangAPI.get('/api/models').then(function(data) {
+      return InfringAPI.get('/api/models').then(function(data) {
         self.refreshContextWindowMap(data && data.models ? data.models : []);
         self._contextModelsFetchedAt = Date.now();
         self.setContextWindowFromCurrentAgent();
@@ -485,11 +485,11 @@ function chatPage() {
     },
 
     requestContextTelemetry(force) {
-      if (!this.currentAgent || !OpenFangAPI.isWsConnected()) return false;
+      if (!this.currentAgent || !InfringAPI.isWsConnected()) return false;
       var now = Date.now();
       if (!force && (now - Number(this._lastContextRequestAt || 0)) < 2500) return false;
       this._lastContextRequestAt = now;
-      return !!OpenFangAPI.wsSend({ type: 'command', command: 'context', silent: true });
+      return !!InfringAPI.wsSend({ type: 'command', command: 'context', silent: true });
     },
 
     loadModelNoticeCache: function() {
@@ -801,7 +801,7 @@ function chatPage() {
           self.showSlashMenu = false;
           self.modelPickerFilter = modelMatch[1].toLowerCase();
           if (!self.modelPickerList.length) {
-            OpenFangAPI.get('/api/models').then(function(data) {
+            InfringAPI.get('/api/models').then(function(data) {
               self.modelPickerList = (data.models || []).filter(function(m) { return m.available; });
               self.showModelPicker = true;
               self.modelPickerIdx = 0;
@@ -825,7 +825,7 @@ function chatPage() {
         self.installChatMapWheelLock();
       });
 
-      OpenFangAPI.get('/api/status').then(function(status) {
+      InfringAPI.get('/api/status').then(function(status) {
         var suggested = status && (status.workspace_dir || status.root_dir || status.home_dir)
           ? String(status.workspace_dir || status.root_dir || status.home_dir)
           : '';
@@ -846,7 +846,7 @@ function chatPage() {
       this.terminalCursorFocused = false;
       if (!this.terminalMode) this.terminalSelectionStart = 0;
       if (this.terminalMode && !this.terminalCwd) {
-        this.terminalCwd = '/Users/jay/.openclaw/workspace';
+        this.terminalCwd = '/workspace';
       }
       if (this.terminalMode && this.currentAgent) {
         this.connectWs(this.currentAgent.id);
@@ -949,7 +949,7 @@ function chatPage() {
         });
         return;
       }
-      OpenFangAPI.get('/api/models').then(function(data) {
+      InfringAPI.get('/api/models').then(function(data) {
         var models = (data.models || []).filter(function(m) { return m.available; });
         self._modelCache = models;
         self._modelCacheTime = Date.now();
@@ -963,7 +963,7 @@ function chatPage() {
           if (el) el.focus();
         });
       }).catch(function(e) {
-        OpenFangToast.error('Failed to load models: ' + e.message);
+        InfringToast.error('Failed to load models: ' + e.message);
       });
     },
 
@@ -972,16 +972,16 @@ function chatPage() {
       if (model.id === this.currentAgent.model_name) { this.showModelSwitcher = false; return; }
       var self = this;
       this.modelSwitching = true;
-      OpenFangAPI.put('/api/agents/' + this.currentAgent.id + '/model', { model: model.id }).then(function(resp) {
+      InfringAPI.put('/api/agents/' + this.currentAgent.id + '/model', { model: model.id }).then(function(resp) {
         // Use server-resolved model/provider to stay in sync (fixes #387/#466)
         self.currentAgent.model_name = (resp && resp.model) || model.id;
         self.currentAgent.model_provider = (resp && resp.provider) || model.provider;
         self.addModelSwitchNotice(self.currentAgent.model_name, self.currentAgent.model_provider);
-        OpenFangToast.success('Switched to ' + (model.display_name || model.id));
+        InfringToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
         self.modelSwitching = false;
       }).catch(function(e) {
-        OpenFangToast.error('Switch failed: ' + e.message);
+        InfringToast.error('Switch failed: ' + e.message);
         self.modelSwitching = false;
       });
     },
@@ -989,7 +989,7 @@ function chatPage() {
     // Fetch dynamic slash commands from server
     fetchCommands: function() {
       var self = this;
-      OpenFangAPI.get('/api/commands').then(function(data) {
+      InfringAPI.get('/api/commands').then(function(data) {
         if (data.commands && data.commands.length) {
           // Build a set of known cmds to avoid duplicates
           var existing = {};
@@ -1045,19 +1045,19 @@ function chatPage() {
           break;
         case '/new':
           if (self.currentAgent) {
-            OpenFangAPI.post('/api/agents/' + self.currentAgent.id + '/session/reset', {}).then(function() {
+            InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/reset', {}).then(function() {
               self.messages = [];
-              OpenFangToast.success('Session reset');
-            }).catch(function(e) { OpenFangToast.error('Reset failed: ' + e.message); });
+              InfringToast.success('Session reset');
+            }).catch(function(e) { InfringToast.error('Reset failed: ' + e.message); });
           }
           break;
         case '/compact':
           if (self.currentAgent) {
             self.messages.push({ id: ++msgId, role: 'system', text: 'Compacting session...', meta: '', tools: [] });
-            OpenFangAPI.post('/api/agents/' + self.currentAgent.id + '/session/compact', {}).then(function(res) {
+            InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/compact', {}).then(function(res) {
               self.messages.push({ id: ++msgId, role: 'system', text: res.message || 'Compaction complete', meta: '', tools: [] });
               self.scrollToBottom();
-            }).catch(function(e) { OpenFangToast.error('Compaction failed: ' + e.message); });
+            }).catch(function(e) { InfringToast.error('Compaction failed: ' + e.message); });
           }
           break;
         case '/stop':
@@ -1092,31 +1092,31 @@ function chatPage() {
           break;
         case '/context':
           // Visual-only update for context ring; no chat message noise.
-          if (self.currentAgent && OpenFangAPI.isWsConnected()) {
-            OpenFangAPI.wsSend({ type: 'command', command: 'context', args: '', silent: true });
+          if (self.currentAgent && InfringAPI.isWsConnected()) {
+            InfringAPI.wsSend({ type: 'command', command: 'context', args: '', silent: true });
           } else {
             self.recomputeContextEstimate();
             self.setContextWindowFromCurrentAgent();
           }
           break;
         case '/verbose':
-          if (self.currentAgent && OpenFangAPI.isWsConnected()) {
-            OpenFangAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
+          if (self.currentAgent && InfringAPI.isWsConnected()) {
+            InfringAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
           } else {
             self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [] });
             self.scrollToBottom();
           }
           break;
         case '/queue':
-          if (self.currentAgent && OpenFangAPI.isWsConnected()) {
-            OpenFangAPI.wsSend({ type: 'command', command: 'queue', args: '' });
+          if (self.currentAgent && InfringAPI.isWsConnected()) {
+            InfringAPI.wsSend({ type: 'command', command: 'queue', args: '' });
           } else {
             self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [] });
             self.scrollToBottom();
           }
           break;
         case '/status':
-          OpenFangAPI.get('/api/status').then(function(s) {
+          InfringAPI.get('/api/status').then(function(s) {
             self.messages.push({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [] });
             self.scrollToBottom();
           }).catch(function() {});
@@ -1124,14 +1124,14 @@ function chatPage() {
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
-              OpenFangAPI.put('/api/agents/' + self.currentAgent.id + '/model', { model: cmdArgs }).then(function(resp) {
+              InfringAPI.put('/api/agents/' + self.currentAgent.id + '/model', { model: cmdArgs }).then(function(resp) {
                 // Use server-resolved model/provider (fixes #387/#466)
                 var resolvedModel = (resp && resp.model) || cmdArgs;
                 var resolvedProvider = (resp && resp.provider) || '';
                 self.currentAgent.model_name = resolvedModel;
                 if (resolvedProvider) { self.currentAgent.model_provider = resolvedProvider; }
                 self.addModelSwitchNotice(resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
-              }).catch(function(e) { OpenFangToast.error('Model switch failed: ' + e.message); });
+              }).catch(function(e) { InfringToast.error('Model switch failed: ' + e.message); });
             } else {
               self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [] });
               self.scrollToBottom();
@@ -1145,7 +1145,7 @@ function chatPage() {
           self.messages = [];
           break;
         case '/exit':
-          OpenFangAPI.wsDisconnect();
+          InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;
           Alpine.store('app').activeAgentId = null;
@@ -1153,7 +1153,7 @@ function chatPage() {
           window.dispatchEvent(new Event('close-chat'));
           break;
         case '/budget':
-          OpenFangAPI.get('/api/budget').then(function(b) {
+          InfringAPI.get('/api/budget').then(function(b) {
             var fmt = function(v) { return v > 0 ? '$' + v.toFixed(2) : 'unlimited'; };
             self.messages.push({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
               '- Hourly: $' + (b.hourly_spend||0).toFixed(4) + ' / ' + fmt(b.hourly_limit) + '\n' +
@@ -1163,7 +1163,7 @@ function chatPage() {
           }).catch(function() {});
           break;
         case '/peers':
-          OpenFangAPI.get('/api/network/status').then(function(ns) {
+          InfringAPI.get('/api/network/status').then(function(ns) {
             self.messages.push({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
               '- Status: ' + (ns.enabled ? 'Enabled' : 'Disabled') + '\n' +
               '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [] });
@@ -1171,7 +1171,7 @@ function chatPage() {
           }).catch(function() {});
           break;
         case '/a2a':
-          OpenFangAPI.get('/api/a2a/agents').then(function(res) {
+          InfringAPI.get('/api/a2a/agents').then(function(res) {
             var agents = res.agents || [];
             if (!agents.length) {
               self.messages.push({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [] });
@@ -1211,7 +1211,7 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
-          text: '**Welcome to OpenFang Chat!**\n\n' +
+          text: '**Welcome to Infring Chat!**\n\n' +
             '- Type `/` to see available commands\n' +
             '- `/help` shows all commands\n' +
             '- `/think on` enables extended reasoning\n' +
@@ -1244,7 +1244,7 @@ function chatPage() {
     async loadSession(agentId, keepCurrent) {
       var self = this;
       try {
-        var data = await OpenFangAPI.get('/api/agents/' + agentId + '/session');
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/session');
         var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data));
         if (normalized.length) {
           if (!keepCurrent || !self.messages || !self.messages.length || normalized.length >= self.messages.length) {
@@ -1270,7 +1270,7 @@ function chatPage() {
     // Multi-session: load session list for current agent
     async loadSessions(agentId) {
       try {
-        var data = await OpenFangAPI.get('/api/agents/' + agentId + '/sessions');
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/sessions');
         this.sessions = data.sessions || [];
       } catch(e) { this.sessions = []; }
     },
@@ -1282,14 +1282,14 @@ function chatPage() {
       var label = prompt('Session name (optional):');
       if (label === null) return; // cancelled
       try {
-        await OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/sessions', {
+        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions', {
           label: label.trim() || undefined
         });
         await this.loadSessions(this.currentAgent.id);
         await this.loadSession(this.currentAgent.id);
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.success('New session created');
+        if (typeof InfringToast !== 'undefined') InfringToast.success('New session created');
       } catch(e) {
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Failed to create session');
+        if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to create session');
       }
     },
 
@@ -1298,23 +1298,23 @@ function chatPage() {
       if (!this.currentAgent) return;
       this.cacheCurrentConversation();
       try {
-        await OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/sessions/' + sessionId + '/switch', {});
+        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions/' + sessionId + '/switch', {});
         await this.loadSession(this.currentAgent.id);
         await this.loadSessions(this.currentAgent.id);
         // Reconnect WebSocket for new session
         this._wsAgent = null;
         this.connectWs(this.currentAgent.id);
       } catch(e) {
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Failed to switch session');
+        if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to switch session');
       }
     },
 
     connectWs(agentId) {
-      if (this._wsAgent === agentId && OpenFangAPI.isWsConnected()) return;
+      if (this._wsAgent === agentId && InfringAPI.isWsConnected()) return;
       this._wsAgent = agentId;
       var self = this;
 
-      OpenFangAPI.wsConnect(agentId, {
+      InfringAPI.wsConnect(agentId, {
         onOpen: function() {
           Alpine.store('app').wsConnected = true;
           self.requestContextTelemetry(true);
@@ -1373,7 +1373,7 @@ function chatPage() {
       }
 
       if (targetId && this._wsAgent && String(this._wsAgent) === targetId) {
-        OpenFangAPI.wsDisconnect();
+        InfringAPI.wsDisconnect();
         this._wsAgent = null;
       }
 
@@ -2364,7 +2364,7 @@ function chatPage() {
         vibe: (this.agentDrawer.identity && this.agentDrawer.identity.vibe) || '',
       };
       try {
-        var full = await OpenFangAPI.get('/api/agents/' + this.currentAgent.id);
+        var full = await InfringAPI.get('/api/agents/' + this.currentAgent.id);
         this.agentDrawer = Object.assign({}, base, full || {}, {
           _fallbacks: Array.isArray(full && full.fallback_models) ? full.fallback_models : []
         });
@@ -2412,11 +2412,11 @@ function chatPage() {
     async setDrawerMode(mode) {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       try {
-        await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/mode', { mode: mode });
-        OpenFangToast.success('Mode set to ' + mode);
+        await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/mode', { mode: mode });
+        InfringToast.success('Mode set to ' + mode);
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
-        OpenFangToast.error('Failed to set mode: ' + e.message);
+        InfringToast.error('Failed to set mode: ' + e.message);
       }
     },
 
@@ -2424,11 +2424,11 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       this.drawerConfigSaving = true;
       try {
-        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
-        OpenFangToast.success('Config updated');
+        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        InfringToast.success('Config updated');
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
-        OpenFangToast.error('Failed to save config: ' + e.message);
+        InfringToast.error('Failed to save config: ' + e.message);
       }
       this.drawerConfigSaving = false;
     },
@@ -2445,13 +2445,13 @@ function chatPage() {
       }
       this.drawerIdentitySaving = true;
       try {
-        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
         if (part === 'name') this.drawerEditingName = false;
         if (part === 'emoji') this.drawerEditingEmoji = false;
-        OpenFangToast.success(part === 'name' ? 'Name updated' : 'Emoji updated');
+        InfringToast.success(part === 'name' ? 'Name updated' : 'Emoji updated');
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
-        OpenFangToast.error('Failed to save ' + part + ': ' + e.message);
+        InfringToast.error('Failed to save ' + part + ': ' + e.message);
       }
       this.drawerIdentitySaving = false;
     },
@@ -2460,17 +2460,17 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewModelValue || '').trim()) return;
       this.drawerModelSaving = true;
       try {
-        var resp = await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/model', {
+        var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', {
           model: String(this.drawerNewModelValue || '').trim()
         });
         this.addModelSwitchNotice((resp && resp.model) || String(this.drawerNewModelValue || '').trim(), (resp && resp.provider) || this.agentDrawer.model_provider || '');
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
-        OpenFangToast.success('Model changed' + providerInfo + ' (memory reset)');
+        InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
         this.drawerEditingModel = false;
         this.drawerNewModelValue = '';
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
-        OpenFangToast.error('Failed to change model: ' + e.message);
+        InfringToast.error('Failed to change model: ' + e.message);
       }
       this.drawerModelSaving = false;
     },
@@ -2480,14 +2480,14 @@ function chatPage() {
       this.drawerModelSaving = true;
       try {
         var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
-        var resp = await OpenFangAPI.put('/api/agents/' + this.agentDrawer.id + '/model', { model: combined });
+        var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', { model: combined });
         this.addModelSwitchNotice((resp && resp.model) || this.agentDrawer.model_name || '', (resp && resp.provider) || String(this.drawerNewProviderValue || '').trim());
-        OpenFangToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : String(this.drawerNewProviderValue || '').trim()));
+        InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : String(this.drawerNewProviderValue || '').trim()));
         this.drawerEditingProvider = false;
         this.drawerNewProviderValue = '';
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
-        OpenFangToast.error('Failed to change provider: ' + e.message);
+        InfringToast.error('Failed to change provider: ' + e.message);
       }
       this.drawerModelSaving = false;
     },
@@ -2500,14 +2500,14 @@ function chatPage() {
       if (!this.agentDrawer._fallbacks) this.agentDrawer._fallbacks = [];
       this.agentDrawer._fallbacks.push({ provider: provider, model: model });
       try {
-        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
-        OpenFangToast.success('Fallback added: ' + provider + '/' + model);
+        InfringToast.success('Fallback added: ' + provider + '/' + model);
         this.drawerEditingFallback = false;
         this.drawerNewFallbackValue = '';
       } catch(e) {
-        OpenFangToast.error('Failed to save fallbacks: ' + e.message);
+        InfringToast.error('Failed to save fallbacks: ' + e.message);
         this.agentDrawer._fallbacks.pop();
       }
     },
@@ -2516,12 +2516,12 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id || !Array.isArray(this.agentDrawer._fallbacks)) return;
       var removed = this.agentDrawer._fallbacks.splice(idx, 1);
       try {
-        await OpenFangAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
-        OpenFangToast.success('Fallback removed');
+        InfringToast.success('Fallback removed');
       } catch(e) {
-        OpenFangToast.error('Failed to save fallbacks: ' + e.message);
+        InfringToast.error('Failed to save fallbacks: ' + e.message);
         if (removed && removed.length) this.agentDrawer._fallbacks.splice(idx, 0, removed[0]);
       }
     },
@@ -2622,7 +2622,7 @@ function chatPage() {
     },
 
     _terminalPromptLine: function(cwd, command) {
-      var path = String(cwd || this.terminalPromptPath || '/Users/jay/.openclaw/workspace');
+      var path = String(cwd || this.terminalPromptPath || '/workspace');
       var cmd = String(command || '').trim();
       if (!cmd) return path + ' %';
       return path + ' % ' + cmd;
@@ -2720,11 +2720,11 @@ function chatPage() {
           var att = this.attachments[i];
           att.uploading = true;
           try {
-            var uploadRes = await OpenFangAPI.upload(this.currentAgent.id, att.file);
+            var uploadRes = await InfringAPI.upload(this.currentAgent.id, att.file);
             fileRefs.push('[File: ' + att.file.name + ']');
             uploadedFiles.push({ file_id: uploadRes.file_id, filename: uploadRes.filename, content_type: uploadRes.content_type });
           } catch(e) {
-            OpenFangToast.error('Failed to upload ' + att.file.name);
+            InfringToast.error('Failed to upload ' + att.file.name);
             fileRefs.push('[File: ' + att.file.name + ' (upload failed)]');
           }
           att.uploading = false;
@@ -2775,20 +2775,20 @@ function chatPage() {
       this.scrollToBottom();
       this.scheduleConversationPersist();
 
-      if (!OpenFangAPI.isWsConnected() && this.currentAgent) {
+      if (!InfringAPI.isWsConnected() && this.currentAgent) {
         this.connectWs(this.currentAgent.id);
         var wsWaitStarted = Date.now();
-        while (!OpenFangAPI.isWsConnected() && (Date.now() - wsWaitStarted) < 1500) {
+        while (!InfringAPI.isWsConnected() && (Date.now() - wsWaitStarted) < 1500) {
           await new Promise(function(resolve) { setTimeout(resolve, 75); });
         }
       }
 
-      if (OpenFangAPI.wsSend({ type: 'terminal', command: command, cwd: this.terminalPromptPath })) {
+      if (InfringAPI.wsSend({ type: 'terminal', command: command, cwd: this.terminalPromptPath })) {
         return;
       }
 
       try {
-        var res = await OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/terminal', {
+        var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/terminal', {
           command: command,
           cwd: this.terminalPromptPath,
         });
@@ -2814,7 +2814,7 @@ function chatPage() {
       // Try WebSocket first
       var wsPayload = { type: 'message', content: finalText };
       if (uploadedFiles && uploadedFiles.length) wsPayload.attachments = uploadedFiles;
-      if (OpenFangAPI.wsSend(wsPayload)) {
+      if (InfringAPI.wsSend(wsPayload)) {
         this._responseStartedAt = Date.now();
         this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, tools: [], ts: Date.now() });
         this.scrollToBottom();
@@ -2823,8 +2823,8 @@ function chatPage() {
       }
 
       // HTTP fallback
-      if (!OpenFangAPI.isWsConnected()) {
-        OpenFangToast.info('Using HTTP mode (no streaming)');
+      if (!InfringAPI.isWsConnected()) {
+        InfringToast.info('Using HTTP mode (no streaming)');
       }
       this.messages.push({ id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, tools: [], ts: Date.now() });
       this.scrollToBottom();
@@ -2834,7 +2834,7 @@ function chatPage() {
       try {
         var httpBody = { message: finalText };
         if (uploadedFiles && uploadedFiles.length) httpBody.attachments = uploadedFiles;
-        var res = await OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/message', httpBody);
+        var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', httpBody);
         this.applyContextTelemetry(res);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var httpMeta = (res.input_tokens || 0) + ' in / ' + (res.output_tokens || 0) + ' out';
@@ -2893,7 +2893,7 @@ function chatPage() {
     stopAgent: function() {
       if (!this.currentAgent) return;
       var self = this;
-      OpenFangAPI.post('/api/agents/' + this.currentAgent.id + '/stop', {}).then(function(res) {
+      InfringAPI.post('/api/agents/' + this.currentAgent.id + '/stop', {}).then(function(res) {
         self.handleStopResponse(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', res || {});
       }).catch(function(e) {
         var raw = String(e && e.message ? e.message : 'stop_failed');
@@ -2914,7 +2914,7 @@ function chatPage() {
           );
           return;
         }
-        OpenFangToast.error('Stop failed: ' + raw);
+        InfringToast.error('Stop failed: ' + raw);
       });
     },
 
@@ -2922,18 +2922,18 @@ function chatPage() {
       if (!this.currentAgent) return;
       var self = this;
       var name = this.currentAgent.name;
-      OpenFangToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
+      InfringToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
         try {
-          await OpenFangAPI.del('/api/agents/' + self.currentAgent.id);
-          OpenFangAPI.wsDisconnect();
+          await InfringAPI.del('/api/agents/' + self.currentAgent.id);
+          InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;
           Alpine.store('app').activeAgentId = null;
           self.messages = [];
-          OpenFangToast.success('Agent "' + name + '" stopped');
+          InfringToast.success('Agent "' + name + '" stopped');
           Alpine.store('app').refreshAgents();
         } catch(e) {
-          OpenFangToast.error('Failed to stop agent: ' + e.message);
+          InfringToast.error('Failed to stop agent: ' + e.message);
         }
       });
     },
@@ -3028,7 +3028,7 @@ function chatPage() {
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
         if (file.size > 10 * 1024 * 1024) {
-          OpenFangToast.warn('File "' + file.name + '" exceeds 10MB limit');
+          InfringToast.warn('File "' + file.name + '" exceeds 10MB limit');
           continue;
         }
         var typeOk = allowed.indexOf(file.type) !== -1;
@@ -3037,7 +3037,7 @@ function chatPage() {
           typeOk = allowedExts.indexOf(ext) !== -1 || file.type.startsWith('image/');
         }
         if (!typeOk) {
-          OpenFangToast.warn('File type not supported: ' + file.name);
+          InfringToast.warn('File type not supported: ' + file.name);
           continue;
         }
         var preview = null;
@@ -3194,7 +3194,7 @@ function chatPage() {
         this.recordingTime = 0;
         this._recordingTimer = setInterval(function() { self.recordingTime++; }, 1000);
       } catch(e) {
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Microphone access denied');
+        if (typeof InfringToast !== 'undefined') InfringToast.error('Microphone access denied');
       }
     },
 
@@ -3221,7 +3221,7 @@ function chatPage() {
         // Upload audio file
         var ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : 'mp3';
         var file = new File([blob], 'voice_' + Date.now() + '.' + ext, { type: blob.type });
-        var upload = await OpenFangAPI.upload(this.currentAgent.id, file);
+        var upload = await InfringAPI.upload(this.currentAgent.id, file);
 
         // Remove the "Transcribing..." message
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
@@ -3233,7 +3233,7 @@ function chatPage() {
         this._sendPayload(text, [upload], []);
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Failed to upload audio: ' + (e.message || 'unknown error'));
+        if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to upload audio: ' + (e.message || 'unknown error'));
       }
     },
 

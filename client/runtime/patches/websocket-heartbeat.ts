@@ -1,5 +1,5 @@
 /**
- * WebSocket Heartbeat Patch for OpenClaw Control UI
+ * WebSocket Heartbeat Patch for Infring Control UI
  * 
  * This patch adds automatic ping/pong heartbeat to WebSocket connections
  * to prevent idle timeouts and code=1001 disconnects.
