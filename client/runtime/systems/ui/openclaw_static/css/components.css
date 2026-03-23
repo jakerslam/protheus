@@ -3651,24 +3651,33 @@ body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
 .agent-activity-spinner {
   position: absolute;
   left: 50%;
-  top: -6px;
-  width: 12px;
-  height: 12px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
-  border: 1.6px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 82%, transparent);
-  background: color-mix(in srgb, var(--bg-primary) 18%, transparent);
-  transform: translateX(-50%);
-  animation: spin 0.8s linear infinite;
+  border: 1.8px solid rgba(148, 163, 184, 0.38);
+  border-top-color: rgba(148, 163, 184, 0.82);
+  background: rgba(148, 163, 184, 0.14);
+  transform: translate(-50%, -50%);
+  animation: agent-activity-spin 0.78s linear infinite;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 body[data-theme='dark'] .agent-activity-spinner {
-  border-color: color-mix(in srgb, #93c5fd 28%, transparent);
-  border-top-color: color-mix(in srgb, #93c5fd 92%, transparent);
-  background: color-mix(in srgb, #0f172a 36%, transparent);
-  box-shadow: 0 0 8px color-mix(in srgb, #60a5fa 38%, transparent);
+  border-color: rgba(148, 163, 184, 0.42);
+  border-top-color: rgba(203, 213, 225, 0.88);
+  background: rgba(100, 116, 139, 0.24);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18);
+}
+
+@keyframes agent-activity-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .chat-sidebar-item-main {
