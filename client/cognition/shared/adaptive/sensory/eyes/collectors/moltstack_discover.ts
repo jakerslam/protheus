@@ -31,7 +31,7 @@ function fetchJson(url, timeoutMs = 10000) {
       const res = await egressFetchText(url, {
         method: "GET",
         headers: {
-          "User-Agent": "openclaw-eyes/1.0",
+          "User-Agent": "infring-eyes/1.0",
           Accept: "application/json",
         },
       }, {

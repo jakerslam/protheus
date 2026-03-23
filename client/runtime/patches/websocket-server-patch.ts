@@ -1,7 +1,7 @@
 /**
  * WebSocket Stability Patch - Server Side
  * 
- * Implements heartbeat (ping/pong) and event replay for OpenClaw Gateway.
+ * Implements heartbeat (ping/pong) and event replay for Infring Gateway.
  * 
  * To apply: Include this file in your gateway startup or inject into
  * the WebSocketServer creation point.

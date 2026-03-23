@@ -4,4 +4,4 @@ metadata:
   name: protheus
   labels:
     app.kubernetes.io/name: protheus
-    app.kubernetes.io/part-of: openclaw
+    app.kubernetes.io/part-of: infring

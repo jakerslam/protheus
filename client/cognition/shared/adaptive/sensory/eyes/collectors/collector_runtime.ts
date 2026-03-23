@@ -251,7 +251,7 @@ async function fetchTextWithAdaptiveControls(collectorId, url, options = {}) {
   const circuitOpenMs = clampInt(options.circuitOpenMs, 500, 300000, Number(process.env.EYES_COLLECTOR_CIRCUIT_MS || 30000));
   const circuitAfterFailures = clampInt(options.circuitAfterFailures, 1, 10, Number(process.env.EYES_COLLECTOR_CIRCUIT_AFTER || 3));
   const headers = options.headers && typeof options.headers === 'object' ? options.headers : {
-    'User-Agent': 'OpenClaw-Eyes/1.0',
+    'User-Agent': 'Infring-Eyes/1.0',
     'Accept': 'application/rss+xml,application/atom+xml,application/json,text/xml,text/html;q=0.9,*/*;q=0.8'
   };
 

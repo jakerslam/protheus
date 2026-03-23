@@ -169,7 +169,7 @@ async function fetchJson(url, { timeoutMs = 15000, auth = null, caller = 'adapti
       {
         method: 'GET',
         headers: {
-          'User-Agent': 'OpenClaw-Eyes/1.0',
+          'User-Agent': 'Infring-Eyes/1.0',
           'Accept': 'application/vnd.github+json',
           ...authHeaders
         }

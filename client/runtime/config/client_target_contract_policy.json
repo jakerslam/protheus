@@ -108,7 +108,7 @@
       "bucket": "keep_public_client",
       "reason": "operator-facing diagnostics bridge remains public for incident/debug workflows"
     },
-    "client/runtime/systems/ops/protheus_status_dashboard.js": {
+    "client/runtime/systems/ops/protheus_status_dashboard.ts": {
       "bucket": "keep_public_client",
       "reason": "operator-facing status dashboard bridge remains public for runtime observability workflows"
     },

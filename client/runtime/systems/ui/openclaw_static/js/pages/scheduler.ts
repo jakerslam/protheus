@@ -1,4 +1,4 @@
-// OpenFang Scheduler Page — Cron job management + event triggers unified view
+// Infring Scheduler Page — Cron job management + event triggers unified view
 'use strict';
 
 function schedulerPage() {
@@ -62,7 +62,7 @@ function schedulerPage() {
     },
 
     async loadJobs() {
-      var data = await OpenFangAPI.get('/api/cron/jobs');
+      var data = await InfringAPI.get('/api/cron/jobs');
       var raw = data.jobs || [];
       // Normalize cron API response to flat fields the UI expects
       this.jobs = raw.map(function(j) {
@@ -91,7 +91,7 @@ function schedulerPage() {
       this.trigLoading = true;
       this.trigLoadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/triggers');
+        var data = await InfringAPI.get('/api/triggers');
         this.triggers = Array.isArray(data) ? data : [];
       } catch(e) {
         this.triggers = [];
@@ -144,11 +144,11 @@ function schedulerPage() {
 
     async createJob() {
       if (!this.newJob.name.trim()) {
-        OpenFangToast.warn('Please enter a job name');
+        InfringToast.warn('Please enter a job name');
         return;
       }
       if (!this.newJob.cron.trim()) {
-        OpenFangToast.warn('Please enter a cron expression');
+        InfringToast.warn('Please enter a cron expression');
         return;
       }
       this.creating = true;
@@ -162,13 +162,13 @@ function schedulerPage() {
           delivery: { kind: 'last_channel' },
           enabled: this.newJob.enabled
         };
-        await OpenFangAPI.post('/api/cron/jobs', body);
+        await InfringAPI.post('/api/cron/jobs', body);
         this.showCreateForm = false;
         this.newJob = { name: '', cron: '', agent_id: '', message: '', enabled: true };
-        OpenFangToast.success('Schedule "' + jobName + '" created');
+        InfringToast.success('Schedule "' + jobName + '" created');
         await this.loadJobs();
       } catch(e) {
-        OpenFangToast.error('Failed to create schedule: ' + (e.message || e));
+        InfringToast.error('Failed to create schedule: ' + (e.message || e));
       }
       this.creating = false;
     },
@@ -176,24 +176,24 @@ function schedulerPage() {
     async toggleJob(job) {
       try {
         var newState = !job.enabled;
-        await OpenFangAPI.put('/api/cron/jobs/' + job.id + '/enable', { enabled: newState });
+        await InfringAPI.put('/api/cron/jobs/' + job.id + '/enable', { enabled: newState });
         job.enabled = newState;
-        OpenFangToast.success('Schedule ' + (newState ? 'enabled' : 'paused'));
+        InfringToast.success('Schedule ' + (newState ? 'enabled' : 'paused'));
       } catch(e) {
-        OpenFangToast.error('Failed to toggle schedule: ' + (e.message || e));
+        InfringToast.error('Failed to toggle schedule: ' + (e.message || e));
       }
     },
 
     deleteJob(job) {
       var self = this;
       var jobName = job.name || job.id;
-      OpenFangToast.confirm('Delete Schedule', 'Delete "' + jobName + '"? This cannot be undone.', async function() {
+      InfringToast.confirm('Delete Schedule', 'Delete "' + jobName + '"? This cannot be undone.', async function() {
         try {
-          await OpenFangAPI.del('/api/cron/jobs/' + job.id);
+          await InfringAPI.del('/api/cron/jobs/' + job.id);
           self.jobs = self.jobs.filter(function(j) { return j.id !== job.id; });
-          OpenFangToast.success('Schedule "' + jobName + '" deleted');
+          InfringToast.success('Schedule "' + jobName + '" deleted');
         } catch(e) {
-          OpenFangToast.error('Failed to delete schedule: ' + (e.message || e));
+          InfringToast.error('Failed to delete schedule: ' + (e.message || e));
         }
       });
     },
@@ -201,15 +201,15 @@ function schedulerPage() {
     async runNow(job) {
       this.runningJobId = job.id;
       try {
-        var result = await OpenFangAPI.post('/api/schedules/' + job.id + '/run', {});
+        var result = await InfringAPI.post('/api/schedules/' + job.id + '/run', {});
         if (result.status === 'completed') {
-          OpenFangToast.success('Schedule "' + (job.name || 'job') + '" executed successfully');
+          InfringToast.success('Schedule "' + (job.name || 'job') + '" executed successfully');
           job.last_run = new Date().toISOString();
         } else {
-          OpenFangToast.error('Schedule run failed: ' + (result.error || 'Unknown error'));
+          InfringToast.error('Schedule run failed: ' + (result.error || 'Unknown error'));
         }
       } catch(e) {
-        OpenFangToast.error('Run Now is not yet available for cron jobs');
+        InfringToast.error('Run Now is not yet available for cron jobs');
       }
       this.runningJobId = '';
     },
@@ -239,23 +239,23 @@ function schedulerPage() {
     async toggleTrigger(trigger) {
       try {
         var newState = !trigger.enabled;
-        await OpenFangAPI.put('/api/triggers/' + trigger.id, { enabled: newState });
+        await InfringAPI.put('/api/triggers/' + trigger.id, { enabled: newState });
         trigger.enabled = newState;
-        OpenFangToast.success('Trigger ' + (newState ? 'enabled' : 'disabled'));
+        InfringToast.success('Trigger ' + (newState ? 'enabled' : 'disabled'));
       } catch(e) {
-        OpenFangToast.error('Failed to toggle trigger: ' + (e.message || e));
+        InfringToast.error('Failed to toggle trigger: ' + (e.message || e));
       }
     },
 
     deleteTrigger(trigger) {
       var self = this;
-      OpenFangToast.confirm('Delete Trigger', 'Delete this trigger? This cannot be undone.', async function() {
+      InfringToast.confirm('Delete Trigger', 'Delete this trigger? This cannot be undone.', async function() {
         try {
-          await OpenFangAPI.del('/api/triggers/' + trigger.id);
+          await InfringAPI.del('/api/triggers/' + trigger.id);
           self.triggers = self.triggers.filter(function(t) { return t.id !== trigger.id; });
-          OpenFangToast.success('Trigger deleted');
+          InfringToast.success('Trigger deleted');
         } catch(e) {
-          OpenFangToast.error('Failed to delete trigger: ' + (e.message || e));
+          InfringToast.error('Failed to delete trigger: ' + (e.message || e));
         }
       });
     },

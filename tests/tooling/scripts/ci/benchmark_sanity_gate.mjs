@@ -148,8 +148,8 @@ function checkBounds(rows, policy) {
 
 function runtimeSourcePayload(report) {
   return (
-    report?.projects?.OpenClaw?.runtime_metric_source ??
     report?.projects?.['InfRing (rich)']?.runtime_metric_source ??
+    report?.projects?.OpenClaw?.runtime_metric_source ??
     null
   );
 }
@@ -157,13 +157,13 @@ function runtimeSourcePayload(report) {
 function checkRuntimeSource(runtimeReport, policy) {
   const violations = [];
   const source = runtimeSourcePayload(runtimeReport);
-  const required = policy?.openclaw_required_runtime_source_keys ?? [];
+  const required = policy?.infring_required_runtime_source_keys ?? [];
   for (const key of required) {
     const value = source?.[key];
     const missing =
       value == null || (typeof value === 'string' && value.trim().length === 0);
     if (missing) {
-      violations.push(`openclaw_runtime_source_missing:${key}`);
+      violations.push(`infring_runtime_source_missing:${key}`);
     }
   }
   return violations;

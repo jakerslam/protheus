@@ -9524,7 +9524,7 @@ Notes:
   - strengthens first-load usability and discoverability expectations for non-operator users,
   - keeps advanced controls accessible in one-click collapsible pane with deterministic action receipts.
 
-Objective: default dashboard boot to a clean OpenFang/OpenClaw-style chat interface, with all advanced control surfaces hidden in a collapsible side pane by default.
+Objective: default dashboard boot to a clean Infring-style chat interface, with all advanced control surfaces hidden in a collapsible side pane by default.
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -9535,6 +9535,30 @@ Objective: default dashboard boot to a clean OpenFang/OpenClaw-style chat interf
 
 Regression-proof note:
 - Any dashboard UX/control-plane behavior change that affects first-load experience, controls drawer semantics, quick actions, or keyboard flows must update `docs/workspace/INFRING_DASHBOARD_UI_SPEC.md` in the same change.
+
+## Dashboard Runtime Resilience Extension Intake (Ops-Analyst Feedback, 2026-03-22)
+
+Source references:
+- Runtime ops analyst feedback in dashboard-chat telemetry loop (queue depth/cockpit blocks/conduit signal bottleneck analysis and 3-day autonomy recommendations).
+
+Notes:
+- Normalization: adds focused runtime resilience family `V6-DASHBOARD-007.*` for queue, conduit, and cockpit root-control hardening.
+- Primitive-first constraint: preserves conduit-routed authority and deterministic receipt flow while adding ingress/backpressure, deferred-queue, and swarm-drain automation controls.
+- Relationship to existing contracts:
+  - extends `V6-DASHBOARD-001.*` and `V6-DASHBOARD-006.*` runtime supervision surfaces,
+  - reinforces `V6-SWARM-*`, `V6-COCKPIT-*`, and `V6-OPS-001.*` under sustained queue pressure,
+  - adds deterministic policy metadata for dashboard-chat runtime decisions.
+
+Objective: keep dashboard-runtime coupling stable under high queue pressure for multi-day autonomous operation by adding predictive ingress control, conduit auto-heal, cockpit stale-block drain, deferred queue storage, and elastic drain swarm scaling.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-DASHBOARD-007.1 | in_progress | Attention Queue Lane Isolation + Weighted Fair Drain | Critical telemetry must not be blocked behind routine backlog items under burst load. | Runtime summary exposes critical/standard/background lane counts, weighted-fair ordering, and deterministic lane policy metadata with passing dashboard runtime E2E coverage. | 10 | 0/1/2/client |
+| V6-DASHBOARD-007.2 | in_progress | Predictive Ingress Controller + Backpressure Circuiting | Queue growth must be controlled before reaching destabilizing depths. | Dampen/shed/circuit ingress levels are emitted in runtime sync, with non-critical gating metadata and deterministic thresholds reflected in action payloads and tests. | 10 | 0/1/2/client |
+| V6-DASHBOARD-007.3 | in_progress | Conduit Watchdog Auto-Heal + Signal Floor Recovery | Low conduit signal availability under high queue load causes stale dashboard-system coupling. | Watchdog state (`required/triggered/failure_count/stale_for_ms`) is enforced and surfaced in runtime policy execution, with bounded retry cadence and receipts. | 9 | 0/1/2/client |
+| V6-DASHBOARD-007.4 | in_progress | Cockpit Stale-Block Timeout + Parallel Drain Assignment | Long-lived cockpit blockers must be detected and drained without halting critical flow. | Runtime policy emits stale-block counts/thresholds and queues parallel builder remediation tasks when stale blockers are present; covered by runtime swarm action evidence. | 9 | 0/1/2/client |
+| V6-DASHBOARD-007.5 | in_progress | Deferred Queue Cold Storage + Controlled Rehydration | Standard/background queue items must be preserved without overwhelming live memory/attention surfaces. | Deferred attention state is persisted, bounded, and rehydrated by policy when queue pressure falls; runtime snapshot exposes deferred depth/mode telemetry. | 9 | 0/1/2/client |
+| V6-DASHBOARD-007.6 | in_progress | Elastic Drain Swarm Autoscaling | Backlog spikes require temporary parallel drain capacity without permanent resource bloat. | Predictive drain launches bounded builder shadows above trigger depth and retires them below clear depth, with policy payload + launch/turn evidence in runtime recommendation responses. | 9 | 0/1/2/client |
 
 ## Blind-Spot Hardening Intake Source Coverage (Doc `1rhlsnMmcJ2u3C3_QJgSkhK__SF0e27qTyeTFG7xagL8`, 2026-03-18)
 
