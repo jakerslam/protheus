@@ -237,6 +237,25 @@ async function run() {
       true,
       'cockpit should expose live(active) and total block counts for stale-lock isolation'
     );
+    const staleActionable = Number((s.cockpit && s.cockpit.metrics && s.cockpit.metrics.stale_block_count) || 0);
+    const staleRaw = Number((s.cockpit && s.cockpit.metrics && s.cockpit.metrics.stale_block_raw_count) || 0);
+    const staleDormant = Number((s.cockpit && s.cockpit.metrics && s.cockpit.metrics.stale_block_dormant_count) || 0);
+    summary.checks.cockpit_stale_partition_present = !!(
+      s.cockpit
+      && s.cockpit.metrics
+      && Number.isFinite(staleActionable)
+      && Number.isFinite(staleRaw)
+      && Number.isFinite(staleDormant)
+      && staleRaw >= staleActionable
+      && staleRaw >= staleDormant
+      && Array.isArray(s.cockpit.metrics.stale_lanes_top)
+      && Array.isArray(s.cockpit.metrics.stale_lanes_dormant_top)
+    );
+    assert.strictEqual(
+      summary.checks.cockpit_stale_partition_present,
+      true,
+      'cockpit stale metrics should partition actionable and dormant stale blocks'
+    );
     summary.checks.memory_stream_present = !!(
       s.memory
       && s.memory.stream
