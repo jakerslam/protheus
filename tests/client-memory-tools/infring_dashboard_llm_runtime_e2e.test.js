@@ -337,6 +337,14 @@ async function run() {
     assert.strictEqual(telemetry.status, 200, 'telemetry chat action should return 200');
     const telemetryLane = telemetry.body && telemetry.body.lane ? telemetry.body.lane : {};
     const telemetrySync = telemetryLane.runtime_sync || null;
+    const telemetryResponseText = String(telemetryLane.response || '');
+    const telemetryNumbersMatch = telemetryResponseText.match(
+      /queue depth:\s*(\d+),\s*cockpit blocks:\s*(\d+)\s*active\s*\((\d+)\s*total\),\s*conduit signals:\s*(\d+)/i
+    );
+    const telemetryQueueFromText = telemetryNumbersMatch ? Number(telemetryNumbersMatch[1]) : null;
+    const telemetryCockpitFromText = telemetryNumbersMatch ? Number(telemetryNumbersMatch[2]) : null;
+    const telemetryCockpitTotalFromText = telemetryNumbersMatch ? Number(telemetryNumbersMatch[3]) : null;
+    const telemetryConduitFromText = telemetryNumbersMatch ? Number(telemetryNumbersMatch[4]) : null;
     summary.checks.telemetry_runtime_sync = !!(telemetry.body && telemetry.body.ok && telemetrySync);
     summary.checks.telemetry_mentions_conduit = /conduit/i.test(String(telemetryLane.response || ''));
     summary.checks.telemetry_latency_fields_present = !!(
@@ -351,6 +359,22 @@ async function run() {
       true,
       'telemetry runtime sync should expose receipt latency SLO fields'
     );
+    summary.checks.telemetry_response_runtime_sync_coherent = !!(
+      telemetrySync
+      && telemetryQueueFromText != null
+      && telemetryCockpitFromText != null
+      && telemetryCockpitTotalFromText != null
+      && telemetryConduitFromText != null
+      && Number(telemetrySync.queue_depth) === telemetryQueueFromText
+      && Number(telemetrySync.cockpit_blocks) === telemetryCockpitFromText
+      && Number(telemetrySync.cockpit_total_blocks) === telemetryCockpitTotalFromText
+      && Number(telemetrySync.conduit_signals) === telemetryConduitFromText
+    );
+    assert.strictEqual(
+      summary.checks.telemetry_response_runtime_sync_coherent,
+      true,
+      'telemetry response text and runtime_sync payload should report identical queue/cockpit/conduit values'
+    );
     summary.evidence.telemetry = {
       lane_type: telemetryLane.type || '',
       queue_depth: telemetrySync ? telemetrySync.queue_depth : null,
@@ -364,7 +388,13 @@ async function run() {
       conduit_scale_required: telemetrySync ? telemetrySync.conduit_scale_required : null,
       critical_attention_total: telemetrySync ? telemetrySync.critical_attention_total : null,
       benchmark_sanity_status: telemetrySync ? telemetrySync.benchmark_sanity_status : null,
-      response_excerpt: String(telemetryLane.response || '').slice(0, 240),
+      parsed_from_response: {
+        queue_depth: telemetryQueueFromText,
+        cockpit_blocks: telemetryCockpitFromText,
+        cockpit_total_blocks: telemetryCockpitTotalFromText,
+        conduit_signals: telemetryConduitFromText,
+      },
+      response_excerpt: telemetryResponseText.slice(0, 240),
     };
 
     const memory = await postAction(

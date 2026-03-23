@@ -9693,6 +9693,388 @@ Objective: assimilate Monty as a secure, low-latency Python execution bridge for
 | V6-EXECUTION-001.3 | done | Controlled External Function Mapping Contract | Sandbox guarantees weaken unless host function exposure is explicitly allowlisted and policy-scoped per execution context. | Route Monty external calls through governed tool registry mappings with strict allowlist policy, deny-by-default behavior, and deterministic call receipts. | 10 | 0/1/2/adapter/client |
 | V6-EXECUTION-001.4 | done | Hierarchy-Aware Execution Output Contract | Execution outputs become noisy/unusable unless they are classified into existing memory hierarchy and retention paths. | Classify and store execution outputs through jot/tag/node hierarchy with context-budget and staleness policies, emitting deterministic persistence receipts. | 8 | 0/1/2/client/app |
 
+## Flash-MoE Streaming Inference Assimilation Source Coverage Intake (Doc `1iiARcOWJ1vpinAl1Hu7fHrzNBzL_aQ6rLcRkHbhJLVQ`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1iiARcOWJ1vpinAl1Hu7fHrzNBzL_aQ6rLcRkHbhJLVQ/edit?usp=sharing
+- https://github.com/danveloper/flash-moe
+- https://machinelearning.apple.com/research/llm-in-a-flash
+
+Notes:
+- Source proposes Flash-MoE-style execution for very large MoE models on constrained RAM by streaming experts from SSD.
+- ID integrity check: `V6-EXECUTION-002.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing execution/conduit/memory/receipt primitives and does not introduce a parallel authority path.
+- Existing baseline coverage reused by this intake:
+  - universal execution primitive baseline: `V3-039`
+  - safety and fail-closed policy enforcement: `V6-SEC-010..017`, `V6-SEC-T0-001`, `V6-CONDUIT-002`
+  - memory continuity/classification and compaction surfaces: `V6-MEMORY-024.*`, `V6-MEMORY-025.*`, `V6-MEMORY-026.*`
+  - receipt/audit guarantees: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+- Placement normalization from source:
+  - Layer `-1`: substrate descriptors for SSD/GPU locality and hardware-class tuning
+  - Layer `0`: conduit-routed expert load/inference actions with deterministic fail-closed receipts
+  - Layer `1`: policy contracts for expert activation limits, quantization safety bounds, and cache strategy
+  - Layer `2`: scheduler/execution integration for streaming MoE dispatch, prefetch, and batching
+  - `client`/`app`: thin `apps/flash-moe` and runtime status surfaces only
+
+Objective: assimilate Flash-MoE streaming execution so frontier-scale MoE models can run locally on constrained hardware with bounded memory, deterministic receipts, and no safety bypass.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-EXECUTION-002.1 | done | SSD Expert Streaming Engine Contract | Large MoE models are blocked on constrained hardware unless only active experts are loaded from storage on demand. | Add conduit-routed SSD expert streaming (parallel pread + bounded prefetch) with deterministic per-load receipts and demonstrated low resident-memory execution profile. | 10 | -1/0/1/2 |
+| V6-EXECUTION-002.2 | done | Expert Pruning + Quantization Bridge Contract | Massive model footprints remain impractical without governed pruning/quantization integrated with memory safety and retrieval policy. | Implement policy-bound expert pruning and 2-bit/4-bit quantization bridge with quality guardrails, deterministic conversion receipts, and memory-hierarchy classification outputs. | 9 | 0/1/2/client |
+| V6-EXECUTION-002.3 | done | OS Cache-First Streaming Policy Contract | Custom hot-path caches can regress throughput and increase complexity versus host page-cache optimized streaming. | Ship cache strategy contract that defaults to host OS page-cache-first behavior, removes redundant custom cache hot-paths, and proves throughput non-regression in benchmark receipts. | 8 | -1/0/1/2 |
+| V6-EXECUTION-002.4 | done | Metal MoE Kernel Integration Contract | Streaming MoE gains are capped unless dequant/activation/attention/MoE combine kernels are fused for target hardware. | Integrate optimized Metal kernel path (or governed bridge mode) for streaming MoE inference with deterministic perf receipts and target sustained tokens/sec threshold proofs. | 9 | -1/0/1/2/client |
+
+## Git Worktree Parallel Execution Assimilation Source Coverage Intake (Doc `1CgzEmcxpP9xpsraC4HdH1BedOXeto_KtQH9Xr1AUZXs`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1CgzEmcxpP9xpsraC4HdH1BedOXeto_KtQH9Xr1AUZXs/edit?usp=sharing
+- https://x.com/davidondrej1/status/2034755841530769712
+- https://git-scm.com/docs/git-worktree
+
+Notes:
+- Source proposes per-agent Git worktree isolation for parallel coding so agents avoid shared working-directory collisions and merge contention.
+- ID integrity check: `V6-EXECUTION-003.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing swarm/workflow execution and git tool primitives as a thin client extension; no parallel execution authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - swarm decomposition and role dispatch: `V6-SWARM-*`, `V6-WORKFLOW-*`
+  - git/tool execution governance: `V6-TOOLS-*`, `V6-ADAPTER-*`, `V6-SBOX-001`
+  - safety and fail-closed policy enforcement: `V6-CONDUIT-002`, `V6-SEC-010..017`, `V6-SEC-T0-001`
+  - receipt/audit guarantees for code operations: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed git/worktree actions with deterministic receipts and command allowlisting
+  - Layer `1`: policy controls for branch isolation, file-touch constraints, and merge approval/veto gates
+  - Layer `2`: swarm/workflow orchestration for worktree lifecycle per coding agent
+  - `client`/`app`: thin `apps/git-worktree` and CLI flag integration only
+
+Objective: assimilate Git worktree-based agent isolation so parallel coding swarms execute safely with deterministic git receipts, bounded cleanup, and merge conflict containment.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-EXECUTION-003.1 | done | Per-Agent Worktree Manager Contract | Parallel coding agents collide unless each agent has an isolated working directory and branch context. | Add governed worktree lifecycle manager that provisions one worktree per swarm coding agent and emits deterministic create/destroy receipts. | 9 | 0/1/2/client |
+| V6-EXECUTION-003.2 | done | Branch Isolation + Safe Merge Contract | Parallel branch merges become unsafe unless conflict handling and veto controls are policy-enforced. | Enforce per-agent branch isolation, conflict detection receipts, and human-veto merge gates for unsafe merge paths. | 10 | 0/1/2/client |
+| V6-EXECUTION-003.3 | done | Swarm-Orchestrated Worktree Execution Contract | Worktree orchestration drifts unless lifecycle integrates directly with existing swarm/workflow scheduling primitives. | Integrate worktree allocation/deallocation into swarm task dispatch so every coding task receives isolated execution context with full git operation receipts. | 9 | 0/1/2/client |
+| V6-EXECUTION-003.4 | done | Cleanup + Resource Bounding Contract | Worktree isolation leaks disk/state unless cleanup runs deterministically after completion or shutdown. | Implement automatic cleanup policy for completed/aborted swarms with bounded residual directories and deterministic resource reclamation receipts. | 8 | 0/1/2/client |
+
+## Throughput Optimization Wave Source Coverage Intake (Doc `1h98ijNjlbeuEYCR6nUHHvpURc2VyRIg_OQHS3IMSOlY`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1h98ijNjlbeuEYCR6nUHHvpURc2VyRIg_OQHS3IMSOlY/edit?usp=sharing
+
+Notes:
+- Source proposes a throughput-focused optimization wave targeting 300k–600k+ ops/sec while preserving safety, receipts, and memory invariants.
+- ID integrity check: `V10-PERF-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing runtime/receipt/scheduler/perf gates and does not create an alternate execution authority path.
+- Existing baseline coverage reused by this intake:
+  - receipt/audit immutability and deterministic verification: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - benchmark threshold governance and reproducibility gates: `V7-TOP1-007`, `V7-TOP1-008`
+  - swarm execution and coordination baselines: `V6-SWARM-*`, `V10-SWARM-INF-001.*`
+  - memory compaction and pressure controls: `V6-MEMORY-024.*`, `V6-MEMORY-026.*`
+- Placement normalization from source:
+  - Layer `-1`: hardware-aware SIMD and allocator tuning for platform classes
+  - Layer `0`: fail-closed conduit-routed execution/receipt actions with deterministic receipts
+  - Layer `1`: policy guardrails for batching integrity, throughput SLOs, and regression thresholds
+  - Layer `2`: lock-free scheduler/swarm orchestration and hot-path execution optimizations
+  - `client`/`app`: thin `--perf` and dashboard telemetry surfaces only
+
+Objective: increase sustained throughput through bounded, provable optimizations while preserving receipt fidelity, safety enforcement, and deterministic replay.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V10-PERF-001.1 | queued | Receipt Batching Engine Contract | Per-operation signing/hashing overhead caps throughput unless cryptographic work is batched without losing audit granularity. | Implement bounded Merkle micro-batching for receipt signing/hashing with deterministic per-operation inclusion proofs and measured throughput gain under strict audit verification. | 10 | 0/1/2 |
+| V10-PERF-001.2 | queued | SIMD Hot-Path Optimization Contract | Queue, autonomy, and memory lookup hot paths underutilize CPU vector units, leaving significant throughput headroom unused. | Add platform-aware SIMD acceleration (AVX/NEON class) for selected hot paths with correctness parity tests and profile-specific non-regression receipts. | 9 | -1/0/1/2 |
+| V10-PERF-001.3 | queued | Lock-Free Swarm Coordination Contract | Mutex-heavy coordination introduces contention and context-switch overhead that grows superlinearly with large swarm sizes. | Replace contention hotspots with lock-free/atomic coordination primitives and prove reduced contention plus stable execution behavior at high agent concurrency. | 10 | 0/1/2 |
+| V10-PERF-001.4 | queued | PGO + Full LTO Build Optimization Contract | Compiler optimization depth is insufficient without profile-guided and whole-program optimization in release workflows. | Enable reproducible PGO + LTO build profile in CI with deterministic artifact receipts and measured throughput uplift against baseline profile. | 8 | 0/1/2 |
+| V10-PERF-001.5 | queued | Hierarchy-Aware Slab Allocation Contract | Generic allocation behavior increases fragmentation and allocation overhead under long-running memory hierarchy pressure. | Introduce hierarchy-aware slab pools for memory classes with bounded fragmentation and allocation-latency evidence under stress benchmarks. | 9 | -1/0/1/2 |
+| V10-PERF-001.6 | queued | Throughput Regression Guard Contract | Performance gains are fragile unless regressions are blocked automatically in daily and PR gates. | Add automated throughput regression guardrails that fail CI on configured degradation thresholds and emit public benchmark receipts for every gated run. | 9 | 0/1/2/client |
+
+## 10-Second Assimilate Magic Source Coverage Intake (Doc `1SrUPOUYejZJwXiqJ6J0jN-ToxlLkIT1Z9gWuYJ0EeH4`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1SrUPOUYejZJwXiqJ6J0jN-ToxlLkIT1Z9gWuYJ0EeH4/edit?usp=sharing
+
+Notes:
+- Source proposes a “fast-path assimilation” user experience (`infring assimilate <target>`) with visible progress and strict receipt-backed trust.
+- ID integrity check: `V6-ASSIMILATE-FAST-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing assimilate/conduit/swarm/receipt baselines and does not create a second assimilation authority path.
+- Existing baseline coverage reused by this intake:
+  - assimilate execution + adapter wiring baselines: `V6-ADAPTER-*`, `V6-INFERENCE-*`, `V6-RESEARCH-*`
+  - safety/fail-closed and constitutional enforcement: `V6-SEC-010..017`, `V6-SEC-T0-001`, `V6-CONDUIT-002`
+  - receipt/audit guarantees for every action: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - swarm decomposition/parallel execution patterns: `V6-SWARM-*`, `V10-SWARM-INF-001.*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed assimilate actions with deterministic receipts and fail-closed enforcement
+  - Layer `1`: policy controls for fast-mode guardrails, cache trust boundaries, and skipped-check disclosure
+  - Layer `2`: decomposition planner, skeleton cache pipeline, and staged progress orchestration
+  - `client`/`app`: thin CLI progress and dashboard telemetry surfaces only
+
+Objective: deliver a fast-path assimilation experience that is dramatically faster for common targets while preserving deterministic receipts, safety gates, and predictable fallback behavior.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ASSIMILATE-FAST-001.1 | done | Fast-Path Assimilate Mode Contract | Assimilation remains too slow for iterative workflows unless an optimized mode skips non-critical staging overhead safely. | Add governed `--fast` assimilation mode with explicit skipped-check receipts, deterministic outputs, and bounded latency profile for cached targets. | 10 | 0/1/2/client |
+| V6-ASSIMILATE-FAST-001.2 | done | Global Skeleton Cache Contract | Repeated assimilation of common targets wastes time unless canonical preprocessed skeletons are cached and reused. | Implement encrypted skeleton cache for top targets with hit/miss receipts, deterministic cache invalidation, and safe fallback to full assimilation on miss. | 9 | 0/1/2/client |
+| V6-ASSIMILATE-FAST-001.3 | done | Deterministic Progress Feedback Contract | Fast mode appears untrustworthy without transparent staged feedback tied to real execution state. | Provide staged terminal progress with deterministic phase receipts, live counters/ETA telemetry, and final signed assimilation completion hash. | 8 | 0/1/2/client/app |
+| V6-ASSIMILATE-FAST-001.4 | done | Parallel Micro-Task Decomposition Contract | Large targets cannot meet aggressive latency goals without bounded parallel decomposition and merge semantics. | Decompose assimilation into bounded micro-tasks with deterministic aggregation receipts and measured decomposition/aggregation latency targets. | 10 | 0/1/2 |
+| V6-ASSIMILATE-FAST-001.5 | done | Pre-Fetch + Warm-Up Contract | First-run cold paths stay slow unless high-value target skeletons and bridge primitives are proactively warmed. | Add startup/idle warm-up policy that prefetches top target skeletons and bridge templates with budgeted impact and warm-path evidence receipts. | 8 | 0/1/2/client |
+| V6-ASSIMILATE-FAST-001.6 | done | Fast-Mode Safety Guard Contract | Speed paths become unsafe unless constitutional and policy gates remain enforced with explicit disclosure of reduced validation depth. | Enforce no-bypass safety in fast mode, emit mode-disclosure receipts, and fail closed on policy violations even when deep validation is deferred. | 10 | 0/1/2 |
+
+## Open-SWE Autonomous Software Engineering Assimilation Source Coverage Intake (Doc `1wEDhassZcCTvdHmAlq5Bty2c-GqByJ4e_FHDUqlaiWQ`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1wEDhassZcCTvdHmAlq5Bty2c-GqByJ4e_FHDUqlaiWQ/edit?usp=sharing
+- https://github.com/langchain-ai/open-swe
+
+Notes:
+- Source proposes assimilating Open-SWE’s autonomous software engineering loop (plan/edit/test/commit + HITL + eval harness) through existing runtime primitives.
+- ID integrity check: `V6-WORKFLOW-028.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake is implemented as thin workflow/client extensions over existing primitives; no new core authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - workflow and swarm orchestration primitives: `V6-WORKFLOW-*`, `V6-SWARM-*`
+  - file/tool execution and adapter surfaces: `V6-ADAPTER-*`, `V6-SKILLS-*`, `V6-SBOX-001`
+  - memory continuity and context-budget governance: `V6-MEMORY-024.*`, `V6-MEMORY-025.*`
+  - receipt/audit enforcement and fail-closed safety: `V9-AUDIT-026`, `V6-SEC-010..017`, `V6-SEC-T0-001`, `V6-CONDUIT-002`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed SWE actions (file/git/eval/approval) with deterministic receipts
+  - Layer `1`: policy controls for git/file authority, HITL approval gates, and eval result provenance
+  - Layer `2`: autonomous SWE loop orchestration over existing workflow/swarm lanes
+  - `client`/`app`: thin `apps/open-swe` extension surfaces and `infring assimilate` hooks only
+
+Objective: assimilate Open-SWE’s autonomous SWE workflow into existing InfRing primitives as governed extensions, preserving deterministic receipts, safety boundaries, and pure-mode parity.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-WORKFLOW-028.1 | done | Autonomous SWE Loop Registry Contract | SWE automation remains fragmented unless plan/edit/test/commit loops are first-class workflow dispatch contracts. | Register Open-SWE loop semantics as workflow-lane dispatch templates with deterministic lifecycle receipts and no core-authority duplication. | 9 | 0/1/2/client |
+| V6-WORKFLOW-028.2 | done | File + Git Tool Bridge Contract | Agentic SWE output is limited without governed file-edit and git-operation bridges under existing policy controls. | Route file and git operations through conduit-governed adapters with fail-closed enforcement and atomic, receipt-backed operation traces. | 10 | 0/1/2/adapter/client |
+| V6-WORKFLOW-028.3 | done | Human-in-the-Loop Approval Middleware Contract | Production code changes require explicit approval gates to prevent unsafe autonomous promotion behavior. | Add policy-bound approval pauses and explicit human decision receipts for gated actions, with no bypass path in strict mode. | 10 | 0/1/2/client |
+| V6-WORKFLOW-028.4 | done | SWE Evaluation Harness Integration Contract | SWE agent quality cannot be trusted without standardized task evaluations linked to runtime metrics and receipts. | Integrate Open-SWE evaluation harness into observability/perf lanes with deterministic pass/fail receipts and dashboard-readable metrics surfaces. | 8 | 0/1/2/client/app |
+| V6-WORKFLOW-028.5 | done | Codebase Memory Continuity Bridge Contract | Multi-step SWE agents degrade without durable codebase memory and bounded context retrieval across sessions. | Bridge SWE context into governed memory hierarchy with auto-recall, strict context-budget enforcement, and deterministic continuity receipts. | 9 | 0/1/2/client |
+
+## Context-Aware Memory Maintenance & Active Pruning Source Coverage Intake (Doc `1XG2tsx29ZfkwtAkNFCJcCZwmrgiLvaJx-1ST486zVRE`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1XG2tsx29ZfkwtAkNFCJcCZwmrgiLvaJx-1ST486zVRE/edit?usp=sharing
+
+Notes:
+- Source proposes extending memory hierarchy maintenance into the live context window so pruning is continuous and compaction interruptions become rare.
+- ID integrity check: `V6-MEMORY-CONTEXT-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing memory-runtime, context-budget, and receipt primitives; no parallel memory authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - hierarchy memory model and staleness controls: `V6-MEMORY-024.*`, `V6-MEMORY-025.*`, `V6-MEMORY-026.*`
+  - context budget and pruning governance: `V6-MEMORY-028.*`, `V6-MEMORY-029.*`
+  - deterministic audit trail requirements: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - fail-closed policy and safety guards: `V6-SEC-010..017`, `V6-SEC-T0-001`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed context prune/compact actions with deterministic receipts
+  - Layer `1`: policy controls for staleness thresholds, node preservation, and emergency compact triggers
+  - Layer `2`: memory-runtime sweep integration and pre-generation active-prune orchestration
+  - `client`/`app`: thin context-health telemetry surfaces only
+
+Objective: keep live LLM context permanently bounded and high-signal through continuous hierarchy-aware pruning, preserving nodes and minimizing disruptive emergency compaction.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-MEMORY-CONTEXT-001.1 | done | Live Context Staleness Tracking Contract | Context cannot be pruned safely unless each item has deterministic age and active-use resets. | Add per-item context staleness counters/reset rules synchronized with memory sweeps and emit deterministic age-update receipts. | 9 | 0/1/2 |
+| V6-MEMORY-CONTEXT-001.2 | done | Pre-Generation Active Pruning Contract | Token windows grow unbounded unless lightweight pruning runs before every generation cycle. | Execute pre-generation prune pass with hierarchy eviction order (jots > tags > nodes), bounded latency target, and receipt evidence of removed/summarized items. | 10 | 0/1/2 |
+| V6-MEMORY-CONTEXT-001.3 | done | Emergency Context Compaction Fallback Contract | Rare overflow cases still break flow unless a fast fallback preserves high-value memory tiers. | Trigger emergency compact only after active pruning fails budget, preserve all nodes, and prove compact completion plus information-loss bounds via receipts. | 9 | 0/1/2 |
+| V6-MEMORY-CONTEXT-001.4 | done | Context Health Observability Contract | Continuous pruning is not operable without dashboard visibility into budget pressure and maintenance behavior. | Expose context-health telemetry (window usage, staleness by level, last prune/compact, savings) with alert states and deterministic snapshot evidence. | 8 | 0/1/2/client/app |
+| V6-MEMORY-CONTEXT-001.5 | done | Safe Configurable Maintenance Policy Contract | Aggressive tuning can degrade trust unless defaults protect nodes and safety boundaries remain fail-closed. | Ship validated config schema/defaults for thresholds/sweep cadence with node-preserve invariants and fail-closed behavior on invalid policy values. | 8 | 0/1/2/client |
+
+## Databricks Platform + Mosaic AI Assimilation Source Coverage Intake (Doc `1RwDO3IuaTdrcKW7J0Pf7n5OGMioz1g17MKj9ddzBmVo`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1RwDO3IuaTdrcKW7J0Pf7n5OGMioz1g17MKj9ddzBmVo/edit?usp=sharing
+- https://www.databricks.com/
+- https://docs.databricks.com/
+
+Notes:
+- Source proposes assimilating Databricks Lakehouse and Mosaic AI capabilities as receipt-first thin extensions.
+- ID integrity check: `V6-INTEGRATION-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing adapters, workflow/swarm, inference gateway, and observability primitives; no alternate authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - conduit fail-closed and constitutional safety enforcement: `V6-CONDUIT-002`, `V6-SEC-010..017`, `V6-SEC-T0-001`
+  - receipt/audit guarantees: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - workflow/swarm execution patterns: `V6-WORKFLOW-*`, `V6-SWARM-*`
+  - inference and adapter baselines: `V6-INFERENCE-*`, `V6-ADAPTER-*`, `V6-SKILLS-*`
+- Placement normalization from source:
+  - Layer `-1`: substrate degradation handling for remote cloud dependency/latency classes
+  - Layer `0`: conduit-routed Databricks actions (query, serving, vector, monitoring) with deterministic receipts
+  - Layer `1`: policy controls for access scope, structured outputs, and drift-trigger gates
+  - Layer `2`: workflow/swarm orchestration for Mosaic-style multi-agent plans and AutoML pipelines
+  - `adapter`/`client`/`app`: thin Databricks adapters and dashboard/CLI surfaces only
+
+Objective: assimilate Databricks data + agent platform capabilities as governed extensions that preserve InfRing safety, receipt fidelity, and pure/tiny mode behavior.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-INTEGRATION-001.1 | done | Unity Catalog + Delta Lake Bridge Contract | Enterprise data access remains fragmented unless governed table/query/time-travel access is bridged under existing memory and policy controls. | Add Databricks adapter bridge for catalog/table/time-travel queries through conduit with immutable receipts and fail-closed unauthorized access behavior. | 9 | -1/0/1/2/adapter |
+| V6-INTEGRATION-001.2 | done | Mosaic AI Agent Pattern Mapping Contract | External agent frameworks increase duplication unless mapped onto existing workflow/swarm primitives with policy continuity. | Map Mosaic-style team/tool patterns onto workflow/swarm lanes with structured output validation and full receipt chains for every handoff/tool call. | 9 | 0/1/2/client |
+| V6-INTEGRATION-001.3 | done | MLflow + Model Serving Provider Contract | Model lifecycle/serving interoperability is limited without direct experiment and endpoint bridge support. | Route MLflow tracking and serving endpoint inference via governed providers with deterministic request/response receipts and policy-bound access scopes. | 8 | 0/1/2/adapter/client |
+| V6-INTEGRATION-001.4 | done | Vector Search + AutoML Workflow Bridge Contract | Retrieval and auto-training loops stay siloed unless vector search and AutoML pipelines integrate with existing sequencing/runtime contracts. | Bridge Databricks vector search and AutoML pipelines into Dream Sequencer/workflow lanes with deterministic outputs and traceable orchestration receipts. | 8 | 0/1/2/client/app |
+| V6-INTEGRATION-001.5 | done | DBRX Provider Registration Contract | Open MoE coverage is incomplete without first-class DBRX provider support in the inference gateway. | Register DBRX as governed inference provider with model metadata, receipt-backed call traces, and policy-gated multimodal capability mapping when available. | 8 | 0/1/2/client |
+| V6-INTEGRATION-001.6 | done | Lakehouse Monitoring + Drift Policy Contract | Data/model quality telemetry cannot close the loop unless monitoring and drift events trigger runtime policy actions. | Ingest lakehouse monitoring/drift events into observability lanes with receipt evidence and automatic policy-gate triggers on configured thresholds. | 9 | 0/1/2/client/app |
+
+## Dynamic LLM Routing + Scoring Assimilation Source Coverage Intake (Doc `1uOhypBtxZVhdz_m3uK1_KWNnnZdYxtnr2vXIs-A0MJw`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1uOhypBtxZVhdz_m3uK1_KWNnnZdYxtnr2vXIs-A0MJw/edit?usp=sharing
+- https://github.com/BlockRunAI/ClawRouter
+
+Notes:
+- Source proposes dynamic provider routing based on live latency/cost/success scoring, rule-driven policy routing, and ordered failover chains.
+- ID integrity check: `V6-INFERENCE-005.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing inference gateway, policy, receipt, and dashboard observability surfaces; no parallel inference authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - inference provider abstraction and gateway controls: `V6-INFERENCE-*`
+  - fail-closed safety and policy enforcement: `V6-CONDUIT-002`, `V6-SEC-010..017`, `V6-SEC-T0-001`
+  - receipt and audit trace guarantees: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - runtime telemetry and dashboard surfaces: `V6-DASHBOARD-007.*`, `V10-PERF-001.6`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed provider selection and failover actions with deterministic receipts
+  - Layer `1`: policy controls for routing rule evaluation, cost/latency constraints, and fallback guardrails
+  - Layer `2`: inference gateway scoring engine and retry/failover orchestration
+  - `client`/`app`: thin provider-health observability surfaces only
+
+Objective: assimilate dynamic LLM routing and failover scoring so model selection is adaptive, resilient, and receipt-auditable under real-time cost/performance conditions.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-INFERENCE-005.1 | done | Live Provider Scoring Engine Contract | Static model routing wastes cost/perf headroom unless provider choice adapts to recent real performance signals. | Track rolling provider latency/cost/success metrics, recompute scores every call, and emit score-at-selection receipts for each inference decision. | 9 | 0/1/2/client |
+| V6-INFERENCE-005.2 | done | Rule-Driven Routing Policy Contract | Dynamic scoring alone is insufficient unless routing can enforce explicit business/policy constraints per request shape. | Add declarative routing policy rules (context size, cost ceilings, capability tags) evaluated pre-call with deterministic triggered-rule receipts. | 9 | 0/1/2/client |
+| V6-INFERENCE-005.3 | done | Ordered Failover + Backoff Contract | Provider outages/429 paths create runtime stalls unless fallback chains are deterministic and policy-governed. | Implement ordered failover chains with bounded retries/backoff and full failover-path receipts for timeout/error/429 recovery sequences. | 10 | 0/1/2/client |
+| V6-INFERENCE-005.4 | done | Provider Health Observability Contract | Adaptive routing is untrustworthy without clear visibility into score trends, failure rates, and routing behavior over time. | Expose real-time provider score/health dashboard telemetry with trend and failure-rate surfaces linked to routing and failover receipts. | 8 | 0/1/2/client/app |
+
+## Universal Auto-Cleanup + Bounded Runtime Maintenance Intake (User Spec, 2026-03-23)
+
+Source references:
+- user-provided SRS draft in chat: “automatic, universal cleanup system”
+
+Notes:
+- Scope targets the “silent growth” class (aux stores, WAL/journal, stale blobs, rejected churn, session caches, template skeletons) with self-healing boundedness.
+- Overlap already covered by existing contracts:
+  - `V6-BLINDSPOT-001.1` (aux store growth control),
+  - `V6-BLINDSPOT-001.4` (memory pressure compaction),
+  - `V6-AGENT-LIFECYCLE-001.*` (idle/expired agent cleanup).
+- Delta introduced by this intake:
+  - explicit multi-trigger cleanup matrix (time + pressure + lifecycle events),
+  - tiered pressure responses including emergency free-space restore,
+  - phone/edge-specific cleanup profiles and battery-aware scheduling,
+  - preservation invariants + dry-run/status CLI contracts,
+  - long-horizon boundedness validation gate (72h/30d).
+- ID integrity check: `V6-RUNTIME-CLEANUP-001.*` is available and added as a new queued family.
+- Placement normalization from source:
+  - Layer `0`: conduit-routed cleanup actions, bounded deletion plans, emergency reclaim operations, deterministic receipts
+  - Layer `1`: retention policy matrix, safety/protected-set invariants, pressure thresholds, device profile rules
+  - Layer `2`: background scheduler, event trigger hooks, pressure detector, cleanup executor
+  - `client`/`app`: thin status/config CLI and dashboard cleanup telemetry only
+
+Objective: make runtime storage and memory self-bounded forever across phone/edge/desktop/server by enforcing deterministic automatic cleanup with fail-safe protection rules and auditable recovery actions.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-RUNTIME-CLEANUP-001.1 | done | Universal Eviction Matrix Contract | Runtime reliability degrades unless stale object classes are evicted under deterministic TTL/LRU policy hierarchy. | Implement prioritized eviction matrix for rejected churn, staging queues, stale blobs, session caches, receipts/logs, and template skeletons with deterministic receipts per class. | 10 | 0/1/2/client |
+| V6-RUNTIME-CLEANUP-001.2 | done | Multi-Trigger Cleanup Scheduler Contract | Time-only cleanup misses saturation events unless cleanup also responds to pressure and lifecycle milestones. | Add periodic (default 5m), pressure-based, and event-based cleanup triggers with non-blocking execution and trigger-cause receipts. | 9 | 0/1/2/client |
+| V6-RUNTIME-CLEANUP-001.3 | done | Tiered Pressure + Emergency Reclaim Contract | Systems still crash under severe pressure unless cleanup escalates from gentle to aggressive to emergency reclaim mode. | Enforce memory/disk threshold tiers with deterministic escalation and emergency free-space restore target (>10% free) while preserving protected live data classes. | 10 | 0/1/2 |
+| V6-RUNTIME-CLEANUP-001.4 | done | Device-Aware Cleanup Profile Contract | Mobile/edge deployments fail without battery/storage-aware cleanup policies tuned for constrained environments. | Ship mobile/edge vs desktop/server cleanup profiles with opportunistic scheduling, battery guards, and profile-specific retention defaults under one policy schema. | 9 | -1/0/1/2/client/app |
+| V6-RUNTIME-CLEANUP-001.5 | done | Protected-State Safety Invariants Contract | Automatic cleanup is unsafe unless active contexts and pinned user data are formally protected by invariant checks. | Enforce never-touch invariants for active agents, recent live receipts, and user-persistent tags with fail-closed rejection on unsafe cleanup plans. | 10 | 0/1/2 |
+| V6-RUNTIME-CLEANUP-001.6 | done | Cleanup Audit + Operator Control Contract | Self-cleaning systems lose trust without transparent evidence and inspectable control surfaces. | Emit structured cleanup run receipts (freed bytes/counts/tiers), add `cleanup status` and `cleanup --dry-run`, and expose dashboard cleanup health telemetry. | 8 | 0/1/2/client/app |
+| V6-RUNTIME-CLEANUP-001.7 | done | Long-Run Boundedness Proof Gate Contract | “Runs forever” claims are invalid unless boundedness is proven under sustained multi-day stress and edge scenarios. | Add 72h high-load and 30-day mobile boundedness certification gates proving disk/memory caps, no protected-data loss, and deterministic cleanup evidence continuity. | 10 | -1/0/1/2/client |
+
+## Agentic ERP Pattern Assimilation Source Coverage Intake (Doc `1HmkMH3OOThwg-k0oFhzjTMJ5EwxmYO-H5gSNX6hKzuU`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1HmkMH3OOThwg-k0oFhzjTMJ5EwxmYO-H5gSNX6hKzuU/edit?usp=sharing
+- https://www.linkedin.com/posts/reimagining-erp-for-the-agentic-ai-era-share-7417013333675114496-sOkD
+
+Notes:
+- Source proposes extracting high-ROI agentic ERP patterns (multi-agent business workflows, real-time data-action loops, governed lineage) into existing primitives.
+- ID integrity check: `V6-ERP-AGENTIC-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake is pattern/template-level and extends existing swarm/workflow/memory/policy/receipt primitives; no new core authority path is introduced.
+- Existing baseline coverage reused by this intake:
+  - multi-agent orchestration and role patterns: `V6-SWARM-*`, `V6-WORKFLOW-*`
+  - real-time action loops and conduit routing: `V6-CONDUIT-*`, `V6-WORKFLOW-*`
+  - governed autonomy and safety enforcement: `V6-SEC-T0-001`, `V6-SEC-010..017`
+  - lineage/receipt audibility: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`, `V6-INTEGRATION-001.*`
+- Placement normalization from source:
+  - Layer `0`: conduit-routed ERP actions and loop transitions with deterministic receipts
+  - Layer `1`: policy controls for governed autonomy and lineage-required decision/action gates
+  - Layer `2`: workflow/swarm templates for domain ERP loops (procurement, finance-close, supply)
+  - `client`/`app`: thin `apps/databricks-erp` template/CLI/dashboard surfaces only
+
+Objective: assimilate agentic ERP patterns as reusable enterprise workflow templates with closed-loop execution and receipt-linked lineage governance.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ERP-AGENTIC-001.1 | done | ERP Agent Team Template Registry Contract | Enterprise adoption lags unless high-value ERP agent team patterns are reusable out-of-the-box templates. | Ship template registry for procurement/finance-close/supply workflows (`infring assimilate erp-*`) backed by existing swarm/workflow primitives and deterministic receipts. | 8 | 0/1/2/client/app |
+| V6-ERP-AGENTIC-001.2 | done | Real-Time Data-Action Feedback Loop Contract | ERP decisions drift without closed-loop observe-decide-act feedback integrated with live data and outcomes. | Implement governed loop primitive extension where agents ingest live data, decide, act, and self-correct with per-iteration receipts and bounded latency guards. | 9 | 0/1/2/client |
+| V6-ERP-AGENTIC-001.3 | done | Lineage-Enforced Governed Autonomy Contract | Autonomous enterprise actions are non-compliant unless every action is linked to lineage and policy proof. | Enforce lineage-proof policy gate for ERP actions so actions fail closed without auditable lineage receipts and compliance checks. | 9 | 0/1/2/client |
+
+## Astral uv + ruff Tooling Assimilation Source Coverage Intake (Doc `1J-0JdgxhHcaKpsGJge5jG40HbDAourWGBODYRpweXTo`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1J-0JdgxhHcaKpsGJge5jG40HbDAourWGBODYRpweXTo/edit?usp=sharing
+- https://github.com/astral-sh/uv
+- https://github.com/astral-sh/ruff
+
+Notes:
+- Source proposes assimilating Astral `uv` and `ruff` as native tooling extensions for Python-heavy agent codegen/execution loops.
+- ID integrity check: `V6-TOOLING-001.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing content-skill-graph, polyglot adapter, workflow/swarm, and receipt primitives; no new core primitive path is introduced.
+- Existing baseline coverage reused by this intake:
+  - tool execution and adapter governance: `V6-ADAPTER-*`, `V6-SKILLS-*`, `V6-SBOX-001`
+  - workflow/swarm orchestration for codegen pipelines: `V6-WORKFLOW-*`, `V6-SWARM-*`
+  - deterministic receipts and audit guarantees: `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+  - fail-closed safety/policy controls: `V6-SEC-010..017`, `V6-SEC-T0-001`, `V6-CONDUIT-002`
+- Placement normalization from source:
+  - Layer `-1`: substrate degradation behavior for binary availability/runtime environment classes
+  - Layer `0`: conduit-routed tool invocations (`uv`, `ruff`, env actions) with deterministic receipts
+  - Layer `1`: policy controls for dependency scope, environment isolation, and lint/format gating behavior
+  - Layer `2`: workflow integration for codegen -> resolve -> lint -> format -> validate orchestration
+  - `client`/`app`: thin CLI/dashboard instrumentation surfaces only
+
+Objective: assimilate Astral `uv` and `ruff` into governed tooling flows so Python agent pipelines are fast, isolated, deterministic, and receipt-complete.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-TOOLING-001.1 | done | uv Resolver + Installer Bridge Contract | Python dependency setup is slow and inconsistent unless resolver/install steps are unified under a fast governed bridge. | Add conduit-governed `uv` install/resolve actions with deterministic receipts, pure-mode compatibility strategy, and bounded resolution-time targets. | 9 | -1/0/1/2/client |
+| V6-TOOLING-001.2 | done | ruff Lint + Format Bridge Contract | Generated code quality drifts without deterministic lint/format enforcement integrated into existing tool registry flows. | Route `ruff` lint/format through skill/tool adapters with receipt-backed outcomes and workflow-ready pass/fail/fix metadata surfaces. | 8 | 0/1/2/adapter/client |
+| V6-TOOLING-001.3 | done | uv Virtual Environment Isolation Contract | Agent Python runs risk global-environment pollution unless per-run environment isolation is enforced. | Enforce uv-managed isolated env lifecycle per run with activation/build receipts and fail-closed handling on env creation/activation errors. | 9 | 0/1/2/client |
+| V6-TOOLING-001.4 | done | Codegen Toolchain Autowire Contract | Post-generation dependency/lint formatting remains manual unless automatically orchestrated in workflow lanes. | Add workflow composition for generate -> resolve -> lint -> format -> validate with deterministic stage receipts and non-interactive default behavior. | 10 | 0/1/2/client |
+| V6-TOOLING-001.5 | done | Tooling Observability + Validation Gate Contract | Toolchain gains regress silently without dedicated metrics and gate checks in runtime/CI loops. | Emit per-agent tooling telemetry (latency, errors, fixes) and enforce a validation gate command with deterministic evidence and tiny/pure non-regression checks. | 8 | 0/1/2/client/app |
+
+## Vellum Workflow + LLM Orchestration Assimilation Source Coverage Intake (Doc `1nnjOMVk2ZNgT3slVv9D1LVWq_gPKhIwQ77gYxXCnEs4`, 2026-03-23)
+
+Source references:
+- https://docs.google.com/document/d/1nnjOMVk2ZNgT3slVv9D1LVWq_gPKhIwQ77gYxXCnEs4/edit?usp=sharing
+- https://www.vellum.ai/
+- https://docs.vellum.ai/
+
+Notes:
+- Source proposes assimilating Vellum-style visual workflows, prompt chaining, LLM routing, RAG pipelines, tool calling, evals, and enterprise deployment patterns.
+- ID integrity check: `V6-WORKFLOW-029.*` is available and added as a new queued family.
+- Primitive-first normalization: this intake extends existing workflow/swarm, Dream Sequencer, inference gateway, content-skill-graph, and observability primitives; no new core primitive path is introduced.
+- Existing baseline coverage reused by this intake:
+  - workflow orchestration and swarm execution: `V6-WORKFLOW-*`, `V6-SWARM-*`
+  - inference/model routing and provider surfaces: `V6-INFERENCE-*`, `V8-MCP-001`
+  - memory retrieval and context budget controls: `V6-MEMORY-024.*`, `V6-MEMORY-028.*`, `V6-MEMORY-CONTEXT-001.*`
+  - tool/adapter governance and receipt guarantees: `V6-ADAPTER-*`, `V6-SKILLS-*`, `V9-AUDIT-026`, `V6-SEC-LEDGER-001`
+- Placement normalization from source:
+  - Layer `-1`: substrate degradation handling for cloud/self-host deployment dependency classes
+  - Layer `0`: conduit-routed workflow/routing/tool/eval actions with deterministic receipts
+  - Layer `1`: policy controls for routing guardrails, eval gates, and enterprise deployment constraints
+  - Layer `2`: workflow-lane orchestration for visual graph execution, prompt chains, and RAG/tool plans
+  - `client`/`app`: thin `apps/vellum` extension and dashboard/CLI integration surfaces only
+
+Objective: assimilate Vellum platform capabilities as governed extensions so users can build and run visual enterprise workflows with deterministic receipts, safety enforcement, and pure/tiny compatibility.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-WORKFLOW-029.1 | done | Visual Workflow Canvas Bridge Contract | Visual orchestration remains fragmented unless canvas graphs map directly to workflow lane primitives. | Add thin `apps/vellum` graph-to-workflow bridge executing end-to-end with deterministic receipt/audit trails and no parallel authority path. | 9 | -1/0/1/2/client/app |
+| V6-WORKFLOW-029.2 | done | Prompt Chaining + Dynamic Routing Contract | Complex workflows underperform unless chained prompts and provider routing are first-class orchestration steps. | Route chained prompts and dynamic provider selection through inference gateway with deterministic receipts and tiny-max non-regression evidence. | 9 | 0/1/2/client |
+| V6-WORKFLOW-029.3 | done | RAG Pipeline Integration Contract | Knowledge-grounded workflows degrade without budgeted retrieval integration in existing memory/runtime primitives. | Bridge Vellum-style RAG flows into Dream Sequencer and memory budget guards with measurable retrieval latency and deterministic retrieval receipts. | 8 | 0/1/2/client |
+| V6-WORKFLOW-029.4 | done | Tool Calling + Evaluation Harness Contract | Production workflows lack trust unless tool actions and eval outcomes are uniformly measured and auditable. | Integrate tool-calling and eval harness execution via adapters/skills with receipt-backed pass/fail metrics surfaced to runtime telemetry. | 9 | 0/1/2/adapter/client |
+| V6-WORKFLOW-029.5 | done | Enterprise Deployment Observability Contract | Enterprise rollout patterns are opaque without explicit deployment telemetry and policy-gated observability. | Add enterprise deployment/monitoring surfaces with deterministic metrics receipts, dashboard visibility, and cold-start/tiny-mode guard evidence. | 8 | -1/0/1/2/client/app |
+
 ## OS-Grade Memory Strategy Assimilation Source Coverage Intake (Doc `1RyD5n_SmsvFaj0ZYGW6y848mlvkxmoxjuQso_K0IV9w`, 2026-03-18)
 
 Source references:

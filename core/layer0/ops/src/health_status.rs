@@ -690,18 +690,18 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
         "stale"
     } else {
         match p95_latency {
-        Some(v) if v < 100.0 => "pass",
-        Some(_) => "warn",
-        None => "warn",
+            Some(v) if v < 100.0 => "pass",
+            Some(_) => "warn",
+            None => "warn",
         }
     };
     let latency_p99_status = if stale {
         "stale"
     } else {
         match p99_latency {
-        Some(v) if v < 150.0 => "pass",
-        Some(_) => "warn",
-        None => "warn",
+            Some(v) if v < 150.0 => "pass",
+            Some(_) => "warn",
+            None => "warn",
         }
     };
 
@@ -2164,7 +2164,9 @@ mod tests {
         );
 
         let metric = collect_spine_dashboard_metrics(root.path());
-        let success = metric.get("spine_success_rate").expect("spine success metric");
+        let success = metric
+            .get("spine_success_rate")
+            .expect("spine success metric");
         let p95 = metric
             .get("receipt_latency_p95_ms")
             .expect("spine latency metric");
@@ -2188,7 +2190,9 @@ mod tests {
         );
 
         let metric = collect_spine_dashboard_metrics(root.path());
-        let success = metric.get("spine_success_rate").expect("spine success metric");
+        let success = metric
+            .get("spine_success_rate")
+            .expect("spine success metric");
         let p95 = metric
             .get("receipt_latency_p95_ms")
             .expect("spine latency metric");

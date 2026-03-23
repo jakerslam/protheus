@@ -40,9 +40,10 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
         "gateway" => {
             let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
             let (subcommand, passthrough_start_idx) = match first.as_deref() {
-                Some("start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick" | "diagnostics") => {
-                    (first.unwrap_or_else(|| "start".to_string()), 1usize)
-                }
+                Some(
+                    "start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick"
+                    | "diagnostics",
+                ) => (first.unwrap_or_else(|| "start".to_string()), 1usize),
                 Some("boot") => ("start".to_string(), 1usize),
                 _ => ("start".to_string(), 0usize),
             };

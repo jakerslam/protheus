@@ -6,7 +6,9 @@ use serde_json::{json, Value};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -144,6 +146,7 @@ fn dashboard_log_path(root: &Path) -> std::path::PathBuf {
     dashboard_state_dir(root).join("dashboard_ui.log")
 }
 
+#[cfg(test)]
 fn resolve_dashboard_executable(current_exe: &Path) -> PathBuf {
     let file_name = current_exe
         .file_name()

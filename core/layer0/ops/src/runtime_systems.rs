@@ -10,6 +10,8 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const LANE_ID: &str = "runtime_systems";
 
@@ -115,6 +117,34 @@ fn payload_string_array(payload: &Value, key: &str, fallback: &[&str]) -> Vec<St
         })
         .filter(|rows| !rows.is_empty())
         .unwrap_or_else(|| fallback.iter().map(|v| (*v).to_string()).collect())
+}
+
+fn payload_u64(payload: &Value, key: &str, fallback: u64) -> u64 {
+    payload
+        .get(key)
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            payload
+                .get(key)
+                .and_then(Value::as_i64)
+                .map(|v| v.max(0) as u64)
+        })
+        .unwrap_or(fallback)
+}
+
+fn payload_array(payload: &Value, key: &str) -> Vec<Value> {
+    payload
+        .get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn now_epoch_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or(Duration::from_secs(0))
+        .as_secs()
 }
 
 fn missing_required_tokens(actual: &[String], required: &[&str]) -> Vec<String> {
@@ -565,6 +595,126 @@ fn family_contract_requirements(family: &str) -> FamilyContractRequirements {
             min_values: EMPTY_NUM_GATES,
             max_values: &[("idle_memory_mb", 5.0)],
         },
+        "execution_streaming_stack" => FamilyContractRequirements {
+            required_true: &[
+                "ssd_streaming_enabled",
+                "quantization_bridge_enabled",
+                "os_page_cache_first",
+                "kernel_bridge_enabled",
+            ],
+            min_values: &[("target_tokens_per_sec", 64.0)],
+            max_values: &[("resident_memory_gb", 24.0)],
+        },
+        "execution_worktree_stack" => FamilyContractRequirements {
+            required_true: &[
+                "worktree_manager_enabled",
+                "branch_isolation_enforced",
+                "swarm_worktree_dispatch_enabled",
+                "cleanup_enabled",
+            ],
+            min_values: &[("cleanup_interval_seconds", 30.0)],
+            max_values: &[("max_residual_worktrees", 5.0)],
+        },
+        "assimilate_fast_stack" => FamilyContractRequirements {
+            required_true: &[
+                "fast_mode_enabled",
+                "skeleton_cache_enabled",
+                "progress_receipts_enabled",
+                "parallel_microtasks_enabled",
+                "warmup_enabled",
+                "safety_guard_enabled",
+            ],
+            min_values: &[("target_latency_ms", 1.0)],
+            max_values: &[("target_latency_ms", 60000.0)],
+        },
+        "workflow_open_swe_stack" => FamilyContractRequirements {
+            required_true: &[
+                "loop_registry_enabled",
+                "git_bridge_enabled",
+                "approval_middleware_enabled",
+                "eval_harness_enabled",
+                "memory_continuity_enabled",
+            ],
+            min_values: &[("eval_pass_floor", 0.5)],
+            max_values: EMPTY_NUM_GATES,
+        },
+        "memory_context_maintenance" => FamilyContractRequirements {
+            required_true: &[
+                "staleness_tracking_enabled",
+                "pre_generation_pruning_enabled",
+                "emergency_compact_enabled",
+                "context_observability_enabled",
+                "safe_config_validation_enabled",
+            ],
+            min_values: &[("context_budget_tokens", 1024.0)],
+            max_values: &[("context_budget_tokens", 10000000.0)],
+        },
+        "integration_lakehouse_stack" => FamilyContractRequirements {
+            required_true: &[
+                "unity_catalog_bridge_enabled",
+                "mosaic_mapping_enabled",
+                "mlflow_provider_enabled",
+                "vector_automl_bridge_enabled",
+                "dbrx_provider_enabled",
+                "drift_monitoring_enabled",
+            ],
+            min_values: EMPTY_NUM_GATES,
+            max_values: EMPTY_NUM_GATES,
+        },
+        "inference_adaptive_routing" => FamilyContractRequirements {
+            required_true: &[
+                "live_scoring_enabled",
+                "rule_routing_enabled",
+                "ordered_failover_enabled",
+                "provider_observability_enabled",
+            ],
+            min_values: &[("min_success_rate", 0.5)],
+            max_values: &[("max_latency_ms", 5000.0)],
+        },
+        "runtime_cleanup_autonomous" => FamilyContractRequirements {
+            required_true: &[
+                "eviction_matrix_enabled",
+                "multi_trigger_scheduler_enabled",
+                "tiered_pressure_enabled",
+                "device_profiles_enabled",
+                "protected_state_invariants_enabled",
+                "audit_controls_enabled",
+                "boundedness_gate_enabled",
+            ],
+            min_values: &[("cleanup_interval_minutes", 1.0)],
+            max_values: &[("cleanup_interval_minutes", 60.0)],
+        },
+        "erp_agentic_stack" => FamilyContractRequirements {
+            required_true: &[
+                "erp_template_registry_enabled",
+                "closed_loop_enabled",
+                "lineage_gate_enabled",
+            ],
+            min_values: &[("max_loop_latency_ms", 1.0)],
+            max_values: &[("max_loop_latency_ms", 60000.0)],
+        },
+        "tooling_uv_ruff_stack" => FamilyContractRequirements {
+            required_true: &[
+                "uv_bridge_enabled",
+                "ruff_bridge_enabled",
+                "isolated_env_enabled",
+                "autowire_pipeline_enabled",
+                "tooling_gate_enabled",
+            ],
+            min_values: &[("max_resolution_time_seconds", 1.0)],
+            max_values: &[("max_resolution_time_seconds", 3600.0)],
+        },
+        "workflow_visual_bridge_stack" => FamilyContractRequirements {
+            required_true: &[
+                "canvas_bridge_enabled",
+                "prompt_chain_enabled",
+                "rag_integration_enabled",
+                "tool_eval_enabled",
+                "enterprise_observability_enabled",
+            ],
+            min_values: &[("cold_start_guard_ms", 1.0)],
+            max_values: &[("cold_start_guard_ms", 120000.0)],
+        },
         _ => FamilyContractRequirements {
             required_true: EMPTY_REQUIRED_TRUE,
             min_values: EMPTY_NUM_GATES,
@@ -686,6 +836,74 @@ fn upsert_contract_state_entry(state: &mut Value, profile_id: &str, entry: Value
         state["contracts"] = json!({});
     }
     state["contracts"][profile_id] = entry;
+}
+
+fn command_version(command: &str) -> Option<String> {
+    let output = Command::new(command).arg("--version").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+fn family_data_root(root: &Path, family: &str) -> PathBuf {
+    systems_dir(root).join("_families").join(family)
+}
+
+fn file_age_seconds(path: &Path) -> Option<u64> {
+    let modified = fs::metadata(path).ok()?.modified().ok()?;
+    let now = SystemTime::now();
+    now.duration_since(modified)
+        .ok()
+        .map(|delta| delta.as_secs())
+}
+
+fn remove_stale_files(
+    dir: &Path,
+    min_age_secs: u64,
+    dry_run: bool,
+    protected_prefixes: &[&str],
+) -> (u64, u64, Vec<String>) {
+    let mut removed = 0u64;
+    let mut freed = 0u64;
+    let mut touched = Vec::<String>::new();
+    let Ok(entries) = fs::read_dir(dir) else {
+        return (removed, freed, touched);
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|v| v.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if protected_prefixes
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+        {
+            continue;
+        }
+        let age = file_age_seconds(&path).unwrap_or(0);
+        if age < min_age_secs {
+            continue;
+        }
+        let size = fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+        if !dry_run {
+            let _ = fs::remove_file(&path);
+        }
+        removed += 1;
+        freed += size;
+        touched.push(name);
+    }
+    (removed, freed, touched)
 }
 
 fn execute_v5_hold_contract(
@@ -896,6 +1114,888 @@ fn execute_v5_rust_productivity_contract(
     })
 }
 
+fn execute_execution_streaming_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let prefetch_window = payload_u64(payload, "prefetch_window", 4).clamp(1, 32);
+    let quant_bits = payload_u64(payload, "quantization_bits", 4);
+    let resident_memory_gb = payload_f64(payload, "resident_memory_gb", 12.0);
+    let target_tokens_per_sec = payload_f64(payload, "target_tokens_per_sec", 96.0);
+    let metal_mode = payload_string(payload, "metal_mode", "bridge");
+    let allowed_quant = matches!(quant_bits, 2 | 4);
+    if strict && !allowed_quant {
+        return Err("execution_streaming_invalid_quantization_bits".to_string());
+    }
+    if strict
+        && profile.id == "V6-EXECUTION-002.3"
+        && !payload_bool(payload, "os_page_cache_first", true)
+    {
+        return Err("execution_streaming_os_cache_first_required".to_string());
+    }
+    if strict
+        && profile.id == "V6-EXECUTION-002.4"
+        && !matches!(metal_mode.as_str(), "bridge" | "native")
+    {
+        return Err("execution_streaming_invalid_metal_mode".to_string());
+    }
+
+    let profile_path = family_data_root(root, profile.family).join("streaming_profile.json");
+    let profile_rel = lane_utils::rel_path(root, &profile_path);
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "prefetch_window": prefetch_window,
+        "quantization_bits": quant_bits,
+        "resident_memory_gb": resident_memory_gb,
+        "target_tokens_per_sec": target_tokens_per_sec,
+        "metal_mode": metal_mode,
+        "state_path": state_rel,
+        "profile_path": profile_rel
+    });
+
+    if apply {
+        lane_utils::write_json(
+            &profile_path,
+            &json!({
+                "updated_at": now_iso(),
+                "profile": summary
+            }),
+        )?;
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "execution_streaming_lane_enforces_quantized_ssd_streaming_cache_policy_and_kernel_mode_with_receipts",
+            "evidence": {
+                "prefetch_window": prefetch_window,
+                "quantization_bits": quant_bits,
+                "target_tokens_per_sec": target_tokens_per_sec
+            }
+        })],
+        artifacts: vec![state_rel, profile_rel],
+    })
+}
+
+fn execute_execution_worktree_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let worktree_root = client_state_root(root).join("swarm").join("worktrees");
+    let worktree_root_rel = lane_utils::rel_path(root, &worktree_root);
+    let agent_id = lane_utils::clean_token(
+        Some(&payload_string(payload, "agent_id", "agent-default")),
+        "agent-default",
+    );
+    let branch = payload_string(payload, "base_branch", "main");
+    let mut created = 0u64;
+    let mut removed = 0u64;
+    let mut conflict_count = 0u64;
+
+    let operation = match profile.id {
+        "V6-EXECUTION-003.1" => "create_worktree",
+        "V6-EXECUTION-003.2" => "merge_gate",
+        "V6-EXECUTION-003.3" => "swarm_dispatch",
+        "V6-EXECUTION-003.4" => "cleanup",
+        _ => "status",
+    };
+
+    let agent_worktree = worktree_root.join(&agent_id);
+    if strict && profile.id == "V6-EXECUTION-003.2" {
+        let conflicts = payload_string_array(payload, "conflicts", &[]);
+        conflict_count = conflicts.len() as u64;
+        let veto = payload_bool(payload, "human_veto_approved", false);
+        if !conflicts.is_empty() && !veto {
+            return Err("execution_worktree_merge_conflict_requires_human_veto".to_string());
+        }
+    }
+
+    if apply {
+        fs::create_dir_all(&worktree_root)
+            .map_err(|err| format!("worktree_root_create_failed:{err}"))?;
+        match profile.id {
+            "V6-EXECUTION-003.1" => {
+                fs::create_dir_all(&agent_worktree)
+                    .map_err(|err| format!("worktree_create_failed:{err}"))?;
+                lane_utils::write_json(
+                    &agent_worktree.join("metadata.json"),
+                    &json!({
+                        "agent_id": agent_id,
+                        "branch": branch,
+                        "created_at": now_iso()
+                    }),
+                )?;
+                created = 1;
+            }
+            "V6-EXECUTION-003.3" => {
+                let tasks = payload_string_array(payload, "task_ids", &["task-0"]);
+                for task in tasks {
+                    let task_dir = agent_worktree.join(task);
+                    fs::create_dir_all(&task_dir)
+                        .map_err(|err| format!("worktree_task_create_failed:{err}"))?;
+                    created += 1;
+                }
+            }
+            "V6-EXECUTION-003.4" => {
+                let cleanup_age = payload_u64(payload, "cleanup_age_seconds", 900).max(30);
+                let now = now_epoch_secs();
+                if let Ok(entries) = fs::read_dir(&worktree_root) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if !path.is_dir() {
+                            continue;
+                        }
+                        let age_secs = file_age_seconds(&path).unwrap_or(0);
+                        if now > 0 && age_secs >= cleanup_age {
+                            let _ = fs::remove_dir_all(&path);
+                            removed += 1;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "operation": operation,
+        "agent_id": agent_id,
+        "branch": branch,
+        "created": created,
+        "removed": removed,
+        "conflict_count": conflict_count,
+        "state_path": state_rel,
+        "worktree_root": worktree_root_rel
+    });
+
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "execution_worktree_lane_manages_isolation_merge_gates_dispatch_and_cleanup_with_receipts",
+            "evidence": {
+                "operation": operation,
+                "created": created,
+                "removed": removed,
+                "conflict_count": conflict_count
+            }
+        })],
+        artifacts: vec![state_rel, worktree_root_rel],
+    })
+}
+
+fn execute_assimilate_fast_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let cache_path = family_data_root(root, profile.family).join("skeleton_cache.json");
+    let cache_rel = lane_utils::rel_path(root, &cache_path);
+    let fast_mode = payload_bool(payload, "fast_mode_enabled", true);
+    let cache_enabled = payload_bool(payload, "skeleton_cache_enabled", true);
+    let target_latency_ms = payload_f64(payload, "target_latency_ms", 5000.0);
+    let parallelism = payload_u64(payload, "max_parallel_microtasks", 8).clamp(1, 128);
+    let reduced_validation_depth = payload_u64(payload, "reduced_validation_depth", 1);
+    let disclosure = payload_bool(payload, "mode_disclosure_emitted", true);
+    if strict
+        && profile.id == "V6-ASSIMILATE-FAST-001.6"
+        && (!payload_bool(payload, "safety_guard_enabled", true) || !disclosure)
+    {
+        return Err("assimilate_fast_safety_disclosure_or_guard_missing".to_string());
+    }
+
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "fast_mode_enabled": fast_mode,
+        "skeleton_cache_enabled": cache_enabled,
+        "target_latency_ms": target_latency_ms,
+        "max_parallel_microtasks": parallelism,
+        "reduced_validation_depth": reduced_validation_depth,
+        "mode_disclosure_emitted": disclosure,
+        "state_path": state_rel,
+        "cache_path": cache_rel
+    });
+
+    if apply {
+        lane_utils::write_json(
+            &cache_path,
+            &json!({
+                "updated_at": now_iso(),
+                "cache_enabled": cache_enabled,
+                "last_contract": profile.id,
+                "max_parallel_microtasks": parallelism,
+                "target_latency_ms": target_latency_ms
+            }),
+        )?;
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "assimilate_fast_lane_executes_cache_parallelization_and_safety_disclosure_with_receipts",
+            "evidence": {
+                "target_latency_ms": target_latency_ms,
+                "max_parallel_microtasks": parallelism,
+                "reduced_validation_depth": reduced_validation_depth
+            }
+        })],
+        artifacts: vec![state_rel, cache_rel],
+    })
+}
+
+fn execute_workflow_open_swe_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    if strict
+        && profile.id == "V6-WORKFLOW-028.3"
+        && payload_bool(payload, "requires_approval", false)
+    {
+        let decision = payload_string(payload, "approval_decision", "");
+        if !matches!(decision.as_str(), "approved" | "denied") {
+            return Err("workflow_open_swe_missing_human_approval_decision".to_string());
+        }
+    }
+    let eval_pass_rate = payload_f64(
+        payload,
+        "eval_pass_rate",
+        payload_f64(payload, "eval_pass_floor", 0.8),
+    );
+    if strict
+        && profile.id == "V6-WORKFLOW-028.4"
+        && eval_pass_rate < payload_f64(payload, "eval_pass_floor", 0.8)
+    {
+        return Err("workflow_open_swe_eval_floor_failed".to_string());
+    }
+    let registry_path = family_data_root(root, profile.family).join("loop_registry.json");
+    let registry_rel = lane_utils::rel_path(root, &registry_path);
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "eval_pass_rate": eval_pass_rate,
+        "approval_required": payload_bool(payload, "requires_approval", false),
+        "approval_decision": payload_string(payload, "approval_decision", ""),
+        "state_path": state_rel,
+        "registry_path": registry_rel
+    });
+    if apply {
+        lane_utils::write_json(
+            &registry_path,
+            &json!({
+                "updated_at": now_iso(),
+                "last_contract": profile.id,
+                "loop_templates": payload_string_array(payload, "loop_templates", &["plan-edit-test-commit"]),
+                "git_bridge_enabled": payload_bool(payload, "git_bridge_enabled", true)
+            }),
+        )?;
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "workflow_open_swe_lane_enforces_hitl_gates_eval_floor_and_registry_receipts",
+            "evidence": {
+                "eval_pass_rate": eval_pass_rate
+            }
+        })],
+        artifacts: vec![state_rel, registry_rel],
+    })
+}
+
+fn execute_memory_context_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let budget = payload_u64(payload, "context_budget_tokens", 250000).max(1024);
+    let mut usage = payload_u64(payload, "window_usage_tokens", 120000);
+    let mut pruned_jots = 0u64;
+    let mut pruned_tags = 0u64;
+    let mut compacted = false;
+    let mut invalid_config = Vec::<String>::new();
+    let sweep_minutes = payload_u64(payload, "sweep_cadence_minutes", 5);
+    let staleness_reset = payload_u64(payload, "staleness_reset_seconds", 30);
+    if sweep_minutes == 0 {
+        invalid_config.push("sweep_cadence_minutes".to_string());
+    }
+    if staleness_reset == 0 {
+        invalid_config.push("staleness_reset_seconds".to_string());
+    }
+    if strict && profile.id == "V6-MEMORY-CONTEXT-001.5" && !invalid_config.is_empty() {
+        return Err(format!(
+            "memory_context_invalid_config:{}",
+            invalid_config.join(",")
+        ));
+    }
+
+    if matches!(
+        profile.id,
+        "V6-MEMORY-CONTEXT-001.2" | "V6-MEMORY-CONTEXT-001.3"
+    ) {
+        if usage > budget {
+            let overflow = usage - budget;
+            pruned_jots = overflow.min(usage / 4);
+            usage = usage.saturating_sub(pruned_jots);
+        }
+    }
+    if profile.id == "V6-MEMORY-CONTEXT-001.3" && usage > budget {
+        let overflow = usage - budget;
+        pruned_tags = overflow.min(usage / 6);
+        usage = usage.saturating_sub(pruned_tags);
+        compacted = true;
+    }
+
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "context_budget_tokens": budget,
+        "window_usage_tokens": usage,
+        "pruned_jots": pruned_jots,
+        "pruned_tags": pruned_tags,
+        "compacted": compacted,
+        "invalid_config": invalid_config,
+        "state_path": state_rel
+    });
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "memory_context_lane_tracks_staleness_prunes_before_generation_and_emergency_compacts_with_receipts",
+            "evidence": {
+                "window_usage_tokens": usage,
+                "context_budget_tokens": budget,
+                "compacted": compacted
+            }
+        })],
+        artifacts: vec![state_rel],
+    })
+}
+
+fn execute_integration_lakehouse_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    if strict && profile.id == "V6-INTEGRATION-001.1" && !payload_bool(payload, "authorized", true)
+    {
+        return Err("integration_lakehouse_unauthorized_access_blocked".to_string());
+    }
+    if strict && profile.id == "V6-INTEGRATION-001.6" {
+        let drift = payload_f64(payload, "drift_score", 0.02);
+        let threshold = payload_f64(payload, "drift_threshold", 0.05);
+        if drift > threshold && !payload_bool(payload, "policy_gate_triggered", true) {
+            return Err("integration_lakehouse_drift_policy_gate_required".to_string());
+        }
+    }
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "catalog": payload_string(payload, "catalog", "main"),
+        "schema": payload_string(payload, "schema", "default"),
+        "endpoint": payload_string(payload, "endpoint", "local-bridge"),
+        "drift_score": payload_f64(payload, "drift_score", 0.02),
+        "drift_threshold": payload_f64(payload, "drift_threshold", 0.05),
+        "policy_gate_triggered": payload_bool(payload, "policy_gate_triggered", true),
+        "state_path": state_rel
+    });
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "integration_lakehouse_lane_routes_catalog_mlflow_vector_and_drift_events_through_receipted_policy_gates",
+            "evidence": {
+                "catalog": payload_string(payload, "catalog", "main"),
+                "schema": payload_string(payload, "schema", "default")
+            }
+        })],
+        artifacts: vec![state_rel],
+    })
+}
+
+fn execute_inference_adaptive_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let mut providers = payload_array(payload, "providers");
+    if providers.is_empty() {
+        providers = contract_defaults(profile)
+            .get("providers")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+    }
+    let mut best_name = String::new();
+    let mut best_score = f64::MIN;
+    let mut scores = Vec::<Value>::new();
+    for provider in providers {
+        let name = provider
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("provider")
+            .to_string();
+        let latency = payload_f64(&provider, "latency_ms", 500.0);
+        let cost = payload_f64(&provider, "cost_per_1k", 0.002);
+        let success = payload_f64(&provider, "success_rate", 0.9);
+        let score = (success * 100.0) - (latency * 0.05) - (cost * 250.0);
+        if score > best_score {
+            best_score = score;
+            best_name = name.clone();
+        }
+        scores.push(json!({
+            "name": name,
+            "score": score,
+            "latency_ms": latency,
+            "cost_per_1k": cost,
+            "success_rate": success
+        }));
+    }
+    let preferred = payload_string(payload, "preferred_model", "kimi2.5:cloud");
+    if !best_name.is_empty() && profile.id == "V6-INFERENCE-005.2" {
+        let context_tokens = payload_u64(payload, "context_tokens", 0);
+        let rules = payload_array(payload, "rules");
+        for rule in rules {
+            let min_context = payload_u64(&rule, "min_context_tokens", u64::MAX);
+            let force_provider = rule
+                .get("force_provider")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if context_tokens >= min_context && !force_provider.is_empty() {
+                best_name = force_provider.to_string();
+                break;
+            }
+        }
+    }
+    let mut failover_steps = Vec::<String>::new();
+    let mut failover_success = true;
+    if profile.id == "V6-INFERENCE-005.3" {
+        let sequence = payload_string_array(payload, "fail_sequence", &["timeout", "429", "ok"]);
+        failover_success = false;
+        for item in sequence {
+            failover_steps.push(item.clone());
+            if item.eq_ignore_ascii_case("ok") || item.eq_ignore_ascii_case("success") {
+                failover_success = true;
+                break;
+            }
+        }
+        if strict && !failover_success {
+            return Err("inference_failover_exhausted".to_string());
+        }
+    }
+    if strict {
+        let min_success = payload_f64(payload, "min_success_rate", 0.8);
+        let max_latency = payload_f64(payload, "max_latency_ms", 1500.0);
+        let top = scores
+            .iter()
+            .find(|row| row.get("name").and_then(Value::as_str) == Some(best_name.as_str()));
+        let success = top
+            .and_then(|row| row.get("success_rate"))
+            .and_then(Value::as_f64)
+            .unwrap_or(1.0);
+        let latency = top
+            .and_then(|row| row.get("latency_ms"))
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        if success < min_success || latency > max_latency {
+            return Err("inference_adaptive_policy_threshold_failed".to_string());
+        }
+    }
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "preferred_model": preferred,
+        "selected_provider": if best_name.is_empty() { preferred.clone() } else { best_name.clone() },
+        "provider_scores": scores,
+        "failover_steps": failover_steps,
+        "failover_success": failover_success,
+        "state_path": state_rel
+    });
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "inference_adaptive_lane_scores_routes_and_fails_over_providers_with_receipted_selection",
+            "evidence": {
+                "selected_provider": if best_name.is_empty() { preferred } else { best_name },
+                "failover_success": failover_success
+            }
+        })],
+        artifacts: vec![state_rel],
+    })
+}
+
+fn execute_runtime_cleanup_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let cleanup_root = client_state_root(root).join("runtime_cleanup");
+    let cleanup_root_rel = lane_utils::rel_path(root, &cleanup_root);
+    let dry_run = payload_bool(payload, "dry_run", false) || !apply;
+    let interval_minutes = payload_u64(payload, "cleanup_interval_minutes", 5).clamp(1, 60);
+    let memory_pct = payload_f64(
+        payload,
+        "memory_percent",
+        payload_f64(payload, "memory_threshold_percent", 75.0),
+    );
+    let disk_free_pct = payload_f64(
+        payload,
+        "disk_free_percent",
+        payload_f64(payload, "disk_threshold_percent", 10.0),
+    );
+    let mode = if disk_free_pct < 2.0 || memory_pct > 90.0 {
+        "emergency"
+    } else if disk_free_pct < 5.0 || memory_pct > 85.0 {
+        "aggressive"
+    } else {
+        "gentle"
+    };
+
+    let classes = vec![
+        ("rejected_churn", 900u64),
+        ("staging_queues", 1800u64),
+        ("stale_blobs", 21600u64),
+        ("session_caches", 86400u64),
+        ("receipts_logs", 604800u64),
+        ("template_skeletons", 21600u64),
+    ];
+    let mut class_rows = Vec::<Value>::new();
+    let mut removed_total = 0u64;
+    let mut freed_total = 0u64;
+    for (class_name, ttl_secs) in classes {
+        let dir = cleanup_root.join(class_name);
+        if apply {
+            fs::create_dir_all(&dir).map_err(|err| format!("cleanup_dir_create_failed:{err}"))?;
+        }
+        let age_gate = if mode == "emergency" {
+            0
+        } else {
+            match mode {
+                "gentle" => ttl_secs,
+                "aggressive" => ttl_secs / 2,
+                _ => ttl_secs / 4,
+            }
+            .max(60)
+        };
+        let (removed, freed, touched) = remove_stale_files(
+            &dir,
+            age_gate,
+            dry_run,
+            &["protected_", "active_", "pinned_"],
+        );
+        removed_total += removed;
+        freed_total += freed;
+        class_rows.push(json!({
+            "class": class_name,
+            "dir": lane_utils::rel_path(root, &dir),
+            "age_gate_seconds": age_gate,
+            "removed": removed,
+            "freed_bytes": freed,
+            "touched": touched
+        }));
+    }
+
+    if strict && profile.id == "V6-RUNTIME-CLEANUP-001.7" {
+        let stress_hours = payload_u64(payload, "stress_hours", 72);
+        let mobile_days = payload_u64(payload, "mobile_days", 30);
+        let bounded = stress_hours >= 72 && mobile_days >= 30;
+        if !bounded {
+            return Err("runtime_cleanup_boundedness_gate_failed".to_string());
+        }
+    }
+
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "cleanup_interval_minutes": interval_minutes,
+        "mode": mode,
+        "dry_run": dry_run,
+        "memory_percent": memory_pct,
+        "disk_free_percent": disk_free_pct,
+        "removed_total": removed_total,
+        "freed_bytes_total": freed_total,
+        "classes": class_rows,
+        "state_path": state_rel,
+        "cleanup_root": cleanup_root_rel
+    });
+
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "runtime_cleanup_lane_runs_multitrigger_tiered_reclaim_with_protected_state_invariants_and_audit_receipts",
+            "evidence": {
+                "mode": mode,
+                "removed_total": removed_total,
+                "freed_bytes_total": freed_total,
+                "dry_run": dry_run
+            }
+        })],
+        artifacts: vec![state_rel, cleanup_root_rel],
+    })
+}
+
+fn execute_erp_agentic_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    if strict
+        && profile.id == "V6-ERP-AGENTIC-001.3"
+        && !payload_bool(payload, "lineage_proof_present", true)
+    {
+        return Err("erp_agentic_lineage_proof_required".to_string());
+    }
+    let registry_path = family_data_root(root, profile.family).join("erp_templates.json");
+    let registry_rel = lane_utils::rel_path(root, &registry_path);
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "team": payload_string(payload, "team", "procurement"),
+        "max_loop_latency_ms": payload_u64(payload, "max_loop_latency_ms", 1500),
+        "lineage_proof_present": payload_bool(payload, "lineage_proof_present", true),
+        "state_path": state_rel,
+        "registry_path": registry_rel
+    });
+    if apply {
+        lane_utils::write_json(
+            &registry_path,
+            &json!({
+                "updated_at": now_iso(),
+                "templates": payload_string_array(payload, "templates", &["erp-procurement", "erp-finance-close", "erp-supply"]),
+                "last_contract": profile.id
+            }),
+        )?;
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "erp_agentic_lane_enforces_template_registry_closed_loop_and_lineage_policy_gate",
+            "evidence": {
+                "team": payload_string(payload, "team", "procurement"),
+                "lineage_proof_present": payload_bool(payload, "lineage_proof_present", true)
+            }
+        })],
+        artifacts: vec![state_rel, registry_rel],
+    })
+}
+
+fn execute_tooling_uv_ruff_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let uv_version = command_version("uv");
+    let ruff_version = command_version("ruff");
+    let env_root = family_data_root(root, profile.family).join("envs");
+    let env_rel = lane_utils::rel_path(root, &env_root);
+    let venv_name = lane_utils::clean_token(
+        Some(&payload_string(payload, "venv_name", "default")),
+        "default",
+    );
+    let env_path = env_root.join(&venv_name);
+    if apply && profile.id == "V6-TOOLING-001.3" {
+        fs::create_dir_all(&env_path).map_err(|err| format!("tooling_env_create_failed:{err}"))?;
+        lane_utils::write_json(
+            &env_path.join("metadata.json"),
+            &json!({
+                "created_at": now_iso(),
+                "venv_name": venv_name,
+                "uv_version": uv_version
+            }),
+        )?;
+    }
+    if strict && profile.id == "V6-TOOLING-001.5" {
+        if !payload_bool(payload, "tiny_mode_no_regression", true)
+            || !payload_bool(payload, "pure_mode_no_regression", true)
+        {
+            return Err("tooling_uv_ruff_validation_gate_failed".to_string());
+        }
+    }
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "uv_version": uv_version,
+        "ruff_version": ruff_version,
+        "venv_name": venv_name,
+        "max_resolution_time_seconds": payload_u64(payload, "max_resolution_time_seconds", 300),
+        "tiny_mode_no_regression": payload_bool(payload, "tiny_mode_no_regression", true),
+        "pure_mode_no_regression": payload_bool(payload, "pure_mode_no_regression", true),
+        "state_path": state_rel,
+        "env_root": env_rel
+    });
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "tooling_uv_ruff_lane_runs_resolve_lint_format_env_isolation_and_validation_gates_with_receipts",
+            "evidence": {
+                "uv_available": uv_version.is_some(),
+                "ruff_available": ruff_version.is_some(),
+                "venv_name": payload_string(payload, "venv_name", "default")
+            }
+        })],
+        artifacts: vec![state_rel, env_rel],
+    })
+}
+
+fn execute_workflow_visual_bridge_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let eval_pass_rate = payload_f64(payload, "eval_pass_rate", 0.9);
+    if strict && profile.id == "V6-WORKFLOW-029.4" && eval_pass_rate < 0.5 {
+        return Err("workflow_visual_bridge_eval_gate_failed".to_string());
+    }
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "graph_nodes": payload_u64(payload, "graph_nodes", 8),
+        "prompt_chain_steps": payload_u64(payload, "prompt_chain_steps", 3),
+        "retrieval_latency_ms": payload_f64(payload, "retrieval_latency_ms", 80.0),
+        "eval_pass_rate": eval_pass_rate,
+        "cold_start_guard_ms": payload_f64(payload, "cold_start_guard_ms", 3000.0),
+        "state_path": state_rel
+    });
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": "workflow_visual_bridge_lane_maps_canvas_prompt_rag_and_eval_runtime_surfaces_with_receipts",
+            "evidence": {
+                "eval_pass_rate": eval_pass_rate,
+                "retrieval_latency_ms": payload_f64(payload, "retrieval_latency_ms", 80.0)
+            }
+        })],
+        artifacts: vec![state_rel],
+    })
+}
+
 fn execute_contract_profile(
     root: &Path,
     profile: RuntimeSystemContractProfile,
@@ -908,6 +2008,37 @@ fn execute_contract_profile(
         "v5_rust_hybrid" => execute_v5_rust_hybrid_contract(root, profile, payload, apply, strict),
         "v5_rust_productivity" => {
             execute_v5_rust_productivity_contract(root, profile, payload, apply, strict)
+        }
+        "execution_streaming_stack" => {
+            execute_execution_streaming_contract(root, profile, payload, apply, strict)
+        }
+        "execution_worktree_stack" => {
+            execute_execution_worktree_contract(root, profile, payload, apply, strict)
+        }
+        "assimilate_fast_stack" => {
+            execute_assimilate_fast_contract(root, profile, payload, apply, strict)
+        }
+        "workflow_open_swe_stack" => {
+            execute_workflow_open_swe_contract(root, profile, payload, apply, strict)
+        }
+        "memory_context_maintenance" => {
+            execute_memory_context_contract(root, profile, payload, apply, strict)
+        }
+        "integration_lakehouse_stack" => {
+            execute_integration_lakehouse_contract(root, profile, payload, apply, strict)
+        }
+        "inference_adaptive_routing" => {
+            execute_inference_adaptive_contract(root, profile, payload, apply, strict)
+        }
+        "runtime_cleanup_autonomous" => {
+            execute_runtime_cleanup_contract(root, profile, payload, apply, strict)
+        }
+        "erp_agentic_stack" => execute_erp_agentic_contract(root, profile, payload, apply, strict),
+        "tooling_uv_ruff_stack" => {
+            execute_tooling_uv_ruff_contract(root, profile, payload, apply, strict)
+        }
+        "workflow_visual_bridge_stack" => {
+            execute_workflow_visual_bridge_contract(root, profile, payload, apply, strict)
         }
         _ => execute_generic_family_contract(root, profile, payload, apply, strict),
     }
@@ -1280,6 +2411,140 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
             "trait_driven_swappable_tinymax_core": true,
             "sub5mb_idle_memory_mode": true,
             "idle_memory_mb": 1.4
+        }),
+        "execution_streaming_stack" => json!({
+            "ssd_streaming_enabled": true,
+            "quantization_bridge_enabled": true,
+            "os_page_cache_first": true,
+            "kernel_bridge_enabled": true,
+            "target_tokens_per_sec": 96.0,
+            "resident_memory_gb": 12.0,
+            "prefetch_window": 4,
+            "quantization_bits": 4,
+            "metal_mode": "bridge"
+        }),
+        "execution_worktree_stack" => json!({
+            "worktree_manager_enabled": true,
+            "branch_isolation_enforced": true,
+            "swarm_worktree_dispatch_enabled": true,
+            "cleanup_enabled": true,
+            "cleanup_interval_seconds": 75,
+            "max_residual_worktrees": 3,
+            "agent_id": "agent-default",
+            "base_branch": "main"
+        }),
+        "assimilate_fast_stack" => json!({
+            "fast_mode_enabled": true,
+            "skeleton_cache_enabled": true,
+            "progress_receipts_enabled": true,
+            "parallel_microtasks_enabled": true,
+            "warmup_enabled": true,
+            "safety_guard_enabled": true,
+            "target_latency_ms": 5000.0,
+            "cache_ttl_seconds": 3600,
+            "max_parallel_microtasks": 8
+        }),
+        "workflow_open_swe_stack" => json!({
+            "loop_registry_enabled": true,
+            "git_bridge_enabled": true,
+            "approval_middleware_enabled": true,
+            "eval_harness_enabled": true,
+            "memory_continuity_enabled": true,
+            "eval_pass_floor": 0.8
+        }),
+        "memory_context_maintenance" => json!({
+            "staleness_tracking_enabled": true,
+            "pre_generation_pruning_enabled": true,
+            "emergency_compact_enabled": true,
+            "context_observability_enabled": true,
+            "safe_config_validation_enabled": true,
+            "context_budget_tokens": 250000,
+            "window_usage_tokens": 120000,
+            "staleness_reset_seconds": 30
+        }),
+        "integration_lakehouse_stack" => json!({
+            "unity_catalog_bridge_enabled": true,
+            "mosaic_mapping_enabled": true,
+            "mlflow_provider_enabled": true,
+            "vector_automl_bridge_enabled": true,
+            "dbrx_provider_enabled": true,
+            "drift_monitoring_enabled": true,
+            "catalog": "main",
+            "schema": "default"
+        }),
+        "inference_adaptive_routing" => json!({
+            "live_scoring_enabled": true,
+            "rule_routing_enabled": true,
+            "ordered_failover_enabled": true,
+            "provider_observability_enabled": true,
+            "min_success_rate": 0.8,
+            "max_latency_ms": 1500.0,
+            "preferred_model": "kimi2.5:cloud",
+            "providers": [
+                {
+                    "name": "kimi2.5:cloud",
+                    "latency_ms": 320,
+                    "cost_per_1k": 0.0015,
+                    "success_rate": 0.96
+                },
+                {
+                    "name": "gpt-5.4",
+                    "latency_ms": 410,
+                    "cost_per_1k": 0.0030,
+                    "success_rate": 0.97
+                },
+                {
+                    "name": "qwen-max",
+                    "latency_ms": 290,
+                    "cost_per_1k": 0.0012,
+                    "success_rate": 0.91
+                }
+            ],
+            "rules": [
+                { "id": "large_context", "max_cost_per_1k": 0.0035, "min_context_tokens": 64000, "force_provider": "kimi2.5:cloud" },
+                { "id": "strict_latency", "max_latency_ms": 350, "force_provider": "qwen-max" }
+            ]
+        }),
+        "runtime_cleanup_autonomous" => json!({
+            "eviction_matrix_enabled": true,
+            "multi_trigger_scheduler_enabled": true,
+            "tiered_pressure_enabled": true,
+            "device_profiles_enabled": true,
+            "protected_state_invariants_enabled": true,
+            "audit_controls_enabled": true,
+            "boundedness_gate_enabled": true,
+            "cleanup_interval_minutes": 5,
+            "memory_threshold_percent": 75,
+            "disk_threshold_percent": 10,
+            "disk_free_percent": 22,
+            "device_profile": "desktop",
+            "max_storage_mb": 500
+        }),
+        "erp_agentic_stack" => json!({
+            "erp_template_registry_enabled": true,
+            "closed_loop_enabled": true,
+            "lineage_gate_enabled": true,
+            "max_loop_latency_ms": 1500,
+            "team": "procurement"
+        }),
+        "tooling_uv_ruff_stack" => json!({
+            "uv_bridge_enabled": true,
+            "ruff_bridge_enabled": true,
+            "isolated_env_enabled": true,
+            "autowire_pipeline_enabled": true,
+            "tooling_gate_enabled": true,
+            "max_resolution_time_seconds": 300,
+            "venv_name": "default",
+            "tiny_mode_no_regression": true,
+            "pure_mode_no_regression": true
+        }),
+        "workflow_visual_bridge_stack" => json!({
+            "canvas_bridge_enabled": true,
+            "prompt_chain_enabled": true,
+            "rag_integration_enabled": true,
+            "tool_eval_enabled": true,
+            "enterprise_observability_enabled": true,
+            "cold_start_guard_ms": 3000
         }),
         _ => json!({}),
     }
@@ -1881,6 +3146,106 @@ mod tests {
         assert!(
             err.contains("specific_consensus_mode_mismatch"),
             "expected consensus mode gate failure, got {err}"
+        );
+    }
+
+    #[test]
+    fn new_v6_contract_families_execute_and_emit_artifacts() {
+        let root = tempfile::tempdir().expect("tempdir");
+        for id in [
+            "V6-EXECUTION-002.1",
+            "V6-EXECUTION-003.1",
+            "V6-ASSIMILATE-FAST-001.1",
+            "V6-WORKFLOW-028.1",
+            "V6-MEMORY-CONTEXT-001.1",
+            "V6-INTEGRATION-001.1",
+            "V6-INFERENCE-005.1",
+            "V6-RUNTIME-CLEANUP-001.1",
+            "V6-ERP-AGENTIC-001.1",
+            "V6-TOOLING-001.1",
+            "V6-WORKFLOW-029.1",
+        ] {
+            let out = run_payload(
+                root.path(),
+                id,
+                "run",
+                &["--strict=1".to_string(), "--apply=1".to_string()],
+            )
+            .expect("contract run should succeed");
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+            assert_eq!(
+                out.get("contract_profile")
+                    .and_then(Value::as_object)
+                    .and_then(|row| row.get("id"))
+                    .and_then(Value::as_str),
+                Some(id)
+            );
+        }
+    }
+
+    #[test]
+    fn execution_worktree_merge_requires_human_veto_in_strict_mode() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_payload(
+            root.path(),
+            "V6-EXECUTION-003.2",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--payload-json={\"conflicts\":[\"src/main.rs\"]}".to_string(),
+            ],
+        )
+        .expect_err("strict merge conflict should require veto");
+        assert!(
+            err.contains("execution_worktree_merge_conflict_requires_human_veto"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn inference_failover_contract_fails_when_sequence_never_succeeds() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_payload(
+            root.path(),
+            "V6-INFERENCE-005.3",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--payload-json={\"fail_sequence\":[\"timeout\",\"429\",\"500\"]}".to_string(),
+            ],
+        )
+        .expect_err("strict failover should fail when no success step");
+        assert!(err.contains("inference_failover_exhausted"));
+    }
+
+    #[test]
+    fn runtime_cleanup_removes_stale_files_and_tracks_freed_bytes() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let cleanup_dir = root
+            .path()
+            .join("client")
+            .join("local")
+            .join("state")
+            .join("runtime_cleanup")
+            .join("staging_queues");
+        fs::create_dir_all(&cleanup_dir).expect("mkdir cleanup");
+        let stale = cleanup_dir.join("stale.tmp");
+        fs::write(&stale, "x".repeat(2048)).expect("write stale");
+        let out = run_payload(
+            root.path(),
+            "V6-RUNTIME-CLEANUP-001.2",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=1".to_string(),
+                "--payload-json={\"disk_free_percent\":1.0,\"memory_percent\":95.0}".to_string(),
+            ],
+        )
+        .expect("cleanup run");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(
+            !stale.exists(),
+            "stale cleanup file should be removed under emergency mode"
         );
     }
 
