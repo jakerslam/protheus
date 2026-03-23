@@ -63,6 +63,10 @@ const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
+const RUNTIME_COARSE_THROTTLE_MAX_DEPTH = 60;
+const RUNTIME_COARSE_THROTTLE_STRATEGY = 'pause-noncritical';
+const RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT = 4;
+const RUNTIME_COARSE_DRAIN_MIN_BATCH = 24;
 const RUNTIME_ATTENTION_DRAIN_MIN_BATCH = 16;
 const RUNTIME_ATTENTION_DRAIN_MAX_BATCH = 96;
 const RUNTIME_ATTENTION_COMPACT_DEPTH = 90;
@@ -75,6 +79,10 @@ const RUNTIME_STALL_CONDUIT_FLOOR = 6;
 const RUNTIME_STALL_QUEUE_MIN_DEPTH = 60;
 const RUNTIME_STALL_ESCALATION_FAILURE_THRESHOLD = 3;
 const RUNTIME_STALL_DRAIN_LIMIT = 96;
+const RUNTIME_SPINE_SUCCESS_TARGET_MIN = 0.9;
+const RUNTIME_HANDOFFS_PER_AGENT_MIN = 0.1;
+const RUNTIME_HANDOFFS_AGENT_FLOOR = 20;
+const RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS = 5 * 60 * 1000;
 const DASHBOARD_BENCHMARK_STALE_SECONDS = 48 * 60 * 60;
 const RUNTIME_TREND_WINDOW = 120;
 const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
@@ -3250,6 +3258,11 @@ let runtimeAutohealState = {
   last_stall_detected: false,
   last_stall_signature: '',
 };
+let reliabilityEscalationState = {
+  last_emit_ms: 0,
+  last_emit_at: '',
+  emit_count: 0,
+};
 let ingressControllerState = {
   level: 'normal',
   reject_non_critical: false,
@@ -3861,6 +3874,13 @@ function runtimeAutohealTelemetry() {
       stale_ms: RUNTIME_CONDUIT_WATCHDOG_STALE_MS,
       cooldown_ms: RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS,
     },
+    reliability_escalation: {
+      last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
+      emit_count: parseNonNegativeInt(reliabilityEscalationState.emit_count, 0, 100000000),
+      cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+      spine_success_target_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+      handoffs_per_agent_min: RUNTIME_HANDOFFS_PER_AGENT_MIN,
+    },
   };
 }
 
@@ -4217,6 +4237,50 @@ function appendAgentConversation(agentId, snapshot, userText, assistantText, met
   session.updated_at = nowIso();
   saveAgentSession(agentId, state);
   return state;
+}
+
+function normalizeAgentNoticeType(value, fallback = 'info') {
+  const fallbackType = String(fallback || 'info').toLowerCase() === 'model' ? 'model' : 'info';
+  const raw = cleanText(value || '', 24).toLowerCase();
+  if (raw === 'model' || raw === 'info') return raw;
+  return fallbackType;
+}
+
+function appendAgentNoticeEvent(agentId, snapshot, noticeLabel, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  const label = cleanText(noticeLabel || '', 240);
+  if (!id || !label) return null;
+  const state = loadAgentSession(id, snapshot);
+  const session = activeSession(state);
+  const tsRaw = Number(options && options.ts != null ? options.ts : 0);
+  const ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
+  const noticeType = normalizeAgentNoticeType(
+    options && (options.notice_type || options.type),
+    /^Model switched to /i.test(label) ? 'model' : 'info'
+  );
+  let noticeIcon = cleanText(options && (options.notice_icon || options.icon), 8);
+  if (!noticeIcon && noticeType === 'info') noticeIcon = 'i';
+  const row = {
+    role: 'System',
+    content: '',
+    is_notice: true,
+    notice_label: label,
+    notice_type: noticeType,
+    ts,
+  };
+  if (noticeIcon) row.notice_icon = noticeIcon;
+  session.messages.push(row);
+  if (session.messages.length > 800) {
+    session.messages = session.messages.slice(-800);
+  }
+  session.updated_at = nowIso();
+  saveAgentSession(id, state);
+  return {
+    notice_label: label,
+    notice_type: noticeType,
+    notice_icon: noticeIcon || '',
+    ts,
+  };
 }
 
 function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard') {
@@ -4939,6 +5003,36 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     blocks.length,
     100000000
   );
+  const staleCockpitBlockCount = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
+      ? cockpitMetricsRaw.stale_block_count
+      : staleCockpitBlocks.length,
+    staleCockpitBlocks.length,
+    100000000
+  );
+  const cockpitFreshCoverage = Number(
+    (totalCockpitBlockCount > 0 ? activeCockpitBlockCount / totalCockpitBlockCount : 0).toFixed(3)
+  );
+  const cockpitStaleRatio = Number(
+    (totalCockpitBlockCount > 0 ? staleCockpitBlockCount / totalCockpitBlockCount : 0).toFixed(3)
+  );
+  const staleLaneMap = {};
+  for (const row of staleCockpitBlocks) {
+    const lane = cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown';
+    staleLaneMap[lane] = parseNonNegativeInt(staleLaneMap[lane], 0, 100000000) + 1;
+  }
+  const staleLanesTop = Object.entries(staleLaneMap)
+    .map(([lane, count]) => ({ lane, count: parseNonNegativeInt(count, 0, 100000000) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+  const cockpitStreamCoarse =
+    (totalCockpitBlockCount >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD && cockpitFreshCoverage < 0.5) ||
+    cockpitStaleRatio >= 0.5;
+  const cockpitSignalQuality = cockpitStreamCoarse
+    ? 'coarse'
+    : cockpitStaleRatio >= 0.3
+    ? 'degraded'
+    : 'good';
   const eventsFull = compactAttentionEvents(eventsRaw, ATTENTION_CRITICAL_LIMIT);
   const eventSplitRaw = splitAttentionEvents(eventsFull);
   const queueDepth = parsePositiveInt(
@@ -5166,14 +5260,13 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
         benchmark_sanity_status: benchmarkCockpitStatus,
         active_block_count: activeCockpitBlockCount,
         total_block_count: totalCockpitBlockCount,
-        stale_block_count: parseNonNegativeInt(
-          cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
-            ? cockpitMetricsRaw.stale_block_count
-            : staleCockpitBlocks.length,
-          staleCockpitBlocks.length,
-          100000000
-        ),
+        stale_block_count: staleCockpitBlockCount,
         stale_block_threshold_ms: staleBlockThresholdMs,
+        stale_block_ratio: cockpitStaleRatio,
+        fresh_block_ratio: cockpitFreshCoverage,
+        stale_lanes_top: staleLanesTop,
+        stream_coarse: cockpitStreamCoarse,
+        signal_quality: cockpitSignalQuality,
       },
       trend: trend.slice(-24),
       payload_type: cleanText(cockpitPayload && cockpitPayload.type ? cockpitPayload.type : '', 60),
@@ -5291,13 +5384,12 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       target_conduit_signals: targetConduitSignals,
       conduit_scale_required: conduitScaleRequired,
       cockpit_to_conduit_ratio: cockpitConduitRatio,
-      cockpit_stale_blocks: parseNonNegativeInt(
-        cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
-          ? cockpitMetricsRaw.stale_block_count
-          : staleCockpitBlocks.length,
-        staleCockpitBlocks.length,
-        100000000
-      ),
+      cockpit_stale_blocks: staleCockpitBlockCount,
+      cockpit_stale_ratio: cockpitStaleRatio,
+      cockpit_fresh_ratio: cockpitFreshCoverage,
+      cockpit_stream_coarse: cockpitStreamCoarse,
+      cockpit_signal_quality: cockpitSignalQuality,
+      cockpit_stale_lanes_top: staleLanesTop,
       attention_critical: priorityCounts.critical,
       attention_critical_total: criticalEventsFull.length,
       attention_telemetry: priorityCounts.telemetry,
@@ -5617,6 +5709,58 @@ function runtimeSyncSummary(snapshot) {
     typeof snapshot.health.checks.benchmark_sanity === 'object'
       ? snapshot.health.checks.benchmark_sanity
       : {};
+  const dashboardMetrics =
+    snapshot &&
+    snapshot.health &&
+    snapshot.health.dashboard_metrics &&
+    typeof snapshot.health.dashboard_metrics === 'object'
+      ? snapshot.health.dashboard_metrics
+      : {};
+  const spineSuccessMetric =
+    dashboardMetrics && dashboardMetrics.spine_success_rate && typeof dashboardMetrics.spine_success_rate === 'object'
+      ? dashboardMetrics.spine_success_rate
+      : {};
+  const escalationMetric =
+    dashboardMetrics &&
+    dashboardMetrics.human_escalation_open_rate &&
+    typeof dashboardMetrics.human_escalation_open_rate === 'object'
+      ? dashboardMetrics.human_escalation_open_rate
+      : {};
+  const collabMetric =
+    dashboardMetrics &&
+    dashboardMetrics.collab_team_surface &&
+    typeof dashboardMetrics.collab_team_surface === 'object'
+      ? dashboardMetrics.collab_team_surface
+      : {};
+  const dopamineMetric =
+    dashboardMetrics &&
+    ((dashboardMetrics.dopamine_ambient && typeof dashboardMetrics.dopamine_ambient === 'object' && dashboardMetrics.dopamine_ambient) ||
+      (dashboardMetrics.dopamine_ambient_score &&
+        typeof dashboardMetrics.dopamine_ambient_score === 'object' &&
+        dashboardMetrics.dopamine_ambient_score) ||
+      (dashboardMetrics.dopamine_score && typeof dashboardMetrics.dopamine_score === 'object' && dashboardMetrics.dopamine_score))
+      ? ((dashboardMetrics.dopamine_ambient && typeof dashboardMetrics.dopamine_ambient === 'object' && dashboardMetrics.dopamine_ambient) ||
+        (dashboardMetrics.dopamine_ambient_score &&
+          typeof dashboardMetrics.dopamine_ambient_score === 'object' &&
+          dashboardMetrics.dopamine_ambient_score) ||
+        (dashboardMetrics.dopamine_score && typeof dashboardMetrics.dopamine_score === 'object' && dashboardMetrics.dopamine_score))
+      : {};
+  const spineSuccessRateRaw = Number(spineSuccessMetric && spineSuccessMetric.value != null ? spineSuccessMetric.value : Number.NaN);
+  const humanEscalationOpenRateRaw = Number(
+    escalationMetric && escalationMetric.value != null ? escalationMetric.value : Number.NaN
+  );
+  const dopamineScoreRaw = Number(dopamineMetric && dopamineMetric.value != null ? dopamineMetric.value : Number.NaN);
+  const handoffCountRaw =
+    collabMetric && collabMetric.handoff_count != null
+      ? collabMetric.handoff_count
+      : snapshot && snapshot.collab && snapshot.collab.handoff_count != null
+        ? snapshot.collab.handoff_count
+        : 0;
+  const spineSuccessRate = Number.isFinite(spineSuccessRateRaw) ? Number(spineSuccessRateRaw) : 1;
+  const humanEscalationOpenRate = Number.isFinite(humanEscalationOpenRateRaw)
+    ? Number(humanEscalationOpenRateRaw)
+    : 0;
+  const dopamineScore = Number.isFinite(dopamineScoreRaw) ? Number(dopamineScoreRaw) : 0;
   const healthCoverage =
     snapshot &&
     snapshot.health &&
@@ -5655,6 +5799,48 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
+  const cockpitStaleRatio = Number.isFinite(
+    Number(cockpitMetrics && cockpitMetrics.stale_block_ratio != null ? cockpitMetrics.stale_block_ratio : Number.NaN)
+  )
+    ? Number(cockpitMetrics.stale_block_ratio)
+    : Number(
+        (
+          staleCockpitBlocks /
+          Math.max(
+            1,
+            parseNonNegativeInt(
+              snapshot && snapshot.cockpit && snapshot.cockpit.total_block_count != null
+                ? snapshot.cockpit.total_block_count
+                : cockpitBlocks.length,
+              cockpitBlocks.length,
+              100000000
+            )
+          )
+        ).toFixed(3)
+      );
+  const cockpitFreshRatio = Number.isFinite(
+    Number(cockpitMetrics && cockpitMetrics.fresh_block_ratio != null ? cockpitMetrics.fresh_block_ratio : Number.NaN)
+  )
+    ? Number(cockpitMetrics.fresh_block_ratio)
+    : Number((1 - cockpitStaleRatio).toFixed(3));
+  const cockpitStaleLanesTop =
+    cockpitMetrics && Array.isArray(cockpitMetrics.stale_lanes_top)
+      ? cockpitMetrics.stale_lanes_top
+          .map((row) => ({
+            lane: cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown',
+            count: parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000),
+          }))
+          .filter((row) => row.count > 0)
+          .slice(0, 6)
+      : [];
+  const cockpitSignalQuality =
+    cleanText(
+      cockpitMetrics && cockpitMetrics.signal_quality ? cockpitMetrics.signal_quality : '',
+      24
+    ).toLowerCase() || (cockpitStaleRatio >= 0.5 ? 'coarse' : cockpitStaleRatio >= 0.3 ? 'degraded' : 'good');
+  const cockpitStreamCoarse =
+    cockpitSignalQuality === 'coarse' ||
+    !!(cockpitMetrics && cockpitMetrics.stream_coarse === true);
   const ingressLevel =
     queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH
       ? 'circuit'
@@ -5691,6 +5877,31 @@ function runtimeSyncSummary(snapshot) {
     deferred_attention: deferredAttention,
     deferred_mode: deferredMode,
     cockpit_stale_blocks: staleCockpitBlocks,
+    cockpit_stale_ratio: cockpitStaleRatio,
+    cockpit_fresh_ratio: cockpitFreshRatio,
+    cockpit_stale_lanes_top: cockpitStaleLanesTop,
+    cockpit_signal_quality: cockpitSignalQuality,
+    cockpit_stream_coarse: cockpitStreamCoarse,
+    spine_success_rate: spineSuccessRate,
+    spine_success_status:
+      cleanText(spineSuccessMetric && spineSuccessMetric.status ? spineSuccessMetric.status : 'unknown', 24) || 'unknown',
+    spine_runs_completed: parseNonNegativeInt(
+      spineSuccessMetric && spineSuccessMetric.completed_runs != null ? spineSuccessMetric.completed_runs : 0,
+      0,
+      100000000
+    ),
+    spine_runs_failed: parseNonNegativeInt(
+      spineSuccessMetric && spineSuccessMetric.failed_runs != null ? spineSuccessMetric.failed_runs : 0,
+      0,
+      100000000
+    ),
+    human_escalation_open_rate: humanEscalationOpenRate,
+    human_escalation_status:
+      cleanText(escalationMetric && escalationMetric.status ? escalationMetric.status : 'unknown', 24) || 'unknown',
+    collab_handoff_count: parseNonNegativeInt(handoffCountRaw, 0, 100000000),
+    dopamine_score: dopamineScore,
+    dopamine_status:
+      cleanText(dopamineMetric && dopamineMetric.status ? dopamineMetric.status : 'unknown', 24) || 'unknown',
     ingress_level: ingressLevel,
     telemetry_micro_batch_count: parseNonNegativeInt(
       snapshot &&
@@ -6625,6 +6836,334 @@ function classifyIngressControl(runtime) {
   };
 }
 
+function cockpitSignalState(runtime) {
+  const quality = cleanText(runtime && runtime.cockpit_signal_quality ? runtime.cockpit_signal_quality : 'good', 24)
+    .toLowerCase() || 'good';
+  const staleRatio = Number(
+    runtime && runtime.cockpit_stale_ratio != null ? runtime.cockpit_stale_ratio : Number.NaN
+  );
+  const streamCoarse =
+    !!(runtime && runtime.cockpit_stream_coarse) ||
+    quality === 'coarse' ||
+    (Number.isFinite(staleRatio) && staleRatio >= 0.5);
+  return {
+    quality: streamCoarse ? 'coarse' : quality,
+    coarse: streamCoarse,
+  };
+}
+
+function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0) {
+  const spineSuccessRateRaw = Number(runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN);
+  const spineSuccessRate = Number.isFinite(spineSuccessRateRaw) ? Number(spineSuccessRateRaw) : 1;
+  const spineKnown = Number.isFinite(spineSuccessRateRaw);
+  const spineDegraded = spineKnown && spineSuccessRate < RUNTIME_SPINE_SUCCESS_TARGET_MIN;
+  const escalationOpenRateRaw = Number(
+    runtime && runtime.human_escalation_open_rate != null ? runtime.human_escalation_open_rate : Number.NaN
+  );
+  const escalationOpenRate = Number.isFinite(escalationOpenRateRaw) ? Number(escalationOpenRateRaw) : 0;
+  const escalationKnown = Number.isFinite(escalationOpenRateRaw);
+  const escalationStarved = spineDegraded && escalationKnown && escalationOpenRate <= 0;
+  const handoffCount = parseNonNegativeInt(runtime && runtime.collab_handoff_count, 0, 100000000);
+  const handoffsPerAgent = activeSwarmAgents > 0 ? Number((handoffCount / activeSwarmAgents).toFixed(3)) : 0;
+  const handoffCoverageWeak =
+    activeSwarmAgents >= RUNTIME_HANDOFFS_AGENT_FLOOR &&
+    handoffsPerAgent < RUNTIME_HANDOFFS_PER_AGENT_MIN;
+  const degraded = spineDegraded || handoffCoverageWeak;
+  return {
+    degraded,
+    spine_success_rate: spineSuccessRate,
+    spine_success_target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+    spine_degraded: spineDegraded,
+    escalation_open_rate: escalationOpenRate,
+    escalation_starved: escalationStarved,
+    handoff_count: handoffCount,
+    handoffs_per_agent: handoffsPerAgent,
+    handoffs_per_agent_min: RUNTIME_HANDOFFS_PER_AGENT_MIN,
+    handoff_coverage_weak: handoffCoverageWeak,
+    active_swarm_agents: parseNonNegativeInt(activeSwarmAgents, 0, 100000000),
+  };
+}
+
+function staleLaneRefreshCommand(laneName, team) {
+  const lane = cleanText(laneName || '', 120).toLowerCase();
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  if (!lane) return null;
+  if (lane.includes('collab')) {
+    return ['collab-plane', 'dashboard', `--team=${normalizedTeam}`, '--strict=1'];
+  }
+  if (lane.includes('attention')) {
+    return ['attention-queue', 'status'];
+  }
+  if (lane.includes('skills')) {
+    return ['skills-plane', 'dashboard'];
+  }
+  if (lane.includes('app')) {
+    return ['app-plane', 'history', '--app=chat-ui'];
+  }
+  if (lane.includes('hermes') || lane.includes('cockpit') || lane.includes('conduit')) {
+    return ['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1'];
+  }
+  return null;
+}
+
+function maybeHealCoarseSignal(snapshot, runtime, team) {
+  const signal = cockpitSignalState(runtime);
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const staleBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
+  const targetSignals = parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128);
+  const conduitSignals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
+  const signalDeficit = Math.max(0, targetSignals - conduitSignals);
+  const staleLanesTop = Array.isArray(runtime && runtime.cockpit_stale_lanes_top)
+    ? runtime.cockpit_stale_lanes_top
+        .map((row) => ({
+          lane: cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown',
+          count: parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000),
+        }))
+        .filter((row) => row.count > 0)
+        .slice(0, RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT)
+    : [];
+  const required = signal.coarse || signalDeficit > 0 || staleBlocks > 0;
+  if (!required) {
+    return {
+      required: false,
+      coarse: signal.coarse,
+      quality: signal.quality,
+      signal_deficit: signalDeficit,
+      stale_blocks: staleBlocks,
+      stale_lanes_top: staleLanesTop,
+      lane_demotion: { required: false, applied: false, command: '', lane: null },
+      conduit_scale_up: { required: false, applied: false, target_signals: targetSignals, conduit_signals: conduitSignals, signal_deficit: signalDeficit, lanes: [] },
+      stale_lane_drain: { required: false, applied: false, stale_blocks: staleBlocks, stale_lanes_top: staleLanesTop, drain_limit: 0, lane: null, lanes: [] },
+    };
+  }
+
+  const laneDemotionMaxDepth =
+    queueDepth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ? 50 : RUNTIME_COARSE_THROTTLE_MAX_DEPTH;
+  const laneDemotionCommand = [
+    'collab-plane',
+    'throttle',
+    `--team=${normalizedTeam}`,
+    `--plane=${RUNTIME_THROTTLE_PLANE}`,
+    `--max-depth=${laneDemotionMaxDepth}`,
+    `--strategy=${RUNTIME_COARSE_THROTTLE_STRATEGY}`,
+    '--strict=1',
+  ];
+  const laneDemotionLane = runLane(laneDemotionCommand);
+  const laneDemotionApplied = !!(
+    laneDemotionLane &&
+    laneDemotionLane.ok &&
+    laneDemotionLane.payload &&
+    laneDemotionLane.payload.ok !== false
+  );
+
+  const roleOrder = ['researcher', 'builder', 'analyst'];
+  const requestedRoleCount =
+    signalDeficit >= 8 ? 3 : signalDeficit >= 4 ? 2 : 1;
+  const scaleRoleCount = signal.coarse ? Math.max(2, requestedRoleCount) : requestedRoleCount;
+  const scaleRoles = roleOrder.slice(0, Math.max(1, Math.min(roleOrder.length, scaleRoleCount)));
+  const scaleLanes = scaleRoles.map((role) => {
+    const shadow = cleanText(`${normalizedTeam}-coarse-${role}`, 120) || `${normalizedTeam}-coarse-${role}`;
+    const lane = runLane([
+      'collab-plane',
+      'launch-role',
+      `--team=${normalizedTeam}`,
+      `--role=${role}`,
+      `--shadow=${shadow}`,
+      '--strict=1',
+    ]);
+    return {
+      role,
+      shadow,
+      ...laneOutcome(lane),
+    };
+  });
+  const scaleApplied = scaleLanes.length > 0 && scaleLanes.every((row) => !!row.ok);
+
+  const drainLimit = Math.min(
+    RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+    Math.max(
+      RUNTIME_COARSE_DRAIN_MIN_BATCH,
+      Math.ceil(Math.max(queueDepth, staleBlocks * 2) / 2)
+    )
+  );
+  const staleDrainLane = runLane([
+    'attention-queue',
+    'drain',
+    `--consumer=${ATTENTION_CONSUMER_ID}`,
+    `--limit=${drainLimit}`,
+    '--wait-ms=0',
+    '--run-context=runtime_coarse_stale_lane_drain',
+  ]);
+  const staleRefreshLanes = staleLanesTop.map((row) => {
+    const command = staleLaneRefreshCommand(row.lane, normalizedTeam);
+    if (!Array.isArray(command) || command.length === 0) {
+      return {
+        lane: row.lane,
+        count: row.count,
+        command: '',
+        ok: false,
+        status: 1,
+        skipped: true,
+      };
+    }
+    const lane = runLane(command);
+    return {
+      lane: row.lane,
+      count: row.count,
+      command: `protheus-ops ${command.join(' ')}`,
+      skipped: false,
+      ...laneOutcome(lane),
+    };
+  });
+  let staleCompactLane = null;
+  if (
+    parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000) >=
+    RUNTIME_ATTENTION_COMPACT_MIN_ACKED
+  ) {
+    staleCompactLane = runLane([
+      'attention-queue',
+      'compact',
+      `--retain=${RUNTIME_ATTENTION_COMPACT_RETAIN}`,
+      `--min-acked=${RUNTIME_ATTENTION_COMPACT_MIN_ACKED}`,
+      '--run-context=runtime_coarse_stale_lane_drain',
+    ]);
+  }
+  const staleDrainApplied = !!(
+    staleDrainLane &&
+    staleDrainLane.ok &&
+    staleDrainLane.payload &&
+    staleDrainLane.payload.ok !== false
+  );
+  const staleRefreshApplied = staleRefreshLanes
+    .filter((row) => !row.skipped)
+    .every((row) => !!row.ok);
+  const staleCompactApplied =
+    staleCompactLane == null ||
+    !!(staleCompactLane.ok && staleCompactLane.payload && staleCompactLane.payload.ok !== false);
+  const staleLaneDrainApplied = staleDrainApplied && staleRefreshApplied && staleCompactApplied;
+
+  return {
+    required: true,
+    coarse: signal.coarse,
+    quality: signal.quality,
+    signal_deficit: signalDeficit,
+    stale_blocks: staleBlocks,
+    stale_lanes_top: staleLanesTop,
+    lane_demotion: {
+      required: true,
+      applied: laneDemotionApplied,
+      max_depth: laneDemotionMaxDepth,
+      strategy: RUNTIME_COARSE_THROTTLE_STRATEGY,
+      command: `protheus-ops ${laneDemotionCommand.join(' ')}`,
+      lane: laneOutcome(laneDemotionLane),
+    },
+    conduit_scale_up: {
+      required: true,
+      applied: scaleApplied,
+      target_signals: targetSignals,
+      conduit_signals: conduitSignals,
+      signal_deficit: signalDeficit,
+      lanes: scaleLanes,
+    },
+    stale_lane_drain: {
+      required: true,
+      applied: staleLaneDrainApplied,
+      stale_blocks: staleBlocks,
+      stale_lanes_top: staleLanesTop,
+      drain_limit: drainLimit,
+      lane: laneOutcome(staleDrainLane),
+      lanes: staleRefreshLanes,
+      compact_lane: staleCompactLane ? laneOutcome(staleCompactLane) : null,
+    },
+  };
+}
+
+function maybeEmitReliabilityEscalation(recommendation, runtime) {
+  const required = !!(recommendation && recommendation.reliability_gate_required);
+  const escalationStarved = !!(recommendation && recommendation.escalation_starved);
+  const spineRate = Number(
+    recommendation && recommendation.spine_success_rate != null ? recommendation.spine_success_rate : Number.NaN
+  );
+  const handoffsPerAgent = Number(
+    recommendation && recommendation.handoffs_per_agent != null ? recommendation.handoffs_per_agent : Number.NaN
+  );
+  if (!required) {
+    return {
+      required: false,
+      applied: false,
+      reason: 'reliability_gate_not_required',
+      lane: null,
+      cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+      last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
+    };
+  }
+  if (!escalationStarved) {
+    return {
+      required: true,
+      applied: false,
+      reason: 'escalation_rate_nonzero',
+      lane: null,
+      cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+      last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
+    };
+  }
+  const nowMs = Date.now();
+  const sinceLastMs = Math.max(0, nowMs - parseNonNegativeInt(reliabilityEscalationState.last_emit_ms, 0, 1000000000000));
+  if (sinceLastMs < RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS) {
+    return {
+      required: true,
+      applied: false,
+      reason: 'cooldown_active',
+      lane: null,
+      cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+      since_last_ms: sinceLastMs,
+      last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
+    };
+  }
+  const summary = `Spine success ${Number.isFinite(spineRate) ? (spineRate * 100).toFixed(1) : 'unknown'}% below ${(RUNTIME_SPINE_SUCCESS_TARGET_MIN * 100).toFixed(0)}%; no open human escalations; handoffs/agent ${Number.isFinite(handoffsPerAgent) ? handoffsPerAgent.toFixed(2) : 'unknown'}.`;
+  const lane = enqueueAttentionEvent(
+    {
+      ts: nowIso(),
+      severity: 'critical',
+      source: 'runtime_reliability_guard',
+      source_type: 'spine_success_rate',
+      summary: cleanText(summary, 260),
+      band: 'p0',
+      priority_lane: 'critical',
+      score: 1,
+      initiative_action: 'triple_escalation',
+      attention_key: cleanText(`runtime_reliability:${nowMs}`, 120),
+      metadata: {
+        queue_depth: parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000),
+        cockpit_blocks: parseNonNegativeInt(runtime && runtime.cockpit_blocks, 0, 100000000),
+        conduit_signals: parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000),
+        spine_success_rate: Number.isFinite(spineRate) ? spineRate : null,
+        spine_success_target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+        handoffs_per_agent: Number.isFinite(handoffsPerAgent) ? handoffsPerAgent : null,
+      },
+    },
+    'runtime_reliability_guard'
+  );
+  const applied = !!(lane && lane.ok && lane.payload && lane.payload.ok !== false);
+  if (applied) {
+    reliabilityEscalationState.last_emit_ms = nowMs;
+    reliabilityEscalationState.last_emit_at = nowIso();
+    reliabilityEscalationState.emit_count =
+      parseNonNegativeInt(reliabilityEscalationState.emit_count, 0, 100000000) + 1;
+  }
+  return {
+    required: true,
+    applied,
+    reason: applied ? 'queued' : 'enqueue_failed',
+    lane: laneOutcome(lane),
+    cooldown_ms: RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+    since_last_ms: sinceLastMs,
+    last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
+    emit_count: parseNonNegativeInt(reliabilityEscalationState.emit_count, 0, 100000000),
+  };
+}
+
 function maybeAutoHealConduit(runtime, team) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const signals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
@@ -6777,6 +7316,7 @@ function maybeAutoHealConduit(runtime, team) {
 
 function maybeApplyRuntimeThrottle(runtime, team) {
   const ingress = classifyIngressControl(runtime);
+  const cockpitSignal = cockpitSignalState(runtime);
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const dynamicMaxDepth =
     queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH
@@ -6789,7 +7329,8 @@ function maybeApplyRuntimeThrottle(runtime, team) {
     parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 100000000) >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
     cleanText(runtime && runtime.backpressure_level ? runtime.backpressure_level : '', 20).toLowerCase() === 'critical' ||
     ingress.level === 'shed' ||
-    ingress.level === 'circuit';
+    ingress.level === 'circuit' ||
+    cockpitSignal.coarse;
   const command = [
     'collab-plane',
     'throttle',
@@ -6968,13 +7509,17 @@ function maybeResumeMemoryIngest(runtime) {
 
 function runtimeSwarmRecommendation(snapshot) {
   const runtime = runtimeSyncSummary(snapshot);
+  const cockpitSignal = cockpitSignalState(runtime);
   const ingressControl = classifyIngressControl(runtime);
   const team = DEFAULT_TEAM;
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeSwarmAgents = parseNonNegativeInt(agents.length, 0, 100000000);
-  const swarmScaleRequired =
+  const reliabilityPosture = runtimeReliabilityPosture(runtime, activeSwarmAgents);
+  const swarmScalePressure =
     runtime.queue_depth >= RUNTIME_DRAIN_HIGH_LOAD_DEPTH &&
     activeSwarmAgents < RUNTIME_DRAIN_AGENT_HIGH_LOAD_TARGET;
+  const swarmScaleRequired = swarmScalePressure && !reliabilityPosture.degraded;
+  const swarmScaleBlockedByReliability = swarmScalePressure && reliabilityPosture.degraded;
   const shouldRecommendBase =
     runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
     runtime.critical_attention_total >= 5 ||
@@ -6982,21 +7527,28 @@ function runtimeSwarmRecommendation(snapshot) {
     !!runtime.conduit_scale_required ||
     parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000) > 0 ||
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
-    swarmScaleRequired;
+    cockpitSignal.coarse ||
+    swarmScaleRequired ||
+    reliabilityPosture.degraded;
   const heavyCockpitLoad = runtime.cockpit_blocks >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD;
   const roleOrder = ['coordinator', 'researcher', 'builder', 'reviewer', 'analyst'];
   const roleRequired = {
-    coordinator: shouldRecommendBase || runtime.health_coverage_gap_count > 0,
-    researcher: shouldRecommendBase || runtime.critical_attention_total >= 5 || !!runtime.conduit_scale_required,
+    coordinator: shouldRecommendBase || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded,
+    researcher:
+      shouldRecommendBase ||
+      runtime.critical_attention_total >= 5 ||
+      !!runtime.conduit_scale_required ||
+      reliabilityPosture.degraded,
     builder:
       heavyCockpitLoad ||
       runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
       parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0,
-    reviewer: swarmScaleRequired || runtime.health_coverage_gap_count > 0,
+    reviewer: swarmScaleRequired || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded,
     analyst:
       runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
       runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
-      runtime.health_coverage_gap_count > 0,
+      runtime.health_coverage_gap_count > 0 ||
+      reliabilityPosture.degraded,
   };
   const rolePrompts = {
     coordinator:
@@ -7025,14 +7577,18 @@ function runtimeSwarmRecommendation(snapshot) {
     runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
     runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
     ingressControl.level === 'shed' ||
-    ingressControl.level === 'circuit';
+    ingressControl.level === 'circuit' ||
+    cockpitSignal.coarse ||
+    reliabilityPosture.degraded;
   const adaptiveHealthRequired = runtime.queue_depth >= 80 || runtime.health_coverage_gap_count > 0;
   const conduitAutoBalanceRequired =
-    runtime.conduit_signals < Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD);
+    runtime.conduit_signals < Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
+    cockpitSignal.coarse;
   const memoryResumeEligible = !!runtime.memory_ingest_paused && runtime.queue_depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH;
   const drainAgents = trackedRuntimeDrainAgents(snapshot);
   const predictiveDrainRequired = runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const predictiveDrainRelease = runtime.queue_depth <= RUNTIME_DRAIN_CLEAR_DEPTH && drainAgents.length > 0;
+  const predictiveDrainAllowed = !reliabilityPosture.degraded;
   const shouldRecommend =
     rolePlan.length > 0 ||
     throttleRequired ||
@@ -7055,7 +7611,26 @@ function runtimeSwarmRecommendation(snapshot) {
     deferred_attention: parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000),
     deferred_mode: cleanText(runtime && runtime.deferred_mode ? runtime.deferred_mode : '', 24),
     cockpit_stale_blocks: parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000),
+    cockpit_stale_ratio: Number(runtime && runtime.cockpit_stale_ratio != null ? runtime.cockpit_stale_ratio : 0),
+    cockpit_fresh_ratio: Number(runtime && runtime.cockpit_fresh_ratio != null ? runtime.cockpit_fresh_ratio : 0),
+    cockpit_stale_lanes_top: Array.isArray(runtime && runtime.cockpit_stale_lanes_top)
+      ? runtime.cockpit_stale_lanes_top.slice(0, 6)
+      : [],
+    cockpit_signal_quality: cockpitSignal.quality,
+    cockpit_stream_coarse: cockpitSignal.coarse,
+    spine_success_rate: reliabilityPosture.spine_success_rate,
+    spine_success_target: reliabilityPosture.spine_success_target,
+    spine_degraded: reliabilityPosture.spine_degraded,
+    human_escalation_open_rate: reliabilityPosture.escalation_open_rate,
+    escalation_starved: reliabilityPosture.escalation_starved,
+    collab_handoff_count: reliabilityPosture.handoff_count,
+    handoffs_per_agent: reliabilityPosture.handoffs_per_agent,
+    handoffs_per_agent_min: reliabilityPosture.handoffs_per_agent_min,
+    handoff_coverage_weak: reliabilityPosture.handoff_coverage_weak,
+    reliability_gate_required: reliabilityPosture.degraded,
     swarm_scale_required: swarmScaleRequired,
+    swarm_scale_pressure: swarmScalePressure,
+    swarm_scale_blocked_by_reliability: swarmScaleBlockedByReliability,
     swarm_target_agents: RUNTIME_DRAIN_AGENT_HIGH_LOAD_TARGET,
     role_plan: rolePlan,
     prompts: rolePrompts,
@@ -7077,11 +7652,13 @@ function runtimeSwarmRecommendation(snapshot) {
       `protheus-ops collab-plane launch-role --team=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}` +
       ` --role=researcher --shadow=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}-conduit-watchdog --strict=1`,
     memory_resume_eligible: memoryResumeEligible,
-    predictive_drain_required: predictiveDrainRequired,
+    predictive_drain_required: predictiveDrainRequired && predictiveDrainAllowed,
     predictive_drain_release: predictiveDrainRelease,
+    predictive_drain_allowed: predictiveDrainAllowed,
     predictive_drain_trigger_depth: RUNTIME_DRAIN_TRIGGER_DEPTH,
     predictive_drain_clear_depth: RUNTIME_DRAIN_CLEAR_DEPTH,
     predictive_drain_active_agents: drainAgents.slice(0, 8),
+    coarse_signal_remediation_required: cockpitSignal.coarse,
     ingress_control: ingressControl,
   };
 }
@@ -7143,6 +7720,137 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     ingress_control: throttle.ingress_control || ingressControl,
     max_depth: throttle.max_depth || RUNTIME_THROTTLE_MAX_DEPTH,
     lane: throttle.lane,
+  });
+
+  const reliabilityGateRequired = !!(recommendation && recommendation.reliability_gate_required);
+  let reliabilityThrottleLane = null;
+  let reliabilityThrottleCommand = '';
+  if (reliabilityGateRequired) {
+    const maxDepth = Math.min(
+      RUNTIME_COARSE_THROTTLE_MAX_DEPTH,
+      Math.max(40, parseNonNegativeInt(runtime && runtime.queue_depth, RUNTIME_COARSE_THROTTLE_MAX_DEPTH, 100000000))
+    );
+    const command = [
+      'collab-plane',
+      'throttle',
+      `--team=${cleanText(recommendation.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}`,
+      `--plane=${RUNTIME_THROTTLE_PLANE}`,
+      `--max-depth=${maxDepth}`,
+      `--strategy=${RUNTIME_COARSE_THROTTLE_STRATEGY}`,
+      '--strict=1',
+    ];
+    reliabilityThrottleCommand = `protheus-ops ${command.join(' ')}`;
+    reliabilityThrottleLane = runLane(command);
+  }
+  policies.push({
+    policy: 'spine_reliability_gate',
+    required: reliabilityGateRequired,
+    applied: !reliabilityGateRequired || !!(reliabilityThrottleLane && reliabilityThrottleLane.ok),
+    spine_success_rate: Number(
+      recommendation && recommendation.spine_success_rate != null ? recommendation.spine_success_rate : 1
+    ),
+    spine_success_target: Number(
+      recommendation && recommendation.spine_success_target != null
+        ? recommendation.spine_success_target
+        : RUNTIME_SPINE_SUCCESS_TARGET_MIN
+    ),
+    handoff_coverage_weak: !!(recommendation && recommendation.handoff_coverage_weak),
+    scale_blocked: !!(recommendation && recommendation.swarm_scale_blocked_by_reliability),
+    command: reliabilityThrottleCommand,
+    lane: reliabilityThrottleLane ? laneOutcome(reliabilityThrottleLane) : null,
+  });
+
+  const reliabilityEscalation = maybeEmitReliabilityEscalation(recommendation, runtime);
+  policies.push({
+    policy: 'human_escalation_guard',
+    required: !!reliabilityEscalation.required,
+    applied: !!reliabilityEscalation.applied,
+    reason: cleanText(reliabilityEscalation.reason || '', 80),
+    cooldown_ms: parseNonNegativeInt(
+      reliabilityEscalation.cooldown_ms,
+      RUNTIME_RELIABILITY_ESCALATION_COOLDOWN_MS,
+      1000000000
+    ),
+    last_emit_at: cleanText(reliabilityEscalation.last_emit_at || '', 80),
+    since_last_ms: parseNonNegativeInt(reliabilityEscalation.since_last_ms, 0, 1000000000),
+    emit_count: parseNonNegativeInt(reliabilityEscalation.emit_count, 0, 1000000000),
+    lane: reliabilityEscalation.lane,
+  });
+
+  const coarseRemediation = maybeHealCoarseSignal(snapshot, runtime, recommendation.team || DEFAULT_TEAM);
+  policies.push({
+    policy: 'coarse_lane_demotion',
+    required: !!(coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.required),
+    applied: !!(coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.applied),
+    quality: cleanText(coarseRemediation && coarseRemediation.quality ? coarseRemediation.quality : 'good', 24) || 'good',
+    max_depth:
+      coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.max_depth != null
+        ? coarseRemediation.lane_demotion.max_depth
+        : RUNTIME_COARSE_THROTTLE_MAX_DEPTH,
+    strategy:
+      cleanText(
+        coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.strategy
+          ? coarseRemediation.lane_demotion.strategy
+          : RUNTIME_COARSE_THROTTLE_STRATEGY,
+        40
+      ) || RUNTIME_COARSE_THROTTLE_STRATEGY,
+    command:
+      cleanText(
+        coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.command
+          ? coarseRemediation.lane_demotion.command
+          : '',
+        240
+      ) || '',
+    lane: coarseRemediation && coarseRemediation.lane_demotion ? coarseRemediation.lane_demotion.lane : null,
+  });
+  policies.push({
+    policy: 'coarse_conduit_scale_up',
+    required: !!(coarseRemediation && coarseRemediation.conduit_scale_up && coarseRemediation.conduit_scale_up.required),
+    applied: !!(coarseRemediation && coarseRemediation.conduit_scale_up && coarseRemediation.conduit_scale_up.applied),
+    quality: cleanText(coarseRemediation && coarseRemediation.quality ? coarseRemediation.quality : 'good', 24) || 'good',
+    target_signals:
+      coarseRemediation && coarseRemediation.conduit_scale_up && coarseRemediation.conduit_scale_up.target_signals != null
+        ? coarseRemediation.conduit_scale_up.target_signals
+        : runtime.target_conduit_signals,
+    conduit_signals:
+      coarseRemediation && coarseRemediation.conduit_scale_up && coarseRemediation.conduit_scale_up.conduit_signals != null
+        ? coarseRemediation.conduit_scale_up.conduit_signals
+        : runtime.conduit_signals,
+    signal_deficit:
+      coarseRemediation && coarseRemediation.conduit_scale_up && coarseRemediation.conduit_scale_up.signal_deficit != null
+        ? coarseRemediation.conduit_scale_up.signal_deficit
+        : Math.max(0, runtime.target_conduit_signals - runtime.conduit_signals),
+    lanes:
+      coarseRemediation && coarseRemediation.conduit_scale_up && Array.isArray(coarseRemediation.conduit_scale_up.lanes)
+        ? coarseRemediation.conduit_scale_up.lanes
+        : [],
+  });
+  policies.push({
+    policy: 'coarse_stale_lane_drain',
+    required: !!(coarseRemediation && coarseRemediation.stale_lane_drain && coarseRemediation.stale_lane_drain.required),
+    applied: !!(coarseRemediation && coarseRemediation.stale_lane_drain && coarseRemediation.stale_lane_drain.applied),
+    quality: cleanText(coarseRemediation && coarseRemediation.quality ? coarseRemediation.quality : 'good', 24) || 'good',
+    stale_blocks:
+      coarseRemediation && coarseRemediation.stale_lane_drain && coarseRemediation.stale_lane_drain.stale_blocks != null
+        ? coarseRemediation.stale_lane_drain.stale_blocks
+        : parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000),
+    stale_lanes_top:
+      coarseRemediation && coarseRemediation.stale_lane_drain && Array.isArray(coarseRemediation.stale_lane_drain.stale_lanes_top)
+        ? coarseRemediation.stale_lane_drain.stale_lanes_top
+        : [],
+    drain_limit:
+      coarseRemediation && coarseRemediation.stale_lane_drain && coarseRemediation.stale_lane_drain.drain_limit != null
+        ? coarseRemediation.stale_lane_drain.drain_limit
+        : 0,
+    lane: coarseRemediation && coarseRemediation.stale_lane_drain ? coarseRemediation.stale_lane_drain.lane : null,
+    lanes:
+      coarseRemediation && coarseRemediation.stale_lane_drain && Array.isArray(coarseRemediation.stale_lane_drain.lanes)
+        ? coarseRemediation.stale_lane_drain.lanes
+        : [],
+    compact_lane:
+      coarseRemediation && coarseRemediation.stale_lane_drain
+        ? coarseRemediation.stale_lane_drain.compact_lane
+        : null,
   });
 
   const conduitWatchdog = maybeAutoHealConduit(runtime, recommendation.team || DEFAULT_TEAM);
@@ -7213,7 +7921,20 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     });
   }
 
-  const predictiveDrain = applyRuntimePredictiveDrain(snapshot, recommendation.team || DEFAULT_TEAM, runtime);
+  const predictiveDrain = recommendation && recommendation.predictive_drain_allowed === false
+    ? {
+        required: false,
+        release: false,
+        trigger_depth: RUNTIME_DRAIN_TRIGGER_DEPTH,
+        clear_depth: RUNTIME_DRAIN_CLEAR_DEPTH,
+        active_count: trackedRuntimeDrainAgents(snapshot).length,
+        active_agents: trackedRuntimeDrainAgents(snapshot).slice(0, 8),
+        launches: [],
+        turns: [],
+        archived: [],
+        blocked_by_reliability: true,
+      }
+    : applyRuntimePredictiveDrain(snapshot, recommendation.team || DEFAULT_TEAM, runtime);
   if (Array.isArray(predictiveDrain.launches)) {
     for (const launch of predictiveDrain.launches) {
       launches.push({
@@ -7240,6 +7961,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     active_count: predictiveDrain.active_count,
     active_agents: Array.isArray(predictiveDrain.active_agents) ? predictiveDrain.active_agents.slice(0, 8) : [],
     archived_count: Array.isArray(predictiveDrain.archived) ? predictiveDrain.archived.length : 0,
+    blocked_by_reliability: !!predictiveDrain.blocked_by_reliability,
   });
 
   if (parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0) {
@@ -8179,6 +8901,18 @@ function runServe(flags) {
             return;
           }
           const raw = payload && typeof payload === 'object' ? payload : {};
+          const existingProfile = agentProfileFor(agentId);
+          const existingAgent =
+            compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).find((row) => row.id === agentId) || null;
+          const previousName =
+            cleanText(
+              existingProfile && existingProfile.name
+                ? existingProfile.name
+                : existingAgent && existingAgent.name
+                  ? existingAgent.name
+                  : agentId,
+              100
+            ) || agentId;
           const identitySource =
             raw.identity && typeof raw.identity === 'object' ? raw.identity : raw;
           const patch = {};
@@ -8223,6 +8957,18 @@ function runServe(flags) {
           }
 
           const profile = upsertAgentProfile(agentId, patch);
+          let renameNotice = null;
+          if (profile && Object.prototype.hasOwnProperty.call(patch, 'name')) {
+            const nextName = cleanText(profile && profile.name ? profile.name : '', 100) || agentId;
+            if (nextName !== previousName) {
+              renameNotice = appendAgentNoticeEvent(
+                agentId,
+                latestSnapshot,
+                `changed name from ${previousName} to ${nextName}`,
+                { notice_type: 'info', notice_icon: 'i' }
+              );
+            }
+          }
           writeActionReceipt(
             `app.agent.${parts[3]}`,
             {
@@ -8259,6 +9005,7 @@ function runServe(flags) {
             section: parts[3],
             profile,
             agent: updated,
+            rename_notice: renameNotice,
           });
           return;
         }

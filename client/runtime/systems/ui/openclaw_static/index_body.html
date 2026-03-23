@@ -944,7 +944,14 @@
                     <template x-if="msg.is_notice">
                       <div class="chat-day-divider chat-event-divider">
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
-                        <span class="chat-day-divider-label" x-text="msg.notice_label || 'Model switched'"></span>
+                        <span class="chat-day-divider-label">
+                          <span
+                            class="chat-event-info-icon"
+                            x-show="msg.notice_type === 'info'"
+                            aria-hidden="true"
+                          >i</span>
+                          <span x-text="msg.notice_label || 'Model switched'"></span>
+                        </span>
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
                       </div>
                     </template>
@@ -1066,6 +1073,11 @@
                 <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'model'">
                   <span class="chat-map-marker chat-map-marker-model" x-show="messageMapMarkerType(msg) === 'model'" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  </span>
+                </span>
+                <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'info'">
+                  <span class="chat-map-marker chat-map-marker-info" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v7"></path><path d="M12 7h.01"></path></svg>
                   </span>
                 </span>
                 <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'tool'">
@@ -1330,7 +1342,14 @@
                       <template x-if="msg.is_notice">
                         <div class="chat-day-divider chat-event-divider">
                           <span class="chat-day-divider-line" aria-hidden="true"></span>
-                          <span class="chat-day-divider-label" x-text="msg.notice_label || 'Model switched'"></span>
+                          <span class="chat-day-divider-label">
+                            <span
+                              class="chat-event-info-icon"
+                              x-show="msg.notice_type === 'info'"
+                              aria-hidden="true"
+                            >i</span>
+                            <span x-text="msg.notice_label || 'Model switched'"></span>
+                          </span>
                           <span class="chat-day-divider-line" aria-hidden="true"></span>
                         </div>
                       </template>
@@ -1468,6 +1487,11 @@
                     <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'model'">
                       <span class="chat-map-marker chat-map-marker-model" x-show="messageMapMarkerType(msg) === 'model'" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                      </span>
+                    </span>
+                    <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'info'">
+                      <span class="chat-map-marker chat-map-marker-info" :title="messageMapMarkerTitle(msg)" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v7"></path><path d="M12 7h.01"></path></svg>
                       </span>
                     </span>
                     <span class="chat-map-tool-row" x-show="messageMapMarkerType(msg) === 'tool'">

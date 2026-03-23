@@ -582,6 +582,63 @@ async function run() {
       true,
       'runtime swarm recommendation should include attention queue compaction policy payload'
     );
+    const coarseLaneDemotionPolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'coarse_lane_demotion')
+      : null;
+    const coarseConduitScaleUpPolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'coarse_conduit_scale_up')
+      : null;
+    const coarseStaleLaneDrainPolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'coarse_stale_lane_drain')
+      : null;
+    summary.checks.runtime_swarm_coarse_policy_payloads_present = !!(
+      coarseLaneDemotionPolicy
+      && coarseConduitScaleUpPolicy
+      && coarseStaleLaneDrainPolicy
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_coarse_policy_payloads_present,
+      true,
+      'runtime swarm recommendation should include coarse-signal remediation policy payloads'
+    );
+    const coarseRemediationRequired = !!(
+      runtimeSwarmLane.recommendation && runtimeSwarmLane.recommendation.coarse_signal_remediation_required
+    );
+    summary.checks.runtime_swarm_coarse_remediation_applied_when_required = !coarseRemediationRequired || (
+      coarseLaneDemotionPolicy && coarseLaneDemotionPolicy.required === true && coarseLaneDemotionPolicy.applied === true
+      && coarseConduitScaleUpPolicy && coarseConduitScaleUpPolicy.required === true && coarseConduitScaleUpPolicy.applied === true
+      && coarseStaleLaneDrainPolicy && coarseStaleLaneDrainPolicy.required === true && coarseStaleLaneDrainPolicy.applied === true
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_coarse_remediation_applied_when_required,
+      true,
+      'runtime swarm recommendation should apply coarse remediation trio when coarse signal is detected'
+    );
+    const spineReliabilityPolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'spine_reliability_gate')
+      : null;
+    const humanEscalationGuardPolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'human_escalation_guard')
+      : null;
+    summary.checks.runtime_swarm_reliability_policy_payloads_present = !!(
+      spineReliabilityPolicy && humanEscalationGuardPolicy
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_reliability_policy_payloads_present,
+      true,
+      'runtime swarm recommendation should include reliability guard policy payloads'
+    );
+    const reliabilityGateRequired = !!(
+      runtimeSwarmLane.recommendation && runtimeSwarmLane.recommendation.reliability_gate_required
+    );
+    summary.checks.runtime_swarm_reliability_gate_applied_when_required = !reliabilityGateRequired || (
+      spineReliabilityPolicy && spineReliabilityPolicy.required === true && spineReliabilityPolicy.applied === true
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_reliability_gate_applied_when_required,
+      true,
+      'runtime swarm recommendation should apply spine reliability gate when required'
+    );
     summary.checks.runtime_swarm_no_invalid_conduit_command = !(
       Array.isArray(runtimeSwarmLane.policies)
       && runtimeSwarmLane.policies.some((row) => String((row && row.command) || '').includes('protheus-ops conduit auto-balance'))
