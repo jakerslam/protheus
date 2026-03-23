@@ -176,6 +176,7 @@ document.addEventListener('alpine:init', function() {
     _notificationBubbleTimer: null,
     _notificationSeq: 0,
     agentChatPreviews: {},
+    agentLiveActivity: {},
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
@@ -194,6 +195,22 @@ document.addEventListener('alpine:init', function() {
       try {
         var agents = await InfringAPI.get('/api/agents');
         this.agents = Array.isArray(agents) ? agents : [];
+        var keep = {};
+        for (var ai = 0; ai < this.agents.length; ai++) {
+          var row = this.agents[ai];
+          if (row && row.id) keep[String(row.id)] = true;
+        }
+        var nextActivity = {};
+        var now = Date.now();
+        var srcActivity = this.agentLiveActivity || {};
+        Object.keys(srcActivity).forEach(function(id) {
+          var entry = srcActivity[id];
+          if (!keep[id] || !entry) return;
+          var ts = Number(entry.ts || 0);
+          if (!Number.isFinite(ts) || (now - ts) > 20000) return;
+          nextActivity[id] = entry;
+        });
+        this.agentLiveActivity = nextActivity;
         if (this.activeAgentId) {
           var stillActive = this.agents.some(function(agent) {
             return agent && agent.id === this.activeAgentId;
@@ -514,6 +531,38 @@ document.addEventListener('alpine:init', function() {
       if (status === 'active') return 'active';
       if (status === 'idle') return 'idle';
       return 'offline';
+    },
+
+    setAgentLiveActivity(agentId, state) {
+      var id = String(agentId || '').trim();
+      if (!id) return;
+      var normalized = String(state || '').trim().toLowerCase();
+      if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
+        if (this.agentLiveActivity && Object.prototype.hasOwnProperty.call(this.agentLiveActivity, id)) {
+          delete this.agentLiveActivity[id];
+          this.agentLiveActivity = Object.assign({}, this.agentLiveActivity);
+        }
+        return;
+      }
+      this.agentLiveActivity = Object.assign({}, this.agentLiveActivity || {}, {
+        [id]: { state: normalized, ts: Date.now() }
+      });
+    },
+
+    clearAgentLiveActivity(agentId) {
+      this.setAgentLiveActivity(agentId, 'idle');
+    },
+
+    isAgentLiveBusy(agent) {
+      if (!agent || !agent.id) return false;
+      var id = String(agent.id);
+      var entry = this.agentLiveActivity ? this.agentLiveActivity[id] : null;
+      if (entry) {
+        var ts = Number(entry.ts || 0);
+        if (Number.isFinite(ts) && (Date.now() - ts) <= 15000) return true;
+      }
+      var state = String(agent.state || '').toLowerCase();
+      return state.indexOf('typing') >= 0 || state.indexOf('working') >= 0 || state.indexOf('processing') >= 0;
     },
 
     formatNotificationTime(ts) {

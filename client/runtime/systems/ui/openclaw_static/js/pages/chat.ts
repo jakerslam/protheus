@@ -1765,6 +1765,7 @@ function chatPage() {
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
+      this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
 
       if (!opts.silentNotice && noticeKey !== this._lastInactiveNoticeKey) {
         var noticeText = opts.noticeText || '';
@@ -1794,6 +1795,17 @@ function chatPage() {
       try { Alpine.store('app').refreshAgents(); } catch(_) {}
     },
 
+    setAgentLiveActivity(agentId, state) {
+      var id = String(agentId || '').trim();
+      if (!id) return;
+      try {
+        var store = Alpine.store('app');
+        if (store && typeof store.setAgentLiveActivity === 'function') {
+          store.setAgentLiveActivity(id, state);
+        }
+      } catch(_) {}
+    },
+
     handleStopResponse: function(agentId, payload) {
       var result = payload && typeof payload === 'object' ? payload : {};
       var reasonRaw = String(result.reason || result.error || '').trim();
@@ -1819,6 +1831,7 @@ function chatPage() {
         return;
       }
 
+      this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
       this._clearTypingTimeout();
       this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
       this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], ts: Date.now() });
@@ -1855,12 +1868,14 @@ function chatPage() {
         // New typing lifecycle
         case 'typing':
           if (data.state === 'start') {
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
               this.messages.push({ id: ++msgId, role: 'agent', text: '*Processing...*', meta: '', thinking: true, streaming: true, tools: [] });
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
           } else if (data.state === 'tool') {
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
             var typingMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
             if (typingMsg && (typingMsg.thinking || typingMsg.streaming)) {
               typingMsg.text = '*Using ' + (data.tool || 'tool') + '...*';
@@ -1872,6 +1887,7 @@ function chatPage() {
           break;
 
         case 'phase':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
@@ -1907,6 +1923,7 @@ function chatPage() {
           break;
 
         case 'text_delta':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
           var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (last && last.streaming) {
             if (last.thinking) { last.text = ''; last.thinking = false; }
@@ -2046,6 +2063,7 @@ function chatPage() {
           break;
 
         case 'response':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.applyContextTelemetry(data);
           // Collect streamed text before removing streaming messages
@@ -2117,6 +2135,7 @@ function chatPage() {
 
         case 'silent_complete':
           // Agent intentionally chose not to reply (NO_REPLY)
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
           this.messages.push({
@@ -2135,6 +2154,7 @@ function chatPage() {
           break;
 
         case 'error':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           var rawError = String(data && data.content ? data.content : 'unknown_error');
           var errorText = 'Error: ' + rawError;
@@ -2169,6 +2189,10 @@ function chatPage() {
           break;
 
         case 'agent_archived':
+          this.setAgentLiveActivity(
+            data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''),
+            'idle'
+          );
           this.handleAgentInactive(
             data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''),
             data && data.reason ? String(data.reason) : 'archived'
@@ -2195,6 +2219,7 @@ function chatPage() {
           break;
 
         case 'terminal_output':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
           var stdout = typeof data.stdout === 'string' ? data.stdout : '';
@@ -2227,6 +2252,7 @@ function chatPage() {
           break;
 
         case 'terminal_error':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
           this._appendTerminalMessage({
@@ -3301,6 +3327,7 @@ function chatPage() {
 
     async _sendTerminalPayload(command) {
       this.sending = true;
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
       this._responseStartedAt = Date.now();
       this._appendTerminalMessage({
         role: 'terminal',
@@ -3349,6 +3376,7 @@ function chatPage() {
 
     async _sendPayload(finalText, uploadedFiles, msgImages) {
       this.sending = true;
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
 
       // Try WebSocket first
       var wsPayload = { type: 'message', content: finalText };
@@ -3417,6 +3445,7 @@ function chatPage() {
         this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], ts: Date.now() });
         this.scheduleConversationPersist();
       }
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
       this._responseStartedAt = 0;
       this.sending = false;
       this.scrollToBottom();
@@ -3463,6 +3492,7 @@ function chatPage() {
       var name = this.currentAgent.name;
       InfringToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
         try {
+          self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id, 'idle');
           await InfringAPI.del('/api/agents/' + self.currentAgent.id);
           InfringAPI.wsDisconnect();
           self._wsAgent = null;

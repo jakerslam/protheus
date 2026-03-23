@@ -3362,7 +3362,7 @@ mark.search-highlight {
 }
 
 body[data-theme='dark'] .message.user .message-bubble {
-  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 16px color-mix(in srgb, var(--user-border-top) 90%, transparent), 0 0 3px color-mix(in srgb, var(--user-border-top) 76%, transparent);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 20px color-mix(in srgb, var(--user-border-top) 100%, transparent), 0 0 4px color-mix(in srgb, var(--user-border-top) 84%, transparent);
 }
 
 body[data-theme='dark'] .message.user .message-bubble::before {
@@ -3542,10 +3542,42 @@ body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
   overflow: hidden;
 }
 
+.chat-sidebar-item-avatar-wrap {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .chat-sidebar-item-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.agent-activity-spinner {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1.6px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 18%, transparent);
+  transform: translateX(-50%);
+  animation: spin 0.8s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+body[data-theme='dark'] .agent-activity-spinner {
+  border-color: color-mix(in srgb, #93c5fd 28%, transparent);
+  border-top-color: color-mix(in srgb, #93c5fd 92%, transparent);
+  background: color-mix(in srgb, #0f172a 36%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, #60a5fa 38%, transparent);
 }
 
 .chat-sidebar-item-main {
