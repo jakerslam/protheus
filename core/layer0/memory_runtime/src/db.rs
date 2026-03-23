@@ -44,7 +44,8 @@ fn now_iso() -> String {
 }
 
 fn default_db_path(root: &Path) -> PathBuf {
-    root.join("local").join("state")
+    root.join("local")
+        .join("state")
         .join("memory")
         .join("runtime_memory.sqlite")
 }

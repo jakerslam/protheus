@@ -503,7 +503,10 @@ fn v8_skill_002_rejects_downgrade_without_allow_flag_and_accepts_when_allowed() 
         "strict downgrade should fail without --allow-downgrade"
     );
     let blocked_latest = read_json(&latest_path(root));
-    assert_eq!(blocked_latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        blocked_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
     assert!(
         blocked_latest
             .get("errors")
@@ -593,7 +596,10 @@ fn v8_skill_002_forced_migration_requires_reason_in_strict_mode() {
     );
     assert_eq!(blocked_exit, 1);
     let blocked_latest = read_json(&latest_path(root));
-    assert_eq!(blocked_latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        blocked_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
     assert!(
         blocked_latest
             .get("errors")
@@ -664,9 +670,10 @@ fn v8_skill_002_enforced_deprecation_requires_ticket_in_strict_mode() {
         latest
             .get("errors")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row
-                .as_str()
-                == Some("deprecation_ticket_required_for_enforced_migration")))
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str()
+                    == Some("deprecation_ticket_required_for_enforced_migration")))
             .unwrap_or(false),
         "expected deprecation ticket enforcement error in strict mode"
     );
@@ -730,7 +737,9 @@ fn v8_skill_002_chain_validate_strict_rejects_version_and_missing_smoke() {
         latest
             .get("errors")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row.as_str() == Some("chain_version_invalid")))
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("chain_version_invalid")))
             .unwrap_or(false),
         "expected chain version mismatch failure"
     );
