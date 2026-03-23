@@ -95,6 +95,18 @@ infringctl --help
 infringd --help
 ```
 
+One-command rich runtime boot (auto-opens dashboard):
+
+```bash
+infring gateway
+```
+
+Stop runtime + dashboard:
+
+```bash
+infring gateway stop
+```
+
 Pure Intelligence v1 (Node-free in `--pure` / `--tiny-max`):
 
 ```bash
@@ -394,6 +406,8 @@ Run `infring list` (or `infring --help`) for a categorized command index.
 - `infring demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
 - `infring version` and `infring update` provide version + update channel information.
 - Internal operator commands:
+  - `infring gateway` -> one-command runtime boot + rich dashboard auto-open
+  - `infring gateway stop` -> stop runtime + dashboard
   - `infring start` -> start daemon control + auto-boot dashboard (chat-first) on localhost
   - `infring dashboard` -> launch unified web dashboard (localhost)
   - `infring status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)

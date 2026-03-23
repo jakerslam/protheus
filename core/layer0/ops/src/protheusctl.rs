@@ -196,6 +196,7 @@ fn print_node_free_command_list(mode: &str) {
         println!("Command list (Node-free fallback):");
     }
     for cmd in [
+        "gateway [start|stop|restart|status] [--dashboard-open=1|0]",
         "start [--dashboard-autoboot=1|0] [--dashboard-open=1|0]",
         "stop",
         "restart",
@@ -866,6 +867,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
 pub fn usage() {
     println!("Usage: infring <command> [flags]");
     println!("Try:");
+    println!("  infring gateway");
     println!("  infring dashboard");
     println!("  infring list");
     println!("  infring --help");
