@@ -177,6 +177,12 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V10-SWARM-INF-001.6",
     "V10-SWARM-INF-001.7",
     "V10-SWARM-INF-001.8",
+    "V10-PERF-001.1",
+    "V10-PERF-001.2",
+    "V10-PERF-001.3",
+    "V10-PERF-001.4",
+    "V10-PERF-001.5",
+    "V10-PERF-001.6",
     "V6-ADAPTER-001.1",
     "V6-ADAPTER-001.2",
     "V6-ADAPTER-001.3",
@@ -217,6 +223,14 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V6-DASHBOARD-001.7",
     "V6-DASHBOARD-001.8",
     "V6-DASHBOARD-001.9",
+    "V6-DASHBOARD-007.1",
+    "V6-DASHBOARD-007.2",
+    "V6-DASHBOARD-007.3",
+    "V6-DASHBOARD-007.4",
+    "V6-DASHBOARD-007.5",
+    "V6-DASHBOARD-007.6",
+    "V6-DASHBOARD-007.7",
+    "V6-DASHBOARD-007.8",
     "V6-ECONOMY-003.1",
     "V6-ECONOMY-003.2",
     "V6-ECONOMY-003.3",
@@ -813,6 +827,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "swarm_infrastructure_scaling_consensus_and_resilience_controls",
         ));
     }
+    if id.starts_with("V10-PERF-001.") {
+        return Some((
+            "competitive_execution_moat",
+            "receipt_batching_simd_lockfree_coordination_pgo_slab_allocation_and_throughput_regression_guards",
+        ));
+    }
     if id.starts_with("V6-WORKFLOW-") || id.starts_with("V6-EXECUTION-001.") {
         return Some((
             "swarm_runtime_scaling",
@@ -829,6 +849,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
         return Some((
             "automation_mission_stack",
             "scheduler_hardening_handoff_memory_security_and_dashboard_control_plane",
+        ));
+    }
+    if id.starts_with("V6-DASHBOARD-007.") {
+        return Some((
+            "automation_mission_stack",
+            "dashboard_queue_conduit_cockpit_autoremediation_and_attention_compaction_under_runtime_pressure",
         ));
     }
     if id.starts_with("V6-APP-023.") {
@@ -1122,7 +1148,9 @@ mod tests {
         assert!(profile_for("V5-RUST-HYB-010").is_some());
         assert!(profile_for("V5-RUST-PROD-012").is_some());
         assert!(profile_for("V10-ULTIMATE-001.6").is_some());
+        assert!(profile_for("V10-PERF-001.6").is_some());
         assert!(profile_for("V6-WORKFLOW-026.5").is_some());
+        assert!(profile_for("V6-DASHBOARD-007.8").is_some());
         assert!(profile_for("V8-SWARM-012.10").is_some());
         assert!(profile_for("V9-TINYMAX-021.2").is_some());
         assert!(profile_for("X-UNKNOWN-404.1").is_none());
