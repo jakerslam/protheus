@@ -41,6 +41,7 @@ const ARCHIVED_AGENTS_PATH = path.resolve(STATE_DIR, 'archived_agents.json');
 const AGENT_CONTRACTS_PATH = path.resolve(STATE_DIR, 'agent_contracts.json');
 const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
 const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
+const MODEL_ROUTER_PROVIDER_PROFILE_PATH = path.resolve(ROOT, 'local/state/ops/model_router/provider_profile.json');
 const BENCHMARK_SANITY_STATE_PATH = path.resolve(ROOT, 'core/local/state/ops/benchmark_sanity/latest.json');
 const BENCHMARK_SANITY_GATE_PATH = path.resolve(ROOT, 'core/local/artifacts/benchmark_sanity_gate_current.json');
 const BENCHMARK_SANITY_GATE_SCRIPT_PATH = path.resolve(
@@ -1919,6 +1920,224 @@ function providerForModelName(modelName, fallbackProvider = 'ollama') {
   if (value.startsWith('ollama/')) return 'ollama';
   if (value.includes('/')) return cleanText(value.split('/')[0], 80) || cleanText(fallbackProvider || 'ollama', 80);
   return cleanText(fallbackProvider || 'ollama', 80) || 'ollama';
+}
+
+function autoRouteIntentContext(input = '', tokenCount = 0, hasVision = false) {
+  const text = cleanText(input || '', 4000).toLowerCase();
+  const estimatedTokens = parsePositiveInt(
+    tokenCount,
+    Math.max(1, Math.round(String(input || '').length / 4)),
+    1,
+    8_000_000
+  );
+  return {
+    token_count: estimatedTokens,
+    has_vision: !!hasVision,
+    asks_speed: /\b(fast|quick|latency|snappy|throughput|real[-\s]?time)\b/i.test(text),
+    asks_cost: /\b(cheap|cost|budget|afford|save|token burn|low[-\s]?cost)\b/i.test(text),
+    asks_quality: /\b(quality|accurate|deep|thorough|careful|reason|analysis)\b/i.test(text),
+    asks_long_context: /\b(week ago|history|long context|large context|memory|timeline|summar)\b/i.test(text),
+  };
+}
+
+function normalizeAutoRouteCandidate(rawId, providerHint = '') {
+  const candidateId = cleanText(rawId || '', 140);
+  if (!candidateId || candidateId.toLowerCase() === 'auto') return null;
+  let runtimeProvider = cleanText(providerHint || '', 80) || providerForModelName(candidateId, 'ollama');
+  let runtimeModel = candidateId;
+  if (candidateId.startsWith('ollama/')) {
+    runtimeProvider = 'ollama';
+    runtimeModel = cleanText(candidateId.replace(/^ollama\//, ''), 120) || candidateId;
+  } else if (candidateId.includes('/')) {
+    const parts = candidateId.split('/');
+    runtimeProvider = cleanText(parts.shift() || runtimeProvider || 'ollama', 80) || 'ollama';
+    runtimeModel = cleanText(parts.join('/'), 120) || candidateId;
+  } else {
+    runtimeProvider = providerForModelName(candidateId, runtimeProvider || 'ollama');
+  }
+  const modelKey = cleanText(runtimeModel || candidateId, 120) || candidateId;
+  const providerKey = cleanText(runtimeProvider || 'ollama', 80) || 'ollama';
+  const contextWindow = inferContextWindowFromModelName(modelKey, DEFAULT_CONTEXT_WINDOW_TOKENS);
+  const supportsVision = /\b(vision|vl|gpt-4o|gemini|claude[-\s]?3|qwen2\.5-vl|llava)\b/i.test(modelKey);
+  return {
+    id: providerKey === 'ollama' ? modelKey : `${providerKey}/${modelKey}`,
+    provider: providerKey,
+    runtime_provider: providerKey,
+    model: modelKey,
+    runtime_model: modelKey,
+    context_window: contextWindow,
+    supports_vision: supportsVision,
+  };
+}
+
+function buildAutoRouteCandidates(snapshot, agentId = '') {
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = (rawId, providerHint = '') => {
+    const row = normalizeAutoRouteCandidate(rawId, providerHint);
+    if (!row) return;
+    const key = `${row.runtime_provider}/${row.runtime_model}`.toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    candidates.push(row);
+  };
+
+  const dashboardModels = buildDashboardModels(snapshot);
+  for (const row of dashboardModels) {
+    if (!row || !row.id || String(row.id).toLowerCase() === 'auto') continue;
+    addCandidate(row.id, row.provider || 'ollama');
+  }
+
+  const configuredModel = cleanText(
+    snapshot && snapshot.app && snapshot.app.settings && snapshot.app.settings.model
+      ? snapshot.app.settings.model
+      : configuredOllamaModel(snapshot),
+    120
+  ) || configuredOllamaModel(snapshot);
+  const configuredProviderValue = cleanText(configuredProvider(snapshot), 80) || 'ollama';
+  if (configuredProviderValue !== 'ollama' && configuredModel) {
+    addCandidate(`${configuredProviderValue}/${configuredModel}`, configuredProviderValue);
+  } else if (configuredModel) {
+    addCandidate(configuredModel, configuredProviderValue);
+  }
+
+  const testOverride = testingModelOverrideForAgent(agentId);
+  if (testOverride && testOverride.model) {
+    addCandidate(testOverride.model, cleanText(testOverride.provider || '', 80) || 'cloud');
+  }
+
+  const profile = readJson(MODEL_ROUTER_PROVIDER_PROFILE_PATH, null);
+  const profileModel = cleanText(profile && profile.preferred_model ? profile.preferred_model : '', 120);
+  if (profileModel) {
+    addCandidate(profileModel, profileModel.includes('/') ? '' : 'cloud');
+  }
+
+  if (profileModel && /:cloud$/i.test(profileModel)) {
+    addCandidate(profileModel, 'cloud');
+  } else {
+    addCandidate(TEST_AGENT_MODEL_DEFAULT, TEST_AGENT_PROVIDER_DEFAULT);
+  }
+  return candidates;
+}
+
+function autoRouteProviderPrior(provider = '') {
+  const key = cleanText(provider || '', 40).toLowerCase();
+  if (key === 'ollama') return { latency_ms: 120, cost_per_1k: 0.0, success_rate: 0.92 };
+  if (key === 'groq') return { latency_ms: 65, cost_per_1k: 0.2, success_rate: 0.9 };
+  if (key === 'openai') return { latency_ms: 90, cost_per_1k: 0.55, success_rate: 0.95 };
+  if (key === 'anthropic') return { latency_ms: 105, cost_per_1k: 0.7, success_rate: 0.95 };
+  if (key === 'google') return { latency_ms: 95, cost_per_1k: 0.6, success_rate: 0.94 };
+  if (key === 'cloud') return { latency_ms: 80, cost_per_1k: 0.3, success_rate: 0.93 };
+  return { latency_ms: 110, cost_per_1k: 0.45, success_rate: 0.9 };
+}
+
+function autoRouteCandidateScore(candidate, context, runtimeSync) {
+  const priors = autoRouteProviderPrior(candidate && candidate.runtime_provider ? candidate.runtime_provider : '');
+  const modelName = cleanText(candidate && candidate.runtime_model ? candidate.runtime_model : '', 120).toLowerCase();
+  const latencyMs = Math.max(1, Math.round(priors.latency_ms * (/3b|mini|small/.test(modelName) ? 0.85 : 1)));
+  const costPer1k = Math.max(0, Number((priors.cost_per_1k * (/3b|mini|small/.test(modelName) ? 0.7 : 1)).toFixed(4)));
+  const contextWindow = parsePositiveInt(
+    candidate && candidate.context_window != null ? candidate.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
+    DEFAULT_CONTEXT_WINDOW_TOKENS,
+    1024,
+    8_000_000
+  );
+  const tokenDemand = parsePositiveInt(context && context.token_count, 1, 1, 8_000_000);
+  const contextScore = tokenDemand <= contextWindow ? 1 : Math.max(0.1, Number((contextWindow / tokenDemand).toFixed(4)));
+  const latencyScore = Number((1 / (1 + (latencyMs / 120))).toFixed(6));
+  const costScore = Number((1 / (1 + costPer1k)).toFixed(6));
+  const runtimeSuccess = Number(
+    runtimeSync && runtimeSync.spine_success_rate != null ? runtimeSync.spine_success_rate : Number.NaN
+  );
+  const successRateBase = Number.isFinite(runtimeSuccess)
+    ? Math.max(0.2, Math.min(0.99, (priors.success_rate * 0.65) + (runtimeSuccess * 0.35)))
+    : priors.success_rate;
+  const supportsVision = !!(candidate && candidate.supports_vision);
+  const visionPenalty = context && context.has_vision && !supportsVision ? 0.55 : 0;
+  const speedWeight = context && context.asks_speed ? 1.55 : 1.05;
+  const costWeight = context && context.asks_cost ? 1.35 : 0.75;
+  const qualityWeight = context && context.asks_quality ? 1.8 : 1.3;
+  const contextWeight = context && context.asks_long_context ? 1.45 : 1.1;
+  const scoreRaw =
+    (latencyScore * speedWeight) +
+    (costScore * costWeight) +
+    (successRateBase * qualityWeight) +
+    (contextScore * contextWeight) -
+    visionPenalty;
+  return {
+    score: Number(scoreRaw.toFixed(6)),
+    latency_ms: latencyMs,
+    cost_per_1k: costPer1k,
+    success_rate: Number(successRateBase.toFixed(4)),
+    context_window: contextWindow,
+    context_score: contextScore,
+    supports_vision: supportsVision,
+    vision_penalty: visionPenalty,
+  };
+}
+
+function planAutoRoute(input, snapshot, options = {}) {
+  const context = autoRouteIntentContext(
+    input,
+    options && options.token_count != null ? options.token_count : 0,
+    !!(options && options.has_vision)
+  );
+  const runtimeSync = runtimeSyncSummary(snapshot);
+  const candidates = buildAutoRouteCandidates(
+    snapshot,
+    cleanText(options && options.agent_id ? options.agent_id : '', 140)
+  );
+  const ranked = candidates
+    .map((candidate) => {
+      const metrics = autoRouteCandidateScore(candidate, context, runtimeSync);
+      return {
+        ...candidate,
+        ...metrics,
+      };
+    })
+    .sort((a, b) => Number(b.score) - Number(a.score));
+  const selected = ranked[0] || normalizeAutoRouteCandidate(configuredOllamaModel(snapshot), 'ollama');
+  const fallbackChain = ranked.slice(1, 4).map((row) => ({
+    provider: row.runtime_provider,
+    model: row.runtime_model,
+    score: Number(row.score.toFixed(6)),
+  }));
+  const reason = selected
+    ? `lowest weighted latency/cost risk (latency ${selected.latency_ms}ms, cost $${selected.cost_per_1k}/1k, success ${(selected.success_rate * 100).toFixed(1)}%)`
+    : 'default route selected';
+  const decision = {
+    ok: !!selected,
+    type: 'infring_auto_route_decision',
+    policy: 'V6-DASHBOARD-008.1',
+    selected_provider: selected ? selected.runtime_provider : 'ollama',
+    selected_model: selected ? selected.runtime_model : configuredOllamaModel(snapshot),
+    selected_model_id: selected ? selected.id : configuredOllamaModel(snapshot),
+    selected_context_window: selected ? selected.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
+    reason,
+    context,
+    fallback_chain: fallbackChain,
+    candidates: ranked.slice(0, 6).map((row) => ({
+      provider: row.runtime_provider,
+      model: row.runtime_model,
+      score: Number(row.score.toFixed(6)),
+      latency_ms: row.latency_ms,
+      cost_per_1k: row.cost_per_1k,
+      success_rate: row.success_rate,
+      context_window: row.context_window,
+      supports_vision: row.supports_vision,
+    })),
+    runtime_sync: {
+      spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
+        ? Number(runtimeSync.spine_success_rate)
+        : null,
+      receipt_latency_p99_ms:
+        Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
+          ? Number(runtimeSync.receipt_latency_p99_ms)
+          : null,
+    },
+  };
+  decision.receipt_hash = sha256(JSON.stringify(decision));
+  return decision;
 }
 
 function effectiveAgentModel(agentId, snapshot) {
@@ -5374,15 +5593,41 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   const session = activeSession(state);
   const chatSessionId = runtimeChatSessionId(effectiveAgentId, session.session_id);
   const modelState = effectiveAgentModel(effectiveAgentId, snapshot);
+  const autoRoute =
+    modelState && modelState.selected === 'auto'
+      ? planAutoRoute(cleanInput, snapshot, {
+          agent_id: effectiveAgentId,
+          token_count: Math.max(1, Math.round(String(cleanInput || '').length / 4)),
+          has_vision: false,
+        })
+      : null;
+  const runtimeModelState =
+    autoRoute && autoRoute.ok
+      ? {
+          ...modelState,
+          provider: cleanText(autoRoute.selected_provider || modelState.provider || 'ollama', 80) || 'ollama',
+          runtime_provider:
+            cleanText(autoRoute.selected_provider || modelState.runtime_provider || 'ollama', 80) || 'ollama',
+          runtime_model:
+            cleanText(autoRoute.selected_model || modelState.runtime_model || configuredOllamaModel(snapshot), 120) ||
+            configuredOllamaModel(snapshot),
+          context_window: parsePositiveInt(
+            autoRoute.selected_context_window,
+            modelState.context_window || DEFAULT_CONTEXT_WINDOW_TOKENS,
+            1024,
+            8_000_000
+          ),
+        }
+      : modelState;
   const runtimeSync = runtimeSyncSummary(snapshot);
   const runtimeMirror = runtimeMirrorFromSnapshot(
     snapshot,
     snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM
   );
   const startedAtMs = Date.now();
-  const preferHostedBackend = shouldUseHostedModelBackend(modelState);
+  const preferHostedBackend = shouldUseHostedModelBackend(runtimeModelState);
   const hostedProviderSync = preferHostedBackend
-    ? ensureHostedChatProviderModel(snapshot, modelState)
+    ? ensureHostedChatProviderModel(snapshot, runtimeModelState)
     : null;
   const llmResult = preferHostedBackend
     ? {
@@ -5399,7 +5644,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
         session,
         cleanInput,
         snapshot,
-        modelState.runtime_model,
+        runtimeModelState.runtime_model,
         runtimeMirror
       );
 
@@ -5408,7 +5653,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   let assistantRaw = '';
   let iterations = 1;
   let backend = 'ollama';
-  let usedModel = modelState.runtime_model || OLLAMA_MODEL_FALLBACK;
+  let usedModel = runtimeModelState.runtime_model || OLLAMA_MODEL_FALLBACK;
 
   if (llmResult && llmResult.ok) {
     tools = Array.isArray(llmResult.tools) ? llmResult.tools : [];
@@ -5458,7 +5703,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
         session,
         cleanInput,
         snapshot,
-        modelState.runtime_model,
+        runtimeModelState.runtime_model,
         runtimeMirror
       );
       const recoveredResponse =
@@ -5471,7 +5716,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
         tools = Array.isArray(echoRecovery.tools) ? echoRecovery.tools : [];
         iterations = parsePositiveInt(echoRecovery.iterations || iterations, iterations, 1, 8);
         usedModel =
-          cleanText(echoRecovery.model || modelState.runtime_model || usedModel || OLLAMA_MODEL_FALLBACK, 120) ||
+          cleanText(echoRecovery.model || runtimeModelState.runtime_model || usedModel || OLLAMA_MODEL_FALLBACK, 120) ||
           OLLAMA_MODEL_FALLBACK;
         laneResult = {
           ok: true,
@@ -5557,7 +5802,9 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   const outputTokens = Math.max(1, Math.round(String(assistant || '').length / 4));
   const durationMs = Math.max(0, Date.now() - startedAtMs);
   const contextWindow = parsePositiveInt(
-    modelState && modelState.context_window != null ? modelState.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
+    runtimeModelState && runtimeModelState.context_window != null
+      ? runtimeModelState.context_window
+      : DEFAULT_CONTEXT_WINDOW_TOKENS,
     DEFAULT_CONTEXT_WINDOW_TOKENS,
     1024,
     8000000
@@ -5603,7 +5850,11 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
       (laneResult.payload.conduit_enforcement || laneResult.payload.routed_via === 'conduit')
     );
   const laneState = laneResult && laneResult.ok ? 'ok' : 'degraded';
-  const meta = `${inputTokens} in / ${outputTokens} out | ${durationLabel} | lane:${laneState}${laneConduit ? ' conduit' : ''} | queue:${runtimeMirror.summary.queue_depth} | ctx:${Math.round((contextStats.context_ratio || 0) * 100)}%`;
+  const autoRouteMeta =
+    autoRoute && autoRoute.ok
+      ? ` | auto:${cleanText(autoRoute.selected_provider || '', 40)}/${cleanText(autoRoute.selected_model || '', 120)}`
+      : '';
+  const meta = `${inputTokens} in / ${outputTokens} out | ${durationLabel} | lane:${laneState}${laneConduit ? ' conduit' : ''} | queue:${runtimeMirror.summary.queue_depth} | ctx:${Math.round((contextStats.context_ratio || 0) * 100)}%${autoRouteMeta}`;
   const responseOk = !!String(assistant || '').trim();
   let contractTermination = null;
   contract = contractForAgent(effectiveAgentId);
@@ -5623,6 +5874,44 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
           40
         ) || DEFAULT_TEAM,
     });
+  }
+  const modelProvider =
+    cleanText(
+      providerForModelName(
+        usedModel,
+        cleanText(
+          runtimeModelState && (runtimeModelState.runtime_provider || runtimeModelState.provider)
+            ? runtimeModelState.runtime_provider || runtimeModelState.provider
+            : 'ollama',
+          80
+        ) || 'ollama'
+      ),
+      80
+    ) || 'ollama';
+  const autoRoutePayload =
+    autoRoute && autoRoute.ok
+      ? {
+          provider: cleanText(autoRoute.selected_provider || modelProvider, 80) || modelProvider,
+          model: cleanText(autoRoute.selected_model || usedModel, 120) || usedModel,
+          model_id:
+            cleanText(autoRoute.selected_model_id || '', 160) ||
+            `${cleanText(autoRoute.selected_provider || modelProvider, 80) || modelProvider}/${cleanText(autoRoute.selected_model || usedModel, 120) || usedModel}`,
+          reason: cleanText(autoRoute.reason || '', 260),
+          fallback_chain: Array.isArray(autoRoute.fallback_chain) ? autoRoute.fallback_chain : [],
+          receipt_hash: cleanText(autoRoute.receipt_hash || '', 80),
+          executed_provider: modelProvider,
+          executed_model: cleanText(usedModel || '', 120),
+        }
+      : null;
+  if (autoRoutePayload && laneResult && typeof laneResult === 'object') {
+    const payloadObj =
+      laneResult.payload && typeof laneResult.payload === 'object' ? laneResult.payload : {};
+    laneResult.payload = {
+      ...payloadObj,
+      auto_route: autoRoutePayload,
+      routed_model: autoRoutePayload.model,
+      routed_provider: autoRoutePayload.provider,
+    };
   }
 
   return {
@@ -5647,7 +5936,9 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
     meta,
     duration_ms: durationMs,
     model: usedModel,
+    model_provider: modelProvider,
     backend,
+    auto_route: autoRoutePayload,
     contract: contractSummary(contractForAgent(effectiveAgentId)),
     contract_terminated: !!(contractTermination && contractTermination.terminated),
     contract_termination_reason:
@@ -10493,6 +10784,50 @@ function runServe(flags) {
         });
         return;
       }
+      if (
+        req.method === 'POST' &&
+        (pathname === '/api/route/auto' || pathname === '/route/auto')
+      ) {
+        const payload = await bodyJson(req);
+        const input =
+          payload && (payload.input || payload.message || payload.prompt || payload.text)
+            ? payload.input || payload.message || payload.prompt || payload.text
+            : '';
+        const tokenCount = parsePositiveInt(
+          payload && payload.token_count != null ? payload.token_count : 0,
+          Math.max(1, Math.round(String(input || '').length / 4)),
+          1,
+          8_000_000
+        );
+        const hasVision =
+          !!(payload && payload.has_vision) ||
+          !!(
+            payload &&
+            Array.isArray(payload.attachments) &&
+            payload.attachments.some((row) =>
+              /image|photo|png|jpg|jpeg|webp|gif/i.test(
+                cleanText(row && (row.type || row.content_type || row.mime || ''), 80)
+              )
+            )
+          );
+        const agentId = cleanText(
+          payload && (payload.agent_id || payload.agentId) ? payload.agent_id || payload.agentId : '',
+          140
+        );
+        const route = planAutoRoute(input, latestSnapshot, {
+          agent_id: agentId,
+          token_count: tokenCount,
+          has_vision: hasVision,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          route,
+          selected_provider: route.selected_provider,
+          selected_model: route.selected_model,
+          reason: route.reason,
+        });
+        return;
+      }
       if (req.method === 'GET' && pathname === '/api/agents') {
         enforceAgentContractsNow('api.agents');
         sendJson(res, 200, compatAgentsFromSnapshot(latestSnapshot));
@@ -10809,6 +11144,9 @@ function runServe(flags) {
             session_id: turn.session_id,
             response: turn.response,
             tools: turn.tools,
+            model: turn.model,
+            model_provider: turn.model_provider || providerForModelName(turn.model, configuredProvider(latestSnapshot)),
+            auto_route: turn.auto_route || null,
             turn: {
               role: 'agent',
               text: turn.response,
@@ -11206,14 +11544,16 @@ function runServe(flags) {
             response: turn.response || '',
             session_id: turn.session_id || '',
             agent_id: turn.agent_id || requestedAgentId || 'chat-ui-default-agent',
+            auto_route: turn.auto_route || null,
             turn: {
               turn_id: `turn_${sha256(`${turn.agent_id || requestedAgentId || 'chat-ui-default-agent'}:${Date.now()}`).slice(0, 10)}`,
               user: turn.input || '',
               assistant: turn.response || '',
               ts: nowIso(),
               status: turn.lane_ok ? 'complete' : 'degraded',
-              provider: providerForModelName(turn.model, configuredProvider(latestSnapshot)),
+              provider: turn.model_provider || providerForModelName(turn.model, configuredProvider(latestSnapshot)),
               model: turn.model || configuredOllamaModel(latestSnapshot),
+              auto_route: turn.auto_route || null,
             },
             tools: Array.isArray(turn.tools) ? turn.tools : [],
             input_tokens: parseNonNegativeInt(turn.input_tokens, 0, 1000000000),
@@ -11893,6 +12233,9 @@ function runServe(flags) {
         cost_usd: turn.cost_usd,
         iterations: turn.iterations,
         duration_ms: turn.duration_ms,
+        model: turn.model,
+        model_provider: turn.model_provider || providerForModelName(turn.model, configuredProvider(latestSnapshot)),
+        auto_route: turn.auto_route || null,
         runtime_sync: turn.runtime_sync || null,
       });
     });

@@ -212,7 +212,7 @@ Updated: 2026-03-20 08:47 America/Denver
 - Completion triggers and task-group metadata persistence are authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/completion.ts` and `client/cognition/orchestration/taskgroup.ts` are thin wrappers.
 - Partial-result retrieval (session-history + checkpoint fallback + retry/continue/abort decisions) is authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/partial.ts` is a thin wrapper.
 - All tests passing: `npm run -s test:cognition:orchestration`.
-- Integration test: full orchestration flow in `tests/client/cognition/coordinator.test.js` with scope + task-group completion assertions.
+- Integration test: full orchestration flow in `tests/client/cognition/coordinator.test.ts` with scope + task-group completion assertions.
 
 25. `P0-AUDIT-SEC-001` Close remaining automatable security implementation-depth gaps (fail-closed and branch coverage), not just receipt presence. `STATUS: DONE`
 - Context:
