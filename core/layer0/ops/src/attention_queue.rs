@@ -56,6 +56,9 @@ fn usage() {
     eprintln!(
         "  protheus-ops attention-queue drain [--consumer=<id>] [--limit=<n>] [--wait-ms=<n>] [--run-context=<value>]"
     );
+    eprintln!(
+        "  protheus-ops attention-queue compact [--retain=<n>] [--min-acked=<n>] [--run-context=<value>]"
+    );
 }
 
 fn read_json(path: &Path) -> Option<Value> {
@@ -189,6 +192,13 @@ fn parse_limit(raw: Option<&String>, fallback: usize, max: usize) -> usize {
         .and_then(|v| v.trim().parse::<usize>().ok())
         .unwrap_or(fallback);
     parsed.clamp(1, max)
+}
+
+fn parse_non_negative_limit(raw: Option<&String>, fallback: usize, max: usize) -> usize {
+    let parsed = raw
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(fallback);
+    parsed.clamp(0, max)
 }
 
 fn parse_wait_ms(raw: Option<&String>, fallback: u64, max: u64) -> u64 {
@@ -1297,6 +1307,120 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     0
 }
 
+fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
+    let contract = load_contract(root);
+    let run_context = flags
+        .get("run-context")
+        .cloned()
+        .unwrap_or_else(|| "compact".to_string());
+    let retain = parse_non_negative_limit(
+        flags
+            .get("retain")
+            .or_else(|| flags.get("retain-acked"))
+            .or_else(|| flags.get("retain_acked")),
+        32,
+        8_192,
+    );
+    let min_acked = parse_non_negative_limit(
+        flags.get("min-acked").or_else(|| flags.get("min_acked")),
+        1,
+        1_000_000,
+    );
+    let (active_rows, expired_pruned) = load_active_queue(&contract);
+    let queue_depth_before = active_rows.len();
+    let mut cursor_state = load_cursor_state(&contract.cursor_state_path);
+    let mut offsets_before = BTreeMap::<String, usize>::new();
+    let mut offsets_after = BTreeMap::<String, usize>::new();
+    let mut min_offset = queue_depth_before;
+
+    if let Some(consumers) = cursor_state.get("consumers").and_then(Value::as_object) {
+        for (consumer_id, state) in consumers {
+            let offset = state
+                .get("offset")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                .min(queue_depth_before as u64) as usize;
+            offsets_before.insert(consumer_id.clone(), offset);
+            min_offset = min_offset.min(offset);
+        }
+    }
+    if offsets_before.is_empty() {
+        min_offset = 0;
+    }
+    let compact_count = if min_offset >= min_acked && min_offset > retain {
+        min_offset.saturating_sub(retain)
+    } else {
+        0
+    };
+    let mut queue_depth_after = queue_depth_before;
+    if compact_count > 0 {
+        let kept_rows = active_rows
+            .into_iter()
+            .skip(compact_count.min(queue_depth_before))
+            .collect::<Vec<_>>();
+        queue_depth_after = kept_rows.len();
+        write_jsonl(&contract.queue_path, &kept_rows);
+
+        if let Some(consumers) = cursor_state
+            .get_mut("consumers")
+            .and_then(Value::as_object_mut)
+        {
+            for (consumer_id, state) in consumers.iter_mut() {
+                let old_offset = state
+                    .get("offset")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0)
+                    .min(queue_depth_before as u64) as usize;
+                let next_offset = old_offset
+                    .saturating_sub(compact_count)
+                    .min(queue_depth_after);
+                state["offset"] = Value::Number((next_offset as u64).into());
+                state["acked_at"] = Value::String(now_iso());
+                state["run_context"] = Value::String(run_context.clone());
+                offsets_after.insert(consumer_id.clone(), next_offset);
+            }
+        }
+        cursor_state["updated_at"] = Value::String(now_iso());
+        persist_cursor_state(&contract.cursor_state_path, &cursor_state);
+    } else {
+        offsets_after = offsets_before.clone();
+    }
+
+    let mut out = json!({
+        "ok": true,
+        "type": "attention_queue_compact",
+        "ts": now_iso(),
+        "run_context": run_context,
+        "retain": retain,
+        "min_acked": min_acked,
+        "compacted_count": compact_count,
+        "queue_depth_before": queue_depth_before,
+        "queue_depth_after": queue_depth_after,
+        "expired_pruned": expired_pruned,
+        "min_consumer_offset": min_offset,
+        "consumer_offsets_before": offsets_before,
+        "consumer_offsets_after": offsets_after,
+        "attention_contract": contract_snapshot(&contract),
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    append_jsonl(
+        &contract.receipts_path,
+        &json!({
+            "ts": now_iso(),
+            "type": "attention_queue_compact",
+            "run_context": out.get("run_context").cloned().unwrap_or(Value::String("compact".to_string())),
+            "retain": out.get("retain").cloned().unwrap_or(Value::Number(0.into())),
+            "min_acked": out.get("min_acked").cloned().unwrap_or(Value::Number(0.into())),
+            "compacted_count": out.get("compacted_count").cloned().unwrap_or(Value::Number(0.into())),
+            "queue_depth_before": out.get("queue_depth_before").cloned().unwrap_or(Value::Number(0.into())),
+            "queue_depth_after": out.get("queue_depth_after").cloned().unwrap_or(Value::Number(0.into())),
+            "receipt_hash": out.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string())),
+        }),
+    );
+    emit(&out);
+    0
+}
+
 fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     let contract = load_contract(root);
     let run_context = flags
@@ -1524,6 +1648,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "next" => next(root, &flags, false),
         "ack" => ack(root, &flags),
         "drain" => next(root, &flags, true),
+        "compact" => compact(root, &flags),
         _ => {
             usage();
             let mut out = json!({
@@ -1850,6 +1975,61 @@ mod tests {
 
         let cursor_state_after = load_cursor_state(&contract.cursor_state_path);
         assert_eq!(read_consumer_offset(&cursor_state_after, "cockpit"), 2);
+    }
+
+    #[test]
+    fn compact_trims_acked_prefix_and_rebases_offsets() {
+        let dir = tempdir().expect("tempdir");
+        write_policy(dir.path(), 64, "critical");
+
+        for idx in 0..5 {
+            let event = json!({
+                "ts": now_iso(),
+                "source": "dashboard_chat",
+                "source_type": "chat_turn",
+                "severity": "info",
+                "summary": format!("compact-event-{idx}"),
+                "attention_key": format!("compact-key-{idx}")
+            });
+            assert_eq!(enqueue_event(dir.path(), &event), 0);
+        }
+
+        let contract = load_contract(dir.path());
+        let (rows, _) = load_active_queue(&contract);
+        assert_eq!(rows.len(), 5);
+        let token = cursor_token_for_event(&contract, "dashboard-cockpit", 3, &rows[3]);
+
+        assert_eq!(
+            run(
+                dir.path(),
+                &[
+                    "ack".to_string(),
+                    "--consumer=dashboard-cockpit".to_string(),
+                    "--through-index=3".to_string(),
+                    format!("--cursor-token={token}"),
+                ],
+            ),
+            0
+        );
+
+        assert_eq!(
+            run(
+                dir.path(),
+                &[
+                    "compact".to_string(),
+                    "--retain=1".to_string(),
+                    "--min-acked=2".to_string(),
+                ],
+            ),
+            0
+        );
+
+        let queue = read_jsonl(&dir.path().join("local/state/attention/queue.jsonl"));
+        assert_eq!(queue.len(), 2);
+
+        let cursor_state =
+            load_cursor_state(&dir.path().join("local/state/attention/cursor_state.json"));
+        assert_eq!(read_consumer_offset(&cursor_state, "dashboard-cockpit"), 1);
     }
 
     #[test]

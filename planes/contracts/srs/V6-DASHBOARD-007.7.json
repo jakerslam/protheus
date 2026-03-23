@@ -1,30 +1,30 @@
 {
-  "id": "V6-DASHBOARD-007.4",
-  "upgrade": "Cockpit Stale-Block Timeout + Parallel Drain Assignment",
+  "id": "V6-DASHBOARD-007.7",
+  "upgrade": "Autonomous Runtime Self-Heal Cadence",
   "section": "Ops-Analyst Feedback Assimilation (March 2026)",
-  "impact": 9,
+  "impact": 10,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,
   "todo_bucket": "repair_lane",
   "execution_contract": {
     "runtime": "core/layer2/ops:srs_contract_runtime",
     "deterministic_receipt_required": true,
-    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-DASHBOARD-007.4/latest.json",
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-DASHBOARD-007.7/latest.json",
     "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
   },
   "deliverables": [
-    { "type": "contract", "path": "planes/contracts/srs/V6-DASHBOARD-007.4.json" },
+    { "type": "contract", "path": "planes/contracts/srs/V6-DASHBOARD-007.7.json" },
     { "type": "runtime", "path": "client/runtime/systems/ui/infring_dashboard.ts" },
     { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.js" }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-DASHBOARD-007.4",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-DASHBOARD-007.4",
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-DASHBOARD-007.7",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-DASHBOARD-007.7",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-23T01:30:00Z",
-    "notes": "Cockpit now exposes active versus total block counts and stale-block thresholds so remediation targets zombie lanes without masking live failures."
+    "notes": "Autonomous self-heal now includes low-queue conduit starvation guards, watchdog telemetry, and staged recovery escalation for multi-day unattended runtime."
   }
 }
