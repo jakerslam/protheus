@@ -71,7 +71,10 @@ mod tests {
         let _guard = env_lock().lock().expect("env lock");
         env::remove_var("CONDUIT_POLICY_PATH");
         let policy = load_policy().expect("default policy");
-        assert_eq!(policy.bridge_message_budget_max, conduit::MAX_CONDUIT_MESSAGE_TYPES);
+        assert_eq!(
+            policy.bridge_message_budget_max,
+            conduit::MAX_CONDUIT_MESSAGE_TYPES
+        );
     }
 
     #[test]

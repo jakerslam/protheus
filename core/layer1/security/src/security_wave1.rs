@@ -1218,8 +1218,8 @@ fn random_bytes(len: usize) -> Result<Vec<u8>, String> {
             .map_err(|err| format!("urandom_read_failed:{err}"))?,
         Err(_) => {
             let fallback = sha256_hex(&format!("{}:{}:{}", now_iso(), std::process::id(), len));
-            let decoded =
-                hex::decode(fallback).map_err(|err| format!("fallback_random_decode_failed:{err}"))?;
+            let decoded = hex::decode(fallback)
+                .map_err(|err| format!("fallback_random_decode_failed:{err}"))?;
             for (idx, byte) in out.iter_mut().enumerate() {
                 *byte = decoded[idx % decoded.len()];
             }
@@ -1239,7 +1239,8 @@ fn black_box_key(ledger_dir: &Path) -> Result<Vec<u8>, String> {
 
     let key_path = black_box_key_path(ledger_dir);
     if let Ok(raw) = fs::read_to_string(&key_path) {
-        let key = hex::decode(raw.trim()).map_err(|err| format!("ledger_key_file_invalid:{err}"))?;
+        let key =
+            hex::decode(raw.trim()).map_err(|err| format!("ledger_key_file_invalid:{err}"))?;
         if key.len() != 32 {
             return Err("ledger_key_file_must_be_32_bytes".to_string());
         }
@@ -1254,8 +1255,12 @@ fn black_box_key(ledger_dir: &Path) -> Result<Vec<u8>, String> {
 }
 
 fn black_box_open_db(ledger_dir: &Path) -> Result<Connection, String> {
-    fs::create_dir_all(ledger_dir)
-        .map_err(|err| format!("black_box_ledger_dir_create_failed:{}:{err}", ledger_dir.display()))?;
+    fs::create_dir_all(ledger_dir).map_err(|err| {
+        format!(
+            "black_box_ledger_dir_create_failed:{}:{err}",
+            ledger_dir.display()
+        )
+    })?;
     let db_path = black_box_sqlite_path(ledger_dir);
     let conn =
         Connection::open(&db_path).map_err(|err| format!("black_box_sqlite_open_failed:{err}"))?;
@@ -1283,7 +1288,8 @@ fn black_box_open_db(ledger_dir: &Path) -> Result<Connection, String> {
 }
 
 fn encrypt_ledger_details(key: &[u8], details: &Value) -> Result<(Vec<u8>, Vec<u8>), String> {
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
     let nonce = random_bytes(12)?;
     let plaintext = stable_json_string(details);
     let ciphertext = cipher
@@ -1293,18 +1299,16 @@ fn encrypt_ledger_details(key: &[u8], details: &Value) -> Result<(Vec<u8>, Vec<u
 }
 
 fn decrypt_ledger_details(key: &[u8], nonce: &[u8], ciphertext: &[u8]) -> Result<Value, String> {
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|err| format!("ledger_cipher_init_failed:{err}"))?;
     let plaintext = cipher
         .decrypt(Nonce::from_slice(nonce), ciphertext)
         .map_err(|err| format!("ledger_decrypt_failed:{err}"))?;
-    serde_json::from_slice::<Value>(&plaintext).map_err(|err| format!("ledger_details_json_invalid:{err}"))
+    serde_json::from_slice::<Value>(&plaintext)
+        .map_err(|err| format!("ledger_details_json_invalid:{err}"))
 }
 
-fn append_black_box_entry(
-    repo_root: &Path,
-    args: &CliArgs,
-    ledger_dir: &Path,
-) -> (Value, i32) {
+fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -> (Value, i32) {
     let actor = clean_text(
         args.flags
             .get("actor")
@@ -1430,7 +1434,12 @@ fn append_black_box_entry(
     let should_publish = latest_published
         .as_deref()
         .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
-        .map(|dt| Utc::now().signed_duration_since(dt.with_timezone(&Utc)).num_seconds() >= 60)
+        .map(|dt| {
+            Utc::now()
+                .signed_duration_since(dt.with_timezone(&Utc))
+                .num_seconds()
+                >= 60
+        })
         .unwrap_or(true);
     if should_publish {
         let root_hash = conn
@@ -1497,17 +1506,40 @@ fn verify_black_box_sqlite(ledger_dir: &Path) -> Result<Value, String> {
     let key = black_box_key(ledger_dir)?;
     let mut last_hash = "GENESIS".to_string();
     let mut last_seq = 0i64;
-    while let Some(row) = rows.next().map_err(|err| format!("sqlite_row_failed:{err}"))? {
-        let seq: i64 = row.get(0).map_err(|err| format!("sqlite_seq_failed:{err}"))?;
-        let ts: String = row.get(1).map_err(|err| format!("sqlite_ts_failed:{err}"))?;
-        let actor: String = row.get(2).map_err(|err| format!("sqlite_actor_failed:{err}"))?;
-        let action: String = row.get(3).map_err(|err| format!("sqlite_action_failed:{err}"))?;
-        let source: String = row.get(4).map_err(|err| format!("sqlite_source_failed:{err}"))?;
-        let stored_prev: String = row.get(5).map_err(|err| format!("sqlite_prev_failed:{err}"))?;
-        let entry_hash: String = row.get(6).map_err(|err| format!("sqlite_hash_failed:{err}"))?;
-        let signature: String = row.get(7).map_err(|err| format!("sqlite_signature_failed:{err}"))?;
-        let nonce: Vec<u8> = row.get(8).map_err(|err| format!("sqlite_nonce_failed:{err}"))?;
-        let ciphertext: Vec<u8> = row.get(9).map_err(|err| format!("sqlite_ciphertext_failed:{err}"))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|err| format!("sqlite_row_failed:{err}"))?
+    {
+        let seq: i64 = row
+            .get(0)
+            .map_err(|err| format!("sqlite_seq_failed:{err}"))?;
+        let ts: String = row
+            .get(1)
+            .map_err(|err| format!("sqlite_ts_failed:{err}"))?;
+        let actor: String = row
+            .get(2)
+            .map_err(|err| format!("sqlite_actor_failed:{err}"))?;
+        let action: String = row
+            .get(3)
+            .map_err(|err| format!("sqlite_action_failed:{err}"))?;
+        let source: String = row
+            .get(4)
+            .map_err(|err| format!("sqlite_source_failed:{err}"))?;
+        let stored_prev: String = row
+            .get(5)
+            .map_err(|err| format!("sqlite_prev_failed:{err}"))?;
+        let entry_hash: String = row
+            .get(6)
+            .map_err(|err| format!("sqlite_hash_failed:{err}"))?;
+        let signature: String = row
+            .get(7)
+            .map_err(|err| format!("sqlite_signature_failed:{err}"))?;
+        let nonce: Vec<u8> = row
+            .get(8)
+            .map_err(|err| format!("sqlite_nonce_failed:{err}"))?;
+        let ciphertext: Vec<u8> = row
+            .get(9)
+            .map_err(|err| format!("sqlite_ciphertext_failed:{err}"))?;
 
         if stored_prev != prev_hash {
             return Err(format!("sqlite_prev_hash_mismatch:seq={seq}"));
@@ -1678,9 +1710,9 @@ fn export_black_box_sqlite(ledger_dir: &Path, export_path: &Path) -> (Value, i32
             "details": details,
         }));
     }
-    let published_roots = match conn
-        .prepare("SELECT root_seq, root_hash, published_at FROM published_roots ORDER BY root_seq ASC")
-    {
+    let published_roots = match conn.prepare(
+        "SELECT root_seq, root_hash, published_at FROM published_roots ORDER BY root_seq ASC",
+    ) {
         Ok(mut stmt) => match stmt.query_map([], |row| {
             Ok(json!({
                 "root_seq": row.get::<_, i64>(0)?,
@@ -1737,14 +1769,26 @@ fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
     for entry in &entries {
         let seq = entry.get("seq").and_then(Value::as_u64).unwrap_or_default();
         let ts = entry.get("ts").and_then(Value::as_str).unwrap_or_default();
-        let actor = entry.get("actor").and_then(Value::as_str).unwrap_or_default();
-        let action = entry.get("action").and_then(Value::as_str).unwrap_or_default();
-        let source = entry.get("source").and_then(Value::as_str).unwrap_or_default();
+        let actor = entry
+            .get("actor")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let action = entry
+            .get("action")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let source = entry
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let stored_prev = entry
             .get("prev_hash")
             .and_then(Value::as_str)
             .unwrap_or("GENESIS");
-        let signature = entry.get("signature").and_then(Value::as_str).unwrap_or_default();
+        let signature = entry
+            .get("signature")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let stored_hash = entry
             .get("entry_hash")
             .and_then(Value::as_str)
@@ -2078,7 +2122,11 @@ pub fn run_black_box_ledger(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     .unwrap_or(Value::Null),
                 "encrypted_at_rest": sqlite_status.is_some(),
             }),
-            if !chain_rows.is_empty() || sqlite_status.is_some() { 0 } else { 1 },
+            if !chain_rows.is_empty() || sqlite_status.is_some() {
+                0
+            } else {
+                1
+            },
         )
     } else {
         (

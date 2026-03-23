@@ -1697,14 +1697,14 @@ fn now_ts_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
+        clean_lane_id, normalize_edge_prompt, summarize_for_edge_backend, validate_command,
+        validate_structure, CommandEnvelope, TsCommand,
+    };
+    use super::{
         conduit_message_contract_count, process_command, run_stdio_once,
         validate_conduit_contract_budget, ConduitPolicy, ConduitSecurityContext,
         EchoCommandHandler, KernelLaneCommandHandler, PolicyGate, RegistryPolicyGate, RustEvent,
         MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
-    };
-    use super::{
-        clean_lane_id, normalize_edge_prompt, summarize_for_edge_backend, validate_command,
-        validate_structure, CommandEnvelope, TsCommand,
     };
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
     use serde_json::Value;
@@ -1909,19 +1909,28 @@ mod tests {
             from_hash: Some("abc123".to_string()),
             limit: Some(0),
         });
-        assert_eq!(zero_limit.as_deref(), Some("receipt_query_limit_out_of_range"));
+        assert_eq!(
+            zero_limit.as_deref(),
+            Some("receipt_query_limit_out_of_range")
+        );
 
         let high_limit = validate_structure(&TsCommand::QueryReceiptChain {
             from_hash: Some("abc123".to_string()),
             limit: Some(1001),
         });
-        assert_eq!(high_limit.as_deref(), Some("receipt_query_limit_out_of_range"));
+        assert_eq!(
+            high_limit.as_deref(),
+            Some("receipt_query_limit_out_of_range")
+        );
 
         let missing_patch_id = validate_structure(&TsCommand::ApplyPolicyUpdate {
             patch_id: " ".to_string(),
             patch: serde_json::json!({"safe": true}),
         });
-        assert_eq!(missing_patch_id.as_deref(), Some("policy_patch_id_required"));
+        assert_eq!(
+            missing_patch_id.as_deref(),
+            Some("policy_patch_id_required")
+        );
 
         let unsafe_patch = validate_structure(&TsCommand::ApplyPolicyUpdate {
             patch_id: "runtime/unsafe".to_string(),
@@ -1966,10 +1975,7 @@ mod tests {
             summarize_for_edge_backend("a b c d e", 3),
             "a b c".to_string()
         );
-        assert_eq!(
-            summarize_for_edge_backend("a b", 3),
-            "a b".to_string()
-        );
+        assert_eq!(summarize_for_edge_backend("a b", 3), "a b".to_string());
     }
 
     #[test]
@@ -2087,8 +2093,7 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let script_path = temp.path().join("sleepy_bridge.sh");
         fs::write(&script_path, "#!/bin/sh\nsleep 2\n").expect("write script");
-        fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))
-            .expect("chmod script");
+        fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755)).expect("chmod script");
 
         std::env::set_var("PROTHEUS_OPS_BIN", script_path.display().to_string());
         std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "1000");
@@ -2121,11 +2126,17 @@ mod tests {
         std::env::set_var("COCKPIT_INBOX_LATEST_PATH", &cockpit_file);
 
         let missing = super::load_cockpit_summary(&root);
-        assert_eq!(missing.get("available").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            missing.get("available").and_then(Value::as_bool),
+            Some(false)
+        );
 
         fs::write(&cockpit_file, "{ invalid-json").expect("write invalid");
         let invalid = super::load_cockpit_summary(&root);
-        assert_eq!(invalid.get("available").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            invalid.get("available").and_then(Value::as_bool),
+            Some(false)
+        );
         assert_eq!(
             invalid.get("reason").and_then(Value::as_str),
             Some("cockpit_latest_invalid_json")
@@ -2187,11 +2198,12 @@ mod tests {
 
     #[test]
     fn ops_domain_message_rejects_missing_domain() {
-        let event = super::execute_edge_bridge_message(super::EdgeBridgeMessage::OpsDomainCommand {
-            domain: "  ".to_string(),
-            args: vec!["status".to_string()],
-            run_context: None,
-        });
+        let event =
+            super::execute_edge_bridge_message(super::EdgeBridgeMessage::OpsDomainCommand {
+                domain: "  ".to_string(),
+                args: vec!["status".to_string()],
+                run_context: None,
+            });
         match event {
             RustEvent::SystemFeedback {
                 status,
@@ -2199,10 +2211,7 @@ mod tests {
                 violation_reason,
             } => {
                 assert_eq!(status, "ops_domain_bridge_error");
-                assert_eq!(
-                    violation_reason.as_deref(),
-                    Some("missing_domain")
-                );
+                assert_eq!(violation_reason.as_deref(), Some("missing_domain"));
                 assert_eq!(
                     detail.get("reason").and_then(Value::as_str),
                     Some("missing_domain")
@@ -2264,9 +2273,7 @@ mod tests {
     #[test]
     fn registry_policy_denies_when_command_capability_mapping_cardinality_mismatches() {
         let mut policy = test_policy();
-        policy
-            .command_required_capabilities
-            .remove("start_agent");
+        policy.command_required_capabilities.remove("start_agent");
         let gate = RegistryPolicyGate::new(policy);
 
         let decision = gate.evaluate(&TsCommand::GetSystemStatus);
@@ -2280,9 +2287,7 @@ mod tests {
     #[test]
     fn registry_policy_denies_when_required_command_mapping_is_missing() {
         let mut policy = test_policy();
-        policy
-            .command_required_capabilities
-            .remove("start_agent");
+        policy.command_required_capabilities.remove("start_agent");
         policy.command_required_capabilities.insert(
             "synthetic_command".to_string(),
             "agent.lifecycle".to_string(),
@@ -2529,8 +2534,13 @@ mod tests {
             let gate = RegistryPolicyGate::new(policy_for_server.clone());
             let mut security = test_security(&policy_for_server);
             let mut handler = EchoCommandHandler;
-            super::run_unix_socket_server(&socket_path_for_server, &gate, &mut security, &mut handler)
-                .expect("unix socket server run");
+            super::run_unix_socket_server(
+                &socket_path_for_server,
+                &gate,
+                &mut security,
+                &mut handler,
+            )
+            .expect("unix socket server run");
         });
 
         let mut client = None;
@@ -2547,7 +2557,9 @@ mod tests {
         stream
             .write_all(format!("{envelope_json}\n").as_bytes())
             .expect("write command");
-        stream.shutdown(std::net::Shutdown::Write).expect("shutdown write");
+        stream
+            .shutdown(std::net::Shutdown::Write)
+            .expect("shutdown write");
 
         let mut response_line = String::new();
         let mut reader = BufReader::new(stream);

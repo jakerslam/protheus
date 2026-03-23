@@ -93,7 +93,10 @@ fn conduit_enforcement(argv: &[String], command: &str, strict: bool) -> Value {
 }
 
 fn state_dir(root: &Path) -> PathBuf {
-    root.join("local").join("state").join("ops").join("p2p_gossip_seed")
+    root.join("local")
+        .join("state")
+        .join("ops")
+        .join("p2p_gossip_seed")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -381,10 +384,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         });
         let challenge_id = deterministic_receipt_hash(&challenge);
         let mut contribution = contributions(root);
-        let existing = contribution.get(&node).cloned().unwrap_or_else(|| json!({
-            "proof_count": 0,
-            "total_credits": 0.0
-        }));
+        let existing = contribution.get(&node).cloned().unwrap_or_else(|| {
+            json!({
+                "proof_count": 0,
+                "total_credits": 0.0
+            })
+        });
         let prior_count = existing
             .get("proof_count")
             .and_then(Value::as_u64)

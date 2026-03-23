@@ -394,11 +394,7 @@ fn execute_contract_with_options(
         dispatch_results.push(row);
     }
     let dispatch_ok = dispatch_failed == 0;
-    let receipt_ok = if dispatch_strict {
-        dispatch_ok
-    } else {
-        true
-    };
+    let receipt_ok = if dispatch_strict { dispatch_ok } else { true };
 
     let receipt = with_hash(json!({
         "ok": receipt_ok,
@@ -774,13 +770,18 @@ printf '{"ok":true,"type":"mock_plane_status","plane":"%s"}\n' "$1"
 "#,
         );
 
-        std::env::set_var("PROTHEUS_SRS_DISPATCH_BIN", dispatch_bin.display().to_string());
+        std::env::set_var(
+            "PROTHEUS_SRS_DISPATCH_BIN",
+            dispatch_bin.display().to_string(),
+        );
         let receipt = execute_contract_with_options(root, id, true, true).expect("execute");
         std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            receipt.pointer("/dispatch/target_count").and_then(Value::as_u64),
+            receipt
+                .pointer("/dispatch/target_count")
+                .and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
@@ -801,10 +802,10 @@ printf '{"ok":true,"type":"mock_plane_status","plane":"%s"}\n' "$1"
             receipt
                 .get("claim_evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows
-                    .iter()
-                    .any(|row| row.get("id").and_then(Value::as_str)
-                        == Some("srs_contract_runtime_dispatch")))
+                .map(
+                    |rows| rows.iter().any(|row| row.get("id").and_then(Value::as_str)
+                        == Some("srs_contract_runtime_dispatch"))
+                )
                 .unwrap_or(false),
             "missing srs_contract_runtime_dispatch claim"
         );
@@ -844,7 +845,10 @@ exit 1
 "#,
         );
 
-        std::env::set_var("PROTHEUS_SRS_DISPATCH_BIN", dispatch_bin.display().to_string());
+        std::env::set_var(
+            "PROTHEUS_SRS_DISPATCH_BIN",
+            dispatch_bin.display().to_string(),
+        );
         let receipt = execute_contract_with_options(root, id, true, true).expect("execute");
         std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
 
@@ -888,7 +892,10 @@ printf '{"ok":false,"type":"mock_plane_status"}\n'
 exit 1
 "#,
         );
-        std::env::set_var("PROTHEUS_SRS_DISPATCH_BIN", dispatch_bin.display().to_string());
+        std::env::set_var(
+            "PROTHEUS_SRS_DISPATCH_BIN",
+            dispatch_bin.display().to_string(),
+        );
         let receipt = execute_contract(root, id).expect("execute");
         std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
 
