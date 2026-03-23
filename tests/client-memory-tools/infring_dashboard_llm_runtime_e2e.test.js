@@ -2,6 +2,7 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -12,6 +13,7 @@ const HOST = process.env.INFRING_DASHBOARD_HOST || '127.0.0.1';
 const BASE_PORT = Number(process.env.INFRING_DASHBOARD_PORT || 4340);
 const PORT = Number.isFinite(BASE_PORT) && BASE_PORT > 0 ? BASE_PORT : 4340;
 const BASE_URL = `http://${HOST}:${PORT}`;
+const COLLAB_TEAM_STATE = path.resolve(ROOT, 'core/local/state/ops/collab_plane/teams/ops.json');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,6 +21,18 @@ function sleep(ms) {
 
 function parseJson(text) {
   return JSON.parse(String(text || '').trim());
+}
+
+function authorityAgentShadows() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(COLLAB_TEAM_STATE, 'utf8'));
+    const agents = Array.isArray(parsed && parsed.agents) ? parsed.agents : [];
+    return agents
+      .map((row) => String(row && row.shadow ? row.shadow : '').trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchJson(url, init = {}, timeoutMs = 15000) {
@@ -642,6 +656,12 @@ async function run() {
     assert.strictEqual(agentsAfterArchive.status, 200, 'agents-after-archive should return 200');
     const agentRows = Array.isArray(agentsAfterArchive.body) ? agentsAfterArchive.body : [];
     summary.checks.archived_hidden_from_agent_list = !agentRows.some((row) => row && row.id === archiveShadow);
+    summary.checks.archived_removed_from_collab_authority = !authorityAgentShadows().includes(archiveShadow);
+    assert.strictEqual(
+      summary.checks.archived_removed_from_collab_authority,
+      true,
+      'archived agent should be removed from collab authority state'
+    );
 
     const archivedMessage = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}/message`, {
       method: 'POST',
@@ -741,6 +761,12 @@ async function run() {
       summary.checks.contract_timeout_auto_termination,
       true,
       'contract agent should auto-terminate by timeout and appear in terminated history'
+    );
+    summary.checks.contract_timeout_removed_from_collab_authority = !authorityAgentShadows().includes(contractShadow);
+    assert.strictEqual(
+      summary.checks.contract_timeout_removed_from_collab_authority,
+      true,
+      'timed-out contract agent should be removed from collab authority state'
     );
 
     const reviveContractAgent = await fetchJson(
