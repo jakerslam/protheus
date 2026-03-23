@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 const STATE_ENV: &str = "HERMES_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "hermes_plane";
@@ -693,6 +694,13 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
         if !latest.exists() {
             continue;
         }
+        let latest_mtime_ms = file_mtime_epoch_ms(&latest);
+        let conduit_history = entry.path().join("conduit").join("history.jsonl");
+        let conduit_history_mtime_ms = if conduit_history.exists() {
+            file_mtime_epoch_ms(&conduit_history)
+        } else {
+            0
+        };
         if let Some(payload) = read_json(&latest) {
             let ok = payload
                 .get("ok")
@@ -731,20 +739,30 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
                 "ok": ok,
                 "ts": ts,
                 "latest_path": latest.display().to_string(),
+                "latest_mtime_ms": latest_mtime_ms,
+                "has_conduit_history": conduit_history.exists(),
+                "conduit_history_mtime_ms": conduit_history_mtime_ms,
                 "payload": payload
             }));
         }
     }
     rows.sort_by(|a, b| {
-        let left = a.get("lane").and_then(Value::as_str).unwrap_or_default();
-        let right = b.get("lane").and_then(Value::as_str).unwrap_or_default();
-        left.cmp(right)
+        let left_mtime = a
+            .get("latest_mtime_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let right_mtime = b
+            .get("latest_mtime_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        right_mtime.cmp(&left_mtime).then_with(|| {
+            let left_lane = a.get("lane").and_then(Value::as_str).unwrap_or_default();
+            let right_lane = b.get("lane").and_then(Value::as_str).unwrap_or_default();
+            left_lane.cmp(right_lane)
+        })
     });
-    if rows.len() > max_blocks {
-        rows.split_off(rows.len().saturating_sub(max_blocks))
-    } else {
-        rows
-    }
+    rows.truncate(max_blocks);
+    rows
 }
 
 fn classify_tool_call(ty: &str) -> &'static str {
@@ -778,15 +796,36 @@ fn status_color(ok: bool, class: &str) -> &'static str {
     }
 }
 
-fn duration_from_ts_ms(ts: &str) -> u64 {
+fn parse_ts_epoch_ms(ts: &str) -> Option<u64> {
     let parsed = DateTime::parse_from_rfc3339(ts).ok();
-    let Some(parsed) = parsed else {
-        return 0;
-    };
-    let age = Utc::now()
-        .signed_duration_since(parsed.with_timezone(&Utc))
-        .num_milliseconds();
-    age.max(0) as u64
+    parsed
+        .map(|value| value.with_timezone(&Utc).timestamp_millis())
+        .and_then(|ms| u64::try_from(ms).ok())
+}
+
+fn file_mtime_epoch_ms(path: &Path) -> u64 {
+    fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis().min(u128::from(u64::MAX)) as u64)
+        .unwrap_or(0)
+}
+
+fn duration_from_epoch_ms(epoch_ms: u64) -> u64 {
+    let now_ms = Utc::now().timestamp_millis();
+    let now_ms = u64::try_from(now_ms).unwrap_or(0);
+    now_ms.saturating_sub(epoch_ms)
+}
+
+fn duration_from_ts_or_mtime_ms(ts: &str, latest_mtime_ms: u64) -> (u64, &'static str) {
+    if let Some(ts_ms) = parse_ts_epoch_ms(ts) {
+        return (duration_from_epoch_ms(ts_ms), "event_ts");
+    }
+    if latest_mtime_ms > 0 {
+        return (duration_from_epoch_ms(latest_mtime_ms), "latest_mtime");
+    }
+    (0, "unknown")
 }
 
 fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
@@ -832,9 +871,17 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .and_then(Value::as_u64)
             .unwrap_or(64),
     ) as usize;
+    let stale_block_threshold_ms = contract
+        .get("stale_block_threshold_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(90_000);
     let latest_rows = collect_recent_ops_latest(root, max_blocks);
 
     let mut blocks = Vec::<Value>::new();
+    let mut stale_block_count: usize = 0;
+    let mut active_block_count: usize = 0;
+    let mut conduit_signals_total: usize = 0;
+    let mut conduit_signals_active: usize = 0;
     for (idx, row) in latest_rows.iter().enumerate() {
         let lane = clean(
             row.get("lane").and_then(Value::as_str).unwrap_or("unknown"),
@@ -845,15 +892,46 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             120,
         );
         let row_ts = row.get("ts").and_then(Value::as_str).unwrap_or("");
+        let latest_mtime_ms = row
+            .get("latest_mtime_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let conduit_history_mtime_ms = row
+            .get("conduit_history_mtime_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let class = classify_tool_call(&ty).to_string();
         let payload = row.get("payload").cloned().unwrap_or(Value::Null);
+        let has_conduit_history = row
+            .get("has_conduit_history")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let conduit_enforced = payload.get("conduit_enforcement").is_some()
             || payload
                 .get("routed_via")
                 .and_then(Value::as_str)
                 .map(|v| v.eq_ignore_ascii_case("conduit"))
-                .unwrap_or(false);
+                .unwrap_or(false)
+            || has_conduit_history;
+        let (duration_ms, duration_source) = duration_from_ts_or_mtime_ms(row_ts, latest_mtime_ms);
+        let conduit_history_age_ms = if conduit_history_mtime_ms > 0 {
+            duration_from_epoch_ms(conduit_history_mtime_ms)
+        } else {
+            0
+        };
+        let is_stale = duration_ms >= stale_block_threshold_ms;
+        if is_stale {
+            stale_block_count += 1;
+        } else {
+            active_block_count += 1;
+        }
+        if conduit_enforced {
+            conduit_signals_total += 1;
+            if !is_stale {
+                conduit_signals_active += 1;
+            }
+        }
         let block = json!({
             "index": idx + 1,
             "lane": lane,
@@ -862,7 +940,12 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "status": if ok { "ok" } else { "fail" },
             "status_color": status_color(ok, classify_tool_call(&ty)),
             "conduit_enforced": conduit_enforced,
-            "duration_ms": duration_from_ts_ms(row_ts),
+            "duration_ms": duration_ms,
+            "duration_source": duration_source,
+            "is_stale": is_stale,
+            "stale_block_threshold_ms": stale_block_threshold_ms,
+            "latest_mtime_ms": latest_mtime_ms,
+            "conduit_history_age_ms": conduit_history_age_ms,
             "ts": row.get("ts").cloned().unwrap_or(Value::Null),
             "path": row.get("latest_path").cloned().unwrap_or(Value::Null)
         });
@@ -876,6 +959,14 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "ascii_header": "PROTHEUS TOP",
             "stream_blocks": blocks,
             "total_blocks": blocks.len()
+        },
+        "metrics": {
+            "active_block_count": active_block_count,
+            "stale_block_count": stale_block_count,
+            "stale_block_threshold_ms": stale_block_threshold_ms,
+            "conduit_signals_active": conduit_signals_active,
+            "conduit_signals_total": conduit_signals_total,
+            "conduit_channels_observed": conduit_signals_active
         },
         "generated_at": crate::now_iso()
     });
@@ -1101,6 +1192,93 @@ mod tests {
         assert!(
             row.get("duration_ms").and_then(Value::as_u64).unwrap_or(0) > 1_000,
             "duration_ms should reflect parsed timestamp age"
+        );
+    }
+
+    #[test]
+    fn cockpit_duration_falls_back_to_latest_mtime_when_ts_missing() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("mtime_lane");
+        let latest = lane_dir.join("latest.json");
+        let _ = write_json(
+            &latest,
+            &json!({
+                "ok": true,
+                "type": "mtime_task"
+            }),
+        );
+
+        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let out = run_cockpit(root.path(), &parsed, true);
+        let blocks = out["cockpit"]["render"]["stream_blocks"]
+            .as_array()
+            .expect("stream blocks");
+        let row = blocks
+            .iter()
+            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("mtime_lane"))
+            .expect("mtime lane block should be present");
+        assert_eq!(
+            row.get("duration_source").and_then(Value::as_str),
+            Some("latest_mtime")
+        );
+    }
+
+    #[test]
+    fn cockpit_metrics_include_active_and_stale_block_counts() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let stale_lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("stale_lane");
+        let fresh_lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("fresh_lane");
+        let _ = write_json(
+            &stale_lane_dir.join("latest.json"),
+            &json!({
+                "ok": true,
+                "type": "stale_task",
+                "ts": "2000-01-01T00:00:00.000Z"
+            }),
+        );
+        let _ = write_json(
+            &fresh_lane_dir.join("latest.json"),
+            &json!({
+                "ok": true,
+                "type": "fresh_task",
+                "ts": crate::now_iso()
+            }),
+        );
+
+        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let out = run_cockpit(root.path(), &parsed, true);
+        let metrics = out["cockpit"]["metrics"].clone();
+        assert!(
+            metrics
+                .get("stale_block_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            metrics
+                .get("active_block_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
         );
     }
 }
