@@ -58,10 +58,22 @@ const RUNTIME_INGRESS_DAMPEN_DEPTH = 40;
 const RUNTIME_INGRESS_SHED_DEPTH = 80;
 const RUNTIME_INGRESS_CIRCUIT_DEPTH = 100;
 const RUNTIME_INGRESS_DELAY_MS = 100;
-const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 10;
+const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
+const RUNTIME_ATTENTION_DRAIN_MIN_BATCH = 16;
+const RUNTIME_ATTENTION_DRAIN_MAX_BATCH = 96;
+const RUNTIME_ATTENTION_COMPACT_DEPTH = 90;
+const RUNTIME_ATTENTION_COMPACT_RETAIN = 24;
+const RUNTIME_ATTENTION_COMPACT_MIN_ACKED = 16;
+const RUNTIME_AUTONOMY_HEAL_INTERVAL_MS = 15_000;
+const RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS = 5_000;
+const RUNTIME_STALL_WINDOW = 6;
+const RUNTIME_STALL_CONDUIT_FLOOR = 6;
+const RUNTIME_STALL_QUEUE_MIN_DEPTH = 60;
+const RUNTIME_STALL_ESCALATION_FAILURE_THRESHOLD = 3;
+const RUNTIME_STALL_DRAIN_LIMIT = 96;
 const DASHBOARD_BENCHMARK_STALE_SECONDS = 48 * 60 * 60;
 const RUNTIME_TREND_WINDOW = 120;
 const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
@@ -1254,6 +1266,13 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
         0,
         100000000
       );
+      const cockpitTotalBlocks = parseNonNegativeInt(
+        snap && snap.cockpit && snap.cockpit.total_block_count != null
+          ? snap.cockpit.total_block_count
+          : cockpitBlocks,
+        cockpitBlocks,
+        100000000
+      );
       const conduitSignals = parseNonNegativeInt(
         snap &&
         snap.attention_queue &&
@@ -1293,8 +1312,8 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
         100000000
       );
       const response = asksClientLayerSummary
-        ? `Client layer now: memory entries ${memoryEntries}, receipts ${receiptCount}, logs ${logCount}, health checks ${healthChecks}, attention queue depth ${queueDepth}, cockpit blocks ${cockpitBlocks}, conduit signals ${conduitSignals}.`
-        : `Current queue depth: ${queueDepth}, cockpit blocks: ${cockpitBlocks}, conduit signals: ${conduitSignals}. Attention queue is ${attentionReadable}.`;
+        ? `Client layer now: memory entries ${memoryEntries}, receipts ${receiptCount}, logs ${logCount}, health checks ${healthChecks}, attention queue depth ${queueDepth}, cockpit blocks ${cockpitBlocks} active (${cockpitTotalBlocks} total), conduit signals ${conduitSignals}.`
+        : `Current queue depth: ${queueDepth}, cockpit blocks: ${cockpitBlocks} active (${cockpitTotalBlocks} total), conduit signals: ${conduitSignals}. Attention queue is ${attentionReadable}.`;
       return {
         response,
         tools: [
@@ -1302,7 +1321,7 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
             id: `tool-${Date.now()}-det-runtime-sync`,
             name: 'api.dashboard.snapshot',
             input: '/api/dashboard/snapshot',
-            result: `queue_depth=${queueDepth};cockpit_blocks=${cockpitBlocks};conduit_signals=${conduitSignals};memory_entries=${memoryEntries};receipts=${receiptCount};logs=${logCount};health_checks=${healthChecks}`,
+            result: `queue_depth=${queueDepth};cockpit_blocks_active=${cockpitBlocks};cockpit_blocks_total=${cockpitTotalBlocks};conduit_signals=${conduitSignals};memory_entries=${memoryEntries};receipts=${receiptCount};logs=${logCount};health_checks=${healthChecks}`,
             is_error: false,
             running: false,
             expanded: false,
@@ -1891,9 +1910,15 @@ function runtimeContextPrompt(snapshot, runtimeMirror = null) {
     0,
     100000000
   );
+  const cockpitActiveBlocks = parseNonNegativeInt(cockpit && cockpit.block_count, blocks.length, 100000000);
+  const cockpitTotalBlocks = parseNonNegativeInt(
+    cockpit && cockpit.total_block_count != null ? cockpit.total_block_count : blocks.length,
+    blocks.length,
+    100000000
+  );
   return [
     `Queue depth: ${queueDepth}`,
-    `Cockpit blocks: ${parseNonNegativeInt(cockpit.block_count, blocks.length, 100000000)}`,
+    `Cockpit blocks: ${cockpitActiveBlocks} active / ${cockpitTotalBlocks} total`,
     `Cockpit stale blocks (> ${RUNTIME_COCKPIT_STALE_BLOCK_MS}ms): ${staleCockpitBlocks}`,
     `Conduit signals: ${conduitSignals}`,
     `Conduit target signals: ${targetConduitSignals}${conduitScaleRequired ? ' (scale-up recommended)' : ''}`,
@@ -2937,6 +2962,15 @@ let conduitWatchdogState = {
   last_success_at: '',
   failure_count: 0,
 };
+let runtimeAutohealState = {
+  last_run_ms: 0,
+  last_run_at: '',
+  last_result: 'idle',
+  failure_count: 0,
+  last_stage: 'idle',
+  last_stall_detected: false,
+  last_stall_signature: '',
+};
 let ingressControllerState = {
   level: 'normal',
   reject_non_critical: false,
@@ -3398,6 +3432,157 @@ function recordRuntimeTrend(sample) {
     runtimeTrendSeries = runtimeTrendSeries.slice(-RUNTIME_TREND_WINDOW);
   }
   return runtimeTrendSeries;
+}
+
+function queueDepthVelocity(samples = []) {
+  const rows = Array.isArray(samples) ? samples.slice(-6) : [];
+  if (rows.length < 2) return 0;
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  const start = parseNonNegativeInt(first && first.queue_depth != null ? first.queue_depth : 0, 0, 100000000);
+  const end = parseNonNegativeInt(last && last.queue_depth != null ? last.queue_depth : 0, 0, 100000000);
+  const startTs = Date.parse(cleanText(first && first.ts ? first.ts : '', 80));
+  const endTs = Date.parse(cleanText(last && last.ts ? last.ts : '', 80));
+  if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs <= startTs) {
+    return end - start;
+  }
+  const minutes = Math.max(0.01, (endTs - startTs) / 60000);
+  return Number(((end - start) / minutes).toFixed(3));
+}
+
+function isFlatline(values = []) {
+  if (!Array.isArray(values) || values.length < 2) return false;
+  const normalized = values.map((row) => Number(row));
+  if (normalized.some((row) => !Number.isFinite(row))) return false;
+  const first = normalized[0];
+  return normalized.every((row) => row === first);
+}
+
+function runtimeStallSignals(runtime, samples = []) {
+  const rows = Array.isArray(samples) ? samples.slice(-RUNTIME_STALL_WINDOW) : [];
+  if (rows.length < RUNTIME_STALL_WINDOW) {
+    return {
+      detected: false,
+      queue_not_improving: false,
+      conduit_flat_low: false,
+      cockpit_flatline: false,
+      stale_blocks_present: false,
+      signature: 'insufficient_samples',
+      window: rows.length,
+    };
+  }
+  const queueValues = rows.map((row) => parseNonNegativeInt(row && row.queue_depth != null ? row.queue_depth : 0, 0, 100000000));
+  const conduitValues = rows.map((row) => parseNonNegativeInt(row && row.conduit_signals != null ? row.conduit_signals : 0, 0, 100000000));
+  const cockpitValues = rows.map((row) => parseNonNegativeInt(row && row.cockpit_blocks != null ? row.cockpit_blocks : 0, 0, 100000000));
+  const staleValues = rows.map((row) =>
+    parseNonNegativeInt(row && row.cockpit_stale_blocks != null ? row.cockpit_stale_blocks : 0, 0, 100000000)
+  );
+  const queueNow = parseNonNegativeInt(runtime && runtime.queue_depth, queueValues[queueValues.length - 1], 100000000);
+  const signalFloor = Math.max(
+    RUNTIME_STALL_CONDUIT_FLOOR,
+    Math.floor(Math.max(1, parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128)) * 0.5)
+  );
+  const queueNotImproving =
+    queueValues[queueValues.length - 1] >= queueValues[0] &&
+    queueValues[queueValues.length - 1] >= RUNTIME_STALL_QUEUE_MIN_DEPTH;
+  const conduitFlatLow =
+    isFlatline(conduitValues) &&
+    Math.max(...conduitValues) <= signalFloor &&
+    queueNow >= RUNTIME_STALL_QUEUE_MIN_DEPTH;
+  const cockpitFlatline = isFlatline(cockpitValues) && Math.max(...cockpitValues) > 0;
+  const staleBlocksPresent = Math.max(...staleValues) > 0;
+  const detected = (queueNotImproving && conduitFlatLow && cockpitFlatline) || staleBlocksPresent;
+  return {
+    detected,
+    queue_not_improving: queueNotImproving,
+    conduit_flat_low: conduitFlatLow,
+    cockpit_flatline: cockpitFlatline,
+    stale_blocks_present: staleBlocksPresent,
+    signature: `q:${queueValues.join(',')}|c:${conduitValues.join(',')}|b:${cockpitValues.join(',')}|s:${staleValues.join(',')}`,
+    window: rows.length,
+    signal_floor: signalFloor,
+  };
+}
+
+function runStallRecovery(runtime, team) {
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const drainLimit = Math.min(
+    RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+    Math.max(RUNTIME_STALL_DRAIN_LIMIT, Math.ceil(queueDepth / 2))
+  );
+  const drainLane = runLane([
+    'attention-queue',
+    'drain',
+    `--consumer=${ATTENTION_CONSUMER_ID}`,
+    `--limit=${drainLimit}`,
+    '--wait-ms=0',
+    '--run-context=runtime_stall_recovery',
+  ]);
+  const compactLane = runLane([
+    'attention-queue',
+    'compact',
+    `--retain=${RUNTIME_ATTENTION_COMPACT_RETAIN}`,
+    `--min-acked=${RUNTIME_ATTENTION_COMPACT_MIN_ACKED}`,
+    '--run-context=runtime_stall_recovery',
+  ]);
+  const throttleLane = runLane([
+    'collab-plane',
+    'throttle',
+    `--team=${normalizedTeam}`,
+    `--plane=${RUNTIME_THROTTLE_PLANE}`,
+    '--max-depth=50',
+    `--strategy=${RUNTIME_THROTTLE_STRATEGY}`,
+    '--strict=1',
+  ]);
+  const roleLane = runLane([
+    'collab-plane',
+    'launch-role',
+    `--team=${normalizedTeam}`,
+    '--role=builder',
+    `--shadow=${normalizedTeam}-stall-heal`,
+    '--strict=1',
+  ]);
+  const ok = !!(
+    drainLane && drainLane.ok &&
+    compactLane && compactLane.ok &&
+    throttleLane && throttleLane.ok &&
+    roleLane && roleLane.ok
+  );
+  return {
+    ok,
+    lanes: {
+      drain: laneOutcome(drainLane),
+      compact: laneOutcome(compactLane),
+      throttle: laneOutcome(throttleLane),
+      role: laneOutcome(roleLane),
+    },
+    drain_limit: drainLimit,
+  };
+}
+
+function runtimeAutohealTelemetry() {
+  return {
+    last_run_at: cleanText(runtimeAutohealState.last_run_at || '', 80),
+    last_result: cleanText(runtimeAutohealState.last_result || 'idle', 40) || 'idle',
+    failure_count: parseNonNegativeInt(runtimeAutohealState.failure_count, 0, 100000000),
+    last_stage: cleanText(runtimeAutohealState.last_stage || 'idle', 40) || 'idle',
+    stall_detected: !!runtimeAutohealState.last_stall_detected,
+    stall_signature: cleanText(runtimeAutohealState.last_stall_signature || '', 240),
+    cadence_ms: {
+      normal: RUNTIME_AUTONOMY_HEAL_INTERVAL_MS,
+      emergency: RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS,
+    },
+    conduit_watchdog: {
+      low_signals_since_ms: parseNonNegativeInt(conduitWatchdogState.low_signals_since_ms, 0, 1000000000000),
+      last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
+      last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
+      failure_count: parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000),
+      min_signal_floor: RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS,
+      stale_ms: RUNTIME_CONDUIT_WATCHDOG_STALE_MS,
+      cooldown_ms: RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS,
+    },
+  };
 }
 
 function benchmarkSanitySnapshot() {
@@ -4115,8 +4300,10 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
       attention_enqueue_ok: !!(attentionEnqueue && attentionEnqueue.ok),
       queue_depth: runtimeMirror.summary.queue_depth,
       cockpit_blocks: runtimeMirror.summary.cockpit_blocks,
+      cockpit_total_blocks: parseNonNegativeInt(runtimeMirror.summary.cockpit_total_blocks, runtimeMirror.summary.cockpit_blocks, 100000000),
       attention_batch_count: runtimeMirror.summary.attention_batch_count,
       conduit_signals: runtimeMirror.summary.conduit_signals,
+      conduit_signals_raw: parseNonNegativeInt(runtimeMirror.summary.conduit_signals_raw, runtimeMirror.summary.conduit_signals, 100000000),
       conduit_channels_observed: runtimeMirror.summary.conduit_channels_observed,
       target_conduit_signals: runtimeMirror.summary.target_conduit_signals,
       conduit_scale_required: !!runtimeMirror.summary.conduit_scale_required,
@@ -4417,6 +4604,13 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
   const staleCockpitBlocks = blocks.filter(
     (row) => parseNonNegativeInt(row && row.duration_ms, 0, 3600000) >= RUNTIME_COCKPIT_STALE_BLOCK_MS
   );
+  const activeCockpitBlocks = blocks.filter((row) => {
+    const duration = parseNonNegativeInt(row && row.duration_ms, 0, 3600000);
+    const status = cleanText(row && row.status ? row.status : 'unknown', 24).toLowerCase();
+    if (status === 'fail' || status === 'error' || status === 'critical') return true;
+    return duration < RUNTIME_COCKPIT_STALE_BLOCK_MS;
+  });
+  const activeCockpitBlockCount = activeCockpitBlocks.length;
   const eventsFull = compactAttentionEvents(eventsRaw, ATTENTION_CRITICAL_LIMIT);
   const eventSplitRaw = splitAttentionEvents(eventsFull);
   const queueDepth = parsePositiveInt(
@@ -4549,7 +4743,7 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       24
     ).toLowerCase() || 'critical';
   const queueUtilization = maxQueueDepth > 0 ? Number((queueDepth / maxQueueDepth).toFixed(6)) : 0;
-  const targetConduitSignals = recommendedConduitSignals(queueDepth, queueUtilization, blocks.length);
+  const targetConduitSignals = recommendedConduitSignals(queueDepth, queueUtilization, activeCockpitBlockCount);
   const syncMode =
     queueDepth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH
       ? 'batch_sync'
@@ -4570,7 +4764,7 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       ? 'elevated'
       : 'normal';
   const conduitScaleRequired = conduitChannelsObserved < targetConduitSignals;
-  const cockpitConduitRatio = Number((blocks.length / Math.max(1, conduitChannelsObserved)).toFixed(3));
+  const cockpitConduitRatio = Number((activeCockpitBlockCount / Math.max(1, conduitChannelsObserved)).toFixed(3));
   const cockpitRollups = cockpitMetrics(blocks);
   const benchmarkTruth = benchmarkSanitySnapshot();
   const benchmarkBlock = blocks.find((row) => cleanText(row && row.lane ? row.lane : '', 80) === 'benchmark_sanity');
@@ -4590,7 +4784,8 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     queue_depth: queueDepth,
     conduit_signals: conduitSignals,
     conduit_channels_observed: conduitChannelsObserved,
-    cockpit_blocks: blocks.length,
+    cockpit_blocks: activeCockpitBlockCount,
+    cockpit_total_blocks: blocks.length,
     cockpit_stale_blocks: staleCockpitBlocks.length,
     critical_attention: priorityCounts.critical,
     telemetry_attention: eventSplit.counts.telemetry,
@@ -4615,12 +4810,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     },
     cockpit: {
       blocks,
-      block_count: blocks.length,
+      block_count: activeCockpitBlockCount,
+      active_block_count: activeCockpitBlockCount,
+      total_block_count: blocks.length,
       metrics: {
         ...cockpitRollups,
         conduit_signals: conduitSignals,
         conduit_channels_observed: conduitChannelsObserved,
         benchmark_sanity_status: benchmarkCockpitStatus,
+        active_block_count: activeCockpitBlockCount,
+        total_block_count: blocks.length,
         stale_block_count: staleCockpitBlocks.length,
         stale_block_threshold_ms: RUNTIME_COCKPIT_STALE_BLOCK_MS,
       },
@@ -4631,6 +4830,21 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     },
     attention_queue: {
       queue_depth: queueDepth,
+      cursor_offset: parseNonNegativeInt(
+        attentionNextPayload && attentionNextPayload.cursor_offset != null
+          ? attentionNextPayload.cursor_offset
+          : 0,
+        0,
+        100000000
+      ),
+      cursor_offset_after: parseNonNegativeInt(
+        attentionNextPayload && attentionNextPayload.cursor_offset_after != null
+          ? attentionNextPayload.cursor_offset_after
+          : 0,
+        0,
+        100000000
+      ),
+      acked_batch: !!(attentionNextPayload && attentionNextPayload.acked === true),
       batch_count: parsePositiveInt(attentionNextPayload && attentionNextPayload.batch_count, 0, 0, ATTENTION_CRITICAL_LIMIT),
       events,
       critical_events: criticalEventsMerged,
@@ -4665,6 +4879,9 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
         deferred_hard_shed_threshold: ATTENTION_DEFERRED_HARD_SHED_DEPTH,
         deferred_rehydrate_threshold: ATTENTION_DEFERRED_REHYDRATE_DEPTH,
         deferred_rehydrate_batch: ATTENTION_DEFERRED_REHYDRATE_BATCH,
+        conduit_signals: Math.max(conduitSignals, conduitChannelsObserved),
+        conduit_signals_raw: conduitSignals,
+        conduit_channels_observed: conduitChannelsObserved,
         target_conduit_signals: targetConduitSignals,
         scale_required: conduitScaleRequired,
         cockpit_to_conduit_ratio: cockpitConduitRatio,
@@ -4697,9 +4914,25 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     },
     summary: {
       queue_depth: queueDepth,
-      cockpit_blocks: blocks.length,
+      attention_cursor_offset: parseNonNegativeInt(
+        attentionNextPayload && attentionNextPayload.cursor_offset != null
+          ? attentionNextPayload.cursor_offset
+          : 0,
+        0,
+        100000000
+      ),
+      attention_cursor_offset_after: parseNonNegativeInt(
+        attentionNextPayload && attentionNextPayload.cursor_offset_after != null
+          ? attentionNextPayload.cursor_offset_after
+          : 0,
+        0,
+        100000000
+      ),
+      cockpit_blocks: activeCockpitBlockCount,
+      cockpit_total_blocks: blocks.length,
       attention_batch_count: events.length,
-      conduit_signals: conduitSignals,
+      conduit_signals: Math.max(conduitSignals, conduitChannelsObserved),
+      conduit_signals_raw: conduitSignals,
       conduit_channels_observed: conduitChannelsObserved,
       target_conduit_signals: targetConduitSignals,
       conduit_scale_required: conduitScaleRequired,
@@ -4832,6 +5065,7 @@ function buildSnapshot(opts = {}) {
     opts && opts.contract_enforcement ? opts.contract_enforcement : null
   );
   snapshot.runtime_recommendation = runtimeSwarmRecommendation(snapshot);
+  snapshot.runtime_autoheal = runtimeAutohealTelemetry();
   const receiptHash = sha256(JSON.stringify(snapshot));
   return { ...snapshot, receipt_hash: receiptHash };
 }
@@ -4865,11 +5099,36 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
-  const conduitSignals = cockpitBlocks.filter((row) => {
+  const attentionCursorOffset = parseNonNegativeInt(
+    snapshot && snapshot.attention_queue && snapshot.attention_queue.cursor_offset != null
+      ? snapshot.attention_queue.cursor_offset
+      : 0,
+    0,
+    100000000
+  );
+  const attentionCursorOffsetAfter = parseNonNegativeInt(
+    snapshot && snapshot.attention_queue && snapshot.attention_queue.cursor_offset_after != null
+      ? snapshot.attention_queue.cursor_offset_after
+      : attentionCursorOffset,
+    attentionCursorOffset,
+    100000000
+  );
+  const conduitSignalsRaw = cockpitBlocks.filter((row) => {
     const lane = String(row && row.lane ? row.lane : '').toLowerCase();
     const eventType = String(row && row.event_type ? row.event_type : '').toLowerCase();
     return lane.includes('conduit') || eventType.includes('conduit') || !!(row && row.conduit_enforced);
   }).length;
+  const conduitSignalsObserved = parseNonNegativeInt(
+    snapshot &&
+      snapshot.cockpit &&
+      snapshot.cockpit.metrics &&
+      snapshot.cockpit.metrics.conduit_channels_observed != null
+      ? snapshot.cockpit.metrics.conduit_channels_observed
+      : conduitSignalsRaw,
+    conduitSignalsRaw,
+    100000000
+  );
+  const conduitSignals = Math.max(conduitSignalsRaw, conduitSignalsObserved);
   const attentionBatch = parseNonNegativeInt(
     snapshot && snapshot.attention_queue && snapshot.attention_queue.batch_count != null
       ? snapshot.attention_queue.batch_count
@@ -5016,9 +5275,20 @@ function runtimeSyncSummary(snapshot) {
       : 'normal';
   return {
     queue_depth: queueDepth,
+    attention_cursor_offset: attentionCursorOffset,
+    attention_cursor_offset_after: attentionCursorOffsetAfter,
+    attention_unacked_depth: Math.max(0, queueDepth - attentionCursorOffset),
     cockpit_blocks: parseNonNegativeInt(snapshot && snapshot.cockpit && snapshot.cockpit.block_count, cockpitBlocks.length, 100000000),
+    cockpit_total_blocks: parseNonNegativeInt(
+      snapshot && snapshot.cockpit && snapshot.cockpit.total_block_count != null
+        ? snapshot.cockpit.total_block_count
+        : cockpitBlocks.length,
+      cockpitBlocks.length,
+      100000000
+    ),
     attention_batch_count: attentionBatch,
     conduit_signals: conduitSignals,
+    conduit_signals_raw: conduitSignalsRaw,
     conduit_channels_observed: conduitChannelsObserved,
     target_conduit_signals: targetConduitSignals,
     conduit_scale_required: conduitScaleRequired,
@@ -5955,35 +6225,56 @@ function classifyIngressControl(runtime) {
 function maybeAutoHealConduit(runtime, team) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const signals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
+  const staleCockpitBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
   const threshold = Math.max(
     parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128),
     RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS
   );
-  const required = queueDepth > RUNTIME_DRAIN_TRIGGER_DEPTH && signals < threshold;
+  const lowSignals = signals < threshold;
   const nowMs = Date.now();
-  if (!required) {
+  if (!lowSignals) {
     conduitWatchdogState = {
       ...conduitWatchdogState,
       low_signals_since_ms: 0,
     };
+  }
+  const lowSince = lowSignals
+    ? conduitWatchdogState.low_signals_since_ms > 0
+      ? conduitWatchdogState.low_signals_since_ms
+      : nowMs
+    : 0;
+  if (lowSignals) {
+    conduitWatchdogState.low_signals_since_ms = lowSince;
+  }
+  const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
+  const required = lowSignals && (
+    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+    queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
+    staleCockpitBlocks > 0 ||
+    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS
+  );
+  if (!required) {
     return {
       required: false,
       triggered: false,
-      recovered: true,
+      recovered: !lowSignals,
       queue_depth: queueDepth,
       conduit_signals: signals,
+      stale_cockpit_blocks: staleCockpitBlocks,
+      low_signal: lowSignals,
       threshold,
-      stale_for_ms: 0,
+      stale_for_ms: staleForMs,
       lane: null,
       last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
       last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
     };
   }
-  const lowSince = conduitWatchdogState.low_signals_since_ms > 0 ? conduitWatchdogState.low_signals_since_ms : nowMs;
-  const staleForMs = Math.max(0, nowMs - lowSince);
-  conduitWatchdogState.low_signals_since_ms = lowSince;
+  const triggerReady =
+    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
+    staleCockpitBlocks > 0 ||
+    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const canAttempt =
-    staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS &&
+    triggerReady &&
     (nowMs - parseNonNegativeInt(conduitWatchdogState.last_attempt_ms, 0, 1000000000000)) >=
       RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS;
   if (!canAttempt) {
@@ -5992,6 +6283,8 @@ function maybeAutoHealConduit(runtime, team) {
       triggered: false,
       queue_depth: queueDepth,
       conduit_signals: signals,
+      stale_cockpit_blocks: staleCockpitBlocks,
+      low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
       lane: null,
@@ -5999,15 +6292,51 @@ function maybeAutoHealConduit(runtime, team) {
       last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
     };
   }
-  const lane = runLane([
-    'conduit',
-    'auto-balance',
-    `--team=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}`,
-    `--threshold=${threshold}`,
-    '--action=spawn-researcher',
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const drainLimit = Math.min(
+    RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+    Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
+  );
+  const drainLane = runLane([
+    'attention-queue',
+    'drain',
+    `--consumer=${ATTENTION_CONSUMER_ID}`,
+    `--limit=${drainLimit}`,
+    '--wait-ms=0',
+    '--run-context=runtime_conduit_watchdog',
+  ]);
+  const cursorOffset = parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000);
+  let compactLane = null;
+  if (queueDepth >= RUNTIME_ATTENTION_COMPACT_DEPTH && cursorOffset >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED) {
+    compactLane = runLane([
+      'attention-queue',
+      'compact',
+      `--retain=${RUNTIME_ATTENTION_COMPACT_RETAIN}`,
+      `--min-acked=${RUNTIME_ATTENTION_COMPACT_MIN_ACKED}`,
+      '--run-context=runtime_conduit_watchdog',
+    ]);
+  }
+  const healthLane = runLane(['health-status', 'dashboard']);
+  const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
+  const roleLane = runLane([
+    'collab-plane',
+    'launch-role',
+    `--team=${normalizedTeam}`,
+    '--role=researcher',
+    `--shadow=${normalizedTeam}-conduit-watchdog`,
     '--strict=1',
   ]);
-  const ok = !!(lane && lane.ok && lane.payload && lane.payload.ok !== false);
+  const ok = !!(
+    drainLane &&
+    drainLane.ok &&
+    healthLane &&
+    healthLane.ok &&
+    cockpitLane &&
+    cockpitLane.ok &&
+    roleLane &&
+    roleLane.ok &&
+    (compactLane == null || compactLane.ok)
+  );
   conduitWatchdogState.last_attempt_ms = nowMs;
   conduitWatchdogState.last_attempt_at = nowIso();
   if (ok) {
@@ -6024,10 +6353,20 @@ function maybeAutoHealConduit(runtime, team) {
     applied: ok,
     queue_depth: queueDepth,
     conduit_signals: signals,
+    stale_cockpit_blocks: staleCockpitBlocks,
+    low_signal: lowSignals,
     threshold,
     stale_for_ms: staleForMs,
     failure_count: parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000),
-    lane: laneOutcome(lane),
+    lane: laneOutcome(drainLane),
+    lanes: {
+      drain: laneOutcome(drainLane),
+      compact: compactLane ? laneOutcome(compactLane) : null,
+      health: laneOutcome(healthLane),
+      cockpit: laneOutcome(cockpitLane),
+      role: laneOutcome(roleLane),
+    },
+    drain_limit: drainLimit,
     last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
     last_success_at: cleanText(conduitWatchdogState.last_success_at || '', 80),
   };
@@ -6077,6 +6416,89 @@ function maybeApplyRuntimeThrottle(runtime, team) {
     ingress_control: ingress,
     max_depth: dynamicMaxDepth,
     lane: laneOutcome(lane),
+  };
+}
+
+function maybeDrainAttentionQueue(runtime) {
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const unackedDepth = parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 100000000);
+  const required =
+    queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+    unackedDepth >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED * 2 ||
+    cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit';
+  const limit = Math.min(
+    RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+    Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
+  );
+  const command = [
+    'attention-queue',
+    'drain',
+    `--consumer=${ATTENTION_CONSUMER_ID}`,
+    `--limit=${limit}`,
+    '--wait-ms=0',
+    '--run-context=runtime_attention_autodrain',
+  ];
+  if (!required) {
+    return {
+      required: false,
+      applied: false,
+      command: `protheus-ops ${command.join(' ')}`,
+      lane: null,
+      drained_count: 0,
+    };
+  }
+  const lane = runLane(command);
+  const drainedCount = parseNonNegativeInt(
+    lane && lane.payload && lane.payload.batch_count != null ? lane.payload.batch_count : 0,
+    0,
+    100000000
+  );
+  return {
+    required: true,
+    applied: !!(lane && lane.ok && lane.payload && lane.payload.ok !== false),
+    command: `protheus-ops ${command.join(' ')}`,
+    limit,
+    drained_count: drainedCount,
+    lane: laneOutcome(lane),
+  };
+}
+
+function maybeCompactAttentionQueue(runtime) {
+  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const cursorOffset = parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000);
+  const required =
+    queueDepth >= RUNTIME_ATTENTION_COMPACT_DEPTH &&
+    cursorOffset >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED;
+  const command = [
+    'attention-queue',
+    'compact',
+    `--retain=${RUNTIME_ATTENTION_COMPACT_RETAIN}`,
+    `--min-acked=${RUNTIME_ATTENTION_COMPACT_MIN_ACKED}`,
+    '--run-context=runtime_attention_autocompact',
+  ];
+  if (!required) {
+    return {
+      required: false,
+      applied: false,
+      command: `protheus-ops ${command.join(' ')}`,
+      compacted_count: 0,
+      lane: null,
+    };
+  }
+  const lane = runLane(command);
+  const compactedCount = parseNonNegativeInt(
+    lane && lane.payload && lane.payload.compacted_count != null ? lane.payload.compacted_count : 0,
+    0,
+    100000000
+  );
+  return {
+    required: true,
+    applied: !!(lane && lane.ok && lane.payload && lane.payload.ok !== false),
+    command: `protheus-ops ${command.join(' ')}`,
+    compacted_count: compactedCount,
+    lane: laneOutcome(lane),
+    retain: RUNTIME_ATTENTION_COMPACT_RETAIN,
+    min_acked: RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
   };
 }
 
@@ -6248,6 +6670,9 @@ function runtimeSwarmRecommendation(snapshot) {
     adaptive_health_window_seconds: RUNTIME_HEALTH_ADAPTIVE_WINDOW_SECONDS,
     conduit_autobalance_required: conduitAutoBalanceRequired,
     conduit_autobalance_threshold: RUNTIME_AUTO_BALANCE_THRESHOLD,
+    conduit_autobalance_command:
+      `protheus-ops collab-plane launch-role --team=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}` +
+      ` --role=researcher --shadow=${cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}-conduit-watchdog --strict=1`,
     memory_resume_eligible: memoryResumeEligible,
     predictive_drain_required: predictiveDrainRequired,
     predictive_drain_release: predictiveDrainRelease,
@@ -6283,6 +6708,29 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     },
   });
 
+  const queueDrain = maybeDrainAttentionQueue(runtime);
+  policies.push({
+    policy: 'attention_queue_autodrain',
+    required: !!queueDrain.required,
+    applied: !!queueDrain.applied,
+    command: queueDrain.command,
+    limit: queueDrain.limit || RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
+    drained_count: queueDrain.drained_count || 0,
+    lane: queueDrain.lane,
+  });
+
+  const queueCompact = maybeCompactAttentionQueue(runtime);
+  policies.push({
+    policy: 'attention_queue_compaction',
+    required: !!queueCompact.required,
+    applied: !!queueCompact.applied,
+    command: queueCompact.command,
+    compacted_count: queueCompact.compacted_count || 0,
+    retain: queueCompact.retain || RUNTIME_ATTENTION_COMPACT_RETAIN,
+    min_acked: queueCompact.min_acked || RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    lane: queueCompact.lane,
+  });
+
   const throttle = maybeApplyRuntimeThrottle(runtime, recommendation.team || DEFAULT_TEAM);
   policies.push({
     policy: 'queue_throttle',
@@ -6300,18 +6748,23 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     required: !!conduitWatchdog.required,
     applied: !!conduitWatchdog.applied,
     triggered: !!conduitWatchdog.triggered,
+    recovered: !!conduitWatchdog.recovered,
+    low_signal: !!conduitWatchdog.low_signal,
     queue_depth: conduitWatchdog.queue_depth,
     conduit_signals: conduitWatchdog.conduit_signals,
+    stale_cockpit_blocks: conduitWatchdog.stale_cockpit_blocks || 0,
     threshold: conduitWatchdog.threshold,
     stale_for_ms: conduitWatchdog.stale_for_ms,
     failure_count: conduitWatchdog.failure_count || 0,
+    drain_limit: conduitWatchdog.drain_limit || 0,
     last_attempt_at: conduitWatchdog.last_attempt_at,
     last_success_at: conduitWatchdog.last_success_at,
     command:
-      `protheus-ops conduit auto-balance --team=${cleanText(recommendation.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}` +
-      ` --threshold=${conduitWatchdog.threshold || Math.max(runtime.target_conduit_signals, RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS)}` +
-      ' --action=spawn-researcher --strict=1',
+      `protheus-ops attention-queue drain --consumer=${ATTENTION_CONSUMER_ID}` +
+      ` --limit=${conduitWatchdog.drain_limit || RUNTIME_ATTENTION_DRAIN_MIN_BATCH}` +
+      ' --wait-ms=0 --run-context=runtime_conduit_watchdog',
     lane: conduitWatchdog.lane,
+    lanes: conduitWatchdog.lanes || null,
   });
 
   const rolePlan = Array.isArray(recommendation.role_plan) ? recommendation.role_plan : [];
@@ -6475,7 +6928,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     applied: !!(autoBalanceTurn && autoBalanceTurn.ok),
     eligible: !conduitAutoBalanceRequired || !!autoBalanceTurn,
     threshold: Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD),
-    command: `protheus-ops conduit auto-balance --threshold=${Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD)} --action=spawn-researcher`,
+    command: `protheus-ops collab-plane launch-role --team=${cleanText(recommendation.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM} --role=researcher --shadow=${cleanText(recommendation.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM}-conduit-watchdog --strict=1`,
   });
 
   const failedPolicies = policies.filter((row) => row.required && row.applied === false && row.eligible !== false);
@@ -7573,6 +8026,100 @@ function runServe(flags) {
     }
   };
 
+  const maybeRunAutonomousSelfHeal = (source = 'interval') => {
+    const runtime = runtimeSyncSummary(latestSnapshot);
+    const queueVelocityPerMin = queueDepthVelocity(runtimeTrendSeries);
+    const stall = runtimeStallSignals(runtime, runtimeTrendSeries);
+    const signalFloor = Math.max(
+      RUNTIME_STALL_CONDUIT_FLOOR,
+      Math.floor(Math.max(1, runtime.target_conduit_signals) * 0.5)
+    );
+    const emergency =
+      runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ||
+      runtime.cockpit_stale_blocks > 0 ||
+      (runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH && runtime.conduit_signals < signalFloor) ||
+      queueVelocityPerMin >= 4 ||
+      stall.detected;
+    const required =
+      runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+      runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
+      runtime.health_coverage_gap_count > 0 ||
+      runtime.conduit_scale_required ||
+      runtime.cockpit_stale_blocks > 0 ||
+      cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit' ||
+      queueVelocityPerMin >= 2 ||
+      stall.detected;
+    const cadenceMs = emergency
+      ? RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS
+      : RUNTIME_AUTONOMY_HEAL_INTERVAL_MS;
+    const nowMs = Date.now();
+    if (!required) {
+      runtimeAutohealState.last_result = 'idle';
+      runtimeAutohealState.last_stage = 'idle';
+      runtimeAutohealState.last_stall_detected = false;
+      runtimeAutohealState.last_stall_signature = '';
+      return {
+        executed: false,
+        required,
+        emergency,
+        cadence_ms: cadenceMs,
+        queue_velocity_per_min: queueVelocityPerMin,
+        stall,
+      };
+    }
+    if ((nowMs - parseNonNegativeInt(runtimeAutohealState.last_run_ms, 0, 1000000000000)) < cadenceMs) {
+      runtimeAutohealState.last_result = 'cooldown';
+      runtimeAutohealState.last_stage = 'cooldown';
+      runtimeAutohealState.last_stall_detected = !!stall.detected;
+      runtimeAutohealState.last_stall_signature = cleanText(stall.signature || '', 240);
+      return {
+        executed: false,
+        required,
+        emergency,
+        cadence_ms: cadenceMs,
+        queue_velocity_per_min: queueVelocityPerMin,
+        stall,
+      };
+    }
+
+    const lanePayload = executeRuntimeSwarmRecommendation(latestSnapshot);
+    let stage = 'recommendation';
+    let stallRecovery = null;
+    let ok = !!(lanePayload && lanePayload.ok);
+    if (
+      stall.detected &&
+      parseNonNegativeInt(runtimeAutohealState.failure_count, 0, 100000000) >=
+        RUNTIME_STALL_ESCALATION_FAILURE_THRESHOLD
+    ) {
+      stage = 'stall_recovery';
+      stallRecovery = runStallRecovery(runtime, flags.team || DEFAULT_TEAM);
+      ok = ok && !!(stallRecovery && stallRecovery.ok);
+    }
+
+    runtimeAutohealState.last_run_ms = nowMs;
+    runtimeAutohealState.last_run_at = nowIso();
+    runtimeAutohealState.last_result = ok ? 'executed' : 'degraded';
+    runtimeAutohealState.last_stage = stage;
+    runtimeAutohealState.last_stall_detected = !!stall.detected;
+    runtimeAutohealState.last_stall_signature = cleanText(stall.signature || '', 240);
+    runtimeAutohealState.failure_count = ok
+      ? 0
+      : parseNonNegativeInt(runtimeAutohealState.failure_count, 0, 100000000) + 1;
+    return {
+      executed: true,
+      required,
+      emergency,
+      cadence_ms: cadenceMs,
+      queue_velocity_per_min: queueVelocityPerMin,
+      ok,
+      lane_payload: lanePayload,
+      stall,
+      stage,
+      stall_recovery: stallRecovery,
+      source,
+    };
+  };
+
   const waitMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const streamAssistantText = async (socket, text) => {
@@ -7845,6 +8392,10 @@ function runServe(flags) {
     updating = true;
     try {
       refreshSnapshot();
+      const autoheal = maybeRunAutonomousSelfHeal('interval');
+      if (autoheal && autoheal.executed) {
+        refreshSnapshot();
+      }
       broadcastSnapshot();
     } catch (error) {
       const envelope = JSON.stringify({

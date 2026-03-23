@@ -8,6 +8,7 @@ use crate::v8_kernel::{
     write_json,
 };
 use crate::{clean, parse_args};
+use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -693,18 +694,21 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
             continue;
         }
         if let Some(payload) = read_json(&latest) {
-            let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or_else(|| {
-                let status = payload
-                    .get("status")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .trim()
-                    .to_ascii_lowercase();
-                matches!(
-                    status.as_str(),
-                    "ok" | "pass" | "healthy" | "running" | "active" | "success"
-                )
-            });
+            let ok = payload
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or_else(|| {
+                    let status = payload
+                        .get("status")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .trim()
+                        .to_ascii_lowercase();
+                    matches!(
+                        status.as_str(),
+                        "ok" | "pass" | "healthy" | "running" | "active" | "success"
+                    )
+                });
             let ty = clean(
                 payload
                     .get("type")
@@ -774,6 +778,17 @@ fn status_color(ok: bool, class: &str) -> &'static str {
     }
 }
 
+fn duration_from_ts_ms(ts: &str) -> u64 {
+    let parsed = DateTime::parse_from_rfc3339(ts).ok();
+    let Some(parsed) = parsed else {
+        return 0;
+    };
+    let age = Utc::now()
+        .signed_duration_since(parsed.with_timezone(&Utc))
+        .num_milliseconds();
+    age.max(0) as u64
+}
+
 fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -829,6 +844,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             row.get("type").and_then(Value::as_str).unwrap_or("unknown"),
             120,
         );
+        let row_ts = row.get("ts").and_then(Value::as_str).unwrap_or("");
         let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let class = classify_tool_call(&ty).to_string();
         let payload = row.get("payload").cloned().unwrap_or(Value::Null);
@@ -846,7 +862,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "status": if ok { "ok" } else { "fail" },
             "status_color": status_color(ok, classify_tool_call(&ty)),
             "conduit_enforced": conduit_enforced,
-            "duration_ms": ((idx as u64 * 13) % 240) + 8,
+            "duration_ms": duration_from_ts_ms(row_ts),
             "ts": row.get("ts").cloned().unwrap_or(Value::Null),
             "path": row.get("latest_path").cloned().unwrap_or(Value::Null)
         });
@@ -1050,6 +1066,41 @@ mod tests {
         assert_eq!(
             row.get("conduit_enforced").and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn cockpit_duration_tracks_timestamp_age() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_dir = root
+            .path()
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("age_lane");
+        let latest = lane_dir.join("latest.json");
+        let _ = write_json(
+            &latest,
+            &json!({
+                "ok": true,
+                "type": "age_task",
+                "ts": "2000-01-01T00:00:00.000Z"
+            }),
+        );
+
+        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let out = run_cockpit(root.path(), &parsed, true);
+        let blocks = out["cockpit"]["render"]["stream_blocks"]
+            .as_array()
+            .expect("stream blocks");
+        let row = blocks
+            .iter()
+            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("age_lane"))
+            .expect("age lane block should be present");
+        assert!(
+            row.get("duration_ms").and_then(Value::as_u64).unwrap_or(0) > 1_000,
+            "duration_ms should reflect parsed timestamp age"
         );
     }
 }
