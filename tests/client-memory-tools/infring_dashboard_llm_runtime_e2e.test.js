@@ -210,6 +210,19 @@ async function run() {
       && Array.isArray(s.cockpit.trend)
     );
     assert.strictEqual(summary.checks.cockpit_metrics_present, true, 'cockpit metrics and trend should be present');
+    summary.checks.cockpit_live_vs_total_present = !!(
+      s.cockpit
+      && Number.isFinite(Number(s.cockpit.block_count))
+      && Number.isFinite(Number(s.cockpit.total_block_count))
+      && Number.isFinite(Number(s.cockpit.metrics && s.cockpit.metrics.active_block_count))
+      && Number.isFinite(Number(s.cockpit.metrics && s.cockpit.metrics.total_block_count))
+      && Number(s.cockpit.total_block_count) >= Number(s.cockpit.block_count)
+    );
+    assert.strictEqual(
+      summary.checks.cockpit_live_vs_total_present,
+      true,
+      'cockpit should expose live(active) and total block counts for stale-lock isolation'
+    );
     summary.checks.memory_stream_present = !!(
       s.memory
       && s.memory.stream
@@ -259,9 +272,24 @@ async function run() {
       true,
       'snapshot should expose agent lifecycle telemetry'
     );
+    summary.checks.runtime_autoheal_surface_present = !!(
+      s.runtime_autoheal
+      && typeof s.runtime_autoheal.last_result === 'string'
+      && typeof s.runtime_autoheal.last_stage === 'string'
+      && typeof s.runtime_autoheal.stall_detected === 'boolean'
+      && s.runtime_autoheal.cadence_ms
+      && Number.isFinite(Number(s.runtime_autoheal.cadence_ms.normal))
+      && Number.isFinite(Number(s.runtime_autoheal.cadence_ms.emergency))
+    );
+    assert.strictEqual(
+      summary.checks.runtime_autoheal_surface_present,
+      true,
+      'snapshot should expose runtime autoheal telemetry'
+    );
     summary.evidence.snapshot = {
       queue_depth: Number((s.attention_queue && s.attention_queue.queue_depth) || 0),
       cockpit_blocks: Number((s.cockpit && s.cockpit.block_count) || 0),
+      cockpit_total_blocks: Number((s.cockpit && s.cockpit.total_block_count) || 0),
       memory_entries: Array.isArray(s.memory && s.memory.entries) ? s.memory.entries.length : 0,
       receipt_count: Array.isArray(s.receipts && s.receipts.recent) ? s.receipts.recent.length : 0,
       log_count: Array.isArray(s.logs && s.logs.recent) ? s.logs.recent.length : 0,
@@ -269,6 +297,8 @@ async function run() {
       backpressure_level: String((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.level) || ''),
       target_conduit_signals: Number((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.target_conduit_signals) || 0),
       conduit_scale_required: !!(s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.scale_required),
+      conduit_signals_effective: Number((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.conduit_signals) || 0),
+      conduit_signals_raw: Number((s.attention_queue && s.attention_queue.backpressure && s.attention_queue.backpressure.conduit_signals_raw) || 0),
       critical_attention: Number((s.attention_queue && s.attention_queue.priority_counts && s.attention_queue.priority_counts.critical) || 0),
       critical_attention_total: Number((s.attention_queue && s.attention_queue.critical_total_count) || 0),
       standard_attention: Number((s.attention_queue && s.attention_queue.priority_counts && s.attention_queue.priority_counts.standard) || 0),
@@ -301,7 +331,9 @@ async function run() {
       lane_type: telemetryLane.type || '',
       queue_depth: telemetrySync ? telemetrySync.queue_depth : null,
       cockpit_blocks: telemetrySync ? telemetrySync.cockpit_blocks : null,
+      cockpit_total_blocks: telemetrySync ? telemetrySync.cockpit_total_blocks : null,
       conduit_signals: telemetrySync ? telemetrySync.conduit_signals : null,
+      conduit_signals_raw: telemetrySync ? telemetrySync.conduit_signals_raw : null,
       sync_mode: telemetrySync ? telemetrySync.sync_mode : null,
       backpressure_level: telemetrySync ? telemetrySync.backpressure_level : null,
       target_conduit_signals: telemetrySync ? telemetrySync.target_conduit_signals : null,
@@ -517,6 +549,33 @@ async function run() {
       summary.checks.runtime_swarm_predictive_drain_policy_present,
       true,
       'runtime swarm recommendation should include predictive drain policy payload'
+    );
+    summary.checks.runtime_swarm_attention_drain_policy_present = !!(
+      Array.isArray(runtimeSwarmLane.policies)
+      && runtimeSwarmLane.policies.some((row) => row && row.policy === 'attention_queue_autodrain')
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_attention_drain_policy_present,
+      true,
+      'runtime swarm recommendation should include attention queue autodrain policy payload'
+    );
+    summary.checks.runtime_swarm_attention_compaction_policy_present = !!(
+      Array.isArray(runtimeSwarmLane.policies)
+      && runtimeSwarmLane.policies.some((row) => row && row.policy === 'attention_queue_compaction')
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_attention_compaction_policy_present,
+      true,
+      'runtime swarm recommendation should include attention queue compaction policy payload'
+    );
+    summary.checks.runtime_swarm_no_invalid_conduit_command = !(
+      Array.isArray(runtimeSwarmLane.policies)
+      && runtimeSwarmLane.policies.some((row) => String((row && row.command) || '').includes('protheus-ops conduit auto-balance'))
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_no_invalid_conduit_command,
+      true,
+      'runtime swarm recommendation should avoid invalid conduit auto-balance command'
     );
     summary.evidence.runtime_swarm = {
       recommendation: runtimeSwarmLane.recommendation || null,

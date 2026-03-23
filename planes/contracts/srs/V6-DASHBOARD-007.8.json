@@ -1,0 +1,31 @@
+{
+  "id": "V6-DASHBOARD-007.8",
+  "upgrade": "Attention Queue Acked-Backlog Compaction",
+  "section": "Ops-Analyst Feedback Assimilation (March 2026)",
+  "impact": 10,
+  "layer_map": "0/1/2/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "repair_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-DASHBOARD-007.8/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    { "type": "contract", "path": "planes/contracts/srs/V6-DASHBOARD-007.8.json" },
+    { "type": "runtime", "path": "core/layer0/ops/src/attention_queue.rs" },
+    { "type": "runtime", "path": "client/runtime/systems/ui/infring_dashboard.ts" },
+    { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.js" }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-DASHBOARD-007.8",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-DASHBOARD-007.8",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-23T00:52:00Z",
+    "notes": "Attention queue adds deterministic compact command and runtime-driven autodrain/autocompact policies to keep depth bounded during multi-day autonomous runs."
+  }
+}
