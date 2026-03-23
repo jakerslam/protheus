@@ -747,6 +747,12 @@ function chatPage() {
       return fallback;
     },
 
+    isModelSwitchNoticeLabel: function(label) {
+      var text = String(label || '').trim();
+      if (!text) return false;
+      return /^Model switched (?:to\b|from\b)/i.test(text);
+    },
+
     rememberModelNotice: function(agentId, label, ts, noticeType, noticeIcon) {
       if (!agentId || !label) return;
       if (!this.modelNoticeCache || typeof this.modelNoticeCache !== 'object') {
@@ -758,7 +764,7 @@ function chatPage() {
       var tsNum = Number(ts || Date.now());
       var normalizedType = this.normalizeNoticeType(
         noticeType,
-        /^Model switched to /i.test(String(label || '').trim()) ? 'model' : 'info'
+        this.isModelSwitchNoticeLabel(label) ? 'model' : 'info'
       );
       var normalizedIcon = String(noticeIcon || '').trim();
       var exists = list.some(function(entry) {
@@ -784,13 +790,13 @@ function chatPage() {
       list.forEach(function(msg) {
         if (!msg) return;
         var label = msg.notice_label || '';
-        if (!label && msg.role === 'system' && typeof msg.text === 'string' && /^Model switched to /i.test(msg.text.trim())) {
+        if (!label && msg.role === 'system' && typeof msg.text === 'string' && self.isModelSwitchNoticeLabel(msg.text.trim())) {
           label = msg.text.trim();
         }
         if (!label) return;
         var type = self.normalizeNoticeType(
           msg.notice_type,
-          /^Model switched to /i.test(String(label || '').trim()) ? 'model' : 'info'
+          self.isModelSwitchNoticeLabel(label) ? 'model' : 'info'
         );
         existing[type + '|' + label + '|' + Number(msg.ts || 0)] = true;
       });
@@ -801,7 +807,7 @@ function chatPage() {
         var nTs = Number(n.ts || 0) || Date.now();
         var nType = this.normalizeNoticeType(
           n.type || n.notice_type,
-          /^Model switched to /i.test(nLabel) ? 'model' : 'info'
+          this.isModelSwitchNoticeLabel(nLabel) ? 'model' : 'info'
         );
         var nIcon = String(n.icon || n.notice_icon || '').trim();
         var nKey = nType + '|' + nLabel + '|' + nTs;
@@ -898,14 +904,14 @@ function chatPage() {
             text = '';
             noticeType = self.normalizeNoticeType(
               m.notice_type,
-              /^Model switched to /i.test(noticeLabel) ? 'model' : 'info'
+              self.isModelSwitchNoticeLabel(noticeLabel) ? 'model' : 'info'
             );
             noticeIcon = String(m.notice_icon || '').trim();
           }
         }
         if (!isNotice && role === 'system' && typeof text === 'string') {
           var compact = text.trim();
-          if (/^Model switched to /i.test(compact)) {
+          if (self.isModelSwitchNoticeLabel(compact)) {
             isNotice = true;
             noticeLabel = compact;
             text = '';
@@ -1249,6 +1255,8 @@ function chatPage() {
       if (!this.currentAgent) return;
       if (model.id === this.currentAgent.model_name) { this.showModelSwitcher = false; return; }
       var self = this;
+      var previousModel = String((this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
+      var previousProvider = String((this.currentAgent && this.currentAgent.model_provider) || '').trim();
       this.modelSwitching = true;
       InfringAPI.put('/api/agents/' + this.currentAgent.id + '/model', { model: model.id }).then(function(resp) {
         // Use server-resolved model/provider to stay in sync (fixes #387/#466)
@@ -1256,7 +1264,7 @@ function chatPage() {
         self.currentAgent.model_provider = (resp && resp.provider) || model.provider;
         self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || self.currentAgent.model_name;
         self.touchModelUsage(self.currentAgent.model_name || self.currentAgent.runtime_model || model.id);
-        self.addModelSwitchNotice(self.currentAgent.model_name, self.currentAgent.model_provider);
+        self.addModelSwitchNotice(previousModel, previousProvider, self.currentAgent.model_name, self.currentAgent.model_provider);
         InfringToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
         self.modelSwitching = false;
@@ -1404,6 +1412,8 @@ function chatPage() {
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
+              var previousModel = String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || '').trim();
+              var previousProvider = String((self.currentAgent && self.currentAgent.model_provider) || '').trim();
               InfringAPI.put('/api/agents/' + self.currentAgent.id + '/model', { model: cmdArgs }).then(function(resp) {
                 // Use server-resolved model/provider (fixes #387/#466)
                 var resolvedModel = (resp && resp.model) || cmdArgs;
@@ -1411,7 +1421,7 @@ function chatPage() {
                 self.currentAgent.model_name = resolvedModel;
                 if (resolvedProvider) { self.currentAgent.model_provider = resolvedProvider; }
                 self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || resolvedModel;
-                self.addModelSwitchNotice(resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
+                self.addModelSwitchNotice(previousModel, previousProvider, resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
               }).catch(function(e) { InfringToast.error('Model switch failed: ' + e.message); });
             } else {
               self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [] });
@@ -1691,7 +1701,7 @@ function chatPage() {
           profile: String(templateDef.profile || '').trim()
         });
         this.addNoticeEvent({
-          notice_label: 'Initialized agent as ' + String(templateDef.name || 'template'),
+          notice_label: 'Initialized ' + agentName + ' as ' + String(templateDef.name || 'template'),
           notice_type: 'info',
           ts: Date.now()
         });
@@ -2704,7 +2714,7 @@ function chatPage() {
       if (!label) return;
       var type = this.normalizeNoticeType(
         notice.notice_type || notice.type,
-        /^Model switched to /i.test(label) ? 'model' : 'info'
+        this.isModelSwitchNoticeLabel(label) ? 'model' : 'info'
       );
       var icon = String(notice.notice_icon || notice.icon || '').trim();
       if (type === 'info' && /^changed name from /i.test(label)) {
@@ -2731,11 +2741,26 @@ function chatPage() {
       this.scheduleConversationPersist();
     },
 
-    addModelSwitchNotice: function(modelName, providerName) {
-      var model = String(modelName || '').trim();
+    addModelSwitchNotice: function(previousModelName, previousProviderName, modelName, providerName) {
+      var legacyCall = arguments.length < 3;
+      var previousModel = '';
+      var previousProvider = '';
+      var model = '';
+      var provider = '';
+      if (legacyCall) {
+        model = String(previousModelName || '').trim();
+        provider = String(previousProviderName || '').trim();
+      } else {
+        previousModel = String(previousModelName || '').trim();
+        previousProvider = String(previousProviderName || '').trim();
+        model = String(modelName || '').trim();
+        provider = String(providerName || '').trim();
+      }
       if (!model) return;
-      var provider = String(providerName || '').trim();
-      var label = provider ? ('Model switched to ' + provider + ' / ' + model) : ('Model switched to ' + model);
+      if (!previousModel) previousModel = 'unknown';
+      var fromLabel = previousProvider ? (previousProvider + ' / ' + previousModel) : previousModel;
+      var toLabel = provider ? (provider + ' / ' + model) : model;
+      var label = 'Model switched from ' + fromLabel + ' to ' + toLabel;
       this.touchModelUsage(model);
       this.addNoticeEvent({ notice_label: label, notice_type: 'model', ts: Date.now() });
     },
@@ -3022,17 +3047,25 @@ function chatPage() {
         }
 
         if (this.drawerEditingProvider && String(this.drawerNewProviderValue || '').trim()) {
+          var previousProviderName = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
+          var previousModelName = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
           var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
           var providerResp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
           this.addModelSwitchNotice(
+            previousModelName,
+            previousProviderName,
             (providerResp && providerResp.model) || this.agentDrawer.model_name || '',
             (providerResp && providerResp.provider) || String(this.drawerNewProviderValue || '').trim()
           );
         } else if (this.drawerEditingModel && String(this.drawerNewModelValue || '').trim()) {
+          var previousModelNameForModelEdit = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
+          var previousProviderForModelEdit = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
           var modelResp = await InfringAPI.put('/api/agents/' + agentId + '/model', {
             model: String(this.drawerNewModelValue || '').trim()
           });
           this.addModelSwitchNotice(
+            previousModelNameForModelEdit,
+            previousProviderForModelEdit,
             (modelResp && modelResp.model) || String(this.drawerNewModelValue || '').trim(),
             (modelResp && modelResp.provider) || this.agentDrawer.model_provider || ''
           );
@@ -3114,10 +3147,17 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewModelValue || '').trim()) return;
       this.drawerModelSaving = true;
       try {
+        var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
+        var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
         var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', {
           model: String(this.drawerNewModelValue || '').trim()
         });
-        this.addModelSwitchNotice((resp && resp.model) || String(this.drawerNewModelValue || '').trim(), (resp && resp.provider) || this.agentDrawer.model_provider || '');
+        this.addModelSwitchNotice(
+          previousModel,
+          previousProvider,
+          (resp && resp.model) || String(this.drawerNewModelValue || '').trim(),
+          (resp && resp.provider) || this.agentDrawer.model_provider || ''
+        );
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
         InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
         this.drawerEditingModel = false;
@@ -3133,9 +3173,16 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id || !String(this.drawerNewProviderValue || '').trim()) return;
       this.drawerModelSaving = true;
       try {
+        var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
+        var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
         var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
         var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', { model: combined });
-        this.addModelSwitchNotice((resp && resp.model) || this.agentDrawer.model_name || '', (resp && resp.provider) || String(this.drawerNewProviderValue || '').trim());
+        this.addModelSwitchNotice(
+          previousModel,
+          previousProvider,
+          (resp && resp.model) || this.agentDrawer.model_name || '',
+          (resp && resp.provider) || String(this.drawerNewProviderValue || '').trim()
+        );
         InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : String(this.drawerNewProviderValue || '').trim()));
         this.drawerEditingProvider = false;
         this.drawerNewProviderValue = '';

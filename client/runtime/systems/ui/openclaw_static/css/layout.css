@@ -157,6 +157,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
+  min-width: 0;
   box-sizing: border-box;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -233,9 +234,12 @@
   margin-left: 0;
   width: 100%;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   padding: 8px 10px;
+  height: auto;
   min-height: 56px;
+  white-space: normal;
+  overflow: visible;
 }
 
 .nav-agent-row .nav-icon.nav-agent-icon {
@@ -246,7 +250,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  align-self: center;
+  align-self: flex-start;
+  margin-top: 1px;
 }
 
 .nav-agent-avatar {
@@ -274,7 +279,7 @@
 }
 
 .nav-agent-avatar-wrap .agent-activity-spinner {
-  top: -6px;
+  top: 50%;
 }
 
 .nav-agent-archive {
@@ -355,9 +360,11 @@
 .nav-agent-main {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   flex: 1 1 auto;
   gap: 2px;
+  overflow: hidden;
 }
 
 .nav-agent-top,
@@ -365,6 +372,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
   gap: 8px;
   min-width: 0;
 }
@@ -392,6 +401,7 @@
 
 .nav-agent-preview {
   min-width: 0;
+  max-width: 100%;
   flex: 1 1 auto;
   font-size: 11px;
   color: var(--text-dim);
@@ -399,6 +409,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  overflow-wrap: anywhere;
   white-space: normal;
   line-height: 1.25;
 }
