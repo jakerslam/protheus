@@ -339,8 +339,18 @@ async function run() {
     const telemetrySync = telemetryLane.runtime_sync || null;
     summary.checks.telemetry_runtime_sync = !!(telemetry.body && telemetry.body.ok && telemetrySync);
     summary.checks.telemetry_mentions_conduit = /conduit/i.test(String(telemetryLane.response || ''));
+    summary.checks.telemetry_latency_fields_present = !!(
+      telemetrySync
+      && Object.prototype.hasOwnProperty.call(telemetrySync, 'receipt_latency_p95_ms')
+      && Object.prototype.hasOwnProperty.call(telemetrySync, 'receipt_latency_p99_ms')
+    );
     assert.strictEqual(summary.checks.telemetry_runtime_sync, true, 'telemetry response should include runtime_sync');
     assert.strictEqual(summary.checks.telemetry_mentions_conduit, true, 'telemetry response should mention conduit');
+    assert.strictEqual(
+      summary.checks.telemetry_latency_fields_present,
+      true,
+      'telemetry runtime sync should expose receipt latency SLO fields'
+    );
     summary.evidence.telemetry = {
       lane_type: telemetryLane.type || '',
       queue_depth: telemetrySync ? telemetrySync.queue_depth : null,
@@ -620,6 +630,9 @@ async function run() {
     const humanEscalationGuardPolicy = Array.isArray(runtimeSwarmLane.policies)
       ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'human_escalation_guard')
       : null;
+    const runtimeSloGatePolicy = Array.isArray(runtimeSwarmLane.policies)
+      ? runtimeSwarmLane.policies.find((row) => row && row.policy === 'runtime_slo_gate')
+      : null;
     summary.checks.runtime_swarm_reliability_policy_payloads_present = !!(
       spineReliabilityPolicy && humanEscalationGuardPolicy
     );
@@ -638,6 +651,40 @@ async function run() {
       summary.checks.runtime_swarm_reliability_gate_applied_when_required,
       true,
       'runtime swarm recommendation should apply spine reliability gate when required'
+    );
+    summary.checks.runtime_swarm_slo_gate_payload_present = !!(
+      runtimeSwarmLane.recommendation
+      && runtimeSwarmLane.recommendation.slo_gate
+      && runtimeSloGatePolicy
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_slo_gate_payload_present,
+      true,
+      'runtime swarm recommendation should include runtime SLO gate payload'
+    );
+    const sloGateRequired = !!(
+      runtimeSwarmLane.recommendation && runtimeSwarmLane.recommendation.slo_gate_required
+    );
+    summary.checks.runtime_swarm_slo_gate_applied_when_required =
+      !sloGateRequired ||
+      (runtimeSloGatePolicy && runtimeSloGatePolicy.required === true && runtimeSloGatePolicy.applied === true);
+    assert.strictEqual(
+      summary.checks.runtime_swarm_slo_gate_applied_when_required,
+      true,
+      'runtime swarm recommendation should enforce runtime SLO gate when required'
+    );
+    summary.checks.runtime_swarm_slo_gate_thresholds_present = !!(
+      runtimeSloGatePolicy
+      && runtimeSloGatePolicy.thresholds
+      && Number.isFinite(Number(runtimeSloGatePolicy.thresholds.spine_success_rate_min))
+      && Number.isFinite(Number(runtimeSloGatePolicy.thresholds.receipt_latency_p95_max_ms))
+      && Number.isFinite(Number(runtimeSloGatePolicy.thresholds.receipt_latency_p99_max_ms))
+      && Number.isFinite(Number(runtimeSloGatePolicy.thresholds.queue_depth_max))
+    );
+    assert.strictEqual(
+      summary.checks.runtime_swarm_slo_gate_thresholds_present,
+      true,
+      'runtime SLO gate should expose threshold payload for policy enforcement'
     );
     summary.checks.runtime_swarm_no_invalid_conduit_command = !(
       Array.isArray(runtimeSwarmLane.policies)
