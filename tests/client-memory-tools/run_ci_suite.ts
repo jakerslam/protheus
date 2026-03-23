@@ -12,6 +12,17 @@ const SUITE = [
   'tests/vitest/v6_memory_client_guard_integration.test.ts'
 ];
 
+function runTestLanguagePolicyGuard() {
+  return spawnSync(
+    process.execPath,
+    ['tests/tooling/scripts/ci/test_language_policy_guard.mjs'],
+    {
+      cwd: ROOT,
+      encoding: 'utf8'
+    }
+  );
+}
+
 function runVitestSuite(extraArgs = []) {
   const args = ['run', '--config', 'vitest.config.ts'].concat(SUITE).concat(extraArgs);
   return spawnSync(process.execPath, [VITEST_BIN].concat(args), {
@@ -45,6 +56,9 @@ function main() {
   const includeLegacyAudit = argv.includes('--full-corpus');
 
   const results = [];
+  results.push(
+    normalizeResult('test_language_policy_guard', runTestLanguagePolicyGuard())
+  );
   const vitest = normalizeResult('vitest_memory_client_suite', runVitestSuite());
   results.push(vitest);
 
@@ -77,6 +91,7 @@ if (require.main === module) {
 
 module.exports = {
   SUITE,
+  runTestLanguagePolicyGuard,
   runVitestSuite,
   runLegacyCorpusAudit
 };
