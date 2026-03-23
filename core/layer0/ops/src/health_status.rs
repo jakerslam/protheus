@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{deterministic_receipt_hash, now_iso};
+use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs;
@@ -13,6 +14,7 @@ const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
 const JSONL_TAIL_MAX_BYTES: usize = 2 * 1024 * 1024;
 const SPINE_RUN_FILES_MAX: usize = 7;
+const SPINE_METRICS_FRESH_WINDOW_SECONDS: i64 = 24 * 60 * 60;
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
     "last",
     "main",
@@ -588,12 +590,20 @@ fn percentile_99(values: &[f64]) -> Option<f64> {
     percentile(values, 0.99)
 }
 
+fn parse_row_ts_ms(row: &Value) -> Option<i64> {
+    row.get("ts")
+        .and_then(Value::as_str)
+        .and_then(|raw| DateTime::parse_from_rfc3339(raw).ok())
+        .map(|dt| dt.timestamp_millis())
+}
+
 fn collect_spine_dashboard_metrics(root: &Path) -> Value {
     let runs_dir = root.join("client/runtime/local/state/spine/runs");
     let mut completed = 0usize;
     let mut failed = 0usize;
     let mut latency_ms = Vec::<f64>::new();
     let mut files_scanned = 0usize;
+    let mut latest_event_ts_ms = None::<i64>;
 
     let mut run_files = Vec::new();
     if let Ok(entries) = fs::read_dir(&runs_dir) {
@@ -619,6 +629,12 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             let Ok(row) = serde_json::from_str::<Value>(trimmed) else {
                 continue;
             };
+            if let Some(ts_ms) = parse_row_ts_ms(&row) {
+                latest_event_ts_ms = Some(match latest_event_ts_ms {
+                    Some(current) => current.max(ts_ms),
+                    None => ts_ms,
+                });
+            }
             match row.get("type").and_then(Value::as_str).unwrap_or("") {
                 "spine_run_complete" => {
                     completed += 1;
@@ -645,23 +661,48 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
     } else {
         1.0
     };
+    let now_ms = Utc::now().timestamp_millis();
+    let latest_event_age_seconds = latest_event_ts_ms.map(|ts_ms| ((now_ms - ts_ms).max(0)) / 1000);
+    let stale = total > 0
+        && latest_event_age_seconds
+            .map(|age_sec| age_sec > SPINE_METRICS_FRESH_WINDOW_SECONDS)
+            .unwrap_or(true);
+    let freshness_status = if total == 0 {
+        "missing"
+    } else if stale {
+        "stale"
+    } else {
+        "fresh"
+    };
     let p95_latency = percentile_95(&latency_ms);
     let p99_latency = percentile_99(&latency_ms);
 
-    let success_status = if success_rate >= 0.999 {
+    let success_status = if total == 0 {
+        "warn"
+    } else if stale {
+        "stale"
+    } else if success_rate >= 0.999 {
         "pass"
     } else {
         "warn"
     };
-    let latency_status = match p95_latency {
+    let latency_status = if stale {
+        "stale"
+    } else {
+        match p95_latency {
         Some(v) if v < 100.0 => "pass",
         Some(_) => "warn",
         None => "warn",
+        }
     };
-    let latency_p99_status = match p99_latency {
+    let latency_p99_status = if stale {
+        "stale"
+    } else {
+        match p99_latency {
         Some(v) if v < 150.0 => "pass",
         Some(_) => "warn",
         None => "warn",
+        }
     };
 
     json!({
@@ -672,6 +713,10 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "samples": total,
             "completed_runs": completed,
             "failed_runs": failed,
+            "stale": stale,
+            "freshness_status": freshness_status,
+            "latest_event_age_seconds": latest_event_age_seconds,
+            "fresh_window_seconds": SPINE_METRICS_FRESH_WINDOW_SECONDS,
             "source": "client/runtime/local/state/spine/runs/*.jsonl"
         },
         "receipt_latency_p95_ms": {
@@ -680,6 +725,10 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "status": latency_status,
             "samples": latency_ms.len(),
             "files_scanned": files_scanned,
+            "stale": stale,
+            "freshness_status": freshness_status,
+            "latest_event_age_seconds": latest_event_age_seconds,
+            "fresh_window_seconds": SPINE_METRICS_FRESH_WINDOW_SECONDS,
             "source": "client/runtime/local/state/spine/runs/*.jsonl"
         },
         "receipt_latency_p99_ms": {
@@ -688,6 +737,10 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "status": latency_p99_status,
             "samples": latency_ms.len(),
             "files_scanned": files_scanned,
+            "stale": stale,
+            "freshness_status": freshness_status,
+            "latest_event_age_seconds": latest_event_age_seconds,
+            "fresh_window_seconds": SPINE_METRICS_FRESH_WINDOW_SECONDS,
             "source": "client/runtime/local/state/spine/runs/*.jsonl"
         }
     })
@@ -2099,5 +2152,49 @@ mod tests {
             Some(1)
         );
         assert_eq!(payload.get("status").and_then(Value::as_str), Some("pass"));
+    }
+
+    #[test]
+    fn spine_dashboard_metric_marks_stale_history() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            "client/runtime/local/state/spine/runs/2024-01-01.jsonl",
+            r#"{"type":"spine_run_complete","elapsed_ms":120,"ts":"2024-01-01T00:00:00Z"}"#,
+        );
+
+        let metric = collect_spine_dashboard_metrics(root.path());
+        let success = metric.get("spine_success_rate").expect("spine success metric");
+        let p95 = metric
+            .get("receipt_latency_p95_ms")
+            .expect("spine latency metric");
+        assert_eq!(success.get("status").and_then(Value::as_str), Some("stale"));
+        assert_eq!(success.get("stale").and_then(Value::as_bool), Some(true));
+        assert_eq!(p95.get("status").and_then(Value::as_str), Some("stale"));
+        assert_eq!(p95.get("stale").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn spine_dashboard_metric_uses_fresh_rows() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let fresh_ts = Utc::now().to_rfc3339();
+        write_text(
+            root.path(),
+            "client/runtime/local/state/spine/runs/2099-01-01.jsonl",
+            &format!(
+                "{{\"type\":\"spine_run_complete\",\"elapsed_ms\":42,\"ts\":\"{}\"}}",
+                fresh_ts
+            ),
+        );
+
+        let metric = collect_spine_dashboard_metrics(root.path());
+        let success = metric.get("spine_success_rate").expect("spine success metric");
+        let p95 = metric
+            .get("receipt_latency_p95_ms")
+            .expect("spine latency metric");
+        assert_eq!(success.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(success.get("stale").and_then(Value::as_bool), Some(false));
+        assert_eq!(p95.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(p95.get("stale").and_then(Value::as_bool), Some(false));
     }
 }
