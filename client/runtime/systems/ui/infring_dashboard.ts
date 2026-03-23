@@ -4490,6 +4490,14 @@ function compactCockpitBlocks(blocks = [], limit = COCKPIT_MAX_BLOCKS) {
     status: cleanText(row && row.status ? row.status : 'unknown', 24) || 'unknown',
     status_color: cleanText(row && row.status_color ? row.status_color : 'unknown', 24) || 'unknown',
     duration_ms: parsePositiveInt(row && row.duration_ms != null ? row.duration_ms : 0, 0, 0, 3600000),
+    duration_source: cleanText(row && row.duration_source ? row.duration_source : '', 24),
+    is_stale: !!(row && row.is_stale === true),
+    stale_block_threshold_ms: parsePositiveInt(
+      row && row.stale_block_threshold_ms != null ? row.stale_block_threshold_ms : RUNTIME_COCKPIT_STALE_BLOCK_MS,
+      RUNTIME_COCKPIT_STALE_BLOCK_MS,
+      1000,
+      24 * 60 * 60 * 1000
+    ),
     ts: cleanText(row && row.ts ? row.ts : '', 80),
     path: cleanText(row && row.path ? row.path : '', 220),
     conduit_enforced:
@@ -4598,19 +4606,49 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     Array.isArray(cockpitPayload.cockpit.render.stream_blocks)
       ? cockpitPayload.cockpit.render.stream_blocks
       : [];
+  const cockpitMetricsRaw =
+    cockpitPayload &&
+    cockpitPayload.cockpit &&
+    cockpitPayload.cockpit.metrics &&
+    typeof cockpitPayload.cockpit.metrics === 'object'
+      ? cockpitPayload.cockpit.metrics
+      : {};
   const eventsRaw = Array.isArray(attentionNextPayload.events) ? attentionNextPayload.events : [];
 
   const blocks = compactCockpitBlocks(blocksRaw, COCKPIT_MAX_BLOCKS);
-  const staleCockpitBlocks = blocks.filter(
-    (row) => parseNonNegativeInt(row && row.duration_ms, 0, 3600000) >= RUNTIME_COCKPIT_STALE_BLOCK_MS
+  const staleBlockThresholdMs = parsePositiveInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.stale_block_threshold_ms != null
+      ? cockpitMetricsRaw.stale_block_threshold_ms
+      : RUNTIME_COCKPIT_STALE_BLOCK_MS,
+    RUNTIME_COCKPIT_STALE_BLOCK_MS,
+    1000,
+    24 * 60 * 60 * 1000
   );
-  const activeCockpitBlocks = blocks.filter((row) => {
-    const duration = parseNonNegativeInt(row && row.duration_ms, 0, 3600000);
-    const status = cleanText(row && row.status ? row.status : 'unknown', 24).toLowerCase();
-    if (status === 'fail' || status === 'error' || status === 'critical') return true;
-    return duration < RUNTIME_COCKPIT_STALE_BLOCK_MS;
-  });
-  const activeCockpitBlockCount = activeCockpitBlocks.length;
+  const staleCockpitBlocks = blocks.filter(
+    (row) =>
+      (row && row.is_stale === true) ||
+      parseNonNegativeInt(row && row.duration_ms, 0, 3600000) >= staleBlockThresholdMs
+  );
+  const activeCockpitBlocks = blocks.filter((row) => !staleCockpitBlocks.includes(row));
+  const activeCockpitBlockCount = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.active_block_count != null
+      ? cockpitMetricsRaw.active_block_count
+      : activeCockpitBlocks.length,
+    activeCockpitBlocks.length,
+    100000000
+  );
+  const totalCockpitBlockCount = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.total_block_count != null
+      ? cockpitMetricsRaw.total_block_count
+      : cockpitPayload &&
+          cockpitPayload.cockpit &&
+          cockpitPayload.cockpit.render &&
+          cockpitPayload.cockpit.render.total_blocks != null
+        ? cockpitPayload.cockpit.render.total_blocks
+        : blocks.length,
+    blocks.length,
+    100000000
+  );
   const eventsFull = compactAttentionEvents(eventsRaw, ATTENTION_CRITICAL_LIMIT);
   const eventSplitRaw = splitAttentionEvents(eventsFull);
   const queueDepth = parsePositiveInt(
@@ -4709,16 +4747,32 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     standard: parseNonNegativeInt(laneCountsStatusRaw.standard, priorityCounts.standard, 100000000),
     background: parseNonNegativeInt(laneCountsStatusRaw.background, priorityCounts.background, 100000000),
   };
-  const conduitSignals = blocks.filter((block) => {
+  const conduitSignalsActiveFromBlocks = activeCockpitBlocks.filter((block) => {
     const lane = String(block.lane || '').toLowerCase();
     const eventType = String(block.event_type || '').toLowerCase();
     return lane.includes('conduit') || eventType.includes('conduit') || !!block.conduit_enforced;
   }).length;
-  const conduitChannelsObserved =
-    conduitSignals +
-    (cockpitLane.ok ? 1 : 0) +
-    (attentionStatusLane.ok ? 1 : 0) +
-    (attentionNextLane.ok ? 1 : 0);
+  const conduitSignals = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.conduit_signals_active != null
+      ? cockpitMetricsRaw.conduit_signals_active
+      : conduitSignalsActiveFromBlocks,
+    conduitSignalsActiveFromBlocks,
+    100000000
+  );
+  const conduitSignalsTotal = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.conduit_signals_total != null
+      ? cockpitMetricsRaw.conduit_signals_total
+      : blocks.filter((block) => !!block.conduit_enforced).length,
+    blocks.filter((block) => !!block.conduit_enforced).length,
+    100000000
+  );
+  const conduitChannelsObserved = parseNonNegativeInt(
+    cockpitMetricsRaw && cockpitMetricsRaw.conduit_channels_observed != null
+      ? cockpitMetricsRaw.conduit_channels_observed
+      : conduitSignals,
+    conduitSignals,
+    100000000
+  );
   const attentionContract =
     attentionStatusPayload &&
     attentionStatusPayload.attention_contract &&
@@ -4764,7 +4818,7 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       ? 'elevated'
       : 'normal';
   const conduitScaleRequired = conduitChannelsObserved < targetConduitSignals;
-  const cockpitConduitRatio = Number((activeCockpitBlockCount / Math.max(1, conduitChannelsObserved)).toFixed(3));
+  const cockpitConduitRatio = Number((activeCockpitBlockCount / Math.max(1, conduitSignals)).toFixed(3));
   const cockpitRollups = cockpitMetrics(blocks);
   const benchmarkTruth = benchmarkSanitySnapshot();
   const benchmarkBlock = blocks.find((row) => cleanText(row && row.lane ? row.lane : '', 80) === 'benchmark_sanity');
@@ -4812,16 +4866,24 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       blocks,
       block_count: activeCockpitBlockCount,
       active_block_count: activeCockpitBlockCount,
-      total_block_count: blocks.length,
+      total_block_count: totalCockpitBlockCount,
       metrics: {
         ...cockpitRollups,
         conduit_signals: conduitSignals,
         conduit_channels_observed: conduitChannelsObserved,
+        conduit_signals_active: conduitSignals,
+        conduit_signals_total: conduitSignalsTotal,
         benchmark_sanity_status: benchmarkCockpitStatus,
         active_block_count: activeCockpitBlockCount,
-        total_block_count: blocks.length,
-        stale_block_count: staleCockpitBlocks.length,
-        stale_block_threshold_ms: RUNTIME_COCKPIT_STALE_BLOCK_MS,
+        total_block_count: totalCockpitBlockCount,
+        stale_block_count: parseNonNegativeInt(
+          cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
+            ? cockpitMetricsRaw.stale_block_count
+            : staleCockpitBlocks.length,
+          staleCockpitBlocks.length,
+          100000000
+        ),
+        stale_block_threshold_ms: staleBlockThresholdMs,
       },
       trend: trend.slice(-24),
       payload_type: cleanText(cockpitPayload && cockpitPayload.type ? cockpitPayload.type : '', 60),
@@ -4879,9 +4941,10 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
         deferred_hard_shed_threshold: ATTENTION_DEFERRED_HARD_SHED_DEPTH,
         deferred_rehydrate_threshold: ATTENTION_DEFERRED_REHYDRATE_DEPTH,
         deferred_rehydrate_batch: ATTENTION_DEFERRED_REHYDRATE_BATCH,
-        conduit_signals: Math.max(conduitSignals, conduitChannelsObserved),
+        conduit_signals: conduitSignals,
         conduit_signals_raw: conduitSignals,
         conduit_channels_observed: conduitChannelsObserved,
+        conduit_channels_total: conduitSignalsTotal,
         target_conduit_signals: targetConduitSignals,
         scale_required: conduitScaleRequired,
         cockpit_to_conduit_ratio: cockpitConduitRatio,
@@ -4929,15 +4992,22 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
         100000000
       ),
       cockpit_blocks: activeCockpitBlockCount,
-      cockpit_total_blocks: blocks.length,
+      cockpit_total_blocks: totalCockpitBlockCount,
       attention_batch_count: events.length,
-      conduit_signals: Math.max(conduitSignals, conduitChannelsObserved),
+      conduit_signals: conduitSignals,
       conduit_signals_raw: conduitSignals,
       conduit_channels_observed: conduitChannelsObserved,
+      conduit_channels_total: conduitSignalsTotal,
       target_conduit_signals: targetConduitSignals,
       conduit_scale_required: conduitScaleRequired,
       cockpit_to_conduit_ratio: cockpitConduitRatio,
-      cockpit_stale_blocks: staleCockpitBlocks.length,
+      cockpit_stale_blocks: parseNonNegativeInt(
+        cockpitMetricsRaw && cockpitMetricsRaw.stale_block_count != null
+          ? cockpitMetricsRaw.stale_block_count
+          : staleCockpitBlocks.length,
+        staleCockpitBlocks.length,
+        100000000
+      ),
       attention_critical: priorityCounts.critical,
       attention_critical_total: criticalEventsFull.length,
       attention_telemetry: priorityCounts.telemetry,
@@ -5092,6 +5162,10 @@ function runtimeSyncSummary(snapshot) {
   const cockpitBlocks = Array.isArray(snapshot && snapshot.cockpit && snapshot.cockpit.blocks)
     ? snapshot.cockpit.blocks
     : [];
+  const cockpitMetrics =
+    snapshot && snapshot.cockpit && snapshot.cockpit.metrics && typeof snapshot.cockpit.metrics === 'object'
+      ? snapshot.cockpit.metrics
+      : {};
   const queueDepth = parseNonNegativeInt(
     snapshot && snapshot.attention_queue && snapshot.attention_queue.queue_depth != null
       ? snapshot.attention_queue.queue_depth
@@ -5113,22 +5187,39 @@ function runtimeSyncSummary(snapshot) {
     attentionCursorOffset,
     100000000
   );
-  const conduitSignalsRaw = cockpitBlocks.filter((row) => {
+  const conduitSignalsRawFromBlocks = cockpitBlocks.filter((row) => {
     const lane = String(row && row.lane ? row.lane : '').toLowerCase();
     const eventType = String(row && row.event_type ? row.event_type : '').toLowerCase();
     return lane.includes('conduit') || eventType.includes('conduit') || !!(row && row.conduit_enforced);
   }).length;
+  const conduitSignalsRaw = parseNonNegativeInt(
+    cockpitMetrics && cockpitMetrics.conduit_signals_raw != null
+      ? cockpitMetrics.conduit_signals_raw
+      : cockpitMetrics && cockpitMetrics.conduit_signals_active != null
+        ? cockpitMetrics.conduit_signals_active
+        : cockpitMetrics && cockpitMetrics.conduit_signals != null
+          ? cockpitMetrics.conduit_signals
+          : conduitSignalsRawFromBlocks,
+    conduitSignalsRawFromBlocks,
+    100000000
+  );
   const conduitSignalsObserved = parseNonNegativeInt(
-    snapshot &&
-      snapshot.cockpit &&
-      snapshot.cockpit.metrics &&
-      snapshot.cockpit.metrics.conduit_channels_observed != null
-      ? snapshot.cockpit.metrics.conduit_channels_observed
+    cockpitMetrics && cockpitMetrics.conduit_channels_observed != null
+      ? cockpitMetrics.conduit_channels_observed
       : conduitSignalsRaw,
     conduitSignalsRaw,
     100000000
   );
-  const conduitSignals = Math.max(conduitSignalsRaw, conduitSignalsObserved);
+  const conduitSignals = parseNonNegativeInt(
+    snapshot &&
+      snapshot.attention_queue &&
+      snapshot.attention_queue.backpressure &&
+      snapshot.attention_queue.backpressure.conduit_signals != null
+      ? snapshot.attention_queue.backpressure.conduit_signals
+      : conduitSignalsRaw,
+    conduitSignalsRaw,
+    100000000
+  );
   const attentionBatch = parseNonNegativeInt(
     snapshot && snapshot.attention_queue && snapshot.attention_queue.batch_count != null
       ? snapshot.attention_queue.batch_count
@@ -5190,14 +5281,23 @@ function runtimeSyncSummary(snapshot) {
       ? snapshot.attention_queue.backpressure
       : {};
   const conduitChannelsObserved = parseNonNegativeInt(
-    snapshot &&
-      snapshot.cockpit &&
-      snapshot.cockpit.metrics &&
-      snapshot.cockpit.metrics.conduit_channels_observed != null
-      ? snapshot.cockpit.metrics.conduit_channels_observed
-      : conduitSignals,
-    conduitSignals,
+    cockpitMetrics && cockpitMetrics.conduit_channels_observed != null
+      ? cockpitMetrics.conduit_channels_observed
+      : conduitSignalsObserved,
+    conduitSignalsObserved,
     0,
+    100000000
+  );
+  const conduitChannelsTotal = parseNonNegativeInt(
+    snapshot &&
+      snapshot.attention_queue &&
+      snapshot.attention_queue.backpressure &&
+      snapshot.attention_queue.backpressure.conduit_channels_total != null
+      ? snapshot.attention_queue.backpressure.conduit_channels_total
+      : cockpitMetrics && cockpitMetrics.conduit_signals_total != null
+        ? cockpitMetrics.conduit_signals_total
+        : conduitChannelsObserved,
+    conduitChannelsObserved,
     100000000
   );
   const targetConduitSignals = parsePositiveInt(
@@ -5290,6 +5390,7 @@ function runtimeSyncSummary(snapshot) {
     conduit_signals: conduitSignals,
     conduit_signals_raw: conduitSignalsRaw,
     conduit_channels_observed: conduitChannelsObserved,
+    conduit_channels_total: conduitChannelsTotal,
     target_conduit_signals: targetConduitSignals,
     conduit_scale_required: conduitScaleRequired,
     critical_attention: criticalAttention,
