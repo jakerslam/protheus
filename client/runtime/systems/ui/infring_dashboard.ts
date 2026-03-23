@@ -73,10 +73,12 @@ const RUNTIME_INGRESS_SHED_DEPTH = 80;
 const RUNTIME_INGRESS_CIRCUIT_DEPTH = 100;
 const RUNTIME_INGRESS_DELAY_MS = 100;
 const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
+const RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH = 20;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
 const RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS = 3;
+const RUNTIME_STALE_SOFT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS = 20;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -92,6 +94,7 @@ const RUNTIME_COCKPIT_CRITICAL_LANE_KEYS = new Set([
 ]);
 const RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN = 16;
 const RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS = 10;
+const RUNTIME_COCKPIT_STALE_SOFT_AUTOHEAL_MIN_BLOCKS = 7;
 const RUNTIME_COORDINATION_RECOVERY_COOLDOWN_MS = 120_000;
 const RUNTIME_COORDINATION_RECOVERY_MAX_SHADOWS = 24;
 const RUNTIME_COARSE_THROTTLE_MAX_DEPTH = 60;
@@ -437,7 +440,7 @@ function recommendedConduitSignals(queueDepth = 0, queueUtilization = 0, cockpit
   else if (depth >= 85 || util >= 0.82) baseline = 14;
   else if (depth >= 65 || util >= 0.68) baseline = 12;
   else if (depth >= DASHBOARD_BACKPRESSURE_WARN_DEPTH || util >= 0.58) baseline = 8;
-  else if (depth >= 25 || util >= 0.4) baseline = 6;
+  else if (depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH || util >= 0.4) baseline = 6;
   const cockpit = parseNonNegativeInt(cockpitBlocks, 0, 100000000);
   const cockpitFloor = cockpit > 0 ? Math.min(16, Math.max(4, Math.ceil(cockpit * 0.5))) : 4;
   const agents = parseNonNegativeInt(activeAgents, 0, 100000000);
@@ -3953,6 +3956,7 @@ let runtimeAutohealState = {
   last_stall_signature: '',
   conduit_deficit_streak: 0,
   stale_raw_streak: 0,
+  stale_soft_streak: 0,
 };
 let reliabilityEscalationState = {
   last_emit_ms: 0,
@@ -4750,6 +4754,7 @@ function runtimeAutohealTelemetry() {
     stall_signature: cleanText(runtimeAutohealState.last_stall_signature || '', 240),
     conduit_deficit_streak: parseNonNegativeInt(runtimeAutohealState.conduit_deficit_streak, 0, 100000000),
     stale_raw_streak: parseNonNegativeInt(runtimeAutohealState.stale_raw_streak, 0, 100000000),
+    stale_soft_streak: parseNonNegativeInt(runtimeAutohealState.stale_soft_streak, 0, 100000000),
     cadence_ms: {
       normal: RUNTIME_AUTONOMY_HEAL_INTERVAL_MS,
       emergency: RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS,
@@ -5175,7 +5180,7 @@ function appendAgentNoticeEvent(agentId, snapshot, noticeLabel, options = {}) {
   const ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
   const noticeType = normalizeAgentNoticeType(
     options && (options.notice_type || options.type),
-    /^Model switched to /i.test(label) ? 'model' : 'info'
+    /^Model switched (?:to\b|from\b)/i.test(label) ? 'model' : 'info'
   );
   let noticeIcon = cleanText(options && (options.notice_icon || options.icon), 8);
   if (!noticeIcon && noticeType === 'info') noticeIcon = 'i';
@@ -8970,6 +8975,9 @@ function maybeAutoHealConduit(runtime, team) {
   const staleCockpitBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
   const staleCockpitBlocksRaw = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, 0, 100000000);
   const staleCockpitDormantBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_dormant, 0, 100000000);
+  const staleMaintenance =
+    staleCockpitBlocks >= RUNTIME_COCKPIT_STALE_SOFT_AUTOHEAL_MIN_BLOCKS &&
+    queueDepth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH;
   const stalePressure =
     (staleCockpitBlocks > 0 || staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS) &&
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
@@ -9006,7 +9014,7 @@ function maybeAutoHealConduit(runtime, team) {
     }
     return { lanes, ok: allOk };
   };
-  if (!lowSignals) {
+  if (!lowSignals && !staleMaintenance) {
     let release = null;
     if (knownShadows.length > 0) {
       release = terminateShadows(knownShadows, 'conduit_recovered');
@@ -9048,15 +9056,18 @@ function maybeAutoHealConduit(runtime, team) {
   }
   const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
   const required =
-    lowSignals &&
+    staleMaintenance ||
     (
-      queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
-      queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
-      stalePressure ||
-      staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
-      chronicCoordinationPathology ||
-      staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
-      signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3))
+      lowSignals &&
+      (
+        queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+        queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH ||
+        stalePressure ||
+        staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
+        chronicCoordinationPathology ||
+        staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+        signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3))
+      )
     );
   if (!required) {
     return {
@@ -9079,6 +9090,7 @@ function maybeAutoHealConduit(runtime, team) {
     };
   }
   const triggerReady =
+    staleMaintenance ||
     staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
     stalePressure ||
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
@@ -9132,7 +9144,9 @@ function maybeAutoHealConduit(runtime, team) {
   }
   const healthLane = runLane(['health-status', 'dashboard']);
   const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
-  const desiredWatchdogCount = Math.min(4, Math.max(1, Math.ceil(Math.max(1, signalDeficit) / 2)));
+  const desiredWatchdogCount = lowSignals
+    ? Math.min(4, Math.max(1, Math.ceil(Math.max(1, signalDeficit) / 2)))
+    : 0;
   const desiredShadows = Array.from({ length: desiredWatchdogCount }, (_, idx) => `${normalizedTeam}-conduit-watchdog-${idx + 1}`);
   const spawnTargets = desiredShadows.filter((shadow) => !knownShadows.includes(shadow));
   const retireTargets = knownShadows.filter((shadow) => !desiredShadows.includes(shadow));
@@ -11419,6 +11433,7 @@ function runServe(flags) {
     );
     const conduitSignals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
     const signalDeficit = Math.max(0, targetSignals - conduitSignals);
+    const staleBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
     const staleRawBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, 0, 100000000);
     if (signalDeficit > 0) {
       runtimeAutohealState.conduit_deficit_streak =
@@ -11432,6 +11447,15 @@ function runServe(flags) {
     } else {
       runtimeAutohealState.stale_raw_streak = 0;
     }
+    if (
+      staleBlocks >= RUNTIME_COCKPIT_STALE_SOFT_AUTOHEAL_MIN_BLOCKS &&
+      queueDepth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH
+    ) {
+      runtimeAutohealState.stale_soft_streak =
+        parseNonNegativeInt(runtimeAutohealState.stale_soft_streak, 0, 100000000) + 1;
+    } else {
+      runtimeAutohealState.stale_soft_streak = 0;
+    }
     const persistentConduitDeficit =
       signalDeficit > 0 &&
       parseNonNegativeInt(runtimeAutohealState.conduit_deficit_streak, 0, 100000000) >=
@@ -11440,6 +11464,11 @@ function runServe(flags) {
       staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS &&
       parseNonNegativeInt(runtimeAutohealState.stale_raw_streak, 0, 100000000) >=
         RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS;
+    const persistentStaleSoft =
+      staleBlocks >= RUNTIME_COCKPIT_STALE_SOFT_AUTOHEAL_MIN_BLOCKS &&
+      queueDepth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH &&
+      parseNonNegativeInt(runtimeAutohealState.stale_soft_streak, 0, 100000000) >=
+        RUNTIME_STALE_SOFT_PERSISTENCE_MIN_TICKS;
     const persistentCoordinationDegradation = persistentConduitDeficit || persistentStaleRaw;
     // Treat stall signatures as actionable only when there is real queue pressure.
     // This avoids running heavy recovery lanes while the queue is healthy.
@@ -11497,6 +11526,7 @@ function runServe(flags) {
       conduitScalePressure ||
       chronicCoordinationPathology ||
       persistentCoordinationDegradation ||
+      persistentStaleSoft ||
       staleAutohealNeeded ||
       memoryResumeNeeded ||
       benchmarkRefreshNeeded ||
@@ -11521,6 +11551,7 @@ function runServe(flags) {
         queue_velocity_per_min: queueVelocityPerMin,
         stall,
         persistent_coordination_degradation: persistentCoordinationDegradation,
+        persistent_stale_soft: persistentStaleSoft,
       };
     }
     if ((nowMs - parseNonNegativeInt(runtimeAutohealState.last_run_ms, 0, 1000000000000)) < cadenceMs) {
@@ -11536,11 +11567,12 @@ function runServe(flags) {
         queue_velocity_per_min: queueVelocityPerMin,
         stall,
         persistent_coordination_degradation: persistentCoordinationDegradation,
+        persistent_stale_soft: persistentStaleSoft,
       };
     }
 
     const conduitOnlyEligible =
-      persistentCoordinationDegradation &&
+      (persistentCoordinationDegradation || persistentStaleSoft) &&
       queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH &&
       parseNonNegativeInt(runtime && runtime.health_coverage_gap_count, 0, 100000000) === 0 &&
       !stallActionable &&
@@ -11574,6 +11606,7 @@ function runServe(flags) {
         stall_recovery: null,
         source,
         persistent_coordination_degradation: persistentCoordinationDegradation,
+        persistent_stale_soft: persistentStaleSoft,
       };
     }
 
@@ -11616,6 +11649,7 @@ function runServe(flags) {
       stall_recovery: stallRecovery,
       source,
       persistent_coordination_degradation: persistentCoordinationDegradation,
+      persistent_stale_soft: persistentStaleSoft,
     };
   };
 
