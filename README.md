@@ -181,16 +181,17 @@ Sources:
 - Live control-plane run: `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
 - Stabilized multi-run median (2 warmups + 9 runs): `docs/client/reports/benchmark_matrix_stabilized_preflight_2026-03-20.json`
 - Historical proof-pack reference (2026-03-14): `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
-- Headline runtime metrics below reflect the latest live refresh benchmark artifact (`2026-03-23T09:25:45.341Z`); stabilized median details remain in the JSON reports for tail-latency diagnostics.
+- Headline runtime metrics below reflect the latest live refresh benchmark artifact (`2026-03-23T14:35:50.712Z`); stabilized median details remain in the JSON reports for tail-latency diagnostics.
 - Throughput now reflects a shared pre-profile release-binary baseline measured once per run to avoid per-profile contamination from probe order and compile-time load.
-- The 2026-03-23 live refresh ran with preflight enabled and a temporary host-load override (`--preflight-max-load-per-core=2.0`) to pass host load gating; noise-gate preflight remained fail-closed.
+- The latest 2026-03-23 refresh shown below ran with benchmark preflight disabled (`--benchmark-preflight=0`) under elevated host load; runtime floor metrics remained sourced from `runtime-efficiency-floor run`.
 
 | Metric | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) | Historical Reference |
 |---|---:|---:|---:|---:|
-| Cold start | 6.9 ms | 1.7 ms | 1.8 ms | 74.5 ms |
-| Idle memory | 7.2 MB | 1.4 MB | 1.4 MB | 22.1 MB |
-| Install size (full) | 6,027.2 MB | 1.1 MB | 0.4 MB | 126.4 MB |
-| Throughput | 127,561 ops/sec | 127,561 ops/sec | 127,561 ops/sec | 7,420 ops/sec |
+| Cold start | 5.9 ms | 1.6 ms | 1.6 ms | 74.5 ms |
+| Idle memory | 9.9 MB | 1.4 MB | 1.4 MB | 22.1 MB |
+| Install size (artifact) | 1.7 MB | 1.1 MB | 0.4 MB | 126.4 MB |
+| Runtime footprint (stateful full) | 109.8 MB | n/a | n/a | n/a |
+| Throughput | 10,262 ops/sec | 10,262 ops/sec | 10,262 ops/sec | 7,420 ops/sec |
 
 The historical reference column is an older proof-pack baseline used for internal assurance and regression comparison. It is not an additional InfRing runtime mode.
 
@@ -209,25 +210,26 @@ External comparison sources:
 - [OpenFang README](https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md)
 - [ZeroClaw official site](https://www.zeroclaw.dev/)
 
-InfRing numbers reflect the latest live refresh benchmark artifact. Competitor rows use the closest public footprint/runtime metrics published by each project. Where a project only publishes a ceiling rather than an exact benchmark median, the table uses that published ceiling and marks it.
+InfRing numbers reflect the latest live refresh benchmark artifact. Competitor rows use the closest public footprint/runtime metrics published by each project. Where a project only publishes a ceiling rather than an exact benchmark median, the table uses that published ceiling and marks it. Artifact footprint and runtime stateful footprint are reported separately.
 
 Copyable benchmark snapshot:
 
 ```text
-| Project | Published Footprint (MB) | Cold Start | Idle Memory (MB) | Throughput (ops/sec) | Static Daemon (MB) | Security Systems | Channel Adapters | LLM Providers |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| InfRing-rich | 6027.2 | 6.9 ms | 7.2 | 127561 | 0.4 | 83 | 6 | 3 |
-| InfRing-pure | 1.1 | 1.7 ms | 1.4 | 127561 | 0.4 | 83 | 0 | 0 |
-| InfRing-tiny* | 0.4 | 1.8 ms | 1.4 | 127561 | 0.3 | 83 | 0 | 0 |
-| ZeroClaw* | 3.4 | 10.0 ms* | 5.0* | n/p | 3.4 | n/p | 9 | 28+ |
-| OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
-| OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
-| LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
-| CrewAI | 100.0 | 3.0 sec | 200.0 | n/p | n/p | 1 | 3 | 10 |
-| AutoGen | 200.0 | 4.0 sec | 250.0 | n/p | n/p | 2 | 4 | 8 |
+| Project | Published Footprint (MB, artifact) | Runtime Stateful Footprint (MB) | Cold Start | Idle Memory (MB) | Throughput (ops/sec) | Static Daemon (MB) | Security Systems | Channel Adapters | LLM Providers |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| InfRing-rich | 1.7 | 109.8 | 5.9 ms | 9.9 | 10262 | 0.4 | 83 | 6 | 3 |
+| InfRing-pure | 1.1 | n/a | 1.6 ms | 1.4 | 10262 | 0.4 | 83 | 0 | 0 |
+| InfRing-tiny* | 0.4 | n/a | 1.6 ms | 1.4 | 10262 | 0.3 | 83 | 0 | 0 |
+| ZeroClaw* | 3.4 | n/p | 10.0 ms* | 5.0* | n/p | 3.4 | n/p | 9 | 28+ |
+| OpenFang | 32.0 | n/p | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
+| OpenHands | 95.5 | n/p | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
+| LangGraph | 150.0 | n/p | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
+| CrewAI | 100.0 | n/p | 3.0 sec | 200.0 | n/p | n/p | 1 | 3 | 10 |
+| AutoGen | 200.0 | n/p | 4.0 sec | 250.0 | n/p | n/p | 2 | 4 | 8 |
 ```
 
 `n/p` means not publicly published with a reproducible method in the referenced sources.
+`n/a` means the metric does not apply to that mode in this snapshot.
 `*` ZeroClaw publishes `<10 ms startup`, `<5 MB RAM`, and `~3.4 MB binary size`; the snapshot preserves those published ceilings/values.
 `tiny*` is benchmark-display shorthand for InfRing's `tiny-max` low-resource pure profile.
 
@@ -286,13 +288,13 @@ AutoGen         █░░░░░░░░░░░░░░░░░░░░�
 ```text
 InfRing-tiny*   ███████████████████████████████████████████████████████████████  ~1 MB
 InfRing-pure    ████████████████████████████████████████████████████████████░░░  ~1 MB
+InfRing-rich    ████████████████████████████████████████████████████████░░░░░░░  ~2 MB
 ZeroClaw        ████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░  3 MB
 OpenFang        ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  32 MB
 OpenHands       █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  95 MB
 CrewAI          ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100 MB
 LangGraph       ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
 AutoGen         █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
-InfRing-rich    █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  6027 MB
 ```
 
 ## Alpha Readiness Checklist

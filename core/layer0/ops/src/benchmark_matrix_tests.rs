@@ -63,18 +63,19 @@ fn extract_top1_snapshot_metrics_reads_runtime_snapshot_shape() {
 }
 
 #[test]
-fn extract_runtime_metrics_prefers_p50_when_available() {
+fn extract_runtime_metrics_prefers_install_artifact_over_full_install() {
     let runtime = json!({
         "metrics": {
             "cold_start_p50_ms": 12.3,
             "cold_start_p95_ms": 55.0,
             "idle_rss_p50_mb": 4.2,
             "idle_rss_p95_mb": 8.9,
+            "install_artifact_total_mb": 9.7,
             "full_install_total_mb": 33.1
         }
     });
 
-    assert_eq!(extract_runtime_metrics(&runtime), Some((12.3, 4.2, 33.1)));
+    assert_eq!(extract_runtime_metrics(&runtime), Some((12.3, 4.2, 9.7)));
 }
 
 #[test]
