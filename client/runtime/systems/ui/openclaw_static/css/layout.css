@@ -262,6 +262,19 @@
   line-height: 1;
 }
 
+.nav-agent-avatar-wrap {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-agent-avatar-wrap .agent-activity-spinner {
+  top: -6px;
+}
+
 .nav-agent-archive {
   width: 16px;
   height: 16px;
