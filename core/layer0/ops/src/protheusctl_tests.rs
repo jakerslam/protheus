@@ -138,7 +138,8 @@ fn core_shortcut_routes_gateway_stop_to_daemon_stop() {
 
 #[test]
 fn core_shortcut_routes_gateway_preserves_start_flags() {
-    let route = resolve_core_shortcuts("gateway", &["--dashboard-open=0".to_string()]).expect("route");
+    let route =
+        resolve_core_shortcuts("gateway", &["--dashboard-open=0".to_string()]).expect("route");
     assert_eq!(route.script_rel, "core://daemon-control");
     assert_eq!(route.args, vec!["start", "--dashboard-open=0"]);
 }

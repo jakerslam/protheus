@@ -364,6 +364,7 @@ pub fn core_state_root(root: &Path) -> PathBuf {
     root.join("core").join("local").join("state")
 }
 
+#[cfg(any(test, kani))]
 fn stable_json_string(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),

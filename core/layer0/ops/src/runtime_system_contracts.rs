@@ -567,6 +567,93 @@ const V5_RUST_PROD_IDS: &[&str] = &[
     "V5-RUST-PROD-012",
 ];
 
+const V6_EXECUTION_002_IDS: &[&str] = &[
+    "V6-EXECUTION-002.1",
+    "V6-EXECUTION-002.2",
+    "V6-EXECUTION-002.3",
+    "V6-EXECUTION-002.4",
+];
+
+const V6_EXECUTION_003_IDS: &[&str] = &[
+    "V6-EXECUTION-003.1",
+    "V6-EXECUTION-003.2",
+    "V6-EXECUTION-003.3",
+    "V6-EXECUTION-003.4",
+];
+
+const V6_ASSIMILATE_FAST_001_IDS: &[&str] = &[
+    "V6-ASSIMILATE-FAST-001.1",
+    "V6-ASSIMILATE-FAST-001.2",
+    "V6-ASSIMILATE-FAST-001.3",
+    "V6-ASSIMILATE-FAST-001.4",
+    "V6-ASSIMILATE-FAST-001.5",
+    "V6-ASSIMILATE-FAST-001.6",
+];
+
+const V6_WORKFLOW_028_IDS: &[&str] = &[
+    "V6-WORKFLOW-028.1",
+    "V6-WORKFLOW-028.2",
+    "V6-WORKFLOW-028.3",
+    "V6-WORKFLOW-028.4",
+    "V6-WORKFLOW-028.5",
+];
+
+const V6_MEMORY_CONTEXT_001_IDS: &[&str] = &[
+    "V6-MEMORY-CONTEXT-001.1",
+    "V6-MEMORY-CONTEXT-001.2",
+    "V6-MEMORY-CONTEXT-001.3",
+    "V6-MEMORY-CONTEXT-001.4",
+    "V6-MEMORY-CONTEXT-001.5",
+];
+
+const V6_INTEGRATION_001_IDS: &[&str] = &[
+    "V6-INTEGRATION-001.1",
+    "V6-INTEGRATION-001.2",
+    "V6-INTEGRATION-001.3",
+    "V6-INTEGRATION-001.4",
+    "V6-INTEGRATION-001.5",
+    "V6-INTEGRATION-001.6",
+];
+
+const V6_INFERENCE_005_IDS: &[&str] = &[
+    "V6-INFERENCE-005.1",
+    "V6-INFERENCE-005.2",
+    "V6-INFERENCE-005.3",
+    "V6-INFERENCE-005.4",
+];
+
+const V6_RUNTIME_CLEANUP_001_IDS: &[&str] = &[
+    "V6-RUNTIME-CLEANUP-001.1",
+    "V6-RUNTIME-CLEANUP-001.2",
+    "V6-RUNTIME-CLEANUP-001.3",
+    "V6-RUNTIME-CLEANUP-001.4",
+    "V6-RUNTIME-CLEANUP-001.5",
+    "V6-RUNTIME-CLEANUP-001.6",
+    "V6-RUNTIME-CLEANUP-001.7",
+];
+
+const V6_ERP_AGENTIC_001_IDS: &[&str] = &[
+    "V6-ERP-AGENTIC-001.1",
+    "V6-ERP-AGENTIC-001.2",
+    "V6-ERP-AGENTIC-001.3",
+];
+
+const V6_TOOLING_001_IDS: &[&str] = &[
+    "V6-TOOLING-001.1",
+    "V6-TOOLING-001.2",
+    "V6-TOOLING-001.3",
+    "V6-TOOLING-001.4",
+    "V6-TOOLING-001.5",
+];
+
+const V6_WORKFLOW_029_IDS: &[&str] = &[
+    "V6-WORKFLOW-029.1",
+    "V6-WORKFLOW-029.2",
+    "V6-WORKFLOW-029.3",
+    "V6-WORKFLOW-029.4",
+    "V6-WORKFLOW-029.5",
+];
+
 const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
     RuntimeSystemContractFamily {
         ids: ACT_IDS,
@@ -637,6 +724,61 @@ const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
         ids: V5_RUST_PROD_IDS,
         family: "v5_rust_productivity",
         objective: "enterprise_rust_productivity_lane_with_perf_canary_and_unit_economics_controls",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_EXECUTION_002_IDS,
+        family: "execution_streaming_stack",
+        objective: "ssd_streaming_quantization_cache_first_and_kernel_path_for_moe_execution",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_EXECUTION_003_IDS,
+        family: "execution_worktree_stack",
+        objective: "per_agent_worktree_isolation_safe_merge_orchestration_and_cleanup_boundedness",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_ASSIMILATE_FAST_001_IDS,
+        family: "assimilate_fast_stack",
+        objective: "fast_assimilation_mode_with_cache_progress_parallelism_warmup_and_safety_disclosure",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_WORKFLOW_028_IDS,
+        family: "workflow_open_swe_stack",
+        objective: "open_swe_loop_registry_git_bridge_hitl_eval_harness_and_memory_continuity",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_MEMORY_CONTEXT_001_IDS,
+        family: "memory_context_maintenance",
+        objective: "staleness_tracking_pre_generation_pruning_emergency_compaction_and_context_health",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_INTEGRATION_001_IDS,
+        family: "integration_lakehouse_stack",
+        objective: "databricks_mlflow_vector_automl_dbrx_and_drift_monitoring_bridges",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_INFERENCE_005_IDS,
+        family: "inference_adaptive_routing",
+        objective: "live_provider_scoring_policy_routing_ordered_failover_and_provider_health_observability",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_RUNTIME_CLEANUP_001_IDS,
+        family: "runtime_cleanup_autonomous",
+        objective: "multi_trigger_self_cleaning_with_tiered_reclaim_device_profiles_and_boundedness_gates",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_ERP_AGENTIC_001_IDS,
+        family: "erp_agentic_stack",
+        objective: "erp_team_templates_closed_loop_decisioning_and_lineage_enforced_governed_actions",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_TOOLING_001_IDS,
+        family: "tooling_uv_ruff_stack",
+        objective: "uv_and_ruff_bridges_with_isolated_envs_autowire_pipeline_and_tooling_validation_gate",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_WORKFLOW_029_IDS,
+        family: "workflow_visual_bridge_stack",
+        objective: "graph_canvas_prompt_routing_rag_tool_eval_and_enterprise_deployment_observability",
     },
 ];
 
@@ -974,6 +1116,8 @@ mod tests {
         assert!(profile_for("V8-ACT-001.1").is_some());
         assert!(profile_for("V11-ECOSYSTEM-001.7").is_some());
         assert!(profile_for("V6-COMPANY-003.5").is_some());
+        assert!(profile_for("V6-EXECUTION-002.4").is_some());
+        assert!(profile_for("V6-RUNTIME-CLEANUP-001.7").is_some());
         assert!(profile_for("V5-HOLD-001").is_some());
         assert!(profile_for("V5-RUST-HYB-010").is_some());
         assert!(profile_for("V5-RUST-PROD-012").is_some());

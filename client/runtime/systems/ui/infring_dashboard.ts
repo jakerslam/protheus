@@ -33,6 +33,7 @@ const ATTENTION_DEFERRED_PATH = path.resolve(STATE_DIR, 'attention_deferred.json
 const ARCHIVED_AGENTS_PATH = path.resolve(STATE_DIR, 'archived_agents.json');
 const AGENT_CONTRACTS_PATH = path.resolve(STATE_DIR, 'agent_contracts.json');
 const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
+const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
 const BENCHMARK_SANITY_STATE_PATH = path.resolve(ROOT, 'core/local/state/ops/benchmark_sanity/latest.json');
 const BENCHMARK_SANITY_GATE_PATH = path.resolve(ROOT, 'core/local/artifacts/benchmark_sanity_gate_current.json');
 const DEFAULT_HOST = '127.0.0.1';
@@ -100,6 +101,9 @@ const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg'
 const OLLAMA_BIN = 'ollama';
 const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
+const TEST_AGENT_MODEL_DEFAULT = 'kimi2.5:cloud';
+const TEST_AGENT_PROVIDER_DEFAULT = 'cloud';
+const TEST_AGENT_ID_PREFIXES = ['e2e-', 'test-', 'bench-', 'ci-', 'qa-'];
 const TOOL_ITERATION_LIMIT = 4;
 const TOOL_OUTPUT_LIMIT = 5000;
 const ASSISTANT_EMPTY_FALLBACK_RESPONSE = 'I do not know yet. Please clarify what you want me to do next.';
@@ -1406,37 +1410,15 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
   if (asksRuntimeSync || asksClientLayerSummary) {
     const snap = snapshot && typeof snapshot === 'object' ? snapshot : null;
     if (snap) {
-      const queueDepth = parseNonNegativeInt(
-        snap && snap.attention_queue && snap.attention_queue.queue_depth != null
-          ? snap.attention_queue.queue_depth
-          : 0,
-        0,
-        100000000
-      );
-      const cockpitBlocks = parseNonNegativeInt(
-        snap && snap.cockpit && snap.cockpit.block_count != null
-          ? snap.cockpit.block_count
-          : 0,
-        0,
-        100000000
-      );
+      const runtime = runtimeSyncSummary(snap);
+      const queueDepth = parseNonNegativeInt(runtime.queue_depth, 0, 100000000);
+      const cockpitBlocks = parseNonNegativeInt(runtime.cockpit_blocks, 0, 100000000);
       const cockpitTotalBlocks = parseNonNegativeInt(
-        snap && snap.cockpit && snap.cockpit.total_block_count != null
-          ? snap.cockpit.total_block_count
-          : cockpitBlocks,
+        runtime.cockpit_total_blocks,
         cockpitBlocks,
         100000000
       );
-      const conduitSignals = parseNonNegativeInt(
-        snap &&
-        snap.attention_queue &&
-        snap.attention_queue.backpressure &&
-        snap.attention_queue.backpressure.conduit_signals != null
-          ? snap.attention_queue.backpressure.conduit_signals
-          : 0,
-        0,
-        100000000
-      );
+      const conduitSignals = parseNonNegativeInt(runtime.conduit_signals, 0, 100000000);
       const attentionReadable =
         cleanText(
           snap &&
@@ -1456,15 +1438,7 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
       const logCount = Array.isArray(snap && snap.logs && snap.logs.recent)
         ? snap.logs.recent.length
         : 0;
-      const healthChecks = parseNonNegativeInt(
-        snap && snap.health && snap.health.coverage && snap.health.coverage.total != null
-          ? snap.health.coverage.total
-          : Array.isArray(snap && snap.health && snap.health.checks)
-            ? snap.health.checks.length
-            : 0,
-        0,
-        100000000
-      );
+      const healthChecks = parseNonNegativeInt(runtime.health_check_count, 0, 100000000);
       const response = asksClientLayerSummary
         ? `Client layer now: memory entries ${memoryEntries}, receipts ${receiptCount}, logs ${logCount}, health checks ${healthChecks}, attention queue depth ${queueDepth}, cockpit blocks ${cockpitBlocks} active (${cockpitTotalBlocks} total), conduit signals ${conduitSignals}.`
         : `Current queue depth: ${queueDepth}, cockpit blocks: ${cockpitBlocks} active (${cockpitTotalBlocks} total), conduit signals: ${conduitSignals}. Attention queue is ${attentionReadable}.`;
@@ -1728,6 +1702,58 @@ function configuredProvider(snapshot) {
   return cleanText(raw, 80) || 'openai';
 }
 
+function normalizeTestAgentModelConfig(state) {
+  const root = state && typeof state === 'object' ? state : {};
+  const model =
+    cleanText(root.model || TEST_AGENT_MODEL_DEFAULT, 120) || TEST_AGENT_MODEL_DEFAULT;
+  const provider =
+    cleanText(
+      root.provider || providerForModelName(model, TEST_AGENT_PROVIDER_DEFAULT),
+      80
+    ) || TEST_AGENT_PROVIDER_DEFAULT;
+  return {
+    type: 'infring_dashboard_test_agent_model',
+    updated_at: cleanText(root.updated_at || nowIso(), 80) || nowIso(),
+    enabled: root.enabled === true,
+    model,
+    provider,
+  };
+}
+
+let testAgentModelCache = null;
+
+function loadTestAgentModelConfig() {
+  if (testAgentModelCache) return testAgentModelCache;
+  testAgentModelCache = normalizeTestAgentModelConfig(readJson(TEST_AGENT_MODEL_PATH, null));
+  return testAgentModelCache;
+}
+
+function saveTestAgentModelConfig(state) {
+  const normalized = normalizeTestAgentModelConfig(state);
+  writeJson(TEST_AGENT_MODEL_PATH, normalized);
+  testAgentModelCache = normalized;
+  return normalized;
+}
+
+function isTestingAgentId(agentId) {
+  const id = cleanText(agentId || '', 140).toLowerCase();
+  if (!id) return false;
+  if (TEST_AGENT_ID_PREFIXES.some((prefix) => id.startsWith(prefix))) return true;
+  return /(^|[-_])(e2e|test|bench|ci|qa)([-_]|$)/.test(id);
+}
+
+function testingModelOverrideForAgent(agentId) {
+  if (!isTestingAgentId(agentId)) return null;
+  const config = loadTestAgentModelConfig();
+  if (!config || config.enabled === false) return null;
+  return {
+    model: cleanText(config.model || TEST_AGENT_MODEL_DEFAULT, 120) || TEST_AGENT_MODEL_DEFAULT,
+    provider:
+      cleanText(config.provider || TEST_AGENT_PROVIDER_DEFAULT, 80) ||
+      TEST_AGENT_PROVIDER_DEFAULT,
+  };
+}
+
 function parseOllamaModelList() {
   if (!commandExists(OLLAMA_BIN)) return [];
   try {
@@ -1801,6 +1827,7 @@ function providerForModelName(modelName, fallbackProvider = 'ollama') {
   const value = cleanText(modelName || '', 120);
   if (!value) return cleanText(fallbackProvider || 'ollama', 80) || 'ollama';
   if (value.toLowerCase() === 'auto') return 'auto';
+  if (/:cloud$/i.test(value)) return 'cloud';
   if (value.startsWith('ollama/')) return 'ollama';
   if (value.includes('/')) return cleanText(value.split('/')[0], 80) || cleanText(fallbackProvider || 'ollama', 80);
   return cleanText(fallbackProvider || 'ollama', 80) || 'ollama';
@@ -1808,8 +1835,9 @@ function providerForModelName(modelName, fallbackProvider = 'ollama') {
 
 function effectiveAgentModel(agentId, snapshot) {
   const override = readAgentModelOverride(agentId);
-  const defaultModel = configuredOllamaModel(snapshot);
-  const defaultProvider = configuredProvider(snapshot);
+  const testModel = testingModelOverrideForAgent(agentId);
+  const defaultModel = testModel ? testModel.model : configuredOllamaModel(snapshot);
+  const defaultProvider = testModel ? testModel.provider : 'ollama';
   const defaultContextWindow = inferContextWindowFromModelName(defaultModel, DEFAULT_CONTEXT_WINDOW_TOKENS);
   if (override === 'auto') {
     return {
@@ -1821,21 +1849,79 @@ function effectiveAgentModel(agentId, snapshot) {
     };
   }
   const normalized = cleanText(override, 120) || defaultModel;
-  const runtimeModel = normalized.startsWith('ollama/')
-    ? cleanText(normalized.replace(/^ollama\//, ''), 120) || defaultModel
-    : normalized.includes('/')
-      ? defaultModel
-      : normalized;
+  let runtimeProvider = providerForModelName(normalized, defaultProvider);
+  let runtimeModel = normalized;
+  if (normalized.startsWith('ollama/')) {
+    runtimeProvider = 'ollama';
+    runtimeModel = cleanText(normalized.replace(/^ollama\//, ''), 120) || defaultModel;
+  } else if (normalized.includes('/')) {
+    const parts = normalized.split('/');
+    runtimeProvider = cleanText(parts.shift() || runtimeProvider, 80) || runtimeProvider;
+    runtimeModel = cleanText(parts.join('/'), 120) || defaultModel;
+  }
+  if (!runtimeModel || runtimeModel.toLowerCase() === 'auto') runtimeModel = defaultModel;
   const contextWindow = inferContextWindowFromModelName(
     normalized && normalized !== 'auto' ? normalized : (runtimeModel || defaultModel),
     defaultContextWindow
   );
   return {
     selected: normalized,
-    provider: providerForModelName(normalized, 'ollama'),
+    provider: cleanText(runtimeProvider || defaultProvider || 'ollama', 80) || 'ollama',
     runtime_model: runtimeModel,
-    runtime_provider: 'ollama',
+    runtime_provider: cleanText(runtimeProvider || defaultProvider || 'ollama', 80) || 'ollama',
     context_window: contextWindow,
+  };
+}
+
+function shouldUseHostedModelBackend(modelState) {
+  const provider = cleanText(
+    modelState && (modelState.runtime_provider || modelState.provider)
+      ? modelState.runtime_provider || modelState.provider
+      : '',
+    80
+  ).toLowerCase();
+  const model = cleanText(
+    modelState && modelState.runtime_model ? modelState.runtime_model : '',
+    120
+  ).toLowerCase();
+  if (!provider) return false;
+  if (provider !== 'ollama') return true;
+  return /:cloud$/.test(model);
+}
+
+function ensureHostedChatProviderModel(snapshot, modelState) {
+  const provider =
+    cleanText(
+      modelState && (modelState.runtime_provider || modelState.provider)
+        ? modelState.runtime_provider || modelState.provider
+        : '',
+      80
+    ) || '';
+  const model = cleanText(
+    modelState && modelState.runtime_model ? modelState.runtime_model : '',
+    120
+  );
+  if (!provider || !model || provider.toLowerCase() === 'ollama') {
+    return { ok: true, skipped: true, reason: 'local_provider' };
+  }
+  const currentProvider = cleanText(configuredProvider(snapshot), 80) || '';
+  const currentModel =
+    cleanText(
+      snapshot && snapshot.app && snapshot.app.settings && snapshot.app.settings.model
+        ? snapshot.app.settings.model
+        : configuredOllamaModel(snapshot),
+      120
+    ) || '';
+  if (currentProvider.toLowerCase() === provider.toLowerCase() && currentModel === model) {
+    return { ok: true, skipped: true, reason: 'already_configured' };
+  }
+  const lane = runAction('app.switchProvider', { provider, model });
+  return {
+    ok: !!(lane && lane.ok),
+    skipped: false,
+    provider,
+    model,
+    lane,
   };
 }
 
@@ -4862,14 +4948,28 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
     snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM
   );
   const startedAtMs = Date.now();
-  const llmResult = runLlmChatWithCli(
-    agent,
-    session,
-    cleanInput,
-    snapshot,
-    modelState.runtime_model,
-    runtimeMirror
-  );
+  const preferHostedBackend = shouldUseHostedModelBackend(modelState);
+  const hostedProviderSync = preferHostedBackend
+    ? ensureHostedChatProviderModel(snapshot, modelState)
+    : null;
+  const llmResult = preferHostedBackend
+    ? {
+        ok: false,
+        status: hostedProviderSync && hostedProviderSync.ok ? 1 : 2,
+        error:
+          hostedProviderSync && hostedProviderSync.ok
+            ? 'hosted_model_backend_selected'
+            : 'hosted_model_provider_sync_failed',
+        tools: [],
+      }
+    : runLlmChatWithCli(
+        agent,
+        session,
+        cleanInput,
+        snapshot,
+        modelState.runtime_model,
+        runtimeMirror
+      );
 
   let laneResult;
   let tools = [];
@@ -4924,6 +5024,16 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
       const failures = [];
       if (llmResult && llmResult.error) {
         failures.push(`ollama: ${cleanText(llmResult.error, 180)}`);
+      }
+      if (hostedProviderSync && hostedProviderSync.lane && !hostedProviderSync.ok) {
+        failures.push(
+          `provider-sync: ${cleanText(
+            hostedProviderSync.lane.stderr ||
+              hostedProviderSync.lane.stdout ||
+              hostedProviderSync.lane.status,
+            180
+          )}`
+        );
       }
       if (laneResult && !laneResult.ok) {
         const laneDetail = cleanText(
@@ -6935,10 +7045,11 @@ function runtimeMirrorFromSnapshot(snapshot, team = DEFAULT_TEAM) {
     snapshot && snapshot.runtime_sync && typeof snapshot.runtime_sync === 'object'
       ? snapshot.runtime_sync
       : {};
+  const computedRuntimeSummary = runtimeSyncSummary(snapshot && typeof snapshot === 'object' ? snapshot : {});
   const summaryRaw =
     runtimeSync && runtimeSync.summary && typeof runtimeSync.summary === 'object'
       ? runtimeSync.summary
-      : {};
+      : computedRuntimeSummary;
   const cockpit =
     snapshot && snapshot.cockpit && typeof snapshot.cockpit === 'object'
       ? snapshot.cockpit
@@ -10741,6 +10852,100 @@ function runServe(flags) {
 function run(argv = process.argv.slice(2)) {
   const flags = parseFlags(argv);
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
+  if (flags.mode === 'test-model' || flags.mode === 'test-agent-model') {
+    const raw = Array.isArray(argv) ? argv.slice(1) : [];
+    let op = 'get';
+    const localFlags = {};
+    for (const token of raw) {
+      const value = String(token || '').trim();
+      if (!value) continue;
+      if (!value.startsWith('--') && op === 'get') {
+        op = cleanText(value, 40).toLowerCase() || 'get';
+        continue;
+      }
+      if (value.startsWith('--')) {
+        const [rawKey, ...rest] = value.slice(2).split('=');
+        const key = cleanText(rawKey || '', 80).toLowerCase();
+        if (!key) continue;
+        localFlags[key] = rest.length ? rest.join('=') : '1';
+      }
+    }
+    const current = loadTestAgentModelConfig();
+    const appHistory = runLane(['app-plane', 'history', '--app=chat-ui']);
+    const appSettings =
+      appHistory &&
+      appHistory.payload &&
+      appHistory.payload.settings &&
+      typeof appHistory.payload.settings === 'object'
+        ? appHistory.payload.settings
+        : {};
+    const currentProvider =
+      cleanText(appSettings.provider || configuredProvider({ app: { settings: appSettings } }), 80) ||
+      'openai';
+    const currentModel =
+      cleanText(
+        appSettings.model || configuredOllamaModel({ app: { settings: appSettings } }),
+        120
+      ) || configuredOllamaModel({ app: { settings: appSettings } });
+    if (op === 'get' || op === 'status' || op === 'show') {
+      const payload = {
+        ok: true,
+        type: 'infring_dashboard_test_agent_model',
+        op: 'get',
+        config: current,
+        chat_provider: currentProvider,
+        chat_model: currentModel,
+      };
+      fs.writeFileSync(1, `${JSON.stringify(payload, null, flags.pretty ? 2 : 0)}${flags.pretty ? '\n' : ''}`, 'utf8');
+      return 0;
+    }
+    if (op !== 'set') {
+      const payload = {
+        ok: false,
+        type: 'infring_dashboard_test_agent_model',
+        error: 'unsupported_op',
+        op,
+        supported_ops: ['get', 'set'],
+      };
+      fs.writeFileSync(1, `${JSON.stringify(payload, null, flags.pretty ? 2 : 0)}${flags.pretty ? '\n' : ''}`, 'utf8');
+      return 2;
+    }
+    const nextModel = cleanText(localFlags.model || current.model || TEST_AGENT_MODEL_DEFAULT, 120) || TEST_AGENT_MODEL_DEFAULT;
+    const nextProvider =
+      cleanText(localFlags.provider || providerForModelName(nextModel, current.provider || TEST_AGENT_PROVIDER_DEFAULT), 80) ||
+      TEST_AGENT_PROVIDER_DEFAULT;
+    const nextEnabled =
+      localFlags.enabled == null
+        ? true
+        : ['1', 'true', 'yes', 'on'].includes(String(localFlags.enabled).toLowerCase());
+    const applyChatConfig =
+      localFlags['apply-chat-config'] == null
+        ? true
+        : ['1', 'true', 'yes', 'on'].includes(String(localFlags['apply-chat-config']).toLowerCase());
+    const saved = saveTestAgentModelConfig({
+      ...current,
+      model: nextModel,
+      provider: nextProvider,
+      enabled: nextEnabled,
+      updated_at: nowIso(),
+    });
+    const switchLane =
+      applyChatConfig && nextEnabled
+        ? runAction('app.switchProvider', { provider: nextProvider, model: nextModel })
+        : null;
+    const ok = !switchLane || !!switchLane.ok;
+    const payload = {
+      ok,
+      type: 'infring_dashboard_test_agent_model',
+      op: 'set',
+      config: saved,
+      apply_chat_config: applyChatConfig,
+      switched_chat_provider: !!switchLane,
+      switch_lane: switchLane ? laneOutcome(switchLane) : null,
+    };
+    fs.writeFileSync(1, `${JSON.stringify(payload, null, flags.pretty ? 2 : 0)}${flags.pretty ? '\n' : ''}`, 'utf8');
+    return ok ? 0 : 1;
+  }
   if (flags.mode === 'snapshot' || flags.mode === 'status') {
     const snapshot = buildSnapshot(flags);
     writeSnapshotReceipt(snapshot);
@@ -10754,7 +10959,7 @@ function run(argv = process.argv.slice(2)) {
     return null;
   }
   process.stderr.write(
-    `infring_dashboard: unsupported mode ${flags.mode}. expected serve|snapshot|status\n`
+    `infring_dashboard: unsupported mode ${flags.mode}. expected serve|snapshot|status|test-model\n`
   );
   return 2;
 }
