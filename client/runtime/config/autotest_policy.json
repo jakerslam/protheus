@@ -12,7 +12,7 @@
   },
   "test_discovery": {
     "root": "tests/client-memory-tools",
-    "include_suffix": ".test.js",
+    "include_suffix": ".test.ts",
     "ignore_prefixes": []
   },
   "heuristics": {
@@ -25,12 +25,12 @@
   "explicit_maps": {
     "by_prefix": {
       "client/runtime/systems/security/": [
-        "tests/client-memory-tools/security_integrity.test.js",
-        "tests/client-memory-tools/guard_remote_gate.test.js",
-        "tests/client-memory-tools/directive_gate.test.js"
+        "tests/client-memory-tools/security_integrity.test.ts",
+        "tests/client-memory-tools/guard_remote_gate.test.ts",
+        "tests/client-memory-tools/directive_gate.test.ts"
       ],
       "client/runtime/systems/spine/": [
-        "tests/client-memory-tools/spine_evidence_run_plan.test.js"
+        "tests/client-memory-tools/spine_evidence_run_plan.test.ts"
       ]
     }
   },

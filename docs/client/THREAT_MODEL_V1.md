@@ -7,32 +7,32 @@ Scope: unattended autonomy with adaptive mutation, outbound network access, and 
 1. Prompt-injection / forged-request ingress
 - Risk: remote input bypasses intent checks and triggers unsafe execution.
 - Primary controls: request envelope validation, remote gate signature checks, directive gate deny rules.
-- Regression tests: `tests/client-memory-tools/request_envelope.test.js`, `tests/client-memory-tools/guard_remote_gate.test.js`, `tests/client-memory-tools/directive_gate.test.js`.
+- Regression tests: `tests/client-memory-tools/request_envelope.test.ts`, `tests/client-memory-tools/guard_remote_gate.test.ts`, `tests/client-memory-tools/directive_gate.test.ts`.
 
 2. Unauthorized mutation of protected client/cognition/adaptive/client/memory/system paths
 - Risk: model or tool writes outside controller channels and silently corrupts policy/state.
 - Primary controls: adaptive boundary guard, client/memory/workspace dump guards, integrity kernel.
-- Regression tests: `tests/client-memory-tools/adaptive_layer_boundary_guards.test.js`, `tests/client-memory-tools/security_integrity.test.js`.
+- Regression tests: `tests/client-memory-tools/adaptive_layer_boundary_guards.test.ts`, `tests/client-memory-tools/security_integrity.test.ts`.
 
 3. Egress bypass / unsanctioned outbound calls
 - Risk: data exfiltration or uncontrolled API spend outside policy.
 - Primary controls: egress gateway allowlist, chokepoint guard.
-- Regression tests: `tests/client-memory-tools/egress_gateway.test.js`, `tests/client-memory-tools/egress_chokepoint_guard.test.js`.
+- Regression tests: `tests/client-memory-tools/egress_gateway.test.ts`, `tests/client-memory-tools/egress_chokepoint_guard.test.ts`.
 
 4. Secret exfiltration / raw credential reads
 - Risk: direct secret access by high-capability lanes.
 - Primary controls: secret broker handles, secret isolation guard.
-- Regression tests: `tests/client-memory-tools/secret_broker.test.js`, `tests/client-memory-tools/secret_broker_isolation_guard.test.js`.
+- Regression tests: `tests/client-memory-tools/secret_broker.test.ts`, `tests/client-memory-tools/secret_broker_isolation_guard.test.ts`.
 
 5. Policy-root lease misuse / unauthorized self-change escalation
 - Risk: self-change starts without lease-backed authorization.
 - Primary controls: policy-root lease requirement, capability lease consume-on-use.
-- Regression tests: `tests/client-memory-tools/policy_rootd_lease.test.js`, `tests/client-memory-tools/improvement_controller_policy_root.test.js`.
+- Regression tests: `tests/client-memory-tools/policy_rootd_lease.test.ts`, `tests/client-memory-tools/improvement_controller_policy_root.test.ts`.
 
 6. Integrity/policy tamper before startup
 - Risk: modified security files execute without detection.
 - Primary controls: integrity kernel, startup attestation verification.
-- Regression tests: `tests/client-memory-tools/startup_attestation.test.js`, `tests/client-memory-tools/startup_attestation_auto_issue.test.js`, `tests/client-memory-tools/action_receipts_integrity.test.js`.
+- Regression tests: `tests/client-memory-tools/startup_attestation.test.ts`, `tests/client-memory-tools/startup_attestation_auto_issue.test.ts`, `tests/client-memory-tools/action_receipts_integrity.test.ts`.
 
 ## Gate Rule
 

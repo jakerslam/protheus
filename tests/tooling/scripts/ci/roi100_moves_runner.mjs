@@ -383,8 +383,8 @@ function buildMoves(options = {}) {
     // File existence invariants (thin-client + Rust authority evidence surfaces)
     for (const relPath of [
       'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts',
-      'tests/client-memory-tools/swarm_orchestration_runtime.test.js',
-      'tests/client-memory-tools/swarm_runtime_smoothness.test.js',
+      'tests/client-memory-tools/swarm_orchestration_runtime.test.ts',
+      'tests/client-memory-tools/swarm_runtime_smoothness.test.ts',
       'client/runtime/systems/ops/run_protheus_ops.js',
       'core/layer0/ops/src/swarm_runtime.rs',
       'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',

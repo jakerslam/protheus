@@ -376,7 +376,7 @@ fn default_policy() -> Policy {
         strict_default: true,
         module_include_ext: vec![".ts".to_string()],
         module_ignore_prefixes: vec!["client/runtime/systems/ops/visualizer/".to_string()],
-        test_include_suffix: ".test.js".to_string(),
+        test_include_suffix: ".test.ts".to_string(),
         test_ignore_prefixes: Vec::new(),
         min_match_score: 4,
         min_token_len: 4,
@@ -387,14 +387,14 @@ fn default_policy() -> Policy {
             (
                 "client/runtime/systems/security/".to_string(),
                 vec![
-                    "tests/client-memory-tools/security_integrity.test.js".to_string(),
-                    "tests/client-memory-tools/guard_remote_gate.test.js".to_string(),
-                    "tests/client-memory-tools/directive_gate.test.js".to_string(),
+                    "tests/client-memory-tools/security_integrity.test.ts".to_string(),
+                    "tests/client-memory-tools/guard_remote_gate.test.ts".to_string(),
+                    "tests/client-memory-tools/directive_gate.test.ts".to_string(),
                 ],
             ),
             (
                 "client/runtime/systems/spine/".to_string(),
-                vec!["tests/client-memory-tools/spine_evidence_run_plan.test.js".to_string()],
+                vec!["tests/client-memory-tools/spine_evidence_run_plan.test.ts".to_string()],
             ),
         ]),
         critical_commands: vec![
@@ -2745,8 +2745,8 @@ mod tests {
         let test = TestCandidate {
             id: "tst_1".to_string(),
             kind: "node_test".to_string(),
-            path: "tests/client-memory-tools/autotest_controller.test.js".to_string(),
-            command: "node tests/client-memory-tools/autotest_controller.test.js".to_string(),
+            path: "tests/client-memory-tools/autotest_controller.test.ts".to_string(),
+            command: "node tests/client-memory-tools/autotest_controller.test.ts".to_string(),
             stem: "autotest_controller.test".to_string(),
         };
         let score = score_module_test_pair(&module, &test, &policy);

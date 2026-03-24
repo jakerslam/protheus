@@ -24,9 +24,9 @@ jobs:
         run: npm ci --include=dev
       - name: Verify generated artifacts are not staged (legacy wrapper)
         run: |
-          node tests/client-memory-tools/repo_hygiene_generated_guard.test.js
+          node tests/client-memory-tools/repo_hygiene_generated_guard.test.ts
       - name: Verify runtime hygiene lane (legacy wrapper)
         run: |
-          node tests/client-memory-tools/repo_hygiene_guard.test.js
+          node tests/client-memory-tools/repo_hygiene_guard.test.ts
       - name: Churn guard (strict)
         run: npm run -s ops:churn:guard

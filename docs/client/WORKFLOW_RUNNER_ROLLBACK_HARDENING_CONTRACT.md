@@ -59,5 +59,5 @@ Scope: `client/runtime/systems/workflow/workflow_executor.ts`
 
 ## Tests
 
-- `tests/client-memory-tools/workflow_executor.test.js`
-- `tests/client-memory-tools/workflow_executor_rollback_hardening.test.js`
+- `tests/client-memory-tools/workflow_executor.test.ts`
+- `tests/client-memory-tools/workflow_executor_rollback_hardening.test.ts`

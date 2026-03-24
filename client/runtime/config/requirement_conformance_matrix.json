@@ -11,7 +11,7 @@
         "client/runtime/config/open_platform_release_pack_policy.json"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/open_platform_release_pack.test.js"
+        "tests/client-memory-tools/open_platform_release_pack.test.ts"
       ]
     },
     {
@@ -22,8 +22,8 @@
         "client/runtime/config/event_sourced_control_plane_policy.json"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/event_sourced_control_plane_authority.test.js",
-        "tests/client-memory-tools/event_sourced_control_plane_jetstream.test.js"
+        "tests/client-memory-tools/event_sourced_control_plane_authority.test.ts",
+        "tests/client-memory-tools/event_sourced_control_plane_jetstream.test.ts"
       ]
     },
     {
@@ -34,7 +34,7 @@
         "client/runtime/config/trace_habit_autogenesis_policy.json"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/trace_habit_autogenesis.test.js"
+        "tests/client-memory-tools/trace_habit_autogenesis.test.ts"
       ]
     },
     {
@@ -45,7 +45,7 @@
         "client/runtime/systems/fractal/engine.ts"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/persistent_fractal_meta_organ.test.js"
+        "tests/client-memory-tools/persistent_fractal_meta_organ.test.ts"
       ]
     },
     {
@@ -55,7 +55,7 @@
         "client/runtime/systems/soul/soul_continuity_adapter.ts"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/soul_continuity_adapter.test.js"
+        "tests/client-memory-tools/soul_continuity_adapter.test.ts"
       ]
     },
     {
@@ -67,7 +67,7 @@
         "platform/export_cli.ts"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/platform_path_contract_pack.test.js"
+        "tests/client-memory-tools/platform_path_contract_pack.test.ts"
       ]
     },
     {
@@ -80,7 +80,7 @@
         "client/runtime/systems/autogenesis/trace_habit_loop.ts"
       ],
       "evidence_tests": [
-        "tests/client-memory-tools/legacy_path_alias_adapters.test.js"
+        "tests/client-memory-tools/legacy_path_alias_adapters.test.ts"
       ]
     }
   ]

@@ -15,21 +15,21 @@
     { "id": "mobile", "manifest": "core/layer0/mobile/Cargo.toml" }
   ],
   "regression_tests": [
-    ["node", "tests/client-memory-tools/execution_phase2_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/pinnacle_phase2_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/vault_phase3_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/red_legion_phase2_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/observability_chaos_resilience.test.js"],
-    ["node", "tests/client-memory-tools/observability_metrics_exporter.test.js"],
-    ["node", "tests/client-memory-tools/graph_phase6_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/swarm_phase7_rust_parity.test.js"],
-    ["node", "tests/client-memory-tools/mobile_phase8_rust_parity.test.js"]
+    ["node", "tests/client-memory-tools/execution_phase2_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/pinnacle_phase2_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/vault_phase3_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/red_legion_phase2_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/observability_chaos_resilience.test.ts"],
+    ["node", "tests/client-memory-tools/observability_metrics_exporter.test.ts"],
+    ["node", "tests/client-memory-tools/graph_phase6_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/swarm_phase7_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/mobile_phase8_rust_parity.test.ts"]
   ],
   "sovereignty_tests": [
-    ["node", "tests/client-memory-tools/execution_security_gate_integration.test.js"],
-    ["node", "tests/client-memory-tools/vault_sovereignty_fail_closed.test.js"],
-    ["node", "tests/client-memory-tools/observability_sovereignty_index.test.js"],
-    ["node", "tests/client-memory-tools/swarm_verification_mode.test.js"]
+    ["node", "tests/client-memory-tools/execution_security_gate_integration.test.ts"],
+    ["node", "tests/client-memory-tools/vault_sovereignty_fail_closed.test.ts"],
+    ["node", "tests/client-memory-tools/observability_sovereignty_index.test.ts"],
+    ["node", "tests/client-memory-tools/swarm_verification_mode.test.ts"]
   ],
   "mobile_status_cmd": [
     "node",

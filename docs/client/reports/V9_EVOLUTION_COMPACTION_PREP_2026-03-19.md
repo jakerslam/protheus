@@ -90,11 +90,11 @@ Validation executed:
   - `node client/runtime/systems/security/conflict_marker_guard.{js,ts} status`
   - `node client/runtime/systems/ops/state_kernel.{js,ts} status`
 - Targeted regression tests:
-  - `node tests/client-memory-tools/repository_access_auditor.test.js`
-  - `node tests/client-memory-tools/dist_runtime_cutover.test.js`
-  - `node tests/client-memory-tools/motivational_state_vector.test.js`
-  - `node tests/client-memory-tools/interactive_desktop_session_primitive.test.js`
-  - `node tests/client-memory-tools/backlog_github_sync.test.js`
+  - `node tests/client-memory-tools/repository_access_auditor.test.ts`
+  - `node tests/client-memory-tools/dist_runtime_cutover.test.ts`
+  - `node tests/client-memory-tools/motivational_state_vector.test.ts`
+  - `node tests/client-memory-tools/interactive_desktop_session_primitive.test.ts`
+  - `node tests/client-memory-tools/backlog_github_sync.test.ts`
   - `npm run -s test:ops:competitive-matrix`
 - Benchmark refresh:
   - `npm run -s ops:benchmark:build-release`
