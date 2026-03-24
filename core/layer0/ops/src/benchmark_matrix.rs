@@ -1046,7 +1046,9 @@ fn measure_openclaw(
         );
         metrics.insert(
             "effective_hash_ops_per_sec".to_string(),
-            json!(effective_hash_ops_per_sec(throughput_sampling.tasks_per_sec)),
+            json!(effective_hash_ops_per_sec(
+                throughput_sampling.tasks_per_sec
+            )),
         );
     }
     if let Some(meta) = runtime_source.as_object_mut() {
@@ -1072,7 +1074,9 @@ fn measure_openclaw(
         );
         meta.insert(
             "effective_hash_ops_per_sec".to_string(),
-            json!(effective_hash_ops_per_sec(throughput_sampling.tasks_per_sec)),
+            json!(effective_hash_ops_per_sec(
+                throughput_sampling.tasks_per_sec
+            )),
         );
         meta.insert(
             "tasks_phase".to_string(),

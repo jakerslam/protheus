@@ -13466,3 +13466,23 @@ Objective: prevent idle/rogue agent accumulation by enforcing contract-bound lif
 | V6-AGENT-LIFECYCLE-001.3 | done | Revival from Archive | Continuity must survive process termination without keeping stale agents alive. | `POST /api/agents/:id/revive` relaunches archived agent with lineage-linked successor contract and preserved revival snapshot metadata. Evidence: `client/runtime/systems/ui/infring_dashboard.ts`, `client/runtime/systems/ui/openclaw_static/js/pages/agents.ts`. | 9 | 0/1/2/client |
 | V6-AGENT-LIFECYCLE-001.4 | done | Anti-Rogue Security Integration | Contract bypass/exfiltration/abuse attempts must terminate immediately. | Violation detector triggers safety-plane termination (`agent_contract_terminated`) with receipts and archival, plus rate-spike enforcement hooks. Evidence: `client/runtime/systems/ui/infring_dashboard.ts`, `tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.js`. | 10 | 0/1/2 |
 | V6-AGENT-LIFECYCLE-001.5 | done | Observability + Dashboard Lifecycle Surface | Operators need live lifecycle visibility and one-click revive actions. | Dashboard surfaces contract status/remaining TTL, idle-threshold alerting, recently terminated list, and revive action. Evidence: `client/runtime/systems/ui/openclaw_static/index_body.html`, `client/runtime/systems/ui/openclaw_static/js/pages/agents.ts`. | 9 | 1/2/client |
+
+## Platform Adoption + Scale-Readiness Closure Intake (External Analysis, 2026-03-23)
+
+Source summary:
+- Public contribution/adoption leverage improvements for InfRing v0.3.x-alpha.
+- Focus: dual licensing, onboarding clarity, Layer 2 extension ergonomics, plugin/WASM boundaries, formal testing depth, observability standardization, and pure-mode local adapter parity.
+
+Notes:
+- Primitive-first normalization: this intake closes platform-adoption gaps without bypassing conduit or safety-plane authority.
+- Existing runtime self-maintenance contracts remain active (`V6-RUNTIME-CLEANUP-001.*`, `V6-BLINDSPOT-001.*`) and are treated as foundational for long-run boundedness.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V7-PLATFORM-001.1 | done | Dual-License Foundation (NC + Apache-2.0 Open Core) | Adoption and enterprise deployment are blocked by single-scope non-commercial licensing. | Added dual-license artifacts (`LICENSE`, `LICENSE-INFRING-NC-1.0`, `LICENSE-APACHE-2.0`, `LICENSE_SCOPE.md`) and README licensing model with contact path for commercial terms. | 10 | 0/1/2/client/docs |
+| V7-PLATFORM-001.2 | done | Public Roadmap + InfRing 101 Onboarding Surface | New contributors face a steep terminology and direction ramp without canonical onboarding artifacts. | Added living roadmap (`roadmap.md`), glossary (`glossary.md`), and three concrete example app scaffolds under `apps/` with updated `apps/README.md`. | 9 | docs/apps/client |
+| V7-PLATFORM-001.3 | done | Layer 2 Initiative Primitive Documentation and Extension Example | Layer 2 custom lane adoption is weaker when initiative extension semantics are implicit. | Documented `initiative.rs` as extension primitive and added `docs/client/architecture/layer2_initiative_extensions.md` + `docs/example.md` walkthrough. | 8 | 2/docs |
+| V7-PLATFORM-001.4 | done | Plugin + WASM Component Model Specification and Skeleton | Third-party extension growth requires formal isolation and registration contracts to preserve Layer 0 safety. | Added plugin/WASM spec (`docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md`) and adapter skeleton (`adapters/protocol/wasm_adapter_skeleton/**`) with WIT + Rust stub. | 9 | 0/1/2/adapter/docs |
+| V7-PLATFORM-001.5 | done | Layer 0 Property-Based Test Expansion (importance + attention queue) | Deterministic scoring/queue behavior needs stronger invariant testing under adversarial/randomized input classes. | Added `proptest` coverage in `core/layer0/ops/src/importance.rs` and `core/layer0/ops/src/attention_queue.rs`, plus `proptest` dev dependency in `core/layer0/ops/Cargo.toml`. | 8 | 0 |
+| V7-PLATFORM-001.6 | done | Observability OTLP Integration Plan | Scale operations require one canonical metrics/traces plan and dashboard parity model. | Added OTLP observability plan (`docs/observability/OTLP_INTEGRATION_PLAN.md`) defining endpoints, signals, SLO gates, and rollout phases. | 7 | 0/1/2/client/docs |
+| V7-PLATFORM-001.7 | done | Pure Mode Local LLM Adapter Spec (llama.cpp + ollama) | Pure mode needs explicit local inference adapter contracts for reliable edge/air-gapped operation. | Added pure-mode local adapter spec (`docs/client/architecture/pure_mode_local_llm_adapters.md`) including contract fields, routing rules, and CLI surfaces. | 9 | 0/1/2/adapter/docs |

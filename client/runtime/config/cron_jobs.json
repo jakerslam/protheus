@@ -7,7 +7,7 @@
       "schedule": { "expr": "0 0,8,12,16,20 * * *", "tz": "America/Denver" },
       "sessionTarget": "main",
       "wakeMode": "next-heartbeat",
-      "payload": { "kind": "systemEvent", "text": "MOLTCHECK: Browse Moltbook feed, upvote interesting posts or add relevant comments. Stay active per 4h heartbeat rule. Report activity." },
+      "payload": { "kind": "systemEvent", "text": "MOLTCHECK: Before any action, verify secret availability via protheus-ops secret-broker-kernel status --payload='{\"secret_ids\":[\"moltbook_api_key\"]}'. If unavailable, emit status=SKIPPED_CREDENTIALS once and stop quietly (no retry spam). If available, browse Moltbook feed, upvote interesting posts or add relevant comments, and report activity." },
       "delivery": { "mode": "announce", "channel": "main" },
       "enabled": true,
       "id": "5f453976-52dc-44d6-821d-686bfd5cf5bf"

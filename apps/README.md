@@ -21,3 +21,8 @@ Default apps:
 - `lensmap/` — code-linked documentation and external annotation workflow tooling.
 - `local-rag/` — one-command local RAG + stable memory library app scaffold.
 - `snowball_engine/` — thin snowball orchestration surface over core snowball-plane runtime.
+
+Reference onboarding apps:
+- `sovereign-memory-os/` — sovereign personal memory OS example (receipt-backed local continuity).
+- `local-research-agent/` — local-first research agent example with citation-oriented workflows.
+- `mcu-sensor-monitor-tiny-max/` — tiny-max constrained-device sensor monitor example.

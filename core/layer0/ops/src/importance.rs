@@ -315,6 +315,7 @@ pub fn to_json(decision: &ImportanceDecision) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn critical_core_health_gets_floor_and_high_band() {
@@ -346,5 +347,45 @@ mod tests {
         assert_eq!(out.band, "p4");
         assert_eq!(out.initiative_action, "silent");
         assert_eq!(out.initiative_max_messages, 0);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn inferred_importance_stays_bounded_and_consistent(
+            criticality in -10.0f64..10.0,
+            urgency in -10.0f64..10.0,
+            impact in -10.0f64..10.0,
+            user_relevance in -10.0f64..10.0,
+            confidence in -10.0f64..10.0,
+            severity in prop_oneof![Just("info"), Just("warn"), Just("critical")]
+        ) {
+            let mut pm = BTreeMap::new();
+            pm.insert("critical".to_string(), 100);
+            pm.insert("warn".to_string(), 60);
+            pm.insert("info".to_string(), 20);
+            let event = json!({
+                "source": "proptest",
+                "source_type": "property",
+                "severity": severity,
+                "summary": "property test event",
+                "importance": {
+                    "criticality": criticality,
+                    "urgency": urgency,
+                    "impact": impact,
+                    "user_relevance": user_relevance,
+                    "confidence": confidence
+                }
+            });
+            let out = infer_from_event(&event, severity, &pm);
+            prop_assert!((0.0..=1.0).contains(&out.score));
+            prop_assert!((1..=1000).contains(&out.priority));
+            prop_assert!(matches!(out.band.as_str(), "p0" | "p1" | "p2" | "p3" | "p4"));
+            prop_assert_eq!(out.queue_front, out.score >= 0.70);
+        }
     }
 }
