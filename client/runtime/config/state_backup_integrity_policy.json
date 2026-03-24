@@ -2,7 +2,7 @@
   "version": "1.0",
   "enabled": true,
   "profile": "runtime_state",
-  "destination": "$HOME/.openclaw/backups/workspace-state",
+  "destination": "$HOME/.infring/backups/workspace-state",
   "verify_recent_snapshots": 7,
   "alert_on_mismatch": true,
   "paths": {

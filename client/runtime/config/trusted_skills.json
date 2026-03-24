@@ -12,7 +12,7 @@
       "approved_at": "2026-02-14",
       "note": "Core memory index rebuild tool - system critical"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/enforcement.smoke.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/enforcement.smoke.test.ts": {
       "sha256": "0fb66c1e1a9bf2980f6613127458c7a2bc16cc91769cf79c9e2a39c8379684d6",
       "approved_by": "local-operator",
       "approved_at": "2026-02-14",
@@ -60,7 +60,7 @@
       "approved_at": "2026-02-16",
       "note": "Added runtime exec detection warning"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/skill_gate.smoke.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/skill_gate.smoke.test.ts": {
       "sha256": "49bc65bf32610252f6c25e2340a371f6288cfb7da87b26a4fe93ecef586070fd",
       "approved_by": "local-operator",
       "approved_at": "2026-02-14",
@@ -126,19 +126,19 @@
       "approved_at": "2026-02-14",
       "note": "Agent routing rules (control plane) - risk/complexity \u2192 slot mapping"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_moltbook_api.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_moltbook_api.ts": {
       "sha256": "d865c39d1386f66c45936d120df3878c194edda79e127c60930807469edd81aa",
       "approved_by": "local-operator",
       "approved_at": "2026-02-16",
       "note": "Updated to use execCompacted wrapper"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_large_output.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_large_output.ts": {
       "sha256": "f6f4a651e6ecfdf7d23563a98b12b05d218f7086adebae0479da27bfc4f925de",
       "approved_by": "local-operator",
       "approved_at": "2026-02-16",
       "note": "Test large output for compaction - fixed token length"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/moltbook_exec_wrapper.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/moltbook_exec_wrapper.ts": {
       "sha256": "9ba44e277730a42e14074cb0195984357d7f0e57dbef6830e7ebadcb888577ff",
       "approved_by": "local-operator",
       "approved_at": "2026-02-16",
@@ -150,19 +150,19 @@
       "approved_at": "2026-02-16",
       "note": "CI-style audit for child_process usage"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_direct_exec_warning.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/test_direct_exec_warning.ts": {
       "sha256": "978c2bb65d9519f7c3a8f3dd7e0a8da2491ea53997a14e5931c0fd1b103f1736",
       "approved_by": "local-operator",
       "approved_at": "2026-02-16",
       "note": "Test runtime exec warning"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/directive_enforcement.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/directive_enforcement.test.ts": {
       "sha256": "2f029f249ccc064cf6693c2f99fae0da827aec33d6f029eadb5ce4b4a8c3b527",
       "approved_by": "local-operator",
       "approved_at": "2026-02-16",
       "note": "Fixed test 5"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/dopamine_engine.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/dopamine_engine.test.ts": {
       "sha256": "2aad8e43c1e0dc61fc2e828227553758f5fda3acdee9139db1916bd749980218",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -210,7 +210,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.3.0 - Added External Eyes auto-run hook (post-capture, best-effort)"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_capture.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_capture.test.ts": {
       "sha256": "337bcf3b8f1d75f5374c265c663ee0fac963057805bdec857b2f79c263683837",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -240,7 +240,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0.2 - Added test_run event scoring (+6/-6)"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/aie.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/aie.test.ts": {
       "sha256": "d15288da9fc03a50246522a86e690184ebf67dd94c28fb6ad2dd22be12c1ecd9",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -258,7 +258,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.1.1 - Metric integrity: explicit git_dirty_* fields, signal_ratio NUMBER type"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_digest.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_digest.test.ts": {
       "sha256": "0cdacbc8f9ff209021da597b451d21c157c115d48e9f7e35851bc04cb4693ce6",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -270,7 +270,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.1 - Template literals verified correct, auto-ingest to queue"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_insight.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_insight.test.ts": {
       "sha256": "0cc50036bdf6d757d0292fc3b98926752aced415d667ebb11228141c206be614",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -282,7 +282,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0 - Fixed trust detection and git remote patterns, all tests pass"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/directive_gate.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/directive_gate.test.ts": {
       "sha256": "5ef959a5698223b729458301528d331b8cbcb0d7b3c739923d69fa9a2f919f60",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -300,7 +300,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0.1 - Added computeOutcomeSignals for proposal_queue integration, outcome-based score adjustments"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/external_eyes.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/external_eyes.test.ts": {
       "sha256": "b1e525548a4bc124663ef13911c853f89dbf798290892f720bd3ad76a79aed0b",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -312,7 +312,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.1a - Added normalizeProposalsJson for wrapper objects/single proposals"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_queue.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/sensory_queue.test.ts": {
       "sha256": "4469712a11e3d3d097cabecbbf8c7f44e3954434d3610a435f63eef4d2836094",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -324,7 +324,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0 - Decision + Outcome Tracking for closed-loop evolution"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/proposal_queue.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/proposal_queue.test.ts": {
       "sha256": "71291a72c23616fdcc8029e19752f11f146635fc9c4107d8f1ef68bf5fb10fbb",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",
@@ -336,7 +336,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0 - Eyes \u2192 Proposals bridge, deterministic scoring, dedupe by URL, evidence_ref includes eye:<id>"
     },
-    "${WORKSPACE_ROOT}/tests/client-memory-tools/eyes_insight.test.js": {
+    "${WORKSPACE_ROOT}/tests/client-memory-tools/eyes_insight.test.ts": {
       "sha256": "1f60980fa48e50adf2cb6c3bfb1d5d66079932cb7e46218ff7e1ab656f8ab835",
       "approved_by": "local-operator",
       "approved_at": "2026-02-17",

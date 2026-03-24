@@ -10,6 +10,7 @@
 
 /* Sidebar */
 .sidebar {
+  position: relative;
   width: var(--sidebar-width);
   height: calc(100vh - 46px);
   background: var(--bg-primary);
@@ -20,6 +21,26 @@
   flex-shrink: 0;
   transition: width var(--transition-normal);
   z-index: 100;
+  --sidebar-edge-fade-size: 22px;
+}
+
+/* Right-edge fade shadow outside sidebar border, matching chat fade style. */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  right: calc(-1 * var(--sidebar-edge-fade-size));
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-edge-fade-size);
+  pointer-events: none;
+  z-index: 115;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--bg-primary) 99%, transparent) 0%,
+    color-mix(in srgb, var(--bg-primary) 86%, transparent) 34%,
+    color-mix(in srgb, var(--bg-primary) 54%, transparent) 68%,
+    transparent 100%
+  );
 }
 
 .sidebar.collapsed {
@@ -85,12 +106,22 @@
   background: var(--accent-subtle);
   border: 1px solid var(--accent);
   color: var(--accent);
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  line-height: 1;
+  overflow: hidden;
+}
+
+.brand-mark-glyph {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  transform: scaleX(1.55);
+  transform-origin: center center;
 }
 
 .sidebar-header h1 {
@@ -498,31 +529,69 @@
   border-radius: 999px;
 }
 
-/* Sidebar toggle button */
-.sidebar-toggle {
-  width: 100%;
-  padding: 10px 16px;
-  border-top: 1px solid var(--border);
-  cursor: pointer;
+/* Sidebar pulltab toggle */
+.sidebar-pulltab {
+  --sidebar-pulltab-width: 22px;
+  --sidebar-pulltab-height: 54px;
+  --sidebar-pulltab-cut: 8px;
+  position: absolute;
+  right: calc(-1 * var(--sidebar-pulltab-width));
+  top: 50%;
+  width: var(--sidebar-pulltab-width);
+  height: var(--sidebar-pulltab-height);
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
+  background: var(--bg-primary);
   color: var(--text-muted);
+  border: none;
+  border-top-right-radius: 9px;
+  border-bottom-right-radius: 9px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--sidebar-pulltab-cut)) 0,
+    100% var(--sidebar-pulltab-cut),
+    100% calc(100% - var(--sidebar-pulltab-cut)),
+    calc(100% - var(--sidebar-pulltab-cut)) 100%,
+    0 100%
+  );
+  cursor: pointer;
+  z-index: 130;
+  overflow: hidden;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
-.sidebar-toggle:hover {
+.sidebar-pulltab::before,
+.sidebar-pulltab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: calc(var(--sidebar-pulltab-cut) * 1.42);
+  height: 1px;
+  background: color-mix(in srgb, var(--border) 48%, transparent);
+  pointer-events: none;
+  transform-origin: right center;
+}
+
+.sidebar-pulltab::before {
+  top: calc(var(--sidebar-pulltab-cut) * 0.5);
+  transform: rotate(-45deg);
+}
+
+.sidebar-pulltab::after {
+  bottom: calc(var(--sidebar-pulltab-cut) * 0.5);
+  transform: rotate(45deg);
+}
+
+.sidebar-pulltab:hover {
   color: var(--text);
   background: var(--surface2);
 }
 
-.sidebar-toggle-icon {
-  width: 16px;
-  height: 16px;
+.sidebar-pulltab-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* Main content area */
@@ -600,6 +669,9 @@
 
 /* Responsive — mobile breakpoint */
 @media (max-width: 768px) {
+  .sidebar-pulltab {
+    display: none;
+  }
   .sidebar {
     position: fixed;
     left: -300px;

@@ -41,12 +41,12 @@ Overall weighted health: **7.3 / 10**
 
 ### 4) Bugs & Reliability
 - Green tests today:
-  - `duality_seed.test.js`
-  - `task_decomposition_primitive.test.js`
-  - `assimilation_controller.test.js`
-  - `value_attribution_primitive.test.js`
-  - `creator_optin_ledger.test.js`
-  - `storm_value_distribution.test.js`
+  - `duality_seed.test.ts`
+  - `task_decomposition_primitive.test.ts`
+  - `assimilation_controller.test.ts`
+  - `value_attribution_primitive.test.ts`
+  - `creator_optin_ledger.test.ts`
+  - `storm_value_distribution.test.ts`
 - 24h explicit fail/deny signals are concentrated in:
   - `state/runtime/canonical_events/2026-02-27.jsonl`
   - `state/routing/llm_gateway_calls.jsonl`

@@ -43,8 +43,8 @@ function classifyLegacyFiles(files) {
   for (const file of files) {
     const fullPath = path.resolve(LEGACY_DIR, file);
     const source = readUtf8(fullPath);
-    if (source.includes('_legacy_retired_test_wrapper.js')) retired.push(file);
-    if (source.includes('spawnSync(') && source.includes('.test.js')) delegated.push(file);
+    if (source.includes('_legacy_retired_test_wrapper.ts')) retired.push(file);
+    if (source.includes('spawnSync(') && source.includes('.test.ts')) delegated.push(file);
     if (/\bassert\b/.test(source)) assertionBased.push(file);
   }
 
@@ -71,7 +71,7 @@ function checkVitestCoverage() {
 function buildPayload() {
   const files = fs
     .readdirSync(LEGACY_DIR)
-    .filter((name) => name.endsWith('.test.js'))
+    .filter((name) => name.endsWith('.test.ts'))
     .sort();
   const classified = classifyLegacyFiles(files);
   const vitestCoverage = checkVitestCoverage();

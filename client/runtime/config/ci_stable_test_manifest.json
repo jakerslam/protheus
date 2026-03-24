@@ -3,8 +3,8 @@
   "schema_version": "1.0",
   "description": "Deterministic migration-era CI baseline. Use --full-corpus for exhaustive parity runs.",
   "tests": [
-    "adaptive_layer_boundary_guards.test.js",
-    "migrate_to_planes.test.js",
-    "source_runtime_classifier_contract.test.js"
+    "adaptive_layer_boundary_guards.test.ts",
+    "migrate_to_planes.test.ts",
+    "source_runtime_classifier_contract.test.ts"
   ]
 }

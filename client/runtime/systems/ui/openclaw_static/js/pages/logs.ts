@@ -17,6 +17,7 @@ function logsPage() {
     // -- SSE streaming state --
     _eventSource: null,
     streamConnected: false,
+    streamConnecting: true,
     streamPaused: false,
 
     // -- Audit state --
@@ -30,6 +31,7 @@ function logsPage() {
     startStreaming: function() {
       var self = this;
       if (this._eventSource) { this._eventSource.close(); this._eventSource = null; }
+      this.streamConnecting = true;
 
       var url = '/api/logs/stream';
       var sep = '?';
@@ -41,12 +43,14 @@ function logsPage() {
       } catch(e) {
         // EventSource not supported or blocked; fall back to polling
         this.streamConnected = false;
+        this.streamConnecting = false;
         this.startPolling();
         return;
       }
 
       this._eventSource.onopen = function() {
         self.streamConnected = true;
+        self.streamConnecting = false;
         self.loading = false;
         self.loadError = '';
       };
@@ -81,6 +85,7 @@ function logsPage() {
 
       this._eventSource.onerror = function() {
         self.streamConnected = false;
+        self.streamConnecting = false;
         if (self._eventSource) {
           self._eventSource.close();
           self._eventSource = null;
@@ -93,6 +98,7 @@ function logsPage() {
     startPolling: function() {
       var self = this;
       this.streamConnected = false;
+      this.streamConnecting = false;
       this.fetchLogs();
       if (this._pollTimer) clearInterval(this._pollTimer);
       this._pollTimer = setInterval(function() {
@@ -167,6 +173,7 @@ function logsPage() {
 
     get connectionLabel() {
       if (this.streamPaused) return 'Paused';
+      if (this.streamConnecting) return 'Connecting...';
       if (this.streamConnected) return 'Live';
       if (this._pollTimer) return 'Polling';
       return 'Disconnected';
@@ -174,6 +181,7 @@ function logsPage() {
 
     get connectionClass() {
       if (this.streamPaused) return 'paused';
+      if (this.streamConnecting) return 'connecting';
       if (this.streamConnected) return 'live';
       if (this._pollTimer) return 'polling';
       return 'disconnected';

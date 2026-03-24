@@ -1,7 +1,18 @@
 {
   "version": "v1",
   "kind": "collab_role_launcher_contract",
+  "limits": {
+    "base_max_active_agents": 512,
+    "max_active_agents": 1024,
+    "max_agents_per_cell": 32,
+    "director_fanout_cells": 16,
+    "max_directors": 256,
+    "decentralized_min_agents": 24,
+    "auto_director_spawn": true
+  },
   "roles": {
+    "director": {"default_tools": ["plan", "route", "govern"], "policy_mode": "safe"},
+    "cell_coordinator": {"default_tools": ["route", "handoff"], "policy_mode": "safe"},
     "coordinator": {"default_tools": ["plan", "route"], "policy_mode": "safe"},
     "researcher": {"default_tools": ["search", "extract"], "policy_mode": "safe"},
     "builder": {"default_tools": ["compile", "verify"], "policy_mode": "safe"},

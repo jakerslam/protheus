@@ -17,7 +17,7 @@
     { "type": "runtime", "path": "client/runtime/systems/ui/infring_dashboard.ts" },
     { "type": "ui", "path": "client/runtime/systems/ui/openclaw_static/js/pages/agents.ts" },
     { "type": "ui", "path": "client/runtime/systems/ui/openclaw_static/index_body.html" },
-    { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.js" }
+    { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.ts" }
   ],
   "validation": {
     "lane_command": "protheus-ops srs-contract-runtime run --id=V6-AGENT-LIFECYCLE-001",

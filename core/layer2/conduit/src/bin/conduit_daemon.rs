@@ -100,7 +100,7 @@ mod tests {
         let _guard = env_lock().lock().expect("env lock");
         env::set_var(
             "CONDUIT_POLICY_PATH",
-            "/tmp/protheus_conduit_policy_missing_file_for_test.json",
+            "/tmp/protheus_conduit_policy_missing_file_for_test.tson",
         );
         let err = load_policy().expect_err("missing path must fail");
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);

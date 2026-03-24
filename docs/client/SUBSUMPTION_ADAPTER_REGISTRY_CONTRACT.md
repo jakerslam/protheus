@@ -44,5 +44,5 @@ Every command appends auditable rows with normalized provider envelope and decis
 
 ## Tests
 
-- `tests/client-memory-tools/subsumption_registry.test.js`
+- `tests/client-memory-tools/subsumption_registry.test.ts`
 
