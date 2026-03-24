@@ -149,8 +149,11 @@ document.addEventListener('alpine:init', function() {
     agents: [],
     connected: false,
     booting: true,
+    agentsLoading: true,
+    agentsHydrated: false,
     wsConnected: false,
-    connectionState: 'connected',
+    connectionState: 'connecting',
+    statusFailureStreak: 0,
     lastError: '',
     version: '0.1.0',
     gitBranch: '',
@@ -178,6 +181,13 @@ document.addEventListener('alpine:init', function() {
     _notificationSeq: 0,
     agentChatPreviews: {},
     agentLiveActivity: {},
+    agentsEmptyResponseStreak: 0,
+    agentsLastNonEmptyAt: 0,
+    agentsFetchAttempts: 0,
+    agentsLastError: '',
+    agentTransientHoldMs: 20000,
+    _refreshAgentsInFlight: null,
+    _lastAgentsRefreshAt: 0,
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
@@ -186,55 +196,165 @@ document.addEventListener('alpine:init', function() {
 
     setActiveAgentId(agentId) {
       this.activeAgentId = agentId ? String(agentId) : null;
+      if (this.activeAgentId && this.agentChatPreviews && this.agentChatPreviews[this.activeAgentId]) {
+        this.agentChatPreviews[this.activeAgentId].unread_response = false;
+      }
       try {
         if (this.activeAgentId) localStorage.setItem('infring-last-active-agent-id', this.activeAgentId);
         else localStorage.removeItem('infring-last-active-agent-id');
       } catch(_) {}
     },
 
-    async refreshAgents() {
-      try {
-        var agents = await InfringAPI.get('/api/agents');
-        this.agents = Array.isArray(agents) ? agents : [];
-        var keep = {};
-        for (var ai = 0; ai < this.agents.length; ai++) {
-          var row = this.agents[ai];
-          if (row && row.id) keep[String(row.id)] = true;
-        }
-        var nextActivity = {};
-        var now = Date.now();
-        var srcActivity = this.agentLiveActivity || {};
-        Object.keys(srcActivity).forEach(function(id) {
-          var entry = srcActivity[id];
-          if (!keep[id] || !entry) return;
-          var ts = Number(entry.ts || 0);
-          if (!Number.isFinite(ts) || (now - ts) > 20000) return;
-          nextActivity[id] = entry;
-        });
-        this.agentLiveActivity = nextActivity;
-        if (this.activeAgentId) {
-          var stillActive = this.agents.some(function(agent) {
-            return agent && agent.id === this.activeAgentId;
-          }.bind(this));
-          if (!stillActive) {
-            this.setActiveAgentId(null);
+    markAgentPreviewUnread(agentId, unread) {
+      var id = String(agentId || '').trim();
+      if (!id) return;
+      if (!this.agentChatPreviews) this.agentChatPreviews = {};
+      if (!this.agentChatPreviews[id]) this.agentChatPreviews[id] = { text: '', ts: Date.now(), role: 'agent' };
+      this.agentChatPreviews[id].unread_response = unread !== false;
+    },
+
+    async refreshAgents(opts) {
+      var options = opts || {};
+      var force = options.force === true;
+      var now = Date.now();
+      if (!force && this._lastAgentsRefreshAt && (now - this._lastAgentsRefreshAt) < 1200) {
+        return;
+      }
+      if (this._refreshAgentsInFlight) {
+        return this._refreshAgentsInFlight;
+      }
+      this._refreshAgentsInFlight = (async () => {
+        if (!this.agentsHydrated) this.agentsLoading = true;
+        this.agentsFetchAttempts = Number(this.agentsFetchAttempts || 0) + 1;
+        var agents = null;
+        var fetchError = '';
+        try {
+          agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
+        } catch(e) {
+          fetchError = (e && e.message) ? String(e.message) : 'agent_fetch_failed';
+          try {
+            await new Promise(function(resolve) { setTimeout(resolve, 250); });
+            agents = await InfringAPI.get('/api/agents?view=sidebar');
+          } catch(_) {
+            try {
+              var snapshot = await InfringAPI.get('/api/dashboard/snapshot');
+              var rows =
+                snapshot &&
+                snapshot.collab &&
+                snapshot.collab.dashboard &&
+                Array.isArray(snapshot.collab.dashboard.agents)
+                  ? snapshot.collab.dashboard.agents
+                  : [];
+              agents = rows.map(function(row, idx) {
+                var id = String((row && (row.shadow || row.id)) || ('agent-' + (idx + 1)));
+                return {
+                  id: id,
+                  name: id,
+                  state: String((row && row.status) || 'running'),
+                  role: String((row && row.role) || 'analyst'),
+                  model_name: 'auto',
+                  model_provider: 'auto',
+                  runtime_model: 'auto',
+                  context_window: 8192,
+                };
+              });
+            } catch(__) {}
           }
         }
-        this.agentCount = this.agents.length;
-      } catch(e) { /* silent */ }
+        if (Array.isArray(agents)) {
+          var priorAgents = Array.isArray(this.agents) ? this.agents.slice() : [];
+          var hadPriorAgents = priorAgents.length > 0;
+          var holdMs = Number(this.agentTransientHoldMs || 0);
+          if (agents.length === 0 && hadPriorAgents && this.connectionState !== 'disconnected') {
+            this.agentsEmptyResponseStreak = Number(this.agentsEmptyResponseStreak || 0) + 1;
+            var lastNonEmptyAt = Number(this.agentsLastNonEmptyAt || 0);
+            var withinHoldWindow = lastNonEmptyAt > 0 && (Date.now() - lastNonEmptyAt) < holdMs;
+            // Buffer transient empty responses so chat selection doesn't flap/reset.
+            if (withinHoldWindow || this.agentsEmptyResponseStreak < 3) {
+              this.agentsHydrated = true;
+              this.agentsLoading = false;
+              this.agentCount = priorAgents.length;
+              return;
+            }
+          } else if (agents.length > 0) {
+            this.agentsEmptyResponseStreak = 0;
+            this.agentsLastNonEmptyAt = Date.now();
+          } else {
+            this.agentsEmptyResponseStreak = 0;
+          }
+
+          // First-load protection: do not finalize empty roster until repeated confirms.
+          if (agents.length === 0 && !this.agentsHydrated) {
+            var connectedState = String(this.connectionState || '').toLowerCase();
+            var attempts = Number(this.agentsFetchAttempts || 0);
+            if (connectedState !== 'connected' || attempts < 3) {
+              this.agentsLoading = true;
+              this.agentCount = 0;
+              return;
+            }
+          }
+
+          this.agents = agents;
+          this.agentsHydrated = true;
+          this.agentsLoading = false;
+          this.agentsLastError = '';
+          var keep = {};
+          for (var ai = 0; ai < agents.length; ai++) {
+            var row = agents[ai];
+            if (row && row.id) keep[String(row.id)] = true;
+          }
+          var nextActivity = {};
+          var now = Date.now();
+          var srcActivity = this.agentLiveActivity || {};
+          Object.keys(srcActivity).forEach(function(id) {
+            var entry = srcActivity[id];
+            if (!keep[id] || !entry) return;
+            var ts = Number(entry.ts || 0);
+            if (!Number.isFinite(ts) || (now - ts) > 20000) return;
+            nextActivity[id] = entry;
+          });
+          this.agentLiveActivity = nextActivity;
+          if (this.activeAgentId) {
+            var stillActive = agents.some(function(agent) {
+              return agent && agent.id === this.activeAgentId;
+            }.bind(this));
+            if (!stillActive) {
+              this.setActiveAgentId(null);
+            }
+          }
+          this.agentCount = agents.length;
+        } else if (!this.agentsHydrated) {
+          this.agentsLoading = true;
+          this.agentsLastError = fetchError || 'agent_fetch_failed';
+        }
+        this._lastAgentsRefreshAt = Date.now();
+      })();
+      try {
+        await this._refreshAgentsInFlight;
+      } finally {
+        this._refreshAgentsInFlight = null;
+      }
     },
 
     async checkStatus() {
+      if (this.booting || this.connectionState === 'disconnected') {
+        this.connectionState = 'connecting';
+      }
       try {
         var s = await InfringAPI.get('/api/status');
         this.connected = true;
         this.booting = false;
+        this.statusFailureStreak = 0;
+        this.connectionState = 'connected';
         this.lastError = '';
         this.version = s.version || '0.1.0';
         this.gitBranch = s.git_branch ? String(s.git_branch) : (this.gitBranch || '');
         this.agentCount = s.agent_count || 0;
       } catch(e) {
         this.connected = false;
+        this.booting = false;
+        this.statusFailureStreak = Number(this.statusFailureStreak || 0) + 1;
+        this.connectionState = this.statusFailureStreak >= 2 ? 'disconnected' : 'reconnecting';
         this.lastError = e.message || 'Unknown error';
         console.warn('[Infring] Status check failed:', e.message);
       }
@@ -409,13 +529,18 @@ document.addEventListener('alpine:init', function() {
     saveAgentChatPreview(agentId, messages) {
       if (!agentId) return;
       var list = Array.isArray(messages) ? messages : [];
+      var previewKey = String(agentId);
+      var existingPreview = this.agentChatPreviews && this.agentChatPreviews[previewKey]
+        ? this.agentChatPreviews[previewKey]
+        : null;
       var preview = {
         text: '',
         ts: Date.now(),
         role: 'agent',
         has_tools: false,
         tool_state: '',
-        tool_label: ''
+        tool_label: '',
+        unread_response: !!(existingPreview && existingPreview.unread_response)
       };
       var toolStateRank = { success: 1, warning: 2, error: 3 };
       var classifyTool = function(tool) {
@@ -469,7 +594,12 @@ document.addEventListener('alpine:init', function() {
           break;
         }
       }
-      this.agentChatPreviews[String(agentId)] = preview;
+      if (preview.role === 'agent') {
+        preview.unread_response = String(this.activeAgentId || '') !== previewKey;
+      } else if (String(this.activeAgentId || '') === previewKey) {
+        preview.unread_response = false;
+      }
+      this.agentChatPreviews[previewKey] = preview;
     },
 
     getAgentChatPreview(agentId) {
@@ -609,9 +739,11 @@ function app() {
     sidebarSpawningAgent: false,
     connected: false,
     wsConnected: false,
+    connectionState: 'connecting',
     version: '0.1.0',
     agentCount: 0,
     bootSelectionApplied: false,
+    _themeSwitchReset: 0,
 
     get agents() { return Alpine.store('app').agents; },
 
@@ -642,6 +774,7 @@ function app() {
       // Listen for OS theme changes (only matters when mode is 'system')
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
         if (self.themeMode === 'system') {
+          self.beginInstantThemeFlip();
           self.theme = e.matches ? 'dark' : 'light';
         }
       });
@@ -711,6 +844,7 @@ function app() {
       // Connection state listener
       InfringAPI.onConnectionChange(function(state) {
         Alpine.store('app').connectionState = state;
+        self.connectionState = state;
       });
 
       if (!window.__infringToastCaptureInstalled) {
@@ -739,6 +873,7 @@ function app() {
     },
 
     setTheme(mode) {
+      this.beginInstantThemeFlip();
       this.themeMode = mode;
       localStorage.setItem('infring-theme-mode', mode);
       if (mode === 'system') {
@@ -746,6 +881,20 @@ function app() {
       } else {
         this.theme = mode;
       }
+    },
+
+    beginInstantThemeFlip() {
+      var body = document && document.body ? document.body : null;
+      if (!body) return;
+      body.classList.add('theme-switching');
+      if (this._themeSwitchReset) {
+        cancelAnimationFrame(this._themeSwitchReset);
+      }
+      this._themeSwitchReset = requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          body.classList.remove('theme-switching');
+        });
+      });
     },
 
     toggleTheme() {
@@ -783,10 +932,13 @@ function app() {
 
     async applyBootChatSelection() {
       if (this.bootSelectionApplied) return;
-      this.bootSelectionApplied = true;
       var store = Alpine.store('app');
+      if (!store || store.agentsLoading || !store.agentsHydrated) {
+        return;
+      }
       var rows = Array.isArray(store.agents) ? store.agents.slice() : [];
       if (!rows.length) {
+        this.bootSelectionApplied = true;
         this.navigate('chat');
         await this.createSidebarAgentChat();
         return;
@@ -806,6 +958,7 @@ function app() {
         if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(target.id);
         else store.activeAgentId = target.id;
       }
+      this.bootSelectionApplied = true;
       this.navigate('chat');
       this.closeAgentChatsSidebar();
     },
@@ -823,12 +976,12 @@ function app() {
     },
 
     chatSidebarPreview(agent) {
-      if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '' };
+      if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       var store = Alpine.store('app');
       var preview = store && typeof store.getAgentChatPreview === 'function'
         ? store.getAgentChatPreview(agent.id)
         : null;
-      if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '' };
+      if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       return preview;
     },
 
@@ -845,6 +998,44 @@ function app() {
       try {
         localStorage.setItem('infring-archived-agent-ids', JSON.stringify(out));
       } catch(_) {}
+    },
+
+    reconcileArchivedAgentIdsWithLiveAgents() {
+      var liveSet = new Set((this.agents || []).map(function(agent) {
+        return String((agent && agent.id) || '');
+      }).filter(Boolean));
+      if (!liveSet.size || !Array.isArray(this.archivedAgentIds) || this.archivedAgentIds.length === 0) return;
+      var next = this.archivedAgentIds.filter(function(id) {
+        return !liveSet.has(String(id || ''));
+      });
+      if (next.length !== this.archivedAgentIds.length) {
+        this.archivedAgentIds = next;
+        this.persistArchivedAgentIds();
+      }
+    },
+
+    mostRecentModelFromUsageCache() {
+      try {
+        var raw = localStorage.getItem('of-chat-model-usage-v1');
+        if (!raw) return '';
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return '';
+        var bestModel = '';
+        var bestTs = 0;
+        Object.keys(parsed).forEach(function(key) {
+          var modelId = String(key || '').trim();
+          if (!modelId) return;
+          var ts = Number(parsed[key] || 0);
+          if (!Number.isFinite(ts) || ts <= 0) return;
+          if (ts > bestTs) {
+            bestTs = ts;
+            bestModel = modelId;
+          }
+        });
+        return bestModel;
+      } catch(_) {
+        return '';
+      }
     },
 
     async archiveAgentFromSidebar(agent) {
@@ -894,6 +1085,21 @@ function app() {
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
         if (!createdId) throw new Error('spawn_failed');
+        var preferredModel = this.mostRecentModelFromUsageCache();
+        if (preferredModel) {
+          try {
+            var modelResp = await InfringAPI.put('/api/agents/' + encodeURIComponent(createdId) + '/model', {
+              model: preferredModel
+            });
+            if (modelResp && typeof modelResp === 'object') {
+              if (modelResp.model) res.model_name = modelResp.model;
+              if (modelResp.provider) res.model_provider = modelResp.provider;
+              if (modelResp.runtime_model) res.runtime_model = modelResp.runtime_model;
+            }
+          } catch (_) {
+            // Keep default server model if model handoff fails.
+          }
+        }
         await Alpine.store('app').refreshAgents();
         var created = (this.agents || []).find(function(a) { return a && a.id === createdId; })
           || { id: createdId, name: (res && res.name) || agentName };
@@ -937,12 +1143,21 @@ function app() {
     async pollStatus() {
       var store = Alpine.store('app');
       await store.checkStatus();
-      await store.refreshAgents();
+      var now = Date.now();
+      var shouldRefreshAgents =
+        !store.agentsHydrated ||
+        (store.connectionState !== 'connected') ||
+        (now - Number(store._lastAgentsRefreshAt || 0)) >= 12000;
+      if (shouldRefreshAgents) {
+        await store.refreshAgents();
+      }
+      this.reconcileArchivedAgentIdsWithLiveAgents();
       this.connected = store.connected;
       this.version = store.version;
       this.agentCount = store.agentCount;
+      this.connectionState = store.connectionState || (store.connected ? 'connected' : 'disconnected');
       this.wsConnected = InfringAPI.isWsConnected();
-      if (!this.bootSelectionApplied) {
+      if (!this.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
         await this.applyBootChatSelection();
       }
     }
