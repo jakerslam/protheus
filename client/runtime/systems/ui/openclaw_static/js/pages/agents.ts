@@ -31,6 +31,8 @@ function agentsPage() {
     loading: true,
     loadError: '',
     lifecycleLoading: false,
+    terminatedLoading: true,
+    terminatedHydrated: false,
     agentLifecycle: {
       active_agents: [],
       terminated_recent: [],
@@ -215,6 +217,30 @@ function agentsPage() {
       return this.profileDescriptions[name] || { label: name, desc: '' };
     },
 
+    mostRecentModelFromUsageCache() {
+      try {
+        var raw = localStorage.getItem('of-chat-model-usage-v1');
+        if (!raw) return '';
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return '';
+        var bestModel = '';
+        var bestTs = 0;
+        Object.keys(parsed).forEach(function(key) {
+          var modelId = String(key || '').trim();
+          if (!modelId) return;
+          var ts = Number(parsed[key] || 0);
+          if (!Number.isFinite(ts) || ts <= 0) return;
+          if (ts > bestTs) {
+            bestTs = ts;
+            bestModel = modelId;
+          }
+        });
+        return bestModel;
+      } catch(_) {
+        return '';
+      }
+    },
+
     // ── Tool Preview in Spawn Modal ──
     spawnProfiles: [],
     spawnProfilesLoaded: false,
@@ -356,7 +382,9 @@ function agentsPage() {
     },
 
     async loadLifecycle() {
+      var firstLoad = !this.terminatedHydrated;
       this.lifecycleLoading = true;
+      if (firstLoad) this.terminatedLoading = true;
       try {
         var snapshot = await InfringAPI.get('/api/dashboard/snapshot');
         var lifecycle = snapshot && snapshot.agent_lifecycle && typeof snapshot.agent_lifecycle === 'object'
@@ -376,8 +404,11 @@ function agentsPage() {
         }
       } catch (e) {
         // keep last-known lifecycle state to avoid UI flicker
+      } finally {
+        this.terminatedHydrated = true;
+        this.terminatedLoading = false;
+        this.lifecycleLoading = false;
       }
-      this.lifecycleLoading = false;
     },
 
     async reviveTerminated(entry) {
@@ -551,6 +582,16 @@ function agentsPage() {
           if (status.default_model) this.spawnForm.model = status.default_model;
         }
       } catch(e) { /* keep hardcoded defaults */ }
+      var recentModel = this.mostRecentModelFromUsageCache();
+      if (recentModel) {
+        var parts = String(recentModel).split('/');
+        if (parts.length > 1) {
+          this.spawnForm.provider = parts[0] || this.spawnForm.provider;
+          this.spawnForm.model = parts.slice(1).join('/') || this.spawnForm.model;
+        } else {
+          this.spawnForm.model = recentModel;
+        }
+      }
     },
 
     nextStep() {
