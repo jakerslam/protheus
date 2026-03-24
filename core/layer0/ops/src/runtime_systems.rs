@@ -168,11 +168,30 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let cockpit_blocks = payload_u64(payload, "cockpit_blocks", 0).min(2_000_000);
     let conduit_signals = payload_u64(payload, "conduit_signals", 0).min(2_000_000);
     let stale_blocks = payload_u64(payload, "cockpit_stale_blocks", 0).min(2_000_000);
+    let stale_blocks_raw = payload_u64(payload, "cockpit_stale_blocks_raw", stale_blocks).min(2_000_000);
+    let stale_blocks_dormant = payload_u64(payload, "cockpit_stale_blocks_dormant", 0).min(2_000_000);
     let stale_ratio = payload_f64(payload, "cockpit_stale_ratio", 0.0).clamp(0.0, 1.0);
     let health_coverage_gap_count = payload_u64(payload, "health_coverage_gap_count", 0).min(2_000_000);
     let attention_unacked_depth = payload_u64(payload, "attention_unacked_depth", 0).min(2_000_000);
     let attention_cursor_offset = payload_u64(payload, "attention_cursor_offset", 0).min(2_000_000);
     let memory_ingest_paused = payload_bool(payload, "memory_ingest_paused", false);
+    let collab_handoff_count = payload_u64(payload, "collab_handoff_count", 0).min(2_000_000);
+    let active_swarm_agents = payload_u64(payload, "active_swarm_agents", 0).min(2_000_000);
+    let spine_success_rate = payload_f64(payload, "spine_success_rate", 1.0).clamp(0.0, 1.0);
+    let human_escalation_open_rate = payload_f64(payload, "human_escalation_open_rate", 0.0).clamp(0.0, 1.0);
+    let receipt_latency_p95_ms = payload_f64(payload, "receipt_latency_p95_ms", 0.0).max(0.0);
+    let receipt_latency_p99_ms = payload_f64(payload, "receipt_latency_p99_ms", 0.0).max(0.0);
+    let spine_metrics_stale = payload_bool(payload, "spine_metrics_stale", false);
+    let receipt_latency_metrics_stale = payload_bool(payload, "receipt_latency_metrics_stale", false);
+    let spine_metrics_latest_age_seconds =
+        payload_u64(payload, "spine_metrics_latest_age_seconds", 0).min(2_000_000);
+    let spine_metrics_fresh_window_seconds =
+        payload_u64(payload, "spine_metrics_fresh_window_seconds", 900).clamp(1, 2_000_000);
+    let benchmark_sanity_age_seconds = payload_u64(payload, "benchmark_sanity_age_seconds", 0).min(2_000_000);
+    let benchmark_refresh_max_age_seconds =
+        payload_u64(payload, "benchmark_refresh_max_age_seconds", 1200).clamp(1, 2_000_000);
+    let benchmark_cockpit_status = payload_string(payload, "benchmark_sanity_cockpit_status", "unknown");
+    let benchmark_mirror_status = payload_string(payload, "benchmark_sanity_status", "unknown");
 
     let dampen_depth = payload_u64(payload, "ingress_dampen_depth", 40).clamp(1, 10_000);
     let shed_depth = payload_u64(payload, "ingress_shed_depth", 80).clamp(dampen_depth, 10_000);
@@ -198,6 +217,12 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         payload_u64(payload, "stale_autoheal_min_blocks", 10).clamp(1, 10_000);
     let predictive_drain_clear_depth =
         payload_u64(payload, "predictive_drain_clear_depth", 40).clamp(0, 10_000);
+    let spine_success_target = payload_f64(payload, "spine_success_target", 0.90).clamp(0.0, 1.0);
+    let handoffs_per_agent_min = payload_f64(payload, "handoffs_per_agent_min", 2.0).max(0.0);
+    let escalation_open_rate_min = payload_f64(payload, "escalation_open_rate_min", 0.01).max(0.0);
+    let slo_latency_p95_max_ms = payload_f64(payload, "slo_receipt_latency_p95_max_ms", 250.0).max(1.0);
+    let slo_latency_p99_max_ms = payload_f64(payload, "slo_receipt_latency_p99_max_ms", 450.0).max(1.0);
+    let slo_queue_depth_max = payload_u64(payload, "slo_queue_depth_max", 60).clamp(1, 200_000);
 
     let growth_risk = queue_depth >= shed_depth && critical_attention_total >= critical_threshold;
     let (ingress_level, reject_non_critical, reason) = if queue_depth >= circuit_depth || growth_risk {
@@ -301,6 +326,264 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let predictive_drain_required = queue_depth >= attention_drain_trigger_depth;
     let predictive_drain_release = queue_depth <= predictive_drain_clear_depth;
 
+    let handoffs_per_agent = if active_swarm_agents > 0 {
+        collab_handoff_count as f64 / active_swarm_agents as f64
+    } else {
+        0.0
+    };
+    let handoff_coverage_weak =
+        active_swarm_agents >= payload_u64(payload, "handoffs_agent_floor", 24)
+            && handoffs_per_agent < handoffs_per_agent_min;
+    let spine_degraded = !spine_metrics_stale && spine_success_rate < spine_success_target;
+    let escalation_starved = spine_degraded && human_escalation_open_rate <= 0.0;
+    let reliability_degraded = spine_degraded || handoff_coverage_weak;
+
+    let mut check_rows = Vec::<Value>::new();
+    let mut failed_checks = Vec::<String>::new();
+    let push_check = |failed_checks: &mut Vec<String>,
+                      check_rows: &mut Vec<Value>,
+                      id: &str,
+                      status: &str,
+                      value: Value,
+                      target: Value,
+                      operator: &str,
+                      known: bool| {
+        if status == "fail" {
+            failed_checks.push(id.to_string());
+        }
+        check_rows.push(json!({
+            "id": id,
+            "status": status,
+            "value": value,
+            "target": target,
+            "operator": operator,
+            "known": known
+        }));
+    };
+    let spine_status = if spine_metrics_stale {
+        "unknown"
+    } else if spine_success_rate < spine_success_target {
+        "fail"
+    } else {
+        "pass"
+    };
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "spine_success_rate",
+        spine_status,
+        json!(if spine_metrics_stale { Value::Null } else { json!(spine_success_rate) }),
+        json!(spine_success_target),
+        ">=",
+        !spine_metrics_stale,
+    );
+
+    let p95_status = if receipt_latency_metrics_stale {
+        "unknown"
+    } else if receipt_latency_p95_ms > slo_latency_p95_max_ms {
+        "fail"
+    } else {
+        "pass"
+    };
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "receipt_latency_p95_ms",
+        p95_status,
+        json!(if receipt_latency_metrics_stale {
+            Value::Null
+        } else {
+            json!(receipt_latency_p95_ms)
+        }),
+        json!(slo_latency_p95_max_ms),
+        "<=",
+        !receipt_latency_metrics_stale,
+    );
+    let p99_status = if receipt_latency_metrics_stale {
+        "unknown"
+    } else if receipt_latency_p99_ms > slo_latency_p99_max_ms {
+        "fail"
+    } else {
+        "pass"
+    };
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "receipt_latency_p99_ms",
+        p99_status,
+        json!(if receipt_latency_metrics_stale {
+            Value::Null
+        } else {
+            json!(receipt_latency_p99_ms)
+        }),
+        json!(slo_latency_p99_max_ms),
+        "<=",
+        !receipt_latency_metrics_stale,
+    );
+    let queue_status = if queue_depth > slo_queue_depth_max {
+        "fail"
+    } else {
+        "pass"
+    };
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "queue_depth",
+        queue_status,
+        json!(queue_depth),
+        json!(slo_queue_depth_max),
+        "<=",
+        true,
+    );
+    let stale_metrics = spine_metrics_stale || receipt_latency_metrics_stale;
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "spine_metrics_freshness",
+        if stale_metrics { "warn" } else { "pass" },
+        json!(spine_metrics_latest_age_seconds),
+        json!(spine_metrics_fresh_window_seconds),
+        "<=",
+        true,
+    );
+    let escalation_required = !failed_checks.is_empty() || reliability_degraded;
+    let escalation_status = if !escalation_required {
+        "pass"
+    } else if human_escalation_open_rate > escalation_open_rate_min {
+        "pass"
+    } else {
+        "fail"
+    };
+    push_check(
+        &mut failed_checks,
+        &mut check_rows,
+        "human_escalation_open_rate",
+        escalation_status,
+        json!(human_escalation_open_rate),
+        json!(escalation_open_rate_min),
+        if escalation_required { ">" } else { "n/a" },
+        true,
+    );
+
+    let severe_latency =
+        !receipt_latency_metrics_stale
+            && (receipt_latency_p99_ms > (slo_latency_p99_max_ms * 1.5)
+                || receipt_latency_p95_ms > (slo_latency_p95_max_ms * 1.5));
+    let severe_spine = !spine_metrics_stale && spine_success_rate < (spine_success_target * 0.75);
+    let severe_backlog = queue_depth >= circuit_depth;
+    let severity = if failed_checks.is_empty() {
+        "ok"
+    } else if severe_latency || severe_spine || severe_backlog || failed_checks.len() >= 2 {
+        "critical"
+    } else {
+        "warn"
+    };
+    let containment_required = !failed_checks.is_empty();
+    let block_scale = severity == "critical";
+    let slo_required = !failed_checks.is_empty();
+    let slo_summary = if failed_checks.is_empty() {
+        "runtime_slo_within_bounds".to_string()
+    } else {
+        format!("runtime_slo_degraded:{}", failed_checks.join("|"))
+    };
+
+    let canary_required =
+        spine_metrics_stale && spine_metrics_latest_age_seconds >= spine_metrics_fresh_window_seconds;
+    let benchmark_refresh_required = benchmark_cockpit_status.eq_ignore_ascii_case("fail")
+        || benchmark_mirror_status.eq_ignore_ascii_case("fail")
+        || benchmark_sanity_age_seconds > benchmark_refresh_max_age_seconds;
+    let conduit_watchdog_required = conduit_signals < target_conduit_signals
+        && (queue_depth >= attention_drain_trigger_depth
+            || stale_blocks_raw >= stale_autoheal_min_blocks
+            || stale_blocks >= stale_autoheal_min_blocks);
+
+    let coarse_signal_remediation_required = stream_coarse
+        || stale_autoheal_required
+        || stale_blocks_raw >= stale_autoheal_min_blocks
+        || (target_conduit_signals > conduit_signals && queue_depth >= dampen_depth);
+
+    let contract_rows = payload_array(payload, "contracts");
+    let mut termination_decisions = Vec::<Value>::new();
+    let mut idle_candidates = Vec::<(String, u64, i64)>::new();
+    let idle_termination_ms = payload_u64(payload, "idle_termination_ms", 20 * 60 * 1000).max(1_000);
+    let idle_threshold = payload_u64(payload, "idle_threshold", 5).max(1);
+    let idle_batch = payload_u64(payload, "idle_batch", 12).max(1);
+    let idle_batch_max = payload_u64(payload, "idle_batch_max", 96).max(idle_batch);
+    let idle_cooldown_ms = payload_u64(payload, "idle_cooldown_ms", 120_000).max(1_000);
+    let idle_since_last_ms = payload_u64(payload, "idle_since_last_ms", idle_cooldown_ms);
+    for row in contract_rows {
+        let agent_id = payload_string(&row, "agent_id", "");
+        if agent_id.is_empty() {
+            continue;
+        }
+        let status = payload_string(&row, "status", "active").to_ascii_lowercase();
+        if status != "active" {
+            continue;
+        }
+        let condition = payload_string(&row, "termination_condition", "task_or_timeout")
+            .to_ascii_lowercase();
+        let revoked_at = payload_string(&row, "revoked_at", "");
+        let completed_at = payload_string(&row, "completed_at", "");
+        let remaining_ms = row
+            .get("remaining_ms")
+            .and_then(Value::as_i64)
+            .or_else(|| row.get("remaining_ms").and_then(Value::as_u64).map(|v| v as i64))
+            .unwrap_or(i64::MAX);
+        let mut reason = String::new();
+        if !revoked_at.is_empty() {
+            reason = "manual_revocation".to_string();
+        } else if (condition == "task_complete" || condition == "task_or_timeout")
+            && !completed_at.is_empty()
+        {
+            reason = "task_complete".to_string();
+        } else if (condition == "timeout" || condition == "task_or_timeout") && remaining_ms <= 0 {
+            reason = "timeout".to_string();
+        }
+        if !reason.is_empty() {
+            termination_decisions.push(json!({
+                "agent_id": agent_id,
+                "reason": reason,
+                "authority": "rust_runtime_systems"
+            }));
+        }
+        let idle_for_ms = row
+            .get("idle_for_ms")
+            .and_then(Value::as_u64)
+            .or_else(|| {
+                row.get("idle_for_ms")
+                    .and_then(Value::as_i64)
+                    .map(|v| v.max(0) as u64)
+            })
+            .unwrap_or(0);
+        if idle_for_ms >= idle_termination_ms {
+            idle_candidates.push((agent_id, idle_for_ms, remaining_ms));
+        }
+    }
+    idle_candidates.sort_by(|a, b| b.1.cmp(&a.1));
+    let idle_excess = idle_candidates.len().saturating_sub(idle_threshold as usize) as u64;
+    let idle_sweep_ready = idle_excess > 0 && idle_since_last_ms >= idle_cooldown_ms;
+    let idle_batch_size = if idle_excess == 0 {
+        0
+    } else {
+        std::cmp::min(
+            idle_batch_max,
+            std::cmp::min(
+                idle_excess,
+                std::cmp::max(idle_batch, (idle_excess + 5) / 6),
+            ),
+        )
+    };
+    let idle_candidates_json: Vec<Value> = idle_candidates
+        .iter()
+        .map(|(agent_id, idle_for_ms, remaining_ms)| {
+            json!({
+                "agent_id": agent_id,
+                "idle_for_ms": idle_for_ms,
+                "remaining_ms": if *remaining_ms == i64::MAX { Value::Null } else { json!(remaining_ms) }
+            })
+        })
+        .collect();
+
     let mut role_plan = Vec::<Value>::new();
     if throttle_required || adaptive_health_required {
         role_plan.push(json!({ "role": "coordinator", "required": true }));
@@ -326,11 +609,22 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
             "critical_attention_total": critical_attention_total,
             "cockpit_blocks": cockpit_blocks,
             "cockpit_stale_blocks": stale_blocks,
+            "cockpit_stale_blocks_raw": stale_blocks_raw,
+            "cockpit_stale_blocks_dormant": stale_blocks_dormant,
             "cockpit_stale_ratio": stale_ratio,
             "conduit_signals": conduit_signals,
             "attention_unacked_depth": attention_unacked_depth,
             "attention_cursor_offset": attention_cursor_offset,
-            "memory_ingest_paused": memory_ingest_paused
+            "memory_ingest_paused": memory_ingest_paused,
+            "collab_handoff_count": collab_handoff_count,
+            "active_swarm_agents": active_swarm_agents,
+            "spine_success_rate": spine_success_rate,
+            "human_escalation_open_rate": human_escalation_open_rate,
+            "receipt_latency_p95_ms": receipt_latency_p95_ms,
+            "receipt_latency_p99_ms": receipt_latency_p99_ms,
+            "spine_metrics_stale": spine_metrics_stale,
+            "receipt_latency_metrics_stale": receipt_latency_metrics_stale,
+            "spine_metrics_latest_age_seconds": spine_metrics_latest_age_seconds
         },
         "cockpit_signal": {
             "quality": signal_quality,
@@ -360,8 +654,52 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
             "attention_compact_min_acked": attention_compact_min_acked,
             "memory_resume_eligible": memory_resume_eligible,
             "stale_autoheal_required": stale_autoheal_required,
+            "coarse_signal_remediation_required": coarse_signal_remediation_required,
+            "conduit_watchdog_required": conduit_watchdog_required,
+            "spine_canary_required": canary_required,
+            "benchmark_refresh_required": benchmark_refresh_required,
             "predictive_drain_required": predictive_drain_required,
             "predictive_drain_release": predictive_drain_release
+        },
+        "reliability_posture": {
+            "degraded": reliability_degraded,
+            "spine_degraded": spine_degraded,
+            "spine_success_rate": spine_success_rate,
+            "spine_success_target": spine_success_target,
+            "spine_metrics_stale": spine_metrics_stale,
+            "escalation_open_rate": human_escalation_open_rate,
+            "escalation_starved": escalation_starved,
+            "handoff_count": collab_handoff_count,
+            "handoffs_per_agent": handoffs_per_agent,
+            "handoffs_per_agent_min": handoffs_per_agent_min,
+            "handoff_coverage_weak": handoff_coverage_weak,
+            "active_swarm_agents": active_swarm_agents
+        },
+        "slo_gate": {
+            "required": slo_required,
+            "severity": severity,
+            "block_scale": block_scale,
+            "containment_required": containment_required,
+            "failed_checks": failed_checks,
+            "checks": check_rows,
+            "summary": slo_summary,
+            "stale_metrics": stale_metrics,
+            "thresholds": {
+                "spine_success_rate_min": spine_success_target,
+                "receipt_latency_p95_max_ms": slo_latency_p95_max_ms,
+                "receipt_latency_p99_max_ms": slo_latency_p99_max_ms,
+                "queue_depth_max": slo_queue_depth_max,
+                "escalation_open_rate_min": escalation_open_rate_min
+            }
+        },
+        "contract_enforcement": {
+            "termination_decisions": termination_decisions,
+            "idle_candidates": idle_candidates_json,
+            "idle_threshold": idle_threshold,
+            "idle_excess": idle_excess,
+            "idle_batch_size": idle_batch_size,
+            "idle_sweep_ready": idle_sweep_ready,
+            "idle_termination_ms": idle_termination_ms
         },
         "role_plan": role_plan
     })
