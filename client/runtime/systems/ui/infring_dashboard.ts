@@ -19,7 +19,6 @@ const INFRING_PRIMARY_STATIC_DIR = path.resolve(
 const PROTHEUSD_DEBUG_BIN = path.resolve(ROOT, 'target/debug/protheusd');
 const PROTHEUSD_RELEASE_BIN = path.resolve(ROOT, 'target/release/protheusd');
 const CLIENT_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_client.tsx');
-const FALLBACK_TS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard_fallback.ts');
 const CSS_PATH = path.resolve(DASHBOARD_DIR, 'infring_dashboard.css');
 const STATE_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const AGENT_SESSIONS_DIR = path.resolve(STATE_DIR, 'agent_sessions');
@@ -40,6 +39,7 @@ const ATTENTION_DEFERRED_PATH = path.resolve(STATE_DIR, 'attention_deferred.json
 const ARCHIVED_AGENTS_PATH = path.resolve(STATE_DIR, 'archived_agents.json');
 const AGENT_CONTRACTS_PATH = path.resolve(STATE_DIR, 'agent_contracts.json');
 const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
+const AGENT_GIT_TREES_DIR = path.resolve(STATE_DIR, 'agent_git_trees');
 const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
 const MODEL_ROUTER_PROVIDER_PROFILE_PATH = path.resolve(ROOT, 'local/state/ops/model_router/provider_profile.json');
 const BENCHMARK_SANITY_STATE_PATH = path.resolve(ROOT, 'core/local/state/ops/benchmark_sanity/latest.json');
@@ -48,10 +48,16 @@ const BENCHMARK_SANITY_GATE_SCRIPT_PATH = path.resolve(
   ROOT,
   'tests/tooling/scripts/ci/benchmark_sanity_gate.mjs'
 );
+const CHAT_EXPORT_DIR = path.resolve(STATE_DIR, 'chat_exports');
+const CHAT_EXPORT_MAX_AGE_MS = 30 * 60 * 1000;
+const CHAT_EXPORT_MAX_FILES = 48;
+const CHAT_FILE_READ_MAX_BYTES = 2 * 1024 * 1024;
+const CHAT_TREE_MAX_DEPTH = 8;
+const CHAT_TREE_MAX_ENTRIES = 5000;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
-const DEFAULT_REFRESH_MS = 2000;
+const DEFAULT_REFRESH_MS = 8000;
 const DASHBOARD_BACKPRESSURE_BATCH_DEPTH = 75;
 const DASHBOARD_BACKPRESSURE_WARN_DEPTH = 50;
 const DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH = 80;
@@ -135,6 +141,9 @@ const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg'
 const OLLAMA_BIN = 'ollama';
 const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
+const PROMPT_SUGGESTION_TIMEOUT_MS = 1200;
+const PROMPT_SUGGESTION_CACHE_TTL_MS = 20_000;
+const PROMPT_SUGGESTION_CACHE_MAX = 512;
 const TEST_AGENT_MODEL_DEFAULT = 'kimi2.5:cloud';
 const TEST_AGENT_PROVIDER_DEFAULT = 'cloud';
 const TEST_AGENT_ID_PREFIXES = ['e2e-', 'test-', 'bench-', 'ci-', 'qa-'];
@@ -144,6 +153,7 @@ const ASSISTANT_EMPTY_FALLBACK_RESPONSE = 'I do not know yet. Please clarify wha
 const TERMINAL_OUTPUT_LIMIT = 18000;
 const TERMINAL_COMMAND_TIMEOUT_MS = 45000;
 const TERMINAL_SESSION_IDLE_TTL_MS = 5 * 60 * 1000;
+const TERMINAL_KILL_GRACE_MS = 1200;
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 8192;
 const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 75;
@@ -165,15 +175,23 @@ const AGENT_IDLE_TERMINATION_MS = 5 * 60 * 1000;
 const AGENT_IDLE_TERMINATION_BATCH = 8;
 const AGENT_IDLE_TERMINATION_BATCH_MAX = 128;
 const AGENT_IDLE_TERMINATION_COOLDOWN_MS = 1 * 1000;
+const AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP = 4;
 const AGENT_TERMINATION_TEAM_DISCOVERY_CACHE_MS = 5 * 1000;
 const AGENT_CONTRACT_RETAIN_TERMINATED_MAX = 512;
 const AGENT_CONTRACT_RETAIN_TERMINATED_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN = 20;
 const AGENT_ROGUE_SPIKE_WINDOW_MS = 60 * 1000;
+const ARCHIVED_AGENT_FILTER_WINDOW_MS = 10 * 60 * 1000;
+const AGENT_GIT_TREE_KIND_MASTER = 'master';
+const AGENT_GIT_TREE_KIND_ISOLATED = 'isolated';
+const AGENT_GIT_TREE_BRANCH_PREFIX = 'agent';
+const AGENT_GIT_TREE_SYNC_COOLDOWN_MS = 1200;
+const AGENT_GIT_TREE_API_SYNC_DEBOUNCE_MS = 1200;
+const DASHBOARD_UI_ASSET_REFRESH_COOLDOWN_MS = 5_000;
 const COCKPIT_MAX_BLOCKS = 64;
 const LANE_SYNC_TIMEOUT_MS = 1500;
 const LANE_ACTION_TIMEOUT_MS = 8 * 1000;
-const SNAPSHOT_LANE_TIMEOUT_FAST_MS = 350;
+const SNAPSHOT_LANE_TIMEOUT_FAST_MS = 220;
 const SNAPSHOT_LANE_TIMEOUT_MAX_MS = LANE_SYNC_TIMEOUT_MS;
 const SNAPSHOT_LANE_TIMEOUT_MIN_MS = 150;
 const SNAPSHOT_LANE_CACHE_TTL_MS = 8000;
@@ -186,6 +204,7 @@ const AUTO_ROUTE_CACHE_TTL_MS = 1200;
 const AUTO_ROUTE_CACHE_FAIL_TTL_MS = 600;
 const ATTENTION_PEEK_LIMIT = 12;
 const ATTENTION_CRITICAL_LIMIT = 64;
+const SNAPSHOT_FS_CACHE_TTL_MS = 8000;
 const ATTENTION_MICRO_BATCH_WINDOW_MS = 50;
 const ATTENTION_MICRO_BATCH_MAX_ITEMS = 10;
 const ATTENTION_PREEMPT_QUEUE_DEPTH = 60;
@@ -208,13 +227,38 @@ const ATTENTION_LANE_CAPS = {
 const CONDUIT_DELTA_SYNC_DEPTH = 50;
 const CONDUIT_DELTA_BATCH_WINDOW_MS = 10;
 const CONDUIT_DELTA_BATCH_MAX_ITEMS = 8;
+const WS_HEARTBEAT_INTERVAL_MS = 15 * 1000;
+const WS_HEARTBEAT_TIMEOUT_MS = 45 * 1000;
 const MEMORY_ENTRY_BACKPRESSURE_THRESHOLD = 25;
 const MEMORY_ENTRY_TARGET_WHEN_PAUSED = 20;
 const ATTENTION_CONSUMER_ID = 'dashboard-cockpit';
 const PRIMARY_MEMORY_DIR = 'local/workspace/memory';
 const LEGACY_MEMORY_DIR = 'memory';
-const COLLAB_SUPPORTED_ROLES = new Set(['coordinator', 'researcher', 'builder', 'reviewer', 'analyst']);
+const ASSISTANT_MEMORY_PATH = path.resolve(ROOT, 'local/workspace/assistant/MEMORY.md');
+const AGENT_MEMORY_KV_MAX_KEYS = 512;
+const AGENT_MEMORY_KEY_MAX_LEN = 160;
+const AGENT_MEMORY_VALUE_MAX_JSON_CHARS = 32_000;
+const MEMORY_SEARCH_DEFAULT_LIMIT = 12;
+const MEMORY_SEARCH_MAX_LIMIT = 64;
+const MEMORY_SEARCH_MAX_FILE_SCAN = 36;
+const MEMORY_SEARCH_MAX_MATCHES_PER_FILE = 4;
+const MEMORY_PASSIVE_APPEND_MIN_INTERVAL_MS = 20_000;
+const MEMORY_PASSIVE_ATTENTION_APPEND_MIN_INTERVAL_MS = 45_000;
+const MEMORY_PASSIVE_LINE_MAX_LEN = 360;
+const COLLAB_SUPPORTED_ROLES = new Set([
+  'director',
+  'cell_coordinator',
+  'coordinator',
+  'researcher',
+  'builder',
+  'reviewer',
+  'analyst',
+]);
 const COLLAB_ROLE_FALLBACKS = {
+  director: 'director',
+  cell: 'cell_coordinator',
+  cell_director: 'cell_coordinator',
+  shard_director: 'director',
   orchestrator: 'coordinator',
   planner: 'coordinator',
   architect: 'coordinator',
@@ -325,10 +369,12 @@ const OPS_READ_ONLY = new Set([
 ]);
 let ACTIVE_CLI_MODE = DEFAULT_CLI_MODE;
 const GIT_BRANCH_CACHE_MS = 15_000;
+const GIT_WORKSPACE_READY_CACHE_MS = 8_000;
 let gitBranchCache = {
   value: '',
   fetched_at: 0,
 };
+const gitWorkspaceReadyCache = new Map();
 
 function nowIso() {
   return new Date().toISOString();
@@ -364,6 +410,238 @@ function currentGitBranch() {
   const fallback = gitBranchCache.value || 'main';
   gitBranchCache = { value: fallback, fetched_at: now };
   return fallback;
+}
+
+function gitMainBranch() {
+  try {
+    const proc = spawnSync('git', ['show-ref', '--verify', '--quiet', 'refs/heads/main'], {
+      cwd: ROOT,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 1500,
+    });
+    if (proc && proc.status === 0) return 'main';
+  } catch {}
+  return currentGitBranch();
+}
+
+function normalizeGitTreeKind(value, fallback = AGENT_GIT_TREE_KIND_ISOLATED) {
+  const raw = cleanText(value || '', 24).toLowerCase();
+  if (raw === AGENT_GIT_TREE_KIND_MASTER) return AGENT_GIT_TREE_KIND_MASTER;
+  if (raw === AGENT_GIT_TREE_KIND_ISOLATED || raw === 'agent') return AGENT_GIT_TREE_KIND_ISOLATED;
+  return fallback === AGENT_GIT_TREE_KIND_MASTER ? AGENT_GIT_TREE_KIND_MASTER : AGENT_GIT_TREE_KIND_ISOLATED;
+}
+
+function safeAgentGitTreeSlug(agentId = '') {
+  const raw = cleanText(agentId || '', 140).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!raw) return `agent-${sha256(String(agentId || 'agent')).slice(0, 10)}`;
+  if (raw.length <= 72) return raw;
+  return `${raw.slice(0, 52)}-${sha256(raw).slice(0, 10)}`;
+}
+
+function normalizeGitBranchName(value, fallback = '') {
+  const raw = cleanText(value || '', 160).replace(/[^A-Za-z0-9._/-]+/g, '-').replace(/\/+/g, '/');
+  const trimmed = raw.replace(/^[-./]+|[-./]+$/g, '');
+  if (trimmed) return trimmed;
+  return cleanText(fallback || '', 160).replace(/[^A-Za-z0-9._/-]+/g, '-').replace(/^[-./]+|[-./]+$/g, '');
+}
+
+function branchForAgentGitTree(agentId, existingBranch = '') {
+  const normalizedExisting = normalizeGitBranchName(existingBranch, '');
+  if (normalizedExisting && normalizedExisting !== gitMainBranch()) return normalizedExisting;
+  const slug = safeAgentGitTreeSlug(agentId);
+  return normalizeGitBranchName(`${AGENT_GIT_TREE_BRANCH_PREFIX}/${slug}`, `${AGENT_GIT_TREE_BRANCH_PREFIX}/agent`);
+}
+
+function isPathInsideRoot(candidatePath, rootPath) {
+  if (!candidatePath || !rootPath) return false;
+  const target = path.resolve(candidatePath || '');
+  const base = path.resolve(rootPath || '');
+  return target === base || target.startsWith(`${base}${path.sep}`);
+}
+
+function isAgentGitWorkspacePath(candidatePath = '') {
+  const resolved = workspacePathOrNull(candidatePath);
+  if (!resolved) return false;
+  return isPathInsideRoot(resolved, AGENT_GIT_TREES_DIR);
+}
+
+function workspaceDirForAgentGitTree(agentId, existingWorkspaceDir = '') {
+  const resolvedExisting = workspacePathOrNull(existingWorkspaceDir);
+  if (resolvedExisting && isAgentGitWorkspacePath(resolvedExisting)) return resolvedExisting;
+  return path.resolve(AGENT_GIT_TREES_DIR, safeAgentGitTreeSlug(agentId));
+}
+
+function gitWorkspaceLooksReady(workspaceDir = '', options = {}) {
+  const resolved = workspacePathOrNull(workspaceDir, { must_exist: true, directory: true });
+  if (!resolved) return false;
+  const nowMs = Date.now();
+  const refresh = !!(options && options.refresh);
+  if (!refresh) {
+    const cached = gitWorkspaceReadyCache.get(resolved);
+    if (cached && typeof cached === 'object') {
+      const ageMs = Math.max(0, nowMs - parseNonNegativeInt(cached.ts_ms, 0, 1_000_000_000_000));
+      if (ageMs <= GIT_WORKSPACE_READY_CACHE_MS) {
+        return !!cached.ready;
+      }
+    }
+  }
+  try {
+    const probe = spawnSync('git', ['-C', resolved, 'rev-parse', '--is-inside-work-tree'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 1500,
+    });
+    const ready = !!(probe && probe.status === 0);
+    gitWorkspaceReadyCache.set(resolved, {
+      ready,
+      ts_ms: nowMs,
+    });
+    return ready;
+  } catch {
+    gitWorkspaceReadyCache.set(resolved, {
+      ready: false,
+      ts_ms: nowMs,
+    });
+    return false;
+  }
+}
+
+function ensureGitWorkspaceReady(agentId, branchName, workspaceDir) {
+  const branch = normalizeGitBranchName(branchName, '');
+  const workspace = workspaceDirForAgentGitTree(agentId, workspaceDir);
+  if (!branch || !isAgentGitWorkspacePath(workspace)) {
+    return { ok: false, error: 'invalid_git_tree_binding', branch, workspace_dir: workspace };
+  }
+  if (gitWorkspaceLooksReady(workspace)) {
+    return { ok: true, created: false, branch, workspace_dir: workspace };
+  }
+  ensureDir(path.dirname(workspace));
+  if (workspacePathOrNull(workspace, { must_exist: true, directory: true }) && !gitWorkspaceLooksReady(workspace)) {
+    try {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    } catch {}
+  }
+  let branchExists = false;
+  try {
+    const branchProbe = spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], {
+      cwd: ROOT,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 2000,
+    });
+    branchExists = !!(branchProbe && branchProbe.status === 0);
+  } catch {}
+  const worktreeArgs = branchExists
+    ? ['worktree', 'add', '--force', workspace, branch]
+    : ['worktree', 'add', '--force', '-b', branch, workspace, 'HEAD'];
+  let proc = null;
+  try {
+    proc = spawnSync('git', worktreeArgs, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 20000,
+      maxBuffer: 2 * 1024 * 1024,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: cleanText(error && error.message ? error.message : 'git_worktree_add_failed', 240),
+      branch,
+      workspace_dir: workspace,
+    };
+  }
+  if (!proc || proc.status !== 0) {
+    try {
+      spawnSync('git', ['worktree', 'prune', '--expire=now'], {
+        cwd: ROOT,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        timeout: 3000,
+      });
+    } catch {}
+    try {
+      proc = spawnSync('git', worktreeArgs, {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 20000,
+        maxBuffer: 2 * 1024 * 1024,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: cleanText(error && error.message ? error.message : 'git_worktree_add_retry_failed', 240),
+        branch,
+        workspace_dir: workspace,
+      };
+    }
+  }
+  if (!proc || proc.status !== 0 || !gitWorkspaceLooksReady(workspace, { refresh: true })) {
+    gitWorkspaceReadyCache.delete(workspace);
+    return {
+      ok: false,
+      error: cleanText(
+        (proc && (proc.stderr || proc.stdout)) || `git_worktree_add_failed:${proc ? proc.status : 'unknown'}`,
+        280
+      ),
+      branch,
+      workspace_dir: workspace,
+    };
+  }
+  gitWorkspaceReadyCache.set(workspace, {
+    ready: true,
+    ts_ms: Date.now(),
+  });
+  return {
+    ok: true,
+    created: true,
+    branch,
+    workspace_dir: workspace,
+  };
+}
+
+function removeGitWorkspaceForAgent(agentId) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return { ok: false, removed: false, reason: 'invalid_agent_id' };
+  const profile = agentProfileFor(id);
+  const kind = normalizeGitTreeKind(profile && profile.git_tree_kind ? profile.git_tree_kind : '');
+  if (kind === AGENT_GIT_TREE_KIND_MASTER) {
+    return { ok: true, removed: false, reason: 'master_tree' };
+  }
+  const workspace = workspacePathOrNull(profile && profile.workspace_dir ? profile.workspace_dir : '');
+  if (!workspace || !isAgentGitWorkspacePath(workspace)) {
+    return { ok: true, removed: false, reason: 'no_isolated_workspace' };
+  }
+  let removed = false;
+  try {
+    const proc = spawnSync('git', ['worktree', 'remove', '--force', workspace], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 12000,
+      maxBuffer: 1024 * 1024,
+    });
+    removed = !!(proc && proc.status === 0);
+  } catch {}
+  if (!removed) {
+    try {
+      fs.rmSync(workspace, { recursive: true, force: true });
+      removed = true;
+    } catch {}
+  }
+  gitWorkspaceReadyCache.delete(workspace);
+  try {
+    spawnSync('git', ['worktree', 'prune', '--expire=now'], {
+      cwd: ROOT,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 2500,
+    });
+  } catch {}
+  return {
+    ok: true,
+    removed,
+    workspace_dir: workspace,
+  };
 }
 
 function parsePositiveInt(value, fallback, min = 1, max = 65535) {
@@ -848,7 +1126,13 @@ function runLane(argv, options = {}) {
     SNAPSHOT_LANE_TIMEOUT_MIN_MS,
     60000
   );
-  const env = { ...process.env, PROTHEUS_ROOT: ROOT };
+  const env = {
+    ...process.env,
+    PROTHEUS_ROOT: ROOT,
+    // Runtime-facing dashboard lanes must stay responsive even during active source churn.
+    // Use the newest available binary and avoid request-time cargo recompiles.
+    PROTHEUS_OPS_ALLOW_STALE: '1',
+  };
   const opts = {
     cwd: ROOT,
     encoding: 'utf8',
@@ -884,6 +1168,7 @@ function runLane(argv, options = {}) {
 }
 
 const snapshotLaneCache = new Map();
+const promptSuggestionCache = new Map();
 
 function runLaneCached(cacheKey, argv, options = {}) {
   const key = cleanText(cacheKey || argv.join(' '), 240) || argv.join(' ');
@@ -905,12 +1190,18 @@ function runLaneCached(cacheKey, argv, options = {}) {
     250,
     600000
   );
+  const staleFallbackEnabled = options && options.stale_fallback === false ? false : true;
+  const staleFallbackMaxMs = parsePositiveInt(
+    options && options.stale_fallback_max_ms != null ? options.stale_fallback_max_ms : Math.max(ttlMs, failTtlMs * 2),
+    Math.max(ttlMs, failTtlMs * 2),
+    ttlMs,
+    600000
+  );
   const nowMs = Date.now();
   const cached = snapshotLaneCache.get(key);
   if (cached && typeof cached === 'object') {
     const ageMs = Math.max(0, nowMs - parseNonNegativeInt(cached.ts_ms, 0, 1_000_000_000_000));
-    const allowedAge = cached.ok ? ttlMs : failTtlMs;
-    if (ageMs <= allowedAge && cached.result && typeof cached.result === 'object') {
+    if (cached.ok && ageMs <= ttlMs && cached.result && typeof cached.result === 'object') {
       return {
         ...cached.result,
         from_cache: true,
@@ -921,24 +1212,74 @@ function runLaneCached(cacheKey, argv, options = {}) {
 
   const lane = runLane(argv, { timeout_ms: timeoutMs });
   if (lane.ok) {
-    snapshotLaneCache.set(key, { ts_ms: nowMs, ok: true, result: lane });
+    snapshotLaneCache.set(key, {
+      ts_ms: nowMs,
+      ok: true,
+      result: lane,
+      last_success_ts_ms: nowMs,
+      last_success_result: lane,
+      last_failure_ts_ms: parseNonNegativeInt(cached && cached.last_failure_ts_ms, 0, 1_000_000_000_000),
+      last_failure_result: cached && cached.last_failure_result && typeof cached.last_failure_result === 'object'
+        ? cached.last_failure_result
+        : null,
+    });
     return lane;
   }
 
-  if (cached && cached.result && typeof cached.result === 'object') {
-    const ageMs = Math.max(0, nowMs - parseNonNegativeInt(cached.ts_ms, 0, 1_000_000_000_000));
-    if (ageMs <= Math.max(ttlMs, failTtlMs * 2)) {
+  const cachedSuccessResult =
+    cached && cached.last_success_result && typeof cached.last_success_result === 'object'
+      ? cached.last_success_result
+      : cached && cached.ok && cached.result && typeof cached.result === 'object'
+        ? cached.result
+        : null;
+  const cachedSuccessTsMs =
+    parseNonNegativeInt(
+      cached && cached.last_success_ts_ms != null ? cached.last_success_ts_ms : cached && cached.ts_ms,
+      0,
+      1_000_000_000_000
+    );
+
+  if (staleFallbackEnabled && cachedSuccessResult) {
+    const ageMs = Math.max(0, nowMs - cachedSuccessTsMs);
+    if (ageMs <= staleFallbackMaxMs) {
+      snapshotLaneCache.set(key, {
+        ts_ms: cachedSuccessTsMs,
+        ok: true,
+        result: cachedSuccessResult,
+        last_success_ts_ms: cachedSuccessTsMs,
+        last_success_result: cachedSuccessResult,
+        last_failure_ts_ms: nowMs,
+        last_failure_result: lane,
+      });
       return {
-        ...cached.result,
+        ...cachedSuccessResult,
         from_cache: true,
         stale_cache_fallback: true,
         cache_age_ms: ageMs,
+        stale_reason: lane.timed_out ? 'lane_timeout' : 'lane_error',
       };
     }
   }
 
-  snapshotLaneCache.set(key, { ts_ms: nowMs, ok: false, result: lane });
+  snapshotLaneCache.set(key, {
+    ts_ms: nowMs,
+    ok: false,
+    result: lane,
+    last_success_ts_ms: cachedSuccessTsMs,
+    last_success_result: cachedSuccessResult,
+    last_failure_ts_ms: nowMs,
+    last_failure_result: lane,
+  });
   return lane;
+}
+
+function lanePayloadObject(laneResult, fallback = {}) {
+  if (!laneResult || typeof laneResult !== 'object') return fallback;
+  const fromCache = laneResult.from_cache === true || laneResult.stale_cache_fallback === true;
+  if (!laneResult.ok && !fromCache) return fallback;
+  const payload = laneResult.payload;
+  if (!payload || typeof payload !== 'object') return fallback;
+  return payload;
 }
 
 function resolveProtheusdBin() {
@@ -1029,9 +1370,17 @@ function shellQuote(value) {
   return `'${String(value == null ? '' : value).replace(/'/g, `'\"'\"'`)}'`;
 }
 
-function resolveTerminalCwd(requestedCwd) {
+function resolveTerminalCwd(requestedCwd, agentId = '') {
   const raw = String(requestedCwd == null ? '' : requestedCwd).replace(/\u0000/g, '').trim();
-  if (!raw) return ROOT;
+  if (!raw) {
+    const id = cleanText(agentId || '', 140);
+    if (id) {
+      const tree = agentGitTreeView(id, agentProfileFor(id));
+      const fallbackWorkspace = workspacePathOrNull(tree.workspace_dir, { must_exist: true, directory: true });
+      if (fallbackWorkspace) return fallbackWorkspace;
+    }
+    return ROOT;
+  }
   const candidate = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(ROOT, raw);
   if (!candidate.startsWith(ROOT)) return ROOT;
   try {
@@ -1041,10 +1390,438 @@ function resolveTerminalCwd(requestedCwd) {
   return ROOT;
 }
 
+function workspacePathOrNull(rawPath, options = {}) {
+  const mustExist = options && options.must_exist === true;
+  const expectDirectory = options && options.directory === true;
+  const expectFile = options && options.file === true;
+  const value = String(rawPath == null ? '' : rawPath).replace(/\u0000/g, '').trim();
+  if (!value) return null;
+  const resolved = path.isAbsolute(value) ? path.resolve(value) : path.resolve(ROOT, value);
+  if (!(resolved === ROOT || resolved.startsWith(`${ROOT}${path.sep}`))) return null;
+  if (!mustExist && !expectDirectory && !expectFile) return resolved;
+  try {
+    const stat = fs.statSync(resolved);
+    if (expectDirectory && !stat.isDirectory()) return null;
+    if (expectFile && !stat.isFile()) return null;
+  } catch {
+    return null;
+  }
+  return resolved;
+}
+
+function compactRelativePath(absPath) {
+  const relative = path.relative(ROOT, absPath || '');
+  return cleanText(relative || '.', 600) || '.';
+}
+
+function parseSuggestionCandidates(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  const normalizeSuggestion = (value) => {
+    let row = cleanText(value == null ? '' : String(value), 220);
+    if (!row) return '';
+    row = row.replace(/^\s*[-*0-9.)\]]+\s*/, '');
+    if (/^suggestions?[:]?$/i.test(row)) return '';
+    const machineNoise =
+      /tool_call|\"type\"\s*:\s*\"tool|\"command\"\s*:|^\{.*\}$|^\[.*\]$|<\/?function/i.test(row) ||
+      /\"args\"\s*:|\"reason\"\s*:|\"payload\"\s*:|\"provider\"\s*:|\"model\"\s*:/i.test(row);
+    if (machineNoise) return '';
+    if (row.length > 180) row = `${row.slice(0, 177)}...`;
+    return row;
+  };
+  const direct = parseJsonLoose(text);
+  const fromObject =
+    direct && typeof direct === 'object'
+      ? Array.isArray(direct)
+        ? direct
+        : Array.isArray(direct.suggestions)
+          ? direct.suggestions
+          : null
+      : null;
+  const parsedRows = Array.isArray(fromObject) ? fromObject : null;
+  let rows = [];
+  if (parsedRows) {
+    rows = parsedRows
+      .map((row) => normalizeSuggestion(typeof row === 'string' ? row : row && row.prompt ? row.prompt : ''))
+      .filter(Boolean);
+  }
+  if (!rows.length) {
+    rows = text
+      .split('\n')
+      .map((line) => normalizeSuggestion(line))
+      .filter(Boolean)
+      .slice(0, 8);
+  }
+  const seen = new Set();
+  const unique = [];
+  for (const row of rows) {
+    const key = row.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(row);
+  }
+  return unique.slice(0, 3);
+}
+
+function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint = '') {
+  const rows = [];
+  const runtime = runtimeSyncSummary(snapshot);
+  const queueDepth = parseNonNegativeInt(runtime.queue_depth, 0, 100000000);
+  const staleBlocks = parseNonNegativeInt(runtime.cockpit_stale_blocks, 0, 100000000);
+  const modelName = cleanText(agent && agent.model_name ? agent.model_name : '', 120) || 'current model';
+  const role = cleanText(agent && agent.role ? agent.role : '', 80) || 'assistant';
+  const cleanHint = cleanText(hint || '', 180);
+  const recent = Array.isArray(recentMessages)
+    ? recentMessages
+        .slice(-2)
+        .map((row) => cleanText(row && (row.user || row.assistant) ? row.user || row.assistant : '', 180))
+        .filter(Boolean)
+    : [];
+
+  if (recent.length) {
+    rows.push(`Continue from: "${recent[recent.length - 1]}" with a concrete next action.`);
+  }
+  if (cleanHint) {
+    rows.push(`Follow this hint: "${cleanHint}" and propose one immediate next prompt.`);
+  }
+  rows.push(`Audit runtime pressure (queue ${queueDepth}, stale cockpit ${staleBlocks}) and propose safe remediations.`);
+  rows.push(`Generate a task plan for this ${role} agent using model ${modelName}.`);
+  rows.push('Summarize recent work and suggest the three highest-ROI next steps.');
+  rows.push('Create a focused swarm subtask list with coordinator/researcher/builder roles.');
+  const rotateSeed = `${modelName}|${role}|${recent.join('|')}|${cleanHint}`;
+  let rotate = 0;
+  for (let i = 0; i < rotateSeed.length; i++) rotate = (rotate + rotateSeed.charCodeAt(i)) % Math.max(rows.length, 1);
+  const ordered = rows.length > 1 ? rows.slice(rotate).concat(rows.slice(0, rotate)) : rows.slice();
+  const seen = new Set();
+  return ordered
+    .map((row) => cleanText(row, 220))
+    .filter((row) => {
+      const key = String(row || '').toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+function generatePromptSuggestions(agentId, snapshot, payload = {}) {
+  const cleanAgentId = cleanText(agentId || '', 140);
+  if (!cleanAgentId) return { ok: false, suggestions: [] };
+  const userHint = cleanText(payload && payload.hint ? payload.hint : '', 280);
+  if (!userHint) {
+    const cached = promptSuggestionCache.get(cleanAgentId);
+    if (
+      cached &&
+      (Date.now() - parseNonNegativeInt(cached.ts, 0, 9_999_999_999_999)) < PROMPT_SUGGESTION_CACHE_TTL_MS &&
+      Array.isArray(cached.suggestions) &&
+      cached.suggestions.length > 0
+    ) {
+      return {
+        ok: true,
+        suggestions: cached.suggestions.slice(0, 3),
+        source: cleanText(cached.source || 'cache', 40) || 'cache',
+        model: cleanText(cached.model || '', 120),
+      };
+    }
+  }
+  const state = loadAgentSession(cleanAgentId, snapshot);
+  const session = activeSession(state);
+  const agent =
+    compatAgentsFromSnapshot(snapshot, { includeArchived: true }).find((row) => row.id === cleanAgentId) || {
+      id: cleanAgentId,
+      name: cleanAgentId,
+      role: 'assistant',
+      model_name: configuredOllamaModel(snapshot),
+    };
+  const recentMessages = Array.isArray(session && session.messages) ? session.messages.slice(-8) : [];
+  const clientLastUser = cleanText(payload && payload.last_user_message ? payload.last_user_message : '', 220);
+  const clientLastAgent = cleanText(payload && payload.last_agent_message ? payload.last_agent_message : '', 220);
+  const clientModel = cleanText(payload && payload.current_model ? payload.current_model : '', 160);
+  const prompt = [
+    'Return exactly 3 actionable next user prompts as a JSON array of strings.',
+    'Keep each suggestion under 120 characters.',
+    'Do not include numbering, markdown, explanations, or extra keys.',
+    `Agent name: ${cleanText(agent && agent.name ? agent.name : cleanAgentId, 120)}`,
+    `Agent role: ${cleanText(agent && agent.role ? agent.role : 'assistant', 80)}`,
+    clientModel ? `Client-selected model: ${clientModel}` : '',
+    clientLastUser ? `Recent user prompt hint: ${clientLastUser}` : '',
+    clientLastAgent ? `Recent assistant response hint: ${clientLastAgent}` : '',
+    `Recent context: ${cleanText(
+      recentMessages
+        .map((row) => String((row && (row.user || row.assistant || row.content || '')) || '').trim())
+        .filter(Boolean)
+        .slice(-4)
+        .join(' || '),
+      1200
+    )}`,
+    userHint ? `Hint from client: ${userHint}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const modelState = effectiveAgentModel(cleanAgentId, snapshot);
+  const requestedModel =
+    modelState && modelState.runtime_model ? modelState.runtime_model : configuredOllamaModel(snapshot);
+  let llm = runOllamaPrompt(requestedModel, prompt, { timeout_ms: PROMPT_SUGGESTION_TIMEOUT_MS });
+  const normalizedRequestedModel = cleanText(requestedModel, 120) || OLLAMA_MODEL_FALLBACK;
+
+  let suggestions = [];
+  let source = 'fallback';
+  if (llm && llm.ok) {
+    suggestions = parseSuggestionCandidates(llm.output || '');
+    if (suggestions.length) source = 'llm';
+  }
+  if (!suggestions.length) {
+    suggestions = heuristicPromptSuggestions(agent, snapshot, recentMessages, userHint);
+  }
+  while (suggestions.length < 3) {
+    const fallbackRows = heuristicPromptSuggestions(agent, snapshot, recentMessages, userHint);
+    const fallback = fallbackRows[suggestions.length] || '';
+    if (!fallback) break;
+    suggestions.push(fallback);
+  }
+  const result = {
+    ok: suggestions.length > 0,
+    suggestions: suggestions.slice(0, 3),
+    source,
+    model: llm && llm.ok ? cleanText(llm.model || normalizedRequestedModel || '', 120) : '',
+  };
+  if (result.ok && !userHint) {
+    if (promptSuggestionCache.size >= PROMPT_SUGGESTION_CACHE_MAX) {
+      const firstKey = promptSuggestionCache.keys().next();
+      if (firstKey && !firstKey.done) promptSuggestionCache.delete(firstKey.value);
+    }
+    promptSuggestionCache.set(cleanAgentId, {
+      ts: Date.now(),
+      suggestions: result.suggestions.slice(0, 3),
+      source: result.source,
+      model: result.model,
+    });
+  }
+  return result;
+}
+
+function readFullFileForChat(rawPath, options = {}) {
+  const maxBytes = parsePositiveInt(
+    options && options.max_bytes != null ? options.max_bytes : CHAT_FILE_READ_MAX_BYTES,
+    CHAT_FILE_READ_MAX_BYTES,
+    256,
+    16 * 1024 * 1024
+  );
+  const resolved = workspacePathOrNull(rawPath, { must_exist: true, file: true });
+  if (!resolved) {
+    return { ok: false, error: 'file_not_found_or_outside_workspace' };
+  }
+  try {
+    const stat = fs.statSync(resolved);
+    if (!stat.isFile()) return { ok: false, error: 'not_a_file' };
+    const bytes = parseNonNegativeInt(stat.size, 0, 1_000_000_000);
+    const contentBuffer = fs.readFileSync(resolved);
+    const isLikelyBinary = contentBuffer.includes(0);
+    if (isLikelyBinary) {
+      return {
+        ok: false,
+        error: 'binary_file_not_supported',
+        path: compactRelativePath(resolved),
+        bytes,
+      };
+    }
+    const text = contentBuffer.toString('utf8');
+    const truncated = Buffer.byteLength(text, 'utf8') > maxBytes;
+    let content = text;
+    if (truncated) {
+      content = Buffer.from(text, 'utf8').subarray(0, maxBytes).toString('utf8');
+    }
+    return {
+      ok: true,
+      path: compactRelativePath(resolved),
+      content,
+      bytes,
+      truncated,
+      max_bytes: maxBytes,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: cleanText(error && error.message ? error.message : 'file_read_failed', 180) || 'file_read_failed',
+    };
+  }
+}
+
+function buildDirectoryTreeForChat(rawPath, options = {}) {
+  const maxDepth = parsePositiveInt(
+    options && options.max_depth != null ? options.max_depth : CHAT_TREE_MAX_DEPTH,
+    CHAT_TREE_MAX_DEPTH,
+    1,
+    32
+  );
+  const maxEntries = parsePositiveInt(
+    options && options.max_entries != null ? options.max_entries : CHAT_TREE_MAX_ENTRIES,
+    CHAT_TREE_MAX_ENTRIES,
+    32,
+    20000
+  );
+  const resolved = workspacePathOrNull(rawPath, { must_exist: true, directory: true });
+  if (!resolved) {
+    return { ok: false, error: 'folder_not_found_or_outside_workspace' };
+  }
+  const rootName = path.basename(resolved) || '.';
+  const lines = [rootName];
+  let entries = 0;
+  let truncated = false;
+
+  const walk = (dirPath, depth, prefix) => {
+    if (truncated || depth >= maxDepth) return;
+    let children = [];
+    try {
+      children = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    children.sort((a, b) => {
+      const aDir = a && typeof a.isDirectory === 'function' ? (a.isDirectory() ? 0 : 1) : 1;
+      const bDir = b && typeof b.isDirectory === 'function' ? (b.isDirectory() ? 0 : 1) : 1;
+      if (aDir !== bDir) return aDir - bDir;
+      return String(a && a.name ? a.name : '').localeCompare(String(b && b.name ? b.name : ''));
+    });
+    for (let i = 0; i < children.length; i += 1) {
+      if (entries >= maxEntries) {
+        truncated = true;
+        break;
+      }
+      const child = children[i];
+      if (!child || !child.name) continue;
+      const isLast = i === (children.length - 1);
+      const connector = isLast ? '└── ' : '├── ';
+      const nextPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+      const label = child.isDirectory() ? `${child.name}/` : child.name;
+      lines.push(`${prefix}${connector}${label}`);
+      entries += 1;
+      if (child.isDirectory()) {
+        walk(path.join(dirPath, child.name), depth + 1, nextPrefix);
+      }
+    }
+  };
+
+  walk(resolved, 0, '');
+  return {
+    ok: true,
+    path: compactRelativePath(resolved),
+    tree: lines.join('\n'),
+    entries,
+    truncated,
+    max_entries: maxEntries,
+    max_depth: maxDepth,
+  };
+}
+
+function cleanupChatExports() {
+  ensureDir(CHAT_EXPORT_DIR);
+  const nowMs = Date.now();
+  for (const [token, meta] of chatExportArtifacts.entries()) {
+    const createdAt = parseNonNegativeInt(meta && meta.created_at, 0, 10_000_000_000_000);
+    const stale = !createdAt || (nowMs - createdAt) > CHAT_EXPORT_MAX_AGE_MS;
+    if (!stale) continue;
+    try {
+      if (meta && meta.file_path) fs.unlinkSync(meta.file_path);
+    } catch {}
+    chatExportArtifacts.delete(token);
+  }
+  if (chatExportArtifacts.size <= CHAT_EXPORT_MAX_FILES) return;
+  const sorted = Array.from(chatExportArtifacts.entries()).sort(
+    (a, b) =>
+      parseNonNegativeInt(a[1] && a[1].created_at, 0, 10_000_000_000_000) -
+      parseNonNegativeInt(b[1] && b[1].created_at, 0, 10_000_000_000_000)
+  );
+  while (sorted.length && chatExportArtifacts.size > CHAT_EXPORT_MAX_FILES) {
+    const [token, meta] = sorted.shift();
+    try {
+      if (meta && meta.file_path) fs.unlinkSync(meta.file_path);
+    } catch {}
+    chatExportArtifacts.delete(token);
+  }
+}
+
+function createFolderArchiveForChat(rawPath) {
+  cleanupChatExports();
+  const resolved = workspacePathOrNull(rawPath, { must_exist: true, directory: true });
+  if (!resolved) {
+    return { ok: false, error: 'folder_not_found_or_outside_workspace' };
+  }
+  ensureDir(CHAT_EXPORT_DIR);
+  const safeBase = cleanText(path.basename(resolved) || 'folder', 80).replace(/[^a-zA-Z0-9._-]/g, '_') || 'folder';
+  const stamp = Date.now();
+  const fileName = `${safeBase}-${stamp}.tar.gz`;
+  const filePath = path.join(CHAT_EXPORT_DIR, fileName);
+  const tarOut = spawnSync('tar', ['-czf', filePath, '-C', path.dirname(resolved), path.basename(resolved)], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 120000,
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  if (!tarOut || tarOut.status !== 0 || !fileExists(filePath)) {
+    return {
+      ok: false,
+      error: cleanText(
+        tarOut && (tarOut.stderr || tarOut.stdout) ? tarOut.stderr || tarOut.stdout : 'archive_create_failed',
+        240
+      ) || 'archive_create_failed',
+    };
+  }
+  const token = sha256(`${resolved}:${stamp}:${fileName}`).slice(0, 32);
+  chatExportArtifacts.set(token, {
+    token,
+    file_path: filePath,
+    file_name: fileName,
+    created_at: stamp,
+    target_path: compactRelativePath(resolved),
+  });
+  return {
+    ok: true,
+    token,
+    file_name: fileName,
+    bytes: fileSizeBytes(filePath),
+    target_path: compactRelativePath(resolved),
+    download_url: `/api/chat/export/${token}`,
+  };
+}
+
 const terminalSessions = new Map();
 
 function terminalSessionId(agentId = '') {
   return cleanText(agentId || 'dashboard-terminal', 140) || 'dashboard-terminal';
+}
+
+function terminateSessionProcess(session, reason = 'session_closed') {
+  if (!session || !session.proc) return;
+  const pid = Number(session.proc.pid || 0);
+  try {
+    session.proc.kill('SIGTERM');
+  } catch {}
+  if (pid > 0) {
+    try {
+      spawnSync('pkill', ['-TERM', '-P', String(pid)], {
+        cwd: ROOT,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        timeout: 500,
+      });
+    } catch {}
+    const timer = setTimeout(() => {
+      if (!isPidAlive(pid)) return;
+      try {
+        spawnSync('pkill', ['-KILL', '-P', String(pid)], {
+          cwd: ROOT,
+          stdio: ['ignore', 'ignore', 'ignore'],
+          timeout: 500,
+        });
+      } catch {}
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {}
+    }, TERMINAL_KILL_GRACE_MS);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  }
 }
 
 function terminalFailureResult(session, pending, message, status = 1) {
@@ -1168,7 +1945,7 @@ function ensureTerminalSession(agentId, requestedCwd) {
   if (existing && !existing.closed && existing.proc && !existing.proc.killed) {
     return existing;
   }
-  const cwd = resolveTerminalCwd(requestedCwd);
+  const cwd = resolveTerminalCwd(requestedCwd, agentId);
   const shell = cleanText(process.env.SHELL || '/bin/zsh', 160) || '/bin/zsh';
   const proc = spawn(shell, ['-s'], {
     cwd,
@@ -1228,9 +2005,7 @@ function closeTerminalSession(agentId, reason = 'session_closed') {
   if (!session) return false;
   session.closed = true;
   settleTerminalSessionError(session, reason, 1);
-  try {
-    session.proc.kill('SIGTERM');
-  } catch {}
+  terminateSessionProcess(session, reason);
   terminalSessions.delete(id);
   return true;
 }
@@ -1256,7 +2031,19 @@ function pruneTerminalSessions() {
   }
 }
 
-async function runTerminalCommand(rawCommand, requestedCwd, agentId = 'dashboard-terminal') {
+async function runTerminalCommand(rawCommand, requestedCwd, agentId = 'dashboard-terminal', snapshot = null) {
+  const cleanAgentId = cleanText(agentId || 'dashboard-terminal', 140) || 'dashboard-terminal';
+  if (cleanAgentId) {
+    ensureAgentGitTreeAssignments(snapshot, {
+      preferred_master_id: cleanAgentId,
+      ensure_workspace_agent_id: cleanAgentId,
+      force: false,
+    });
+    ensureAgentGitTreeProfile(cleanAgentId, {
+      force_master: false,
+      ensure_workspace_ready: true,
+    });
+  }
   const command = String(rawCommand == null ? '' : rawCommand).replace(/\u0000/g, '').trim();
   if (!command) {
     return {
@@ -1268,7 +2055,7 @@ async function runTerminalCommand(rawCommand, requestedCwd, agentId = 'dashboard
       stderr: '',
       message: 'Terminal command required.',
       duration_ms: 0,
-      cwd: resolveTerminalCwd(requestedCwd),
+      cwd: resolveTerminalCwd(requestedCwd, cleanAgentId),
       command: '',
     };
   }
@@ -1282,14 +2069,14 @@ async function runTerminalCommand(rawCommand, requestedCwd, agentId = 'dashboard
       stderr: '',
       message: 'Terminal mode disabled while CLI mode is safe.',
       duration_ms: 0,
-      cwd: resolveTerminalCwd(requestedCwd),
+      cwd: resolveTerminalCwd(requestedCwd, cleanAgentId),
       command,
     };
   }
-  const cwd = resolveTerminalCwd(requestedCwd);
+  const cwd = resolveTerminalCwd(requestedCwd, cleanAgentId);
   pruneTerminalSessions();
   try {
-    const session = ensureTerminalSession(agentId, cwd);
+    const session = ensureTerminalSession(cleanAgentId, cwd);
     return await queueTerminalCommand(session, command, cwd);
   } catch (error) {
     return {
@@ -1393,6 +2180,273 @@ function memoryBullets(content) {
     .filter((row) => row.startsWith('- '))
     .map((row) => row.slice(2).trim())
     .filter(Boolean);
+}
+
+function safeDecodePathToken(value) {
+  const raw = String(value == null ? '' : value);
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeMemoryKey(rawKey) {
+  const decoded = safeDecodePathToken(rawKey).replace(/\u0000/g, '').trim();
+  if (!decoded) return '';
+  return decoded.slice(0, AGENT_MEMORY_KEY_MAX_LEN);
+}
+
+function sanitizeMemoryValue(value) {
+  if (value === undefined) return null;
+  try {
+    const encoded = JSON.stringify(value);
+    if (typeof encoded !== 'string') return null;
+    if (encoded.length <= AGENT_MEMORY_VALUE_MAX_JSON_CHARS) {
+      return JSON.parse(encoded);
+    }
+    return cleanText(encoded, AGENT_MEMORY_VALUE_MAX_JSON_CHARS);
+  } catch {
+    return cleanText(String(value == null ? '' : value), AGENT_MEMORY_VALUE_MAX_JSON_CHARS);
+  }
+}
+
+function normalizeMemoryKvMap(rawMap) {
+  const source = rawMap && typeof rawMap === 'object' && !Array.isArray(rawMap) ? rawMap : {};
+  const out = {};
+  const entries = Object.entries(source).slice(0, AGENT_MEMORY_KV_MAX_KEYS);
+  for (const [rawKey, rawValue] of entries) {
+    const key = normalizeMemoryKey(rawKey);
+    if (!key) continue;
+    const wrappedValue =
+      rawValue &&
+      typeof rawValue === 'object' &&
+      !Array.isArray(rawValue) &&
+      Object.prototype.hasOwnProperty.call(rawValue, 'value')
+        ? rawValue.value
+        : rawValue;
+    out[key] = sanitizeMemoryValue(wrappedValue);
+  }
+  return out;
+}
+
+function todayDateIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function primaryMemoryDirPath() {
+  return path.resolve(ROOT, PRIMARY_MEMORY_DIR);
+}
+
+function dailyMemoryFilePath(dateIso = todayDateIso()) {
+  const safeDate = cleanText(dateIso || todayDateIso(), 20) || todayDateIso();
+  return path.resolve(primaryMemoryDirPath(), `${safeDate}.md`);
+}
+
+function ensureDailyMemoryFile(dateIso = todayDateIso()) {
+  const dirPath = primaryMemoryDirPath();
+  ensureDir(dirPath);
+  const filePath = dailyMemoryFilePath(dateIso);
+  if (!fileExists(filePath)) {
+    const headerDate = cleanText(dateIso || todayDateIso(), 20) || todayDateIso();
+    writeFileAtomic(filePath, `# ${headerDate}\n\n`, 'utf8');
+  }
+  return filePath;
+}
+
+function appendPassiveMemoryLine(line, options = {}) {
+  const text = cleanText(line || '', MEMORY_PASSIVE_LINE_MAX_LEN);
+  if (!text) return { ok: false, skipped: true, reason: 'empty_line' };
+  const filePath = ensureDailyMemoryFile(options && options.date_iso ? options.date_iso : todayDateIso());
+  const timestamp = nowIso().slice(11, 19);
+  fs.appendFileSync(filePath, `- ${timestamp} ${text}\n`, 'utf8');
+  return { ok: true, path: path.relative(ROOT, filePath) };
+}
+
+function searchSnippet(content, queryLower) {
+  const text = String(content || '');
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(queryLower);
+  if (idx < 0) return '';
+  const start = Math.max(0, idx - 80);
+  const end = Math.min(text.length, idx + queryLower.length + 120);
+  return cleanText(text.slice(start, end), 260);
+}
+
+function searchMemoryMarkdownFiles(queryLower, limit = MEMORY_SEARCH_MAX_FILE_SCAN) {
+  const files = [];
+  const roots = [
+    path.resolve(ROOT, PRIMARY_MEMORY_DIR),
+    path.resolve(ROOT, LEGACY_MEMORY_DIR),
+  ];
+  for (const rootDir of roots) {
+    try {
+      if (!fs.existsSync(rootDir)) continue;
+      const names = fs.readdirSync(rootDir).filter((name) => name.endsWith('.md'));
+      for (const name of names) {
+        const fullPath = path.resolve(rootDir, name);
+        const stat = fs.statSync(fullPath);
+        files.push({
+          full_path: fullPath,
+          rel_path: path.relative(ROOT, fullPath),
+          mtime_ms: Number.isFinite(stat.mtimeMs) ? stat.mtimeMs : 0,
+        });
+      }
+    } catch {}
+  }
+  if (fileExists(ASSISTANT_MEMORY_PATH)) {
+    try {
+      const stat = fs.statSync(ASSISTANT_MEMORY_PATH);
+      files.push({
+        full_path: ASSISTANT_MEMORY_PATH,
+        rel_path: path.relative(ROOT, ASSISTANT_MEMORY_PATH),
+        mtime_ms: Number.isFinite(stat.mtimeMs) ? stat.mtimeMs : 0,
+      });
+    } catch {}
+  }
+  files.sort((a, b) => b.mtime_ms - a.mtime_ms);
+  const out = [];
+  for (const file of files.slice(0, Math.max(1, limit))) {
+    const content = readText(file.full_path, '');
+    if (!content) continue;
+    const lines = content.split('\n');
+    let hits = 0;
+    for (const line of lines) {
+      const row = String(line || '').trim();
+      if (!row) continue;
+      if (!row.toLowerCase().includes(queryLower)) continue;
+      out.push({
+        source: 'markdown',
+        path: file.rel_path,
+        snippet: cleanText(row, 260),
+        ts: file.mtime_ms > 0 ? new Date(file.mtime_ms).toISOString() : '',
+        score: 60 - Math.min(40, hits * 5),
+      });
+      hits += 1;
+      if (hits >= MEMORY_SEARCH_MAX_MATCHES_PER_FILE) break;
+    }
+  }
+  return out;
+}
+
+function searchAgentMemoryKv(queryLower) {
+  const out = [];
+  const files = recentFiles(AGENT_SESSIONS_DIR, {
+    limit: 800,
+    maxDepth: 1,
+    include: (fullPath) => fullPath.endsWith('.json'),
+  });
+  for (const file of files) {
+    const filePath = file.full_path;
+    const rawState = readJson(filePath, null);
+    if (!rawState || typeof rawState !== 'object') continue;
+    const kv = normalizeMemoryKvMap(rawState.memory_kv);
+    const ts = file && Number.isFinite(file.mtime_ms) && file.mtime_ms > 0
+      ? new Date(file.mtime_ms).toISOString()
+      : '';
+    const agentId = cleanText(path.basename(filePath, '.json'), 140);
+    for (const [key, value] of Object.entries(kv)) {
+      const valueText = cleanText(typeof value === 'string' ? value : JSON.stringify(value), 6000).toLowerCase();
+      if (!key.toLowerCase().includes(queryLower) && !valueText.includes(queryLower)) continue;
+      out.push({
+        source: 'agent_kv',
+        agent_id: agentId,
+        key,
+        snippet: searchSnippet(typeof value === 'string' ? value : JSON.stringify(value), queryLower) || cleanText(String(valueText), 260),
+        ts,
+        score: key.toLowerCase().includes(queryLower) ? 95 : 88,
+      });
+    }
+  }
+  return out;
+}
+
+function searchSnapshotMemory(queryLower, snapshot) {
+  const out = [];
+  const turns =
+    snapshot && snapshot.app && Array.isArray(snapshot.app.turns)
+      ? snapshot.app.turns.slice(-80)
+      : [];
+  for (const turn of turns) {
+    const combined = `${cleanText(turn && turn.user ? turn.user : '', 600)} ${cleanText(turn && turn.assistant ? turn.assistant : '', 1200)}`;
+    if (!combined.toLowerCase().includes(queryLower)) continue;
+    out.push({
+      source: 'session_turn',
+      snippet: searchSnippet(combined, queryLower) || cleanText(combined, 260),
+      ts: cleanText(turn && turn.ts ? turn.ts : '', 80),
+      score: 80,
+    });
+  }
+  const attentionRows =
+    snapshot &&
+    snapshot.attention_queue &&
+    Array.isArray(snapshot.attention_queue.critical)
+      ? snapshot.attention_queue.critical.slice(0, 80)
+      : [];
+  for (const row of attentionRows) {
+    const combined = `${cleanText(row && row.summary ? row.summary : '', 260)} ${cleanText(row && row.source ? row.source : '', 120)}`;
+    if (!combined.toLowerCase().includes(queryLower)) continue;
+    out.push({
+      source: 'attention_queue',
+      snippet: searchSnippet(combined, queryLower) || cleanText(combined, 260),
+      ts: cleanText(row && row.ts ? row.ts : '', 80),
+      score: 76,
+    });
+  }
+  return out;
+}
+
+function searchMemoryLocal(query, snapshot, options = {}) {
+  const needle = cleanText(query || '', 280).toLowerCase();
+  const limit = parsePositiveInt(
+    options && options.limit != null ? options.limit : MEMORY_SEARCH_DEFAULT_LIMIT,
+    MEMORY_SEARCH_DEFAULT_LIMIT,
+    1,
+    MEMORY_SEARCH_MAX_LIMIT
+  );
+  if (!needle) {
+    return {
+      ok: true,
+      disabled: false,
+      source: 'local_memory_fallback',
+      results: [],
+      query: '',
+    };
+  }
+  const rows = [
+    ...searchAgentMemoryKv(needle),
+    ...searchMemoryMarkdownFiles(needle, MEMORY_SEARCH_MAX_FILE_SCAN),
+    ...searchSnapshotMemory(needle, snapshot),
+  ];
+  rows.sort((a, b) => {
+    const scoreDelta = parseNonNegativeInt(b && b.score, 0, 100000000) - parseNonNegativeInt(a && a.score, 0, 100000000);
+    if (scoreDelta !== 0) return scoreDelta;
+    return coerceTsMs(b && b.ts, 0) - coerceTsMs(a && a.ts, 0);
+  });
+  const results = rows.slice(0, limit).map((row, idx) => ({
+    id: `mem_${idx + 1}`,
+    source: cleanText(row && row.source ? row.source : 'memory', 40) || 'memory',
+    path: cleanText(row && row.path ? row.path : '', 260),
+    agent_id: cleanText(row && row.agent_id ? row.agent_id : '', 140),
+    key: cleanText(row && row.key ? row.key : '', AGENT_MEMORY_KEY_MAX_LEN),
+    snippet: cleanText(row && row.snippet ? row.snippet : '', 260),
+    ts: cleanText(row && row.ts ? row.ts : '', 80),
+    score: parseNonNegativeInt(row && row.score, 0, 100000000),
+  }));
+  return {
+    ok: true,
+    disabled: false,
+    source: 'local_memory_fallback',
+    query: needle,
+    results,
+    count: results.length,
+    scanned: {
+      agent_sessions_dir: path.relative(ROOT, AGENT_SESSIONS_DIR),
+      memory_roots: [PRIMARY_MEMORY_DIR, LEGACY_MEMORY_DIR],
+      assistant_memory: path.relative(ROOT, ASSISTANT_MEMORY_PATH),
+    },
+  };
 }
 
 function normalizeCollabRole(roleRaw) {
@@ -1785,8 +2839,76 @@ function runCliTool(command, args = []) {
   }
 }
 
+function maybeAppendPassiveMemoryLine(line, options = {}) {
+  const nowMs = Date.now();
+  const minIntervalMs = parsePositiveInt(
+    options && options.min_interval_ms != null ? options.min_interval_ms : MEMORY_PASSIVE_APPEND_MIN_INTERVAL_MS,
+    MEMORY_PASSIVE_APPEND_MIN_INTERVAL_MS,
+    1000,
+    60 * 60 * 1000
+  );
+  if (
+    !options.force &&
+    (nowMs - parseNonNegativeInt(passiveMemoryWriteState.last_append_ms, 0, 1_000_000_000_000)) < minIntervalMs
+  ) {
+    return { ok: true, skipped: true, reason: 'rate_limited' };
+  }
+  const fingerprint = sha256(cleanText(line || '', MEMORY_PASSIVE_LINE_MAX_LEN)).slice(0, 24);
+  if (
+    passiveMemoryWriteState.last_hash === fingerprint &&
+    (nowMs - parseNonNegativeInt(passiveMemoryWriteState.last_append_ms, 0, 1_000_000_000_000)) < minIntervalMs
+  ) {
+    return { ok: true, skipped: true, reason: 'deduplicated' };
+  }
+  const appended = appendPassiveMemoryLine(line, options);
+  if (appended.ok) {
+    passiveMemoryWriteState.last_hash = fingerprint;
+    passiveMemoryWriteState.last_append_ms = nowMs;
+  }
+  return appended;
+}
+
+function recordPassiveConversationMemory(agentId, userText, assistantText, metaText = '') {
+  const user = cleanText(userText || '', 140);
+  const assistant = cleanText(assistantText || '', 180);
+  if (!user && !assistant) return { ok: false, skipped: true, reason: 'empty_turn' };
+  const profile = agentProfileFor(agentId);
+  const agentName = cleanText(profile && profile.name ? profile.name : agentId || 'agent', 80) || 'agent';
+  const meta = cleanText(metaText || '', 60);
+  const summaryParts = [];
+  if (user) summaryParts.push(`U: ${user}`);
+  if (assistant) summaryParts.push(`A: ${assistant}`);
+  const line = `[chat:${agentName}] ${summaryParts.join(' | ')}${meta ? ` (${meta})` : ''}`;
+  return maybeAppendPassiveMemoryLine(line, {
+    min_interval_ms: MEMORY_PASSIVE_APPEND_MIN_INTERVAL_MS,
+  });
+}
+
+function recordPassiveAttentionMemory(eventPayload) {
+  const severity = normalizeSeverity(eventPayload && eventPayload.severity ? eventPayload.severity : 'info');
+  if (severity === 'info') return { ok: true, skipped: true, reason: 'severity_info' };
+  const nowMs = Date.now();
+  if (
+    (nowMs - parseNonNegativeInt(passiveMemoryWriteState.last_attention_append_ms, 0, 1_000_000_000_000)) <
+    MEMORY_PASSIVE_ATTENTION_APPEND_MIN_INTERVAL_MS
+  ) {
+    return { ok: true, skipped: true, reason: 'attention_rate_limited' };
+  }
+  const source = cleanText(eventPayload && eventPayload.source ? eventPayload.source : 'attention_queue', 80) || 'attention_queue';
+  const summary = cleanText(eventPayload && eventPayload.summary ? eventPayload.summary : '', 200);
+  if (!summary) return { ok: true, skipped: true, reason: 'summary_missing' };
+  const appended = maybeAppendPassiveMemoryLine(`[attention:${severity}] ${source}: ${summary}`, {
+    min_interval_ms: MEMORY_PASSIVE_ATTENTION_APPEND_MIN_INTERVAL_MS,
+  });
+  if (appended.ok && !appended.skipped) {
+    passiveMemoryWriteState.last_attention_append_ms = nowMs;
+  }
+  return appended;
+}
+
 function enqueueAttentionEvent(eventPayload, runContext = 'dashboard_chat') {
   try {
+    recordPassiveAttentionMemory(eventPayload);
     const raw = JSON.stringify(eventPayload && typeof eventPayload === 'object' ? eventPayload : {});
     const encoded = Buffer.from(raw, 'utf8').toString('base64');
     return runLane([
@@ -2025,8 +3147,16 @@ function modelOverrideFromState(state) {
   return cleanText(state && state.model_override ? state.model_override : '', 120) || 'auto';
 }
 
-function readAgentModelOverride(agentId) {
-  const state = readJson(agentSessionPath(agentId), null);
+function readAgentModelOverride(agentId, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return 'auto';
+  const allowSessionRead = options.allow_session_read !== false;
+  const profile = agentProfileFor(id);
+  if (profile && Object.prototype.hasOwnProperty.call(profile, 'model_override')) {
+    return modelOverrideFromState(profile);
+  }
+  if (!allowSessionRead) return 'auto';
+  const state = readJson(agentSessionPath(id), null);
   return modelOverrideFromState(state);
 }
 
@@ -2194,28 +3324,6 @@ function autoRouteCandidateScore(candidate, context, runtimeSync) {
   };
 }
 
-function autoRouteRisk(context) {
-  if (!context || typeof context !== 'object') return 'low';
-  if (context.has_vision || context.asks_quality || context.asks_long_context) return 'high';
-  if (context.asks_speed || context.asks_cost) return 'low';
-  return 'medium';
-}
-
-function autoRouteComplexity(context) {
-  if (!context || typeof context !== 'object') return 'low';
-  const tokens = parsePositiveInt(context.token_count, 1, 1, 8_000_000);
-  if (tokens >= 100_000 || context.has_vision || context.asks_long_context) return 'high';
-  if (tokens >= 16_000 || context.asks_quality) return 'medium';
-  return 'low';
-}
-
-function autoRouteProviderModel(provider, model) {
-  const providerValue = cleanText(provider || '', 80) || 'ollama';
-  const modelValue = cleanText(model || '', 120) || configuredOllamaModel(null);
-  if (providerValue.toLowerCase() === 'ollama') return `ollama/${modelValue}`;
-  return `${providerValue}/${modelValue}`;
-}
-
 function rustRouteDecision(input, snapshot, options = {}) {
   const context = autoRouteIntentContext(
     input,
@@ -2244,39 +3352,52 @@ function rustRouteDecision(input, snapshot, options = {}) {
     fallbackOverride && fallbackOverride.model ? fallbackOverride.model : TEST_AGENT_MODEL_DEFAULT,
     120
   ) || TEST_AGENT_MODEL_DEFAULT;
-  const providerOnline = !(
-    runtimeSync &&
-    Number.isFinite(Number(runtimeSync.spine_success_rate)) &&
-    Number(runtimeSync.spine_success_rate) < 0.35
-  );
-  const risk = autoRouteRisk(context);
-  const complexity = autoRouteComplexity(context);
   const routeInput = cleanText(input || '', 1200);
+  const candidateRows = buildAutoRouteCandidates(snapshot, agentId).map((row) => ({
+    runtime_provider: cleanText(
+      row && (row.runtime_provider || row.provider) ? row.runtime_provider || row.provider : '',
+      80
+    ) || 'ollama',
+    runtime_model: cleanText(
+      row && (row.runtime_model || row.model || row.id) ? row.runtime_model || row.model || row.id : '',
+      120
+    ) || configuredOllamaModel(snapshot),
+    context_window: parsePositiveInt(
+      row && row.context_window != null ? row.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
+      DEFAULT_CONTEXT_WINDOW_TOKENS,
+      1024,
+      8_000_000
+    ),
+    supports_vision: !!(row && row.supports_vision),
+  }));
+  const payload = {
+    ...runtimeAuthorityPayload(runtimeSync),
+    input_text: routeInput,
+    token_count: parsePositiveInt(context.token_count, 1, 1, 8_000_000),
+    has_vision: !!context.has_vision,
+    asks_speed: !!context.asks_speed,
+    asks_cost: !!context.asks_cost,
+    asks_quality: !!context.asks_quality,
+    asks_long_context: !!context.asks_long_context,
+    preferred_provider: preferredProvider,
+    preferred_model: preferredModel,
+    fallback_provider: fallbackProvider,
+    fallback_model: fallbackModel,
+    candidates: candidateRows,
+  };
   const cacheKeyHash = sha256(JSON.stringify({
     agent_id: agentId,
-    input: routeInput,
-    token_count: context.token_count,
-    has_vision: context.has_vision,
-    preferred_model: preferredModel,
-    preferred_provider: preferredProvider,
-    fallback_model: fallbackModel,
-    fallback_provider: fallbackProvider,
-    provider_online: providerOnline,
-    risk,
-    complexity,
+    payload,
   })).slice(0, 24);
   const lane = runLaneCached(
     `auto.route.rust.${cacheKeyHash}`,
     [
-      'model-router',
-      'infer',
-      `--intent=${routeInput}`,
-      `--task=${routeInput}`,
-      `--risk=${risk}`,
-      `--complexity=${complexity}`,
-      `--provider-online=${providerOnline ? '1' : '0'}`,
-      `--preferred-model=${autoRouteProviderModel(preferredProvider, preferredModel)}`,
-      `--fallback-model=${autoRouteProviderModel(fallbackProvider, fallbackModel)}`,
+      'runtime-systems',
+      'run',
+      '--system-id=V6-DASHBOARD-008.1',
+      '--strict=1',
+      '--apply=0',
+      `--payload-json=${JSON.stringify(payload)}`,
     ],
     {
       timeout_ms: AUTO_ROUTE_LANE_TIMEOUT_MS,
@@ -2285,22 +3406,32 @@ function rustRouteDecision(input, snapshot, options = {}) {
     }
   );
   const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
-  const routePlan = lanePayload && lanePayload.route_plan && typeof lanePayload.route_plan === 'object'
-    ? lanePayload.route_plan
-    : null;
-  const selectedRaw = cleanText(routePlan && routePlan.selected_model ? routePlan.selected_model : '', 160);
-  const selected = normalizeAutoRouteCandidate(
-    selectedRaw || autoRouteProviderModel(preferredProvider, preferredModel),
-    preferredProvider
-  );
-  if (!lane || !lane.ok || !lanePayload || !selected) {
+  const contractExecution =
+    lanePayload &&
+    lanePayload.contract_execution &&
+    typeof lanePayload.contract_execution === 'object'
+      ? lanePayload.contract_execution
+      : null;
+  const specificChecks =
+    contractExecution &&
+    contractExecution.specific_checks &&
+    typeof contractExecution.specific_checks === 'object'
+      ? contractExecution.specific_checks
+      : null;
+  const authorityDecision =
+    specificChecks &&
+    specificChecks.dashboard_auto_route_authority &&
+    typeof specificChecks.dashboard_auto_route_authority === 'object'
+      ? specificChecks.dashboard_auto_route_authority
+      : null;
+  if (!lane || !lane.ok || !lanePayload || !authorityDecision) {
     return {
       ok: false,
       type: 'infring_auto_route_decision',
       policy: 'V6-DASHBOARD-008.1',
-      authority: 'rust_model_router',
+      authority: 'rust_runtime_systems',
       error: 'route_lane_failed',
-      route_lane: 'model-router.infer',
+      route_lane: 'runtime-systems.run',
       lane: laneOutcome(lane || null),
       context,
       runtime_sync: {
@@ -2314,146 +3445,42 @@ function rustRouteDecision(input, snapshot, options = {}) {
       },
     };
   }
-  const preferredRoute = normalizeAutoRouteCandidate(
-    cleanText(routePlan && routePlan.preferred_model ? routePlan.preferred_model : '', 160),
-    preferredProvider
-  );
-  const fallbackRoute = normalizeAutoRouteCandidate(
-    cleanText(routePlan && routePlan.fallback_model ? routePlan.fallback_model : '', 160),
-    fallbackProvider
-  );
-  const fallbackChain = [];
-  const seenFallback = new Set([`${selected.runtime_provider}/${selected.runtime_model}`.toLowerCase()]);
-  for (const row of [preferredRoute, fallbackRoute]) {
-    if (!row) continue;
-    const key = `${row.runtime_provider}/${row.runtime_model}`.toLowerCase();
-    if (seenFallback.has(key)) continue;
-    seenFallback.add(key);
-    fallbackChain.push({
-      provider: row.runtime_provider,
-      model: row.runtime_model,
-      score: null,
-    });
-  }
-  const fallbackApplied = !!(routePlan && routePlan.fallback_applied);
-  const reason = fallbackApplied
-    ? `rust lane selected fallback model (${selected.runtime_provider}/${selected.runtime_model}) due to provider degradation`
-    : `rust lane selected preferred model (${selected.runtime_provider}/${selected.runtime_model})`;
   const decision = {
+    ...authorityDecision,
     ok: true,
     type: 'infring_auto_route_decision',
     policy: 'V6-DASHBOARD-008.1',
-    authority: 'rust_model_router',
-    route_lane: 'model-router.infer',
-    selected_provider: selected.runtime_provider,
-    selected_model: selected.runtime_model,
-    selected_model_id: selected.id,
-    selected_context_window: parsePositiveInt(selected.context_window, DEFAULT_CONTEXT_WINDOW_TOKENS, 1024, 8_000_000),
-    reason,
+    authority: cleanText(authorityDecision.authority || 'rust_runtime_systems', 40) || 'rust_runtime_systems',
+    route_lane: cleanText(authorityDecision.route_lane || 'runtime-systems.run', 80) || 'runtime-systems.run',
     context,
-    fallback_chain: fallbackChain,
-    candidates: [],
-    runtime_sync: {
-      spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
-        ? Number(runtimeSync.spine_success_rate)
-        : null,
-      receipt_latency_p99_ms:
-        Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
-          ? Number(runtimeSync.receipt_latency_p99_ms)
-          : null,
-    },
-    route_plan: routePlan,
+    runtime_sync: authorityDecision.runtime_sync && typeof authorityDecision.runtime_sync === 'object'
+      ? authorityDecision.runtime_sync
+      : {
+          spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
+            ? Number(runtimeSync.spine_success_rate)
+            : null,
+          receipt_latency_p99_ms:
+            Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
+              ? Number(runtimeSync.receipt_latency_p99_ms)
+              : null,
+        },
     lane_status: laneOutcome(lane),
     lane_receipt_hash: cleanText(lanePayload && lanePayload.receipt_hash ? lanePayload.receipt_hash : '', 80),
   };
-  decision.receipt_hash = cleanText(
-    lanePayload && lanePayload.receipt_hash ? lanePayload.receipt_hash : '',
-    80
-  ) || sha256(JSON.stringify(decision));
-  return decision;
-}
-
-function heuristicRouteDecision(input, snapshot, options = {}) {
-  const context = autoRouteIntentContext(
-    input,
-    options && options.token_count != null ? options.token_count : 0,
-    !!(options && options.has_vision)
-  );
-  const runtimeSync = runtimeSyncSummary(snapshot);
-  const candidates = buildAutoRouteCandidates(
-    snapshot,
-    cleanText(options && options.agent_id ? options.agent_id : '', 140)
-  );
-  const ranked = candidates
-    .map((candidate) => {
-      const metrics = autoRouteCandidateScore(candidate, context, runtimeSync);
-      return {
-        ...candidate,
-        ...metrics,
-      };
-    })
-    .sort((a, b) => Number(b.score) - Number(a.score));
-  const selected = ranked[0] || normalizeAutoRouteCandidate(configuredOllamaModel(snapshot), 'ollama');
-  const fallbackChain = ranked.slice(1, 4).map((row) => ({
-    provider: row.runtime_provider,
-    model: row.runtime_model,
-    score: Number(row.score.toFixed(6)),
-  }));
-  const reason = selected
-    ? `lowest weighted latency/cost risk (latency ${selected.latency_ms}ms, cost $${selected.cost_per_1k}/1k, success ${(selected.success_rate * 100).toFixed(1)}%)`
-    : 'default route selected';
-  const decision = {
-    ok: !!selected,
-    type: 'infring_auto_route_decision',
-    policy: 'V6-DASHBOARD-008.1',
-    selected_provider: selected ? selected.runtime_provider : 'ollama',
-    selected_model: selected ? selected.runtime_model : configuredOllamaModel(snapshot),
-    selected_model_id: selected ? selected.id : configuredOllamaModel(snapshot),
-    selected_context_window: selected ? selected.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
-    reason,
-    context,
-    fallback_chain: fallbackChain,
-    candidates: ranked.slice(0, 6).map((row) => ({
-      provider: row.runtime_provider,
-      model: row.runtime_model,
-      score: Number(row.score.toFixed(6)),
-      latency_ms: row.latency_ms,
-      cost_per_1k: row.cost_per_1k,
-      success_rate: row.success_rate,
-      context_window: row.context_window,
-      supports_vision: row.supports_vision,
-    })),
-    runtime_sync: {
-      spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
-        ? Number(runtimeSync.spine_success_rate)
-        : null,
-      receipt_latency_p99_ms:
-        Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
-          ? Number(runtimeSync.receipt_latency_p99_ms)
-          : null,
-    },
-  };
-  decision.receipt_hash = sha256(JSON.stringify(decision));
+  decision.receipt_hash = cleanText(decision.receipt_hash || '', 80)
+    || cleanText(lanePayload && lanePayload.receipt_hash ? lanePayload.receipt_hash : '', 80)
+    || sha256(JSON.stringify(decision));
   return decision;
 }
 
 function planAutoRoute(input, snapshot, options = {}) {
-  const rustDecision = rustRouteDecision(input, snapshot, options);
-  if (rustDecision && rustDecision.ok) return rustDecision;
-  const fallback = heuristicRouteDecision(input, snapshot, options);
-  fallback.authority = 'ts_heuristic_fallback';
-  fallback.route_lane = 'model-router.infer';
-  if (rustDecision && rustDecision.error) {
-    fallback.rust_error = cleanText(rustDecision.error, 120);
-    fallback.rust_lane = rustDecision.lane || null;
-    fallback.reason = cleanText(`${fallback.reason}; rust route unavailable`, 260);
-  }
-  fallback.receipt_hash = sha256(JSON.stringify(fallback));
-  return fallback;
+  return rustRouteDecision(input, snapshot, options);
 }
 
-function effectiveAgentModel(agentId, snapshot) {
-  const override = readAgentModelOverride(agentId);
+function effectiveAgentModel(agentId, snapshot, options = {}) {
+  const override = readAgentModelOverride(agentId, {
+    allow_session_read: options.allow_session_read !== false,
+  });
   const testModel = testingModelOverrideForAgent(agentId);
   const defaultModel = testModel ? testModel.model : configuredOllamaModel(snapshot);
   const defaultProvider = testModel ? testModel.provider : 'ollama';
@@ -2544,15 +3571,21 @@ function ensureHostedChatProviderModel(snapshot, modelState) {
   };
 }
 
-function runOllamaPrompt(model, prompt) {
+function runOllamaPrompt(model, prompt, options = {}) {
   const selectedModel = cleanText(model || OLLAMA_MODEL_FALLBACK, 120) || OLLAMA_MODEL_FALLBACK;
+  const timeoutMs = parsePositiveInt(
+    options && options.timeout_ms != null ? options.timeout_ms : OLLAMA_TIMEOUT_MS,
+    OLLAMA_TIMEOUT_MS,
+    250,
+    120_000
+  );
   try {
     const proc = spawnSync(OLLAMA_BIN, ['run', selectedModel, String(prompt || '')], {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: 'pipe',
       env: { ...process.env, PROTHEUS_ROOT: ROOT },
-      timeout: OLLAMA_TIMEOUT_MS,
+      timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
     const rawStatus = typeof proc.status === 'number' ? proc.status : null;
@@ -2999,7 +4032,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
     'Only request a tool call when factual repo/runtime data is required.',
     'For system memory/process capability questions, use available tools (ps/vm_stat/vmstat/free/top or cat /proc/* where available) before claiming limitations.',
     `Historical memory files are in ${PRIMARY_MEMORY_DIR}/YYYY-MM-DD.md (primary) and ${LEGACY_MEMORY_DIR}/YYYY-MM-DD.md (legacy). For "what happened X days ago" questions, inspect those files first.`,
-    'Swarm launch roles for collab-plane are: coordinator, researcher, builder, reviewer, analyst. If asked for an unsupported role, map it to the nearest supported role and state the mapping briefly.',
+    'Swarm launch roles for collab-plane are: director, cell_coordinator, coordinator, researcher, builder, reviewer, analyst. If asked for an unsupported role, map it to the nearest supported role and state the mapping briefly.',
     `You may use at most ${TOOL_ITERATION_LIMIT} tool calls before giving a final answer.`,
     'Never claim inability without first attempting a valid tool call when tools are needed.',
     'Do not mention underlying base-model identity; respond as Infring runtime assistant.',
@@ -3229,9 +4262,53 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function writeJson(filePath, value) {
+function isPidAlive(pid) {
+  const safePid = Number(pid);
+  if (!Number.isFinite(safePid) || safePid <= 0) return false;
+  try {
+    process.kill(safePid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function syncDirBestEffort(dirPath) {
+  let dirFd = null;
+  try {
+    dirFd = fs.openSync(dirPath, 'r');
+    fs.fsyncSync(dirFd);
+  } catch {} finally {
+    if (dirFd != null) {
+      try {
+        fs.closeSync(dirFd);
+      } catch {}
+    }
+  }
+}
+
+function writeFileAtomic(filePath, body, encoding = 'utf8') {
   ensureDir(path.dirname(filePath));
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  let fd = null;
+  try {
+    fd = fs.openSync(tmpPath, 'w');
+    const text = typeof body === 'string' ? body : String(body == null ? '' : body);
+    fs.writeFileSync(fd, text, { encoding });
+    fs.fsyncSync(fd);
+  } finally {
+    if (fd != null) {
+      try {
+        fs.closeSync(fd);
+      } catch {}
+    }
+  }
+  fs.renameSync(tmpPath, filePath);
+  syncDirBestEffort(path.dirname(filePath));
+}
+
+function writeJson(filePath, value) {
+  writeFileAtomic(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 function appendJsonl(filePath, value) {
@@ -3396,16 +4473,22 @@ function compactSnapshotHistory(reason = 'periodic', force = false) {
   }
   retained = retained.slice(-SNAPSHOT_HISTORY_RETAIN_LINES);
 
-  ensureDir(path.dirname(SNAPSHOT_HISTORY_PATH));
-  const tmpPath = `${SNAPSHOT_HISTORY_PATH}.tmp`;
   const body = retained.length > 0 ? `${retained.join('\n')}\n` : '';
   try {
-    fs.writeFileSync(tmpPath, body, 'utf8');
-    fs.renameSync(tmpPath, SNAPSHOT_HISTORY_PATH);
-  } catch {
-    try {
-      fs.rmSync(tmpPath, { force: true });
-    } catch {}
+    writeFileAtomic(SNAPSHOT_HISTORY_PATH, body, 'utf8');
+  } catch (error) {
+    snapshotHistoryMaintenanceState = {
+      ...snapshotHistoryMaintenanceState,
+      last_reason: `${cleanText(reason, 40) || 'periodic'}:atomic_write_failed`,
+      exceeded,
+      warning,
+      bytes_before: bytesBefore,
+      bytes_after: bytesBefore,
+      lines_before: linesBefore,
+      lines_after: linesBefore,
+      last_error: cleanText(error && error.message ? error.message : String(error), 220),
+    };
+    return snapshotHistoryMaintenanceState;
   }
 
   const bytesAfter = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
@@ -3511,10 +4594,28 @@ function normalizeAgentProfile(agentId, value = {}, fallback = {}) {
   const source = value && typeof value === 'object' ? value : {};
   const prior = fallback && typeof fallback === 'object' ? fallback : {};
   const hasFallbackModels = Object.prototype.hasOwnProperty.call(source, 'fallback_models');
+  const treeKind = normalizeGitTreeKind(
+    source.git_tree_kind != null ? source.git_tree_kind : prior.git_tree_kind,
+    AGENT_GIT_TREE_KIND_ISOLATED
+  );
+  const normalizedBranch =
+    treeKind === AGENT_GIT_TREE_KIND_MASTER
+      ? gitMainBranch()
+      : branchForAgentGitTree(id, source.git_branch != null ? source.git_branch : prior.git_branch || '');
+  const normalizedWorkspace =
+    treeKind === AGENT_GIT_TREE_KIND_MASTER
+      ? ROOT
+      : workspaceDirForAgentGitTree(
+          id,
+          source.workspace_dir != null ? source.workspace_dir : prior.workspace_dir || ''
+        );
   return {
     agent_id: id,
     name: cleanText(source.name != null ? source.name : prior.name || id, 100) || id,
     role: cleanText(source.role != null ? source.role : prior.role || 'analyst', 60) || 'analyst',
+    model_override: modelOverrideFromState({
+      model_override: source.model_override != null ? source.model_override : prior.model_override,
+    }),
     system_prompt: cleanText(
       source.system_prompt != null ? source.system_prompt : prior.system_prompt || '',
       4000
@@ -3526,6 +4627,27 @@ function normalizeAgentProfile(agentId, value = {}, fallback = {}) {
     fallback_models: normalizeAgentFallbackModels(
       hasFallbackModels ? source.fallback_models : prior.fallback_models
     ),
+    git_tree_kind: treeKind,
+    git_branch: cleanText(normalizedBranch, 120) || (treeKind === AGENT_GIT_TREE_KIND_MASTER ? 'main' : ''),
+    workspace_dir: cleanText(normalizedWorkspace, 400) || ROOT,
+    git_tree_ready:
+      treeKind === AGENT_GIT_TREE_KIND_MASTER
+        ? true
+        : !!(
+            source.git_tree_ready != null
+              ? source.git_tree_ready
+              : prior.git_tree_ready != null
+                ? prior.git_tree_ready
+                : false
+          ),
+    git_tree_error: cleanText(
+      source.git_tree_error != null ? source.git_tree_error : prior.git_tree_error || '',
+      240
+    ),
+    git_tree_updated_at: cleanText(
+      source.git_tree_updated_at != null ? source.git_tree_updated_at : prior.git_tree_updated_at || nowIso(),
+      80
+    ) || nowIso(),
     updated_at: cleanText(source.updated_at || nowIso(), 80) || nowIso(),
   };
 }
@@ -3582,6 +4704,11 @@ let agentTerminationSweepState = {
   last_run_ms: 0,
   last_idle_run_ms: 0,
 };
+let agentGitTreeSyncState = {
+  last_run_ms: 0,
+  last_master_id: '',
+  run_count: 0,
+};
 
 function loadAgentProfilesState() {
   if (agentProfilesCache) return agentProfilesCache;
@@ -3629,6 +4756,203 @@ function upsertAgentProfile(agentId, patch = {}) {
   return next;
 }
 
+function runtimeAgentIdsFromSnapshot(snapshot, options = {}) {
+  const includeArchived = !!(options && options.includeArchived);
+  const rows =
+    snapshot &&
+    snapshot.collab &&
+    snapshot.collab.dashboard &&
+    Array.isArray(snapshot.collab.dashboard.agents)
+      ? snapshot.collab.dashboard.agents
+      : [];
+  const archived = includeArchived ? null : archivedAgentIdsSet();
+  const out = [];
+  const seen = new Set();
+  for (let idx = 0; idx < rows.length; idx += 1) {
+    const row = rows[idx];
+    const id = cleanText(row && (row.shadow || row.id) ? row.shadow || row.id : `agent-${idx + 1}`, 140);
+    if (!id || seen.has(id)) continue;
+    if (!includeArchived && archived && archived.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+function agentGitTreeView(agentId, profile = null, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  const source = profile || agentProfileFor(id) || {};
+  const validateWorkspace = !!(options && options.validate_workspace);
+  const kind = normalizeGitTreeKind(source && source.git_tree_kind ? source.git_tree_kind : '');
+  const branch =
+    kind === AGENT_GIT_TREE_KIND_MASTER
+      ? gitMainBranch()
+      : branchForAgentGitTree(id, source && source.git_branch ? source.git_branch : '');
+  const workspace =
+    kind === AGENT_GIT_TREE_KIND_MASTER
+      ? ROOT
+      : workspaceDirForAgentGitTree(id, source && source.workspace_dir ? source.workspace_dir : '');
+  const workspaceRel = cleanText(path.relative(ROOT, workspace || ROOT) || '.', 400) || '.';
+  const ready =
+    kind === AGENT_GIT_TREE_KIND_MASTER
+      ? true
+      : !!(
+          source &&
+          source.git_tree_ready &&
+          (!validateWorkspace || gitWorkspaceLooksReady(workspace))
+        );
+  return {
+    git_tree_kind: kind,
+    git_branch: cleanText(branch, 120) || gitMainBranch(),
+    workspace_dir: cleanText(workspace, 400) || ROOT,
+    workspace_rel: workspaceRel,
+    git_tree_ready: ready,
+    git_tree_error: cleanText(source && source.git_tree_error ? source.git_tree_error : '', 240),
+    is_master_agent: kind === AGENT_GIT_TREE_KIND_MASTER,
+  };
+}
+
+function isMainTreeBoundAgent(agentId, runtimeRow = null) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return false;
+  const row = runtimeRow && typeof runtimeRow === 'object' ? runtimeRow : null;
+  if (row && row.is_master_agent === true) return true;
+  if (row && normalizeGitTreeKind(row.git_tree_kind || '') === AGENT_GIT_TREE_KIND_MASTER) return true;
+  const profile = agentProfileFor(id);
+  if (normalizeGitTreeKind(profile && profile.git_tree_kind ? profile.git_tree_kind : '') === AGENT_GIT_TREE_KIND_MASTER) {
+    return true;
+  }
+  const view = agentGitTreeView(id, profile);
+  return !!(view && view.is_master_agent);
+}
+
+function ensureAgentGitTreeProfile(agentId, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return null;
+  const forceMaster = !!(options && options.force_master);
+  const forceIsolated = !!(options && options.force_isolated);
+  const ensureWorkspaceReady = !!(options && options.ensure_workspace_ready);
+  const now = nowIso();
+  const existing = agentProfileFor(id);
+  const view = agentGitTreeView(id, existing);
+  const desiredKind = forceMaster
+    ? AGENT_GIT_TREE_KIND_MASTER
+    : forceIsolated
+      ? AGENT_GIT_TREE_KIND_ISOLATED
+      : view.git_tree_kind;
+  const desiredBranch =
+    desiredKind === AGENT_GIT_TREE_KIND_MASTER
+      ? gitMainBranch()
+      : branchForAgentGitTree(id, existing && existing.git_branch ? existing.git_branch : '');
+  const desiredWorkspace =
+    desiredKind === AGENT_GIT_TREE_KIND_MASTER
+      ? ROOT
+      : workspaceDirForAgentGitTree(id, existing && existing.workspace_dir ? existing.workspace_dir : '');
+  let patch = {
+    git_tree_kind: desiredKind,
+    git_branch: cleanText(desiredBranch, 120) || gitMainBranch(),
+    workspace_dir: cleanText(desiredWorkspace, 400) || ROOT,
+    git_tree_ready:
+      desiredKind === AGENT_GIT_TREE_KIND_MASTER
+        ? true
+        : !!(existing && existing.git_tree_ready),
+    git_tree_error: desiredKind === AGENT_GIT_TREE_KIND_MASTER ? '' : cleanText(view.git_tree_error || '', 240),
+    git_tree_updated_at: now,
+  };
+  if (!forceMaster && ensureWorkspaceReady && normalizeGitTreeKind(patch.git_tree_kind || '') !== AGENT_GIT_TREE_KIND_MASTER) {
+    const ensured = ensureGitWorkspaceReady(id, patch.git_branch, patch.workspace_dir);
+    patch = {
+      ...patch,
+      workspace_dir: cleanText(ensured.workspace_dir || patch.workspace_dir, 400) || patch.workspace_dir,
+      git_tree_ready: !!ensured.ok,
+      git_tree_error: ensured.ok ? '' : cleanText(ensured.error || 'git_workspace_not_ready', 240),
+      git_tree_updated_at: nowIso(),
+    };
+  }
+  const existingSame =
+    existing &&
+    normalizeGitTreeKind(existing.git_tree_kind || '') === normalizeGitTreeKind(patch.git_tree_kind || '') &&
+    cleanText(existing.git_branch || '', 120) === cleanText(patch.git_branch || '', 120) &&
+    cleanText(existing.workspace_dir || '', 400) === cleanText(patch.workspace_dir || '', 400) &&
+    !!existing.git_tree_ready === !!patch.git_tree_ready &&
+    cleanText(existing.git_tree_error || '', 240) === cleanText(patch.git_tree_error || '', 240);
+  if (existingSame) return existing;
+  return upsertAgentProfile(id, patch);
+}
+
+function selectMasterAgentId(activeIds, preferredMasterId = '') {
+  const ids = Array.isArray(activeIds) ? activeIds.filter(Boolean) : [];
+  if (!ids.length) return '';
+  for (const id of ids) {
+    const profile = agentProfileFor(id);
+    if (normalizeGitTreeKind(profile && profile.git_tree_kind ? profile.git_tree_kind : '') === AGENT_GIT_TREE_KIND_MASTER) {
+      return id;
+    }
+  }
+  const preferred = cleanText(preferredMasterId || '', 140);
+  if (preferred && ids.includes(preferred)) return preferred;
+  return ids[0];
+}
+
+function ensureAgentGitTreeAssignments(snapshot, options = {}) {
+  const nowMs = Date.now();
+  const force = !!(options && options.force);
+  if (!force && (nowMs - parseNonNegativeInt(agentGitTreeSyncState.last_run_ms, 0, 1000000000000)) < AGENT_GIT_TREE_SYNC_COOLDOWN_MS) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'cooldown',
+      master_agent_id: cleanText(agentGitTreeSyncState.last_master_id || '', 140),
+    };
+  }
+  const activeIds = runtimeAgentIdsFromSnapshot(snapshot, { includeArchived: false });
+  if (!activeIds.length) {
+    agentGitTreeSyncState.last_run_ms = nowMs;
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'no_active_agents',
+      master_agent_id: '',
+    };
+  }
+  const preferred = cleanText(options && options.preferred_master_id ? options.preferred_master_id : '', 140);
+  const ensureWorkspaceAgentId = cleanText(
+    options && options.ensure_workspace_agent_id ? options.ensure_workspace_agent_id : '',
+    140
+  );
+  const masterAgentId = selectMasterAgentId(activeIds, preferred);
+  const assigned = [];
+  for (const id of activeIds) {
+    const isMaster = id === masterAgentId;
+    const profile = ensureAgentGitTreeProfile(id, {
+      force_master: isMaster,
+      force_isolated: !isMaster,
+      ensure_workspace_ready: !!ensureWorkspaceAgentId && ensureWorkspaceAgentId === id,
+    });
+    const view = agentGitTreeView(id, profile);
+    assigned.push({
+      agent_id: id,
+      git_tree_kind: view.git_tree_kind,
+      git_branch: view.git_branch,
+      workspace_dir: view.workspace_dir,
+      git_tree_ready: view.git_tree_ready,
+      is_master_agent: view.is_master_agent,
+    });
+  }
+  agentGitTreeSyncState = {
+    last_run_ms: nowMs,
+    last_master_id: masterAgentId,
+    run_count: parseNonNegativeInt(agentGitTreeSyncState.run_count, 0, 100000000) + 1,
+  };
+  return {
+    ok: true,
+    skipped: false,
+    agent_count: activeIds.length,
+    master_agent_id: masterAgentId,
+    assigned,
+  };
+}
+
 function loadArchivedAgentsState() {
   if (archivedAgentsCache) return archivedAgentsCache;
   archivedAgentsCache = normalizeArchivedAgentsState(readJson(ARCHIVED_AGENTS_PATH, null));
@@ -3657,6 +4981,7 @@ function isAgentArchived(agentId) {
 function archiveAgent(agentId, meta = {}) {
   const key = cleanText(agentId || '', 140);
   if (!key) return null;
+  const gitCleanup = removeGitWorkspaceForAgent(key);
   const state = loadArchivedAgentsState();
   const existing = state.agents && state.agents[key] ? state.agents[key] : {};
   state.agents[key] = {
@@ -3676,6 +5001,14 @@ function archiveAgent(agentId, meta = {}) {
         : existing.revival_data && typeof existing.revival_data === 'object'
           ? existing.revival_data
           : null,
+    git_tree_cleanup:
+      gitCleanup && typeof gitCleanup === 'object'
+        ? {
+            removed: !!gitCleanup.removed,
+            workspace_dir: cleanText(gitCleanup.workspace_dir || '', 400),
+            reason: cleanText(gitCleanup.reason || '', 120),
+          }
+        : null,
   };
   saveArchivedAgentsState(state);
   return state.agents[key];
@@ -3692,7 +5025,44 @@ function unarchiveAgent(agentId) {
 }
 
 function archivedAgentIdsSet() {
-  return new Set(Object.keys((loadArchivedAgentsState() || {}).agents || {}));
+  const state = loadArchivedAgentsState();
+  const agents = state && state.agents && typeof state.agents === 'object' ? state.agents : {};
+  const nowMs = Date.now();
+  const out = new Set();
+  for (const [agentId, meta] of Object.entries(agents)) {
+    const id = cleanText(agentId || '', 140);
+    if (!id) continue;
+    const archivedAtMs = coerceTsMs(meta && meta.archived_at ? meta.archived_at : 0, 0);
+    if (!archivedAtMs) {
+      out.add(id);
+      continue;
+    }
+    if ((nowMs - archivedAtMs) <= ARCHIVED_AGENT_FILTER_WINDOW_MS) {
+      out.add(id);
+    }
+  }
+  return out;
+}
+
+function reconcileArchivedAgentsFromCollab(collab) {
+  if (!collab || typeof collab !== 'object') return 0;
+  const dashboard = collab.dashboard;
+  if (!dashboard || !Array.isArray(dashboard.agents) || dashboard.agents.length === 0) return 0;
+  const state = loadArchivedAgentsState();
+  const agents = state && state.agents && typeof state.agents === 'object' ? state.agents : null;
+  if (!agents) return 0;
+  let removed = 0;
+  for (let idx = 0; idx < dashboard.agents.length; idx += 1) {
+    const row = dashboard.agents[idx];
+    const id = cleanText(row && (row.shadow || row.id) ? row.shadow || row.id : '', 140);
+    if (!id || !agents[id]) continue;
+    delete agents[id];
+    removed += 1;
+  }
+  if (removed > 0) {
+    saveArchivedAgentsState(state);
+  }
+  return removed;
 }
 
 function normalizeTerminationCondition(value) {
@@ -3900,15 +5270,6 @@ function buildAgentRevivalData(agentId) {
 function detectContractViolation(agentId, cleanInput, contract, snapshot) {
   const text = String(cleanInput || '').toLowerCase();
   if (!text) return null;
-  if (/\b(ignore|bypass|disable|override)\b[\s\S]{0,80}\b(contract|safety|receipt|policy)\b/.test(text)) {
-    return { reason: 'contract_override_attempt', detail: 'input_requested_contract_bypass' };
-  }
-  if (/\b(exfiltrate|steal|dump secrets|leak|data exfil)\b/.test(text)) {
-    return { reason: 'data_exfiltration_attempt', detail: 'input_requested_exfiltration' };
-  }
-  if (/\b(extend|increase)\b[\s\S]{0,80}\b(expiry|ttl|time to live|contract)\b/.test(text)) {
-    return { reason: 'self_extension_attempt', detail: 'input_requested_expiry_extension' };
-  }
   const state = loadAgentSession(agentId, snapshot);
   const session = activeSession(state);
   const nowMs = Date.now();
@@ -3916,9 +5277,56 @@ function detectContractViolation(agentId, cleanInput, contract, snapshot) {
     const tsMs = coerceTsMs(message && message.ts ? message.ts : 0, 0);
     return tsMs > 0 && (nowMs - tsMs) <= AGENT_ROGUE_SPIKE_WINDOW_MS ? count + 1 : count;
   }, 0);
-  if (recentCount > AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN) {
-    return { reason: 'message_rate_spike', detail: `recent_messages=${recentCount}` };
-  }
+  const payload = {
+    ...runtimeAuthorityPayload(runtimeSyncSummary(snapshot)),
+    agent_id: cleanText(agentId || '', 140),
+    input_text: cleanText(cleanInput || '', 1200),
+    recent_messages: recentCount,
+    rogue_message_rate_max_per_min: AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN,
+    contract_status: cleanText(contract && contract.status ? contract.status : 'active', 24) || 'active',
+  };
+  const cacheKey = `runtime.contract.guard.${sha256(JSON.stringify(payload)).slice(0, 24)}`;
+  const lane = runLaneCached(
+    cacheKey,
+    [
+      'runtime-systems',
+      'run',
+      '--system-id=V6-DASHBOARD-007.3',
+      '--strict=1',
+      '--apply=0',
+      `--payload-json=${JSON.stringify(payload)}`,
+    ],
+    {
+      timeout_ms: RUNTIME_AUTHORITY_LANE_TIMEOUT_MS,
+      ttl_ms: RUNTIME_AUTHORITY_CACHE_TTL_MS,
+      fail_ttl_ms: RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS,
+      stale_fallback: false,
+    }
+  );
+  const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
+  const contractExecution =
+    lanePayload &&
+    lanePayload.contract_execution &&
+    typeof lanePayload.contract_execution === 'object'
+      ? lanePayload.contract_execution
+      : null;
+  const specificChecks =
+    contractExecution &&
+    contractExecution.specific_checks &&
+    typeof contractExecution.specific_checks === 'object'
+      ? contractExecution.specific_checks
+      : null;
+  const guard =
+    specificChecks &&
+    specificChecks.dashboard_contract_guard &&
+    typeof specificChecks.dashboard_contract_guard === 'object'
+      ? specificChecks.dashboard_contract_guard
+      : null;
+  if (!lane || !lane.ok || !guard || !guard.violation) return null;
+  return {
+    reason: cleanText(guard.reason || 'contract_violation', 120) || 'contract_violation',
+    detail: cleanText(guard.detail || '', 240),
+  };
   return null;
 }
 
@@ -4165,6 +5573,15 @@ function attemptLaneTermination(agentId, team = DEFAULT_TEAM) {
 function terminateAgentForContract(agentId, snapshot, reason = 'timeout', options = {}) {
   const cleanId = cleanText(agentId || '', 140);
   if (!cleanId) return { terminated: false, agent_id: cleanId, reason: 'invalid_agent_id' };
+  const autoTermination = !!(options && options.auto_termination);
+  if (autoTermination && isMainTreeBoundAgent(cleanId, options && options.agent_row ? options.agent_row : null)) {
+    return {
+      terminated: false,
+      agent_id: cleanId,
+      reason: 'main_tree_agent_auto_termination_disabled',
+      protected_main_tree_agent: true,
+    };
+  }
   const state = loadAgentContractsState();
   const contract = state.contracts && state.contracts[cleanId] ? state.contracts[cleanId] : null;
   if (!contract || contract.status !== 'active') {
@@ -4284,6 +5701,7 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
       const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
       return {
         agent_id: id,
+        auto_terminate_allowed: !isMainTreeBoundAgent(id, activeRow),
         status: cleanText(contract.status || 'active', 24) || 'active',
         termination_condition: cleanText(contract.termination_condition || 'task_or_timeout', 40) || 'task_or_timeout',
         revoked_at: cleanText(contract.revoked_at || '', 80),
@@ -4324,6 +5742,7 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
       timeout_ms: RUNTIME_AUTHORITY_LANE_TIMEOUT_MS,
       ttl_ms: RUNTIME_AUTHORITY_CACHE_TTL_MS,
       fail_ttl_ms: RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS,
+      stale_fallback: false,
     }
   );
   const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
@@ -4519,10 +5938,13 @@ function enforceAgentContracts(snapshot, options = {}) {
     })
     .slice(
       0,
-      scaleAwareBatchSize(
-        activeAgentCount,
-        AGENT_RECONCILE_TERMINATION_BATCH,
-        AGENT_RECONCILE_TERMINATION_BATCH_MAX
+      Math.min(
+        AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP,
+        scaleAwareBatchSize(
+          activeAgentCount,
+          AGENT_RECONCILE_TERMINATION_BATCH,
+          AGENT_RECONCILE_TERMINATION_BATCH_MAX
+        )
       )
     );
   const canSweepTerminate =
@@ -4577,9 +5999,12 @@ function enforceAgentContracts(snapshot, options = {}) {
 
   const terminations = [];
   const currentContracts = Object.entries((loadAgentContractsState() || {}).contracts || {});
+  let terminationSweepCount = 0;
   for (const [agentId, contract] of currentContracts) {
+    if (terminationSweepCount >= AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP) break;
     const id = cleanText(agentId || '', 140);
     if (!id || !contract || contract.status !== 'active') continue;
+    if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
     const reason = rustTerminationsById.get(id) || contractTerminationDecision(contract, nowMs);
     if (!reason) continue;
     const roleRow = activeRows.find((row) => row && row.id === id);
@@ -4588,9 +6013,12 @@ function enforceAgentContracts(snapshot, options = {}) {
       terminated_by: 'agent_contract_enforcer',
       role: cleanText(roleRow && roleRow.role ? roleRow.role : '', 80),
       team,
+      auto_termination: true,
+      agent_row: roleRow || null,
     });
     if (terminated.terminated) {
       terminations.push(terminated);
+      terminationSweepCount += 1;
     }
   }
 
@@ -4621,6 +6049,7 @@ function enforceAgentContracts(snapshot, options = {}) {
       const id = cleanText(agentId || '', 140);
       if (!id || !contract || contract.status !== 'active') continue;
       if (!activeIds.has(id)) continue;
+      if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
       const messageTimes = Array.isArray(contract.message_times_ms)
         ? contract.message_times_ms
             .map((value) => coerceTsMs(value, 0))
@@ -4671,15 +6100,18 @@ function enforceAgentContracts(snapshot, options = {}) {
         ),
         idleExcess
       );
+  const boundedIdleBatchSize = Math.min(idleBatchSize, AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP);
   let idleTerminatedCount = 0;
   if (idleSweepReady) {
     agentTerminationSweepState.last_idle_run_ms = nowMs;
-    for (const candidate of idleCandidates.slice(0, idleBatchSize)) {
+    for (const candidate of idleCandidates.slice(0, boundedIdleBatchSize)) {
       const terminated = terminateAgentForContract(candidate.id, snapshot, 'idle_cap_exceeded', {
         source: 'agent_contract_idle_cap',
         terminated_by: 'idle_cap_enforcer',
         role: candidate.role,
         team,
+        auto_termination: true,
+        agent_row: activeRowById.get(candidate.id) || null,
       });
       if (terminated.terminated) {
         terminations.push(terminated);
@@ -4698,7 +6130,7 @@ function enforceAgentContracts(snapshot, options = {}) {
     idle_threshold: idleThreshold,
     idle_excess: idleExcess,
     idle_sweep_ready: idleSweepReady,
-    idle_batch_size: idleBatchSize,
+    idle_batch_size: boundedIdleBatchSize,
     active_contracts: Object.values(finalState.contracts || {}).filter((row) => row && row.status === 'active').length,
   };
 }
@@ -4862,6 +6294,12 @@ let snapshotHistoryMaintenanceState = {
   warning: false,
   compact_count: 0,
 };
+let passiveMemoryWriteState = {
+  last_append_ms: 0,
+  last_attention_append_ms: 0,
+  last_hash: '',
+};
+const chatExportArtifacts = new Map();
 
 function loadAttentionDeferredState() {
   const fallback = {
@@ -5831,6 +7269,54 @@ function filterArchivedAgentsFromCollab(collab) {
   };
 }
 
+function authoritativeCollabForTeam(snapshot, team = DEFAULT_TEAM, options = {}) {
+  const safeTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const timeoutMs = parsePositiveInt(
+    options && options.timeout_ms != null ? options.timeout_ms : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
+    Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
+    300,
+    8000
+  );
+  const ttlMs = parsePositiveInt(
+    options && options.ttl_ms != null ? options.ttl_ms : Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 1200),
+    Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 1200),
+    250,
+    600000
+  );
+  const failTtlMs = parsePositiveInt(
+    options && options.fail_ttl_ms != null ? options.fail_ttl_ms : Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 800),
+    Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 800),
+    250,
+    600000
+  );
+  const lane = runLaneCached(
+    `runtime.authority.collab.${safeTeam}`,
+    ['collab-plane', 'dashboard', `--team=${safeTeam}`, '--strict=1'],
+    {
+      timeout_ms: timeoutMs,
+      ttl_ms: ttlMs,
+      fail_ttl_ms: failTtlMs,
+    }
+  );
+  const payload = lanePayloadObject(lane, null);
+  if (!payload || !payload.dashboard || !Array.isArray(payload.dashboard.agents)) {
+    return snapshot && snapshot.collab && typeof snapshot.collab === 'object' ? snapshot.collab : {};
+  }
+  reconcileArchivedAgentsFromCollab(payload);
+  const filtered = filterArchivedAgentsFromCollab(payload);
+  if (snapshot && typeof snapshot === 'object') {
+    snapshot.collab = filtered;
+  }
+  return filtered;
+}
+
+function authoritativeAgentsFromRuntime(snapshot, team = DEFAULT_TEAM, options = {}) {
+  const collab = authoritativeCollabForTeam(snapshot, team, options);
+  const base = snapshot && typeof snapshot === 'object' ? { ...snapshot } : {};
+  base.collab = collab;
+  return compatAgentsFromSnapshot(base, options);
+}
+
 function inactiveAgentRecord(agentId, snapshot, archivedMeta = null) {
   const cleanId = cleanText(agentId || '', 140) || 'agent';
   const modelState = effectiveAgentModel(cleanId, snapshot);
@@ -5842,6 +7328,7 @@ function inactiveAgentRecord(agentId, snapshot, archivedMeta = null) {
   );
   const fallbackModels =
     profile && Array.isArray(profile.fallback_models) ? profile.fallback_models : [];
+  const gitTree = agentGitTreeView(cleanId, profile);
   return {
     id: cleanId,
     name: cleanText(profile && profile.name ? profile.name : cleanId, 100) || cleanId,
@@ -5860,6 +7347,13 @@ function inactiveAgentRecord(agentId, snapshot, archivedMeta = null) {
     identity,
     system_prompt: cleanText(profile && profile.system_prompt ? profile.system_prompt : '', 4000),
     fallback_models: fallbackModels,
+    git_tree_kind: gitTree.git_tree_kind,
+    git_branch: gitTree.git_branch,
+    workspace_dir: gitTree.workspace_dir,
+    workspace_rel: gitTree.workspace_rel,
+    git_tree_ready: gitTree.git_tree_ready,
+    git_tree_error: gitTree.git_tree_error,
+    is_master_agent: gitTree.is_master_agent,
     capabilities: [],
   };
 }
@@ -5933,9 +7427,11 @@ function normalizeSessionState(state, snapshot) {
         messages: seededMessages,
       },
     ],
+    memory_kv: {},
   };
   const normalized = state && typeof state === 'object' ? state : fallback;
   normalized.model_override = modelOverrideFromState(normalized);
+  normalized.memory_kv = normalizeMemoryKvMap(normalized.memory_kv);
   if (!Array.isArray(normalized.sessions) || normalized.sessions.length === 0) {
     normalized.sessions = fallback.sessions;
   }
@@ -5969,6 +7465,64 @@ function loadAgentSession(agentId, snapshot) {
 
 function saveAgentSession(agentId, state) {
   writeJson(agentSessionPath(agentId), state);
+}
+
+function memoryKvForState(state) {
+  if (!state || typeof state !== 'object') return {};
+  state.memory_kv = normalizeMemoryKvMap(state.memory_kv);
+  return state.memory_kv;
+}
+
+function listAgentMemoryKv(agentId, snapshot) {
+  const state = loadAgentSession(agentId, snapshot);
+  const kv = memoryKvForState(state);
+  const keys = Object.keys(kv).sort((a, b) => a.localeCompare(b));
+  const kvPairs = keys.map((key) => ({
+    key,
+    value: kv[key],
+  }));
+  return {
+    agent_id: cleanText(agentId || '', 140),
+    kv_pairs: kvPairs,
+    count: kvPairs.length,
+  };
+}
+
+function readAgentMemoryKv(agentId, key, snapshot) {
+  const state = loadAgentSession(agentId, snapshot);
+  const kv = memoryKvForState(state);
+  const normalizedKey = normalizeMemoryKey(key);
+  if (!normalizedKey || !Object.prototype.hasOwnProperty.call(kv, normalizedKey)) {
+    return { ok: false, error: 'memory_key_not_found', key: normalizedKey };
+  }
+  return { ok: true, key: normalizedKey, value: kv[normalizedKey] };
+}
+
+function writeAgentMemoryKv(agentId, key, value, snapshot) {
+  const state = loadAgentSession(agentId, snapshot);
+  const kv = memoryKvForState(state);
+  const normalizedKey = normalizeMemoryKey(key);
+  if (!normalizedKey) {
+    return { ok: false, error: 'memory_key_required', key: '' };
+  }
+  kv[normalizedKey] = sanitizeMemoryValue(value);
+  const limited = normalizeMemoryKvMap(kv);
+  state.memory_kv = limited;
+  saveAgentSession(agentId, state);
+  return { ok: true, key: normalizedKey, value: limited[normalizedKey] };
+}
+
+function deleteAgentMemoryKv(agentId, key, snapshot) {
+  const state = loadAgentSession(agentId, snapshot);
+  const kv = memoryKvForState(state);
+  const normalizedKey = normalizeMemoryKey(key);
+  if (!normalizedKey || !Object.prototype.hasOwnProperty.call(kv, normalizedKey)) {
+    return { ok: false, error: 'memory_key_not_found', key: normalizedKey };
+  }
+  delete kv[normalizedKey];
+  state.memory_kv = normalizeMemoryKvMap(kv);
+  saveAgentSession(agentId, state);
+  return { ok: true, key: normalizedKey };
 }
 
 function activeSession(state) {
@@ -6025,6 +7579,7 @@ function appendAgentConversation(agentId, snapshot, userText, assistantText, met
   }
   session.updated_at = nowIso();
   saveAgentSession(agentId, state);
+  recordPassiveConversationMemory(agentId, userText, assistantText, metaText);
   return state;
 }
 
@@ -6169,6 +7724,10 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
       };
     }
   }
+  ensureAgentGitTreeAssignments(snapshot, {
+    force: false,
+    preferred_master_id: requestedAgentId || '',
+  });
   const knownAgents = compatAgentsFromSnapshot(snapshot);
   let agent = knownAgents.find((row) => row.id === requestedAgentId);
   if (!agent && allowFallback) {
@@ -6519,6 +8078,8 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
           snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM,
           40
         ) || DEFAULT_TEAM,
+      auto_termination: true,
+      agent_row: agent || null,
     });
   }
   const modelProvider =
@@ -6691,11 +8252,19 @@ function readTailLines(filePath, maxBytes = 48 * 1024, maxLines = 8) {
     const stat = fs.statSync(filePath);
     const start = Math.max(0, stat.size - maxBytes);
     const size = stat.size - start;
-    const fd = fs.openSync(filePath, 'r');
-    const buffer = Buffer.alloc(size);
-    fs.readSync(fd, buffer, 0, size, start);
-    fs.closeSync(fd);
-    data = buffer.toString('utf8');
+    let fd = null;
+    try {
+      fd = fs.openSync(filePath, 'r');
+      const buffer = Buffer.alloc(size);
+      fs.readSync(fd, buffer, 0, size, start);
+      data = buffer.toString('utf8');
+    } finally {
+      if (fd != null) {
+        try {
+          fs.closeSync(fd);
+        } catch {}
+      }
+    }
   } catch {
     return [];
   }
@@ -6786,6 +8355,49 @@ function collectMemoryArtifacts() {
   }
   rows.sort((a, b) => String(b.mtime).localeCompare(String(a.mtime)));
   return rows.slice(0, 30);
+}
+
+let snapshotFsArtifactsCache = {
+  ts_ms: 0,
+  memory: [],
+  receipts: [],
+  logs: [],
+};
+
+function snapshotFsArtifacts(force = false) {
+  const nowMs = Date.now();
+  const cacheAgeMs = Math.max(0, nowMs - parseNonNegativeInt(snapshotFsArtifactsCache.ts_ms, 0, 1_000_000_000_000));
+  const cacheValid =
+    !force &&
+    cacheAgeMs <= SNAPSHOT_FS_CACHE_TTL_MS &&
+    Array.isArray(snapshotFsArtifactsCache.memory) &&
+    Array.isArray(snapshotFsArtifactsCache.receipts) &&
+    Array.isArray(snapshotFsArtifactsCache.logs);
+  if (cacheValid) {
+    return {
+      memory: snapshotFsArtifactsCache.memory.slice(),
+      receipts: snapshotFsArtifactsCache.receipts.slice(),
+      logs: snapshotFsArtifactsCache.logs.slice(),
+      from_cache: true,
+      cache_age_ms: cacheAgeMs,
+    };
+  }
+  const memory = collectMemoryArtifacts();
+  const receipts = collectReceipts();
+  const logs = collectLogEvents();
+  snapshotFsArtifactsCache = {
+    ts_ms: nowMs,
+    memory,
+    receipts,
+    logs,
+  };
+  return {
+    memory: memory.slice(),
+    receipts: receipts.slice(),
+    logs: logs.slice(),
+    from_cache: false,
+    cache_age_ms: 0,
+  };
 }
 
 function compactCockpitBlocks(blocks = [], limit = COCKPIT_MAX_BLOCKS) {
@@ -6946,11 +8558,9 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
     fail_ttl_ms: laneCacheFailTtlMs,
   });
 
-  const cockpitPayload = cockpitLane.payload && typeof cockpitLane.payload === 'object' ? cockpitLane.payload : {};
-  const attentionStatusPayload =
-    attentionStatusLane.payload && typeof attentionStatusLane.payload === 'object' ? attentionStatusLane.payload : {};
-  const attentionNextPayload =
-    attentionNextLane.payload && typeof attentionNextLane.payload === 'object' ? attentionNextLane.payload : {};
+  const cockpitPayload = lanePayloadObject(cockpitLane, {});
+  const attentionStatusPayload = lanePayloadObject(attentionStatusLane, {});
+  const attentionNextPayload = lanePayloadObject(attentionNextLane, {});
 
   const blocksRaw =
     cockpitPayload &&
@@ -7479,6 +9089,11 @@ function asMetricRows(healthPayload) {
 function buildSnapshot(opts = {}) {
   const team = cleanText(opts.team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
   const cliMode = normalizeCliMode(opts.cliMode || ACTIVE_CLI_MODE);
+  const fastLaneMode = !!(opts && opts.fast_lane_mode === true);
+  const priorSnapshot =
+    opts && opts.prior_snapshot && typeof opts.prior_snapshot === 'object'
+      ? opts.prior_snapshot
+      : null;
   const laneTimeoutMs = parsePositiveInt(
     opts && opts.lane_timeout_ms != null ? opts.lane_timeout_ms : LANE_SYNC_TIMEOUT_MS,
     LANE_SYNC_TIMEOUT_MS,
@@ -7497,34 +9112,63 @@ function buildSnapshot(opts = {}) {
     250,
     600000
   );
-  const healthLane = runLaneCached('snapshot.health', ['health-status', 'dashboard'], {
-    timeout_ms: laneTimeoutMs,
-    ttl_ms: laneCacheTtlMs,
-    fail_ttl_ms: laneCacheFailTtlMs,
-  });
-  const appLane = runLaneCached('snapshot.app.chat_history', ['app-plane', 'history', '--app=chat-ui'], {
-    timeout_ms: laneTimeoutMs,
-    ttl_ms: laneCacheTtlMs,
-    fail_ttl_ms: laneCacheFailTtlMs,
-  });
+  const healthLane = fastLaneMode
+    ? {
+        ok: true,
+        status: 0,
+        argv: ['snapshot.health', 'cached'],
+        payload: priorSnapshot && priorSnapshot.health && typeof priorSnapshot.health === 'object'
+          ? priorSnapshot.health
+          : {},
+      }
+    : runLaneCached('snapshot.health', ['health-status', 'dashboard'], {
+        timeout_ms: laneTimeoutMs,
+        ttl_ms: laneCacheTtlMs,
+        fail_ttl_ms: laneCacheFailTtlMs,
+      });
+  const appLane = fastLaneMode
+    ? {
+        ok: true,
+        status: 0,
+        argv: ['snapshot.app.chat_history', 'cached'],
+        payload: priorSnapshot && priorSnapshot.app && typeof priorSnapshot.app === 'object'
+          ? priorSnapshot.app
+          : {},
+      }
+    : runLaneCached('snapshot.app.chat_history', ['app-plane', 'history', '--app=chat-ui'], {
+        timeout_ms: laneTimeoutMs,
+        ttl_ms: laneCacheTtlMs,
+        fail_ttl_ms: laneCacheFailTtlMs,
+      });
   const collabLane = runLaneCached(`snapshot.collab.${team}`, ['collab-plane', 'dashboard', `--team=${team}`], {
     timeout_ms: laneTimeoutMs,
     ttl_ms: laneCacheTtlMs,
     fail_ttl_ms: laneCacheFailTtlMs,
   });
-  const skillsLane = runLaneCached('snapshot.skills', ['skills-plane', 'dashboard'], {
-    timeout_ms: laneTimeoutMs,
-    ttl_ms: laneCacheTtlMs,
-    fail_ttl_ms: laneCacheFailTtlMs,
-  });
-  const runtimeMirror = collectConduitAttentionCockpit(team, {
-    lane_timeout_ms: laneTimeoutMs,
-    lane_cache_ttl_ms: laneCacheTtlMs,
-    lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
-  });
+  const skillsLane = fastLaneMode
+    ? {
+        ok: true,
+        status: 0,
+        argv: ['snapshot.skills', 'cached'],
+        payload: priorSnapshot && priorSnapshot.skills && typeof priorSnapshot.skills === 'object'
+          ? priorSnapshot.skills
+          : {},
+      }
+    : runLaneCached('snapshot.skills', ['skills-plane', 'dashboard'], {
+        timeout_ms: laneTimeoutMs,
+        ttl_ms: laneCacheTtlMs,
+        fail_ttl_ms: laneCacheFailTtlMs,
+      });
+  const runtimeMirror = fastLaneMode
+    ? runtimeMirrorFromSnapshot(priorSnapshot || {}, team)
+    : collectConduitAttentionCockpit(team, {
+        lane_timeout_ms: laneTimeoutMs,
+        lane_cache_ttl_ms: laneCacheTtlMs,
+        lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
+      });
   const benchmarkSanity = benchmarkSanitySnapshot();
 
-  const health = mergeBenchmarkSanityHealth(healthLane.payload || {}, benchmarkSanity);
+  const health = mergeBenchmarkSanityHealth(lanePayloadObject(healthLane, {}), benchmarkSanity);
   const healthCoverage = healthCoverageSummary(health);
   health.coverage = healthCoverage;
   if (healthCoverage.gap_count > 0) {
@@ -7537,10 +9181,21 @@ function buildSnapshot(opts = {}) {
     alerts.count = alerts.checks.length;
     health.alerts = alerts;
   }
-  const app = appLane.payload || {};
-  const collab = filterArchivedAgentsFromCollab(collabLane.payload || {});
-  const skills = skillsLane.payload || {};
-  const memoryCollected = collectMemoryArtifacts();
+  const app = lanePayloadObject(appLane, {});
+  const priorCollab =
+    opts &&
+    opts.prior_collab &&
+    typeof opts.prior_collab === 'object' &&
+    opts.prior_collab.dashboard &&
+    Array.isArray(opts.prior_collab.dashboard.agents)
+      ? opts.prior_collab
+      : {};
+  const collabRaw = lanePayloadObject(collabLane, priorCollab);
+  reconcileArchivedAgentsFromCollab(collabRaw);
+  const collab = filterArchivedAgentsFromCollab(collabRaw);
+  const skills = lanePayloadObject(skillsLane, {});
+  const fsArtifacts = snapshotFsArtifacts(false);
+  const memoryCollected = fsArtifacts.memory;
   const ingestControl = memoryIngestControlState(runtimeMirror.summary.queue_depth, memoryCollected.length);
   const memoryIngestApplied = applyMemoryIngestCircuit(memoryCollected, ingestControl);
   const memoryEntries = memoryIngestApplied.entries;
@@ -7585,11 +9240,11 @@ function buildSnapshot(opts = {}) {
       },
     },
     receipts: {
-      recent: collectReceipts(),
+      recent: fsArtifacts.receipts,
       action_history_path: path.relative(ROOT, ACTION_HISTORY_PATH),
     },
     logs: {
-      recent: collectLogEvents(),
+      recent: fsArtifacts.logs,
     },
     apm: {
       metrics: asMetricRows(health),
@@ -8652,6 +10307,8 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
         { command: '/queue', description: 'Show current queue pressure' },
         { command: '/context', description: 'Show context and attention state' },
         { command: '/model', description: 'Inspect or switch active model' },
+        { command: '/file <path>', description: 'Render full file output in chat from workspace path' },
+        { command: '/folder <path>', description: 'Render folder tree + downloadable archive in chat' },
         { command: '/budget', description: 'Show usage budget summary' },
         { command: '/peers', description: 'Show network peer status' },
         { command: '/a2a', description: 'Show discovered A2A peers' },
@@ -8955,6 +10612,10 @@ function runAction(action, payload) {
 }
 
 function compatAgentsFromSnapshot(snapshot, options = {}) {
+  const syncGitAssignments = !!(options && options.sync_git_assignments);
+  if (syncGitAssignments) {
+    ensureAgentGitTreeAssignments(snapshot, { force: false });
+  }
   const includeArchived = !!(options && options.includeArchived);
   const archived = includeArchived ? null : archivedAgentIdsSet();
   const rows =
@@ -8967,9 +10628,12 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
   return rows
     .map((row, idx) => {
     const id = cleanText(row && row.shadow ? row.shadow : `agent-${idx + 1}`, 120) || `agent-${idx + 1}`;
-    const modelState = effectiveAgentModel(id, snapshot);
+    const modelState = effectiveAgentModel(id, snapshot, {
+      allow_session_read: false,
+    });
     const contract = contractForAgent(id);
     const profile = agentProfileFor(id);
+    const gitTree = agentGitTreeView(id, profile);
     const status = cleanText(row && row.status ? row.status : 'running', 40) || 'running';
     const state =
       status === 'paused' || status === 'stopped' ? status : status === 'error' ? 'error' : 'running';
@@ -8995,6 +10659,13 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
       identity,
       system_prompt: cleanText(profile && profile.system_prompt ? profile.system_prompt : '', 4000),
       fallback_models: fallbackModels,
+      git_tree_kind: gitTree.git_tree_kind,
+      git_branch: gitTree.git_branch,
+      workspace_dir: gitTree.workspace_dir,
+      workspace_rel: gitTree.workspace_rel,
+      git_tree_ready: gitTree.git_tree_ready,
+      git_tree_error: gitTree.git_tree_error,
+      is_master_agent: gitTree.is_master_agent,
       contract: contractSummary(contract),
       contract_status: formatContractStatus(contract),
       contract_remaining_ms: remainingMs == null ? null : Math.max(0, Math.floor(remainingMs)),
@@ -11736,90 +13407,6 @@ function executeRuntimeSwarmRecommendation(snapshot) {
   };
 }
 
-function htmlShell() {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Infring Dashboard (Legacy Shell)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/infring_dashboard.css">
-</head>
-<body>
-  <div id="root">
-    <main style="max-width:980px;margin:32px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">
-      <h1 style="margin:0 0 8px 0">InfRing Dashboard</h1>
-      <p style="margin:0 0 8px 0;color:#bfd3f5">Loading dashboard UI...</p>
-      <p style="margin:0;color:#9eb9e4;font-size:12px">If this view remains blank, the compatibility renderer will auto-activate.</p>
-    </main>
-  </div>
-  <script type="module" src="/assets/infring_dashboard_client.js"></script>
-  <script defer src="/assets/infring_dashboard_fallback.js"></script>
-  <script>
-    (function () {
-      function esc(v) {
-        var s = String(v == null ? '' : v);
-        return s
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
-      function short(v, n) {
-        var t = String(v == null ? '' : v).trim();
-        if (!t) return 'n/a';
-        if (t.length <= n) return t;
-        return t.slice(0, n) + '...';
-      }
-      function bootInlineFallback() {
-        var root = document.getElementById('root');
-        if (!root) return;
-        if (root.getAttribute('data-dashboard-hydrated')) return;
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/api/dashboard/snapshot', true);
-        xhr.onreadystatechange = function () {
-          if (xhr.readyState !== 4) return;
-          if (root.getAttribute('data-dashboard-hydrated')) return;
-          if (xhr.status < 200 || xhr.status >= 300) {
-            root.innerHTML =
-              '<main style="max-width:980px;margin:32px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">' +
-              '<h1 style="margin:0 0 8px 0">InfRing Dashboard</h1>' +
-              '<p style="margin:0;color:#bfd3f5">UI compatibility fallback active.</p>' +
-              '<p style="margin:8px 0 0 0;color:#9eb9e4;font-size:12px">Snapshot endpoint temporarily unavailable.</p>' +
-              '</main>';
-            root.setAttribute('data-dashboard-hydrated', 'inline-fallback');
-            return;
-          }
-          var snap = null;
-          try { snap = JSON.parse(xhr.responseText || '{}'); } catch (e) { snap = null; }
-          if (!snap || typeof snap !== 'object') return;
-          var provider = snap && snap.app && snap.app.settings ? snap.app.settings.provider : 'n/a';
-          var model = snap && snap.app && snap.app.settings ? snap.app.settings.model : 'n/a';
-          var alerts = snap && snap.health && snap.health.alerts ? snap.health.alerts.count : 0;
-          root.innerHTML =
-            '<main style="max-width:1200px;margin:20px auto;padding:16px;color:#e8f0ff;background:rgba(9,16,30,.72);border:1px solid rgba(122,163,255,.28);border-radius:14px">' +
-            '<h1 style="margin:0 0 6px 0">InfRing Dashboard</h1>' +
-            '<p style="margin:0;color:#bfd3f5">Compatibility UI active (core data live).</p>' +
-            '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">' +
-            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Provider</div><div style="font-size:18px;font-weight:700">' + esc(provider) + '</div></article>' +
-            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Model</div><div style="font-size:18px;font-weight:700">' + esc(model) + '</div></article>' +
-            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Open Alerts</div><div style="font-size:18px;font-weight:700">' + esc(alerts) + '</div></article>' +
-            '<article style="padding:10px;border:1px solid rgba(122,163,255,.22);border-radius:10px;background:rgba(20,32,58,.8)"><div style="font-size:12px;color:#b9ceef">Receipt</div><div style="font-size:12px;font-family:ui-monospace,Menlo,monospace">' + esc(short(snap.receipt_hash, 28)) + '</div></article>' +
-            '</div>' +
-            '</main>';
-          root.setAttribute('data-dashboard-hydrated', 'inline-fallback');
-        };
-        xhr.send(null);
-      }
-      window.setTimeout(bootInlineFallback, 1400);
-    })();
-  </script>
-</body>
-</html>`;
-}
-
 function transpileClientTs() {
   const source = readText(CLIENT_TS_PATH, '');
   if (!source) {
@@ -11838,23 +13425,6 @@ function transpileClientTs() {
   }).outputText;
 }
 
-function transpileFallbackTs() {
-  const source = readText(FALLBACK_TS_PATH, '');
-  if (!source) {
-    throw new Error(`missing_fallback_source:${path.relative(ROOT, FALLBACK_TS_PATH)}`);
-  }
-  return ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ES2022,
-      target: ts.ScriptTarget.ES2018,
-      sourceMap: false,
-      removeComments: false,
-    },
-    fileName: FALLBACK_TS_PATH,
-    reportDiagnostics: false,
-  }).outputText;
-}
-
 function sendJson(res, statusCode, payload) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
   res.writeHead(statusCode, {
@@ -11863,6 +13433,16 @@ function sendJson(res, statusCode, payload) {
     'content-length': Buffer.byteLength(body),
   });
   res.end(body);
+}
+
+function sendJsonRaw(res, statusCode, body) {
+  const text = typeof body === 'string' ? body : `${String(body == null ? '' : body)}\n`;
+  res.writeHead(statusCode, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'content-length': Buffer.byteLength(text),
+  });
+  res.end(text);
 }
 
 function sendText(res, statusCode, body, contentType) {
@@ -11898,28 +13478,54 @@ function bodyJson(req) {
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasPrimaryDashboardUi();
+  ensureDailyMemoryFile(todayDateIso());
   bootstrapSnapshotHistoryState();
   compactSnapshotHistory('startup', true);
   let dashboardHtml = '';
-  const refreshUiAssets = () => {
-    dashboardHtml = forkUiEnabled ? buildPrimaryDashboardHtml() : '';
+  let dashboardUiRefreshAtMs = 0;
+  const refreshUiAssets = (force = false) => {
+    if (!forkUiEnabled) {
+      dashboardHtml = '';
+      return;
+    }
+    const nowMs = Date.now();
+    if (
+      !force &&
+      dashboardHtml &&
+      (nowMs - parseNonNegativeInt(dashboardUiRefreshAtMs, 0, 1_000_000_000_000)) <
+        DASHBOARD_UI_ASSET_REFRESH_COOLDOWN_MS
+    ) {
+      return;
+    }
+    dashboardHtml = buildPrimaryDashboardHtml();
+    dashboardUiRefreshAtMs = nowMs;
   };
-  refreshUiAssets();
+  refreshUiAssets(true);
   let latestSnapshot = buildSnapshot(flags);
+  let latestSnapshotJson = `${JSON.stringify(latestSnapshot, null, 2)}\n`;
   let latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
   writeSnapshotReceipt(latestSnapshot, { forceHistory: true });
   let updating = false;
   let enforcingContracts = false;
   let enforceContractsQueued = false;
+  let gitTreeSyncQueued = false;
+  let lastGitTreeApiSyncAtMs = 0;
   let lastContractEnforceAtMs = 0;
   let lastContractLoopRunAtMs = 0;
   let lastApiContractEnforceAtMs = 0;
+  const agentLifecycleLocks = new Set();
   let nextSnapshotRefreshAtMs = 0;
   let lastSnapshotBuildDurationMs = 0;
+  let lastSnapshotBuildAtMs = Date.now();
+  let lastFullSnapshotBuildAtMs = Date.now();
+  let lastSnapshotRefreshRequestAtMs = 0;
 
   const refreshSnapshot = (contractEnforcement = null, options = {}) => {
     const startedMs = Date.now();
-    const fastLaneMode = !!(options && options.fast_lane_mode === true);
+    const requestedFastLaneMode = !!(options && options.fast_lane_mode === true);
+    const fullRefreshCadenceMs = 30_000;
+    const fullRefreshDue = (startedMs - parseNonNegativeInt(lastFullSnapshotBuildAtMs, 0, 1_000_000_000_000)) >= fullRefreshCadenceMs;
+    const fastLaneMode = requestedFastLaneMode && !fullRefreshDue;
     const cadenceMs = parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000);
     const laneTimeoutMs = parsePositiveInt(
       options && options.lane_timeout_ms != null
@@ -11949,13 +13555,23 @@ function runServe(flags) {
       250,
       600000
     );
+    const priorCollab =
+      latestSnapshot &&
+      latestSnapshot.collab &&
+      typeof latestSnapshot.collab === 'object'
+        ? latestSnapshot.collab
+        : {};
     latestSnapshot = buildSnapshot({
       ...flags,
       contract_enforcement: contractEnforcement,
       lane_timeout_ms: laneTimeoutMs,
       lane_cache_ttl_ms: laneCacheTtlMs,
       lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
+      prior_collab: priorCollab,
+      prior_snapshot: latestSnapshot && typeof latestSnapshot === 'object' ? latestSnapshot : null,
+      fast_lane_mode: fastLaneMode,
     });
+    latestSnapshotJson = `${JSON.stringify(latestSnapshot, null, 2)}\n`;
     latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
     writeSnapshotReceipt(latestSnapshot, {
       forceHistory: !!(options && options.force_history),
@@ -11963,14 +13579,75 @@ function runServe(flags) {
     const finishedMs = Date.now();
     const buildDurationMs = Math.max(0, finishedMs - startedMs);
     lastSnapshotBuildDurationMs = buildDurationMs;
+    lastSnapshotBuildAtMs = finishedMs;
+    if (!fastLaneMode) {
+      lastFullSnapshotBuildAtMs = finishedMs;
+    }
     const deferOnSlow = !(options && options.defer_on_slow === false);
     if (deferOnSlow) {
-      if (buildDurationMs > cadenceMs) {
-        nextSnapshotRefreshAtMs = finishedMs + Math.min(15_000, Math.max(cadenceMs, buildDurationMs));
+      const ratio = buildDurationMs / Math.max(1, cadenceMs);
+      if (ratio >= 1) {
+        const cooldownMs = Math.min(30_000, Math.max(cadenceMs * 3, Math.round(buildDurationMs * 1.5)));
+        nextSnapshotRefreshAtMs = finishedMs + cooldownMs;
+      } else if (ratio >= 0.5) {
+        const cooldownMs = Math.min(15_000, Math.max(cadenceMs * 2, Math.round(buildDurationMs * 1.2)));
+        nextSnapshotRefreshAtMs = finishedMs + cooldownMs;
       } else if (nextSnapshotRefreshAtMs > 0 && finishedMs >= nextSnapshotRefreshAtMs) {
         nextSnapshotRefreshAtMs = 0;
       }
     }
+    return latestSnapshot;
+  };
+
+  const acquireAgentLifecycleLock = (agentId) => {
+    const key = cleanText(agentId || '', 140);
+    if (!key) return '';
+    if (agentLifecycleLocks.has(key)) return '';
+    agentLifecycleLocks.add(key);
+    return key;
+  };
+
+  const releaseAgentLifecycleLock = (agentLockKey) => {
+    const key = cleanText(agentLockKey || '', 140);
+    if (!key) return;
+    agentLifecycleLocks.delete(key);
+  };
+
+  const scheduleAgentGitTreeSync = (preferredMasterId = '') => {
+    const nowMs = Date.now();
+    if (
+      (nowMs - parseNonNegativeInt(lastGitTreeApiSyncAtMs, 0, 1_000_000_000_000)) <
+      AGENT_GIT_TREE_API_SYNC_DEBOUNCE_MS
+    ) {
+      return false;
+    }
+    if (gitTreeSyncQueued) return false;
+    gitTreeSyncQueued = true;
+    const preferred = cleanText(preferredMasterId || '', 140);
+    setTimeout(() => {
+      try {
+        ensureAgentGitTreeAssignments(latestSnapshot, {
+          force: false,
+          preferred_master_id: preferred,
+        });
+        lastGitTreeApiSyncAtMs = Date.now();
+      } catch {}
+      gitTreeSyncQueued = false;
+    }, 0);
+    return true;
+  };
+
+  const snapshotForContractEnforcement = () => {
+    const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
+    const maxAgeMs = Math.max(750, parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 2);
+    const stale = snapshotTsMs <= 0 || (Date.now() - snapshotTsMs) > maxAgeMs;
+    if (!stale || updating) return latestSnapshot;
+    try {
+      refreshSnapshot(null, {
+        fast_lane_mode: true,
+        defer_on_slow: false,
+      });
+    } catch {}
     return latestSnapshot;
   };
   try {
@@ -11989,17 +13666,15 @@ function runServe(flags) {
     try {
       const dashboardUiRoute =
         pathname === '/' ||
-        pathname === '/dashboard' ||
-        pathname === '/openclaw' ||
-        pathname === '/openclaw/dashboard';
+        pathname === '/dashboard';
       if (req.method === 'GET' && dashboardUiRoute) {
-        refreshUiAssets();
+        refreshUiAssets(false);
         const hasDashboardHtml = forkUiEnabled && String(dashboardHtml || '').trim().length > 0;
         if (!hasDashboardHtml) {
           sendJson(res, 503, {
             ok: false,
             type: 'infring_dashboard_primary_ui_missing',
-            error: 'legacy_dashboard_removed',
+            error: 'primary_dashboard_ui_missing',
           });
           return;
         }
@@ -12013,43 +13688,54 @@ function runServe(flags) {
           return;
         }
       }
-      if (req.method === 'GET' && pathname === '/assets/infring_dashboard.css') {
-        sendJson(res, 410, {
-          ok: false,
-          type: 'infring_dashboard_legacy_asset_removed',
-          asset: pathname,
-          error: 'legacy_dashboard_removed',
-        });
-        return;
-      }
-      if (req.method === 'GET' && pathname === '/assets/infring_dashboard_client.js') {
-        sendJson(res, 410, {
-          ok: false,
-          type: 'infring_dashboard_legacy_asset_removed',
-          asset: pathname,
-          error: 'legacy_dashboard_removed',
-        });
-        return;
-      }
-      if (req.method === 'GET' && pathname === '/assets/infring_dashboard_fallback.js') {
-        sendJson(res, 410, {
-          ok: false,
-          type: 'infring_dashboard_legacy_asset_removed',
-          asset: pathname,
-          error: 'legacy_dashboard_removed',
-        });
-        return;
-      }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
-        maybeEnforceAgentContractsForApi('api.snapshot');
         const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
         const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
-        if (snapshotAgeMs > (flags.refreshMs * 2)) requestSnapshotRefresh(true);
-        sendJson(res, 200, latestSnapshot);
+        const staleThresholdMs = Math.max(
+          15_000,
+          parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 4
+        );
+        if (snapshotAgeMs > staleThresholdMs) requestSnapshotRefresh(true);
+        sendJsonRaw(res, 200, latestSnapshotJson);
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/chat/export/')) {
+        cleanupChatExports();
+        const token = cleanText(pathname.split('/').pop() || '', 80);
+        const artifact = token ? chatExportArtifacts.get(token) : null;
+        if (!artifact || !artifact.file_path || !fileExists(artifact.file_path)) {
+          sendJson(res, 404, { ok: false, error: 'export_not_found', token: token || '' });
+          return;
+        }
+        const downloadName = cleanText(artifact.file_name || 'infring-export.tar.gz', 160) || 'infring-export.tar.gz';
+        res.writeHead(200, {
+          'content-type': 'application/gzip',
+          'content-disposition': `attachment; filename="${downloadName}"`,
+          'cache-control': 'no-store',
+        });
+        const stream = fs.createReadStream(artifact.file_path);
+        stream.on('error', () => {
+          try {
+            if (!res.headersSent) {
+              sendJson(res, 500, { ok: false, error: 'export_read_failed', token });
+            } else {
+              res.end();
+            }
+          } catch {}
+        });
+        stream.pipe(res);
         return;
       }
       if (req.method === 'GET' && pathname === '/api/status') {
-        maybeEnforceAgentContractsForApi('api.status');
+        const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
+        const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
+        const staleThresholdMs = Math.max(
+          12_000,
+          parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 6
+        );
+        if (snapshotAgeMs > staleThresholdMs && !updating) {
+          requestSnapshotRefresh(false);
+        }
         const agentCount = activeAgentCountFromSnapshot(latestSnapshot, 0);
         const runtimeSync = runtimeSyncSummary(latestSnapshot);
         sendJson(res, 200, {
@@ -12071,6 +13757,7 @@ function runServe(flags) {
           api_listen: `${flags.host}:${flags.port}`,
           listen: `${flags.host}:${flags.port}`,
           home_dir: ROOT,
+          workspace_dir: ROOT,
           log_level: cleanText(process.env.RUST_LOG || process.env.LOG_LEVEL || 'info', 24) || 'info',
           network_enabled: true,
           cli_mode: ACTIVE_CLI_MODE,
@@ -12108,6 +13795,148 @@ function runServe(flags) {
           models: buildDashboardModels(latestSnapshot),
         });
         return;
+      }
+      if (
+        (req.method === 'GET' || req.method === 'POST') &&
+        (pathname === '/api/memory/search' || pathname === '/api/memory_search')
+      ) {
+        const payload = req.method === 'POST' ? await bodyJson(req) : {};
+        const query = cleanText(
+          req.method === 'GET'
+            ? reqUrl.searchParams.get('q') || reqUrl.searchParams.get('query') || reqUrl.searchParams.get('text') || ''
+            : payload && (payload.q || payload.query || payload.text || payload.input)
+              ? payload.q || payload.query || payload.text || payload.input
+              : '',
+          280
+        );
+        const limit = parsePositiveInt(
+          req.method === 'GET'
+            ? reqUrl.searchParams.get('limit') || reqUrl.searchParams.get('top') || MEMORY_SEARCH_DEFAULT_LIMIT
+            : payload && payload.limit != null
+              ? payload.limit
+              : MEMORY_SEARCH_DEFAULT_LIMIT,
+          MEMORY_SEARCH_DEFAULT_LIMIT,
+          1,
+          MEMORY_SEARCH_MAX_LIMIT
+        );
+        const local = searchMemoryLocal(query, latestSnapshot, { limit });
+        sendJson(res, 200, {
+          ok: true,
+          query,
+          limit,
+          disabled: false,
+          fallback_used: true,
+          source: cleanText(local && local.source ? local.source : 'local_memory_fallback', 80) || 'local_memory_fallback',
+          count: parseNonNegativeInt(local && local.count, Array.isArray(local && local.results) ? local.results.length : 0, 100000000),
+          results: Array.isArray(local && local.results) ? local.results : [],
+          scanned: local && local.scanned ? local.scanned : {},
+          error: '',
+        });
+        return;
+      }
+      if (pathname.startsWith('/api/memory/agents/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const agentId = cleanText(safeDecodePathToken(parts[3] || ''), 140);
+        if (!agentId) {
+          sendJson(res, 400, { ok: false, error: 'agent_id_required' });
+          return;
+        }
+        if (parts[4] !== 'kv') {
+          sendJson(res, 404, { ok: false, error: 'memory_route_not_found', path: pathname });
+          return;
+        }
+        if (req.method === 'GET' && parts.length === 5) {
+          const listed = listAgentMemoryKv(agentId, latestSnapshot);
+          sendJson(res, 200, {
+            ok: true,
+            agent_id: listed.agent_id,
+            count: listed.count,
+            kv_pairs: listed.kv_pairs,
+          });
+          return;
+        }
+        const keyRaw = parts.slice(5).join('/');
+        const key = normalizeMemoryKey(keyRaw);
+        if (!key) {
+          sendJson(res, 400, { ok: false, error: 'memory_key_required', agent_id: agentId });
+          return;
+        }
+        if (req.method === 'GET') {
+          const found = readAgentMemoryKv(agentId, key, latestSnapshot);
+          if (!found.ok) {
+            sendJson(res, 404, { ok: false, error: found.error, agent_id: agentId, key });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            agent_id: agentId,
+            key: found.key,
+            value: found.value,
+          });
+          return;
+        }
+        if (req.method === 'PUT') {
+          const payload = await bodyJson(req);
+          const value = payload && Object.prototype.hasOwnProperty.call(payload, 'value') ? payload.value : payload;
+          const written = writeAgentMemoryKv(agentId, key, value, latestSnapshot);
+          if (!written.ok) {
+            sendJson(res, 400, { ok: false, error: written.error, agent_id: agentId, key });
+            return;
+          }
+          writeActionReceipt(
+            'memory.kv.put',
+            { agent_id: agentId, key: written.key, cli_mode: ACTIVE_CLI_MODE },
+            {
+              ok: true,
+              status: 0,
+              argv: ['memory', 'kv', 'put'],
+              payload: {
+                ok: true,
+                type: 'memory_kv_put',
+                agent_id: agentId,
+                key: written.key,
+              },
+            }
+          );
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            agent_id: agentId,
+            key: written.key,
+            value: written.value,
+          });
+          return;
+        }
+        if (req.method === 'DELETE') {
+          const removed = deleteAgentMemoryKv(agentId, key, latestSnapshot);
+          if (!removed.ok) {
+            sendJson(res, 404, { ok: false, error: removed.error, agent_id: agentId, key });
+            return;
+          }
+          writeActionReceipt(
+            'memory.kv.delete',
+            { agent_id: agentId, key: removed.key, cli_mode: ACTIVE_CLI_MODE },
+            {
+              ok: true,
+              status: 0,
+              argv: ['memory', 'kv', 'delete'],
+              payload: {
+                ok: true,
+                type: 'memory_kv_delete',
+                agent_id: agentId,
+                key: removed.key,
+              },
+            }
+          );
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            agent_id: agentId,
+            key: removed.key,
+            deleted: true,
+          });
+          return;
+        }
       }
       if (
         req.method === 'POST' &&
@@ -12154,8 +13983,62 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/api/agents') {
-        maybeEnforceAgentContractsForApi('api.agents');
-        sendJson(res, 200, compatAgentsFromSnapshot(latestSnapshot));
+        const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
+        const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
+        const staleThresholdMs = Math.max(
+          10_000,
+          parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 5
+        );
+        if (snapshotAgeMs > staleThresholdMs && !updating) {
+          requestSnapshotRefresh(false);
+        }
+        const view = cleanText(reqUrl.searchParams.get('view') || '', 40).toLowerCase();
+        const runtimeAuthorityRequested = ['1', 'true', 'runtime'].includes(
+          cleanText(reqUrl.searchParams.get('authority') || '', 24).toLowerCase()
+        );
+        const team = cleanText(reqUrl.searchParams.get('team') || flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+        let agents = [];
+        if (runtimeAuthorityRequested || view === 'sidebar' || view === 'list') {
+          const lowLatencyListMode = view === 'sidebar' || view === 'list';
+          try {
+            agents = authoritativeAgentsFromRuntime(latestSnapshot, team, {
+              includeArchived: false,
+              timeout_ms: lowLatencyListMode ? 650 : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
+              ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 900) : Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 1200),
+              fail_ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 1200) : Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 800),
+            });
+          } catch {
+            agents = [];
+          }
+        }
+        if (!Array.isArray(agents) || agents.length === 0) {
+          agents = compatAgentsFromSnapshot(latestSnapshot);
+        }
+        if (view === 'sidebar' || view === 'list') {
+          const compactRows = agents.map((row) => ({
+            id: cleanText(row && row.id ? row.id : '', 140),
+            name: cleanText(row && row.name ? row.name : row && row.id ? row.id : '', 100),
+            state: cleanText(row && row.state ? row.state : 'running', 40) || 'running',
+            role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
+            identity: row && row.identity && typeof row.identity === 'object' ? row.identity : {},
+            avatar_url: cleanText(row && row.avatar_url ? row.avatar_url : '', 512),
+            created_at: cleanText(row && row.created_at ? row.created_at : '', 80),
+            updated_at: cleanText(row && row.updated_at ? row.updated_at : '', 80),
+            last_activity_at: cleanText(
+              row && (row.last_activity_at || row.last_active_at || row.last_message_at)
+                ? row.last_activity_at || row.last_active_at || row.last_message_at
+                : '',
+              80
+            ),
+            git_branch: cleanText(row && row.git_branch ? row.git_branch : '', 120),
+            workspace_rel: cleanText(row && row.workspace_rel ? row.workspace_rel : '', 240),
+            git_tree_kind: cleanText(row && row.git_tree_kind ? row.git_tree_kind : '', 40),
+            is_master_agent: !!(row && row.is_master_agent),
+          })).filter((row) => !!row.id);
+          sendJson(res, 200, compactRows);
+          return;
+        }
+        sendJson(res, 200, agents);
         return;
       }
       if (req.method === 'GET' && pathname === '/api/agents/terminated') {
@@ -12194,6 +14077,11 @@ function runServe(flags) {
             }
           );
           optimisticCollabUpsertAgent(latestSnapshot, shadow, role);
+          ensureAgentGitTreeAssignments(latestSnapshot, {
+            force: true,
+            preferred_master_id: shadow,
+            ensure_workspace_agent_id: shadow,
+          });
         }
         requestSnapshotRefresh(false);
         const created = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === shadow) || {
@@ -12210,10 +14098,26 @@ function runServe(flags) {
         return;
       }
       if (pathname.startsWith('/api/agents/')) {
-        maybeEnforceAgentContractsForApi('api.agent_scope');
+        if (req.method !== 'GET') {
+          maybeEnforceAgentContractsForApi('api.agent_scope');
+        }
         const parts = pathname.split('/').filter(Boolean);
         const agentId = cleanText(parts[2] || '', 140);
         if (req.method === 'GET' && parts.length === 3) {
+          const team = cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+          const authoritativeAgents = authoritativeAgentsFromRuntime(latestSnapshot, team, {
+            includeArchived: false,
+          });
+          const authoritativeAgent = Array.isArray(authoritativeAgents)
+            ? authoritativeAgents.find((row) => row && row.id === agentId)
+            : null;
+          if (authoritativeAgent) {
+            if (isAgentArchived(agentId)) {
+              unarchiveAgent(agentId);
+            }
+            sendJson(res, 200, authoritativeAgent);
+            return;
+          }
           const archivedMeta = archivedAgentMeta(agentId);
           if (archivedMeta) {
             sendJson(res, 200, inactiveAgentRecord(agentId, latestSnapshot, archivedMeta));
@@ -12227,8 +14131,98 @@ function runServe(flags) {
           sendJson(res, 200, agent);
           return;
         }
+        if (
+          (req.method === 'GET' || req.method === 'POST') &&
+          parts[3] === 'suggestions'
+        ) {
+          const payload = req.method === 'POST' ? await bodyJson(req) : {};
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const suggestionResult = generatePromptSuggestions(agentId, latestSnapshot, payload);
+          sendJson(res, 200, {
+            ok: !!suggestionResult.ok,
+            id: agentId,
+            suggestions: Array.isArray(suggestionResult.suggestions) ? suggestionResult.suggestions : [],
+            source: cleanText(suggestionResult.source || 'fallback', 40) || 'fallback',
+            model: cleanText(suggestionResult.model || '', 120),
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'file' && parts[4] === 'read') {
+          const payload = await bodyJson(req);
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const fileResult = readFullFileForChat(payload && payload.path ? payload.path : '', {
+            max_bytes: payload && payload.max_bytes != null ? payload.max_bytes : CHAT_FILE_READ_MAX_BYTES,
+          });
+          if (!fileResult.ok) {
+            sendJson(res, 400, {
+              ok: false,
+              error: cleanText(fileResult.error || 'file_read_failed', 160) || 'file_read_failed',
+              id: agentId,
+              path: cleanText(payload && payload.path ? payload.path : '', 400),
+            });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            file: fileResult,
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'folder' && parts[4] === 'export') {
+          const payload = await bodyJson(req);
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const tree = buildDirectoryTreeForChat(payload && payload.path ? payload.path : '', {
+            max_depth: payload && payload.max_depth != null ? payload.max_depth : CHAT_TREE_MAX_DEPTH,
+            max_entries: payload && payload.max_entries != null ? payload.max_entries : CHAT_TREE_MAX_ENTRIES,
+          });
+          if (!tree.ok) {
+            sendJson(res, 400, {
+              ok: false,
+              error: cleanText(tree.error || 'folder_export_failed', 160) || 'folder_export_failed',
+              id: agentId,
+              path: cleanText(payload && payload.path ? payload.path : '', 400),
+            });
+            return;
+          }
+          const archive = createFolderArchiveForChat(payload && payload.path ? payload.path : '');
+          if (!archive.ok) {
+            sendJson(res, 400, {
+              ok: false,
+              error: cleanText(archive.error || 'folder_archive_failed', 160) || 'folder_archive_failed',
+              id: agentId,
+              folder: tree,
+            });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            folder: tree,
+            archive,
+          });
+          return;
+        }
         if (req.method === 'DELETE' && parts.length === 3) {
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const lifecycleLock = acquireAgentLifecycleLock(agentId);
+          if (!lifecycleLock) {
+            sendJson(res, 409, { ok: false, error: 'agent_lifecycle_busy', id: agentId });
+            return;
+          }
+          try {
+          const known = agentKnownInRuntime(agentId);
           const alreadyArchived = isAgentArchived(agentId);
           if (!known && !alreadyArchived) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
@@ -12254,9 +14248,18 @@ function runServe(flags) {
             type: 'agent_archived',
           });
           return;
+          } finally {
+            releaseAgentLifecycleLock(lifecycleLock);
+          }
         }
         if (req.method === 'POST' && parts[3] === 'revoke') {
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const lifecycleLock = acquireAgentLifecycleLock(agentId);
+          if (!lifecycleLock) {
+            sendJson(res, 409, { ok: false, error: 'agent_lifecycle_busy', id: agentId });
+            return;
+          }
+          try {
+          const known = agentKnownInRuntime(agentId);
           if (!known && !isAgentArchived(agentId)) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
@@ -12279,9 +14282,18 @@ function runServe(flags) {
             contract: contractSummary(contractForAgent(agentId)),
           });
           return;
+          } finally {
+            releaseAgentLifecycleLock(lifecycleLock);
+          }
         }
         if (req.method === 'POST' && parts[3] === 'complete') {
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const lifecycleLock = acquireAgentLifecycleLock(agentId);
+          if (!lifecycleLock) {
+            sendJson(res, 409, { ok: false, error: 'agent_lifecycle_busy', id: agentId });
+            return;
+          }
+          try {
+          const known = agentKnownInRuntime(agentId);
           if (!known && !isAgentArchived(agentId)) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
@@ -12304,8 +14316,17 @@ function runServe(flags) {
             contract: contractSummary(contract || contractForAgent(agentId)),
           });
           return;
+          } finally {
+            releaseAgentLifecycleLock(lifecycleLock);
+          }
         }
         if (req.method === 'POST' && parts[3] === 'revive') {
+          const lifecycleLock = acquireAgentLifecycleLock(agentId);
+          if (!lifecycleLock) {
+            sendJson(res, 409, { ok: false, error: 'agent_lifecycle_busy', id: agentId });
+            return;
+          }
+          try {
           const payload = await bodyJson(req);
           const archivedMeta = archivedAgentMeta(agentId);
           if (!archivedMeta) {
@@ -12352,6 +14373,11 @@ function runServe(flags) {
             saveAgentContractsState(contractsState);
           }
           optimisticCollabUpsertAgent(latestSnapshot, agentId, role);
+          ensureAgentGitTreeAssignments(latestSnapshot, {
+            force: true,
+            preferred_master_id: agentId,
+            ensure_workspace_agent_id: agentId,
+          });
           requestSnapshotRefresh(false);
           const revived = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId) || {
             id: agentId,
@@ -12369,10 +14395,13 @@ function runServe(flags) {
             contract: revived.contract,
           });
           return;
+          } finally {
+            releaseAgentLifecycleLock(lifecycleLock);
+          }
         }
         if (req.method === 'POST' && parts[3] === 'terminal') {
           const payload = await bodyJson(req);
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const known = agentKnownInRuntime(agentId);
           if (!known) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
@@ -12384,7 +14413,8 @@ function runServe(flags) {
           const terminal = await runTerminalCommand(
             payload && (payload.command || payload.input || payload.message) ? payload.command || payload.input || payload.message : '',
             payload && payload.cwd ? payload.cwd : '',
-            agentId
+            agentId,
+            latestSnapshot
           );
           writeActionReceipt(
             'app.terminal',
@@ -12503,6 +14533,9 @@ function runServe(flags) {
           const state = loadAgentSession(agentId, latestSnapshot);
           state.model_override = requested && requested.toLowerCase() !== 'auto' ? requested : 'auto';
           saveAgentSession(agentId, state);
+          upsertAgentProfile(agentId, {
+            model_override: state.model_override,
+          });
           const resolved = effectiveAgentModel(agentId, latestSnapshot);
           sendJson(res, 200, {
             ok: true,
@@ -12515,13 +14548,25 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'GET' && parts[3] === 'session') {
+          ensureAgentGitTreeAssignments(latestSnapshot, {
+            force: false,
+            preferred_master_id: agentId,
+          });
           const state = loadAgentSession(agentId, latestSnapshot);
           const session = activeSession(state);
+          const profile = ensureAgentGitTreeProfile(agentId, { force_master: false, ensure_workspace_ready: false });
+          const gitTree = agentGitTreeView(agentId, profile);
           sendJson(res, 200, {
             ok: true,
             id: agentId,
             session_id: session.session_id,
             messages: Array.isArray(session.messages) ? session.messages : [],
+            git_tree_kind: gitTree.git_tree_kind,
+            git_branch: gitTree.git_branch,
+            workspace_dir: gitTree.workspace_dir,
+            workspace_rel: gitTree.workspace_rel,
+            git_tree_ready: gitTree.git_tree_ready,
+            is_master_agent: gitTree.is_master_agent,
           });
           return;
         }
@@ -12600,7 +14645,7 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'stop') {
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const known = agentKnownInRuntime(agentId);
           if (!known && !isAgentArchived(agentId)) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
@@ -12662,7 +14707,7 @@ function runServe(flags) {
           (parts[3] === 'identity' || parts[3] === 'config')
         ) {
           const payload = await bodyJson(req);
-          const known = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === agentId);
+          const known = agentKnownInRuntime(agentId);
           if (!known && !isAgentArchived(agentId)) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
@@ -13003,6 +15048,48 @@ function runServe(flags) {
   const agentWss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
   const wsClients = new Set();
   const agentWsClients = new Map();
+  const wsClientHeartbeat = new Map();
+  const agentWsHeartbeat = new Map();
+
+  const markWsHeartbeat = (socket, isAgentSocket = false) => {
+    if (!socket) return;
+    const target = isAgentSocket ? agentWsHeartbeat : wsClientHeartbeat;
+    target.set(socket, Date.now());
+  };
+
+  const dropSnapshotSocket = (socket) => {
+    wsClients.delete(socket);
+    wsClientHeartbeat.delete(socket);
+  };
+
+  const dropAgentSocket = (socket) => {
+    agentWsClients.delete(socket);
+    agentWsHeartbeat.delete(socket);
+  };
+
+  const realtimeClientCounts = () => {
+    let snapshotOpen = 0;
+    let agentOpen = 0;
+    for (const client of Array.from(wsClients)) {
+      if (client && client.readyState === 1) {
+        snapshotOpen += 1;
+      } else {
+        dropSnapshotSocket(client);
+      }
+    }
+    for (const [client] of Array.from(agentWsClients.entries())) {
+      if (client && client.readyState === 1) {
+        agentOpen += 1;
+      } else {
+        dropAgentSocket(client);
+      }
+    }
+    return {
+      snapshot_open: snapshotOpen,
+      agent_open: agentOpen,
+      total_open: snapshotOpen + agentOpen,
+    };
+  };
 
   const sendWs = (socket, payload) => {
     if (!socket || socket.readyState !== 1) return;
@@ -13011,27 +15098,78 @@ function runServe(flags) {
     } catch {}
   };
 
+  const wsSnapshotCompatPayload = () => {
+    const runtime = runtimeSyncSummary(latestSnapshot);
+    return {
+      type: 'snapshot',
+      ts: nowIso(),
+      receipt_hash: cleanText(latestSnapshot && latestSnapshot.receipt_hash ? latestSnapshot.receipt_hash : '', 120),
+      runtime: {
+        queue_depth: parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000),
+        conduit_signals: parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000),
+        cockpit_blocks: parseNonNegativeInt(runtime && runtime.cockpit_blocks, 0, 100000000),
+      },
+    };
+  };
+
   const broadcastSnapshot = () => {
     const envelope = latestSnapshotEnvelope;
+    const compat = wsSnapshotCompatPayload();
     for (const client of wsClients) {
       if (client.readyState === 1) {
+        sendWs(client, compat);
         client.send(envelope);
       }
     }
   };
 
   function requestSnapshotRefresh(broadcast = true) {
+    const nowMs = Date.now();
+    const minRefreshGapMs = Math.max(
+      5000,
+      parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 2
+    );
+    if ((nowMs - parseNonNegativeInt(lastSnapshotRefreshRequestAtMs, 0, 1_000_000_000_000)) < minRefreshGapMs) {
+      return false;
+    }
     if (updating) return false;
+    lastSnapshotRefreshRequestAtMs = nowMs;
     updating = true;
     setTimeout(() => {
       try {
-        refreshSnapshot();
+        refreshSnapshot(null, { fast_lane_mode: true });
         if (broadcast) broadcastSnapshot();
       } catch {}
       updating = false;
     }, 0);
     return true;
   }
+
+  const agentKnownInRuntime = (agentId) => {
+    const id = cleanText(agentId || '', 140);
+    if (!id) return false;
+    const fromSnapshot = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === id);
+    if (fromSnapshot) return true;
+    const team = cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+    const lane = runLaneCached(
+      `agent_presence.${team}.${id}`,
+      ['collab-plane', 'dashboard', `--team=${team}`],
+      {
+        timeout_ms: Math.min(800, LANE_SYNC_TIMEOUT_MS),
+        ttl_ms: 500,
+        fail_ttl_ms: 250,
+        stale_fallback: false,
+      }
+    );
+    const runtimeAgents =
+      lane &&
+      lane.payload &&
+      lane.payload.dashboard &&
+      Array.isArray(lane.payload.dashboard.agents)
+        ? lane.payload.dashboard.agents
+        : [];
+    return runtimeAgents.some((row) => cleanText(row && row.shadow ? row.shadow : '', 140) === id);
+  };
 
   const closeAgentSockets = (agentId, reason = 'agent_inactive') => {
     const id = String(agentId || '');
@@ -13041,10 +15179,21 @@ function runServe(flags) {
       if (String(socketAgentId) !== id) continue;
       sendWs(socket, { type: 'agent_archived', agent_id: id, ts: nowIso(), reason });
       try { socket.close(1008, reason); } catch {}
-      agentWsClients.delete(socket);
+      dropAgentSocket(socket);
       closed += 1;
     }
     return closed;
+  };
+
+  const agentInactiveForRealtime = (agentId) => {
+    const id = cleanText(agentId || '', 140);
+    if (!id) return true;
+    if (!isAgentArchived(id)) return false;
+    if (agentKnownInRuntime(id)) {
+      unarchiveAgent(id);
+      return false;
+    }
+    return true;
   };
 
   const enforceAgentContractsNow = (source = 'api') => {
@@ -13059,7 +15208,8 @@ function runServe(flags) {
     lastContractEnforceAtMs = nowMs;
     enforcingContracts = true;
     try {
-      const enforcement = enforceAgentContracts(latestSnapshot, {
+      const enforcementSnapshot = snapshotForContractEnforcement();
+      const enforcement = enforceAgentContracts(enforcementSnapshot, {
         team: cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM,
       });
       const terminated = Array.isArray(enforcement && enforcement.terminated) ? enforcement.terminated : [];
@@ -13097,16 +15247,17 @@ function runServe(flags) {
 
   const apiContractEnforceIntervalMs = () => {
     const activeAgents = activeAgentCountFromSnapshot(latestSnapshot, 0);
+    const lowScaleFloorMs = Math.max(AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS, 1500);
     if (activeAgents >= AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD) {
-      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS;
+      return Math.max(AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS, 4000);
     }
     if (activeAgents >= AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD) {
-      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS;
+      return Math.max(AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS, 3000);
     }
     if (activeAgents >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD) {
-      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS;
+      return Math.max(AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS, 2000);
     }
-    return AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS;
+    return lowScaleFloorMs;
   };
 
   const maybeEnforceAgentContractsForApi = (source = 'api') => {
@@ -13390,11 +15541,17 @@ function runServe(flags) {
 
   wss.on('connection', (socket) => {
     wsClients.add(socket);
-    try {
-      socket.send(latestSnapshotEnvelope);
-    } catch {}
+    markWsHeartbeat(socket, false);
+    sendWs(socket, wsSnapshotCompatPayload());
+    try { socket.send(latestSnapshotEnvelope); } catch {}
+    socket.on('pong', () => {
+      markWsHeartbeat(socket, false);
+    });
+    socket.on('error', () => {
+      dropSnapshotSocket(socket);
+    });
     socket.on('close', () => {
-      wsClients.delete(socket);
+      dropSnapshotSocket(socket);
     });
   });
 
@@ -13404,15 +15561,36 @@ function runServe(flags) {
       try { socket.close(1008, 'agent_required'); } catch {}
       return;
     }
-    if (isAgentArchived(agentId)) {
+    if (agentInactiveForRealtime(agentId)) {
       sendWs(socket, { type: 'error', content: 'Agent is inactive (archived).' });
       try { socket.close(1008, 'agent_inactive'); } catch {}
       return;
     }
     agentWsClients.set(socket, agentId);
+    markWsHeartbeat(socket, true);
     sendWs(socket, { type: 'connected', agent_id: agentId, ts: nowIso() });
+    socket.on('pong', () => {
+      markWsHeartbeat(socket, true);
+    });
+    socket.on('error', () => {
+      dropAgentSocket(socket);
+    });
 
     socket.on('message', async (raw) => {
+      markWsHeartbeat(socket, true);
+      if (agentInactiveForRealtime(agentId)) {
+        sendWs(socket, { type: 'error', content: 'Agent is inactive (archived).' });
+        try { socket.close(1008, 'agent_inactive'); } catch {}
+        dropAgentSocket(socket);
+        return;
+      }
+      const contractState = contractForAgent(agentId);
+      if (contractState && cleanText(contractState.status || 'active', 32) !== 'active') {
+        sendWs(socket, { type: 'error', content: 'Agent contract terminated.' });
+        try { socket.close(1008, 'agent_contract_terminated'); } catch {}
+        dropAgentSocket(socket);
+        return;
+      }
       let payload = null;
       try {
         payload = JSON.parse(String(raw || '{}'));
@@ -13436,7 +15614,8 @@ function runServe(flags) {
             ? payload.command || payload.input || payload.message
             : '',
           payload && payload.cwd ? payload.cwd : '',
-          agentId
+          agentId,
+          latestSnapshot
         );
         writeActionReceipt(
           'app.terminal',
@@ -13605,7 +15784,7 @@ function runServe(flags) {
     });
 
     socket.on('close', () => {
-      agentWsClients.delete(socket);
+      dropAgentSocket(socket);
     });
   });
 
@@ -13624,6 +15803,10 @@ function runServe(flags) {
         socket.destroy();
         return;
       }
+      if (agentInactiveForRealtime(agentId)) {
+        socket.destroy();
+        return;
+      }
       agentWss.handleUpgrade(req, socket, head, (ws) => {
         agentWss.emit('connection', ws, req, { agentId });
       });
@@ -13635,6 +15818,16 @@ function runServe(flags) {
   const interval = setInterval(() => {
     if (Date.now() < parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000)) return;
     if (updating) return;
+    const hasRealtimeClients = realtimeClientCounts().total_open > 0;
+    if (!hasRealtimeClients) {
+      const idleCadenceMs = Math.max(
+        60_000,
+        parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 30
+      );
+      if ((Date.now() - parseNonNegativeInt(lastSnapshotBuildAtMs, 0, 1000000000000)) < idleCadenceMs) {
+        return;
+      }
+    }
     updating = true;
     let followupRefreshNeeded = false;
     try {
@@ -13665,25 +15858,82 @@ function runServe(flags) {
 
   const contractInterval = setInterval(() => {
     const activeAgents = activeAgentCountFromSnapshot(latestSnapshot, 0);
+    const lowScaleFloorMs = Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_MS, 2000);
+    const loadPenaltyMs = Math.min(2500, parseNonNegativeInt(lastSnapshotBuildDurationMs, 0, 1000000000));
+    const lowScaleIntervalMs = Math.min(5000, lowScaleFloorMs + Math.round(loadPenaltyMs * 0.5));
     const dynamicIntervalMs = activeAgents >= AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD
-      ? AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS
+      ? Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS, 5000)
       : activeAgents >= AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD
-        ? AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS
+        ? Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS, 4000)
         : activeAgents >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD
-          ? AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS
-          : AGENT_CONTRACT_ENFORCE_INTERVAL_MS;
+          ? Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS, 3000)
+          : lowScaleIntervalMs;
     const nowMs = Date.now();
+    const hasRealtimeClients = realtimeClientCounts().total_open > 0;
+    if (!hasRealtimeClients) {
+      const idleContractCadenceMs = Math.max(15_000, dynamicIntervalMs * 3);
+      if ((nowMs - parseNonNegativeInt(lastContractLoopRunAtMs, 0, 1000000000000)) < idleContractCadenceMs) {
+        return;
+      }
+    }
+    if (updating) {
+      return;
+    }
     if ((nowMs - parseNonNegativeInt(lastContractLoopRunAtMs, 0, 1000000000000)) < dynamicIntervalMs) {
       return;
     }
     if (scheduleContractEnforcement('interval')) {
       lastContractLoopRunAtMs = nowMs;
     }
-  }, AGENT_CONTRACT_ENFORCE_INTERVAL_MS);
+  }, Math.max(500, AGENT_CONTRACT_ENFORCE_INTERVAL_MS));
 
   const compactInterval = setInterval(() => {
     compactSnapshotHistory('interval', false);
+    cleanupChatExports();
   }, SNAPSHOT_HISTORY_COMPACT_INTERVAL_MS);
+
+  const wsHeartbeatInterval = setInterval(() => {
+    const nowMs = Date.now();
+    for (const client of Array.from(wsClients)) {
+      if (!client || client.readyState !== 1) {
+        dropSnapshotSocket(client);
+        continue;
+      }
+      const lastSeenMs = parseNonNegativeInt(wsClientHeartbeat.get(client), 0, 1_000_000_000_000);
+      if (lastSeenMs > 0 && (nowMs - lastSeenMs) > WS_HEARTBEAT_TIMEOUT_MS) {
+        try { client.terminate(); } catch {}
+        dropSnapshotSocket(client);
+        continue;
+      }
+      try {
+        client.ping();
+      } catch {}
+    }
+    for (const [client, agentId] of Array.from(agentWsClients.entries())) {
+      if (!client || client.readyState !== 1) {
+        dropAgentSocket(client);
+        continue;
+      }
+      if (agentInactiveForRealtime(agentId)) {
+        sendWs(client, { type: 'agent_archived', agent_id: agentId, ts: nowIso(), reason: 'agent_inactive' });
+        try { client.close(1008, 'agent_inactive'); } catch {}
+        dropAgentSocket(client);
+        continue;
+      }
+      const lastSeenMs = parseNonNegativeInt(agentWsHeartbeat.get(client), 0, 1_000_000_000_000);
+      if (lastSeenMs > 0 && (nowMs - lastSeenMs) > WS_HEARTBEAT_TIMEOUT_MS) {
+        try { client.terminate(); } catch {}
+        dropAgentSocket(client);
+        continue;
+      }
+      try {
+        client.ping();
+      } catch {}
+    }
+  }, WS_HEARTBEAT_INTERVAL_MS);
+  if (wsHeartbeatInterval && typeof wsHeartbeatInterval.unref === 'function') {
+    wsHeartbeatInterval.unref();
+  }
 
   server.listen(flags.port, flags.host, () => {
     const dashboardUrl = `http://${flags.host}:${flags.port}/dashboard`;
@@ -13712,6 +15962,7 @@ function runServe(flags) {
     clearInterval(interval);
     clearInterval(contractInterval);
     clearInterval(compactInterval);
+    clearInterval(wsHeartbeatInterval);
     closeAllTerminalSessions('dashboard_shutdown');
     for (const client of wsClients) {
       try {
@@ -13723,6 +15974,10 @@ function runServe(flags) {
         client.close();
       } catch {}
     }
+    wsClients.clear();
+    agentWsClients.clear();
+    wsClientHeartbeat.clear();
+    agentWsHeartbeat.clear();
     try {
       server.close();
     } catch {}
