@@ -4254,6 +4254,110 @@ function terminateAgentForContract(agentId, snapshot, reason = 'timeout', option
   };
 }
 
+function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs, idleThreshold, sessionActivityCache = null) {
+  const contracts = state && state.contracts && typeof state.contracts === 'object' ? state.contracts : {};
+  const runtime = runtimeSyncSummary(snapshot);
+  const activityCache =
+    sessionActivityCache && typeof sessionActivityCache.get === 'function' ? sessionActivityCache : new Map();
+  const contractsPayload = Object.entries(contracts)
+    .map(([agentId, contract]) => {
+      const id = cleanText(agentId || '', 140);
+      if (!id || !contract || typeof contract !== 'object') return null;
+      const activeRow = Array.isArray(activeRows) ? activeRows.find((row) => row && row.id === id) : null;
+      let sessionUpdatedMs = activityCache.has(id) ? activityCache.get(id) : null;
+      if (sessionUpdatedMs == null) {
+        sessionUpdatedMs = agentSessionActivityTimestampMs(id);
+        activityCache.set(id, sessionUpdatedMs);
+      }
+      const spawnedAtMs = coerceTsMs(contract.spawned_at || (activeRow && activeRow.activated_at) || 0, 0);
+      const messageTimes = Array.isArray(contract.message_times_ms)
+        ? contract.message_times_ms
+            .map((value) => coerceTsMs(value, 0))
+            .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+      const messageActivityMs = messageTimes.length > 0 ? Math.max(...messageTimes) : 0;
+      const activityMs = Math.max(
+        spawnedAtMs,
+        parseNonNegativeInt(sessionUpdatedMs, 0, 1000000000000),
+        parseNonNegativeInt(messageActivityMs, 0, 1000000000000)
+      );
+      const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
+      return {
+        agent_id: id,
+        status: cleanText(contract.status || 'active', 24) || 'active',
+        termination_condition: cleanText(contract.termination_condition || 'task_or_timeout', 40) || 'task_or_timeout',
+        revoked_at: cleanText(contract.revoked_at || '', 80),
+        completed_at: cleanText(contract.completed_at || '', 80),
+        remaining_ms: contractRemainingMs(contract, nowMs),
+        idle_for_ms: idleForMs,
+      };
+    })
+    .filter(Boolean);
+  const payload = {
+    ...runtimeAuthorityPayload(runtime),
+    authority_mode: 'contract_enforcement',
+    now_ms: nowMs,
+    idle_threshold: parsePositiveInt(idleThreshold, AGENT_CONTRACT_MAX_IDLE_AGENTS, 1, 1000),
+    idle_termination_ms: AGENT_IDLE_TERMINATION_MS,
+    idle_batch: AGENT_IDLE_TERMINATION_BATCH,
+    idle_batch_max: AGENT_IDLE_TERMINATION_BATCH_MAX,
+    idle_cooldown_ms: AGENT_IDLE_TERMINATION_COOLDOWN_MS,
+    idle_since_last_ms: Math.max(
+      0,
+      nowMs - parseNonNegativeInt(agentTerminationSweepState.last_idle_run_ms, 0, 1000000000000)
+    ),
+    active_agent_count: Array.isArray(activeRows) ? activeRows.length : 0,
+    contracts: contractsPayload,
+  };
+  const cacheKey = `runtime.contracts.authority.${sha256(JSON.stringify(payload)).slice(0, 24)}`;
+  const lane = runLaneCached(
+    cacheKey,
+    [
+      'runtime-systems',
+      'run',
+      '--system-id=V6-DASHBOARD-007.2',
+      '--strict=1',
+      '--apply=0',
+      `--payload-json=${JSON.stringify(payload)}`,
+    ],
+    {
+      timeout_ms: RUNTIME_AUTHORITY_LANE_TIMEOUT_MS,
+      ttl_ms: RUNTIME_AUTHORITY_CACHE_TTL_MS,
+      fail_ttl_ms: RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS,
+    }
+  );
+  const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
+  const contractExecution =
+    lanePayload &&
+    lanePayload.contract_execution &&
+    typeof lanePayload.contract_execution === 'object'
+      ? lanePayload.contract_execution
+      : null;
+  const specificChecks =
+    contractExecution &&
+    contractExecution.specific_checks &&
+    typeof contractExecution.specific_checks === 'object'
+      ? contractExecution.specific_checks
+      : null;
+  const dashboardAuthority =
+    specificChecks &&
+    specificChecks.dashboard_runtime_authority &&
+    typeof specificChecks.dashboard_runtime_authority === 'object'
+      ? specificChecks.dashboard_runtime_authority
+      : null;
+  const contractEnforcement =
+    dashboardAuthority &&
+    dashboardAuthority.contract_enforcement &&
+    typeof dashboardAuthority.contract_enforcement === 'object'
+      ? dashboardAuthority.contract_enforcement
+      : null;
+  return {
+    ok: !!(lane && lane.ok && contractEnforcement),
+    lane: laneOutcome(lane || null),
+    contract_enforcement: contractEnforcement,
+  };
+}
+
 function contractTerminationDecision(contract, nowMs = Date.now()) {
   if (!contract || contract.status !== 'active') return '';
   if (contract.revoked_at) return 'manual_revocation';
@@ -4442,12 +4546,41 @@ function enforceAgentContracts(snapshot, options = {}) {
     }
   }
 
+  const latestState = loadAgentContractsState();
+  const idleThreshold = parsePositiveInt(
+    latestState && latestState.defaults ? latestState.defaults.max_idle_agents : AGENT_CONTRACT_MAX_IDLE_AGENTS,
+    AGENT_CONTRACT_MAX_IDLE_AGENTS,
+    1,
+    1000
+  );
+  const rustContractAuthority = contractEnforcementAuthorityFromRust(
+    snapshot,
+    latestState,
+    activeRows,
+    nowMs,
+    idleThreshold,
+    sessionActivityCache
+  );
+  const rustTerminationsById = new Map(
+    rustContractAuthority &&
+      rustContractAuthority.ok &&
+      rustContractAuthority.contract_enforcement &&
+      Array.isArray(rustContractAuthority.contract_enforcement.termination_decisions)
+      ? rustContractAuthority.contract_enforcement.termination_decisions
+          .map((row) => [
+            cleanText(row && row.agent_id ? row.agent_id : '', 140),
+            cleanText(row && row.reason ? row.reason : '', 120),
+          ])
+          .filter(([id, reason]) => !!id && !!reason)
+      : []
+  );
+
   const terminations = [];
   const currentContracts = Object.entries((loadAgentContractsState() || {}).contracts || {});
   for (const [agentId, contract] of currentContracts) {
     const id = cleanText(agentId || '', 140);
     if (!id || !contract || contract.status !== 'active') continue;
-    const reason = contractTerminationDecision(contract, nowMs);
+    const reason = rustTerminationsById.get(id) || contractTerminationDecision(contract, nowMs);
     if (!reason) continue;
     const roleRow = activeRows.find((row) => row && row.id === id);
     const terminated = terminateAgentForContract(id, snapshot, reason, {
@@ -4461,59 +4594,83 @@ function enforceAgentContracts(snapshot, options = {}) {
     }
   }
 
-  const latestState = loadAgentContractsState();
-  const idleThreshold = parsePositiveInt(
-    latestState && latestState.defaults ? latestState.defaults.max_idle_agents : AGENT_CONTRACT_MAX_IDLE_AGENTS,
-    AGENT_CONTRACT_MAX_IDLE_AGENTS,
-    1,
-    1000
-  );
-  const idleCandidates = [];
-  for (const [agentId, contract] of Object.entries((latestState && latestState.contracts) || {})) {
-    const id = cleanText(agentId || '', 140);
-    if (!id || !contract || contract.status !== 'active') continue;
-    if (!activeIds.has(id)) continue;
-    const messageTimes = Array.isArray(contract.message_times_ms)
-      ? contract.message_times_ms
-          .map((value) => coerceTsMs(value, 0))
-          .filter((value) => Number.isFinite(value) && value > 0)
-      : [];
-    const messageActivityMs = messageTimes.length > 0 ? Math.max(...messageTimes) : 0;
-    let sessionUpdatedMs = sessionActivityCache.has(id)
-      ? sessionActivityCache.get(id)
-      : null;
-    if (sessionUpdatedMs == null) {
-      sessionUpdatedMs = agentSessionActivityTimestampMs(id);
-      sessionActivityCache.set(id, sessionUpdatedMs);
+  let idleCandidates = [];
+  if (
+    rustContractAuthority &&
+    rustContractAuthority.ok &&
+    rustContractAuthority.contract_enforcement &&
+    Array.isArray(rustContractAuthority.contract_enforcement.idle_candidates)
+  ) {
+    idleCandidates = rustContractAuthority.contract_enforcement.idle_candidates
+      .map((row) => {
+        const id = cleanText(row && row.agent_id ? row.agent_id : '', 140);
+        if (!id) return null;
+        return {
+          id,
+          idleForMs: parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000),
+          activity_ms: Math.max(0, nowMs - parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000)),
+          role: cleanText(
+            activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
+            80
+          ),
+        };
+      })
+      .filter(Boolean);
+  } else {
+    for (const [agentId, contract] of Object.entries((latestState && latestState.contracts) || {})) {
+      const id = cleanText(agentId || '', 140);
+      if (!id || !contract || contract.status !== 'active') continue;
+      if (!activeIds.has(id)) continue;
+      const messageTimes = Array.isArray(contract.message_times_ms)
+        ? contract.message_times_ms
+            .map((value) => coerceTsMs(value, 0))
+            .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+      const messageActivityMs = messageTimes.length > 0 ? Math.max(...messageTimes) : 0;
+      let sessionUpdatedMs = sessionActivityCache.has(id)
+        ? sessionActivityCache.get(id)
+        : null;
+      if (sessionUpdatedMs == null) {
+        sessionUpdatedMs = agentSessionActivityTimestampMs(id);
+        sessionActivityCache.set(id, sessionUpdatedMs);
+      }
+      const contractSpawnedMs = coerceTsMs(contract.spawned_at, 0);
+      const activityMs = Math.max(messageActivityMs, sessionUpdatedMs, contractSpawnedMs);
+      const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
+      if (idleForMs < AGENT_IDLE_TERMINATION_MS) continue;
+      idleCandidates.push({
+        id,
+        idleForMs,
+        activity_ms: activityMs,
+        role: cleanText(
+          activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
+          80
+        ),
+      });
     }
-    const contractSpawnedMs = coerceTsMs(contract.spawned_at, 0);
-    const activityMs = Math.max(messageActivityMs, sessionUpdatedMs, contractSpawnedMs);
-    const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
-    if (idleForMs < AGENT_IDLE_TERMINATION_MS) continue;
-    idleCandidates.push({
-      id,
-      idleForMs,
-      activity_ms: activityMs,
-      role: cleanText(
-        activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
-        80
-      ),
-    });
+    idleCandidates.sort((a, b) => b.idleForMs - a.idleForMs);
   }
-  idleCandidates.sort((a, b) => b.idleForMs - a.idleForMs);
-  const idleExcess = Math.max(0, idleCandidates.length - idleThreshold);
-  const idleSweepReady =
-    idleExcess > 0 &&
-    (nowMs - parseNonNegativeInt(agentTerminationSweepState.last_idle_run_ms, 0, 1000000000000)) >=
-      AGENT_IDLE_TERMINATION_COOLDOWN_MS;
-  const idleBatchSize = Math.min(
-    AGENT_IDLE_TERMINATION_BATCH_MAX,
-    Math.max(
-      scaleAwareBatchSize(activeAgentCount, AGENT_IDLE_TERMINATION_BATCH, AGENT_IDLE_TERMINATION_BATCH_MAX),
-      Math.ceil(idleExcess / 6)
-    ),
-    idleExcess
-  );
+  const rustIdle = rustContractAuthority && rustContractAuthority.ok && rustContractAuthority.contract_enforcement
+    ? rustContractAuthority.contract_enforcement
+    : null;
+  const idleExcess = rustIdle && rustIdle.idle_excess != null
+    ? parseNonNegativeInt(rustIdle.idle_excess, 0, 100000000)
+    : Math.max(0, idleCandidates.length - idleThreshold);
+  const idleSweepReady = rustIdle && rustIdle.idle_sweep_ready != null
+    ? !!rustIdle.idle_sweep_ready
+    : idleExcess > 0 &&
+      (nowMs - parseNonNegativeInt(agentTerminationSweepState.last_idle_run_ms, 0, 1000000000000)) >=
+        AGENT_IDLE_TERMINATION_COOLDOWN_MS;
+  const idleBatchSize = rustIdle && rustIdle.idle_batch_size != null
+    ? parseNonNegativeInt(rustIdle.idle_batch_size, 0, AGENT_IDLE_TERMINATION_BATCH_MAX)
+    : Math.min(
+        AGENT_IDLE_TERMINATION_BATCH_MAX,
+        Math.max(
+          scaleAwareBatchSize(activeAgentCount, AGENT_IDLE_TERMINATION_BATCH, AGENT_IDLE_TERMINATION_BATCH_MAX),
+          Math.ceil(idleExcess / 6)
+        ),
+        idleExcess
+      );
   let idleTerminatedCount = 0;
   if (idleSweepReady) {
     agentTerminationSweepState.last_idle_run_ms = nowMs;
@@ -8938,14 +9095,30 @@ function launchRuntimeDrainAgent(team, indexHint = 0) {
   };
 }
 
-function applyRuntimePredictiveDrain(snapshot, team, runtime) {
+function applyRuntimePredictiveDrain(snapshot, team, runtime, recommendation = null) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const activeBefore = trackedRuntimeDrainAgents(snapshot);
   const launches = [];
   const turns = [];
   const archived = [];
-  const required = queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
-  const release = queueDepth <= RUNTIME_DRAIN_CLEAR_DEPTH;
+  const rustRecommendations =
+    recommendation &&
+    recommendation.predictive_drain_required != null &&
+    recommendation.predictive_drain_release != null
+      ? null
+      : runtimeAuthoritySection(runtime, null, 'recommendations').section;
+  const required =
+    recommendation && recommendation.predictive_drain_required != null
+      ? !!recommendation.predictive_drain_required
+      : rustRecommendations && rustRecommendations.predictive_drain_required != null
+      ? !!rustRecommendations.predictive_drain_required
+      : queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const release =
+    recommendation && recommendation.predictive_drain_release != null
+      ? !!recommendation.predictive_drain_release
+      : rustRecommendations && rustRecommendations.predictive_drain_release != null
+      ? !!rustRecommendations.predictive_drain_release
+      : queueDepth <= RUNTIME_DRAIN_CLEAR_DEPTH;
   if (required) {
     const desiredFloor =
       queueDepth >= RUNTIME_DRAIN_HIGH_LOAD_DEPTH
@@ -9089,6 +9262,23 @@ function runtimeAuthorityFromRust(runtime) {
     authority,
     lane: laneOutcome(lane),
   };
+}
+
+function runtimeAuthoritySection(runtime, rustAuthority, key) {
+  const authority =
+    rustAuthority && rustAuthority.ok && rustAuthority.authority && typeof rustAuthority.authority === 'object'
+      ? rustAuthority
+      : runtimeAuthorityFromRust(runtime);
+  const section =
+    authority &&
+    authority.ok &&
+    authority.authority &&
+    typeof authority.authority === 'object' &&
+    authority.authority[key] &&
+    typeof authority.authority[key] === 'object'
+      ? authority.authority[key]
+      : null;
+  return { authority, section };
 }
 
 function classifyIngressControl(runtime, rustAuthority = null) {
@@ -9235,7 +9425,42 @@ function cockpitSignalState(runtime, rustAuthority = null) {
   };
 }
 
-function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0) {
+function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0, rustAuthority = null) {
+  const rust = runtimeAuthoritySection(runtime, rustAuthority, 'reliability_posture');
+  if (rust.section) {
+    return {
+      degraded: !!rust.section.degraded,
+      spine_success_rate: Number.isFinite(Number(rust.section.spine_success_rate))
+        ? Number(rust.section.spine_success_rate)
+        : Number.isFinite(Number(runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN))
+        ? Number(runtime.spine_success_rate)
+        : 1,
+      spine_success_target: Number.isFinite(Number(rust.section.spine_success_target))
+        ? Number(rust.section.spine_success_target)
+        : RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+      spine_metrics_stale: !!rust.section.spine_metrics_stale,
+      spine_degraded: !!rust.section.spine_degraded,
+      escalation_open_rate: Number.isFinite(Number(rust.section.escalation_open_rate))
+        ? Number(rust.section.escalation_open_rate)
+        : 0,
+      escalation_starved: !!rust.section.escalation_starved,
+      handoff_count: parseNonNegativeInt(rust.section.handoff_count, 0, 100000000),
+      handoffs_per_agent: Number.isFinite(Number(rust.section.handoffs_per_agent))
+        ? Number(rust.section.handoffs_per_agent)
+        : 0,
+      handoffs_per_agent_min: Number.isFinite(Number(rust.section.handoffs_per_agent_min))
+        ? Number(rust.section.handoffs_per_agent_min)
+        : RUNTIME_HANDOFFS_PER_AGENT_MIN,
+      handoff_coverage_weak: !!rust.section.handoff_coverage_weak,
+      active_swarm_agents: parseNonNegativeInt(
+        rust.section.active_swarm_agents,
+        parseNonNegativeInt(activeSwarmAgents, 0, 100000000),
+        100000000
+      ),
+      authority: 'rust_runtime_systems',
+      lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
+    };
+  }
   const spineSuccessRateRaw = Number(runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN);
   const spineSuccessRate = Number.isFinite(spineSuccessRateRaw) ? Number(spineSuccessRateRaw) : 1;
   const spineMetricsStale = !!(runtime && runtime.spine_metrics_stale === true);
@@ -9266,10 +9491,40 @@ function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0) {
     handoffs_per_agent_min: RUNTIME_HANDOFFS_PER_AGENT_MIN,
     handoff_coverage_weak: handoffCoverageWeak,
     active_swarm_agents: parseNonNegativeInt(activeSwarmAgents, 0, 100000000),
+    authority: 'ts_fallback',
+    lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
   };
 }
 
-function runtimeSloGate(runtime, reliabilityPosture = null) {
+function runtimeSloGate(runtime, reliabilityPosture = null, rustAuthority = null) {
+  const rust = runtimeAuthoritySection(runtime, rustAuthority, 'slo_gate');
+  if (rust.section) {
+    return {
+      required: !!rust.section.required,
+      severity: cleanText(rust.section.severity || 'ok', 24) || 'ok',
+      block_scale: !!rust.section.block_scale,
+      containment_required: !!rust.section.containment_required,
+      escalation_required: Array.isArray(rust.section.failed_checks)
+        ? rust.section.failed_checks.some((row) => cleanText(row, 80) === 'human_escalation_open_rate')
+        : false,
+      failed_checks: Array.isArray(rust.section.failed_checks) ? rust.section.failed_checks.slice(0, 16) : [],
+      checks: Array.isArray(rust.section.checks) ? rust.section.checks.slice(0, 16) : [],
+      stale_metrics: !!rust.section.stale_metrics,
+      summary: cleanText(rust.section.summary || '', 260),
+      thresholds:
+        rust.section.thresholds && typeof rust.section.thresholds === 'object'
+          ? rust.section.thresholds
+          : {
+              spine_success_rate_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
+              receipt_latency_p95_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
+              receipt_latency_p99_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
+              queue_depth_max: RUNTIME_SLO_QUEUE_DEPTH_MAX,
+              escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
+            },
+      authority: 'rust_runtime_systems',
+      lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
+    };
+  }
   const spineSuccessRateRaw = Number(
     runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN
   );
@@ -9422,6 +9677,8 @@ function runtimeSloGate(runtime, reliabilityPosture = null) {
       queue_depth_max: RUNTIME_SLO_QUEUE_DEPTH_MAX,
       escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
     },
+    authority: 'ts_fallback',
+    lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
   };
 }
 
@@ -9483,7 +9740,7 @@ function staleLaneRefreshCommand(laneName, team) {
   return null;
 }
 
-function maybeHealCoarseSignal(snapshot, runtime, team) {
+function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
   const signal = cockpitSignalState(runtime);
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
@@ -9506,12 +9763,22 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
   const chronicCoordinationPathology =
     staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN && signalDeficit > 0;
   const staleAutohealNeeded = staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
-  const required =
+  const fallbackRequired =
     (signal.coarse && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     signalDeficitPressure ||
     stalePressure ||
     chronicCoordinationPathology ||
     staleAutohealNeeded;
+  const rustRecommendations =
+    recommendation && recommendation.coarse_signal_remediation_required != null
+      ? null
+      : runtimeAuthoritySection(runtime, null, 'recommendations').section;
+  const required =
+    recommendation && recommendation.coarse_signal_remediation_required != null
+      ? !!recommendation.coarse_signal_remediation_required
+      : rustRecommendations && rustRecommendations.coarse_signal_remediation_required != null
+      ? !!rustRecommendations.coarse_signal_remediation_required
+      : fallbackRequired;
   if (!required) {
     return {
       required: false,
@@ -9678,9 +9945,19 @@ function maybeHealCoarseSignal(snapshot, runtime, team) {
 }
 
 function maybeEmitReliabilityEscalation(recommendation, runtime) {
+  const rustReliability =
+    recommendation && recommendation.reliability_gate_required != null && recommendation.escalation_starved != null
+      ? { section: null, authority: null }
+      : runtimeAuthoritySection(runtime, null, 'reliability_posture');
+  const rustSloGate =
+    recommendation && recommendation.slo_gate && typeof recommendation.slo_gate === 'object'
+      ? { section: null, authority: null }
+      : runtimeAuthoritySection(runtime, rustReliability.authority, 'slo_gate');
   const sloGate =
     recommendation && recommendation.slo_gate && typeof recommendation.slo_gate === 'object'
       ? recommendation.slo_gate
+      : rustSloGate.section && typeof rustSloGate.section === 'object'
+      ? rustSloGate.section
       : null;
   const staleMetricsWithPathology =
     !!(sloGate && sloGate.stale_metrics) &&
@@ -9688,6 +9965,7 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
       RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
   const required =
     !!(recommendation && recommendation.reliability_gate_required) ||
+    !!(rustReliability.section && rustReliability.section.degraded) ||
     !!(sloGate && sloGate.required) ||
     staleMetricsWithPathology;
   const escalationOpenRate = Number(
@@ -9700,6 +9978,7 @@ function maybeEmitReliabilityEscalation(recommendation, runtime) {
   const escalationKnown = Number.isFinite(escalationOpenRate);
   const escalationStarved =
     !!(recommendation && recommendation.escalation_starved) ||
+    !!(rustReliability.section && rustReliability.section.escalation_starved) ||
     (required && escalationKnown && escalationOpenRate <= RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN);
   const spineRate = Number(
     recommendation && recommendation.spine_success_rate != null ? recommendation.spine_success_rate : Number.NaN
@@ -9875,7 +10154,16 @@ function maybeRunSpineMetricsCanary(recommendation, runtime) {
     0,
     1000000000
   );
-  const required = stale && latestAgeSeconds >= RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS;
+  const rustRecommendations =
+    recommendation && recommendation.spine_canary_required != null
+      ? null
+      : runtimeAuthoritySection(runtime, null, 'recommendations').section;
+  const required =
+    recommendation && recommendation.spine_canary_required != null
+      ? !!recommendation.spine_canary_required
+      : rustRecommendations && rustRecommendations.spine_canary_required != null
+      ? !!rustRecommendations.spine_canary_required
+      : stale && latestAgeSeconds >= RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS;
   if (!required) {
     return {
       required: false,
@@ -9931,7 +10219,7 @@ function maybeRunSpineMetricsCanary(recommendation, runtime) {
   };
 }
 
-function maybeRefreshBenchmarkSanity(runtime) {
+function maybeRefreshBenchmarkSanity(runtime, recommendation = null) {
   const cockpitStatus =
     cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : 'unknown', 24) ||
     'unknown';
@@ -9946,7 +10234,16 @@ function maybeRefreshBenchmarkSanity(runtime) {
   );
   const stale = ageSeconds < 0 || ageSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
   const failing = cockpitStatus === 'fail' || mirrorStatus === 'fail';
-  const required = failing || stale;
+  const rustRecommendations =
+    recommendation && recommendation.benchmark_refresh_required != null
+      ? null
+      : runtimeAuthoritySection(runtime, null, 'recommendations').section;
+  const required =
+    recommendation && recommendation.benchmark_refresh_required != null
+      ? !!recommendation.benchmark_refresh_required
+      : rustRecommendations && rustRecommendations.benchmark_refresh_required != null
+      ? !!rustRecommendations.benchmark_refresh_required
+      : failing || stale;
   if (!required) {
     return {
       required: false,
@@ -10044,7 +10341,7 @@ function maybeRefreshBenchmarkSanity(runtime) {
   };
 }
 
-function maybeAutoHealConduit(runtime, team) {
+function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const signals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
   const staleCockpitBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
@@ -10130,7 +10427,7 @@ function maybeAutoHealConduit(runtime, team) {
     conduitWatchdogState.low_signals_since_ms = lowSince;
   }
   const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
-  const required =
+  const fallbackRequired =
     staleMaintenance ||
     (
       lowSignals &&
@@ -10144,6 +10441,16 @@ function maybeAutoHealConduit(runtime, team) {
         signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3))
       )
     );
+  const rustRecommendations =
+    recommendation && recommendation.conduit_watchdog_required != null
+      ? null
+      : runtimeAuthoritySection(runtime, null, 'recommendations').section;
+  const required =
+    recommendation && recommendation.conduit_watchdog_required != null
+      ? !!recommendation.conduit_watchdog_required
+      : rustRecommendations && rustRecommendations.conduit_watchdog_required != null
+      ? !!rustRecommendations.conduit_watchdog_required
+      : fallbackRequired;
   if (!required) {
     return {
       required: false,
@@ -10584,8 +10891,8 @@ function runtimeSwarmRecommendation(snapshot) {
   const team = DEFAULT_TEAM;
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeSwarmAgents = parseNonNegativeInt(agents.length, 0, 100000000);
-  const reliabilityPosture = runtimeReliabilityPosture(runtime, activeSwarmAgents);
-  const sloGate = runtimeSloGate(runtime, reliabilityPosture);
+  const reliabilityPosture = runtimeReliabilityPosture(runtime, activeSwarmAgents, runtimeAuthority);
+  const sloGate = runtimeSloGate(runtime, reliabilityPosture, runtimeAuthority);
   const swarmScalePressure =
     runtime.queue_depth >= RUNTIME_DRAIN_HIGH_LOAD_DEPTH &&
     activeSwarmAgents < RUNTIME_DRAIN_AGENT_HIGH_LOAD_TARGET;
@@ -10749,10 +11056,12 @@ function runtimeSwarmRecommendation(snapshot) {
     1000000000
   );
   const benchmarkRefreshRequired =
-    cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : '', 24) === 'fail' ||
-    cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : '', 24) === 'fail' ||
-    benchmarkAgeSeconds < 0 ||
-    benchmarkAgeSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
+    authorityRecommendations && authorityRecommendations.benchmark_refresh_required != null
+      ? !!authorityRecommendations.benchmark_refresh_required
+      : cleanText(runtime && runtime.benchmark_sanity_cockpit_status ? runtime.benchmark_sanity_cockpit_status : '', 24) === 'fail' ||
+        cleanText(runtime && runtime.benchmark_sanity_status ? runtime.benchmark_sanity_status : '', 24) === 'fail' ||
+        benchmarkAgeSeconds < 0 ||
+        benchmarkAgeSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
   const drainAgents = trackedRuntimeDrainAgents(snapshot);
   const predictiveDrainRequired =
     authorityRecommendations && authorityRecommendations.predictive_drain_required != null
@@ -10765,10 +11074,12 @@ function runtimeSwarmRecommendation(snapshot) {
   const predictiveDrainAllowed = !reliabilityPosture.degraded && !sloGate.block_scale;
   const coarseSignalDeficit = Math.max(0, runtime.target_conduit_signals - runtime.conduit_signals);
   const coarseSignalRemediationRequired =
-    (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
-    (coarseSignalDeficit > 0 && runtime.queue_depth >= RUNTIME_INGRESS_DAMPEN_DEPTH) ||
-    stalePressure ||
-    staleAutohealNeeded;
+    authorityRecommendations && authorityRecommendations.coarse_signal_remediation_required != null
+      ? !!authorityRecommendations.coarse_signal_remediation_required
+      : (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
+        (coarseSignalDeficit > 0 && runtime.queue_depth >= RUNTIME_INGRESS_DAMPEN_DEPTH) ||
+        stalePressure ||
+        staleAutohealNeeded;
   const spineMetricsStale = !!runtime.spine_metrics_stale;
   const spineMetricsLatestAgeSeconds = parseNonNegativeInt(
     runtime && runtime.spine_metrics_latest_age_seconds != null ? runtime.spine_metrics_latest_age_seconds : 0,
@@ -10776,7 +11087,14 @@ function runtimeSwarmRecommendation(snapshot) {
     1000000000
   );
   const spineCanaryRequired =
-    spineMetricsStale && spineMetricsLatestAgeSeconds >= RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS;
+    authorityRecommendations && authorityRecommendations.spine_canary_required != null
+      ? !!authorityRecommendations.spine_canary_required
+      : spineMetricsStale && spineMetricsLatestAgeSeconds >= RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS;
+  const conduitWatchdogRequired =
+    authorityRecommendations && authorityRecommendations.conduit_watchdog_required != null
+      ? !!authorityRecommendations.conduit_watchdog_required
+      : runtime.conduit_signals < authorityTargetConduitSignals &&
+        runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const shouldRecommend =
     rolePlan.length > 0 ||
     throttleRequired ||
@@ -10874,6 +11192,7 @@ function runtimeSwarmRecommendation(snapshot) {
     predictive_drain_clear_depth: RUNTIME_DRAIN_CLEAR_DEPTH,
     predictive_drain_active_agents: drainAgents.slice(0, 8),
     coarse_signal_remediation_required: coarseSignalRemediationRequired,
+    conduit_watchdog_required: conduitWatchdogRequired,
     ingress_control: ingressControl,
     authority:
       runtimeAuthority && runtimeAuthority.ok
@@ -10967,7 +11286,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     lane: spineCanary.lane,
   });
 
-  const benchmarkRefresh = maybeRefreshBenchmarkSanity(runtime);
+  const benchmarkRefresh = maybeRefreshBenchmarkSanity(runtime, recommendation);
   policies.push({
     policy: 'benchmark_sanity_refresh',
     required: !!benchmarkRefresh.required,
@@ -11109,7 +11428,12 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     lane: reliabilityEscalation.lane,
   });
 
-  const coarseRemediation = maybeHealCoarseSignal(snapshot, runtime, recommendation.team || DEFAULT_TEAM);
+  const coarseRemediation = maybeHealCoarseSignal(
+    snapshot,
+    runtime,
+    recommendation.team || DEFAULT_TEAM,
+    recommendation
+  );
   policies.push({
     policy: 'coarse_lane_demotion',
     required: !!(coarseRemediation && coarseRemediation.lane_demotion && coarseRemediation.lane_demotion.required),
@@ -11185,7 +11509,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
         : null,
   });
 
-  const conduitWatchdog = maybeAutoHealConduit(runtime, recommendation.team || DEFAULT_TEAM);
+  const conduitWatchdog = maybeAutoHealConduit(runtime, recommendation.team || DEFAULT_TEAM, recommendation);
   policies.push({
     policy: 'conduit_watchdog_autorestart',
     required: !!conduitWatchdog.required,
@@ -11266,7 +11590,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
         archived: [],
         blocked_by_reliability: true,
       }
-    : applyRuntimePredictiveDrain(snapshot, recommendation.team || DEFAULT_TEAM, runtime);
+    : applyRuntimePredictiveDrain(snapshot, recommendation.team || DEFAULT_TEAM, runtime, recommendation);
   if (Array.isArray(predictiveDrain.launches)) {
     for (const launch of predictiveDrain.launches) {
       launches.push({
