@@ -13,7 +13,7 @@ const IMPLEMENTATION = path.join(
   'tooling',
   'scripts',
   'ops',
-  'f100_readiness_remediation_impl.js'
+  'f100_readiness_remediation_impl.ts'
 );
 
 function run() {
