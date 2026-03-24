@@ -848,7 +848,8 @@ fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
             }
         }
         EdgeBridgeMessage::EdgeInference { prompt, max_tokens } => {
-            if !cfg!(feature = "edge") {
+            #[cfg(not(feature = "edge"))]
+            {
                 let detail = serde_json::json!({
                     "ok": false,
                     "type": "edge_inference",
@@ -864,29 +865,32 @@ fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
                     violation_reason: Some("edge_feature_disabled".to_string()),
                 };
             }
-            let normalized = normalize_edge_prompt(&prompt);
-            let token_cap = max_tokens.unwrap_or(64).clamp(1, 256) as usize;
-            let output_text = summarize_for_edge_backend(&normalized, token_cap);
-            let output_tokens = output_text.split_whitespace().count() as u32;
-            let mut detail = serde_json::json!({
-                "ok": true,
-                "type": "edge_inference",
-                "backend": edge_backend_label(),
-                "input": {
-                    "prompt_hash": deterministic_hash(&normalized),
-                    "max_tokens": token_cap,
-                },
-                "output": {
-                    "text": output_text,
-                    "token_count": output_tokens,
-                    "truncated": normalized.split_whitespace().count() > token_cap
+            #[cfg(feature = "edge")]
+            {
+                let normalized = normalize_edge_prompt(&prompt);
+                let token_cap = max_tokens.unwrap_or(64).clamp(1, 256) as usize;
+                let output_text = summarize_for_edge_backend(&normalized, token_cap);
+                let output_tokens = output_text.split_whitespace().count() as u32;
+                let mut detail = serde_json::json!({
+                    "ok": true,
+                    "type": "edge_inference",
+                    "backend": edge_backend_label(),
+                    "input": {
+                        "prompt_hash": deterministic_hash(&normalized),
+                        "max_tokens": token_cap,
+                    },
+                    "output": {
+                        "text": output_text,
+                        "token_count": output_tokens,
+                        "truncated": normalized.split_whitespace().count() > token_cap
+                    }
+                });
+                detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
+                RustEvent::SystemFeedback {
+                    status: "edge_inference".to_string(),
+                    detail,
+                    violation_reason: None,
                 }
-            });
-            detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
-            RustEvent::SystemFeedback {
-                status: "edge_inference".to_string(),
-                detail,
-                violation_reason: None,
             }
         }
         EdgeBridgeMessage::SpineCommand { args, run_context } => {
@@ -1890,12 +1894,14 @@ fn execute_memory_ambient_bridge_command(args: &[String]) -> Value {
     detail
 }
 
+#[cfg(feature = "edge")]
 fn edge_backend_label() -> &'static str {
-    if cfg!(feature = "edge") {
-        "picolm_static_stub"
-    } else {
-        "edge_feature_disabled"
-    }
+    "picolm_static_stub"
+}
+
+#[cfg(not(feature = "edge"))]
+fn edge_backend_label() -> &'static str {
+    "edge_feature_disabled"
 }
 
 fn normalize_edge_prompt(prompt: &str) -> String {
@@ -2265,7 +2271,8 @@ mod tests {
     use super::{
         conduit_message_contract_count, process_command, run_stdio_once,
         validate_conduit_contract_budget, ConduitPolicy, ConduitSecurityContext,
-        EchoCommandHandler, KernelLaneCommandHandler, PolicyGate, RegistryPolicyGate, RustEvent,
+        CommandHandler, EchoCommandHandler, KernelLaneCommandHandler, PolicyGate,
+        RegistryPolicyGate, RustEvent,
         MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
     };
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
@@ -2363,6 +2370,40 @@ mod tests {
         assert_eq!(RUST_EVENT_TYPES.len(), 3);
         assert_eq!(conduit_message_contract_count(), MAX_CONDUIT_MESSAGE_TYPES);
         assert!(validate_conduit_contract_budget(MAX_CONDUIT_MESSAGE_TYPES).is_ok());
+    }
+
+    #[test]
+    fn conduit_policy_defaults_and_envelope_constructor_cover_contract_paths() {
+        let serialized = serde_json::to_value(ConduitPolicy::default()).expect("policy value");
+        let mut obj = serialized
+            .as_object()
+            .cloned()
+            .expect("policy object");
+        obj.remove("bridge_message_budget_max");
+        let restored: ConduitPolicy =
+            serde_json::from_value(Value::Object(obj)).expect("deserialize policy with defaults");
+        assert_eq!(
+            restored.bridge_message_budget_max,
+            MAX_CONDUIT_MESSAGE_TYPES,
+            "bridge message budget should use contract default when omitted"
+        );
+
+        let policy = test_policy();
+        let signed = signed_envelope(&policy, TsCommand::GetSystemStatus);
+        let constructed =
+            CommandEnvelope::new("req-new", TsCommand::GetSystemStatus, signed.security.clone());
+        assert_eq!(constructed.schema_id, super::CONDUIT_SCHEMA_ID);
+        assert_eq!(constructed.schema_version, super::CONDUIT_SCHEMA_VERSION);
+        assert_eq!(constructed.request_id, "req-new");
+        assert!(constructed.ts_ms > 0);
+
+        let allow = super::AllowAllPolicy.evaluate(&TsCommand::GetSystemStatus);
+        assert!(allow.allow);
+        assert_eq!(allow.reason, "policy_allow");
+
+        let deny = super::FailClosedPolicy.evaluate(&TsCommand::GetSystemStatus);
+        assert!(!deny.allow);
+        assert_eq!(deny.reason, "policy_gate_not_configured");
     }
 
     #[test]
@@ -2605,6 +2646,30 @@ mod tests {
     }
 
     #[test]
+    fn echo_handler_covers_stop_and_query_paths() {
+        let mut handler = EchoCommandHandler;
+        match handler.handle(&TsCommand::StopAgent {
+            agent_id: "agent-stop".to_string(),
+        }) {
+            RustEvent::AgentLifecycle { state, agent_id } => {
+                assert_eq!(state, super::AgentLifecycleState::Stopped);
+                assert_eq!(agent_id, "agent-stop");
+            }
+            other => panic!("expected stop lifecycle event, got {other:?}"),
+        }
+
+        match handler.handle(&TsCommand::QueryReceiptChain {
+            from_hash: Some("abc".to_string()),
+            limit: Some(1),
+        }) {
+            RustEvent::ReceiptAdded { receipt_hash } => {
+                assert_eq!(receipt_hash, "query_receipt_chain_ack");
+            }
+            other => panic!("expected receipt-added event, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn guard_registry_parser_handles_valid_and_invalid_inputs() {
         let valid = serde_json::json!({
             "merge_guard": {
@@ -2840,6 +2905,80 @@ mod tests {
             }
             _ => panic!("expected system feedback"),
         }
+    }
+
+    #[test]
+    fn edge_bridge_domain_variants_execute_ops_bridge_paths() {
+        let _guard = env_lock().lock().expect("env lock");
+        std::env::set_var(
+            "PROTHEUS_OPS_BIN",
+            "/definitely/missing/protheus-ops-bridge-bin",
+        );
+
+        let cases = vec![
+            (
+                super::EdgeBridgeMessage::SpineCommand {
+                    args: vec!["status".to_string()],
+                    run_context: Some("rc-test".to_string()),
+                },
+                "spine_bridge_spawn_error",
+            ),
+            (
+                super::EdgeBridgeMessage::AttentionCommand {
+                    args: vec!["status".to_string()],
+                },
+                "attention-queue_bridge_spawn_error",
+            ),
+            (
+                super::EdgeBridgeMessage::PersonaAmbientCommand {
+                    args: vec!["status".to_string()],
+                },
+                "persona-ambient_bridge_spawn_error",
+            ),
+            (
+                super::EdgeBridgeMessage::DopamineAmbientCommand {
+                    args: vec!["status".to_string()],
+                },
+                "dopamine-ambient_bridge_spawn_error",
+            ),
+            (
+                super::EdgeBridgeMessage::MemoryAmbientCommand {
+                    args: vec!["status".to_string()],
+                },
+                "memory-ambient_bridge_spawn_error",
+            ),
+            (
+                super::EdgeBridgeMessage::OpsDomainCommand {
+                    domain: "skills-plane".to_string(),
+                    args: vec!["status".to_string()],
+                    run_context: Some("rc-test".to_string()),
+                },
+                "skills-plane_bridge_spawn_error",
+            ),
+        ];
+
+        for (message, expected_status) in cases {
+            match super::execute_edge_bridge_message(message) {
+                RustEvent::SystemFeedback {
+                    status,
+                    detail,
+                    violation_reason,
+                } => {
+                    assert_eq!(status, expected_status);
+                    assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
+                    assert_eq!(detail.get("type").and_then(Value::as_str), Some(expected_status));
+                    assert!(
+                        violation_reason
+                            .as_deref()
+                            .unwrap_or_default()
+                            .contains("bridge_spawn_failed")
+                    );
+                }
+                other => panic!("expected system feedback event, got {other:?}"),
+            }
+        }
+
+        std::env::remove_var("PROTHEUS_OPS_BIN");
     }
 
     #[test]
@@ -3104,6 +3243,71 @@ mod tests {
         assert!(quarantined >= 1 || healing >= 1);
         assert!(registry_path.exists(), "plugin registry must exist");
         assert!(receipts_path.exists(), "plugin receipt log must exist");
+
+        std::env::remove_var("INFRING_PLUGIN_REGISTRY_PATH");
+        std::env::remove_var("INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH");
+    }
+
+    #[test]
+    fn install_extension_reports_runtime_save_failures() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let blocked_parent = temp.path().join("blocked-parent");
+        fs::write(&blocked_parent, "file-not-dir").expect("write blocker file");
+        let registry_path = blocked_parent.join("plugin_registry.json");
+        let receipts_path = temp.path().join("plugin_runtime_receipts.jsonl");
+        let component_path = temp.path().join("plugin-ok.wasm");
+        fs::write(&component_path, b"wasm-ok").expect("write component");
+        let wasm_sha256 = super::hash_file_sha256(&component_path).expect("hash component");
+
+        std::env::set_var(
+            "INFRING_PLUGIN_REGISTRY_PATH",
+            registry_path.to_string_lossy().to_string(),
+        );
+        std::env::set_var(
+            "INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH",
+            receipts_path.to_string_lossy().to_string(),
+        );
+
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let command = signed_envelope(
+            &policy,
+            TsCommand::InstallExtension {
+                extension_id: "plugin-save-fail".to_string(),
+                wasm_sha256,
+                capabilities: vec!["metrics.read".to_string()],
+                plugin_type: Some("substrate_adapter".to_string()),
+                version: Some("0.1.0".to_string()),
+                wasm_component_path: Some(component_path.to_string_lossy().to_string()),
+                signature: None,
+                provenance: None,
+                recovery_max_attempts: None,
+                recovery_backoff_ms: None,
+            },
+        );
+        let mut handler = EchoCommandHandler;
+        let response = process_command(&command, &gate, &mut security, &mut handler);
+        assert!(response.validation.ok, "command should validate before runtime write");
+        match response.event {
+            RustEvent::SystemFeedback {
+                status,
+                detail,
+                violation_reason,
+            } => {
+                assert_eq!(status, "extension_install_failed");
+                assert_eq!(
+                    violation_reason.as_deref(),
+                    Some("extension_runtime_registration_failed")
+                );
+                assert_eq!(
+                    detail.get("extension_id").and_then(Value::as_str),
+                    Some("plugin-save-fail")
+                );
+            }
+            other => panic!("expected system feedback event, got {other:?}"),
+        }
 
         std::env::remove_var("INFRING_PLUGIN_REGISTRY_PATH");
         std::env::remove_var("INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH");

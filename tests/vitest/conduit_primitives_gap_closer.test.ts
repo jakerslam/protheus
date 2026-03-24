@@ -244,4 +244,147 @@ describe('direct conduit lane bridge coverage paths', () => {
     expect(String(receipt.error || '')).not.toHaveLength(0);
     expect(receipt.type).toBe('conduit_lane_bridge_error');
   }, 10_000);
+
+  test('findRepoRoot falls back to process cwd when no markers exist', async () => {
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-no-root-'));
+    const nested = path.join(temp, 'a', 'b', 'c');
+    fs.mkdirSync(nested, { recursive: true });
+    expect(bridge.findRepoRoot(nested)).toBe(process.cwd());
+  });
+
+  test('runLaneViaConduit returns lane receipt when conduit provides one', async () => {
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-bridge-ok-'));
+    fs.mkdirSync(path.join(temp, 'core', 'layer0', 'ops'), { recursive: true });
+    fs.mkdirSync(path.join(temp, 'client', 'runtime', 'systems', 'conduit'), { recursive: true });
+    fs.writeFileSync(path.join(temp, 'Cargo.toml'), '[package]\nname="tmp"\nversion="0.0.0"\n');
+    fs.writeFileSync(path.join(temp, 'core', 'layer0', 'ops', 'Cargo.toml'), '[package]\nname="ops"\nversion="0.0.0"\n');
+    fs.writeFileSync(
+      path.join(temp, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
+      `module.exports = {
+  ConduitClient: {
+    overStdio() {
+      return {
+        send: async () => ({
+          event: {
+            type: 'system_feedback',
+            detail: { lane_receipt: { ok: true, lane_id: 'SYSTEM-LANE', receipt_hash: 'r' } }
+          }
+        }),
+        close: async () => {}
+      };
+    }
+  }
+};\n`,
+      'utf8',
+    );
+
+    const receipt = await bridge.runLaneViaConduit('system-lane', temp);
+    expect(receipt.ok).toBe(true);
+    expect(receipt.lane_id).toBe('SYSTEM-LANE');
+  });
+
+  test('runLaneViaConduit emits lane_receipt_missing when event detail lacks receipt', async () => {
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-bridge-missing-'));
+    fs.mkdirSync(path.join(temp, 'core', 'layer0', 'ops'), { recursive: true });
+    fs.mkdirSync(path.join(temp, 'client', 'runtime', 'systems', 'conduit'), { recursive: true });
+    fs.writeFileSync(path.join(temp, 'Cargo.toml'), '[package]\nname="tmp"\nversion="0.0.0"\n');
+    fs.writeFileSync(path.join(temp, 'core', 'layer0', 'ops', 'Cargo.toml'), '[package]\nname="ops"\nversion="0.0.0"\n');
+    fs.writeFileSync(
+      path.join(temp, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
+      `module.exports = {
+  ConduitClient: {
+    overStdio() {
+      return {
+        send: async () => ({ event: { type: 'system_feedback', detail: { } } }),
+        close: async () => {}
+      };
+    }
+  }
+};\n`,
+      'utf8',
+    );
+
+    const receipt = await bridge.runLaneViaConduit('system-lane', temp);
+    expect(receipt.ok).toBe(false);
+    expect(receipt.error).toBe('lane_receipt_missing');
+    expect(receipt.type).toBe('conduit_lane_bridge_error');
+  });
+
+  test('runLaneViaConduit catches client send errors', async () => {
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-bridge-throw-'));
+    fs.mkdirSync(path.join(temp, 'core', 'layer0', 'ops'), { recursive: true });
+    fs.mkdirSync(path.join(temp, 'client', 'runtime', 'systems', 'conduit'), { recursive: true });
+    fs.writeFileSync(path.join(temp, 'Cargo.toml'), '[package]\nname="tmp"\nversion="0.0.0"\n');
+    fs.writeFileSync(path.join(temp, 'core', 'layer0', 'ops', 'Cargo.toml'), '[package]\nname="ops"\nversion="0.0.0"\n');
+    fs.writeFileSync(
+      path.join(temp, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
+      `module.exports = {
+  ConduitClient: {
+    overStdio() {
+      return {
+        send: async () => { throw new Error('boom-send'); },
+        close: async () => {}
+      };
+    }
+  }
+};\n`,
+      'utf8',
+    );
+
+    const receipt = await bridge.runLaneViaConduit('system-lane', temp);
+    expect(receipt.ok).toBe(false);
+    expect(String(receipt.error || '')).toContain('boom-send');
+  });
+
+  test('createConduitLaneModule verify reflects normalized lane id and daemon args env', async () => {
+    const prevCommand = process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+    const prevArgs = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+    process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = '/tmp/mock-daemon';
+    process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = '--a 1 --b 2';
+
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-bridge-verify-'));
+    fs.mkdirSync(path.join(temp, 'core', 'layer0', 'ops'), { recursive: true });
+    fs.mkdirSync(path.join(temp, 'client', 'runtime', 'systems', 'conduit'), { recursive: true });
+    fs.writeFileSync(path.join(temp, 'Cargo.toml'), '[package]\nname="tmp"\nversion="0.0.0"\n');
+    fs.writeFileSync(path.join(temp, 'core', 'layer0', 'ops', 'Cargo.toml'), '[package]\nname="ops"\nversion="0.0.0"\n');
+    const clientModulePath = path.join(temp, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js');
+    fs.writeFileSync(
+      clientModulePath,
+      `globalThis.__infringBridgeLast = null;
+module.exports = {
+  ConduitClient: {
+    overStdio(command, args, root) {
+      globalThis.__infringBridgeLast = { command, args, root };
+      return {
+        send: async () => ({
+          event: {
+            type: 'system_feedback',
+            detail: { lane_receipt: { ok: true, lane_id: 'SYSTEM-LANE', receipt_hash: 'r' } }
+          }
+        }),
+        close: async () => {}
+      };
+    }
+  }
+};\n`,
+      'utf8',
+    );
+
+    const lane = bridge.createConduitLaneModule('system-lane', temp);
+    expect(await lane.verifyLaneReceipt()).toBe(true);
+
+    const seen = (globalThis as any).__infringBridgeLast;
+    expect(seen.command).toBe('/tmp/mock-daemon');
+    expect(seen.args).toEqual(['--a', '1', '--b', '2']);
+
+    if (prevCommand == null) delete process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+    else process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = prevCommand;
+    if (prevArgs == null) delete process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+    else process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = prevArgs;
+  });
 });
