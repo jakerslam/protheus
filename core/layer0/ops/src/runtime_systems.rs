@@ -162,6 +162,211 @@ fn missing_required_tokens(actual: &[String], required: &[&str]) -> Vec<String> 
         .collect()
 }
 
+fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
+    let queue_depth = payload_u64(payload, "queue_depth", 0).min(2_000_000);
+    let critical_attention_total = payload_u64(payload, "critical_attention_total", 0).min(2_000_000);
+    let cockpit_blocks = payload_u64(payload, "cockpit_blocks", 0).min(2_000_000);
+    let conduit_signals = payload_u64(payload, "conduit_signals", 0).min(2_000_000);
+    let stale_blocks = payload_u64(payload, "cockpit_stale_blocks", 0).min(2_000_000);
+    let stale_ratio = payload_f64(payload, "cockpit_stale_ratio", 0.0).clamp(0.0, 1.0);
+    let health_coverage_gap_count = payload_u64(payload, "health_coverage_gap_count", 0).min(2_000_000);
+    let attention_unacked_depth = payload_u64(payload, "attention_unacked_depth", 0).min(2_000_000);
+    let attention_cursor_offset = payload_u64(payload, "attention_cursor_offset", 0).min(2_000_000);
+    let memory_ingest_paused = payload_bool(payload, "memory_ingest_paused", false);
+
+    let dampen_depth = payload_u64(payload, "ingress_dampen_depth", 40).clamp(1, 10_000);
+    let shed_depth = payload_u64(payload, "ingress_shed_depth", 80).clamp(dampen_depth, 10_000);
+    let circuit_depth = payload_u64(payload, "ingress_circuit_depth", 100).clamp(shed_depth, 20_000);
+    let ingress_delay_ms = payload_u64(payload, "ingress_delay_ms", 100).clamp(0, 10_000);
+    let critical_threshold = payload_u64(payload, "critical_escalation_threshold", 7).clamp(1, 1_000);
+    let throttle_max_depth = payload_u64(payload, "throttle_max_depth", 80).clamp(40, 10_000);
+    let attention_drain_trigger_depth =
+        payload_u64(payload, "attention_drain_trigger_depth", 60).clamp(1, 10_000);
+    let attention_drain_min_batch =
+        payload_u64(payload, "attention_drain_min_batch", 20).clamp(1, 1_000);
+    let attention_drain_max_batch = payload_u64(
+        payload,
+        "attention_drain_max_batch",
+        attention_drain_min_batch.max(20),
+    )
+    .clamp(attention_drain_min_batch, 20_000);
+    let attention_compact_depth = payload_u64(payload, "attention_compact_depth", 80).clamp(1, 10_000);
+    let attention_compact_retain = payload_u64(payload, "attention_compact_retain", 256).clamp(1, 200_000);
+    let attention_compact_min_acked = payload_u64(payload, "attention_compact_min_acked", 64).clamp(1, 200_000);
+    let queue_resume_depth = payload_u64(payload, "queue_resume_depth", 40).clamp(1, 10_000);
+    let stale_autoheal_min_blocks =
+        payload_u64(payload, "stale_autoheal_min_blocks", 10).clamp(1, 10_000);
+    let predictive_drain_clear_depth =
+        payload_u64(payload, "predictive_drain_clear_depth", 40).clamp(0, 10_000);
+
+    let growth_risk = queue_depth >= shed_depth && critical_attention_total >= critical_threshold;
+    let (ingress_level, reject_non_critical, reason) = if queue_depth >= circuit_depth || growth_risk {
+        (
+            "circuit".to_string(),
+            true,
+            if queue_depth >= circuit_depth {
+                "queue_circuit_breaker".to_string()
+            } else {
+                "critical_growth_risk".to_string()
+            },
+        )
+    } else if queue_depth >= shed_depth {
+        ("shed".to_string(), true, "priority_shed".to_string())
+    } else if queue_depth >= dampen_depth {
+        (
+            "dampen".to_string(),
+            false,
+            "predictive_dampen".to_string(),
+        )
+    } else {
+        ("normal".to_string(), false, "steady_state".to_string())
+    };
+    let delay_ms = if ingress_level == "normal" {
+        0
+    } else {
+        ingress_delay_ms
+    };
+
+    let backpressure_level = if queue_depth >= circuit_depth {
+        "critical"
+    } else if queue_depth >= shed_depth {
+        "high"
+    } else if queue_depth >= dampen_depth {
+        "elevated"
+    } else {
+        "normal"
+    };
+    let sync_mode = if queue_depth >= 75 {
+        "batch_sync"
+    } else if queue_depth >= 50 {
+        "delta_sync"
+    } else {
+        "live_sync"
+    };
+
+    let target_conduit_signals = {
+        let mut target = 6u64;
+        if queue_depth >= 100 {
+            target = 16;
+        } else if queue_depth >= 80 {
+            target = 12;
+        } else if queue_depth >= dampen_depth {
+            target = 8;
+        }
+        if cockpit_blocks >= 30 && queue_depth >= dampen_depth {
+            target += 2;
+        }
+        if stale_blocks >= 10 || stale_ratio >= 0.5 {
+            target += 2;
+        }
+        target.clamp(4, 32)
+    };
+    let conduit_autobalance_required = conduit_signals < target_conduit_signals;
+    let signal_quality = if stale_ratio >= 0.5 {
+        "coarse"
+    } else if stale_ratio >= 0.3 {
+        "degraded"
+    } else {
+        "good"
+    };
+    let stream_coarse = signal_quality == "coarse";
+
+    let throttle_required = queue_depth >= 75
+        || critical_attention_total >= critical_threshold
+        || ingress_level == "shed"
+        || ingress_level == "circuit"
+        || stale_blocks >= 10
+        || stale_ratio >= 0.5;
+    let throttle_depth = if queue_depth >= circuit_depth {
+        throttle_max_depth.saturating_sub(20).max(40)
+    } else if queue_depth >= shed_depth {
+        throttle_max_depth.saturating_sub(10).max(50)
+    } else {
+        throttle_max_depth
+    };
+
+    let attention_drain_required = queue_depth >= attention_drain_trigger_depth
+        || attention_unacked_depth >= attention_compact_min_acked.saturating_mul(2)
+        || ingress_level == "circuit";
+    let attention_drain_limit = std::cmp::min(
+        attention_drain_max_batch,
+        std::cmp::max(attention_drain_min_batch, (queue_depth.saturating_add(2)) / 3),
+    );
+    let attention_compact_required =
+        queue_depth >= attention_compact_depth && attention_cursor_offset >= attention_compact_min_acked;
+
+    let adaptive_health_required = queue_depth >= 80 || health_coverage_gap_count > 0;
+    let memory_resume_eligible = memory_ingest_paused && queue_depth <= queue_resume_depth;
+    let stale_autoheal_required = stale_blocks >= stale_autoheal_min_blocks;
+    let predictive_drain_required = queue_depth >= attention_drain_trigger_depth;
+    let predictive_drain_release = queue_depth <= predictive_drain_clear_depth;
+
+    let mut role_plan = Vec::<Value>::new();
+    if throttle_required || adaptive_health_required {
+        role_plan.push(json!({ "role": "coordinator", "required": true }));
+    }
+    if conduit_autobalance_required || critical_attention_total >= 5 {
+        role_plan.push(json!({ "role": "researcher", "required": true }));
+    }
+    if cockpit_blocks >= 30 || stale_blocks > 0 {
+        role_plan.push(json!({ "role": "builder", "required": true }));
+    }
+    if queue_depth >= 80 || critical_attention_total >= critical_threshold {
+        role_plan.push(json!({ "role": "analyst", "required": true }));
+    }
+    if queue_depth >= 80 && stale_ratio >= 0.3 {
+        role_plan.push(json!({ "role": "reviewer", "required": true }));
+    }
+
+    json!({
+        "authority": "rust_runtime_systems",
+        "contract_id": "V6-DASHBOARD-007.1",
+        "runtime": {
+            "queue_depth": queue_depth,
+            "critical_attention_total": critical_attention_total,
+            "cockpit_blocks": cockpit_blocks,
+            "cockpit_stale_blocks": stale_blocks,
+            "cockpit_stale_ratio": stale_ratio,
+            "conduit_signals": conduit_signals,
+            "attention_unacked_depth": attention_unacked_depth,
+            "attention_cursor_offset": attention_cursor_offset,
+            "memory_ingest_paused": memory_ingest_paused
+        },
+        "cockpit_signal": {
+            "quality": signal_quality,
+            "coarse": stream_coarse
+        },
+        "ingress_control": {
+            "level": ingress_level,
+            "reject_non_critical": reject_non_critical,
+            "delay_ms": delay_ms,
+            "reason": reason,
+            "dampen_depth": dampen_depth,
+            "shed_depth": shed_depth,
+            "circuit_depth": circuit_depth
+        },
+        "recommendations": {
+            "sync_mode": sync_mode,
+            "backpressure_level": backpressure_level,
+            "target_conduit_signals": target_conduit_signals,
+            "conduit_autobalance_required": conduit_autobalance_required,
+            "adaptive_health_required": adaptive_health_required,
+            "throttle_required": throttle_required,
+            "throttle_max_depth": throttle_depth,
+            "attention_drain_required": attention_drain_required,
+            "attention_drain_limit": attention_drain_limit,
+            "attention_compact_required": attention_compact_required,
+            "attention_compact_retain": attention_compact_retain,
+            "attention_compact_min_acked": attention_compact_min_acked,
+            "memory_resume_eligible": memory_resume_eligible,
+            "stale_autoheal_required": stale_autoheal_required,
+            "predictive_drain_required": predictive_drain_required,
+            "predictive_drain_release": predictive_drain_release
+        },
+        "role_plan": role_plan
+    })
+}
+
 fn contract_specific_gates(
     profile: RuntimeSystemContractProfile,
     payload: &Value,
@@ -237,6 +442,12 @@ fn contract_specific_gates(
             if consensus != "strict_match" {
                 violations.push(format!("specific_consensus_mode_mismatch:{consensus}"));
             }
+        }
+        _ if profile.id.starts_with("V6-DASHBOARD-007.") => {
+            checks.insert(
+                "dashboard_runtime_authority".to_string(),
+                dashboard_runtime_authority_from_payload(payload),
+            );
         }
         _ => {}
     }
@@ -3150,6 +3361,95 @@ mod tests {
         assert!(
             err.contains("specific_consensus_mode_mismatch"),
             "expected consensus mode gate failure, got {err}"
+        );
+    }
+
+    #[test]
+    fn v6_dashboard_runtime_pressure_contract_emits_rust_authority_decision() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_payload(
+            root.path(),
+            "V6-DASHBOARD-007.1",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=0".to_string(),
+                "--payload-json={\"queue_depth\":86,\"critical_attention_total\":9,\"cockpit_blocks\":33,\"cockpit_stale_blocks\":12,\"cockpit_stale_ratio\":0.52,\"conduit_signals\":4,\"target_conduit_signals\":6,\"attention_unacked_depth\":180,\"attention_cursor_offset\":120,\"memory_ingest_paused\":true}".to_string(),
+            ],
+        )
+        .expect("dashboard runtime pressure contract should succeed");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+
+        let authority = out
+            .get("contract_execution")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("specific_checks"))
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("dashboard_runtime_authority"))
+            .and_then(Value::as_object)
+            .cloned()
+            .expect("expected dashboard_runtime_authority specific check");
+
+        assert_eq!(
+            authority
+                .get("authority")
+                .and_then(Value::as_str),
+            Some("rust_runtime_systems")
+        );
+        assert!(
+            authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("throttle_required"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            "expected throttle_required under pressure"
+        );
+        assert!(
+            authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("conduit_autobalance_required"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            "expected conduit_autobalance_required when signals are below target"
+        );
+        assert!(
+            authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("attention_drain_required"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            "expected attention_drain_required under pressure"
+        );
+        assert!(
+            authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("attention_compact_required"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            "expected attention_compact_required under pressure"
+        );
+        assert!(
+            authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("throttle_max_depth"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 40,
+            "expected throttle_max_depth recommendation"
+        );
+        assert!(
+            !authority
+                .get("recommendations")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("memory_resume_eligible"))
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
+            "expected memory_resume_eligible to stay false while queue remains elevated"
         );
     }
 

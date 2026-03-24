@@ -253,12 +253,69 @@ function assertContract008() {
   );
 }
 
+function assertContract007() {
+  const laneSource = readUtf8(TARGET);
+  assertContains(
+    laneSource,
+    '--system-id=V6-DASHBOARD-007.1',
+    'dashboard runtime authority lane system id missing'
+  );
+  assertContains(
+    laneSource,
+    'dashboard_runtime_authority',
+    'dashboard runtime authority specific check binding missing'
+  );
+  assertContains(
+    laneSource,
+    "authority: 'rust_runtime_systems'",
+    'dashboard runtime authority rust marker missing'
+  );
+  assertContains(
+    laneSource,
+    'attention_drain_required',
+    'dashboard runtime authority drain recommendation binding missing'
+  );
+  assertContains(
+    laneSource,
+    'attention_compact_required',
+    'dashboard runtime authority compact recommendation binding missing'
+  );
+  assertContains(
+    laneSource,
+    'throttle_max_depth',
+    'dashboard runtime authority throttle depth binding missing'
+  );
+  assertContains(
+    laneSource,
+    'memory_resume_eligible',
+    'dashboard runtime authority memory resume binding missing'
+  );
+  assertContains(
+    laneSource,
+    'maybeApplyRuntimeThrottle(runtime, recommendation.team || DEFAULT_TEAM, recommendation)',
+    'queue throttle should consume rust runtime authority recommendation'
+  );
+  assertContains(
+    laneSource,
+    'const queueDrain = maybeDrainAttentionQueue(runtime, recommendation);',
+    'attention queue drain should consume rust runtime authority recommendation'
+  );
+}
+
 function runContract(contract) {
   runSnapshotAssertions();
   if (contract === 'V6-DASHBOARD-006.1') return assertContract0061();
   if (contract === 'V6-DASHBOARD-006.2') return assertContract0062();
   if (contract === 'V6-DASHBOARD-006.3') return assertContract0063();
   if (contract === 'V6-DASHBOARD-006.4') return assertContract0064();
+  if (contract === 'V6-DASHBOARD-007.1') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.2') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.3') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.4') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.5') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.6') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.7') return assertContract007();
+  if (contract === 'V6-DASHBOARD-007.8') return assertContract007();
   if (contract === 'V6-DASHBOARD-008.1') return assertContract008();
   if (contract === 'V6-DASHBOARD-008.2') return assertContract008();
   if (contract === 'V6-DASHBOARD-008.3') return assertContract008();
