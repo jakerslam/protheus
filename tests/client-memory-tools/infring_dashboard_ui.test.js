@@ -218,6 +218,21 @@ function assertContract008() {
   );
   assertContains(
     laneSource,
+    "authority: 'rust_model_router'",
+    'rust-authoritative auto-route marker missing'
+  );
+  assertContains(
+    laneSource,
+    "'model-router',",
+    'auto-route model-router lane call missing'
+  );
+  assertContains(
+    laneSource,
+    'fallback.authority = \'ts_heuristic_fallback\';',
+    'auto-route ts fallback authority marker missing'
+  );
+  assertContains(
+    laneSource,
     'auto_route: turn.auto_route || null,',
     'turn auto-route metadata propagation missing'
   );

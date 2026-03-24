@@ -178,6 +178,9 @@ const SNAPSHOT_LANE_TIMEOUT_MAX_MS = LANE_SYNC_TIMEOUT_MS;
 const SNAPSHOT_LANE_TIMEOUT_MIN_MS = 150;
 const SNAPSHOT_LANE_CACHE_TTL_MS = 8000;
 const SNAPSHOT_LANE_CACHE_FAIL_TTL_MS = 2000;
+const AUTO_ROUTE_LANE_TIMEOUT_MS = 1200;
+const AUTO_ROUTE_CACHE_TTL_MS = 1200;
+const AUTO_ROUTE_CACHE_FAIL_TTL_MS = 600;
 const ATTENTION_PEEK_LIMIT = 12;
 const ATTENTION_CRITICAL_LIMIT = 64;
 const ATTENTION_MICRO_BATCH_WINDOW_MS = 50;
@@ -2188,7 +2191,186 @@ function autoRouteCandidateScore(candidate, context, runtimeSync) {
   };
 }
 
-function planAutoRoute(input, snapshot, options = {}) {
+function autoRouteRisk(context) {
+  if (!context || typeof context !== 'object') return 'low';
+  if (context.has_vision || context.asks_quality || context.asks_long_context) return 'high';
+  if (context.asks_speed || context.asks_cost) return 'low';
+  return 'medium';
+}
+
+function autoRouteComplexity(context) {
+  if (!context || typeof context !== 'object') return 'low';
+  const tokens = parsePositiveInt(context.token_count, 1, 1, 8_000_000);
+  if (tokens >= 100_000 || context.has_vision || context.asks_long_context) return 'high';
+  if (tokens >= 16_000 || context.asks_quality) return 'medium';
+  return 'low';
+}
+
+function autoRouteProviderModel(provider, model) {
+  const providerValue = cleanText(provider || '', 80) || 'ollama';
+  const modelValue = cleanText(model || '', 120) || configuredOllamaModel(null);
+  if (providerValue.toLowerCase() === 'ollama') return `ollama/${modelValue}`;
+  return `${providerValue}/${modelValue}`;
+}
+
+function rustRouteDecision(input, snapshot, options = {}) {
+  const context = autoRouteIntentContext(
+    input,
+    options && options.token_count != null ? options.token_count : 0,
+    !!(options && options.has_vision)
+  );
+  const runtimeSync = runtimeSyncSummary(snapshot);
+  const agentId = cleanText(options && options.agent_id ? options.agent_id : '', 140);
+  const modelState = effectiveAgentModel(agentId || 'chat-ui-default-agent', snapshot);
+  const preferredProvider = cleanText(
+    modelState && (modelState.runtime_provider || modelState.provider)
+      ? modelState.runtime_provider || modelState.provider
+      : configuredProvider(snapshot),
+    80
+  ) || 'ollama';
+  const preferredModel = cleanText(
+    modelState && modelState.runtime_model ? modelState.runtime_model : configuredOllamaModel(snapshot),
+    120
+  ) || configuredOllamaModel(snapshot);
+  const fallbackOverride = testingModelOverrideForAgent(agentId);
+  const fallbackProvider = cleanText(
+    fallbackOverride && fallbackOverride.provider ? fallbackOverride.provider : TEST_AGENT_PROVIDER_DEFAULT,
+    80
+  ) || TEST_AGENT_PROVIDER_DEFAULT;
+  const fallbackModel = cleanText(
+    fallbackOverride && fallbackOverride.model ? fallbackOverride.model : TEST_AGENT_MODEL_DEFAULT,
+    120
+  ) || TEST_AGENT_MODEL_DEFAULT;
+  const providerOnline = !(
+    runtimeSync &&
+    Number.isFinite(Number(runtimeSync.spine_success_rate)) &&
+    Number(runtimeSync.spine_success_rate) < 0.35
+  );
+  const risk = autoRouteRisk(context);
+  const complexity = autoRouteComplexity(context);
+  const routeInput = cleanText(input || '', 1200);
+  const cacheKeyHash = sha256(JSON.stringify({
+    agent_id: agentId,
+    input: routeInput,
+    token_count: context.token_count,
+    has_vision: context.has_vision,
+    preferred_model: preferredModel,
+    preferred_provider: preferredProvider,
+    fallback_model: fallbackModel,
+    fallback_provider: fallbackProvider,
+    provider_online: providerOnline,
+    risk,
+    complexity,
+  })).slice(0, 24);
+  const lane = runLaneCached(
+    `auto.route.rust.${cacheKeyHash}`,
+    [
+      'model-router',
+      'infer',
+      `--intent=${routeInput}`,
+      `--task=${routeInput}`,
+      `--risk=${risk}`,
+      `--complexity=${complexity}`,
+      `--provider-online=${providerOnline ? '1' : '0'}`,
+      `--preferred-model=${autoRouteProviderModel(preferredProvider, preferredModel)}`,
+      `--fallback-model=${autoRouteProviderModel(fallbackProvider, fallbackModel)}`,
+    ],
+    {
+      timeout_ms: AUTO_ROUTE_LANE_TIMEOUT_MS,
+      ttl_ms: AUTO_ROUTE_CACHE_TTL_MS,
+      fail_ttl_ms: AUTO_ROUTE_CACHE_FAIL_TTL_MS,
+    }
+  );
+  const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
+  const routePlan = lanePayload && lanePayload.route_plan && typeof lanePayload.route_plan === 'object'
+    ? lanePayload.route_plan
+    : null;
+  const selectedRaw = cleanText(routePlan && routePlan.selected_model ? routePlan.selected_model : '', 160);
+  const selected = normalizeAutoRouteCandidate(
+    selectedRaw || autoRouteProviderModel(preferredProvider, preferredModel),
+    preferredProvider
+  );
+  if (!lane || !lane.ok || !lanePayload || !selected) {
+    return {
+      ok: false,
+      type: 'infring_auto_route_decision',
+      policy: 'V6-DASHBOARD-008.1',
+      authority: 'rust_model_router',
+      error: 'route_lane_failed',
+      route_lane: 'model-router.infer',
+      lane: laneOutcome(lane || null),
+      context,
+      runtime_sync: {
+        spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
+          ? Number(runtimeSync.spine_success_rate)
+          : null,
+        receipt_latency_p99_ms:
+          Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
+            ? Number(runtimeSync.receipt_latency_p99_ms)
+            : null,
+      },
+    };
+  }
+  const preferredRoute = normalizeAutoRouteCandidate(
+    cleanText(routePlan && routePlan.preferred_model ? routePlan.preferred_model : '', 160),
+    preferredProvider
+  );
+  const fallbackRoute = normalizeAutoRouteCandidate(
+    cleanText(routePlan && routePlan.fallback_model ? routePlan.fallback_model : '', 160),
+    fallbackProvider
+  );
+  const fallbackChain = [];
+  const seenFallback = new Set([`${selected.runtime_provider}/${selected.runtime_model}`.toLowerCase()]);
+  for (const row of [preferredRoute, fallbackRoute]) {
+    if (!row) continue;
+    const key = `${row.runtime_provider}/${row.runtime_model}`.toLowerCase();
+    if (seenFallback.has(key)) continue;
+    seenFallback.add(key);
+    fallbackChain.push({
+      provider: row.runtime_provider,
+      model: row.runtime_model,
+      score: null,
+    });
+  }
+  const fallbackApplied = !!(routePlan && routePlan.fallback_applied);
+  const reason = fallbackApplied
+    ? `rust lane selected fallback model (${selected.runtime_provider}/${selected.runtime_model}) due to provider degradation`
+    : `rust lane selected preferred model (${selected.runtime_provider}/${selected.runtime_model})`;
+  const decision = {
+    ok: true,
+    type: 'infring_auto_route_decision',
+    policy: 'V6-DASHBOARD-008.1',
+    authority: 'rust_model_router',
+    route_lane: 'model-router.infer',
+    selected_provider: selected.runtime_provider,
+    selected_model: selected.runtime_model,
+    selected_model_id: selected.id,
+    selected_context_window: parsePositiveInt(selected.context_window, DEFAULT_CONTEXT_WINDOW_TOKENS, 1024, 8_000_000),
+    reason,
+    context,
+    fallback_chain: fallbackChain,
+    candidates: [],
+    runtime_sync: {
+      spine_success_rate: Number.isFinite(Number(runtimeSync && runtimeSync.spine_success_rate))
+        ? Number(runtimeSync.spine_success_rate)
+        : null,
+      receipt_latency_p99_ms:
+        Number.isFinite(Number(runtimeSync && runtimeSync.receipt_latency_p99_ms))
+          ? Number(runtimeSync.receipt_latency_p99_ms)
+          : null,
+    },
+    route_plan: routePlan,
+    lane_status: laneOutcome(lane),
+    lane_receipt_hash: cleanText(lanePayload && lanePayload.receipt_hash ? lanePayload.receipt_hash : '', 80),
+  };
+  decision.receipt_hash = cleanText(
+    lanePayload && lanePayload.receipt_hash ? lanePayload.receipt_hash : '',
+    80
+  ) || sha256(JSON.stringify(decision));
+  return decision;
+}
+
+function heuristicRouteDecision(input, snapshot, options = {}) {
   const context = autoRouteIntentContext(
     input,
     options && options.token_count != null ? options.token_count : 0,
@@ -2250,6 +2432,21 @@ function planAutoRoute(input, snapshot, options = {}) {
   };
   decision.receipt_hash = sha256(JSON.stringify(decision));
   return decision;
+}
+
+function planAutoRoute(input, snapshot, options = {}) {
+  const rustDecision = rustRouteDecision(input, snapshot, options);
+  if (rustDecision && rustDecision.ok) return rustDecision;
+  const fallback = heuristicRouteDecision(input, snapshot, options);
+  fallback.authority = 'ts_heuristic_fallback';
+  fallback.route_lane = 'model-router.infer';
+  if (rustDecision && rustDecision.error) {
+    fallback.rust_error = cleanText(rustDecision.error, 120);
+    fallback.rust_lane = rustDecision.lane || null;
+    fallback.reason = cleanText(`${fallback.reason}; rust route unavailable`, 260);
+  }
+  fallback.receipt_hash = sha256(JSON.stringify(fallback));
+  return fallback;
 }
 
 function effectiveAgentModel(agentId, snapshot) {
@@ -6141,7 +6338,7 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   const laneState = laneResult && laneResult.ok ? 'ok' : 'degraded';
   const autoRouteMeta =
     autoRoute && autoRoute.ok
-      ? ` | auto:${cleanText(autoRoute.selected_provider || '', 40)}/${cleanText(autoRoute.selected_model || '', 120)}`
+      ? ` | auto:${cleanText(autoRoute.selected_provider || '', 40)}/${cleanText(autoRoute.selected_model || '', 120)}${cleanText(autoRoute.authority || '', 40) === 'rust_model_router' ? ':rust' : ''}`
       : '';
   const meta = `${inputTokens} in / ${outputTokens} out | ${durationLabel} | lane:${laneState}${laneConduit ? ' conduit' : ''} | queue:${runtimeMirror.summary.queue_depth} | ctx:${Math.round((contextStats.context_ratio || 0) * 100)}%${autoRouteMeta}`;
   const responseOk = !!String(assistant || '').trim();
@@ -6186,8 +6383,11 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
             cleanText(autoRoute.selected_model_id || '', 160) ||
             `${cleanText(autoRoute.selected_provider || modelProvider, 80) || modelProvider}/${cleanText(autoRoute.selected_model || usedModel, 120) || usedModel}`,
           reason: cleanText(autoRoute.reason || '', 260),
+          authority: cleanText(autoRoute.authority || '', 40) || 'unknown',
+          route_lane: cleanText(autoRoute.route_lane || '', 80) || 'model-router.infer',
           fallback_chain: Array.isArray(autoRoute.fallback_chain) ? autoRoute.fallback_chain : [],
           receipt_hash: cleanText(autoRoute.receipt_hash || '', 80),
+          lane_receipt_hash: cleanText(autoRoute.lane_receipt_hash || '', 80),
           executed_provider: modelProvider,
           executed_model: cleanText(usedModel || '', 120),
         }
