@@ -231,6 +231,10 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V6-DASHBOARD-007.6",
     "V6-DASHBOARD-007.7",
     "V6-DASHBOARD-007.8",
+    "V6-DASHBOARD-008.1",
+    "V6-DASHBOARD-008.2",
+    "V6-DASHBOARD-008.3",
+    "V6-DASHBOARD-008.4",
     "V6-ECONOMY-003.1",
     "V6-ECONOMY-003.2",
     "V6-ECONOMY-003.3",
@@ -857,6 +861,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "dashboard_queue_conduit_cockpit_autoremediation_and_attention_compaction_under_runtime_pressure",
         ));
     }
+    if id.starts_with("V6-DASHBOARD-008.") {
+        return Some((
+            "automation_mission_stack",
+            "dashboard_auto_router_selection_preflight_and_receipted_model_routing",
+        ));
+    }
     if id.starts_with("V6-APP-023.") {
         return Some((
             "automation_mission_stack",
@@ -1151,6 +1161,7 @@ mod tests {
         assert!(profile_for("V10-PERF-001.6").is_some());
         assert!(profile_for("V6-WORKFLOW-026.5").is_some());
         assert!(profile_for("V6-DASHBOARD-007.8").is_some());
+        assert!(profile_for("V6-DASHBOARD-008.4").is_some());
         assert!(profile_for("V8-SWARM-012.10").is_some());
         assert!(profile_for("V9-TINYMAX-021.2").is_some());
         assert!(profile_for("X-UNKNOWN-404.1").is_none());

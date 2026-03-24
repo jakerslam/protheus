@@ -18,6 +18,13 @@ export type TsCommand =
       extension_id: string;
       wasm_sha256: string;
       capabilities: string[];
+      plugin_type?: 'cognition_reflex' | 'substrate_adapter' | 'memory_backend';
+      version?: string;
+      wasm_component_path?: string;
+      signature?: string;
+      provenance?: string;
+      recovery_max_attempts?: number;
+      recovery_backoff_ms?: number;
     };
 
 export const TS_COMMAND_TYPES = [

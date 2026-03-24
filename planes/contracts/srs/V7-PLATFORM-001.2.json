@@ -1,0 +1,34 @@
+{
+  "id": "V7-PLATFORM-001.2",
+  "upgrade": "Public Roadmap + InfRing 101 Onboarding Surface",
+  "section": "V7-PLATFORM-001",
+  "impact": 9,
+  "layer_map": "docs/apps/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "adoption_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V7-PLATFORM-001.2/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    { "type": "contract", "path": "planes/contracts/srs/V7-PLATFORM-001.2.json" },
+    { "type": "doc", "path": "roadmap.md" },
+    { "type": "doc", "path": "glossary.md" },
+    { "type": "doc", "path": "apps/README.md" },
+    { "type": "app", "path": "apps/sovereign-memory-os/README.md" },
+    { "type": "app", "path": "apps/local-research-agent/README.md" },
+    { "type": "app", "path": "apps/mcu-sensor-monitor-tiny-max/README.md" }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-PLATFORM-001.2",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V7-PLATFORM-001.2",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "external_analysis",
+    "generated_at": "2026-03-23T23:45:00Z",
+    "notes": "Adds a living roadmap, glossary, and first-class onboarding app examples."
+  }
+}

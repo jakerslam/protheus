@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -45,6 +45,13 @@ pub enum TsCommand {
         extension_id: String,
         wasm_sha256: String,
         capabilities: Vec<String>,
+        plugin_type: Option<String>,
+        version: Option<String>,
+        wasm_component_path: Option<String>,
+        signature: Option<String>,
+        provenance: Option<String>,
+        recovery_max_attempts: Option<u32>,
+        recovery_backoff_ms: Option<u64>,
     },
 }
 
@@ -634,11 +641,13 @@ impl CommandHandler for EchoCommandHandler {
             TsCommand::ListActiveAgents | TsCommand::GetSystemStatus => {
                 let root = repo_root_from_current_dir();
                 let cockpit_context = load_cockpit_summary(&root);
+                let plugin_runtime = run_plugin_runtime_autoheal(&root, "status_poll");
                 RustEvent::SystemFeedback {
                     status: "ok".to_string(),
                     detail: serde_json::json!({
                         "mode":"hosted",
-                        "cockpit_context": cockpit_context
+                        "cockpit_context": cockpit_context,
+                        "plugin_runtime": plugin_runtime
                     }),
                     violation_reason: None,
                 }
@@ -648,11 +657,52 @@ impl CommandHandler for EchoCommandHandler {
                 detail: serde_json::json!({"source":"conduit"}),
                 violation_reason: None,
             },
-            TsCommand::InstallExtension { extension_id, .. } => RustEvent::SystemFeedback {
-                status: "extension_install_accepted".to_string(),
-                detail: serde_json::json!({"extension_id": extension_id}),
-                violation_reason: None,
-            },
+            TsCommand::InstallExtension {
+                extension_id,
+                wasm_sha256,
+                capabilities,
+                plugin_type,
+                version,
+                wasm_component_path,
+                signature,
+                provenance,
+                recovery_max_attempts,
+                recovery_backoff_ms,
+            } => {
+                let root = repo_root_from_current_dir();
+                match register_extension_runtime(
+                    &root,
+                    RegisterExtensionInput {
+                        extension_id: extension_id.clone(),
+                        wasm_sha256: wasm_sha256.clone(),
+                        capabilities: capabilities.clone(),
+                        plugin_type: plugin_type.clone(),
+                        version: version.clone(),
+                        wasm_component_path: wasm_component_path.clone(),
+                        signature: signature.clone(),
+                        provenance: provenance.clone(),
+                        recovery_max_attempts: *recovery_max_attempts,
+                        recovery_backoff_ms: *recovery_backoff_ms,
+                    },
+                ) {
+                    Ok(plugin_runtime) => RustEvent::SystemFeedback {
+                        status: "extension_install_accepted".to_string(),
+                        detail: serde_json::json!({
+                            "extension_id": extension_id,
+                            "plugin_runtime": plugin_runtime
+                        }),
+                        violation_reason: None,
+                    },
+                    Err(err) => RustEvent::SystemFeedback {
+                        status: "extension_install_failed".to_string(),
+                        detail: serde_json::json!({
+                            "extension_id": extension_id,
+                            "error": err
+                        }),
+                        violation_reason: Some("extension_runtime_registration_failed".to_string()),
+                    },
+                }
+            }
         }
     }
 }
@@ -1119,6 +1169,495 @@ fn load_cockpit_summary(root: &PathBuf) -> Value {
     })
 }
 
+const PLUGIN_REGISTRY_SCHEMA_VERSION: u32 = 1;
+const PLUGIN_DEFAULT_MAX_RECOVERY_ATTEMPTS: u32 = 3;
+const PLUGIN_DEFAULT_RECOVERY_BACKOFF_MS: u64 = 3_000;
+const PLUGIN_MAX_RECOVERY_ATTEMPTS: u32 = 10;
+const PLUGIN_MIN_RECOVERY_BACKOFF_MS: u64 = 500;
+const PLUGIN_MAX_RECOVERY_BACKOFF_MS: u64 = 300_000;
+const PLUGIN_MAX_STATUS_LIST: usize = 32;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PluginRegistryState {
+    schema_version: u32,
+    updated_ts_ms: u64,
+    plugins: Vec<PluginRegistryEntry>,
+}
+
+impl Default for PluginRegistryState {
+    fn default() -> Self {
+        Self {
+            schema_version: PLUGIN_REGISTRY_SCHEMA_VERSION,
+            updated_ts_ms: 0,
+            plugins: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PluginRegistryEntry {
+    plugin_id: String,
+    plugin_type: String,
+    version: String,
+    wasm_component_path: String,
+    wasm_sha256: String,
+    capabilities: Vec<String>,
+    signature: Option<String>,
+    provenance: Option<String>,
+    enabled: bool,
+    status: String,
+    failure_count: u32,
+    max_recovery_attempts: u32,
+    recovery_backoff_ms: u64,
+    next_retry_ts_ms: u64,
+    last_healthcheck_ts_ms: u64,
+    last_error: Option<String>,
+    quarantined_reason: Option<String>,
+    registered_ts_ms: u64,
+}
+
+fn resolve_plugin_registry_path(root: &PathBuf) -> PathBuf {
+    let explicit = std::env::var("INFRING_PLUGIN_REGISTRY_PATH")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    if let Some(path) = explicit {
+        let candidate = PathBuf::from(path);
+        if candidate.is_absolute() {
+            return candidate;
+        }
+        return root.join(candidate);
+    }
+
+    root.join(runtime_paths::CLIENT_STATE_ROOT)
+        .join("extensions")
+        .join("plugin_registry.json")
+}
+
+fn resolve_plugin_receipts_path(root: &PathBuf) -> PathBuf {
+    let explicit = std::env::var("INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    if let Some(path) = explicit {
+        let candidate = PathBuf::from(path);
+        if candidate.is_absolute() {
+            return candidate;
+        }
+        return root.join(candidate);
+    }
+
+    root.join(runtime_paths::CLIENT_STATE_ROOT)
+        .join("extensions")
+        .join("plugin_runtime_receipts.jsonl")
+}
+
+fn write_string_atomic(path: &Path, body: &str) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp = path.with_extension(format!("tmp-{}", std::process::id()));
+    fs::write(&tmp, body)?;
+    fs::rename(tmp, path)?;
+    Ok(())
+}
+
+fn load_plugin_registry(path: &Path) -> PluginRegistryState {
+    let raw = match fs::read_to_string(path) {
+        Ok(v) => v,
+        Err(_) => return PluginRegistryState::default(),
+    };
+    let mut parsed: PluginRegistryState = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(_) => return PluginRegistryState::default(),
+    };
+    for plugin in &mut parsed.plugins {
+        normalize_plugin_entry(plugin);
+    }
+    parsed
+}
+
+fn save_plugin_registry(path: &Path, registry: &PluginRegistryState) -> Result<(), String> {
+    let body = serde_json::to_string_pretty(registry).map_err(|e| format!("encode_failed:{e}"))?;
+    write_string_atomic(path, &body).map_err(|e| format!("write_failed:{e}"))
+}
+
+fn append_plugin_runtime_receipt(root: &PathBuf, mut payload: Value) -> Result<(), String> {
+    let receipts_path = resolve_plugin_receipts_path(root);
+    if let Some(parent) = receipts_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{e}"))?;
+    }
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("ts_ms".to_string(), serde_json::json!(now_ts_ms()));
+    }
+    let mut handle = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&receipts_path)
+        .map_err(|e| format!("open_receipts_failed:{e}"))?;
+    let line = serde_json::to_string(&payload).map_err(|e| format!("encode_receipt_failed:{e}"))?;
+    handle
+        .write_all(line.as_bytes())
+        .and_then(|_| handle.write_all(b"\n"))
+        .map_err(|e| format!("append_receipt_failed:{e}"))
+}
+
+fn normalize_plugin_type(raw: Option<&str>) -> String {
+    let candidate = raw
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("substrate_adapter")
+        .to_ascii_lowercase();
+    if is_valid_plugin_type(&candidate) {
+        candidate
+    } else {
+        "substrate_adapter".to_string()
+    }
+}
+
+fn normalize_plugin_entry(plugin: &mut PluginRegistryEntry) {
+    plugin.max_recovery_attempts = plugin
+        .max_recovery_attempts
+        .clamp(1, PLUGIN_MAX_RECOVERY_ATTEMPTS);
+    plugin.recovery_backoff_ms = plugin.recovery_backoff_ms.clamp(
+        PLUGIN_MIN_RECOVERY_BACKOFF_MS,
+        PLUGIN_MAX_RECOVERY_BACKOFF_MS,
+    );
+    if plugin.status.trim().is_empty() {
+        plugin.status = "healing".to_string();
+    }
+    if plugin.plugin_type.trim().is_empty() || !is_valid_plugin_type(&plugin.plugin_type) {
+        plugin.plugin_type = "substrate_adapter".to_string();
+    }
+}
+
+fn resolve_plugin_component_path(root: &PathBuf, raw: &str) -> PathBuf {
+    let candidate = PathBuf::from(raw);
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
+fn hash_file_sha256(path: &Path) -> Result<String, String> {
+    let bytes = fs::read(path).map_err(|e| format!("read_failed:{e}"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+fn plugin_health_check(root: &PathBuf, plugin: &PluginRegistryEntry) -> Result<(), String> {
+    let path = resolve_plugin_component_path(root, &plugin.wasm_component_path);
+    if !path.exists() {
+        return Err("wasm_component_missing".to_string());
+    }
+    if !path.is_file() {
+        return Err("wasm_component_not_file".to_string());
+    }
+    let observed = hash_file_sha256(&path)?;
+    if !observed.eq_ignore_ascii_case(&plugin.wasm_sha256) {
+        return Err("wasm_component_sha_mismatch".to_string());
+    }
+    Ok(())
+}
+
+fn mark_plugin_failure(plugin: &mut PluginRegistryEntry, reason: &str, now_ms: u64) -> Value {
+    plugin.failure_count = plugin.failure_count.saturating_add(1);
+    plugin.last_healthcheck_ts_ms = now_ms;
+    plugin.last_error = Some(reason.to_string());
+
+    if plugin.failure_count >= plugin.max_recovery_attempts {
+        plugin.status = "quarantined".to_string();
+        plugin.enabled = false;
+        plugin.next_retry_ts_ms = 0;
+        plugin.quarantined_reason = Some(reason.to_string());
+        return serde_json::json!({
+            "type": "plugin_runtime_quarantined",
+            "plugin_id": plugin.plugin_id,
+            "status": plugin.status,
+            "reason": reason,
+            "failure_count": plugin.failure_count
+        });
+    }
+
+    let exponent = plugin.failure_count.saturating_sub(1).min(8);
+    let multiplier = 1_u64 << exponent;
+    let retry_delay = plugin.recovery_backoff_ms.saturating_mul(multiplier).clamp(
+        PLUGIN_MIN_RECOVERY_BACKOFF_MS,
+        PLUGIN_MAX_RECOVERY_BACKOFF_MS,
+    );
+    plugin.status = "healing".to_string();
+    plugin.next_retry_ts_ms = now_ms.saturating_add(retry_delay);
+
+    serde_json::json!({
+        "type": "plugin_runtime_retry_scheduled",
+        "plugin_id": plugin.plugin_id,
+        "status": plugin.status,
+        "reason": reason,
+        "failure_count": plugin.failure_count,
+        "next_retry_ts_ms": plugin.next_retry_ts_ms
+    })
+}
+
+fn mark_plugin_healthy(
+    plugin: &mut PluginRegistryEntry,
+    now_ms: u64,
+    source: &str,
+) -> Option<Value> {
+    let changed =
+        plugin.status != "healthy" || plugin.failure_count > 0 || plugin.last_error.is_some();
+    plugin.status = "healthy".to_string();
+    plugin.failure_count = 0;
+    plugin.next_retry_ts_ms = 0;
+    plugin.last_healthcheck_ts_ms = now_ms;
+    plugin.last_error = None;
+    plugin.quarantined_reason = None;
+    if !changed {
+        return None;
+    }
+    Some(serde_json::json!({
+        "type": "plugin_runtime_recovered",
+        "plugin_id": plugin.plugin_id,
+        "status": plugin.status,
+        "source": source
+    }))
+}
+
+fn summarize_plugin_registry(
+    root: &PathBuf,
+    registry_path: &Path,
+    receipts_path: &Path,
+    registry: &PluginRegistryState,
+    changed: bool,
+    events: &[Value],
+    reason: &str,
+) -> Value {
+    let mut healthy = 0usize;
+    let mut healing = 0usize;
+    let mut quarantined = 0usize;
+    let mut disabled = 0usize;
+    for plugin in &registry.plugins {
+        match plugin.status.as_str() {
+            "healthy" => healthy += 1,
+            "healing" => healing += 1,
+            "quarantined" => quarantined += 1,
+            _ => {}
+        }
+        if !plugin.enabled {
+            disabled += 1;
+        }
+    }
+
+    let plugins = registry
+        .plugins
+        .iter()
+        .take(PLUGIN_MAX_STATUS_LIST)
+        .map(|plugin| {
+            let path = resolve_plugin_component_path(root, &plugin.wasm_component_path);
+            serde_json::json!({
+                "plugin_id": plugin.plugin_id,
+                "plugin_type": plugin.plugin_type,
+                "version": plugin.version,
+                "status": plugin.status,
+                "enabled": plugin.enabled,
+                "capabilities": plugin.capabilities,
+                "component_path": plugin.wasm_component_path,
+                "component_exists": path.exists(),
+                "failure_count": plugin.failure_count,
+                "max_recovery_attempts": plugin.max_recovery_attempts,
+                "next_retry_ts_ms": plugin.next_retry_ts_ms,
+                "last_healthcheck_ts_ms": plugin.last_healthcheck_ts_ms,
+                "last_error": plugin.last_error,
+                "quarantined_reason": plugin.quarantined_reason
+            })
+        })
+        .collect::<Vec<_>>();
+
+    serde_json::json!({
+        "available": true,
+        "schema_version": registry.schema_version,
+        "updated_ts_ms": registry.updated_ts_ms,
+        "path": registry_path.to_string_lossy().to_string(),
+        "receipts_path": receipts_path.to_string_lossy().to_string(),
+        "changed": changed,
+        "plugin_count": registry.plugins.len(),
+        "healthy_count": healthy,
+        "healing_count": healing,
+        "quarantined_count": quarantined,
+        "disabled_count": disabled,
+        "auto_heal_reason": reason,
+        "events": events,
+        "plugins": plugins
+    })
+}
+
+fn run_plugin_runtime_autoheal(root: &PathBuf, reason: &str) -> Value {
+    let registry_path = resolve_plugin_registry_path(root);
+    let receipts_path = resolve_plugin_receipts_path(root);
+    let mut registry = load_plugin_registry(&registry_path);
+    let now_ms = now_ts_ms();
+    let mut changed = false;
+    let mut events = Vec::new();
+
+    for plugin in &mut registry.plugins {
+        normalize_plugin_entry(plugin);
+        if !plugin.enabled {
+            continue;
+        }
+        if plugin.status == "healing" && plugin.next_retry_ts_ms > now_ms {
+            continue;
+        }
+        match plugin_health_check(root, plugin) {
+            Ok(()) => {
+                if let Some(event) = mark_plugin_healthy(plugin, now_ms, reason) {
+                    events.push(event);
+                    changed = true;
+                } else {
+                    plugin.last_healthcheck_ts_ms = now_ms;
+                }
+            }
+            Err(err) => {
+                let event = mark_plugin_failure(plugin, &err, now_ms);
+                events.push(event);
+                changed = true;
+            }
+        }
+    }
+
+    if changed {
+        registry.updated_ts_ms = now_ms;
+        let _ = save_plugin_registry(&registry_path, &registry);
+        for event in &events {
+            let _ = append_plugin_runtime_receipt(root, event.clone());
+        }
+    }
+
+    summarize_plugin_registry(
+        root,
+        &registry_path,
+        &receipts_path,
+        &registry,
+        changed,
+        &events,
+        reason,
+    )
+}
+
+struct RegisterExtensionInput {
+    extension_id: String,
+    wasm_sha256: String,
+    capabilities: Vec<String>,
+    plugin_type: Option<String>,
+    version: Option<String>,
+    wasm_component_path: Option<String>,
+    signature: Option<String>,
+    provenance: Option<String>,
+    recovery_max_attempts: Option<u32>,
+    recovery_backoff_ms: Option<u64>,
+}
+
+fn register_extension_runtime(
+    root: &PathBuf,
+    input: RegisterExtensionInput,
+) -> Result<Value, String> {
+    let registry_path = resolve_plugin_registry_path(root);
+    let mut registry = load_plugin_registry(&registry_path);
+    let now_ms = now_ts_ms();
+
+    let component_path = input
+        .wasm_component_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "extension_wasm_component_path_required".to_string())?;
+
+    let max_recovery_attempts = input
+        .recovery_max_attempts
+        .unwrap_or(PLUGIN_DEFAULT_MAX_RECOVERY_ATTEMPTS)
+        .clamp(1, PLUGIN_MAX_RECOVERY_ATTEMPTS);
+    let recovery_backoff_ms = input
+        .recovery_backoff_ms
+        .unwrap_or(PLUGIN_DEFAULT_RECOVERY_BACKOFF_MS)
+        .clamp(
+            PLUGIN_MIN_RECOVERY_BACKOFF_MS,
+            PLUGIN_MAX_RECOVERY_BACKOFF_MS,
+        );
+
+    let plugin_id = input.extension_id.trim().to_string();
+    let plugin_type = normalize_plugin_type(input.plugin_type.as_deref());
+    let version = input
+        .version
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("0.1.0")
+        .to_string();
+
+    let mut entry = PluginRegistryEntry {
+        plugin_id: plugin_id.clone(),
+        plugin_type,
+        version,
+        wasm_component_path: component_path.to_string(),
+        wasm_sha256: input.wasm_sha256,
+        capabilities: input.capabilities,
+        signature: input.signature,
+        provenance: input.provenance,
+        enabled: true,
+        status: "healing".to_string(),
+        failure_count: 0,
+        max_recovery_attempts,
+        recovery_backoff_ms,
+        next_retry_ts_ms: 0,
+        last_healthcheck_ts_ms: 0,
+        last_error: None,
+        quarantined_reason: None,
+        registered_ts_ms: now_ms,
+    };
+    normalize_plugin_entry(&mut entry);
+
+    let mut install_event = serde_json::json!({
+        "type": "plugin_runtime_registered",
+        "plugin_id": plugin_id,
+        "plugin_type": entry.plugin_type,
+        "version": entry.version,
+        "component_path": entry.wasm_component_path,
+        "capabilities": entry.capabilities
+    });
+
+    match plugin_health_check(root, &entry) {
+        Ok(()) => {
+            let _ = mark_plugin_healthy(&mut entry, now_ms, "register");
+            if let Some(obj) = install_event.as_object_mut() {
+                obj.insert("status".to_string(), Value::String(entry.status.clone()));
+            }
+        }
+        Err(err) => {
+            let heal_event = mark_plugin_failure(&mut entry, &err, now_ms);
+            if let Some(obj) = install_event.as_object_mut() {
+                obj.insert("status".to_string(), Value::String(entry.status.clone()));
+                obj.insert("health_error".to_string(), Value::String(err));
+                obj.insert("heal_event".to_string(), heal_event);
+            }
+        }
+    }
+
+    if let Some(existing) = registry
+        .plugins
+        .iter_mut()
+        .find(|plugin| plugin.plugin_id == entry.plugin_id)
+    {
+        *existing = entry.clone();
+    } else {
+        registry.plugins.push(entry.clone());
+    }
+    registry.updated_ts_ms = now_ms;
+
+    save_plugin_registry(&registry_path, &registry)?;
+    let _ = append_plugin_runtime_receipt(root, install_event);
+    Ok(run_plugin_runtime_autoheal(root, "register_extension"))
+}
+
 fn repo_root_from_current_dir() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
@@ -1465,6 +2004,9 @@ fn validate_structure(command: &TsCommand) -> Option<String> {
             extension_id,
             wasm_sha256,
             capabilities,
+            plugin_type,
+            wasm_component_path,
+            ..
         } => {
             if extension_id.trim().is_empty() {
                 return Some("extension_id_required".to_string());
@@ -1474,6 +2016,19 @@ fn validate_structure(command: &TsCommand) -> Option<String> {
             }
             if capabilities.is_empty() || capabilities.iter().any(|cap| cap.trim().is_empty()) {
                 return Some("extension_capabilities_invalid".to_string());
+            }
+            if wasm_component_path
+                .as_deref()
+                .map(str::trim)
+                .filter(|path| !path.is_empty())
+                .is_none()
+            {
+                return Some("extension_wasm_component_path_required".to_string());
+            }
+            if let Some(plugin_type) = plugin_type {
+                if !is_valid_plugin_type(plugin_type.trim()) {
+                    return Some("extension_plugin_type_invalid".to_string());
+                }
             }
         }
         TsCommand::ListActiveAgents | TsCommand::GetSystemStatus => {}
@@ -1532,6 +2087,13 @@ fn success_receipt(
 
 fn is_valid_sha256(raw: &str) -> bool {
     raw.len() == 64 && raw.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+fn is_valid_plugin_type(raw: &str) -> bool {
+    matches!(
+        raw,
+        "cognition_reflex" | "substrate_adapter" | "memory_backend"
+    )
 }
 
 pub fn process_command<P: PolicyGate, H: CommandHandler>(
@@ -1847,6 +2409,15 @@ mod tests {
                 wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     .to_string(),
                 capabilities: vec!["metrics.read".to_string()],
+                plugin_type: Some("substrate_adapter".to_string()),
+                version: Some("0.1.0".to_string()),
+                wasm_component_path: Some(
+                    "adapters/protocol/wasm_adapter_skeleton.wasm".to_string(),
+                ),
+                signature: None,
+                provenance: None,
+                recovery_max_attempts: None,
+                recovery_backoff_ms: None,
             },
         );
 
@@ -1949,6 +2520,13 @@ mod tests {
             wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 .to_string(),
             capabilities: vec!["metrics.read".to_string()],
+            plugin_type: Some("substrate_adapter".to_string()),
+            version: Some("0.1.0".to_string()),
+            wasm_component_path: Some("adapters/protocol/wasm_adapter_skeleton.wasm".to_string()),
+            signature: None,
+            provenance: None,
+            recovery_max_attempts: None,
+            recovery_backoff_ms: None,
         });
         assert_eq!(missing_id.as_deref(), Some("extension_id_required"));
 
@@ -1957,10 +2535,53 @@ mod tests {
             wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 .to_string(),
             capabilities: vec!["".to_string()],
+            plugin_type: Some("substrate_adapter".to_string()),
+            version: Some("0.1.0".to_string()),
+            wasm_component_path: Some("adapters/protocol/wasm_adapter_skeleton.wasm".to_string()),
+            signature: None,
+            provenance: None,
+            recovery_max_attempts: None,
+            recovery_backoff_ms: None,
         });
         assert_eq!(
             bad_capabilities.as_deref(),
             Some("extension_capabilities_invalid")
+        );
+
+        let missing_path = validate_structure(&TsCommand::InstallExtension {
+            extension_id: "ext-valid".to_string(),
+            wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+            capabilities: vec!["metrics.read".to_string()],
+            plugin_type: Some("substrate_adapter".to_string()),
+            version: Some("0.1.0".to_string()),
+            wasm_component_path: None,
+            signature: None,
+            provenance: None,
+            recovery_max_attempts: None,
+            recovery_backoff_ms: None,
+        });
+        assert_eq!(
+            missing_path.as_deref(),
+            Some("extension_wasm_component_path_required")
+        );
+
+        let bad_plugin_type = validate_structure(&TsCommand::InstallExtension {
+            extension_id: "ext-valid".to_string(),
+            wasm_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+            capabilities: vec!["metrics.read".to_string()],
+            plugin_type: Some("invalid_type".to_string()),
+            version: Some("0.1.0".to_string()),
+            wasm_component_path: Some("adapters/protocol/wasm_adapter_skeleton.wasm".to_string()),
+            signature: None,
+            provenance: None,
+            recovery_max_attempts: None,
+            recovery_backoff_ms: None,
+        });
+        assert_eq!(
+            bad_plugin_type.as_deref(),
+            Some("extension_plugin_type_invalid")
         );
     }
 
@@ -2392,6 +3013,15 @@ mod tests {
                 extension_id: "ext-bad-sha".to_string(),
                 wasm_sha256: "badsha".to_string(),
                 capabilities: vec!["metrics.read".to_string()],
+                plugin_type: Some("substrate_adapter".to_string()),
+                version: Some("0.1.0".to_string()),
+                wasm_component_path: Some(
+                    "adapters/protocol/wasm_adapter_skeleton.wasm".to_string(),
+                ),
+                signature: None,
+                provenance: None,
+                recovery_max_attempts: None,
+                recovery_backoff_ms: None,
             },
         );
 
@@ -2400,6 +3030,83 @@ mod tests {
         assert!(!response.validation.ok);
         assert!(response.validation.fail_closed);
         assert_eq!(response.validation.reason, "extension_wasm_sha256_invalid");
+    }
+
+    #[test]
+    fn install_extension_autoheals_and_quarantines_after_retries() {
+        let _guard = env_lock().lock().expect("env lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let registry_path = temp.path().join("plugin_registry.json");
+        let receipts_path = temp.path().join("plugin_runtime_receipts.jsonl");
+        let component_path = temp.path().join("plugin.wasm");
+        fs::write(&component_path, b"wasm-ok").expect("write component");
+        let wasm_sha256 = super::hash_file_sha256(&component_path).expect("hash component");
+
+        std::env::set_var(
+            "INFRING_PLUGIN_REGISTRY_PATH",
+            registry_path.to_string_lossy().to_string(),
+        );
+        std::env::set_var(
+            "INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH",
+            receipts_path.to_string_lossy().to_string(),
+        );
+
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+
+        let install = signed_envelope(
+            &policy,
+            TsCommand::InstallExtension {
+                extension_id: "plugin-alpha".to_string(),
+                wasm_sha256,
+                capabilities: vec!["metrics.read".to_string()],
+                plugin_type: Some("substrate_adapter".to_string()),
+                version: Some("0.1.0".to_string()),
+                wasm_component_path: Some(component_path.to_string_lossy().to_string()),
+                signature: None,
+                provenance: None,
+                recovery_max_attempts: Some(2),
+                recovery_backoff_ms: Some(500),
+            },
+        );
+        let mut handler = EchoCommandHandler;
+        let install_response = process_command(&install, &gate, &mut security, &mut handler);
+        assert!(install_response.validation.ok);
+
+        fs::write(&component_path, b"wasm-corrupt").expect("corrupt component");
+
+        let status = signed_envelope(&policy, TsCommand::GetSystemStatus);
+        let mut handler = EchoCommandHandler;
+        let _ = process_command(&status, &gate, &mut security, &mut handler);
+        let mut handler = EchoCommandHandler;
+        let status_response = process_command(&status, &gate, &mut security, &mut handler);
+        assert!(status_response.validation.ok);
+
+        let (quarantined, healing) = match status_response.event {
+            RustEvent::SystemFeedback { detail, .. } => {
+                let runtime = detail
+                    .get("plugin_runtime")
+                    .and_then(Value::as_object)
+                    .expect("plugin_runtime payload");
+                let quarantined = runtime
+                    .get("quarantined_count")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0);
+                let healing = runtime
+                    .get("healing_count")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0);
+                (quarantined, healing)
+            }
+            other => panic!("unexpected event: {other:?}"),
+        };
+        assert!(quarantined >= 1 || healing >= 1);
+        assert!(registry_path.exists(), "plugin registry must exist");
+        assert!(receipts_path.exists(), "plugin receipt log must exist");
+
+        std::env::remove_var("INFRING_PLUGIN_REGISTRY_PATH");
+        std::env::remove_var("INFRING_PLUGIN_RUNTIME_RECEIPTS_PATH");
     }
 
     #[test]

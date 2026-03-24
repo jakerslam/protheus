@@ -1669,6 +1669,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 mod tests {
     use super::*;
     use base64::Engine;
+    use proptest::prelude::*;
     use tempfile::tempdir;
 
     fn write_policy(root: &Path, max_queue_depth: usize, drop_below: &str) {
@@ -2059,5 +2060,73 @@ mod tests {
         let contract = load_contract(dir.path());
         let cursor_state = load_cursor_state(&contract.cursor_state_path);
         assert_eq!(read_consumer_offset(&cursor_state, "cockpit"), 0);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 32,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn queue_depth_never_exceeds_contract_limit(
+            max_depth in 1usize..12,
+            info_events in 1usize..64
+        ) {
+            let dir = tempdir().expect("tempdir");
+            write_policy(dir.path(), max_depth, "critical");
+            for idx in 0..info_events {
+                let event = json!({
+                    "ts": now_iso(),
+                    "source": "proptest",
+                    "source_type": "queue_depth",
+                    "severity": "info",
+                    "summary": format!("queue-depth-{idx}"),
+                    "attention_key": format!("prop-depth-{idx}")
+                });
+                let _ = enqueue_event(dir.path(), &event);
+            }
+            let queue = read_jsonl(&dir.path().join("local/state/attention/queue.jsonl"));
+            prop_assert!(queue.len() <= max_depth);
+        }
+
+        #[test]
+        fn critical_event_is_ordered_at_front_under_mixed_backlog(
+            lead_count in 1usize..20,
+            noisy in prop::collection::vec(prop_oneof![Just("info"), Just("warn")], 1..32)
+        ) {
+            let dir = tempdir().expect("tempdir");
+            write_policy(dir.path(), 64, "critical");
+
+            for idx in 0..lead_count {
+                let sev = *noisy.get(idx % noisy.len()).expect("noise severity");
+                let event = json!({
+                    "ts": now_iso(),
+                    "source": "proptest",
+                    "source_type": "mixed_backlog",
+                    "severity": sev,
+                    "summary": format!("noise-{idx}"),
+                    "attention_key": format!("noise-{idx}")
+                });
+                assert_eq!(enqueue_event(dir.path(), &event), 0);
+            }
+
+            let critical = json!({
+                "ts": now_iso(),
+                "source": "spine",
+                "source_type": "infra_outage_state",
+                "severity": "critical",
+                "summary": "critical outage signal",
+                "attention_key": "prop-critical-front"
+            });
+            assert_eq!(enqueue_event(dir.path(), &critical), 0);
+
+            let queue = read_jsonl(&dir.path().join("local/state/attention/queue.jsonl"));
+            prop_assert!(!queue.is_empty());
+            prop_assert_eq!(
+                queue[0].get("severity").and_then(Value::as_str),
+                Some("critical")
+            );
+        }
     }
 }
