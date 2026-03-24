@@ -178,6 +178,9 @@ const SNAPSHOT_LANE_TIMEOUT_MAX_MS = LANE_SYNC_TIMEOUT_MS;
 const SNAPSHOT_LANE_TIMEOUT_MIN_MS = 150;
 const SNAPSHOT_LANE_CACHE_TTL_MS = 8000;
 const SNAPSHOT_LANE_CACHE_FAIL_TTL_MS = 2000;
+const RUNTIME_AUTHORITY_LANE_TIMEOUT_MS = 1200;
+const RUNTIME_AUTHORITY_CACHE_TTL_MS = 1500;
+const RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS = 600;
 const AUTO_ROUTE_LANE_TIMEOUT_MS = 1200;
 const AUTO_ROUTE_CACHE_TTL_MS = 1200;
 const AUTO_ROUTE_CACHE_FAIL_TTL_MS = 600;
@@ -9001,7 +9004,140 @@ function applyRuntimePredictiveDrain(snapshot, team, runtime) {
   };
 }
 
-function classifyIngressControl(runtime) {
+function runtimeAuthorityPayload(runtime) {
+  return {
+    queue_depth: parseNonNegativeInt(runtime && runtime.queue_depth, 0, 2000000),
+    critical_attention_total: parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 2000000),
+    cockpit_blocks: parseNonNegativeInt(runtime && runtime.cockpit_blocks, 0, 2000000),
+    cockpit_stale_blocks: parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 2000000),
+    cockpit_stale_ratio: Number(
+      Number.isFinite(Number(runtime && runtime.cockpit_stale_ratio != null ? runtime.cockpit_stale_ratio : Number.NaN))
+        ? Number(runtime.cockpit_stale_ratio)
+        : 0
+    ),
+    conduit_signals: parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 2000000),
+    target_conduit_signals: parseNonNegativeInt(runtime && runtime.target_conduit_signals, 0, 2000000),
+    health_coverage_gap_count: parseNonNegativeInt(runtime && runtime.health_coverage_gap_count, 0, 2000000),
+    attention_unacked_depth: parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 2000000),
+    attention_cursor_offset: parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 2000000),
+    memory_ingest_paused: !!(runtime && runtime.memory_ingest_paused),
+    ingress_dampen_depth: RUNTIME_INGRESS_DAMPEN_DEPTH,
+    ingress_shed_depth: RUNTIME_INGRESS_SHED_DEPTH,
+    ingress_circuit_depth: RUNTIME_INGRESS_CIRCUIT_DEPTH,
+    ingress_delay_ms: RUNTIME_INGRESS_DELAY_MS,
+    critical_escalation_threshold: RUNTIME_CRITICAL_ESCALATION_THRESHOLD,
+    throttle_max_depth: RUNTIME_THROTTLE_MAX_DEPTH,
+    attention_drain_trigger_depth: RUNTIME_DRAIN_TRIGGER_DEPTH,
+    attention_drain_min_batch: RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
+    attention_drain_max_batch: RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+    attention_compact_depth: RUNTIME_ATTENTION_COMPACT_DEPTH,
+    attention_compact_retain: RUNTIME_ATTENTION_COMPACT_RETAIN,
+    attention_compact_min_acked: RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    queue_resume_depth: DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH,
+    stale_autoheal_min_blocks: RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS,
+    predictive_drain_clear_depth: RUNTIME_DRAIN_CLEAR_DEPTH,
+  };
+}
+
+function runtimeAuthorityFromRust(runtime) {
+  const payload = runtimeAuthorityPayload(runtime);
+  const cacheKey = `runtime.authority.${sha256(JSON.stringify(payload)).slice(0, 24)}`;
+  const lane = runLaneCached(
+    cacheKey,
+    [
+      'runtime-systems',
+      'run',
+      '--system-id=V6-DASHBOARD-007.1',
+      '--strict=1',
+      '--apply=0',
+      `--payload-json=${JSON.stringify(payload)}`,
+    ],
+    {
+      timeout_ms: RUNTIME_AUTHORITY_LANE_TIMEOUT_MS,
+      ttl_ms: RUNTIME_AUTHORITY_CACHE_TTL_MS,
+      fail_ttl_ms: RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS,
+    }
+  );
+  const lanePayload = lane && lane.payload && typeof lane.payload === 'object' ? lane.payload : null;
+  const contractExecution =
+    lanePayload &&
+    lanePayload.contract_execution &&
+    typeof lanePayload.contract_execution === 'object'
+      ? lanePayload.contract_execution
+      : null;
+  const specificChecks =
+    contractExecution &&
+    contractExecution.specific_checks &&
+    typeof contractExecution.specific_checks === 'object'
+      ? contractExecution.specific_checks
+      : null;
+  const authority =
+    specificChecks &&
+    specificChecks.dashboard_runtime_authority &&
+    typeof specificChecks.dashboard_runtime_authority === 'object'
+      ? specificChecks.dashboard_runtime_authority
+      : null;
+  if (!lane || !lane.ok || !lanePayload || !authority) {
+    return {
+      ok: false,
+      authority: null,
+      lane: laneOutcome(lane || null),
+    };
+  }
+  return {
+    ok: true,
+    authority,
+    lane: laneOutcome(lane),
+  };
+}
+
+function classifyIngressControl(runtime, rustAuthority = null) {
+  const authority =
+    rustAuthority && rustAuthority.ok && rustAuthority.authority && typeof rustAuthority.authority === 'object'
+      ? rustAuthority
+      : runtimeAuthorityFromRust(runtime);
+  const ingressFromRust =
+    authority &&
+    authority.ok &&
+    authority.authority &&
+    authority.authority.ingress_control &&
+    typeof authority.authority.ingress_control === 'object'
+      ? authority.authority.ingress_control
+      : null;
+  if (ingressFromRust) {
+    const level = cleanText(ingressFromRust.level || 'normal', 24).toLowerCase() || 'normal';
+    const rejectNonCritical = !!ingressFromRust.reject_non_critical;
+    const delayMs = parseNonNegativeInt(ingressFromRust.delay_ms, 0, 100000000);
+    const reason = cleanText(ingressFromRust.reason || 'steady_state', 120) || 'steady_state';
+    if (ingressControllerState.level !== level) {
+      ingressControllerState = {
+        level,
+        reject_non_critical: rejectNonCritical,
+        delay_ms: delayMs,
+        reason,
+        since: nowIso(),
+      };
+    } else {
+      ingressControllerState = {
+        ...ingressControllerState,
+        reject_non_critical: rejectNonCritical,
+        delay_ms: delayMs,
+        reason,
+      };
+    }
+    return {
+      level,
+      reject_non_critical: rejectNonCritical,
+      delay_ms: delayMs,
+      reason,
+      since: cleanText(ingressControllerState.since || '', 80),
+      dampen_depth: parseNonNegativeInt(ingressFromRust.dampen_depth, RUNTIME_INGRESS_DAMPEN_DEPTH, 100000000),
+      shed_depth: parseNonNegativeInt(ingressFromRust.shed_depth, RUNTIME_INGRESS_SHED_DEPTH, 100000000),
+      circuit_depth: parseNonNegativeInt(ingressFromRust.circuit_depth, RUNTIME_INGRESS_CIRCUIT_DEPTH, 100000000),
+      authority: 'rust_runtime_systems',
+      lane: authority.lane || null,
+    };
+  }
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const critical = parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 100000000);
   const growthRisk = queueDepth >= RUNTIME_INGRESS_SHED_DEPTH && critical >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD;
@@ -9052,10 +9188,36 @@ function classifyIngressControl(runtime) {
     dampen_depth: RUNTIME_INGRESS_DAMPEN_DEPTH,
     shed_depth: RUNTIME_INGRESS_SHED_DEPTH,
     circuit_depth: RUNTIME_INGRESS_CIRCUIT_DEPTH,
+    authority: 'ts_fallback',
+    lane: authority && authority.lane ? authority.lane : null,
   };
 }
 
-function cockpitSignalState(runtime) {
+function cockpitSignalState(runtime, rustAuthority = null) {
+  const authority =
+    rustAuthority && rustAuthority.ok && rustAuthority.authority && typeof rustAuthority.authority === 'object'
+      ? rustAuthority
+      : runtimeAuthorityFromRust(runtime);
+  const cockpitFromRust =
+    authority &&
+    authority.ok &&
+    authority.authority &&
+    authority.authority.cockpit_signal &&
+    typeof authority.authority.cockpit_signal === 'object'
+      ? authority.authority.cockpit_signal
+      : null;
+  if (cockpitFromRust) {
+    const coarse = !!cockpitFromRust.coarse;
+    const quality = coarse
+      ? 'coarse'
+      : cleanText(cockpitFromRust.quality || 'good', 24).toLowerCase() || 'good';
+    return {
+      quality,
+      coarse,
+      authority: 'rust_runtime_systems',
+      lane: authority.lane || null,
+    };
+  }
   const quality = cleanText(runtime && runtime.cockpit_signal_quality ? runtime.cockpit_signal_quality : 'good', 24)
     .toLowerCase() || 'good';
   const staleRatio = Number(
@@ -9068,6 +9230,8 @@ function cockpitSignalState(runtime) {
   return {
     quality: streamCoarse ? 'coarse' : quality,
     coarse: streamCoarse,
+    authority: 'ts_fallback',
+    lane: authority && authority.lane ? authority.lane : null,
   };
 }
 
@@ -10136,23 +10300,34 @@ function maybeAutoHealConduit(runtime, team) {
   };
 }
 
-function maybeApplyRuntimeThrottle(runtime, team) {
+function maybeApplyRuntimeThrottle(runtime, team, recommendation = null) {
   const ingress = classifyIngressControl(runtime);
   const cockpitSignal = cockpitSignalState(runtime);
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
-  const dynamicMaxDepth =
+  const fallbackMaxDepth =
     queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH
       ? Math.max(40, RUNTIME_THROTTLE_MAX_DEPTH - 20)
       : queueDepth >= RUNTIME_INGRESS_SHED_DEPTH
       ? Math.max(50, RUNTIME_THROTTLE_MAX_DEPTH - 10)
       : RUNTIME_THROTTLE_MAX_DEPTH;
-  const required =
+  const dynamicMaxDepth = parseNonNegativeInt(
+    recommendation && recommendation.throttle_max_depth != null
+      ? recommendation.throttle_max_depth
+      : fallbackMaxDepth,
+    fallbackMaxDepth,
+    100000000
+  );
+  const fallbackRequired =
     queueDepth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
     parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 100000000) >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
     cleanText(runtime && runtime.backpressure_level ? runtime.backpressure_level : '', 20).toLowerCase() === 'critical' ||
     ingress.level === 'shed' ||
     ingress.level === 'circuit' ||
     cockpitSignal.coarse;
+  const required =
+    recommendation && recommendation.throttle_required != null
+      ? !!recommendation.throttle_required
+      : fallbackRequired;
   const command = [
     'collab-plane',
     'throttle',
@@ -10185,17 +10360,27 @@ function maybeApplyRuntimeThrottle(runtime, team) {
   };
 }
 
-function maybeDrainAttentionQueue(runtime) {
+function maybeDrainAttentionQueue(runtime, recommendation = null) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const unackedDepth = parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 100000000);
-  const required =
+  const fallbackRequired =
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
     unackedDepth >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED * 2 ||
     cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit';
-  const limit = Math.min(
+  const fallbackLimit = Math.min(
     RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
     Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
   );
+  const authorityRequired =
+    recommendation && recommendation.attention_drain_required != null
+      ? !!recommendation.attention_drain_required
+      : null;
+  const authorityLimit =
+    recommendation && recommendation.attention_drain_limit != null
+      ? parseNonNegativeInt(recommendation.attention_drain_limit, fallbackLimit, 100000000)
+      : fallbackLimit;
+  const required = authorityRequired == null ? fallbackRequired : authorityRequired;
+  const limit = authorityLimit;
   const command = [
     'attention-queue',
     'drain',
@@ -10229,17 +10414,35 @@ function maybeDrainAttentionQueue(runtime) {
   };
 }
 
-function maybeCompactAttentionQueue(runtime) {
+function maybeCompactAttentionQueue(runtime, recommendation = null) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const cursorOffset = parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000);
-  const required =
+  const fallbackRequired =
     queueDepth >= RUNTIME_ATTENTION_COMPACT_DEPTH &&
     cursorOffset >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED;
+  const retain = parseNonNegativeInt(
+    recommendation && recommendation.attention_compact_retain != null
+      ? recommendation.attention_compact_retain
+      : RUNTIME_ATTENTION_COMPACT_RETAIN,
+    RUNTIME_ATTENTION_COMPACT_RETAIN,
+    100000000
+  );
+  const minAcked = parseNonNegativeInt(
+    recommendation && recommendation.attention_compact_min_acked != null
+      ? recommendation.attention_compact_min_acked
+      : RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    100000000
+  );
+  const required =
+    recommendation && recommendation.attention_compact_required != null
+      ? !!recommendation.attention_compact_required
+      : fallbackRequired;
   const command = [
     'attention-queue',
     'compact',
-    `--retain=${RUNTIME_ATTENTION_COMPACT_RETAIN}`,
-    `--min-acked=${RUNTIME_ATTENTION_COMPACT_MIN_ACKED}`,
+    `--retain=${retain}`,
+    `--min-acked=${minAcked}`,
     '--run-context=runtime_attention_autocompact',
   ];
   if (!required) {
@@ -10263,15 +10466,19 @@ function maybeCompactAttentionQueue(runtime) {
     command: `protheus-ops ${command.join(' ')}`,
     compacted_count: compactedCount,
     lane: laneOutcome(lane),
-    retain: RUNTIME_ATTENTION_COMPACT_RETAIN,
-    min_acked: RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    retain,
+    min_acked: minAcked,
   };
 }
 
-function maybeRefreshAdaptiveHealth(runtime) {
-  const required =
+function maybeRefreshAdaptiveHealth(runtime, recommendation = null) {
+  const fallbackRequired =
     parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= 80 ||
     parseNonNegativeInt(runtime && runtime.health_coverage_gap_count, 0, 100000000) > 0;
+  const required =
+    recommendation && recommendation.adaptive_health_required != null
+      ? !!recommendation.adaptive_health_required
+      : fallbackRequired;
   runtimePolicyState.health_adaptive = required;
   if (!required) {
     return {
@@ -10293,14 +10500,27 @@ function maybeRefreshAdaptiveHealth(runtime) {
   };
 }
 
-function maybeResumeMemoryIngest(runtime) {
+function maybeResumeMemoryIngest(runtime, recommendation = null) {
   const paused = !!(runtime && runtime.memory_ingest_paused);
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
+  const authorityEligible =
+    recommendation && recommendation.memory_resume_eligible != null
+      ? !!recommendation.memory_resume_eligible
+      : null;
   if (!paused) {
     return {
       eligible: false,
       resumed: false,
       reason: 'already_live',
+    };
+  }
+  if (authorityEligible === false) {
+    return {
+      eligible: false,
+      resumed: false,
+      reason: 'runtime_authority_denied',
+      queue_depth: queueDepth,
+      resume_threshold: DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH,
     };
   }
   if (queueDepth > DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH) {
@@ -10331,8 +10551,30 @@ function maybeResumeMemoryIngest(runtime) {
 
 function runtimeSwarmRecommendation(snapshot) {
   const runtime = runtimeSyncSummary(snapshot);
-  const cockpitSignal = cockpitSignalState(runtime);
-  const ingressControl = classifyIngressControl(runtime);
+  const runtimeAuthority = runtimeAuthorityFromRust(runtime);
+  const cockpitSignal = cockpitSignalState(runtime, runtimeAuthority);
+  const ingressControl = classifyIngressControl(runtime, runtimeAuthority);
+  const authorityRoot =
+    runtimeAuthority &&
+    runtimeAuthority.ok &&
+    runtimeAuthority.authority &&
+    typeof runtimeAuthority.authority === 'object'
+      ? runtimeAuthority.authority
+      : null;
+  const authorityRecommendations =
+    authorityRoot &&
+    authorityRoot.recommendations &&
+    typeof authorityRoot.recommendations === 'object'
+      ? authorityRoot.recommendations
+      : null;
+  const authorityRolePlan = Array.isArray(authorityRoot && authorityRoot.role_plan)
+    ? authorityRoot.role_plan
+    : [];
+  const authorityRoleSet = new Set(
+    authorityRolePlan
+      .map((row) => cleanText(row && row.role ? row.role : '', 40).toLowerCase())
+      .filter(Boolean)
+  );
   const stalePressure =
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 &&
     parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= RUNTIME_DRAIN_TRIGGER_DEPTH;
@@ -10364,24 +10606,33 @@ function runtimeSwarmRecommendation(snapshot) {
   const heavyCockpitLoad = runtime.cockpit_blocks >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD;
   const roleOrder = ['coordinator', 'researcher', 'builder', 'reviewer', 'analyst'];
   const roleRequired = {
-    coordinator: shouldRecommendBase || runtime.health_coverage_gap_count > 0 || reliabilityPosture.degraded || sloGate.required,
+    coordinator:
+      authorityRoleSet.has('coordinator') ||
+      shouldRecommendBase ||
+      runtime.health_coverage_gap_count > 0 ||
+      reliabilityPosture.degraded ||
+      sloGate.required,
     researcher:
+      authorityRoleSet.has('researcher') ||
       shouldRecommendBase ||
       runtime.critical_attention_total >= 5 ||
       !!runtime.conduit_scale_required ||
       reliabilityPosture.degraded ||
       sloGate.required,
     builder:
+      authorityRoleSet.has('builder') ||
       heavyCockpitLoad ||
       runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
       stalePressure ||
       staleAutohealNeeded,
     reviewer:
+      authorityRoleSet.has('reviewer') ||
       swarmScaleRequired ||
       runtime.health_coverage_gap_count > 0 ||
       reliabilityPosture.degraded ||
       sloGate.required,
     analyst:
+      authorityRoleSet.has('analyst') ||
       runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
       runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
       runtime.health_coverage_gap_count > 0 ||
@@ -10412,18 +10663,85 @@ function runtimeSwarmRecommendation(snapshot) {
     })
     .filter((row) => row.required);
   const throttleRequired =
-    runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
-    runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
-    ingressControl.level === 'shed' ||
-    ingressControl.level === 'circuit' ||
-    cockpitSignal.coarse ||
-    reliabilityPosture.degraded ||
-    !!sloGate.containment_required;
-  const adaptiveHealthRequired = runtime.queue_depth >= 80 || runtime.health_coverage_gap_count > 0 || sloGate.required;
+    authorityRecommendations && authorityRecommendations.throttle_required != null
+      ? !!authorityRecommendations.throttle_required
+      : runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
+        runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
+        ingressControl.level === 'shed' ||
+        ingressControl.level === 'circuit' ||
+        cockpitSignal.coarse ||
+        reliabilityPosture.degraded ||
+        !!sloGate.containment_required;
+  const adaptiveHealthRequired =
+    authorityRecommendations && authorityRecommendations.adaptive_health_required != null
+      ? !!authorityRecommendations.adaptive_health_required
+      : runtime.queue_depth >= 80 || runtime.health_coverage_gap_count > 0 || sloGate.required;
+  const authorityTargetConduitSignals = parseNonNegativeInt(
+    authorityRecommendations && authorityRecommendations.target_conduit_signals != null
+      ? authorityRecommendations.target_conduit_signals
+      : runtime.target_conduit_signals,
+    runtime.target_conduit_signals,
+    100000000
+  );
   const conduitAutoBalanceRequired =
-    runtime.conduit_signals < Math.max(runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
-    (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH);
-  const memoryResumeEligible = !!runtime.memory_ingest_paused && runtime.queue_depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH;
+    authorityRecommendations && authorityRecommendations.conduit_autobalance_required != null
+      ? !!authorityRecommendations.conduit_autobalance_required
+      : runtime.conduit_signals < Math.max(authorityTargetConduitSignals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
+        (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH);
+  const memoryResumeEligible =
+    authorityRecommendations && authorityRecommendations.memory_resume_eligible != null
+      ? !!authorityRecommendations.memory_resume_eligible
+      : !!runtime.memory_ingest_paused && runtime.queue_depth <= DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH;
+  const fallbackThrottleMaxDepth =
+    runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH
+      ? Math.max(40, RUNTIME_THROTTLE_MAX_DEPTH - 20)
+      : runtime.queue_depth >= RUNTIME_INGRESS_SHED_DEPTH
+      ? Math.max(50, RUNTIME_THROTTLE_MAX_DEPTH - 10)
+      : RUNTIME_THROTTLE_MAX_DEPTH;
+  const throttleMaxDepth = parseNonNegativeInt(
+    authorityRecommendations && authorityRecommendations.throttle_max_depth != null
+      ? authorityRecommendations.throttle_max_depth
+      : fallbackThrottleMaxDepth,
+    fallbackThrottleMaxDepth,
+    100000000
+  );
+  const attentionDrainRequired =
+    authorityRecommendations && authorityRecommendations.attention_drain_required != null
+      ? !!authorityRecommendations.attention_drain_required
+      : runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+        parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 100000000) >=
+          RUNTIME_ATTENTION_COMPACT_MIN_ACKED * 2 ||
+        ingressControl.level === 'circuit';
+  const attentionDrainLimit = parseNonNegativeInt(
+    authorityRecommendations && authorityRecommendations.attention_drain_limit != null
+      ? authorityRecommendations.attention_drain_limit
+      : Math.min(
+          RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+          Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(runtime.queue_depth / 3))
+        ),
+    RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
+    100000000
+  );
+  const attentionCompactRequired =
+    authorityRecommendations && authorityRecommendations.attention_compact_required != null
+      ? !!authorityRecommendations.attention_compact_required
+      : runtime.queue_depth >= RUNTIME_ATTENTION_COMPACT_DEPTH &&
+        parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000) >=
+          RUNTIME_ATTENTION_COMPACT_MIN_ACKED;
+  const attentionCompactRetain = parseNonNegativeInt(
+    authorityRecommendations && authorityRecommendations.attention_compact_retain != null
+      ? authorityRecommendations.attention_compact_retain
+      : RUNTIME_ATTENTION_COMPACT_RETAIN,
+    RUNTIME_ATTENTION_COMPACT_RETAIN,
+    100000000
+  );
+  const attentionCompactMinAcked = parseNonNegativeInt(
+    authorityRecommendations && authorityRecommendations.attention_compact_min_acked != null
+      ? authorityRecommendations.attention_compact_min_acked
+      : RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
+    100000000
+  );
   const benchmarkAgeSeconds = parsePositiveInt(
     runtime && runtime.benchmark_sanity_age_seconds != null ? runtime.benchmark_sanity_age_seconds : -1,
     -1,
@@ -10436,8 +10754,14 @@ function runtimeSwarmRecommendation(snapshot) {
     benchmarkAgeSeconds < 0 ||
     benchmarkAgeSeconds > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
   const drainAgents = trackedRuntimeDrainAgents(snapshot);
-  const predictiveDrainRequired = runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
-  const predictiveDrainRelease = runtime.queue_depth <= RUNTIME_DRAIN_CLEAR_DEPTH && drainAgents.length > 0;
+  const predictiveDrainRequired =
+    authorityRecommendations && authorityRecommendations.predictive_drain_required != null
+      ? !!authorityRecommendations.predictive_drain_required
+      : runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const predictiveDrainRelease =
+    authorityRecommendations && authorityRecommendations.predictive_drain_release != null
+      ? !!authorityRecommendations.predictive_drain_release && drainAgents.length > 0
+      : runtime.queue_depth <= RUNTIME_DRAIN_CLEAR_DEPTH && drainAgents.length > 0;
   const predictiveDrainAllowed = !reliabilityPosture.degraded && !sloGate.block_scale;
   const coarseSignalDeficit = Math.max(0, runtime.target_conduit_signals - runtime.conduit_signals);
   const coarseSignalRemediationRequired =
@@ -10472,7 +10796,7 @@ function runtimeSwarmRecommendation(snapshot) {
     health_coverage_gap_count: runtime.health_coverage_gap_count,
     conduit_scale_required: !!runtime.conduit_scale_required,
     conduit_signals: runtime.conduit_signals,
-    target_conduit_signals: runtime.target_conduit_signals,
+    target_conduit_signals: authorityTargetConduitSignals,
     active_swarm_agents: activeSwarmAgents,
     deferred_attention: parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000),
     deferred_mode: cleanText(runtime && runtime.deferred_mode ? runtime.deferred_mode : '', 24),
@@ -10525,6 +10849,12 @@ function runtimeSwarmRecommendation(snapshot) {
         ? runtime.queue_lane_caps
         : { ...ATTENTION_LANE_CAPS },
     throttle_required: throttleRequired,
+    throttle_max_depth: throttleMaxDepth,
+    attention_drain_required: attentionDrainRequired,
+    attention_drain_limit: attentionDrainLimit,
+    attention_compact_required: attentionCompactRequired,
+    attention_compact_retain: attentionCompactRetain,
+    attention_compact_min_acked: attentionCompactMinAcked,
     throttle_command: `protheus-ops collab-plane throttle --plane=${RUNTIME_THROTTLE_PLANE} --max-depth=${RUNTIME_THROTTLE_MAX_DEPTH} --strategy=${RUNTIME_THROTTLE_STRATEGY}`,
     adaptive_health_required: adaptiveHealthRequired,
     adaptive_health_window_seconds: RUNTIME_HEALTH_ADAPTIVE_WINDOW_SECONDS,
@@ -10545,6 +10875,18 @@ function runtimeSwarmRecommendation(snapshot) {
     predictive_drain_active_agents: drainAgents.slice(0, 8),
     coarse_signal_remediation_required: coarseSignalRemediationRequired,
     ingress_control: ingressControl,
+    authority:
+      runtimeAuthority && runtimeAuthority.ok
+        ? {
+            source: cleanText(authorityRoot && authorityRoot.authority ? authorityRoot.authority : 'rust_runtime_systems', 60) || 'rust_runtime_systems',
+            lane: runtimeAuthority.lane || null,
+            contract_id: cleanText(authorityRoot && authorityRoot.contract_id ? authorityRoot.contract_id : 'V6-DASHBOARD-007.1', 80),
+          }
+        : {
+            source: 'ts_fallback',
+            lane: runtimeAuthority && runtimeAuthority.lane ? runtimeAuthority.lane : null,
+            contract_id: 'V6-DASHBOARD-007.1',
+          },
   };
 }
 
@@ -10556,7 +10898,10 @@ function executeRuntimeSwarmRecommendation(snapshot) {
   const policies = [];
   const turns = [];
 
-  const ingressControl = classifyIngressControl(runtime);
+  const ingressControl =
+    recommendation && recommendation.ingress_control && typeof recommendation.ingress_control === 'object'
+      ? recommendation.ingress_control
+      : classifyIngressControl(runtime);
   policies.push({
     policy: 'predictive_ingress_controller',
     required: ingressControl.level !== 'normal',
@@ -10573,7 +10918,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     },
   });
 
-  const queueDrain = maybeDrainAttentionQueue(runtime);
+  const queueDrain = maybeDrainAttentionQueue(runtime, recommendation);
   policies.push({
     policy: 'attention_queue_autodrain',
     required: !!queueDrain.required,
@@ -10584,7 +10929,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     lane: queueDrain.lane,
   });
 
-  const queueCompact = maybeCompactAttentionQueue(runtime);
+  const queueCompact = maybeCompactAttentionQueue(runtime, recommendation);
   policies.push({
     policy: 'attention_queue_compaction',
     required: !!queueCompact.required,
@@ -10596,7 +10941,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     lane: queueCompact.lane,
   });
 
-  const throttle = maybeApplyRuntimeThrottle(runtime, recommendation.team || DEFAULT_TEAM);
+  const throttle = maybeApplyRuntimeThrottle(runtime, recommendation.team || DEFAULT_TEAM, recommendation);
   policies.push({
     policy: 'queue_throttle',
     required: !!throttle.required,
@@ -10992,7 +11337,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     });
   }
 
-  const healthAdaptive = maybeRefreshAdaptiveHealth(runtime);
+  const healthAdaptive = maybeRefreshAdaptiveHealth(runtime, recommendation);
   policies.push({
     policy: 'adaptive_health_schedule',
     required: !!healthAdaptive.required,
@@ -11002,7 +11347,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     lane: healthAdaptive.lane,
   });
 
-  const memoryResume = maybeResumeMemoryIngest(runtime);
+  const memoryResume = maybeResumeMemoryIngest(runtime, recommendation);
   policies.push({
     policy: 'memory_ingest_resume',
     required: !!runtime.memory_ingest_paused,
