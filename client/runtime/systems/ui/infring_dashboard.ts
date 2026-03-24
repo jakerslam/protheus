@@ -63,7 +63,7 @@ const DASHBOARD_BACKPRESSURE_WARN_DEPTH = 50;
 const DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH = 80;
 const DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH = 50;
 const RUNTIME_CRITICAL_ESCALATION_THRESHOLD = 7;
-const RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD = 30;
+const RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD = 28;
 const RUNTIME_AUTO_BALANCE_THRESHOLD = 12;
 const RUNTIME_DRAIN_TRIGGER_DEPTH = 60;
 const RUNTIME_DRAIN_CLEAR_DEPTH = 40;
@@ -83,6 +83,8 @@ const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH = 20;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
+const RUNTIME_STALE_LANE_RETRY_BASE_MS = 5_000;
+const RUNTIME_STALE_LANE_RETRY_MAX_MS = 120_000;
 const RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_STALE_SOFT_PERSISTENCE_MIN_TICKS = 3;
@@ -208,20 +210,26 @@ const ATTENTION_CRITICAL_LIMIT = 64;
 const SNAPSHOT_FS_CACHE_TTL_MS = 8000;
 const ATTENTION_MICRO_BATCH_WINDOW_MS = 50;
 const ATTENTION_MICRO_BATCH_MAX_ITEMS = 10;
+const ATTENTION_MICRO_BATCH_DEGRADE_WINDOW_MS = 200;
+const ATTENTION_MICRO_BATCH_DEGRADE_MAX_ITEMS = 6;
 const ATTENTION_PREEMPT_QUEUE_DEPTH = 60;
 const ATTENTION_BG_DOMINANCE_RATIO = 3;
 const ATTENTION_DEFERRED_STASH_DEPTH = 80;
+const ATTENTION_DEFERRED_PREDICTIVE_STASH_DEPTH = 65;
 const ATTENTION_DEFERRED_HARD_SHED_DEPTH = 100;
 const ATTENTION_DEFERRED_REHYDRATE_DEPTH = 40;
+const ATTENTION_DEFERRED_PREDICTIVE_REHYDRATE_DEPTH = 30;
 const ATTENTION_DEFERRED_REHYDRATE_BATCH = 10;
 const ATTENTION_DEFERRED_MAX_ITEMS = 4000;
+const ATTENTION_CRITICAL_DECAY_STAGE1_SECONDS = 30;
+const ATTENTION_CRITICAL_DECAY_STAGE2_SECONDS = 60;
 const ATTENTION_LANE_WEIGHTS = {
   critical: 6,
   standard: 3,
   background: 1,
 };
 const ATTENTION_LANE_CAPS = {
-  critical: 20,
+  critical: 12,
   standard: 30,
   background: 50,
 };
@@ -3945,6 +3953,34 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
   const asksForStatus = /dashboard|system|runtime|telemetry|queue|conduit|cockpit|pain|improv|connection|coupling|reliab|autonom/i.test(
     String(input || '').toLowerCase()
   );
+  const responseP95 = Number(runtime && runtime.receipt_latency_p95_ms != null ? runtime.receipt_latency_p95_ms : Number.NaN);
+  const responseP99 = Number(runtime && runtime.receipt_latency_p99_ms != null ? runtime.receipt_latency_p99_ms : Number.NaN);
+  const responseMs = Number.isFinite(responseP95) && responseP95 > 0
+    ? Math.round(responseP95)
+    : Number.isFinite(responseP99) && responseP99 > 0
+      ? Math.round(responseP99)
+      : null;
+  const healthGapCount = parseNonNegativeInt(
+    runtime && runtime.health_coverage_gap_count != null ? runtime.health_coverage_gap_count : 0,
+    0,
+    100000000
+  );
+  let confidence = 100;
+  if (queueDepth > 20) confidence -= Math.min(20, Math.floor((queueDepth - 20) / 2));
+  if (staleBlocks > 0) confidence -= Math.min(20, staleBlocks * 2);
+  if (healthGapCount > 0) confidence -= Math.min(20, healthGapCount * 6);
+  if (lowSignal) confidence -= 12;
+  if (benchmarkCockpitStatus === 'warn' || benchmarkStatus.includes('warn')) confidence -= 8;
+  if (benchmarkCockpitStatus === 'fail' || benchmarkStatus.includes('fail')) confidence -= 20;
+  confidence = Math.max(10, Math.min(100, Math.round(confidence)));
+  const pressureState =
+    queueDepth <= 6 && !lowSignal && staleBlocks <= 1 && (benchmarkCockpitStatus === 'pass' || benchmarkStatus.includes('pass'))
+      ? 'Synced'
+      : queueDepth <= 24 && staleBlocks <= 3
+        ? 'Ready'
+        : 'Active';
+  const responseSummary = responseMs != null ? `${responseMs}ms p95` : 'stabilizing';
+  const confidenceSummary = `${confidence}%`;
 
   const painPoints = [];
   if (lowSignal) painPoints.push(`Conduit under target (${conduitSignals}/${targetSignals}).`);
@@ -4008,10 +4044,11 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
   }
 
   if (!asksForStatus) {
-    return `Hosted model backend returned an echo instead of an answer. Current telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}. Retrying with a recovery backend is recommended.`;
+    return `Hosted model backend returned an echo instead of an answer. System state is ${pressureState.toLowerCase()} (${responseSummary}, confidence ${confidenceSummary}). Retrying with a recovery backend is recommended.`;
   }
   return [
-    `Current dashboard telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}, benchmark cockpit ${benchmarkStatus}.`,
+    `Current system state: ${pressureState}.`,
+    `Response Time: ${responseSummary}. Confidence: ${confidenceSummary}.`,
     `Top pain points: ${painPoints.slice(0, 5).join(' ')}`,
     `Recommended fixes: ${improvements.slice(0, 5).join(' ')}`,
   ].join('\n\n');
@@ -6366,6 +6403,7 @@ let conduitWatchdogState = {
   failure_count: 0,
   active_shadows: [],
 };
+let staleLaneRetryState = {};
 let runtimeAutohealState = {
   last_run_ms: 0,
   last_run_at: '',
@@ -6504,14 +6542,32 @@ function normalizeDeferredAttentionEvent(row, reason = 'deferred') {
   };
 }
 
-function applyAttentionDeferredStorage(queueDepth = 0, split = {}) {
+function applyAttentionDeferredStorage(queueDepth = 0, split = {}, options = {}) {
   const depth = parseNonNegativeInt(queueDepth, 0, 100000000);
   const critical = Array.isArray(split.critical) ? split.critical.slice() : [];
   let standard = Array.isArray(split.standard) ? split.standard.slice() : [];
   let background = Array.isArray(split.background) ? split.background.slice() : [];
-  const shouldStash = depth >= ATTENTION_DEFERRED_STASH_DEPTH;
-  const hardShed = depth >= ATTENTION_DEFERRED_HARD_SHED_DEPTH;
-  const canRehydrate = depth <= ATTENTION_DEFERRED_REHYDRATE_DEPTH;
+  const stashDepth = parsePositiveInt(
+    options && options.stash_depth != null ? options.stash_depth : ATTENTION_DEFERRED_STASH_DEPTH,
+    ATTENTION_DEFERRED_STASH_DEPTH,
+    1,
+    100000000
+  );
+  const hardShedDepth = parsePositiveInt(
+    options && options.hard_shed_depth != null ? options.hard_shed_depth : ATTENTION_DEFERRED_HARD_SHED_DEPTH,
+    ATTENTION_DEFERRED_HARD_SHED_DEPTH,
+    1,
+    100000000
+  );
+  const rehydrateDepth = parsePositiveInt(
+    options && options.rehydrate_depth != null ? options.rehydrate_depth : ATTENTION_DEFERRED_REHYDRATE_DEPTH,
+    ATTENTION_DEFERRED_REHYDRATE_DEPTH,
+    1,
+    100000000
+  );
+  const shouldStash = depth >= stashDepth;
+  const hardShed = depth >= hardShedDepth;
+  const canRehydrate = depth <= rehydrateDepth;
   let stashedCount = 0;
   let rehydratedCount = 0;
   let droppedCount = 0;
@@ -6568,6 +6624,11 @@ function applyAttentionDeferredStorage(queueDepth = 0, split = {}) {
     deferred_depth: Array.isArray(attentionDeferredState.events) ? attentionDeferredState.events.length : 0,
     deferred_mode: hardShed ? 'hard_shed' : shouldStash ? 'stashed' : canRehydrate ? 'rehydrate' : 'pass_through',
     hard_shed: hardShed,
+    thresholds: {
+      stash_depth: stashDepth,
+      hard_shed_depth: hardShedDepth,
+      rehydrate_depth: rehydrateDepth,
+    },
   };
 }
 
@@ -6632,33 +6693,87 @@ function splitAttentionEvents(events = []) {
   };
 }
 
-function attentionLanePolicy(queueDepth = 0, counts = {}) {
+function attentionEventAgeSeconds(event = {}) {
+  const nowMs = Date.now();
+  const tsCandidate =
+    event && typeof event.ts === 'string' && event.ts.trim()
+      ? event.ts
+      : event && typeof event.deferred_at === 'string' && event.deferred_at.trim()
+      ? event.deferred_at
+      : event && typeof event.created_at === 'string' && event.created_at.trim()
+      ? event.created_at
+      : '';
+  const fromIso = tsCandidate ? Date.parse(tsCandidate) : Number.NaN;
+  const tsMs = Number.isFinite(fromIso)
+    ? fromIso
+    : parseNonNegativeInt(
+        event && event.ts_ms != null
+          ? event.ts_ms
+          : event && event.created_at_ms != null
+          ? event.created_at_ms
+          : 0,
+        0,
+        1000000000000
+      );
+  if (tsMs <= 0 || tsMs > nowMs) return 0;
+  return Math.max(0, Math.floor((nowMs - tsMs) / 1000));
+}
+
+function attentionLanePolicy(queueDepth = 0, counts = {}, laneRows = null) {
   const depth = parseNonNegativeInt(queueDepth, 0, 100000000);
   const critical = parseNonNegativeInt(counts && counts.critical, 0, 100000000);
   const background = parseNonNegativeInt(counts && counts.background, 0, 100000000);
   const backgroundDominant = background > Math.max(1, critical) * ATTENTION_BG_DOMINANCE_RATIO;
   const preemptCritical = depth >= ATTENTION_PREEMPT_QUEUE_DEPTH || backgroundDominant;
-  const weights = preemptCritical
+  const baseWeights = preemptCritical
     ? { critical: 8, standard: 2, background: 1 }
     : { ...ATTENTION_LANE_WEIGHTS };
+  const criticalRows =
+    laneRows && typeof laneRows === 'object' && Array.isArray(laneRows.critical) ? laneRows.critical : [];
+  const oldestCriticalAgeSeconds = criticalRows.reduce((maxAge, row) => {
+    const age = attentionEventAgeSeconds(row);
+    return age > maxAge ? age : maxAge;
+  }, 0);
+  const weights = { ...baseWeights };
+  let criticalDecayStage = 'none';
+  if (critical > 0 && oldestCriticalAgeSeconds >= ATTENTION_CRITICAL_DECAY_STAGE2_SECONDS) {
+    weights.critical = 1;
+    weights.standard = Math.max(weights.standard, 3);
+    weights.background = Math.max(weights.background, 2);
+    criticalDecayStage = 'stage2';
+  } else if (critical > 0 && oldestCriticalAgeSeconds >= ATTENTION_CRITICAL_DECAY_STAGE1_SECONDS) {
+    weights.critical = Math.min(weights.critical, 3);
+    weights.standard = Math.max(weights.standard, 3);
+    criticalDecayStage = 'stage1';
+  }
   return {
     weights,
     lane_caps: { ...ATTENTION_LANE_CAPS },
     preempt_critical: preemptCritical,
     background_dominant: backgroundDominant,
+    critical_decay_stage: criticalDecayStage,
+    oldest_critical_age_seconds: oldestCriticalAgeSeconds,
   };
 }
 
 function weightedFairAttentionOrder(
   laneRows = {},
   limit = ATTENTION_CRITICAL_LIMIT,
-  laneWeights = ATTENTION_LANE_WEIGHTS
+  laneWeights = ATTENTION_LANE_WEIGHTS,
+  laneCaps = ATTENTION_LANE_CAPS
 ) {
   const weights = laneWeights && typeof laneWeights === 'object' ? laneWeights : ATTENTION_LANE_WEIGHTS;
+  const caps = laneCaps && typeof laneCaps === 'object' ? laneCaps : ATTENTION_LANE_CAPS;
   const buckets = {
-    critical: Array.isArray(laneRows.critical) ? laneRows.critical.slice() : [],
-    standard: Array.isArray(laneRows.standard) ? laneRows.standard.slice() : [],
-    background: Array.isArray(laneRows.background) ? laneRows.background.slice() : [],
+    critical: Array.isArray(laneRows.critical)
+      ? laneRows.critical.slice(0, parsePositiveInt(caps.critical, ATTENTION_LANE_CAPS.critical, 1, 1000))
+      : [],
+    standard: Array.isArray(laneRows.standard)
+      ? laneRows.standard.slice(0, parsePositiveInt(caps.standard, ATTENTION_LANE_CAPS.standard, 1, 1000))
+      : [],
+    background: Array.isArray(laneRows.background)
+      ? laneRows.background.slice(0, parsePositiveInt(caps.background, ATTENTION_LANE_CAPS.background, 1, 1000))
+      : [],
   };
   const ordered = [];
   const lanes = ['critical', 'standard', 'background'];
@@ -7196,6 +7311,14 @@ function runtimeAutohealTelemetry() {
       min_signal_floor: RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS,
       stale_ms: RUNTIME_CONDUIT_WATCHDOG_STALE_MS,
       cooldown_ms: RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS,
+    },
+    stale_lane_breaker: {
+      tracked_lanes:
+        staleLaneRetryState && typeof staleLaneRetryState === 'object'
+          ? Object.keys(staleLaneRetryState).length
+          : 0,
+      retry_base_ms: RUNTIME_STALE_LANE_RETRY_BASE_MS,
+      retry_max_ms: RUNTIME_STALE_LANE_RETRY_MAX_MS,
     },
     reliability_escalation: {
       last_emit_at: cleanText(reliabilityEscalationState.last_emit_at || '', 80),
@@ -8814,7 +8937,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
     : 'good';
   const eventsFull = compactAttentionEvents(eventsRaw, ATTENTION_CRITICAL_LIMIT);
   const eventSplitRaw = splitAttentionEvents(eventsFull);
-  const deferred = applyAttentionDeferredStorage(queueDepth, eventSplitRaw);
+  const predictiveDegradeMode = totalCockpitBlockCount >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD;
+  const deferred = applyAttentionDeferredStorage(queueDepth, eventSplitRaw, {
+    stash_depth: predictiveDegradeMode
+      ? Math.min(ATTENTION_DEFERRED_STASH_DEPTH, ATTENTION_DEFERRED_PREDICTIVE_STASH_DEPTH)
+      : ATTENTION_DEFERRED_STASH_DEPTH,
+    hard_shed_depth: ATTENTION_DEFERRED_HARD_SHED_DEPTH,
+    rehydrate_depth: predictiveDegradeMode
+      ? Math.min(ATTENTION_DEFERRED_REHYDRATE_DEPTH, ATTENTION_DEFERRED_PREDICTIVE_REHYDRATE_DEPTH)
+      : ATTENTION_DEFERRED_REHYDRATE_DEPTH,
+  });
   const eventSplit = {
     critical: deferred.critical,
     standard: deferred.standard,
@@ -8833,7 +8965,11 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
         parseNonNegativeInt(deferred.deferred_depth, 0, 100000000),
     },
   };
-  const lanePolicy = attentionLanePolicy(queueDepth, eventSplit.counts);
+  const lanePolicy = attentionLanePolicy(queueDepth, eventSplit.counts, {
+    critical: eventSplit.critical,
+    standard: eventSplit.standard,
+    background: eventSplit.background,
+  });
   const weightedEvents = weightedFairAttentionOrder(
     {
       critical: eventSplit.critical,
@@ -8841,7 +8977,8 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
       background: eventSplit.background,
     },
     ATTENTION_CRITICAL_LIMIT,
-    lanePolicy.weights
+    lanePolicy.weights,
+    lanePolicy.lane_caps
   );
   const events = weightedEvents.slice(0, ATTENTION_PEEK_LIMIT);
   const cockpitCritical = blocks
@@ -8967,10 +9104,14 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
       : queueDepth >= CONDUIT_DELTA_SYNC_DEPTH
       ? 'delta_sync'
       : 'live_sync';
-  const microBatchConfig =
-    syncMode === 'delta_sync'
-      ? { window_ms: CONDUIT_DELTA_BATCH_WINDOW_MS, max_items: CONDUIT_DELTA_BATCH_MAX_ITEMS }
-      : { window_ms: ATTENTION_MICRO_BATCH_WINDOW_MS, max_items: ATTENTION_MICRO_BATCH_MAX_ITEMS };
+  const microBatchConfig = predictiveDegradeMode
+    ? {
+        window_ms: ATTENTION_MICRO_BATCH_DEGRADE_WINDOW_MS,
+        max_items: ATTENTION_MICRO_BATCH_DEGRADE_MAX_ITEMS,
+      }
+    : syncMode === 'delta_sync'
+    ? { window_ms: CONDUIT_DELTA_BATCH_WINDOW_MS, max_items: CONDUIT_DELTA_BATCH_MAX_ITEMS }
+    : { window_ms: ATTENTION_MICRO_BATCH_WINDOW_MS, max_items: ATTENTION_MICRO_BATCH_MAX_ITEMS };
   const telemetryMicroBatches = microBatchAttentionTelemetry(eventSplit.telemetry, microBatchConfig);
   const pressureLevel =
     queueDepth >= maxQueueDepth || queueUtilization >= 0.9
@@ -11563,6 +11704,119 @@ function staleLaneRefreshCommand(laneName, team) {
   return null;
 }
 
+function staleLaneRetryKey(team, laneName) {
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const normalizedLane = cleanText(laneName || 'unknown', 120).toLowerCase() || 'unknown';
+  return `${normalizedTeam}:${normalizedLane}`;
+}
+
+function staleLaneRetrySnapshot(key) {
+  const state = staleLaneRetryState && typeof staleLaneRetryState === 'object' ? staleLaneRetryState[key] : null;
+  return {
+    attempts: parseNonNegativeInt(state && state.attempts != null ? state.attempts : 0, 0, 100000000),
+    next_retry_ms: parseNonNegativeInt(state && state.next_retry_ms != null ? state.next_retry_ms : 0, 0, 1000000000000),
+    last_error: cleanText(state && state.last_error ? state.last_error : '', 200),
+  };
+}
+
+function setStaleLaneRetrySnapshot(key, attempts, nextRetryMs, lastError = '') {
+  staleLaneRetryState[key] = {
+    attempts: parseNonNegativeInt(attempts, 0, 100000000),
+    next_retry_ms: parseNonNegativeInt(nextRetryMs, 0, 1000000000000),
+    last_error: cleanText(lastError, 200),
+  };
+}
+
+function clearStaleLaneRetrySnapshot(key) {
+  if (staleLaneRetryState && typeof staleLaneRetryState === 'object' && staleLaneRetryState[key]) {
+    delete staleLaneRetryState[key];
+  }
+}
+
+function runStaleLaneRefreshWithBackoff(laneName, laneCount, team) {
+  const lane = cleanText(laneName || 'unknown', 120) || 'unknown';
+  const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const nowMs = Date.now();
+  const retryKey = staleLaneRetryKey(normalizedTeam, lane);
+  const retry = staleLaneRetrySnapshot(retryKey);
+  if (retry.next_retry_ms > nowMs) {
+    return {
+      lane,
+      count: parseNonNegativeInt(laneCount, 0, 100000000),
+      command: '',
+      skipped: true,
+      reason: 'retry_backoff_active',
+      retry_attempts: retry.attempts,
+      retry_in_ms: Math.max(0, retry.next_retry_ms - nowMs),
+      next_retry_at: new Date(retry.next_retry_ms).toISOString(),
+    };
+  }
+  const command = staleLaneRefreshCommand(lane, normalizedTeam);
+  if (!Array.isArray(command) || command.length === 0) {
+    return {
+      lane,
+      count: parseNonNegativeInt(laneCount, 0, 100000000),
+      command: '',
+      skipped: true,
+      reason: 'unsupported_lane',
+      retry_attempts: retry.attempts,
+    };
+  }
+  const laneResult = runLane(command);
+  const row = {
+    lane,
+    count: parseNonNegativeInt(laneCount, 0, 100000000),
+    command: `protheus-ops ${command.join(' ')}`,
+    skipped: false,
+    ...laneOutcome(laneResult),
+  };
+  if (laneResult && laneResult.ok) {
+    clearStaleLaneRetrySnapshot(retryKey);
+    return {
+      ...row,
+      retry_attempts: 0,
+      retry_in_ms: 0,
+    };
+  }
+  const nextAttempts = retry.attempts + 1;
+  const backoffMs = Math.min(
+    RUNTIME_STALE_LANE_RETRY_MAX_MS,
+    RUNTIME_STALE_LANE_RETRY_BASE_MS * Math.pow(2, Math.max(0, nextAttempts - 1))
+  );
+  const nextRetryMs = nowMs + backoffMs;
+  setStaleLaneRetrySnapshot(retryKey, nextAttempts, nextRetryMs, row.detail || row.status_reason || 'lane_failed');
+  enqueueAttentionEvent(
+    {
+      ts: nowIso(),
+      severity: 'warn',
+      source: 'runtime_stale_lane_breaker',
+      source_type: 'runtime',
+      summary: cleanText(
+        `Stale lane refresh failed for ${lane}; retry in ${Math.ceil(backoffMs / 1000)}s (attempt ${nextAttempts}).`,
+        260
+      ),
+      band: 'p3',
+      priority_lane: 'background',
+      score: 0.35,
+      attention_key: cleanText(`stale_lane_retry:${retryKey}:${nextAttempts}`, 120),
+      metadata: {
+        lane,
+        count: parseNonNegativeInt(laneCount, 0, 100000000),
+        retry_attempts: nextAttempts,
+        retry_backoff_ms: backoffMs,
+        next_retry_at: new Date(nextRetryMs).toISOString(),
+      },
+    },
+    'runtime_stale_lane_breaker'
+  );
+  return {
+    ...row,
+    retry_attempts: nextAttempts,
+    retry_in_ms: backoffMs,
+    next_retry_at: new Date(nextRetryMs).toISOString(),
+  };
+}
+
 function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
   const signal = cockpitSignalState(runtime);
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
@@ -11688,27 +11942,9 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
     '--wait-ms=0',
     '--run-context=runtime_coarse_stale_lane_drain',
   ]);
-  const staleRefreshLanes = staleLanesTop.map((row) => {
-    const command = staleLaneRefreshCommand(row.lane, normalizedTeam);
-    if (!Array.isArray(command) || command.length === 0) {
-      return {
-        lane: row.lane,
-        count: row.count,
-        command: '',
-        ok: false,
-        status: 1,
-        skipped: true,
-      };
-    }
-    const lane = runLane(command);
-    return {
-      lane: row.lane,
-      count: row.count,
-      command: `protheus-ops ${command.join(' ')}`,
-      skipped: false,
-      ...laneOutcome(lane),
-    };
-  });
+  const staleRefreshLanes = staleLanesTop.map((row) =>
+    runStaleLaneRefreshWithBackoff(row.lane, row.count, normalizedTeam)
+  );
   let staleCompactLane = null;
   if (
     parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 100000000) >=
@@ -14228,26 +14464,45 @@ function runServe(flags) {
           agents = compatAgentsFromSnapshot(latestSnapshot);
         }
         if (view === 'sidebar' || view === 'list') {
+          const contractsState = loadAgentContractsState();
+          const contractMap =
+            contractsState && contractsState.contracts && typeof contractsState.contracts === 'object'
+              ? contractsState.contracts
+              : {};
+          const nowMs = Date.now();
           const compactRows = agents.map((row) => ({
-            id: cleanText(row && row.id ? row.id : '', 140),
-            name: cleanText(row && row.name ? row.name : row && row.id ? row.id : '', 100),
-            state: cleanText(row && row.state ? row.state : 'running', 40) || 'running',
-            role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
-            identity: row && row.identity && typeof row.identity === 'object' ? row.identity : {},
-            avatar_url: cleanText(row && row.avatar_url ? row.avatar_url : '', 512),
-            created_at: cleanText(row && row.created_at ? row.created_at : '', 80),
-            updated_at: cleanText(row && row.updated_at ? row.updated_at : '', 80),
-            last_activity_at: cleanText(
-              row && (row.last_activity_at || row.last_active_at || row.last_message_at)
-                ? row.last_activity_at || row.last_active_at || row.last_message_at
-                : '',
-              80
-            ),
-            git_branch: cleanText(row && row.git_branch ? row.git_branch : '', 120),
-            workspace_rel: cleanText(row && row.workspace_rel ? row.workspace_rel : '', 240),
-            git_tree_kind: cleanText(row && row.git_tree_kind ? row.git_tree_kind : '', 40),
-            is_master_agent: !!(row && row.is_master_agent),
-          })).filter((row) => !!row.id);
+            (() => {
+              const id = cleanText(row && row.id ? row.id : '', 140);
+              const contract = id && contractMap[id] ? contractSummary(contractMap[id], nowMs) : null;
+              return {
+                id,
+                name: cleanText(row && row.name ? row.name : row && row.id ? row.id : '', 100),
+                state: cleanText(row && row.state ? row.state : 'running', 40) || 'running',
+                role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
+                identity: row && row.identity && typeof row.identity === 'object' ? row.identity : {},
+                avatar_url: cleanText(row && row.avatar_url ? row.avatar_url : '', 512),
+                created_at: cleanText(row && row.created_at ? row.created_at : '', 80),
+                updated_at: cleanText(row && row.updated_at ? row.updated_at : '', 80),
+                last_activity_at: cleanText(
+                  row && (row.last_activity_at || row.last_active_at || row.last_message_at)
+                    ? row.last_activity_at || row.last_active_at || row.last_message_at
+                    : '',
+                  80
+                ),
+                git_branch: cleanText(row && row.git_branch ? row.git_branch : '', 120),
+                workspace_rel: cleanText(row && row.workspace_rel ? row.workspace_rel : '', 240),
+                git_tree_kind: cleanText(row && row.git_tree_kind ? row.git_tree_kind : '', 40),
+                is_master_agent: !!(row && row.is_master_agent),
+                contract,
+                contract_status: contract && contract.status ? cleanText(contract.status, 40) : '',
+                contract_expires_at: contract && contract.expires_at ? cleanText(contract.expires_at, 80) : '',
+                contract_remaining_ms:
+                  contract && contract.remaining_ms != null
+                    ? parseNonNegativeInt(contract.remaining_ms, 0, 7 * 24 * 60 * 60 * 1000)
+                    : null,
+              };
+            })()
+          )).filter((entry) => !!entry.id);
           sendJson(res, 200, compactRows);
           return;
         }
