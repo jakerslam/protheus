@@ -1,0 +1,33 @@
+{
+  "id": "V7-PLATFORM-001.1",
+  "upgrade": "Dual-License Foundation (NC + Apache-2.0 Open Core)",
+  "section": "V7-PLATFORM-001",
+  "impact": 10,
+  "layer_map": "0/1/2/client/docs",
+  "conduit_only_boundary": false,
+  "todo_bucket": "adoption_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V7-PLATFORM-001.1/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    { "type": "contract", "path": "planes/contracts/srs/V7-PLATFORM-001.1.json" },
+    { "type": "doc", "path": "LICENSE" },
+    { "type": "doc", "path": "LICENSE-INFRING-NC-1.0" },
+    { "type": "doc", "path": "LICENSE-APACHE-2.0" },
+    { "type": "doc", "path": "LICENSE_SCOPE.md" },
+    { "type": "doc", "path": "README.md" }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-PLATFORM-001.1",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V7-PLATFORM-001.1",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "external_analysis",
+    "generated_at": "2026-03-23T23:45:00Z",
+    "notes": "Introduces a production dual-license model and explicit scope map for adoption and commercial use pathways."
+  }
+}

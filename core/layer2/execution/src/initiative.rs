@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
+//! Layer 2 initiative primitive.
+//!
+//! This module is the canonical extension point for queue-lane initiative behavior:
+//! - normalize incoming importance fields,
+//! - compute deterministic score/priority/band decisions,
+//! - convert score to bounded escalation action contracts,
+//! - and prioritize attention events without bypassing Layer 0 safety authority.
+//!
+//! If you are adding a custom execution lane, start by composing around
+//! `evaluate_importance`, `evaluate_initiative_json`, and `prioritize_attention_json`.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -121,6 +131,12 @@ fn initiative_for_score(score: f64) -> (&'static str, i64, i64) {
     }
 }
 
+/// Compute a deterministic importance decision from normalized input metrics.
+///
+/// Extension guidance:
+/// - keep score bounded (`0..=1`) and deterministic,
+/// - do not bypass `front_jump_threshold` gates,
+/// - map new initiative behaviors through explicit score bands.
 pub fn evaluate_importance(
     input: &ImportanceInput,
     front_jump_threshold: f64,
@@ -233,6 +249,10 @@ pub fn evaluate_initiative_json(payload: &str) -> Result<String, String> {
     serde_json::to_string(&out).map_err(|err| format!("encode_failed:{err}"))
 }
 
+/// Sort attention events by front-jump, then score, then original order.
+///
+/// This function is intentionally stable for equal-ranked events to keep replay
+/// and receipt chains deterministic.
 pub fn prioritize_attention_json(payload: &str) -> Result<String, String> {
     let input: AttentionPriorityInput =
         serde_json::from_str(payload).map_err(|err| format!("invalid_json:{err}"))?;

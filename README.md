@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml)
-[![License: InfRing-NC-1.0](https://img.shields.io/badge/license-InfRing--NC--1.0-red.svg)](LICENSE)
+[![License: Dual](https://img.shields.io/badge/license-dual%20(NC%20%2B%20Apache--2.0)-orange.svg)](LICENSE_SCOPE.md)
 [![Release](https://img.shields.io/github/v/release/protheuslabs/InfRing?display_name=tag)](https://github.com/protheuslabs/InfRing/releases)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fprotheuslabs%2Finfring-blue)](https://github.com/protheuslabs/InfRing/pkgs/container/infring)
 [![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
@@ -16,6 +16,34 @@ This repository is maintained under the InfRing operating model and packages the
 > **Clarification:** The term "metakernel" refers to the architectural pattern where the runtime itself operates as a managed system layer, not a traditional monolithic kernel. This enables policy-driven, auditable execution across safety, cognition, and substrate planes.
 
 The repository is structured like an internal platform product: typed runtime lanes, deterministic receipts, strict governance surfaces, and operator guardrails that remain reviewable in-source.
+
+## Licensing Model
+
+InfRing uses a dual-license model:
+
+- `Apache-2.0` for the Open Core scope (commercial use allowed): see [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and [LICENSE_SCOPE.md](LICENSE_SCOPE.md).
+- `InfRing-NC-1.0` (Protheus Non-Commercial License v1.0) for default scope: see [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0).
+
+Scope resolution:
+- File-level SPDX header wins.
+- Otherwise apply path scope in `LICENSE_SCOPE.md`.
+- Otherwise default to `InfRing-NC-1.0`.
+
+For commercial licensing and enterprise support on NC-scoped surfaces, contact Protheus Labs.
+
+## InfRing 101
+
+Start here if you are new to the platform:
+
+- Roadmap: [roadmap.md](roadmap.md)
+- Glossary: [glossary.md](glossary.md)
+- Layer 2 extension guide: [docs/client/architecture/layer2_initiative_extensions.md](docs/client/architecture/layer2_initiative_extensions.md)
+- Plugin/WASM spec: [docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md](docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md)
+
+Reference example apps:
+- `apps/sovereign-memory-os`
+- `apps/local-research-agent`
+- `apps/mcu-sensor-monitor-tiny-max`
 
 ## Platform Capabilities
 

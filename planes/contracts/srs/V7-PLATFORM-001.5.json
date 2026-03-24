@@ -1,0 +1,31 @@
+{
+  "id": "V7-PLATFORM-001.5",
+  "upgrade": "Layer 0 Property-Based Test Expansion (importance + attention queue)",
+  "section": "V7-PLATFORM-001",
+  "impact": 8,
+  "layer_map": "0",
+  "conduit_only_boundary": false,
+  "todo_bucket": "proof_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V7-PLATFORM-001.5/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    { "type": "contract", "path": "planes/contracts/srs/V7-PLATFORM-001.5.json" },
+    { "type": "runtime", "path": "core/layer0/ops/src/importance.rs" },
+    { "type": "runtime", "path": "core/layer0/ops/src/attention_queue.rs" },
+    { "type": "runtime", "path": "core/layer0/ops/Cargo.toml" }
+  ],
+  "validation": {
+    "lane_command": "cargo test --manifest-path core/layer0/ops/Cargo.toml importance::tests attention_queue::tests",
+    "status_command": "cargo test --manifest-path core/layer0/ops/Cargo.toml importance::tests::inferred_importance_stays_bounded_and_consistent",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "external_analysis",
+    "generated_at": "2026-03-23T23:45:00Z",
+    "notes": "Adds production property tests for bounded scoring and queue ordering/backpressure invariants."
+  }
+}

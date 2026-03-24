@@ -83,6 +83,8 @@ const RUNTIME_STALE_SOFT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS = 20;
 const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_SOFT_PRESSURE_MS = 30 * 60 * 1000;
+const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_LOW_PRESSURE_MS = 10 * 60 * 1000;
 const RUNTIME_COCKPIT_STALE_DORMANT_ARCHIVE_AGE_MS = 24 * 60 * 60 * 1000;
 const RUNTIME_COCKPIT_CRITICAL_LANE_KEYS = new Set([
   'app_plane',
@@ -147,19 +149,35 @@ const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 75;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS = 500;
 const AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD = 64;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 1500;
+const AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD = 256;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS = 3000;
+const AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD = 1000;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS = 400;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS = 1200;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 2500;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS = 4000;
 const AGENT_CONTRACT_MAX_IDLE_AGENTS = 5;
 const AGENT_RECONCILE_TERMINATION_BATCH = 12;
+const AGENT_RECONCILE_TERMINATION_BATCH_MAX = 96;
 const AGENT_RECONCILE_TERMINATION_COOLDOWN_MS = 4000;
 const AGENT_IDLE_TERMINATION_MS = 5 * 60 * 1000;
 const AGENT_IDLE_TERMINATION_BATCH = 8;
-const AGENT_IDLE_TERMINATION_BATCH_MAX = 32;
+const AGENT_IDLE_TERMINATION_BATCH_MAX = 128;
 const AGENT_IDLE_TERMINATION_COOLDOWN_MS = 1 * 1000;
 const AGENT_TERMINATION_TEAM_DISCOVERY_CACHE_MS = 5 * 1000;
+const AGENT_CONTRACT_RETAIN_TERMINATED_MAX = 512;
+const AGENT_CONTRACT_RETAIN_TERMINATED_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN = 20;
 const AGENT_ROGUE_SPIKE_WINDOW_MS = 60 * 1000;
 const COCKPIT_MAX_BLOCKS = 64;
 const LANE_SYNC_TIMEOUT_MS = 1500;
 const LANE_ACTION_TIMEOUT_MS = 8 * 1000;
+const SNAPSHOT_LANE_TIMEOUT_FAST_MS = 350;
+const SNAPSHOT_LANE_TIMEOUT_MAX_MS = LANE_SYNC_TIMEOUT_MS;
+const SNAPSHOT_LANE_TIMEOUT_MIN_MS = 150;
+const SNAPSHOT_LANE_CACHE_TTL_MS = 8000;
+const SNAPSHOT_LANE_CACHE_FAIL_TTL_MS = 2000;
 const ATTENTION_PEEK_LIMIT = 12;
 const ATTENTION_CRITICAL_LIMIT = 64;
 const ATTENTION_MICRO_BATCH_WINDOW_MS = 50;
@@ -361,17 +379,35 @@ function normalizeLaneKey(value) {
     .replace(/^_+|_+$/g, '');
 }
 
-function cockpitStaleIsActionable(row) {
+function cockpitStaleActionableMaxAgeMs(queueDepth = 0) {
+  const depth = parseNonNegativeInt(queueDepth, 0, 100000000);
+  if (depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) return RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS;
+  if (depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH) {
+    return Math.min(
+      RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS,
+      RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_SOFT_PRESSURE_MS
+    );
+  }
+  return Math.min(
+    RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS,
+    RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_LOW_PRESSURE_MS
+  );
+}
+
+function cockpitStaleIsActionable(row, queueDepth = 0) {
   const status = cleanText(row && row.status ? row.status : '', 24).toLowerCase();
-  if (status === 'fail' || status === 'error' || status === 'critical') return true;
-  const laneKey = normalizeLaneKey(row && row.lane ? row.lane : '');
-  if (RUNTIME_COCKPIT_CRITICAL_LANE_KEYS.has(laneKey)) return true;
   const ageMs = parseNonNegativeInt(
     row && row.age_ms != null ? row.age_ms : 0,
     0,
     30 * 24 * 60 * 60 * 1000
   );
-  return ageMs <= RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS;
+  // Once stale blocks cross the dormant archive horizon, treat them as historical
+  // debt rather than active pager pressure.
+  if (ageMs >= RUNTIME_COCKPIT_STALE_DORMANT_ARCHIVE_AGE_MS) return false;
+  if (status === 'fail' || status === 'error' || status === 'critical') return true;
+  const laneKey = normalizeLaneKey(row && row.lane ? row.lane : '');
+  if (RUNTIME_COCKPIT_CRITICAL_LANE_KEYS.has(laneKey)) return true;
+  return ageMs <= cockpitStaleActionableMaxAgeMs(queueDepth);
 }
 
 function inferContextWindowFromModelName(modelName, fallback = DEFAULT_CONTEXT_WINDOW_TOKENS) {
@@ -433,7 +469,7 @@ function contextTelemetryForMessages(messages = [], contextWindow = DEFAULT_CONT
   };
 }
 
-function recommendedConduitSignals(queueDepth = 0, queueUtilization = 0, cockpitBlocks = 0, activeAgents = 0) {
+function recommendedConduitSignals(queueDepth = 0, queueUtilization = 0, activeConduitChannels = 0, activeAgents = 0) {
   const depth = parseNonNegativeInt(queueDepth, 0, 100000000);
   const util = Number.isFinite(Number(queueUtilization)) ? Number(queueUtilization) : 0;
   let baseline = 4;
@@ -442,11 +478,29 @@ function recommendedConduitSignals(queueDepth = 0, queueUtilization = 0, cockpit
   else if (depth >= 65 || util >= 0.68) baseline = 12;
   else if (depth >= DASHBOARD_BACKPRESSURE_WARN_DEPTH || util >= 0.58) baseline = 8;
   else if (depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH || util >= 0.4) baseline = 6;
-  const cockpit = parseNonNegativeInt(cockpitBlocks, 0, 100000000);
-  const cockpitFloor = cockpit > 0 ? Math.min(16, Math.max(4, Math.ceil(cockpit * 0.5))) : 4;
+  const conduitChannels = parseNonNegativeInt(activeConduitChannels, 0, 100000000);
+  const conduitFloor = conduitChannels > 0
+    ? Math.min(
+        16,
+        Math.max(
+          4,
+          conduitChannels +
+            (depth >= RUNTIME_DRAIN_TRIGGER_DEPTH || util >= 0.65
+              ? 2
+              : depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH || util >= 0.4
+              ? 1
+              : 0)
+        )
+      )
+    : 4;
   const agents = parseNonNegativeInt(activeAgents, 0, 100000000);
-  const agentFloor = agents > 0 ? Math.min(24, 4 + Math.ceil(agents / 40)) : 4;
-  return Math.max(baseline, cockpitFloor, agentFloor);
+  const agentScale = depth >= RUNTIME_DRAIN_TRIGGER_DEPTH || util >= 0.65
+    ? 40
+    : depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH || util >= 0.4
+    ? 120
+    : 400;
+  const agentFloor = agents > 0 ? Math.min(24, 4 + Math.ceil(agents / agentScale)) : 4;
+  return Math.max(baseline, conduitFloor, agentFloor);
 }
 
 function activeAgentCountFromSnapshot(snapshot, fallback = 0) {
@@ -785,7 +839,7 @@ function runLane(argv, options = {}) {
   const timeoutMs = parsePositiveInt(
     options && options.timeout_ms != null ? options.timeout_ms : LANE_SYNC_TIMEOUT_MS,
     LANE_SYNC_TIMEOUT_MS,
-    250,
+    SNAPSHOT_LANE_TIMEOUT_MIN_MS,
     60000
   );
   const env = { ...process.env, PROTHEUS_ROOT: ROOT };
@@ -821,6 +875,64 @@ function runLane(argv, options = {}) {
     argv,
     timed_out: timedOut,
   };
+}
+
+const snapshotLaneCache = new Map();
+
+function runLaneCached(cacheKey, argv, options = {}) {
+  const key = cleanText(cacheKey || argv.join(' '), 240) || argv.join(' ');
+  const timeoutMs = parsePositiveInt(
+    options && options.timeout_ms != null ? options.timeout_ms : LANE_SYNC_TIMEOUT_MS,
+    LANE_SYNC_TIMEOUT_MS,
+    SNAPSHOT_LANE_TIMEOUT_MIN_MS,
+    60000
+  );
+  const ttlMs = parsePositiveInt(
+    options && options.ttl_ms != null ? options.ttl_ms : SNAPSHOT_LANE_CACHE_TTL_MS,
+    SNAPSHOT_LANE_CACHE_TTL_MS,
+    250,
+    600000
+  );
+  const failTtlMs = parsePositiveInt(
+    options && options.fail_ttl_ms != null ? options.fail_ttl_ms : SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    250,
+    600000
+  );
+  const nowMs = Date.now();
+  const cached = snapshotLaneCache.get(key);
+  if (cached && typeof cached === 'object') {
+    const ageMs = Math.max(0, nowMs - parseNonNegativeInt(cached.ts_ms, 0, 1_000_000_000_000));
+    const allowedAge = cached.ok ? ttlMs : failTtlMs;
+    if (ageMs <= allowedAge && cached.result && typeof cached.result === 'object') {
+      return {
+        ...cached.result,
+        from_cache: true,
+        cache_age_ms: ageMs,
+      };
+    }
+  }
+
+  const lane = runLane(argv, { timeout_ms: timeoutMs });
+  if (lane.ok) {
+    snapshotLaneCache.set(key, { ts_ms: nowMs, ok: true, result: lane });
+    return lane;
+  }
+
+  if (cached && cached.result && typeof cached.result === 'object') {
+    const ageMs = Math.max(0, nowMs - parseNonNegativeInt(cached.ts_ms, 0, 1_000_000_000_000));
+    if (ageMs <= Math.max(ttlMs, failTtlMs * 2)) {
+      return {
+        ...cached.result,
+        from_cache: true,
+        stale_cache_fallback: true,
+        cache_age_ms: ageMs,
+      };
+    }
+  }
+
+  snapshotLaneCache.set(key, { ts_ms: nowMs, ok: false, result: lane });
+  return lane;
 }
 
 function resolveProtheusdBin() {
@@ -2560,6 +2672,39 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
     ? `${benchmarkMirrorStatus}(stale:${benchmarkCockpitStatus})`
     : benchmarkCockpitStatus;
   const memoryPaused = !!(runtime && runtime.memory_ingest_paused);
+  const dopamineStatus =
+    cleanText(runtime && runtime.dopamine_status ? runtime.dopamine_status : 'unknown', 24) || 'unknown';
+  const dopamineFreshness =
+    cleanText(runtime && runtime.dopamine_freshness_status ? runtime.dopamine_freshness_status : 'unknown', 24) || 'unknown';
+  const dopamineAgeSeconds = parsePositiveInt(
+    runtime && runtime.dopamine_latest_age_seconds != null ? runtime.dopamine_latest_age_seconds : -1,
+    -1,
+    -1,
+    1000000000
+  );
+  const moltbookCredentialsStatus =
+    cleanText(runtime && runtime.moltbook_credentials_status ? runtime.moltbook_credentials_status : 'unknown', 24) || 'unknown';
+  const moltbookSuppressionRecommended = !!(runtime && runtime.moltbook_suppression_recommended);
+  const moltbookJobsRequiringCredentials = parseNonNegativeInt(
+    runtime && runtime.moltbook_jobs_requiring_credentials != null ? runtime.moltbook_jobs_requiring_credentials : 0,
+    0,
+    100000000
+  );
+  const eyesCrossSignalStatus =
+    cleanText(runtime && runtime.external_eyes_cross_signal_status ? runtime.external_eyes_cross_signal_status : 'unknown', 24) ||
+    'unknown';
+  const eyesCrossSignalAbsent = !!(runtime && runtime.external_eyes_cross_signal_absent);
+  const eyesFreshness =
+    cleanText(runtime && runtime.external_eyes_freshness_status ? runtime.external_eyes_freshness_status : 'unknown', 24) || 'unknown';
+  const eyesLatestAgeSeconds = parsePositiveInt(
+    runtime && runtime.external_eyes_latest_age_seconds != null ? runtime.external_eyes_latest_age_seconds : -1,
+    -1,
+    -1,
+    1000000000
+  );
+  const eyesCrossRatio = Number(
+    runtime && runtime.external_eyes_cross_signal_ratio != null ? runtime.external_eyes_cross_signal_ratio : 0
+  );
   const signalDeficit = Math.max(0, targetSignals - conduitSignals);
   const lowSignal = conduitSignals < targetSignals;
   const chronicStale = staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN;
@@ -2579,6 +2724,21 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
     painPoints.push('Memory ingest is paused while queue pressure is already low.');
   }
   if (queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) painPoints.push(`Queue depth is elevated (${queueDepth}).`);
+  if (moltbookSuppressionRecommended || moltbookCredentialsStatus === 'warn') {
+    painPoints.push(
+      `Moltbook credentials unavailable while ${moltbookJobsRequiringCredentials} scheduled jobs still request MOLTCHECK activity.`
+    );
+  }
+  if (dopamineStatus !== 'pass' || dopamineFreshness === 'stale') {
+    painPoints.push(
+      `Dopamine ambient signal is ${dopamineStatus}/${dopamineFreshness}${dopamineAgeSeconds >= 0 ? ` (age ${dopamineAgeSeconds}s)` : ''}.`
+    );
+  }
+  if (eyesCrossSignalStatus !== 'pass' || eyesCrossSignalAbsent || eyesFreshness === 'stale') {
+    painPoints.push(
+      `External-eyes cross-signal surface is ${eyesCrossSignalStatus}${eyesCrossSignalAbsent ? ' (cross-signals absent)' : ''}${eyesLatestAgeSeconds >= 0 ? ` age ${eyesLatestAgeSeconds}s` : ''}.`
+    );
+  }
   if (!painPoints.length) painPoints.push('No critical pressure detected in current telemetry.');
 
   const improvements = [];
@@ -2597,6 +2757,21 @@ function runtimeCouplingFallbackResponse(input, runtime = {}) {
   }
   improvements.push('Keep predictive drain workers lifecycle-bound and dissolve them once queue depth recovers.');
   improvements.push('Emit reliability escalation receipts when SLO gates fail so humans are explicitly paged.');
+  if (moltbookSuppressionRecommended || moltbookCredentialsStatus === 'warn') {
+    improvements.push(
+      'Auto-suppress credential-gated MOLTCHECK reminders until secret broker reports moltbook_api_key available.'
+    );
+  }
+  if (dopamineStatus !== 'pass' || dopamineFreshness === 'stale') {
+    improvements.push(
+      'Schedule automatic dopamine ambient closeout/status refresh and surface stale-age alerts in runtime telemetry.'
+    );
+  }
+  if (eyesCrossSignalStatus !== 'pass' || eyesCrossSignalAbsent || eyesFreshness === 'stale') {
+    improvements.push(
+      `Run external-eyes cross-signal calibration when ratio ${Number.isFinite(eyesCrossRatio) ? eyesCrossRatio.toFixed(3) : '0.000'} falls below policy target.`
+    );
+  }
 
   if (!asksForStatus) {
     return `Hosted model backend returned an echo instead of an answer. Current telemetry: queue ${queueDepth}, conduit ${conduitSignals}/${targetSignals}, stale cockpit blocks ${staleBlocks}. Retrying with a recovery backend is recommended.`;
@@ -2891,20 +3066,58 @@ function countFileLines(filePath) {
 
 function tailFileLines(filePath, lineCount) {
   const desired = parsePositiveInt(lineCount, SNAPSHOT_HISTORY_RETAIN_LINES, 1, 200_000);
+  const tailFallback = () => {
+    try {
+      const fd = fs.openSync(filePath, 'r');
+      try {
+        const stat = fs.fstatSync(fd);
+        const totalSize = Number.isFinite(stat.size) ? stat.size : 0;
+        if (totalSize <= 0) return [];
+        const chunkSize = 64 * 1024;
+        const maxReadBytes = 32 * 1024 * 1024;
+        let remaining = totalSize;
+        let newlineCount = 0;
+        let consumed = 0;
+        let text = '';
+        while (remaining > 0 && newlineCount <= desired && consumed < maxReadBytes) {
+          const readSize = Math.min(chunkSize, remaining);
+          remaining -= readSize;
+          const buffer = Buffer.allocUnsafe(readSize);
+          const bytesRead = fs.readSync(fd, buffer, 0, readSize, remaining);
+          if (!bytesRead) break;
+          consumed += bytesRead;
+          for (let idx = 0; idx < bytesRead; idx += 1) {
+            if (buffer[idx] === 10) newlineCount += 1;
+          }
+          text = buffer.toString('utf8', 0, bytesRead) + text;
+        }
+        if (!text) return [];
+        return text
+          .split('\n')
+          .map((row) => row.trim())
+          .filter(Boolean)
+          .slice(-desired);
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch {
+      return [];
+    }
+  };
   try {
     const out = spawnSync('tail', ['-n', String(desired), filePath], {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
-      maxBuffer: 256 * 1024 * 1024,
+      maxBuffer: 64 * 1024 * 1024,
     });
-    if (out.status !== 0 || typeof out.stdout !== 'string') return [];
+    if (out.status !== 0 || typeof out.stdout !== 'string') return tailFallback();
     return out.stdout
       .split('\n')
       .map((row) => row.trim())
       .filter(Boolean);
   } catch {
-    return [];
+    return tailFallback();
   }
 }
 
@@ -3298,6 +3511,8 @@ function normalizeAgentContractsState(state) {
   const contractsRaw = root.contracts && typeof root.contracts === 'object' ? root.contracts : {};
   const historyRaw = Array.isArray(root.terminated_history) ? root.terminated_history : [];
   const contracts = {};
+  const terminatedCandidates = [];
+  const terminatedCutoffMs = Date.now() - AGENT_CONTRACT_RETAIN_TERMINATED_MAX_AGE_MS;
   for (const [rawId, rawContract] of Object.entries(contractsRaw)) {
     const agentId = cleanText(rawId || (rawContract && rawContract.agent_id ? rawContract.agent_id : ''), 140);
     if (!agentId) continue;
@@ -3311,7 +3526,7 @@ function normalizeAgentContractsState(state) {
     );
     const spawnedAt = new Date(spawnedAtMs).toISOString();
     const explicitExpiresAt = cleanText(contract.expires_at || '', 80);
-    contracts[agentId] = {
+    const normalizedContract = {
       contract_id: cleanText(contract.contract_id || contract.id || `contract-${sha256(agentId).slice(0, 16)}`, 80),
       agent_id: agentId,
       mission: cleanText(contract.mission || `Assist with assigned mission for ${agentId}.`, 320),
@@ -3338,6 +3553,36 @@ function normalizeAgentContractsState(state) {
       security_flags: contract.security_flags && typeof contract.security_flags === 'object' ? contract.security_flags : {},
       updated_at: cleanText(contract.updated_at || nowIso(), 80) || nowIso(),
     };
+    const status = cleanText(normalizedContract.status || '', 24).toLowerCase();
+    if (status === 'active') {
+      contracts[agentId] = normalizedContract;
+    } else {
+      terminatedCandidates.push([agentId, normalizedContract]);
+    }
+  }
+  terminatedCandidates.sort((a, b) => {
+    const aTs = coerceTsMs(
+      a && a[1] ? a[1].terminated_at || a[1].updated_at || a[1].spawned_at || 0 : 0,
+      0
+    );
+    const bTs = coerceTsMs(
+      b && b[1] ? b[1].terminated_at || b[1].updated_at || b[1].spawned_at || 0 : 0,
+      0
+    );
+    return bTs - aTs;
+  });
+  let retainedTerminated = 0;
+  for (const [agentId, contractRow] of terminatedCandidates) {
+    if (retainedTerminated >= AGENT_CONTRACT_RETAIN_TERMINATED_MAX) break;
+    const terminatedAtMs = coerceTsMs(
+      contractRow.terminated_at || contractRow.updated_at || contractRow.spawned_at || 0,
+      0
+    );
+    if (terminatedAtMs > 0 && terminatedAtMs < terminatedCutoffMs) {
+      continue;
+    }
+    contracts[agentId] = contractRow;
+    retainedTerminated += 1;
   }
   const terminatedHistory = historyRaw
     .map((row) => {
@@ -3846,15 +4091,33 @@ function contractSummary(contract, nowMs = Date.now()) {
   };
 }
 
+function scaleAwareBatchSize(activeAgents, base, maxCap) {
+  const active = parseNonNegativeInt(activeAgents, 0, 1_000_000);
+  const floor = parsePositiveInt(base, 1, 1, maxCap);
+  const cap = parsePositiveInt(maxCap, floor, floor, 1_000_000);
+  if (active >= AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD) {
+    return Math.min(cap, floor * 8);
+  }
+  if (active >= AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD) {
+    return Math.min(cap, floor * 4);
+  }
+  if (active >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD) {
+    return Math.min(cap, floor * 2);
+  }
+  return floor;
+}
+
 function enforceAgentContracts(snapshot, options = {}) {
   const nowMs = Date.now();
   const activeRows = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
+  const activeAgentCount = activeRows.length;
   const activeIds = new Set(activeRows.map((row) => cleanText(row && row.id ? row.id : '', 140)).filter(Boolean));
   const activeRowById = new Map(
     activeRows
       .map((row) => [cleanText(row && row.id ? row.id : '', 140), row])
       .filter(([id]) => !!id)
   );
+  const sessionActivityCache = new Map();
   const team =
     cleanText(
       options.team || (snapshot && snapshot.metadata && snapshot.metadata.team ? snapshot.metadata.team : DEFAULT_TEAM),
@@ -3950,7 +4213,14 @@ function enforceAgentContracts(snapshot, options = {}) {
       if (!!a.archived !== !!b.archived) return a.archived ? -1 : 1;
       return coerceTsMs(a.activated_at, 0) - coerceTsMs(b.activated_at, 0);
     })
-    .slice(0, AGENT_RECONCILE_TERMINATION_BATCH);
+    .slice(
+      0,
+      scaleAwareBatchSize(
+        activeAgentCount,
+        AGENT_RECONCILE_TERMINATION_BATCH,
+        AGENT_RECONCILE_TERMINATION_BATCH_MAX
+      )
+    );
   const canSweepTerminate =
     reconcileCandidates.length > 0 &&
     (nowMs - parseNonNegativeInt(agentTerminationSweepState.last_run_ms, 0, 1000000000000)) >=
@@ -4009,9 +4279,13 @@ function enforceAgentContracts(snapshot, options = {}) {
           .filter((value) => Number.isFinite(value) && value > 0)
       : [];
     const messageActivityMs = messageTimes.length > 0 ? Math.max(...messageTimes) : 0;
-    const sessionState = loadAgentSession(id, snapshot);
-    const session = activeSession(sessionState);
-    const sessionUpdatedMs = coerceTsMs(session && session.updated_at ? session.updated_at : 0, 0);
+    let sessionUpdatedMs = sessionActivityCache.has(id)
+      ? sessionActivityCache.get(id)
+      : null;
+    if (sessionUpdatedMs == null) {
+      sessionUpdatedMs = agentSessionActivityTimestampMs(id);
+      sessionActivityCache.set(id, sessionUpdatedMs);
+    }
     const contractSpawnedMs = coerceTsMs(contract.spawned_at, 0);
     const activityMs = Math.max(messageActivityMs, sessionUpdatedMs, contractSpawnedMs);
     const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
@@ -4034,7 +4308,10 @@ function enforceAgentContracts(snapshot, options = {}) {
       AGENT_IDLE_TERMINATION_COOLDOWN_MS;
   const idleBatchSize = Math.min(
     AGENT_IDLE_TERMINATION_BATCH_MAX,
-    Math.max(AGENT_IDLE_TERMINATION_BATCH, Math.ceil(idleExcess / 6)),
+    Math.max(
+      scaleAwareBatchSize(activeAgentCount, AGENT_IDLE_TERMINATION_BATCH, AGENT_IDLE_TERMINATION_BATCH_MAX),
+      Math.ceil(idleExcess / 6)
+    ),
     idleExcess
   );
   let idleTerminatedCount = 0;
@@ -5246,6 +5523,18 @@ function agentSessionPath(agentId) {
   return path.resolve(AGENT_SESSIONS_DIR, `${safeAgentSessionFile(agentId)}.json`);
 }
 
+function agentSessionActivityTimestampMs(agentId) {
+  const filePath = agentSessionPath(agentId);
+  try {
+    const stat = fs.statSync(filePath);
+    const mtimeMs = Number(stat && stat.mtimeMs);
+    if (Number.isFinite(mtimeMs) && mtimeMs > 0) {
+      return Math.floor(mtimeMs);
+    }
+  } catch {}
+  return 0;
+}
+
 function parseTs(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -6248,18 +6537,54 @@ function cockpitMetrics(blocks = []) {
   };
 }
 
-function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
+function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
   const safeTeam = cleanText(team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
-  const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
-  const attentionStatusLane = runLane(['attention-queue', 'status']);
-  const attentionNextLane = runLane([
+  const laneTimeoutMs = parsePositiveInt(
+    options && options.lane_timeout_ms != null ? options.lane_timeout_ms : LANE_SYNC_TIMEOUT_MS,
+    LANE_SYNC_TIMEOUT_MS,
+    SNAPSHOT_LANE_TIMEOUT_MIN_MS,
+    SNAPSHOT_LANE_TIMEOUT_MAX_MS
+  );
+  const laneCacheTtlMs = parsePositiveInt(
+    options && options.lane_cache_ttl_ms != null ? options.lane_cache_ttl_ms : SNAPSHOT_LANE_CACHE_TTL_MS,
+    SNAPSHOT_LANE_CACHE_TTL_MS,
+    250,
+    600000
+  );
+  const laneCacheFailTtlMs = parsePositiveInt(
+    options && options.lane_cache_fail_ttl_ms != null
+      ? options.lane_cache_fail_ttl_ms
+      : SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    250,
+    600000
+  );
+  const cockpitLane = runLaneCached(
+    `snapshot.cockpit.${safeTeam}.${COCKPIT_MAX_BLOCKS}`,
+    ['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1'],
+    {
+      timeout_ms: laneTimeoutMs,
+      ttl_ms: laneCacheTtlMs,
+      fail_ttl_ms: laneCacheFailTtlMs,
+    }
+  );
+  const attentionStatusLane = runLaneCached(`snapshot.attention_status.${safeTeam}`, ['attention-queue', 'status'], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  const attentionNextLane = runLaneCached(`snapshot.attention_next.${safeTeam}`, [
     'attention-queue',
     'next',
     `--consumer=${ATTENTION_CONSUMER_ID}`,
     `--limit=${ATTENTION_CRITICAL_LIMIT}`,
     '--wait-ms=0',
     '--run-context=dashboard_mirror',
-  ]);
+  ], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
 
   const cockpitPayload = cockpitLane.payload && typeof cockpitLane.payload === 'object' ? cockpitLane.payload : {};
   const attentionStatusPayload =
@@ -6282,6 +6607,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       ? cockpitPayload.cockpit.metrics
       : {};
   const eventsRaw = Array.isArray(attentionNextPayload.events) ? attentionNextPayload.events : [];
+  const queueDepth = parsePositiveInt(
+    attentionStatusPayload && attentionStatusPayload.queue_depth != null
+      ? attentionStatusPayload.queue_depth
+      : attentionNextPayload && attentionNextPayload.queue_depth != null
+        ? attentionNextPayload.queue_depth
+        : 0,
+    0,
+    0,
+    100000000
+  );
 
   const blocks = compactCockpitBlocks(blocksRaw, COCKPIT_MAX_BLOCKS);
   const staleBlockThresholdMs = parsePositiveInt(
@@ -6297,8 +6632,8 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
       (row && row.is_stale === true) ||
       parseNonNegativeInt(row && row.duration_ms, 0, 3600000) >= staleBlockThresholdMs
   );
-  const staleCockpitBlocksActionable = staleCockpitBlocksRaw.filter((row) => cockpitStaleIsActionable(row));
-  const staleCockpitBlocksDormant = staleCockpitBlocksRaw.filter((row) => !cockpitStaleIsActionable(row));
+  const staleCockpitBlocksActionable = staleCockpitBlocksRaw.filter((row) => cockpitStaleIsActionable(row, queueDepth));
+  const staleCockpitBlocksDormant = staleCockpitBlocksRaw.filter((row) => !cockpitStaleIsActionable(row, queueDepth));
   const activeCockpitBlocksRaw = blocks.filter((row) => !staleCockpitBlocksRaw.includes(row));
   const totalCockpitBlockCount = parseNonNegativeInt(
     cockpitMetricsRaw && cockpitMetricsRaw.total_block_count != null
@@ -6374,16 +6709,6 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
     : 'good';
   const eventsFull = compactAttentionEvents(eventsRaw, ATTENTION_CRITICAL_LIMIT);
   const eventSplitRaw = splitAttentionEvents(eventsFull);
-  const queueDepth = parsePositiveInt(
-    attentionStatusPayload && attentionStatusPayload.queue_depth != null
-      ? attentionStatusPayload.queue_depth
-      : attentionNextPayload && attentionNextPayload.queue_depth != null
-        ? attentionNextPayload.queue_depth
-        : 0,
-    0,
-    0,
-    100000000
-  );
   const deferred = applyAttentionDeferredStorage(queueDepth, eventSplitRaw);
   const eventSplit = {
     critical: deferred.critical,
@@ -6528,7 +6853,7 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM) {
   const targetConduitSignals = recommendedConduitSignals(
     queueDepth,
     queueUtilization,
-    activeCockpitBlockCount,
+    conduitChannelsObserved,
     activeAgentCount
   );
   const syncMode =
@@ -6794,11 +7119,49 @@ function asMetricRows(healthPayload) {
 function buildSnapshot(opts = {}) {
   const team = cleanText(opts.team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
   const cliMode = normalizeCliMode(opts.cliMode || ACTIVE_CLI_MODE);
-  const healthLane = runLane(['health-status', 'dashboard']);
-  const appLane = runLane(['app-plane', 'history', '--app=chat-ui']);
-  const collabLane = runLane(['collab-plane', 'dashboard', `--team=${team}`]);
-  const skillsLane = runLane(['skills-plane', 'dashboard']);
-  const runtimeMirror = collectConduitAttentionCockpit(team);
+  const laneTimeoutMs = parsePositiveInt(
+    opts && opts.lane_timeout_ms != null ? opts.lane_timeout_ms : LANE_SYNC_TIMEOUT_MS,
+    LANE_SYNC_TIMEOUT_MS,
+    SNAPSHOT_LANE_TIMEOUT_MIN_MS,
+    SNAPSHOT_LANE_TIMEOUT_MAX_MS
+  );
+  const laneCacheTtlMs = parsePositiveInt(
+    opts && opts.lane_cache_ttl_ms != null ? opts.lane_cache_ttl_ms : SNAPSHOT_LANE_CACHE_TTL_MS,
+    SNAPSHOT_LANE_CACHE_TTL_MS,
+    250,
+    600000
+  );
+  const laneCacheFailTtlMs = parsePositiveInt(
+    opts && opts.lane_cache_fail_ttl_ms != null ? opts.lane_cache_fail_ttl_ms : SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    250,
+    600000
+  );
+  const healthLane = runLaneCached('snapshot.health', ['health-status', 'dashboard'], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  const appLane = runLaneCached('snapshot.app.chat_history', ['app-plane', 'history', '--app=chat-ui'], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  const collabLane = runLaneCached(`snapshot.collab.${team}`, ['collab-plane', 'dashboard', `--team=${team}`], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  const skillsLane = runLaneCached('snapshot.skills', ['skills-plane', 'dashboard'], {
+    timeout_ms: laneTimeoutMs,
+    ttl_ms: laneCacheTtlMs,
+    fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  const runtimeMirror = collectConduitAttentionCockpit(team, {
+    lane_timeout_ms: laneTimeoutMs,
+    lane_cache_ttl_ms: laneCacheTtlMs,
+    lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
+  });
   const benchmarkSanity = benchmarkSanitySnapshot();
 
   const health = mergeBenchmarkSanityHealth(healthLane.payload || {}, benchmarkSanity);
@@ -7122,6 +7485,18 @@ function runtimeSyncSummary(snapshot) {
           dashboardMetrics.dopamine_ambient_score) ||
         (dashboardMetrics.dopamine_score && typeof dashboardMetrics.dopamine_score === 'object' && dashboardMetrics.dopamine_score))
       : {};
+  const moltbookCredentialMetric =
+    dashboardMetrics &&
+    dashboardMetrics.moltbook_credentials_surface &&
+    typeof dashboardMetrics.moltbook_credentials_surface === 'object'
+      ? dashboardMetrics.moltbook_credentials_surface
+      : {};
+  const externalEyesCrossMetric =
+    dashboardMetrics &&
+    dashboardMetrics.external_eyes_cross_signal_surface &&
+    typeof dashboardMetrics.external_eyes_cross_signal_surface === 'object'
+      ? dashboardMetrics.external_eyes_cross_signal_surface
+      : {};
   const spineSuccessRateRaw = Number(spineSuccessMetric && spineSuccessMetric.value != null ? spineSuccessMetric.value : Number.NaN);
   const humanEscalationOpenRateRaw = Number(
     escalationMetric && escalationMetric.value != null ? escalationMetric.value : Number.NaN
@@ -7137,6 +7512,9 @@ function runtimeSyncSummary(snapshot) {
       : Number.NaN
   );
   const dopamineScoreRaw = Number(dopamineMetric && dopamineMetric.value != null ? dopamineMetric.value : Number.NaN);
+  const externalEyesCrossSignalRatioRaw = Number(
+    externalEyesCrossMetric && externalEyesCrossMetric.value != null ? externalEyesCrossMetric.value : Number.NaN
+  );
   const spineMetricsStale = !!(
     (spineSuccessMetric && spineSuccessMetric.stale === true) ||
     cleanText(spineSuccessMetric && spineSuccessMetric.status ? spineSuccessMetric.status : '', 24).toLowerCase() === 'stale'
@@ -7168,6 +7546,9 @@ function runtimeSyncSummary(snapshot) {
     ? Number(humanEscalationOpenRateRaw)
     : 0;
   const dopamineScore = Number.isFinite(dopamineScoreRaw) ? Number(dopamineScoreRaw) : 0;
+  const externalEyesCrossSignalRatio = Number.isFinite(externalEyesCrossSignalRatioRaw)
+    ? Number(externalEyesCrossSignalRatioRaw)
+    : 0;
   const healthCoverage =
     snapshot &&
     snapshot.health &&
@@ -7406,6 +7787,45 @@ function runtimeSyncSummary(snapshot) {
     dopamine_score: dopamineScore,
     dopamine_status:
       cleanText(dopamineMetric && dopamineMetric.status ? dopamineMetric.status : 'unknown', 24) || 'unknown',
+    dopamine_freshness_status:
+      cleanText(dopamineMetric && dopamineMetric.freshness_status ? dopamineMetric.freshness_status : 'unknown', 24) || 'unknown',
+    dopamine_latest_age_seconds: parsePositiveInt(
+      dopamineMetric && dopamineMetric.latest_event_age_seconds != null ? dopamineMetric.latest_event_age_seconds : -1,
+      -1,
+      -1,
+      1000000000
+    ),
+    moltbook_credentials_status:
+      cleanText(moltbookCredentialMetric && moltbookCredentialMetric.status ? moltbookCredentialMetric.status : 'unknown', 24) ||
+      'unknown',
+    moltbook_credentials_available:
+      !!(moltbookCredentialMetric && moltbookCredentialMetric.credentials_available === true),
+    moltbook_jobs_requiring_credentials: parseNonNegativeInt(
+      moltbookCredentialMetric && moltbookCredentialMetric.jobs_requiring_credentials != null
+        ? moltbookCredentialMetric.jobs_requiring_credentials
+        : 0,
+      0,
+      100000000
+    ),
+    moltbook_suppression_recommended:
+      !!(moltbookCredentialMetric && moltbookCredentialMetric.suppression_recommended === true),
+    external_eyes_cross_signal_ratio: externalEyesCrossSignalRatio,
+    external_eyes_cross_signal_status:
+      cleanText(externalEyesCrossMetric && externalEyesCrossMetric.status ? externalEyesCrossMetric.status : 'unknown', 24) ||
+      'unknown',
+    external_eyes_freshness_status:
+      cleanText(externalEyesCrossMetric && externalEyesCrossMetric.freshness_status ? externalEyesCrossMetric.freshness_status : 'unknown', 24) ||
+      'unknown',
+    external_eyes_latest_age_seconds: parsePositiveInt(
+      externalEyesCrossMetric && externalEyesCrossMetric.latest_event_age_seconds != null
+        ? externalEyesCrossMetric.latest_event_age_seconds
+        : -1,
+      -1,
+      -1,
+      1000000000
+    ),
+    external_eyes_cross_signal_absent:
+      !!(externalEyesCrossMetric && externalEyesCrossMetric.cross_signal_absent === true),
     ingress_level: ingressLevel,
     telemetry_micro_batch_count: parseNonNegativeInt(
       snapshot &&
@@ -10617,27 +11037,63 @@ function runServe(flags) {
   };
   refreshUiAssets();
   let latestSnapshot = buildSnapshot(flags);
+  let latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
   writeSnapshotReceipt(latestSnapshot, { forceHistory: true });
   let updating = false;
   let enforcingContracts = false;
+  let enforceContractsQueued = false;
   let lastContractEnforceAtMs = 0;
   let lastContractLoopRunAtMs = 0;
+  let lastApiContractEnforceAtMs = 0;
   let nextSnapshotRefreshAtMs = 0;
   let lastSnapshotBuildDurationMs = 0;
 
   const refreshSnapshot = (contractEnforcement = null, options = {}) => {
     const startedMs = Date.now();
+    const fastLaneMode = !!(options && options.fast_lane_mode === true);
+    const cadenceMs = parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000);
+    const laneTimeoutMs = parsePositiveInt(
+      options && options.lane_timeout_ms != null
+        ? options.lane_timeout_ms
+        : fastLaneMode
+        ? SNAPSHOT_LANE_TIMEOUT_FAST_MS
+        : LANE_SYNC_TIMEOUT_MS,
+      fastLaneMode ? SNAPSHOT_LANE_TIMEOUT_FAST_MS : LANE_SYNC_TIMEOUT_MS,
+      SNAPSHOT_LANE_TIMEOUT_MIN_MS,
+      SNAPSHOT_LANE_TIMEOUT_MAX_MS
+    );
+    const laneCacheTtlMs = parsePositiveInt(
+      options && options.lane_cache_ttl_ms != null
+        ? options.lane_cache_ttl_ms
+        : fastLaneMode
+        ? Math.max(SNAPSHOT_LANE_CACHE_TTL_MS, cadenceMs * 3)
+        : SNAPSHOT_LANE_CACHE_TTL_MS,
+      SNAPSHOT_LANE_CACHE_TTL_MS,
+      250,
+      600000
+    );
+    const laneCacheFailTtlMs = parsePositiveInt(
+      options && options.lane_cache_fail_ttl_ms != null
+        ? options.lane_cache_fail_ttl_ms
+        : Math.max(SNAPSHOT_LANE_CACHE_FAIL_TTL_MS, Math.round(cadenceMs * 0.5)),
+      SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+      250,
+      600000
+    );
     latestSnapshot = buildSnapshot({
       ...flags,
       contract_enforcement: contractEnforcement,
+      lane_timeout_ms: laneTimeoutMs,
+      lane_cache_ttl_ms: laneCacheTtlMs,
+      lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
     });
+    latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
     writeSnapshotReceipt(latestSnapshot, {
       forceHistory: !!(options && options.force_history),
     });
     const finishedMs = Date.now();
     const buildDurationMs = Math.max(0, finishedMs - startedMs);
     lastSnapshotBuildDurationMs = buildDurationMs;
-    const cadenceMs = parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000);
     const deferOnSlow = !(options && options.defer_on_slow === false);
     if (deferOnSlow) {
       if (buildDurationMs > cadenceMs) {
@@ -10716,7 +11172,7 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
-        enforceAgentContractsNow('api.snapshot');
+        maybeEnforceAgentContractsForApi('api.snapshot');
         const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
         const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
         if (snapshotAgeMs > (flags.refreshMs * 2)) requestSnapshotRefresh(true);
@@ -10724,7 +11180,7 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/api/status') {
-        enforceAgentContractsNow('api.status');
+        maybeEnforceAgentContractsForApi('api.status');
         const agentCount = activeAgentCountFromSnapshot(latestSnapshot, 0);
         const runtimeSync = runtimeSyncSummary(latestSnapshot);
         sendJson(res, 200, {
@@ -10829,7 +11285,7 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/api/agents') {
-        enforceAgentContractsNow('api.agents');
+        maybeEnforceAgentContractsForApi('api.agents');
         sendJson(res, 200, compatAgentsFromSnapshot(latestSnapshot));
         return;
       }
@@ -10885,7 +11341,7 @@ function runServe(flags) {
         return;
       }
       if (pathname.startsWith('/api/agents/')) {
-        enforceAgentContractsNow('api.agent_scope');
+        maybeEnforceAgentContractsForApi('api.agent_scope');
         const parts = pathname.split('/').filter(Boolean);
         const agentId = cleanText(parts[2] || '', 140);
         if (req.method === 'GET' && parts.length === 3) {
@@ -11674,8 +12130,8 @@ function runServe(flags) {
     }
   });
 
-  const wss = new WebSocketServer({ noServer: true });
-  const agentWss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
+  const agentWss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
   const wsClients = new Set();
   const agentWsClients = new Map();
 
@@ -11687,7 +12143,7 @@ function runServe(flags) {
   };
 
   const broadcastSnapshot = () => {
-    const envelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
+    const envelope = latestSnapshotEnvelope;
     for (const client of wsClients) {
       if (client.readyState === 1) {
         client.send(envelope);
@@ -11758,6 +12214,43 @@ function runServe(flags) {
     } finally {
       enforcingContracts = false;
     }
+  };
+
+  const scheduleContractEnforcement = (source = 'api') => {
+    if (enforcingContracts || enforceContractsQueued) return false;
+    enforceContractsQueued = true;
+    setTimeout(() => {
+      enforceContractsQueued = false;
+      enforceAgentContractsNow(source);
+    }, 0);
+    return true;
+  };
+
+  const apiContractEnforceIntervalMs = () => {
+    const activeAgents = activeAgentCountFromSnapshot(latestSnapshot, 0);
+    if (activeAgents >= AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD) {
+      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS;
+    }
+    if (activeAgents >= AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD) {
+      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS;
+    }
+    if (activeAgents >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD) {
+      return AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS;
+    }
+    return AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS;
+  };
+
+  const maybeEnforceAgentContractsForApi = (source = 'api') => {
+    const nowMs = Date.now();
+    const minIntervalMs = apiContractEnforceIntervalMs();
+    if ((nowMs - parseNonNegativeInt(lastApiContractEnforceAtMs, 0, 1000000000000)) < minIntervalMs) {
+      return null;
+    }
+    const scheduled = scheduleContractEnforcement(source);
+    if (scheduled) {
+      lastApiContractEnforceAtMs = nowMs;
+    }
+    return null;
   };
 
   const maybeRunAutonomousSelfHeal = (source = 'interval') => {
@@ -12028,7 +12521,9 @@ function runServe(flags) {
 
   wss.on('connection', (socket) => {
     wsClients.add(socket);
-    sendWs(socket, { type: 'snapshot', snapshot: latestSnapshot });
+    try {
+      socket.send(latestSnapshotEnvelope);
+    } catch {}
     socket.on('close', () => {
       wsClients.delete(socket);
     });
@@ -12272,11 +12767,12 @@ function runServe(flags) {
     if (Date.now() < parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000)) return;
     if (updating) return;
     updating = true;
+    let followupRefreshNeeded = false;
     try {
-      refreshSnapshot();
+      refreshSnapshot(null, { fast_lane_mode: true });
       const autoheal = maybeRunAutonomousSelfHeal('interval');
       if (autoheal && autoheal.executed) {
-        refreshSnapshot();
+        followupRefreshNeeded = true;
       }
       broadcastSnapshot();
     } catch (error) {
@@ -12292,21 +12788,28 @@ function runServe(flags) {
       }
     } finally {
       updating = false;
+      if (followupRefreshNeeded) {
+        requestSnapshotRefresh(false);
+      }
     }
   }, flags.refreshMs);
 
   const contractInterval = setInterval(() => {
     const activeAgents = activeAgentCountFromSnapshot(latestSnapshot, 0);
-    const dynamicIntervalMs =
-      activeAgents >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD
-        ? AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS
-        : AGENT_CONTRACT_ENFORCE_INTERVAL_MS;
+    const dynamicIntervalMs = activeAgents >= AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD
+      ? AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS
+      : activeAgents >= AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD
+        ? AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS
+        : activeAgents >= AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD
+          ? AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS
+          : AGENT_CONTRACT_ENFORCE_INTERVAL_MS;
     const nowMs = Date.now();
     if ((nowMs - parseNonNegativeInt(lastContractLoopRunAtMs, 0, 1000000000000)) < dynamicIntervalMs) {
       return;
     }
-    lastContractLoopRunAtMs = nowMs;
-    enforceAgentContractsNow('interval');
+    if (scheduleContractEnforcement('interval')) {
+      lastContractLoopRunAtMs = nowMs;
+    }
   }, AGENT_CONTRACT_ENFORCE_INTERVAL_MS);
 
   const compactInterval = setInterval(() => {

@@ -1,59 +1,26 @@
-Protheus Non-Commercial License v1.0
+InfRing Dual License Notice
 
 Copyright (c) Protheus Labs
 
-1. Grant of Rights
+This repository is dual-licensed.
 
-Subject to the terms below, you are granted a worldwide, non-exclusive,
-non-transferable, revocable license to use, copy, modify, and distribute this
-software and its source code for personal, educational, research, evaluation,
-and other strictly non-commercial purposes.
+1) Apache License 2.0 (Open Core Scope)
 
-2. Non-Commercial Restriction
+   Files in the Open Core Scope are licensed under Apache-2.0.
+   See `LICENSE-APACHE-2.0` and `LICENSE_SCOPE.md`.
 
-You may not, directly or indirectly:
-- sell, sublicense, or otherwise monetize this software;
-- offer this software, modified or unmodified, as part of any paid product or
-  paid service;
-- use this software to provide commercial hosted services;
-- use this software in any activity primarily intended for commercial advantage
-  or monetary compensation.
+2) Protheus Non-Commercial License v1.0 (Default Scope)
 
-3. Distribution Conditions
+   All files not explicitly in the Open Core Scope are licensed under
+   Protheus Non-Commercial License v1.0.
+   See `LICENSE-INFRING-NC-1.0` and `LICENSE_SCOPE.md`.
 
-If you distribute this software (source or binary), you must:
-- include this license in full;
-- retain all copyright and attribution notices;
-- clearly mark any modifications you made.
+Scope resolution order:
+- If a file has an explicit SPDX license identifier, that identifier applies.
+- Otherwise apply the path-based scope map in `LICENSE_SCOPE.md`.
+- If neither rule applies, default to InfRing-NC-1.0.
 
-4. No Trademark License
+Commercial licensing and support:
+- Contact Protheus Labs for commercial licensing, support, and enterprise terms.
 
-This license does not grant rights to use Protheus Labs names, logos,
-service marks, or trademarks except for accurate attribution.
-
-5. Patent and Other Rights
-
-No patent rights are granted by this license except to the minimum extent
-required by applicable law.
-
-6. Compliance and Termination
-
-Any breach of this license immediately terminates your rights under it.
-Upon termination, you must stop use and distribution of the software.
-
-7. Disclaimer of Warranty
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, AND NON-INFRINGEMENT.
-
-8. Limitation of Liability
-
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-OR OTHER DEALINGS IN THE SOFTWARE.
-
-9. Contact
-
-For commercial licensing inquiries, contact Protheus Labs.
+No trademark rights are granted except for accurate attribution.

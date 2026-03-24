@@ -2606,7 +2606,7 @@ fn family_roi_weight(family: &str) -> i64 {
 fn contract_roi_boost(id: &str) -> i64 {
     if id.starts_with("V10-PERF-001.") {
         30
-    } else if id.starts_with("V6-DASHBOARD-007.") {
+    } else if id.starts_with("V6-DASHBOARD-007.") || id.starts_with("V6-DASHBOARD-008.") {
         26
     } else if id.starts_with("V6-SECURITY-") || id.starts_with("V8-SECURITY-") {
         25

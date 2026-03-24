@@ -3,6 +3,7 @@ use crate::{deterministic_receipt_hash, now_iso};
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use std::env;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -15,6 +16,9 @@ const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
 const JSONL_TAIL_MAX_BYTES: usize = 2 * 1024 * 1024;
 const SPINE_RUN_FILES_MAX: usize = 7;
 const SPINE_METRICS_FRESH_WINDOW_SECONDS: i64 = 24 * 60 * 60;
+const DOPAMINE_METRICS_FRESH_WINDOW_SECONDS: i64 = 24 * 60 * 60;
+const EXTERNAL_EYES_METRICS_FRESH_WINDOW_SECONDS: i64 = 6 * 60 * 60;
+const EXTERNAL_EYES_CROSS_SIGNAL_MIN_EVENTS: u64 = 6;
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
     "last",
     "main",
@@ -595,6 +599,443 @@ fn parse_row_ts_ms(row: &Value) -> Option<i64> {
         .and_then(Value::as_str)
         .and_then(|raw| DateTime::parse_from_rfc3339(raw).ok())
         .map(|dt| dt.timestamp_millis())
+}
+
+fn parse_ts_ms(raw: &str) -> Option<i64> {
+    DateTime::parse_from_rfc3339(raw)
+        .ok()
+        .map(|dt| dt.timestamp_millis())
+}
+
+fn age_seconds(now_ms: i64, ts_ms: Option<i64>) -> Option<i64> {
+    ts_ms.map(|ts| ((now_ms - ts).max(0)) / 1000)
+}
+
+fn default_secrets_dir() -> PathBuf {
+    if let Ok(raw) = env::var("SECRET_BROKER_SECRETS_DIR") {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home)
+        .join(".config")
+        .join("protheus")
+        .join("secrets")
+}
+
+fn expand_provider_path(root: &Path, raw: &str) -> PathBuf {
+    let expanded = raw
+        .replace(
+            "${DEFAULT_SECRETS_DIR}",
+            &default_secrets_dir().to_string_lossy(),
+        )
+        .replace("${HOME}", &env::var("HOME").unwrap_or_default())
+        .replace("${OPENCLAW_WORKSPACE}", &root.to_string_lossy());
+    let candidate = PathBuf::from(expanded.trim());
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
+fn read_secret_value_from_json(path: &Path, field: &str) -> Option<String> {
+    let value = read_json(path).ok()?;
+    let token = value
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or("");
+    if token.is_empty() {
+        None
+    } else {
+        Some(token.to_string())
+    }
+}
+
+fn collect_moltbook_credentials_dashboard_metric(root: &Path) -> Value {
+    let cron_path = root.join(CRON_JOBS_REL);
+    let cron = read_json(&cron_path).ok();
+    let mut monitored_jobs = Vec::<String>::new();
+    if let Some(rows) = cron
+        .as_ref()
+        .and_then(|v| v.get("jobs"))
+        .and_then(Value::as_array)
+    {
+        for row in rows {
+            if row.get("enabled").and_then(Value::as_bool) == Some(false) {
+                continue;
+            }
+            let name = row
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .trim()
+                .to_string();
+            let payload_text = row
+                .get("payload")
+                .and_then(Value::as_object)
+                .and_then(|payload| payload.get("text").or_else(|| payload.get("message")))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let is_moltbook = name.to_ascii_lowercase().contains("moltbook")
+                || payload_text.contains("moltcheck")
+                || payload_text.contains("moltbook");
+            if is_moltbook {
+                monitored_jobs.push(name);
+            }
+        }
+    }
+
+    let policy_path = root.join("client/runtime/config/secret_broker_policy.json");
+    let policy = read_json(&policy_path).ok();
+    let providers = policy
+        .as_ref()
+        .and_then(|v| v.pointer("/secrets/moltbook_api_key/providers"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut providers_checked = 0u64;
+    let mut env_hits = 0u64;
+    let mut json_hits = 0u64;
+    let mut command_enabled = 0u64;
+    let mut availability_sources = Vec::<String>::new();
+
+    for provider in providers {
+        let provider_type = provider
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        if provider.get("enabled").and_then(Value::as_bool) == Some(false) {
+            continue;
+        }
+        providers_checked += 1;
+        match provider_type.as_str() {
+            "env" => {
+                let env_name = provider
+                    .get("env")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if env_name.is_empty() {
+                    continue;
+                }
+                let present = env::var(&env_name)
+                    .ok()
+                    .map(|v| !v.trim().is_empty())
+                    .unwrap_or(false);
+                if present {
+                    env_hits += 1;
+                    availability_sources.push(format!("env:{env_name}"));
+                }
+            }
+            "json_file" => {
+                let field = provider
+                    .get("field")
+                    .and_then(Value::as_str)
+                    .unwrap_or("api_key")
+                    .trim();
+                let paths = provider
+                    .get("paths")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                for raw in paths {
+                    let Some(raw_path) = raw.as_str() else {
+                        continue;
+                    };
+                    let path = expand_provider_path(root, raw_path);
+                    if read_secret_value_from_json(&path, field).is_some() {
+                        json_hits += 1;
+                        availability_sources.push(format!("file:{}", path.to_string_lossy()));
+                        break;
+                    }
+                }
+            }
+            "command" => {
+                if provider
+                    .get("enabled")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    command_enabled += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let credentials_available = env_hits > 0 || json_hits > 0;
+    let jobs_requiring_credentials = monitored_jobs.len() as u64;
+    let suppression_recommended = jobs_requiring_credentials > 0 && !credentials_available;
+    let status = if suppression_recommended {
+        "warn"
+    } else {
+        "pass"
+    };
+
+    json!({
+        "moltbook_credentials_surface": {
+            "value": if credentials_available { 1.0 } else { 0.0 },
+            "target_min": 1.0,
+            "status": status,
+            "credentials_available": credentials_available,
+            "jobs_requiring_credentials": jobs_requiring_credentials,
+            "monitored_jobs": monitored_jobs,
+            "suppression_recommended": suppression_recommended,
+            "providers_checked": providers_checked,
+            "env_hits": env_hits,
+            "json_file_hits": json_hits,
+            "command_providers_enabled": command_enabled,
+            "availability_sources": availability_sources,
+            "source": format!("{CRON_JOBS_REL} + client/runtime/config/secret_broker_policy.json")
+        }
+    })
+}
+
+fn collect_dopamine_ambient_dashboard_metric(root: &Path) -> Value {
+    let now_ms = Utc::now().timestamp_millis();
+    let primary_path = root.join("client/runtime/local/state/dopamine/ambient/latest.json");
+    let legacy_path = root.join("local/state/client-runtime/state/dopamine_state.json");
+
+    let primary = read_json(&primary_path).ok();
+    let legacy = read_json(&legacy_path).ok();
+
+    let mut source = "missing".to_string();
+    let mut score = 0.0f64;
+    let mut status = "warn".to_string();
+    let mut freshness = "missing".to_string();
+    let mut age_sec = None::<i64>;
+    let mut severity = "unknown".to_string();
+    let mut threshold_breached = false;
+    let mut last_recorded_date = String::new();
+
+    if let Some(row) = primary.as_ref() {
+        source = primary_path.to_string_lossy().to_string();
+        score = row
+            .get("sds")
+            .and_then(Value::as_f64)
+            .or_else(|| {
+                row.get("summary")
+                    .and_then(Value::as_object)
+                    .and_then(|s| s.get("sds"))
+                    .and_then(Value::as_f64)
+            })
+            .unwrap_or(0.0);
+        severity = row
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_ascii_lowercase();
+        threshold_breached = row
+            .get("threshold_breached")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let ts_ms = row.get("ts").and_then(Value::as_str).and_then(parse_ts_ms);
+        age_sec = age_seconds(now_ms, ts_ms);
+        let stale = age_sec
+            .map(|age| age > DOPAMINE_METRICS_FRESH_WINDOW_SECONDS)
+            .unwrap_or(true);
+        freshness = if stale { "stale" } else { "fresh" }.to_string();
+        status = if stale || threshold_breached || severity == "critical" || severity == "warn" {
+            "warn".to_string()
+        } else {
+            "pass".to_string()
+        };
+    } else if let Some(row) = legacy.as_ref() {
+        source = legacy_path.to_string_lossy().to_string();
+        score = row
+            .get("last_score")
+            .and_then(Value::as_f64)
+            .or_else(|| {
+                row.get("last_score")
+                    .and_then(Value::as_i64)
+                    .map(|v| v as f64)
+            })
+            .unwrap_or(0.0);
+        last_recorded_date = row
+            .get("last_recorded_date")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let ts_ms = if last_recorded_date.len() == 10 {
+            parse_ts_ms(&format!("{last_recorded_date}T00:00:00Z"))
+        } else {
+            None
+        };
+        age_sec = age_seconds(now_ms, ts_ms);
+        let stale = age_sec
+            .map(|age| age > DOPAMINE_METRICS_FRESH_WINDOW_SECONDS)
+            .unwrap_or(true);
+        freshness = if stale { "stale" } else { "fresh" }.to_string();
+        severity = if score <= 0.0 {
+            "warn".to_string()
+        } else {
+            "info".to_string()
+        };
+        status = if stale || score <= 0.0 {
+            "warn".to_string()
+        } else {
+            "pass".to_string()
+        };
+    }
+
+    json!({
+        "dopamine_ambient": {
+            "value": score,
+            "target_min": 1.0,
+            "status": status,
+            "severity": severity,
+            "threshold_breached": threshold_breached,
+            "freshness_status": freshness,
+            "latest_event_age_seconds": age_sec,
+            "fresh_window_seconds": DOPAMINE_METRICS_FRESH_WINDOW_SECONDS,
+            "last_recorded_date": if last_recorded_date.is_empty() { Value::Null } else { Value::String(last_recorded_date) },
+            "source": source
+        }
+    })
+}
+
+fn collect_external_eyes_dashboard_metric(root: &Path) -> Value {
+    let now_ms = Utc::now().timestamp_millis();
+    let attention_latest = root.join("client/runtime/local/state/attention/latest.json");
+    let attention_queue = root.join("client/runtime/local/state/attention/queue.jsonl");
+    let legacy_bridge =
+        root.join("local/state/client-runtime/state/memory/eyes_memory_bridge.jsonl");
+
+    let latest = read_json(&attention_latest).ok();
+    let mut source = if attention_latest.exists() {
+        attention_latest.to_string_lossy().to_string()
+    } else if legacy_bridge.exists() {
+        legacy_bridge.to_string_lossy().to_string()
+    } else {
+        "missing".to_string()
+    };
+
+    let latest_ts_ms = latest
+        .as_ref()
+        .and_then(|row| row.get("ts").and_then(Value::as_str))
+        .and_then(parse_ts_ms);
+    let mut age_sec = age_seconds(now_ms, latest_ts_ms);
+    let mut external_events = 0u64;
+    let mut cross_signal_events = 0u64;
+    let mut rows_scanned = 0u64;
+
+    if let Some(raw) = read_text_tail(&attention_queue, JSONL_TAIL_MAX_BYTES) {
+        source = attention_queue.to_string_lossy().to_string();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let Ok(row) = serde_json::from_str::<Value>(trimmed) else {
+                continue;
+            };
+            rows_scanned += 1;
+            let row_source = row
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let row_type = row
+                .get("source_type")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let summary = row
+                .get("summary")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let is_external = row_source.contains("external_eyes")
+                || row_type.contains("external")
+                || row_type.contains("eye_");
+            if !is_external {
+                continue;
+            }
+            external_events += 1;
+            if row_type.contains("cross_signal")
+                || row_type.contains("cross-signal")
+                || summary.contains("cross signal")
+                || summary.contains("cross-signal")
+            {
+                cross_signal_events += 1;
+            }
+            if age_sec.is_none() {
+                age_sec = parse_row_ts_ms(&row).map(|ts_ms| ((now_ms - ts_ms).max(0)) / 1000);
+            }
+        }
+    } else if let Some(raw) = read_text_tail(&legacy_bridge, JSONL_TAIL_MAX_BYTES) {
+        source = legacy_bridge.to_string_lossy().to_string();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let Ok(row) = serde_json::from_str::<Value>(trimmed) else {
+                continue;
+            };
+            rows_scanned += 1;
+            external_events += 1;
+            let ts_age = parse_row_ts_ms(&row).map(|ts_ms| ((now_ms - ts_ms).max(0)) / 1000);
+            if let Some(candidate) = ts_age {
+                age_sec = Some(match age_sec {
+                    Some(current) => current.min(candidate),
+                    None => candidate,
+                });
+            }
+            if row
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains("cross_signal")
+            {
+                cross_signal_events += 1;
+            }
+        }
+    }
+
+    let stale = age_sec
+        .map(|age| age > EXTERNAL_EYES_METRICS_FRESH_WINDOW_SECONDS)
+        .unwrap_or(true);
+    let cross_signal_absent = external_events >= EXTERNAL_EYES_CROSS_SIGNAL_MIN_EVENTS
+        && cross_signal_events == 0
+        && !stale;
+    let status = if stale || cross_signal_absent {
+        "warn"
+    } else {
+        "pass"
+    };
+    let freshness_status = if stale { "stale" } else { "fresh" };
+    let ratio = if external_events > 0 {
+        cross_signal_events as f64 / external_events as f64
+    } else {
+        0.0
+    };
+
+    json!({
+        "external_eyes_cross_signal_surface": {
+            "value": ratio,
+            "target_min": 0.05,
+            "status": status,
+            "freshness_status": freshness_status,
+            "latest_event_age_seconds": age_sec,
+            "fresh_window_seconds": EXTERNAL_EYES_METRICS_FRESH_WINDOW_SECONDS,
+            "external_events_scanned": external_events,
+            "cross_signal_events": cross_signal_events,
+            "cross_signal_absent": cross_signal_absent,
+            "rows_scanned": rows_scanned,
+            "source": source
+        }
+    })
 }
 
 fn collect_spine_dashboard_metrics(root: &Path) -> Value {
@@ -1693,6 +2134,21 @@ fn collect_dashboard_metrics(root: &Path, cron_audit: &Value) -> Value {
             metrics.insert(k.clone(), v.clone());
         }
     }
+    if let Some(obj) = collect_moltbook_credentials_dashboard_metric(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
+    if let Some(obj) = collect_dopamine_ambient_dashboard_metric(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
+    if let Some(obj) = collect_external_eyes_dashboard_metric(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
     if let Some(obj) = collect_substrate_dashboard_metric(root).as_object() {
         for (k, v) in obj {
             metrics.insert(k.clone(), v.clone());
@@ -2200,5 +2656,140 @@ mod tests {
         assert_eq!(success.get("stale").and_then(Value::as_bool), Some(false));
         assert_eq!(p95.get("status").and_then(Value::as_str), Some("pass"));
         assert_eq!(p95.get("stale").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn moltbook_credentials_metric_warns_when_jobs_enabled_without_credentials() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            CRON_JOBS_REL,
+            r#"{"jobs":[{"id":"molt","name":"Moltbook Times","enabled":true,"payload":{"kind":"systemEvent","text":"MOLTCHECK heartbeat"}}]}"#,
+        );
+        write_text(
+            root.path(),
+            "client/runtime/config/secret_broker_policy.json",
+            r#"{
+              "version": "1.0",
+              "secrets": {
+                "moltbook_api_key": {
+                  "providers": [
+                    { "type": "env", "env": "INTENTIONALLY_UNSET_MOLTBOOK_TEST_TOKEN" }
+                  ]
+                }
+              }
+            }"#,
+        );
+
+        let metric = collect_moltbook_credentials_dashboard_metric(root.path());
+        let payload = metric
+            .get("moltbook_credentials_surface")
+            .expect("metric payload");
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("warn"));
+        assert_eq!(
+            payload
+                .get("suppression_recommended")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn moltbook_credentials_metric_passes_with_json_secret_provider() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            CRON_JOBS_REL,
+            r#"{"jobs":[{"id":"molt","name":"Moltbook Times","enabled":true,"payload":{"kind":"systemEvent","text":"MOLTCHECK heartbeat"}}]}"#,
+        );
+        write_text(
+            root.path(),
+            "client/runtime/config/secret_broker_policy.json",
+            r#"{
+              "version": "1.0",
+              "secrets": {
+                "moltbook_api_key": {
+                  "providers": [
+                    { "type": "json_file", "paths": ["secrets/moltbook.credentials.json"], "field": "api_key" }
+                  ]
+                }
+              }
+            }"#,
+        );
+        write_text(
+            root.path(),
+            "secrets/moltbook.credentials.json",
+            r#"{"api_key":"moltbook_sk_test_123"}"#,
+        );
+
+        let metric = collect_moltbook_credentials_dashboard_metric(root.path());
+        let payload = metric
+            .get("moltbook_credentials_surface")
+            .expect("metric payload");
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(
+            payload
+                .get("credentials_available")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn dopamine_metric_warns_when_ambient_data_is_stale() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            "client/runtime/local/state/dopamine/ambient/latest.json",
+            r#"{
+              "ts": "2024-01-01T00:00:00Z",
+              "severity": "info",
+              "threshold_breached": false,
+              "sds": 4.2
+            }"#,
+        );
+
+        let metric = collect_dopamine_ambient_dashboard_metric(root.path());
+        let payload = metric.get("dopamine_ambient").expect("metric payload");
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("warn"));
+        assert_eq!(
+            payload.get("freshness_status").and_then(Value::as_str),
+            Some("stale")
+        );
+    }
+
+    #[test]
+    fn external_eyes_metric_warns_when_cross_signals_absent() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            "client/runtime/local/state/attention/latest.json",
+            &format!(
+                r#"{{"ts":"{}","queued_total":10}}"#,
+                Utc::now().to_rfc3339()
+            ),
+        );
+        let mut queue_rows = String::new();
+        for idx in 0..EXTERNAL_EYES_CROSS_SIGNAL_MIN_EVENTS {
+            queue_rows.push_str(&format!(
+                "{{\"ts\":\"{}\",\"source\":\"external_eyes\",\"source_type\":\"external_item\",\"summary\":\"item {idx}\"}}\n",
+                Utc::now().to_rfc3339()
+            ));
+        }
+        write_text(
+            root.path(),
+            "client/runtime/local/state/attention/queue.jsonl",
+            &queue_rows,
+        );
+
+        let metric = collect_external_eyes_dashboard_metric(root.path());
+        let payload = metric
+            .get("external_eyes_cross_signal_surface")
+            .expect("metric payload");
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("warn"));
+        assert_eq!(
+            payload.get("cross_signal_absent").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 }

@@ -72,6 +72,13 @@ fn install_extension_validation_is_fail_closed_for_invalid_sha() {
             extension_id: "ext-1".to_string(),
             wasm_sha256: "deadbeef".to_string(),
             capabilities: vec!["metrics.read".to_string()],
+            plugin_type: Some("substrate_adapter".to_string()),
+            version: Some("0.1.0".to_string()),
+            wasm_component_path: Some("adapters/protocol/wasm_adapter_skeleton.wasm".to_string()),
+            signature: None,
+            provenance: None,
+            recovery_max_attempts: None,
+            recovery_backoff_ms: None,
         },
     );
 
