@@ -5,11 +5,11 @@
  * Monitors WebSocket connection for disconnects over specified duration.
  * 
  * Usage:
- *   node tests/websocket-stability-test.js [duration_minutes] [url]
+ *   node tests/websocket-stability-test.ts [duration_minutes] [url]
  * 
  * Examples:
- *   node tests/websocket-stability-test.js 2
- *   node tests/websocket-stability-test.js 5 ws://127.0.0.1:18789/
+ *   node tests/websocket-stability-test.ts 2
+ *   node tests/websocket-stability-test.ts 5 ws://127.0.0.1:18789/
  * 
  * Environment:
  *   WS_DEBUG=1                    Enable debug logging
