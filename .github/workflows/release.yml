@@ -39,7 +39,7 @@ jobs:
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |
-          node tests/client-memory-tools/release_semver_contract.test.js > /tmp/release-lane.json
+          node tests/client-memory-tools/release_semver_contract.test.ts > /tmp/release-lane.json
           cat /tmp/release-lane.json
           cat > /tmp/release-plan.json <<'JSON'
           {"release_ready":false,"next_tag":"none","previous_tag":"none","mode":"legacy_wrapper"}

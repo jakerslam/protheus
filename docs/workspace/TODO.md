@@ -182,7 +182,7 @@ Updated: 2026-03-20 08:47 America/Denver
 
 22. `P0-TEST-001` Run full CI test suite and patch failures. `STATUS: DONE`
 - Exit criteria met:
-- Found and fixed `MODULE_NOT_FOUND` test blocker by updating `tests/client-memory-tools/_legacy_retired_test_wrapper.js` to load TS runtime wrapper directly with local TS require hook.
+- Found and fixed `MODULE_NOT_FOUND` test blocker by updating `tests/client-memory-tools/_legacy_retired_test_wrapper.ts` to load TS runtime wrapper directly with local TS require hook.
 - `npm run -s test:ci:full`: PASS.
 - `./verify.sh`: PASS.
 - `srs_full_regression` and `srs_top200_regression`: PASS.
@@ -378,7 +378,7 @@ Updated: 2026-03-20 08:47 America/Denver
 - Added deterministic blocked-external reconcile helper (`tests/tooling/scripts/ci/blocked_external_reconcile.mjs`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
 - Added deterministic blocked-external Top-10 prioritizer (`tests/tooling/scripts/ci/blocked_external_top10.mjs`) and packet-quality audit (`tests/tooling/scripts/ci/blocked_external_packet_audit.mjs`) plus operator runbook.
 - Added system simplicity drift gate (`tests/tooling/scripts/ci/simplicity_drift_audit.mjs`) and collapsed duplicate npm command bodies to canonical alias chains.
-- Patched full CI test blocker in `_legacy_retired_test_wrapper.js` (TS wrapper resolution).
+- Patched full CI test blocker in `_legacy_retired_test_wrapper.ts` (TS wrapper resolution).
 - Kept client/core policy audits and full regression suite passing after state transitions.
 - Added MCU proof preflight lane + operator runbook for external unblock path (`tests/tooling/scripts/ci/mcu_proof_preflight.mjs`, `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`) and linked blocker governance (`P0-MCU-PROOF-001`, `HMAN-092`).
 

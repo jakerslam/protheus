@@ -5,7 +5,7 @@
     "state_backup": {
       "description": "Verify latest state backup snapshot manifest hashes.",
       "destination_env": "STATE_BACKUP_DEST",
-      "destination_default": "~/.openclaw/backups/workspace-state",
+      "destination_default": "~/.infring/backups/workspace-state",
       "profile": "runtime_state",
       "manifest_type": "state_backup_snapshot",
       "max_files": 2000,
@@ -14,7 +14,7 @@
     "blank_slate": {
       "description": "Verify latest blank-slate archive snapshot payload presence.",
       "destination_env": "BLANK_SLATE_DEST",
-      "destination_default": "~/.openclaw/backups/workspace-blank-slate",
+      "destination_default": "~/.infring/backups/workspace-blank-slate",
       "profile": "adaptive_memory_blank_slate",
       "manifest_type": "blank_slate_reset_snapshot",
       "max_files": 4000,
@@ -23,7 +23,7 @@
     "offsite_state_backup": {
       "description": "Verify latest encrypted offsite state backup snapshot payload hashes.",
       "destination_env": "STATE_BACKUP_OFFSITE_DEST",
-      "destination_default": "~/.openclaw/backups/workspace-state-offsite",
+      "destination_default": "~/.infring/backups/workspace-state-offsite",
       "profile": "runtime_state",
       "manifest_type": "offsite_encrypted_snapshot",
       "max_files": 2000,

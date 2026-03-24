@@ -108,7 +108,7 @@ fn workflow_006_metagpt_bridge_emits_receipted_company_sop_pr_debate_requirement
                         "task": "add launch summary",
                         "changed_files": ["client/runtime/lib/metagpt_bridge.ts", "docs/workspace/SRS.md"],
                         "generated_patch_summary": "adds governed workflow surface",
-                        "tests": ["node tests/client-memory-tools/metagpt_bridge.test.js"],
+                        "tests": ["node tests/client-memory-tools/metagpt_bridge.test.ts"],
                         "sandbox_mode": "readonly",
                         "bridge_path": "adapters/protocol/metagpt_config_bridge.ts"
                     })

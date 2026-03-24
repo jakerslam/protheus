@@ -5,14 +5,26 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const LEGACY_JS_TEST_ROOT = 'tests/client-memory-tools/';
-const MAX_LEGACY_JS_TEST_FILES = 1102;
+const MAX_LEGACY_JS_TEST_FILES = 0;
 const REPORT_PATH = resolve(
   'core/local/artifacts/test_language_policy_guard_current.json',
 );
 
 function listJsTestFiles() {
   try {
-    const raw = execSync("rg --files tests -g '*.test.js'", { encoding: 'utf8' });
+    const raw = execSync("rg --files tests -g '*.test.js' -g '*.spec.js' -g 'test_*.js' -g '*_test.js'", { encoding: 'utf8' });
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function listTsTestFiles() {
+  try {
+    const raw = execSync("rg --files tests -g '*.test.ts' -g '*.spec.ts' -g 'test_*.ts' -g '*_test.ts'", { encoding: 'utf8' });
     return raw
       .split('\n')
       .map((line) => line.trim())
@@ -23,9 +35,10 @@ function listJsTestFiles() {
 }
 
 function main() {
-  const files = listJsTestFiles();
-  const legacy = files.filter((entry) => entry.startsWith(LEGACY_JS_TEST_ROOT));
-  const nonLegacy = files.filter((entry) => !entry.startsWith(LEGACY_JS_TEST_ROOT));
+  const jsFiles = listJsTestFiles();
+  const tsFiles = listTsTestFiles();
+  const legacy = jsFiles.filter((entry) => entry.startsWith(LEGACY_JS_TEST_ROOT));
+  const nonLegacy = jsFiles.filter((entry) => !entry.startsWith(LEGACY_JS_TEST_ROOT));
 
   const checks = [];
   if (nonLegacy.length > 0) {
@@ -44,7 +57,7 @@ function main() {
     checks.push({
       check: 'legacy_js_test_budget',
       ok: false,
-      detail: `legacy JS test budget exceeded (${legacy.length} > ${MAX_LEGACY_JS_TEST_FILES})`,
+      detail: `legacy JS test budget exceeded (${legacy.length} > ${MAX_LEGACY_JS_TEST_FILES}). Use TypeScript for client tests and Rust for core tests.`,
       offenders: legacy.slice(0, 50),
     });
   } else {
@@ -56,7 +69,8 @@ function main() {
     ok: failed.length === 0,
     type: 'test_language_policy_guard',
     totals: {
-      js_tests: files.length,
+      js_tests: jsFiles.length,
+      ts_tests: tsFiles.length,
       legacy_js_tests: legacy.length,
       non_legacy_js_tests: nonLegacy.length,
       legacy_budget: MAX_LEGACY_JS_TEST_FILES,
@@ -72,4 +86,3 @@ function main() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
-

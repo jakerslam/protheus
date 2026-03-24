@@ -8,6 +8,7 @@ use crate::v8_kernel::{
 };
 use crate::{clean, parse_args};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 const STATE_ENV: &str = "COLLAB_PLANE_STATE_ROOT";
@@ -19,6 +20,27 @@ const TERMINATION_CONTRACT_PATH: &str = "planes/contracts/collab/role_terminatio
 const SCHEDULER_CONTRACT_PATH: &str = "planes/contracts/collab/team_schedule_contract_v1.json";
 const THROTTLE_CONTRACT_PATH: &str = "planes/contracts/collab/team_throttle_contract_v1.json";
 const CONTINUITY_CONTRACT_PATH: &str = "planes/contracts/collab/team_continuity_contract_v1.json";
+
+const ROLE_DIRECTOR: &str = "director";
+const ROLE_CELL_COORDINATOR: &str = "cell_coordinator";
+const BASE_STABLE_MAX_ACTIVE_AGENTS: u64 = 512;
+const DEFAULT_STABLE_MAX_ACTIVE_AGENTS: u64 = BASE_STABLE_MAX_ACTIVE_AGENTS * 2;
+const DEFAULT_MAX_AGENTS_PER_CELL: u64 = 32;
+const DEFAULT_DIRECTOR_FANOUT_CELLS: u64 = 16;
+const DEFAULT_MAX_DIRECTORS: u64 = 256;
+const DEFAULT_DECENTRALIZED_MIN_AGENTS: u64 = 24;
+const DEFAULT_HANDOFF_RETAIN: usize = 2_000;
+
+#[derive(Debug, Clone, Copy)]
+struct LauncherLimits {
+    base_max_active_agents: u64,
+    max_active_agents: u64,
+    max_agents_per_cell: u64,
+    director_fanout_cells: u64,
+    max_directors: u64,
+    decentralized_min_agents: u64,
+    auto_director_spawn: bool,
+}
 
 fn usage() {
     println!("Usage:");
@@ -69,6 +91,303 @@ fn team_slug(raw: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+fn default_team_state(team: &str) -> Value {
+    json!({
+        "version": "v1",
+        "team": team,
+        "agents": [],
+        "tasks": [],
+        "handoffs": [],
+        "topology": {
+            "version": "v2",
+            "mode": "decentralized_hierarchy",
+            "stable_agent_cap_base": BASE_STABLE_MAX_ACTIVE_AGENTS,
+            "stable_agent_cap": DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+            "max_agents_per_cell": DEFAULT_MAX_AGENTS_PER_CELL,
+            "director_fanout_cells": DEFAULT_DIRECTOR_FANOUT_CELLS,
+            "active_agents": 0,
+            "cell_count": 0,
+            "director_count": 0
+        }
+    })
+}
+
+fn value_u64_field(value: Option<&Value>, fallback: u64) -> u64 {
+    value
+        .and_then(Value::as_u64)
+        .or_else(|| value.and_then(Value::as_i64).map(|v| v.max(0) as u64))
+        .unwrap_or(fallback)
+}
+
+fn parse_launcher_limits(contract: &Value) -> LauncherLimits {
+    let limits = contract
+        .get("limits")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+
+    let base_max_active_agents = value_u64_field(
+        limits.get("base_max_active_agents"),
+        BASE_STABLE_MAX_ACTIVE_AGENTS,
+    )
+    .clamp(16, 2_000_000);
+    let min_doubled = base_max_active_agents.saturating_mul(2);
+    let max_active_agents = value_u64_field(
+        limits.get("max_active_agents"),
+        DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+    )
+    .clamp(min_doubled.max(16), 2_000_000);
+    let max_agents_per_cell = value_u64_field(
+        limits.get("max_agents_per_cell"),
+        DEFAULT_MAX_AGENTS_PER_CELL,
+    )
+    .clamp(4, 1_000);
+    let director_fanout_cells = value_u64_field(
+        limits.get("director_fanout_cells"),
+        DEFAULT_DIRECTOR_FANOUT_CELLS,
+    )
+    .clamp(1, 1_000);
+    let max_directors =
+        value_u64_field(limits.get("max_directors"), DEFAULT_MAX_DIRECTORS).clamp(1, 10_000);
+    let decentralized_min_agents = value_u64_field(
+        limits.get("decentralized_min_agents"),
+        DEFAULT_DECENTRALIZED_MIN_AGENTS,
+    )
+    .clamp(1, 1_000_000);
+    let auto_director_spawn = limits
+        .get("auto_director_spawn")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    LauncherLimits {
+        base_max_active_agents,
+        max_active_agents,
+        max_agents_per_cell,
+        director_fanout_cells,
+        max_directors,
+        decentralized_min_agents,
+        auto_director_spawn,
+    }
+}
+
+fn role_from_agent(row: &Value) -> String {
+    clean(
+        row.get("role").and_then(Value::as_str).unwrap_or_default(),
+        80,
+    )
+    .to_ascii_lowercase()
+}
+
+fn status_from_agent(row: &Value) -> String {
+    clean(
+        row.get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("active"),
+        40,
+    )
+    .to_ascii_lowercase()
+}
+
+fn is_director_role(role: &str) -> bool {
+    matches!(role, ROLE_DIRECTOR | ROLE_CELL_COORDINATOR)
+}
+
+fn active_agents(agents: &[Value]) -> Vec<Value> {
+    agents
+        .iter()
+        .filter(|row| status_from_agent(row) == "active")
+        .cloned()
+        .collect()
+}
+
+fn worker_cell_id(index: usize) -> String {
+    format!("cell-{:04}", index + 1)
+}
+
+fn director_shadow_for_cell(team: &str, cell_index: usize, fanout_cells: u64) -> String {
+    let fanout = fanout_cells.max(1) as usize;
+    let director_index = (cell_index / fanout) + 1;
+    format!("director-{team}-{director_index:03}")
+}
+
+fn refresh_team_topology(team_state: &mut Value, limits: LauncherLimits) {
+    let team = team_slug(
+        team_state
+            .get("team")
+            .and_then(Value::as_str)
+            .unwrap_or("default-team"),
+    );
+    let mut agents = team_state
+        .get("agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let active = active_agents(&agents);
+    let active_count = active.len() as u64;
+    let director_count = active
+        .iter()
+        .filter(|row| is_director_role(role_from_agent(row).as_str()))
+        .count() as u64;
+    let mut cells: BTreeMap<String, (String, Vec<String>)> = BTreeMap::new();
+    let mut workers_seen = 0usize;
+    for row in &active {
+        let role = role_from_agent(row);
+        let shadow = clean(
+            row.get("shadow")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            120,
+        );
+        if shadow.is_empty() || is_director_role(role.as_str()) {
+            continue;
+        }
+        let default_cell_idx = workers_seen / (limits.max_agents_per_cell.max(1) as usize);
+        let default_cell = worker_cell_id(default_cell_idx);
+        let default_director =
+            director_shadow_for_cell(&team, default_cell_idx, limits.director_fanout_cells);
+        let coord = row
+            .get("coordination")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let cell_id = clean(
+            coord
+                .get("cell_id")
+                .and_then(Value::as_str)
+                .unwrap_or(default_cell.as_str()),
+            80,
+        );
+        let director_shadow = clean(
+            coord
+                .get("director_shadow")
+                .and_then(Value::as_str)
+                .unwrap_or(default_director.as_str()),
+            120,
+        );
+        let key = if cell_id.is_empty() {
+            default_cell
+        } else {
+            cell_id
+        };
+        let entry = cells
+            .entry(key)
+            .or_insert_with(|| (director_shadow.clone(), Vec::new()));
+        if entry.0.is_empty() {
+            entry.0 = director_shadow.clone();
+        }
+        entry.1.push(shadow);
+        workers_seen += 1;
+    }
+    let cell_rows = cells
+        .iter()
+        .map(|(cell_id, (director_shadow, members))| {
+            let active_in_cell = members.len() as u64;
+            let status = if active_in_cell >= limits.max_agents_per_cell {
+                "saturated"
+            } else {
+                "ok"
+            };
+            json!({
+                "cell_id": cell_id,
+                "director_shadow": director_shadow,
+                "active_agents": active_in_cell,
+                "status": status,
+                "members": members
+            })
+        })
+        .collect::<Vec<_>>();
+    let cell_count = cell_rows.len() as u64;
+    let director_target = if cell_count == 0 {
+        0
+    } else {
+        cell_count
+            .div_ceil(limits.director_fanout_cells.max(1))
+            .min(limits.max_directors)
+    };
+    let utilization_pct = if limits.max_active_agents == 0 {
+        0.0
+    } else {
+        ((active_count as f64 / limits.max_active_agents as f64) * 100.0).clamp(0.0, 1000.0)
+    };
+    let director_ring = active
+        .iter()
+        .filter_map(|row| {
+            let role = role_from_agent(row);
+            if !is_director_role(role.as_str()) {
+                return None;
+            }
+            let shadow = clean(
+                row.get("shadow")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+                120,
+            );
+            if shadow.is_empty() {
+                None
+            } else {
+                Some(Value::String(shadow))
+            }
+        })
+        .collect::<Vec<_>>();
+    team_state["topology"] = json!({
+        "version": "v2",
+        "mode": "decentralized_hierarchy",
+        "stable_agent_cap_base": limits.base_max_active_agents,
+        "stable_agent_cap": limits.max_active_agents,
+        "active_agents": active_count,
+        "available_capacity": limits.max_active_agents.saturating_sub(active_count),
+        "utilization_pct": utilization_pct,
+        "max_agents_per_cell": limits.max_agents_per_cell,
+        "director_fanout_cells": limits.director_fanout_cells,
+        "director_target": director_target,
+        "max_directors": limits.max_directors,
+        "decentralized_min_agents": limits.decentralized_min_agents,
+        "decentralized_recommended": active_count >= limits.decentralized_min_agents,
+        "cell_count": cell_count,
+        "director_count": director_count,
+        "director_ring": director_ring,
+        "cells": cell_rows,
+        "updated_at": crate::now_iso()
+    });
+    team_state["agents"] = Value::Array(std::mem::take(&mut agents));
+}
+
+fn prune_orphan_directors(agents: &mut Vec<Value>) -> usize {
+    let active_rows = active_agents(agents);
+    let mut needed_directors = std::collections::BTreeSet::<String>::new();
+    for row in &active_rows {
+        let role = role_from_agent(row);
+        if is_director_role(role.as_str()) {
+            continue;
+        }
+        let director = clean(
+            row.get("coordination")
+                .and_then(Value::as_object)
+                .and_then(|coord| coord.get("director_shadow"))
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            120,
+        );
+        if !director.is_empty() {
+            needed_directors.insert(director);
+        }
+    }
+    let before = agents.len();
+    agents.retain(|row| {
+        let role = role_from_agent(row);
+        if !is_director_role(role.as_str()) || status_from_agent(row) != "active" {
+            return true;
+        }
+        let shadow = clean(
+            row.get("shadow")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            120,
+        );
+        !shadow.is_empty() && needed_directors.contains(&shadow)
+    });
+    before.saturating_sub(agents.len())
 }
 
 fn emit(root: &Path, payload: Value) -> i32 {
@@ -205,15 +524,28 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         });
     }
 
-    let team_state = read_json(&team_state_path(root, &team)).unwrap_or_else(|| {
+    let launch_contract = load_json_or(
+        root,
+        LAUNCHER_CONTRACT_PATH,
         json!({
             "version": "v1",
-            "team": team,
-            "agents": [],
-            "tasks": [],
-            "handoffs": []
-        })
-    });
+            "kind": "collab_role_launcher_contract",
+            "limits": {
+                "base_max_active_agents": BASE_STABLE_MAX_ACTIVE_AGENTS,
+                "max_active_agents": DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+                "max_agents_per_cell": DEFAULT_MAX_AGENTS_PER_CELL,
+                "director_fanout_cells": DEFAULT_DIRECTOR_FANOUT_CELLS,
+                "max_directors": DEFAULT_MAX_DIRECTORS,
+                "decentralized_min_agents": DEFAULT_DECENTRALIZED_MIN_AGENTS,
+                "auto_director_spawn": true
+            }
+        }),
+    );
+    let limits = parse_launcher_limits(&launch_contract);
+    let team_state_path = team_state_path(root, &team);
+    let mut team_state = read_json(&team_state_path).unwrap_or_else(|| default_team_state(&team));
+    refresh_team_topology(&mut team_state, limits);
+    let _ = write_json(&team_state_path, &team_state);
     let handoffs = team_state
         .get("handoffs")
         .and_then(Value::as_array)
@@ -229,6 +561,12 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let topology = team_state.get("topology").cloned().unwrap_or_else(|| {
+        json!({
+            "version": "v2",
+            "mode": "decentralized_hierarchy"
+        })
+    });
     let receipt_drilldown = vec![
         json!({
             "lane": "collab_plane",
@@ -253,6 +591,7 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         "agents": agents,
         "tasks": tasks,
         "handoff_history": handoffs,
+        "topology": topology,
         "receipt_drilldown": receipt_drilldown,
         "rendered_at": crate::now_iso()
     });
@@ -280,7 +619,12 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
                     "refresh_ms": refresh_ms,
                     "agent_count": agents.len(),
                     "task_count": tasks.len(),
-                    "handoff_count": handoffs.len()
+                    "handoff_count": handoffs.len(),
+                    "hierarchy_mode": dashboard
+                        .get("topology")
+                        .and_then(|row| row.get("mode"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("unknown")
                 }
             }
         ]
@@ -296,7 +640,18 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         json!({
             "version": "v1",
             "kind": "collab_role_launcher_contract",
+            "limits": {
+                "base_max_active_agents": BASE_STABLE_MAX_ACTIVE_AGENTS,
+                "max_active_agents": DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+                "max_agents_per_cell": DEFAULT_MAX_AGENTS_PER_CELL,
+                "director_fanout_cells": DEFAULT_DIRECTOR_FANOUT_CELLS,
+                "max_directors": DEFAULT_MAX_DIRECTORS,
+                "decentralized_min_agents": DEFAULT_DECENTRALIZED_MIN_AGENTS,
+                "auto_director_spawn": true
+            },
             "roles": {
+                "director": {"default_tools": ["plan", "route", "govern"], "policy_mode": "safe"},
+                "cell_coordinator": {"default_tools": ["route", "handoff"], "policy_mode": "safe"},
                 "coordinator": {"default_tools": ["plan", "route"], "policy_mode": "safe"},
                 "researcher": {"default_tools": ["search", "extract"], "policy_mode": "safe"},
                 "builder": {"default_tools": ["compile", "verify"], "policy_mode": "safe"},
@@ -346,6 +701,10 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let limits = parse_launcher_limits(&contract);
+    if strict && limits.max_active_agents < limits.base_max_active_agents.saturating_mul(2) {
+        errors.push("collab_role_launcher_max_agents_not_doubled".to_string());
+    }
     let role_cfg = role_table.get(&role).cloned().unwrap_or(Value::Null);
     if strict && role_cfg.is_null() {
         errors.push("collab_role_unknown".to_string());
@@ -384,32 +743,108 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
     });
 
     let team_path = team_state_path(root, &team);
-    let mut team_state = read_json(&team_path).unwrap_or_else(|| {
-        json!({
-            "version": "v1",
-            "team": team,
-            "agents": [],
-            "tasks": [],
-            "handoffs": []
-        })
-    });
+    let mut team_state = read_json(&team_path).unwrap_or_else(|| default_team_state(&team));
     let mut agents = team_state
         .get("agents")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    if !agents
-        .iter()
-        .any(|row| row.get("shadow").and_then(Value::as_str) == Some(shadow.as_str()))
-    {
+
+    let already_active = agents.iter().any(|row| {
+        row.get("shadow").and_then(Value::as_str) == Some(shadow.as_str())
+            && status_from_agent(row) == "active"
+    });
+    let active_count = active_agents(&agents).len() as u64;
+    if strict && !already_active && active_count >= limits.max_active_agents {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "collab_plane_launch_role",
+            "errors": ["collab_role_team_at_capacity"],
+            "capacity": {
+                "active_agents": active_count,
+                "stable_agent_cap": limits.max_active_agents,
+                "stable_agent_cap_base": limits.base_max_active_agents
+            }
+        });
+    }
+
+    let mut assigned_cell = String::new();
+    let mut director_shadow = String::new();
+    let mut auto_spawned_director = false;
+    if !already_active {
+        let is_director_launch = is_director_role(role.as_str());
+        if !is_director_launch {
+            let worker_active_count = active_agents(&agents)
+                .iter()
+                .filter(|row| !is_director_role(role_from_agent(row).as_str()))
+                .count();
+            let cell_index = worker_active_count / limits.max_agents_per_cell.max(1) as usize;
+            assigned_cell = worker_cell_id(cell_index);
+            director_shadow =
+                director_shadow_for_cell(&team, cell_index, limits.director_fanout_cells);
+            let director_exists = agents.iter().any(|row| {
+                row.get("shadow").and_then(Value::as_str) == Some(director_shadow.as_str())
+                    && status_from_agent(row) == "active"
+            });
+            let active_directors = active_agents(&agents)
+                .iter()
+                .filter(|row| is_director_role(role_from_agent(row).as_str()))
+                .count() as u64;
+            if limits.auto_director_spawn && !director_exists {
+                if strict && active_directors >= limits.max_directors {
+                    return json!({
+                        "ok": false,
+                        "strict": strict,
+                        "type": "collab_plane_launch_role",
+                        "errors": ["collab_director_capacity_reached"],
+                        "director_capacity": {
+                            "active_directors": active_directors,
+                            "max_directors": limits.max_directors
+                        }
+                    });
+                }
+                agents.push(json!({
+                    "shadow": director_shadow,
+                    "role": ROLE_DIRECTOR,
+                    "status": "active",
+                    "activated_at": crate::now_iso(),
+                    "auto_managed": true,
+                    "coordination": {
+                        "tier": "director",
+                        "decentralized": true
+                    }
+                }));
+                auto_spawned_director = true;
+            }
+        } else {
+            director_shadow = shadow.clone();
+        }
+        let coordination = if is_director_role(role.as_str()) {
+            json!({
+                "tier": "director",
+                "decentralized": true
+            })
+        } else {
+            json!({
+                "tier": "worker",
+                "decentralized": true,
+                "cell_id": assigned_cell,
+                "director_shadow": director_shadow,
+                "routing_ring": format!("ring-{}", clean(director_shadow.clone(), 120))
+            })
+        };
         agents.push(json!({
             "shadow": shadow,
             "role": role,
             "status": "active",
-            "activated_at": crate::now_iso()
+            "activated_at": crate::now_iso(),
+            "coordination": coordination
         }));
     }
+
     team_state["agents"] = Value::Array(agents.clone());
+    refresh_team_topology(&mut team_state, limits);
     let _ = write_json(&team_path, &team_state);
     let _ = append_jsonl(
         &state_root(root).join("launch").join("history.jsonl"),
@@ -422,6 +857,7 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         "type": "collab_plane_launch_role",
         "lane": "core/layer0/ops",
         "activation": activation,
+        "topology": team_state.get("topology").cloned().unwrap_or_else(|| json!({})),
         "artifact": {
             "path": team_path.display().to_string(),
             "sha256": sha256_hex_str(&team_state.to_string())
@@ -433,7 +869,32 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
                 "evidence": {
                     "team": team,
                     "role": role,
-                    "shadow": shadow
+                    "shadow": shadow,
+                    "stable_agent_cap_base": limits.base_max_active_agents,
+                    "stable_agent_cap": limits.max_active_agents,
+                    "auto_spawned_director": auto_spawned_director,
+                    "director_shadow": director_shadow,
+                    "cell_id": assigned_cell
+                }
+            },
+            {
+                "id": "V6-COLLAB-002.1",
+                "claim": "decentralized_director_cell_hierarchy_assigns_agents_without_single_coordinator_chokepoint",
+                "evidence": {
+                    "team": team,
+                    "auto_spawned_director": auto_spawned_director,
+                    "director_shadow": director_shadow,
+                    "cell_id": assigned_cell,
+                    "max_agents_per_cell": limits.max_agents_per_cell,
+                    "director_fanout_cells": limits.director_fanout_cells
+                }
+            },
+            {
+                "id": "V6-COLLAB-002.2",
+                "claim": "stable_agent_capacity_is_explicitly_doubled_with_fail_closed_admission_control",
+                "evidence": {
+                    "stable_agent_cap_base": limits.base_max_active_agents,
+                    "stable_agent_cap": limits.max_active_agents
                 }
             }
         ]
@@ -532,16 +993,25 @@ fn run_terminate_role(
             .unwrap_or_else(|| action_clean.clone()),
         120,
     );
-    let team_path = team_state_path(root, &team);
-    let mut team_state = read_json(&team_path).unwrap_or_else(|| {
+    let limits = parse_launcher_limits(&load_json_or(
+        root,
+        LAUNCHER_CONTRACT_PATH,
         json!({
             "version": "v1",
-            "team": team,
-            "agents": [],
-            "tasks": [],
-            "handoffs": []
-        })
-    });
+            "kind": "collab_role_launcher_contract",
+            "limits": {
+                "base_max_active_agents": BASE_STABLE_MAX_ACTIVE_AGENTS,
+                "max_active_agents": DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+                "max_agents_per_cell": DEFAULT_MAX_AGENTS_PER_CELL,
+                "director_fanout_cells": DEFAULT_DIRECTOR_FANOUT_CELLS,
+                "max_directors": DEFAULT_MAX_DIRECTORS,
+                "decentralized_min_agents": DEFAULT_DECENTRALIZED_MIN_AGENTS,
+                "auto_director_spawn": true
+            }
+        }),
+    ));
+    let team_path = team_state_path(root, &team);
+    let mut team_state = read_json(&team_path).unwrap_or_else(|| default_team_state(&team));
 
     let mut agents = team_state
         .get("agents")
@@ -556,6 +1026,7 @@ fn run_terminate_role(
         row.get("shadow").and_then(Value::as_str) != Some(shadow.as_str())
     });
     let removed_count = before_agents.saturating_sub(agents.len());
+    let orphaned_director_gc = prune_orphan_directors(&mut agents);
     team_state["agents"] = Value::Array(agents.clone());
 
     let mut tasks = team_state
@@ -591,13 +1062,15 @@ fn run_terminate_role(
             "terminated_at": crate::now_iso(),
             "removed_count": removed_count,
             "released_task_count": released_task_count,
+            "orphaned_director_gc": orphaned_director_gc,
             "termination_hash": sha256_hex_str(&format!("{}:{}:{}:{}", team, shadow, action_clean, reason))
         }));
-        if handoffs.len() > 2_000 {
-            handoffs = handoffs[handoffs.len().saturating_sub(2_000)..].to_vec();
+        if handoffs.len() > DEFAULT_HANDOFF_RETAIN {
+            handoffs = handoffs[handoffs.len().saturating_sub(DEFAULT_HANDOFF_RETAIN)..].to_vec();
         }
     }
     team_state["handoffs"] = Value::Array(handoffs.clone());
+    refresh_team_topology(&mut team_state, limits);
     let _ = write_json(&team_path, &team_state);
 
     if removed_count > 0 || released_task_count > 0 {
@@ -611,6 +1084,7 @@ fn run_terminate_role(
                 "reason": reason,
                 "removed_count": removed_count,
                 "released_task_count": released_task_count,
+                "orphaned_director_gc": orphaned_director_gc,
                 "ts": crate::now_iso()
             }),
         );
@@ -626,11 +1100,13 @@ fn run_terminate_role(
         "action": action_clean,
         "reason": reason,
         "removed_count": removed_count,
+        "orphaned_director_gc": orphaned_director_gc,
         "released_task_count": released_task_count,
         "team_state": {
             "agent_count": agents.len(),
             "task_count": tasks.len(),
-            "handoff_count": handoffs.len()
+            "handoff_count": handoffs.len(),
+            "topology": team_state.get("topology").cloned().unwrap_or_else(|| json!({}))
         },
         "artifact": {
             "path": team_path.display().to_string(),
@@ -644,7 +1120,8 @@ fn run_terminate_role(
                     "team": team,
                     "shadow": shadow,
                     "removed_count": removed_count,
-                    "released_task_count": released_task_count
+                    "released_task_count": released_task_count,
+                    "orphaned_director_gc": orphaned_director_gc
                 }
             },
             {
@@ -654,6 +1131,15 @@ fn run_terminate_role(
                     "team": team,
                     "shadow": shadow,
                     "removed_count": removed_count
+                }
+            },
+            {
+                "id": "V6-COLLAB-002.3",
+                "claim": "decentralized_role_gc_prunes_orphaned_directors_when_worker_cells_empty",
+                "evidence": {
+                    "team": team,
+                    "shadow": shadow,
+                    "orphaned_director_gc": orphaned_director_gc
                 }
             }
         ]
@@ -810,15 +1296,8 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                     })
                 })
                 .collect::<Vec<_>>();
-            let mut team_state = read_json(&team_state_path(root, &team)).unwrap_or_else(|| {
-                json!({
-                    "version": "v1",
-                    "team": team,
-                    "agents": [],
-                    "tasks": [],
-                    "handoffs": []
-                })
-            });
+            let mut team_state = read_json(&team_state_path(root, &team))
+                .unwrap_or_else(|| default_team_state(&team));
             let mut handoffs = team_state
                 .get("handoffs")
                 .and_then(Value::as_array)
@@ -826,6 +1305,24 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                 .unwrap_or_default();
             handoffs.extend(kickoff_receipts.clone());
             team_state["handoffs"] = Value::Array(handoffs);
+            let limits = parse_launcher_limits(&load_json_or(
+                root,
+                LAUNCHER_CONTRACT_PATH,
+                json!({
+                    "version": "v1",
+                    "kind": "collab_role_launcher_contract",
+                    "limits": {
+                        "base_max_active_agents": BASE_STABLE_MAX_ACTIVE_AGENTS,
+                        "max_active_agents": DEFAULT_STABLE_MAX_ACTIVE_AGENTS,
+                        "max_agents_per_cell": DEFAULT_MAX_AGENTS_PER_CELL,
+                        "director_fanout_cells": DEFAULT_DIRECTOR_FANOUT_CELLS,
+                        "max_directors": DEFAULT_MAX_DIRECTORS,
+                        "decentralized_min_agents": DEFAULT_DECENTRALIZED_MIN_AGENTS,
+                        "auto_director_spawn": true
+                    }
+                }),
+            ));
+            refresh_team_topology(&mut team_state, limits);
             let _ = write_json(&team_state_path(root, &team), &team_state);
         }
         _ => {}
@@ -1136,14 +1633,7 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 .flags
                 .get("state-json")
                 .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-                .unwrap_or_else(|| {
-                    json!({
-                        "team": team,
-                        "agents": [],
-                        "tasks": [],
-                        "handoffs": []
-                    })
-                });
+                .unwrap_or_else(|| default_team_state(&team));
             for key in contract
                 .get("required_keys")
                 .and_then(Value::as_array)
@@ -1309,6 +1799,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn conduit_rejects_bypass() {
@@ -1398,6 +1889,149 @@ mod tests {
         assert_eq!(
             out_second.get("removed_count").and_then(Value::as_u64),
             Some(0)
+        );
+    }
+
+    #[test]
+    fn launch_role_auto_spawns_director_and_updates_topology() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "launch-role".to_string(),
+            "--team=ops".to_string(),
+            "--role=analyst".to_string(),
+            "--shadow=ops-a".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_launch_role(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("topology")
+                .and_then(|v| v.get("director_count"))
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let team_state = read_json(&team_state_path(root.path(), "ops")).expect("team state");
+        let agents = team_state
+            .get("agents")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(agents
+            .iter()
+            .any(|row| row.get("role").and_then(Value::as_str) == Some("director")));
+        assert!(agents
+            .iter()
+            .any(|row| row.get("shadow").and_then(Value::as_str) == Some("ops-a")));
+    }
+
+    #[test]
+    fn launch_role_enforces_configured_stable_capacity() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let contract_path = root
+            .path()
+            .join("planes")
+            .join("contracts")
+            .join("collab")
+            .join("role_launcher_contract_v1.json");
+        fs::create_dir_all(contract_path.parent().expect("contract parent"))
+            .expect("mkdir contract");
+        fs::write(
+            &contract_path,
+            serde_json::to_string_pretty(&json!({
+                "version": "v1",
+                "kind": "collab_role_launcher_contract",
+                "limits": {
+                    "base_max_active_agents": 16,
+                    "max_active_agents": 32,
+                    "max_agents_per_cell": 8,
+                    "director_fanout_cells": 4,
+                    "max_directors": 2,
+                    "decentralized_min_agents": 4,
+                    "auto_director_spawn": false
+                },
+                "roles": {
+                    "analyst": {"default_tools": ["summarize", "score"], "policy_mode": "safe"}
+                }
+            }))
+            .expect("encode contract"),
+        )
+        .expect("write contract");
+        let loaded = load_json_or(root.path(), LAUNCHER_CONTRACT_PATH, json!({}));
+        assert_eq!(
+            loaded
+                .get("limits")
+                .and_then(|row| row.get("max_active_agents"))
+                .and_then(Value::as_u64),
+            Some(32)
+        );
+
+        for idx in 0..32 {
+            let parsed = crate::parse_args(&[
+                "launch-role".to_string(),
+                "--team=ops".to_string(),
+                "--role=analyst".to_string(),
+                format!("--shadow=ops-{idx}"),
+                "--strict=1".to_string(),
+            ]);
+            let out = run_launch_role(root.path(), &parsed, true);
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        }
+
+        let overflow = crate::parse_args(&[
+            "launch-role".to_string(),
+            "--team=ops".to_string(),
+            "--role=analyst".to_string(),
+            "--shadow=ops-over".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_launch_role(root.path(), &overflow, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert!(out
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|row| row == "collab_role_team_at_capacity"));
+    }
+
+    #[test]
+    fn terminate_role_prunes_orphaned_director_cells() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let launch = crate::parse_args(&[
+            "launch-role".to_string(),
+            "--team=ops".to_string(),
+            "--role=researcher".to_string(),
+            "--shadow=ops-worker".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let launched = run_launch_role(root.path(), &launch, true);
+        assert_eq!(launched.get("ok").and_then(Value::as_bool), Some(true));
+
+        let terminate = crate::parse_args(&[
+            "terminate-role".to_string(),
+            "--team=ops".to_string(),
+            "--shadow=ops-worker".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_terminate_role(root.path(), &terminate, true, "terminate-role");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("orphaned_director_gc").and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let team_state = read_json(&team_state_path(root.path(), "ops")).expect("team state");
+        let agents = team_state
+            .get("agents")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            agents.is_empty(),
+            "expected worker and director to be fully removed"
         );
     }
 }

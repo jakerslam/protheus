@@ -188,6 +188,7 @@ document.addEventListener('alpine:init', function() {
     agentTransientHoldMs: 20000,
     _refreshAgentsInFlight: null,
     _lastAgentsRefreshAt: 0,
+    runtimeSync: null,
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
@@ -350,12 +351,14 @@ document.addEventListener('alpine:init', function() {
         this.version = s.version || '0.1.0';
         this.gitBranch = s.git_branch ? String(s.git_branch) : (this.gitBranch || '');
         this.agentCount = s.agent_count || 0;
+        this.runtimeSync = (s && s.runtime_sync && typeof s.runtime_sync === 'object') ? s.runtime_sync : null;
       } catch(e) {
         this.connected = false;
         this.booting = false;
         this.statusFailureStreak = Number(this.statusFailureStreak || 0) + 1;
         this.connectionState = this.statusFailureStreak >= 2 ? 'disconnected' : 'reconnecting';
         this.lastError = e.message || 'Unknown error';
+        this.runtimeSync = null;
         console.warn('[Infring] Status check failed:', e.message);
       }
     },
@@ -743,6 +746,7 @@ function app() {
     version: '0.1.0',
     agentCount: 0,
     bootSelectionApplied: false,
+    clockTick: Date.now(),
     _themeSwitchReset: 0,
 
     get agents() { return Alpine.store('app').agents; },
@@ -862,6 +866,7 @@ function app() {
       this.pollStatus();
       Alpine.store('app').checkOnboarding();
       Alpine.store('app').checkAuth();
+      setInterval(function() { self.clockTick = Date.now(); }, 1000);
       setInterval(function() { self.pollStatus(); }, 5000);
     },
 
@@ -906,6 +911,139 @@ function app() {
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       localStorage.setItem('infring-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
+    },
+
+    runtimeFacadeState() {
+      var store = Alpine.store('app');
+      var conn = String(
+        (store && store.connectionState) || this.connectionState || ''
+      ).toLowerCase();
+      if (conn === 'connecting' || conn === 'reconnecting') return 'connecting';
+      if (conn === 'disconnected') return 'down';
+
+      var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
+        ? store.runtimeSync
+        : null;
+      if (!runtime) return 'ready';
+
+      var queueDepth = Number(runtime.queue_depth || 0);
+      var critical = Number(runtime.critical_attention_total || runtime.critical_attention || 0);
+      var deferred = Number(runtime.deferred_attention || 0);
+      var stale = Number(runtime.cockpit_stale_blocks || 0);
+      var conduitSignals = Number(runtime.conduit_signals || 0);
+      var targetSignals = Math.max(1, Number(runtime.target_conduit_signals || 4));
+      var signalHealthy = conduitSignals >= Math.max(3, Math.floor(targetSignals * 0.5));
+      var pressure =
+        String(runtime.backpressure_level || '').toLowerCase() ||
+        String(runtime.sync_mode || '').toLowerCase();
+
+      if (
+        queueDepth <= 6 &&
+        critical === 0 &&
+        deferred === 0 &&
+        stale <= 1 &&
+        signalHealthy &&
+        (pressure === 'normal' || pressure === 'live_sync' || !pressure)
+      ) {
+        return 'synced';
+      }
+      if (queueDepth <= 24 && critical <= 2 && stale <= 3) return 'ready';
+      return 'active';
+    },
+
+    runtimeFacadeClass() {
+      var state = this.runtimeFacadeState();
+      if (state === 'synced') return 'health-ok';
+      if (state === 'ready') return 'health-ok';
+      if (state === 'active') return 'health-active';
+      if (state === 'connecting') return 'health-connecting';
+      return 'health-down';
+    },
+
+    runtimeFacadeLabel() {
+      var state = this.runtimeFacadeState();
+      if (state === 'synced') return 'Synced';
+      if (state === 'ready') return 'Ready';
+      if (state === 'active') return 'Active';
+      if (state === 'connecting') return 'Connecting...';
+      return 'Disconnected';
+    },
+
+    runtimeResponseP95Ms() {
+      var store = Alpine.store('app');
+      var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
+        ? store.runtimeSync
+        : null;
+      if (!runtime) return null;
+      var p95 = Number(runtime.receipt_latency_p95_ms);
+      if (Number.isFinite(p95) && p95 > 0) return Math.round(p95);
+      var p99 = Number(runtime.receipt_latency_p99_ms);
+      if (Number.isFinite(p99) && p99 > 0) return Math.round(p99);
+      return null;
+    },
+
+    runtimeConfidencePercent() {
+      var store = Alpine.store('app');
+      var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
+        ? store.runtimeSync
+        : null;
+      if (!runtime) return 80;
+
+      var score = 100;
+      var queueDepth = Number(runtime.queue_depth || 0);
+      var stale = Number(runtime.cockpit_stale_blocks || 0);
+      var gaps = Number(runtime.health_coverage_gap_count || 0);
+      var conduitSignals = Number(runtime.conduit_signals || 0);
+      var targetSignals = Math.max(1, Number(runtime.target_conduit_signals || 4));
+      var benchmark = String(runtime.benchmark_sanity_cockpit_status || runtime.benchmark_sanity_status || 'unknown').toLowerCase();
+      var spine = Number(runtime.spine_success_rate);
+
+      if (queueDepth > 20) score -= Math.min(20, Math.floor((queueDepth - 20) / 2));
+      if (stale > 0) score -= Math.min(20, stale * 2);
+      if (gaps > 0) score -= Math.min(20, gaps * 6);
+      if (conduitSignals < Math.max(3, Math.floor(targetSignals * 0.5))) score -= 12;
+      if (benchmark === 'warn') score -= 8;
+      if (benchmark === 'fail' || benchmark === 'error') score -= 20;
+      if (Number.isFinite(spine)) {
+        if (spine < 0.9) score -= 15;
+        if (spine < 0.6) score -= 10;
+      }
+
+      score = Math.max(10, Math.min(100, Math.round(score)));
+      return score;
+    },
+
+    runtimeEtaSeconds() {
+      var store = Alpine.store('app');
+      var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
+        ? store.runtimeSync
+        : null;
+      if (!runtime) return 0;
+      var queueDepth = Math.max(0, Number(runtime.queue_depth || 0));
+      if (queueDepth <= 0) return 0;
+      // Conservative client-side estimate for "Active" mode only.
+      return Math.max(1, Math.min(300, Math.ceil(queueDepth / 8)));
+    },
+
+    runtimeFacadeDetail() {
+      var state = this.runtimeFacadeState();
+      if (state === 'connecting') return 'Establishing runtime link';
+      if (state === 'down') return 'Runtime unavailable';
+      var response = this.runtimeResponseP95Ms();
+      var confidence = this.runtimeConfidencePercent();
+      var agents = ((Alpine.store('app').agents && Alpine.store('app').agents.length) || Alpine.store('app').agentCount || 0);
+      var base = 'Response ' + (response != null ? (response + 'ms') : '—') + ' · Confidence ' + confidence + '%';
+      if (state === 'active') {
+        var eta = this.runtimeEtaSeconds();
+        return (eta > 0 ? ('ETA ~' + eta + 's · ') : '') + base;
+      }
+      return base + ' · ' + agents + ' agent(s)';
+    },
+
+    runtimeFacadeTitle() {
+      var label = this.runtimeFacadeLabel();
+      var detail = this.runtimeFacadeDetail();
+      return label + ' — ' + detail;
     },
 
     toggleAgentChatsSidebar() {
@@ -1138,6 +1276,64 @@ function app() {
       var isYesterday = d.getFullYear() === y.getFullYear() && d.getMonth() === y.getMonth() && d.getDate() === y.getDate();
       if (isYesterday) return 'Yesterday';
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    },
+
+    agentContractRemainingMs(agent) {
+      // Force recompute every second for live countdown updates.
+      var _tick = Number(this.clockTick || 0);
+      void _tick;
+      var store = Alpine.store('app');
+      var lastRefreshAt = Number((store && store._lastAgentsRefreshAt) || 0);
+      var ageDriftMs = Math.max(0, Date.now() - lastRefreshAt);
+      if (!agent || typeof agent !== 'object') return null;
+      var directRemaining = Number(agent.contract_remaining_ms);
+      if (Number.isFinite(directRemaining) && directRemaining >= 0) {
+        return Math.max(0, Math.floor(directRemaining - ageDriftMs));
+      }
+      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      if (contract && contract.remaining_ms != null) {
+        var remainingFromContract = Number(contract.remaining_ms);
+        if (Number.isFinite(remainingFromContract) && remainingFromContract >= 0) {
+          return Math.max(0, Math.floor(remainingFromContract - ageDriftMs));
+        }
+      }
+      var expiresAt = String(
+        agent.contract_expires_at ||
+        (contract && contract.expires_at ? contract.expires_at : '') ||
+        ''
+      ).trim();
+      if (!expiresAt) return null;
+      var expiryTs = Number(new Date(expiresAt).getTime());
+      if (!Number.isFinite(expiryTs) || expiryTs <= 0) return null;
+      return Math.max(0, expiryTs - Date.now());
+    },
+
+    shouldPulseExpiringAgent(agent) {
+      var remainingMs = this.agentContractRemainingMs(agent);
+      if (remainingMs == null) return false;
+      return remainingMs > 0 && remainingMs <= 3000;
+    },
+
+    shouldShowExpiryCountdown(agent) {
+      var remainingMs = this.agentContractRemainingMs(agent);
+      if (remainingMs == null) return false;
+      return remainingMs > 0 && remainingMs <= 60000;
+    },
+
+    expiryCountdownLabel(agent) {
+      var remainingMs = this.agentContractRemainingMs(agent);
+      if (remainingMs == null || remainingMs <= 0) return '';
+      var totalSec = Math.ceil(remainingMs / 1000);
+      var min = Math.floor(totalSec / 60);
+      var sec = totalSec % 60;
+      if (min <= 0) return String(totalSec) + 's';
+      return String(min) + ':' + String(sec).padStart(2, '0');
+    },
+
+    expiryCountdownCritical(agent) {
+      var remainingMs = this.agentContractRemainingMs(agent);
+      if (remainingMs == null) return false;
+      return remainingMs > 0 && remainingMs <= 10000;
     },
 
     async pollStatus() {

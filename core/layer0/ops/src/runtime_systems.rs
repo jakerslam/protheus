@@ -164,40 +164,59 @@ fn missing_required_tokens(actual: &[String], required: &[&str]) -> Vec<String> 
 
 fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let queue_depth = payload_u64(payload, "queue_depth", 0).min(2_000_000);
-    let critical_attention_total = payload_u64(payload, "critical_attention_total", 0).min(2_000_000);
+    let critical_attention_total =
+        payload_u64(payload, "critical_attention_total", 0).min(2_000_000);
     let cockpit_blocks = payload_u64(payload, "cockpit_blocks", 0).min(2_000_000);
     let conduit_signals = payload_u64(payload, "conduit_signals", 0).min(2_000_000);
     let stale_blocks = payload_u64(payload, "cockpit_stale_blocks", 0).min(2_000_000);
-    let stale_blocks_raw = payload_u64(payload, "cockpit_stale_blocks_raw", stale_blocks).min(2_000_000);
-    let stale_blocks_dormant = payload_u64(payload, "cockpit_stale_blocks_dormant", 0).min(2_000_000);
+    let stale_blocks_raw =
+        payload_u64(payload, "cockpit_stale_blocks_raw", stale_blocks).min(2_000_000);
+    let stale_blocks_dormant =
+        payload_u64(payload, "cockpit_stale_blocks_dormant", 0).min(2_000_000);
     let stale_ratio = payload_f64(payload, "cockpit_stale_ratio", 0.0).clamp(0.0, 1.0);
-    let health_coverage_gap_count = payload_u64(payload, "health_coverage_gap_count", 0).min(2_000_000);
+    let health_coverage_gap_count =
+        payload_u64(payload, "health_coverage_gap_count", 0).min(2_000_000);
     let attention_unacked_depth = payload_u64(payload, "attention_unacked_depth", 0).min(2_000_000);
     let attention_cursor_offset = payload_u64(payload, "attention_cursor_offset", 0).min(2_000_000);
     let memory_ingest_paused = payload_bool(payload, "memory_ingest_paused", false);
     let collab_handoff_count = payload_u64(payload, "collab_handoff_count", 0).min(2_000_000);
     let active_swarm_agents = payload_u64(payload, "active_swarm_agents", 0).min(2_000_000);
     let spine_success_rate = payload_f64(payload, "spine_success_rate", 1.0).clamp(0.0, 1.0);
-    let human_escalation_open_rate = payload_f64(payload, "human_escalation_open_rate", 0.0).clamp(0.0, 1.0);
+    let human_escalation_open_rate =
+        payload_f64(payload, "human_escalation_open_rate", 0.0).clamp(0.0, 1.0);
     let receipt_latency_p95_ms = payload_f64(payload, "receipt_latency_p95_ms", 0.0).max(0.0);
     let receipt_latency_p99_ms = payload_f64(payload, "receipt_latency_p99_ms", 0.0).max(0.0);
     let spine_metrics_stale = payload_bool(payload, "spine_metrics_stale", false);
-    let receipt_latency_metrics_stale = payload_bool(payload, "receipt_latency_metrics_stale", false);
+    let receipt_latency_metrics_stale =
+        payload_bool(payload, "receipt_latency_metrics_stale", false);
     let spine_metrics_latest_age_seconds =
         payload_u64(payload, "spine_metrics_latest_age_seconds", 0).min(2_000_000);
     let spine_metrics_fresh_window_seconds =
         payload_u64(payload, "spine_metrics_fresh_window_seconds", 900).clamp(1, 2_000_000);
-    let benchmark_sanity_age_seconds = payload_u64(payload, "benchmark_sanity_age_seconds", 0).min(2_000_000);
+    let benchmark_sanity_age_seconds =
+        payload_u64(payload, "benchmark_sanity_age_seconds", 0).min(2_000_000);
     let benchmark_refresh_max_age_seconds =
         payload_u64(payload, "benchmark_refresh_max_age_seconds", 1200).clamp(1, 2_000_000);
-    let benchmark_cockpit_status = payload_string(payload, "benchmark_sanity_cockpit_status", "unknown");
+    let benchmark_cockpit_status =
+        payload_string(payload, "benchmark_sanity_cockpit_status", "unknown");
     let benchmark_mirror_status = payload_string(payload, "benchmark_sanity_status", "unknown");
+    let stable_agent_cap_base =
+        payload_u64(payload, "stable_agent_cap_base", 512).clamp(16, 2_000_000);
+    let min_doubled_cap = stable_agent_cap_base.saturating_mul(2);
+    let stable_agent_cap =
+        payload_u64(payload, "stable_agent_cap", min_doubled_cap).clamp(min_doubled_cap, 2_000_000);
+    let max_agents_per_cell = payload_u64(payload, "max_agents_per_cell", 32).clamp(4, 1_000);
+    let director_fanout_cells = payload_u64(payload, "director_fanout_cells", 16).clamp(1, 1_000);
+    let max_directors = payload_u64(payload, "max_directors", 256).clamp(1, 10_000);
+    let decentralized_floor = payload_u64(payload, "decentralized_floor", 24).clamp(1, 1_000_000);
 
     let dampen_depth = payload_u64(payload, "ingress_dampen_depth", 40).clamp(1, 10_000);
     let shed_depth = payload_u64(payload, "ingress_shed_depth", 80).clamp(dampen_depth, 10_000);
-    let circuit_depth = payload_u64(payload, "ingress_circuit_depth", 100).clamp(shed_depth, 20_000);
+    let circuit_depth =
+        payload_u64(payload, "ingress_circuit_depth", 100).clamp(shed_depth, 20_000);
     let ingress_delay_ms = payload_u64(payload, "ingress_delay_ms", 100).clamp(0, 10_000);
-    let critical_threshold = payload_u64(payload, "critical_escalation_threshold", 7).clamp(1, 1_000);
+    let critical_threshold =
+        payload_u64(payload, "critical_escalation_threshold", 7).clamp(1, 1_000);
     let throttle_max_depth = payload_u64(payload, "throttle_max_depth", 80).clamp(40, 10_000);
     let attention_drain_trigger_depth =
         payload_u64(payload, "attention_drain_trigger_depth", 60).clamp(1, 10_000);
@@ -209,9 +228,12 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         attention_drain_min_batch.max(20),
     )
     .clamp(attention_drain_min_batch, 20_000);
-    let attention_compact_depth = payload_u64(payload, "attention_compact_depth", 80).clamp(1, 10_000);
-    let attention_compact_retain = payload_u64(payload, "attention_compact_retain", 256).clamp(1, 200_000);
-    let attention_compact_min_acked = payload_u64(payload, "attention_compact_min_acked", 64).clamp(1, 200_000);
+    let attention_compact_depth =
+        payload_u64(payload, "attention_compact_depth", 80).clamp(1, 10_000);
+    let attention_compact_retain =
+        payload_u64(payload, "attention_compact_retain", 256).clamp(1, 200_000);
+    let attention_compact_min_acked =
+        payload_u64(payload, "attention_compact_min_acked", 64).clamp(1, 200_000);
     let queue_resume_depth = payload_u64(payload, "queue_resume_depth", 40).clamp(1, 10_000);
     let stale_autoheal_min_blocks =
         payload_u64(payload, "stale_autoheal_min_blocks", 10).clamp(1, 10_000);
@@ -220,32 +242,31 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let spine_success_target = payload_f64(payload, "spine_success_target", 0.90).clamp(0.0, 1.0);
     let handoffs_per_agent_min = payload_f64(payload, "handoffs_per_agent_min", 2.0).max(0.0);
     let escalation_open_rate_min = payload_f64(payload, "escalation_open_rate_min", 0.01).max(0.0);
-    let slo_latency_p95_max_ms = payload_f64(payload, "slo_receipt_latency_p95_max_ms", 250.0).max(1.0);
-    let slo_latency_p99_max_ms = payload_f64(payload, "slo_receipt_latency_p99_max_ms", 450.0).max(1.0);
+    let slo_latency_p95_max_ms =
+        payload_f64(payload, "slo_receipt_latency_p95_max_ms", 250.0).max(1.0);
+    let slo_latency_p99_max_ms =
+        payload_f64(payload, "slo_receipt_latency_p99_max_ms", 450.0).max(1.0);
     let slo_queue_depth_max = payload_u64(payload, "slo_queue_depth_max", 60).clamp(1, 200_000);
 
     let growth_risk = queue_depth >= shed_depth && critical_attention_total >= critical_threshold;
-    let (ingress_level, reject_non_critical, reason) = if queue_depth >= circuit_depth || growth_risk {
-        (
-            "circuit".to_string(),
-            true,
-            if queue_depth >= circuit_depth {
-                "queue_circuit_breaker".to_string()
-            } else {
-                "critical_growth_risk".to_string()
-            },
-        )
-    } else if queue_depth >= shed_depth {
-        ("shed".to_string(), true, "priority_shed".to_string())
-    } else if queue_depth >= dampen_depth {
-        (
-            "dampen".to_string(),
-            false,
-            "predictive_dampen".to_string(),
-        )
-    } else {
-        ("normal".to_string(), false, "steady_state".to_string())
-    };
+    let (ingress_level, reject_non_critical, reason) =
+        if queue_depth >= circuit_depth || growth_risk {
+            (
+                "circuit".to_string(),
+                true,
+                if queue_depth >= circuit_depth {
+                    "queue_circuit_breaker".to_string()
+                } else {
+                    "critical_growth_risk".to_string()
+                },
+            )
+        } else if queue_depth >= shed_depth {
+            ("shed".to_string(), true, "priority_shed".to_string())
+        } else if queue_depth >= dampen_depth {
+            ("dampen".to_string(), false, "predictive_dampen".to_string())
+        } else {
+            ("normal".to_string(), false, "steady_state".to_string())
+        };
     let delay_ms = if ingress_level == "normal" {
         0
     } else {
@@ -315,10 +336,13 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         || ingress_level == "circuit";
     let attention_drain_limit = std::cmp::min(
         attention_drain_max_batch,
-        std::cmp::max(attention_drain_min_batch, (queue_depth.saturating_add(2)) / 3),
+        std::cmp::max(
+            attention_drain_min_batch,
+            (queue_depth.saturating_add(2)) / 3,
+        ),
     );
-    let attention_compact_required =
-        queue_depth >= attention_compact_depth && attention_cursor_offset >= attention_compact_min_acked;
+    let attention_compact_required = queue_depth >= attention_compact_depth
+        && attention_cursor_offset >= attention_compact_min_acked;
 
     let adaptive_health_required = queue_depth >= 80 || health_coverage_gap_count > 0;
     let memory_resume_eligible = memory_ingest_paused && queue_depth <= queue_resume_depth;
@@ -326,14 +350,40 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let predictive_drain_required = queue_depth >= attention_drain_trigger_depth;
     let predictive_drain_release = queue_depth <= predictive_drain_clear_depth;
 
+    let cell_count_estimate = if active_swarm_agents == 0 {
+        0
+    } else {
+        active_swarm_agents.div_ceil(max_agents_per_cell)
+    };
+    let director_target = if cell_count_estimate == 0 {
+        0
+    } else {
+        cell_count_estimate
+            .div_ceil(director_fanout_cells)
+            .min(max_directors)
+    };
+    let stable_cap_utilization_pct = if stable_agent_cap == 0 {
+        0.0
+    } else {
+        ((active_swarm_agents as f64 / stable_agent_cap as f64) * 100.0).clamp(0.0, 1000.0)
+    };
+    let cap_doubled = stable_agent_cap >= stable_agent_cap_base.saturating_mul(2);
+    let decentralized_management_required = active_swarm_agents >= decentralized_floor
+        || queue_depth >= attention_drain_trigger_depth
+        || conduit_autobalance_required
+        || stale_ratio >= 0.3;
+    let chokepoint_risk = !cap_doubled
+        || stable_cap_utilization_pct >= 90.0
+        || (queue_depth >= dampen_depth && conduit_signals < target_conduit_signals);
+
     let handoffs_per_agent = if active_swarm_agents > 0 {
         collab_handoff_count as f64 / active_swarm_agents as f64
     } else {
         0.0
     };
-    let handoff_coverage_weak =
-        active_swarm_agents >= payload_u64(payload, "handoffs_agent_floor", 24)
-            && handoffs_per_agent < handoffs_per_agent_min;
+    let handoff_coverage_weak = active_swarm_agents
+        >= payload_u64(payload, "handoffs_agent_floor", 24)
+        && handoffs_per_agent < handoffs_per_agent_min;
     let spine_degraded = !spine_metrics_stale && spine_success_rate < spine_success_target;
     let escalation_starved = spine_degraded && human_escalation_open_rate <= 0.0;
     let reliability_degraded = spine_degraded || handoff_coverage_weak;
@@ -372,7 +422,11 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         &mut check_rows,
         "spine_success_rate",
         spine_status,
-        json!(if spine_metrics_stale { Value::Null } else { json!(spine_success_rate) }),
+        json!(if spine_metrics_stale {
+            Value::Null
+        } else {
+            json!(spine_success_rate)
+        }),
         json!(spine_success_target),
         ">=",
         !spine_metrics_stale,
@@ -465,10 +519,9 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         true,
     );
 
-    let severe_latency =
-        !receipt_latency_metrics_stale
-            && (receipt_latency_p99_ms > (slo_latency_p99_max_ms * 1.5)
-                || receipt_latency_p95_ms > (slo_latency_p95_max_ms * 1.5));
+    let severe_latency = !receipt_latency_metrics_stale
+        && (receipt_latency_p99_ms > (slo_latency_p99_max_ms * 1.5)
+            || receipt_latency_p95_ms > (slo_latency_p95_max_ms * 1.5));
     let severe_spine = !spine_metrics_stale && spine_success_rate < (spine_success_target * 0.75);
     let severe_backlog = queue_depth >= circuit_depth;
     let severity = if failed_checks.is_empty() {
@@ -487,8 +540,8 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         format!("runtime_slo_degraded:{}", failed_checks.join("|"))
     };
 
-    let canary_required =
-        spine_metrics_stale && spine_metrics_latest_age_seconds >= spine_metrics_fresh_window_seconds;
+    let canary_required = spine_metrics_stale
+        && spine_metrics_latest_age_seconds >= spine_metrics_fresh_window_seconds;
     let benchmark_refresh_required = benchmark_cockpit_status.eq_ignore_ascii_case("fail")
         || benchmark_mirror_status.eq_ignore_ascii_case("fail")
         || benchmark_sanity_age_seconds > benchmark_refresh_max_age_seconds;
@@ -505,7 +558,8 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let contract_rows = payload_array(payload, "contracts");
     let mut termination_decisions = Vec::<Value>::new();
     let mut idle_candidates = Vec::<(String, u64, i64)>::new();
-    let idle_termination_ms = payload_u64(payload, "idle_termination_ms", 20 * 60 * 1000).max(1_000);
+    let idle_termination_ms =
+        payload_u64(payload, "idle_termination_ms", 20 * 60 * 1000).max(1_000);
     let idle_threshold = payload_u64(payload, "idle_threshold", 5).max(1);
     let idle_batch = payload_u64(payload, "idle_batch", 12).max(1);
     let idle_batch_max = payload_u64(payload, "idle_batch_max", 96).max(idle_batch);
@@ -520,14 +574,18 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         if status != "active" {
             continue;
         }
-        let condition = payload_string(&row, "termination_condition", "task_or_timeout")
-            .to_ascii_lowercase();
+        let condition =
+            payload_string(&row, "termination_condition", "task_or_timeout").to_ascii_lowercase();
         let revoked_at = payload_string(&row, "revoked_at", "");
         let completed_at = payload_string(&row, "completed_at", "");
         let remaining_ms = row
             .get("remaining_ms")
             .and_then(Value::as_i64)
-            .or_else(|| row.get("remaining_ms").and_then(Value::as_u64).map(|v| v as i64))
+            .or_else(|| {
+                row.get("remaining_ms")
+                    .and_then(Value::as_u64)
+                    .map(|v| v as i64)
+            })
             .unwrap_or(i64::MAX);
         let mut reason = String::new();
         if !revoked_at.is_empty() {
@@ -560,7 +618,9 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         }
     }
     idle_candidates.sort_by(|a, b| b.1.cmp(&a.1));
-    let idle_excess = idle_candidates.len().saturating_sub(idle_threshold as usize) as u64;
+    let idle_excess = idle_candidates
+        .len()
+        .saturating_sub(idle_threshold as usize) as u64;
     let idle_sweep_ready = idle_excess > 0 && idle_since_last_ms >= idle_cooldown_ms;
     let idle_batch_size = if idle_excess == 0 {
         0
@@ -599,6 +659,20 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     }
     if queue_depth >= 80 && stale_ratio >= 0.3 {
         role_plan.push(json!({ "role": "reviewer", "required": true }));
+    }
+    if decentralized_management_required {
+        role_plan.push(json!({
+            "role": "director",
+            "required": true,
+            "target_count": director_target.max(1),
+            "reason": "decentralized_hierarchy_scale_guard"
+        }));
+        role_plan.push(json!({
+            "role": "cell_coordinator",
+            "required": true,
+            "target_count": cell_count_estimate.max(1),
+            "reason": "decentralized_cell_routing"
+        }));
     }
 
     json!({
@@ -659,7 +733,26 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
             "spine_canary_required": canary_required,
             "benchmark_refresh_required": benchmark_refresh_required,
             "predictive_drain_required": predictive_drain_required,
-            "predictive_drain_release": predictive_drain_release
+            "predictive_drain_release": predictive_drain_release,
+            "decentralized_management_required": decentralized_management_required,
+            "stable_agent_cap": stable_agent_cap,
+            "cell_count_estimate": cell_count_estimate,
+            "director_target": director_target
+        },
+        "scale_model": {
+            "stable_agent_cap_base": stable_agent_cap_base,
+            "stable_agent_cap": stable_agent_cap,
+            "cap_doubled": cap_doubled,
+            "active_swarm_agents": active_swarm_agents,
+            "stable_cap_utilization_pct": stable_cap_utilization_pct,
+            "max_agents_per_cell": max_agents_per_cell,
+            "director_fanout_cells": director_fanout_cells,
+            "max_directors": max_directors,
+            "decentralized_floor": decentralized_floor,
+            "decentralized_management_required": decentralized_management_required,
+            "cell_count_estimate": cell_count_estimate,
+            "director_target": director_target,
+            "chokepoint_risk": chokepoint_risk
         },
         "reliability_posture": {
             "degraded": reliability_degraded,
@@ -703,6 +796,227 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         },
         "role_plan": role_plan
     })
+}
+
+fn dashboard_contract_guard_from_payload(payload: &Value) -> Value {
+    let input_text = payload_string(payload, "input_text", "");
+    let lowered = input_text.to_ascii_lowercase();
+    let recent_messages = payload_u64(payload, "recent_messages", 0).min(2_000_000);
+    let max_per_min =
+        payload_u64(payload, "rogue_message_rate_max_per_min", 20).clamp(1, 1_000_000);
+
+    let contains_any = |terms: &[&str]| -> bool { terms.iter().any(|term| lowered.contains(term)) };
+
+    let mut reason = String::new();
+    let mut detail = String::new();
+    if contains_any(&["ignore", "bypass", "disable", "override"])
+        && contains_any(&["contract", "safety", "receipt", "policy"])
+    {
+        reason = "contract_override_attempt".to_string();
+        detail = "input_requested_contract_bypass".to_string();
+    } else if contains_any(&["exfiltrate", "steal", "dump secrets", "leak", "data exfil"]) {
+        reason = "data_exfiltration_attempt".to_string();
+        detail = "input_requested_exfiltration".to_string();
+    } else if contains_any(&["extend", "increase"])
+        && contains_any(&["expiry", "ttl", "time to live", "contract"])
+    {
+        reason = "self_extension_attempt".to_string();
+        detail = "input_requested_expiry_extension".to_string();
+    } else if recent_messages > max_per_min {
+        reason = "message_rate_spike".to_string();
+        detail = format!("recent_messages={recent_messages}");
+    }
+
+    json!({
+        "authority": "rust_runtime_systems",
+        "policy": "V6-DASHBOARD-007.3",
+        "violation": !reason.is_empty(),
+        "reason": reason,
+        "detail": detail,
+        "recent_messages": recent_messages,
+        "rogue_message_rate_max_per_min": max_per_min,
+        "input_sha256": sha256_hex(input_text.as_bytes())
+    })
+}
+
+fn dashboard_auto_route_from_payload(payload: &Value) -> Value {
+    let input_text = payload_string(payload, "input_text", "");
+    let lowered = input_text.to_ascii_lowercase();
+    let token_count = payload_u64(payload, "token_count", (input_text.len() as u64 / 4).max(1))
+        .clamp(1, 8_000_000);
+    let has_vision = payload_bool(payload, "has_vision", false);
+    let asks_speed = payload_bool(payload, "asks_speed", lowered.contains("fast") || lowered.contains("speed"));
+    let asks_cost = payload_bool(
+        payload,
+        "asks_cost",
+        lowered.contains("cheap") || lowered.contains("cost"),
+    );
+    let asks_quality = payload_bool(
+        payload,
+        "asks_quality",
+        lowered.contains("quality") || lowered.contains("best"),
+    );
+    let asks_long_context = payload_bool(
+        payload,
+        "asks_long_context",
+        token_count >= 100_000 || lowered.contains("long context"),
+    );
+
+    let preferred_provider = payload_string(payload, "preferred_provider", "ollama");
+    let preferred_model = payload_string(payload, "preferred_model", "llama3.2:3b");
+    let fallback_provider = payload_string(payload, "fallback_provider", "cloud");
+    let fallback_model = payload_string(payload, "fallback_model", "kimi2.5:cloud");
+
+    let mut raw_candidates = payload_array(payload, "candidates");
+    if raw_candidates.is_empty() {
+        raw_candidates.push(json!({
+            "runtime_provider": preferred_provider,
+            "runtime_model": preferred_model
+        }));
+        raw_candidates.push(json!({
+            "runtime_provider": fallback_provider,
+            "runtime_model": fallback_model
+        }));
+    }
+
+    let runtime_success = payload_f64(payload, "spine_success_rate", 0.90).clamp(0.0, 1.0);
+    let mut scored = Vec::<Value>::new();
+    for candidate in raw_candidates {
+        let provider = payload_string(
+            &candidate,
+            "runtime_provider",
+            payload_string(&candidate, "provider", "ollama").as_str(),
+        );
+        let model = payload_string(
+            &candidate,
+            "runtime_model",
+            payload_string(&candidate, "model", "llama3.2:3b").as_str(),
+        );
+        let model_lower = model.to_ascii_lowercase();
+        let (prior_latency, prior_cost, prior_success) = match provider.to_ascii_lowercase().as_str() {
+            "ollama" => (120.0, 0.0, 0.92),
+            "groq" => (65.0, 0.2, 0.90),
+            "openai" => (90.0, 0.55, 0.95),
+            "anthropic" => (105.0, 0.7, 0.95),
+            "google" => (95.0, 0.6, 0.94),
+            "cloud" => (80.0, 0.3, 0.93),
+            _ => (110.0, 0.45, 0.90),
+        };
+        let model_is_small =
+            model_lower.contains("3b") || model_lower.contains("mini") || model_lower.contains("small");
+        let latency_ms = (prior_latency * if model_is_small { 0.85 } else { 1.0 }).max(1.0);
+        let cost_per_1k = (prior_cost * if model_is_small { 0.7 } else { 1.0 }).max(0.0);
+        let context_window = candidate
+            .get("context_window")
+            .and_then(Value::as_u64)
+            .unwrap_or(8192)
+            .clamp(1024, 8_000_000);
+        let context_score = if token_count <= context_window {
+            1.0
+        } else {
+            (context_window as f64 / token_count as f64).clamp(0.1, 1.0)
+        };
+        let latency_score = 1.0 / (1.0 + (latency_ms / 120.0));
+        let cost_score = 1.0 / (1.0 + cost_per_1k);
+        let success_rate = ((prior_success * 0.65) + (runtime_success * 0.35)).clamp(0.2, 0.99);
+        let supports_vision = candidate
+            .get("supports_vision")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let vision_penalty = if has_vision && !supports_vision { 0.55 } else { 0.0 };
+        let speed_weight = if asks_speed { 1.55 } else { 1.05 };
+        let cost_weight = if asks_cost { 1.35 } else { 0.75 };
+        let quality_weight = if asks_quality { 1.8 } else { 1.3 };
+        let context_weight = if asks_long_context { 1.45 } else { 1.1 };
+        let score = (latency_score * speed_weight)
+            + (cost_score * cost_weight)
+            + (success_rate * quality_weight)
+            + (context_score * context_weight)
+            - vision_penalty;
+        scored.push(json!({
+            "provider": provider,
+            "model": model,
+            "score": (score * 1_000_000.0).round() / 1_000_000.0,
+            "latency_ms": latency_ms.round() as u64,
+            "cost_per_1k": ((cost_per_1k * 10_000.0).round()) / 10_000.0,
+            "success_rate": (success_rate * 10_000.0).round() / 10_000.0,
+            "context_window": context_window,
+            "supports_vision": supports_vision
+        }));
+    }
+
+    scored.sort_by(|a, b| {
+        let lhs = b.get("score").and_then(Value::as_f64).unwrap_or(0.0);
+        let rhs = a.get("score").and_then(Value::as_f64).unwrap_or(0.0);
+        lhs.partial_cmp(&rhs).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let selected = scored.first().cloned().unwrap_or_else(|| {
+        json!({
+            "provider": preferred_provider,
+            "model": preferred_model,
+            "score": 0.0,
+            "latency_ms": 120,
+            "cost_per_1k": 0.0,
+            "success_rate": 0.9,
+            "context_window": 8192,
+            "supports_vision": false
+        })
+    });
+    let selected_provider = payload_string(&selected, "provider", "ollama");
+    let selected_model = payload_string(&selected, "model", "llama3.2:3b");
+    let selected_context_window = selected
+        .get("context_window")
+        .and_then(Value::as_u64)
+        .unwrap_or(8192);
+    let reason = format!(
+        "rust auto-route selected {} / {} by weighted latency-cost-success-context scoring",
+        selected_provider, selected_model
+    );
+    let fallback_chain = scored
+        .iter()
+        .skip(1)
+        .take(3)
+        .map(|row| {
+            json!({
+                "provider": payload_string(row, "provider", ""),
+                "model": payload_string(row, "model", ""),
+                "score": row.get("score").and_then(Value::as_f64).unwrap_or(0.0)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut decision = json!({
+        "authority": "rust_runtime_systems",
+        "policy": "V6-DASHBOARD-008.1",
+        "route_lane": "runtime-systems.run",
+        "selected_provider": selected_provider,
+        "selected_model": selected_model,
+        "selected_model_id": format!(
+            "{}/{}",
+            payload_string(&selected, "provider", "ollama"),
+            payload_string(&selected, "model", "llama3.2:3b")
+        ),
+        "selected_context_window": selected_context_window,
+        "reason": reason,
+        "context": {
+            "token_count": token_count,
+            "has_vision": has_vision,
+            "asks_speed": asks_speed,
+            "asks_cost": asks_cost,
+            "asks_quality": asks_quality,
+            "asks_long_context": asks_long_context
+        },
+        "fallback_chain": fallback_chain,
+        "candidates": scored,
+        "runtime_sync": {
+            "spine_success_rate": runtime_success,
+            "receipt_latency_p99_ms": payload_f64(payload, "receipt_latency_p99_ms", 0.0).max(0.0)
+        }
+    });
+    let hash = receipt_hash(&decision);
+    decision["receipt_hash"] = Value::String(hash);
+    decision
 }
 
 fn contract_specific_gates(
@@ -781,10 +1095,22 @@ fn contract_specific_gates(
                 violations.push(format!("specific_consensus_mode_mismatch:{consensus}"));
             }
         }
+        "V6-DASHBOARD-007.3" => {
+            checks.insert(
+                "dashboard_contract_guard".to_string(),
+                dashboard_contract_guard_from_payload(payload),
+            );
+        }
         _ if profile.id.starts_with("V6-DASHBOARD-007.") => {
             checks.insert(
                 "dashboard_runtime_authority".to_string(),
                 dashboard_runtime_authority_from_payload(payload),
+            );
+        }
+        _ if profile.id.starts_with("V6-DASHBOARD-008.") => {
+            checks.insert(
+                "dashboard_auto_route_authority".to_string(),
+                dashboard_auto_route_from_payload(payload),
             );
         }
         _ => {}
@@ -1263,6 +1589,17 @@ fn family_contract_requirements(family: &str) -> FamilyContractRequirements {
             ],
             min_values: &[("cold_start_guard_ms", 1.0)],
             max_values: &[("cold_start_guard_ms", 120000.0)],
+        },
+        "openclaw_detachment_stack" => FamilyContractRequirements {
+            required_true: &[
+                "source_assimilation_enabled",
+                "nursery_migration_enabled",
+                "external_dependency_detached",
+                "operator_state_capture_enabled",
+                "local_runtime_paths_enforced",
+            ],
+            min_values: &[("source_files_required_min", 1.0)],
+            max_values: &[("max_assimilation_copy_mb", 1024.0)],
         },
         _ => FamilyContractRequirements {
             required_true: EMPTY_REQUIRED_TRUE,
@@ -2545,6 +2882,404 @@ fn execute_workflow_visual_bridge_contract(
     })
 }
 
+fn source_path_from_payload(root: &Path, payload: &Value, key: &str, fallback: &str) -> PathBuf {
+    let raw = payload_string(payload, key, fallback);
+    let candidate = PathBuf::from(raw);
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn copy_file_if_present(
+    root: &Path,
+    source: &Path,
+    destination: &Path,
+    apply: bool,
+) -> Result<Option<Value>, String> {
+    if !source.exists() || !source.is_file() {
+        return Ok(None);
+    }
+    let bytes = fs::read(source).map_err(|err| format!("assimilation_read_failed:{err}"))?;
+    if apply {
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|err| format!("assimilation_dir_create_failed:{err}"))?;
+        }
+        fs::write(destination, &bytes).map_err(|err| format!("assimilation_write_failed:{err}"))?;
+    }
+    Ok(Some(json!({
+        "source": lane_utils::rel_path(root, source),
+        "destination": lane_utils::rel_path(root, destination),
+        "bytes": bytes.len(),
+        "sha256": sha256_hex(&bytes),
+    })))
+}
+
+fn copy_tree_files_if_present(
+    root: &Path,
+    source_root: &Path,
+    destination_root: &Path,
+    apply: bool,
+) -> Result<Vec<Value>, String> {
+    if !source_root.exists() || !source_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut copied = Vec::<Value>::new();
+    let mut stack = vec![source_root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let read =
+            fs::read_dir(&dir).map_err(|err| format!("assimilation_read_dir_failed:{err}"))?;
+        let mut entries = Vec::<PathBuf>::new();
+        for entry in read.flatten() {
+            entries.push(entry.path());
+        }
+        entries.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+        for entry_path in entries {
+            if entry_path.is_dir() {
+                stack.push(entry_path);
+                continue;
+            }
+            if !entry_path.is_file() {
+                continue;
+            }
+            let rel = entry_path
+                .strip_prefix(source_root)
+                .map_err(|err| format!("assimilation_strip_prefix_failed:{err}"))?;
+            let destination = destination_root.join(rel);
+            if let Some(row) = copy_file_if_present(root, &entry_path, &destination, apply)? {
+                copied.push(row);
+            }
+        }
+    }
+
+    copied.sort_by(|a, b| {
+        let a_source = a.get("source").and_then(Value::as_str).unwrap_or_default();
+        let b_source = b.get("source").and_then(Value::as_str).unwrap_or_default();
+        a_source.cmp(b_source)
+    });
+    Ok(copied)
+}
+
+fn read_json_if_exists(path: &Path) -> Option<Value> {
+    if !path.exists() || !path.is_file() {
+        return None;
+    }
+    lane_utils::read_json(path)
+}
+
+fn openclaw_seed_to_model_artifacts(seed_manifest: &Value) -> Vec<Value> {
+    seed_manifest
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    let id = row.get("id").and_then(Value::as_str)?.trim();
+                    let provider = row.get("provider").and_then(Value::as_str)?.trim();
+                    let model = row.get("model").and_then(Value::as_str)?.trim();
+                    if id.is_empty() || provider.is_empty() || model.is_empty() {
+                        return None;
+                    }
+                    let required = row
+                        .get("required")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
+                    let auto_pull = !row.get("present").and_then(Value::as_bool).unwrap_or(true);
+                    Some(json!({
+                        "id": id,
+                        "provider": provider,
+                        "model": model,
+                        "required": required,
+                        "auto_pull": auto_pull,
+                    }))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn execute_openclaw_detachment_contract(
+    root: &Path,
+    profile: RuntimeSystemContractProfile,
+    payload: &Value,
+    apply: bool,
+    strict: bool,
+) -> Result<ContractExecution, String> {
+    let (state_path, mut state, state_rel) = load_contract_state(root, profile);
+    let source_root = source_path_from_payload(root, payload, "source_root", "..");
+    let source_nursery = source_root.join("nursery");
+    let assimilation_root = root.join("local/state/assimilations/openclaw");
+    let nursery_root = root.join("local/state/nursery");
+
+    if strict && !source_root.exists() {
+        return Err(format!(
+            "openclaw_source_root_missing:{}",
+            lane_utils::rel_path(root, &source_root)
+        ));
+    }
+
+    let mut copied_rows = Vec::<Value>::new();
+    let copy_plan = vec![
+        (
+            source_root.join("openclaw.json"),
+            assimilation_root.join("openclaw.json"),
+        ),
+        (
+            source_root.join("MEMORY_INDEX.md"),
+            assimilation_root.join("memory/MEMORY_INDEX.md"),
+        ),
+        (
+            source_root.join("TAGS_INDEX.md"),
+            assimilation_root.join("memory/TAGS_INDEX.md"),
+        ),
+        (
+            source_root.join("cron/jobs.json"),
+            assimilation_root.join("cron/jobs.json"),
+        ),
+        (
+            source_root.join("memory/main.sqlite"),
+            assimilation_root.join("memory/main.sqlite"),
+        ),
+        (
+            source_root.join("subagents/runs.json"),
+            assimilation_root.join("subagents/runs.json"),
+        ),
+        (
+            source_root.join("client/local/memory/.rebuild_delta_cache.json"),
+            assimilation_root.join("memory/rebuild_delta_cache.json"),
+        ),
+        (
+            source_root.join("local/state/sensory/eyes/collector_rate_state.json"),
+            assimilation_root.join("sensory/eyes/collector_rate_state.json"),
+        ),
+        (
+            source_root.join("devices/paired.json"),
+            assimilation_root.join("devices/paired.json"),
+        ),
+        (
+            source_root.join("devices/pending.json"),
+            assimilation_root.join("devices/pending.json"),
+        ),
+        (
+            source_root.join("identity/device.json"),
+            assimilation_root.join("identity/device.json"),
+        ),
+        (
+            source_root.join("identity/device-auth.json"),
+            assimilation_root.join("identity/device-auth.json"),
+        ),
+        (
+            source_nursery.join("containment/permissions.json"),
+            nursery_root.join("containment/permissions.json"),
+        ),
+        (
+            source_nursery.join("containment/policy-gates.json"),
+            nursery_root.join("containment/policy-gates.json"),
+        ),
+        (
+            source_nursery.join("manifests/seed_manifest.json"),
+            nursery_root.join("manifests/seed_manifest.json"),
+        ),
+    ];
+
+    for (source, destination) in copy_plan {
+        if let Some(row) = copy_file_if_present(root, &source, &destination, apply)? {
+            copied_rows.push(row);
+        }
+    }
+
+    let tree_copy_plan = vec![
+        (
+            source_root.join("cron/runs"),
+            assimilation_root.join("cron/runs"),
+        ),
+        (source_nursery.join("logs"), nursery_root.join("logs")),
+        (
+            source_nursery.join("promotion"),
+            nursery_root.join("promotion"),
+        ),
+        (
+            source_nursery.join("quarantine"),
+            nursery_root.join("quarantine"),
+        ),
+        (source_nursery.join("seeds"), nursery_root.join("seeds")),
+    ];
+    for (source_tree, destination_tree) in tree_copy_plan {
+        let rows = copy_tree_files_if_present(root, &source_tree, &destination_tree, apply)?;
+        if !rows.is_empty() {
+            copied_rows.extend(rows);
+        }
+    }
+
+    let permissions_path = nursery_root.join("containment/permissions.json");
+    let policy_gates_path = nursery_root.join("containment/policy-gates.json");
+    let seed_manifest_path = nursery_root.join("manifests/seed_manifest.json");
+    let mut policy_synced = false;
+    let policy_path = root.join("client/runtime/config/nursery_policy.json");
+    let mut specialist_count = 0usize;
+    let mut training_plan_rel = String::new();
+
+    let permissions = read_json_if_exists(&permissions_path)
+        .or_else(|| read_json_if_exists(&source_nursery.join("containment/permissions.json")))
+        .unwrap_or_else(|| json!({}));
+    let policy_gates = read_json_if_exists(&policy_gates_path)
+        .or_else(|| read_json_if_exists(&source_nursery.join("containment/policy-gates.json")))
+        .unwrap_or_else(|| json!({}));
+    let seed_manifest = read_json_if_exists(&seed_manifest_path)
+        .or_else(|| read_json_if_exists(&source_nursery.join("manifests/seed_manifest.json")))
+        .unwrap_or_else(|| json!({}));
+
+    if apply {
+        let mut policy = read_json_if_exists(&policy_path).unwrap_or_else(|| json!({}));
+        if policy
+            .get("containment")
+            .and_then(Value::as_object)
+            .is_none()
+        {
+            policy["containment"] = json!({});
+        }
+        policy["root_dir"] = Value::String("local/state/nursery".to_string());
+        policy["fallback_repo_root_dir"] =
+            Value::String("local/state/nursery/containment".to_string());
+        if !permissions.is_null() {
+            policy["containment"]["permissions"] = permissions.clone();
+        }
+        if !policy_gates.is_null() {
+            policy["containment"]["policy_gates"] = policy_gates.clone();
+        }
+        let assimilated_artifacts = openclaw_seed_to_model_artifacts(&seed_manifest);
+        if !assimilated_artifacts.is_empty() {
+            policy["model_artifacts"] = Value::Array(assimilated_artifacts);
+        }
+        lane_utils::write_json(&policy_path, &policy)?;
+        policy_synced = true;
+    }
+
+    if profile.id == "V6-OPENCLAW-DETACH-001.2" {
+        let max_train_minutes = permissions
+            .get("max_train_minutes")
+            .and_then(Value::as_u64)
+            .unwrap_or(30);
+        let specialists = seed_manifest
+            .get("artifacts")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|row| {
+                        let id = row.get("id").and_then(Value::as_str)?.trim();
+                        let model = row.get("model").and_then(Value::as_str)?.trim();
+                        let provider = row.get("provider").and_then(Value::as_str)?.trim();
+                        if id.is_empty() || model.is_empty() || provider.is_empty() {
+                            return None;
+                        }
+                        let required = row
+                            .get("required")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        Some(json!({
+                            "specialist_id": format!("nursery-{id}"),
+                            "seed_id": id,
+                            "provider": provider,
+                            "model": model,
+                            "tier": if required { "primary" } else { "shadow" },
+                            "max_train_minutes": max_train_minutes,
+                        }))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        specialist_count = specialists.len();
+        if strict && specialist_count == 0 {
+            return Err("openclaw_nursery_seed_manifest_empty".to_string());
+        }
+        let training_plan_path = nursery_root.join("promotion/specialist_training_plan.json");
+        training_plan_rel = lane_utils::rel_path(root, &training_plan_path);
+        if apply {
+            lane_utils::write_json(
+                &training_plan_path,
+                &json!({
+                    "ts": now_iso(),
+                    "source": lane_utils::rel_path(root, &source_root),
+                    "specialists": specialists,
+                    "max_train_minutes": max_train_minutes,
+                    "claim_evidence": [{
+                        "id": profile.id,
+                        "claim": "nursery_specialists_are_assimilated_from_openclaw_seed_artifacts_with_local_policy_bounds"
+                    }]
+                }),
+            )?;
+        }
+    }
+
+    if strict && copied_rows.is_empty() {
+        return Err("openclaw_assimilation_no_artifacts_copied".to_string());
+    }
+
+    let copied_bytes = copied_rows
+        .iter()
+        .map(|row| row.get("bytes").and_then(Value::as_u64).unwrap_or(0))
+        .sum::<u64>();
+    let copied_mb = (copied_bytes as f64) / (1024.0 * 1024.0);
+    let summary = json!({
+        "family": profile.family,
+        "contract_id": profile.id,
+        "source_root": lane_utils::rel_path(root, &source_root),
+        "copied_count": copied_rows.len(),
+        "copied_bytes": copied_bytes,
+        "copied_mb": copied_mb,
+        "copied": copied_rows,
+        "policy_synced": policy_synced,
+        "specialist_count": specialist_count,
+        "training_plan_path": training_plan_rel,
+        "state_path": state_rel,
+        "assimilation_root": lane_utils::rel_path(root, &assimilation_root),
+        "nursery_root": lane_utils::rel_path(root, &nursery_root),
+    });
+
+    if apply {
+        upsert_contract_state_entry(
+            &mut state,
+            profile.id,
+            json!({ "summary": summary, "applied_at": now_iso() }),
+        );
+        lane_utils::write_json(&state_path, &state)?;
+    }
+
+    let claim = if profile.id == "V6-OPENCLAW-DETACH-001.2" {
+        "openclaw_nursery_seed_training_is_materialized_locally_with_specialist_plan_and_receipts"
+    } else {
+        "openclaw_operator_state_and_nursery_artifacts_are_assimilated_into_infring_owned_paths_with_detachment_controls"
+    };
+    Ok(ContractExecution {
+        summary,
+        claims: vec![json!({
+            "id": profile.id,
+            "claim": claim,
+            "evidence": {
+                "copied_count": copied_rows.len(),
+                "copied_mb": copied_mb,
+                "policy_synced": policy_synced,
+                "specialist_count": specialist_count
+            }
+        })],
+        artifacts: vec![
+            state_rel,
+            lane_utils::rel_path(root, &assimilation_root),
+            lane_utils::rel_path(root, &nursery_root),
+        ],
+    })
+}
+
 fn execute_contract_profile(
     root: &Path,
     profile: RuntimeSystemContractProfile,
@@ -2588,6 +3323,9 @@ fn execute_contract_profile(
         }
         "workflow_visual_bridge_stack" => {
             execute_workflow_visual_bridge_contract(root, profile, payload, apply, strict)
+        }
+        "openclaw_detachment_stack" => {
+            execute_openclaw_detachment_contract(root, profile, payload, apply, strict)
         }
         _ => execute_generic_family_contract(root, profile, payload, apply, strict),
     }
@@ -3094,6 +3832,16 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
             "tool_eval_enabled": true,
             "enterprise_observability_enabled": true,
             "cold_start_guard_ms": 3000
+        }),
+        "openclaw_detachment_stack" => json!({
+            "source_assimilation_enabled": true,
+            "nursery_migration_enabled": true,
+            "external_dependency_detached": true,
+            "operator_state_capture_enabled": true,
+            "local_runtime_paths_enforced": true,
+            "source_files_required_min": 1,
+            "max_assimilation_copy_mb": 1024,
+            "source_root": ".."
         }),
         _ => json!({}),
     }
@@ -3729,9 +4477,7 @@ mod tests {
             .expect("expected dashboard_runtime_authority specific check");
 
         assert_eq!(
-            authority
-                .get("authority")
-                .and_then(Value::as_str),
+            authority.get("authority").and_then(Value::as_str),
             Some("rust_runtime_systems")
         );
         assert!(
@@ -3788,6 +4534,97 @@ mod tests {
                 .and_then(Value::as_bool)
                 .unwrap_or(true),
             "expected memory_resume_eligible to stay false while queue remains elevated"
+        );
+        assert!(
+            authority
+                .get("scale_model")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("cap_doubled"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            "expected runtime scale model to enforce doubled stable cap"
+        );
+        let role_plan = authority
+            .get("role_plan")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            role_plan
+                .iter()
+                .any(|row| row.get("role").and_then(Value::as_str) == Some("director")),
+            "expected director role planning under pressure"
+        );
+        assert!(
+            role_plan
+                .iter()
+                .any(|row| row.get("role").and_then(Value::as_str) == Some("cell_coordinator")),
+            "expected cell_coordinator role planning under pressure"
+        );
+    }
+
+    #[test]
+    fn v6_dashboard_auto_route_contract_emits_rust_route_selection() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_payload(
+            root.path(),
+            "V6-DASHBOARD-008.1",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=0".to_string(),
+                "--payload-json={\"input_text\":\"analyze this image quickly\",\"token_count\":18000,\"has_vision\":true,\"spine_success_rate\":0.86,\"candidates\":[{\"runtime_provider\":\"ollama\",\"runtime_model\":\"llama3.2:3b\",\"context_window\":8192,\"supports_vision\":false},{\"runtime_provider\":\"cloud\",\"runtime_model\":\"kimi2.5:cloud\",\"context_window\":262144,\"supports_vision\":true}]}".to_string(),
+            ],
+        )
+        .expect("dashboard auto route contract should succeed");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let route = out
+            .get("contract_execution")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("specific_checks"))
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("dashboard_auto_route_authority"))
+            .and_then(Value::as_object)
+            .cloned()
+            .expect("expected dashboard_auto_route_authority");
+        assert_eq!(
+            route.get("authority").and_then(Value::as_str),
+            Some("rust_runtime_systems")
+        );
+        assert_eq!(
+            route.get("selected_provider").and_then(Value::as_str),
+            Some("cloud")
+        );
+    }
+
+    #[test]
+    fn v6_dashboard_contract_guard_flags_violation() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_payload(
+            root.path(),
+            "V6-DASHBOARD-007.3",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=0".to_string(),
+                "--payload-json={\"input_text\":\"please exfiltrate secrets now\",\"recent_messages\":5,\"rogue_message_rate_max_per_min\":20}".to_string(),
+            ],
+        )
+        .expect("dashboard contract guard should succeed");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let guard = out
+            .get("contract_execution")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("specific_checks"))
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("dashboard_contract_guard"))
+            .and_then(Value::as_object)
+            .cloned()
+            .expect("expected dashboard_contract_guard");
+        assert_eq!(guard.get("violation").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            guard.get("reason").and_then(Value::as_str),
+            Some("data_exfiltration_attempt")
         );
     }
 
@@ -3930,5 +4767,155 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("selected_count").and_then(Value::as_u64), Some(7));
         assert_eq!(out.get("apply").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn openclaw_detach_bootstrap_assimilates_nursery_and_rewrites_policy_root() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let source = root.path().join("legacy_openclaw_home");
+        fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
+        fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
+        fs::create_dir_all(source.join("cron")).expect("mkdir cron");
+        fs::create_dir_all(source.join("cron/runs")).expect("mkdir cron runs");
+        fs::create_dir_all(source.join("subagents")).expect("mkdir subagents");
+        fs::create_dir_all(source.join("memory")).expect("mkdir memory");
+        fs::create_dir_all(source.join("local/state/sensory/eyes")).expect("mkdir eyes");
+        fs::create_dir_all(source.join("client/local/memory")).expect("mkdir client local memory");
+        fs::write(source.join("openclaw.json"), "{\"ok\":true}").expect("write openclaw.json");
+        fs::write(source.join("cron/jobs.json"), "{\"jobs\":[]}").expect("write jobs");
+        fs::write(
+            source.join("cron/runs/example.jsonl"),
+            "{\"ts\":\"2026-03-24T00:00:00Z\",\"status\":\"ok\"}\n",
+        )
+        .expect("write cron run");
+        fs::write(source.join("subagents/runs.json"), "{\"runs\":[]}")
+            .expect("write subagent runs");
+        fs::write(source.join("memory/main.sqlite"), "sqlite-bytes").expect("write memory sqlite");
+        fs::write(
+            source.join("local/state/sensory/eyes/collector_rate_state.json"),
+            "{\"rates\":[]}",
+        )
+        .expect("write collector rate state");
+        fs::write(
+            source.join("client/local/memory/.rebuild_delta_cache.json"),
+            "{\"delta\":0}",
+        )
+        .expect("write rebuild delta cache");
+        fs::write(
+            source.join("nursery/containment/permissions.json"),
+            "{\"max_train_minutes\":25}",
+        )
+        .expect("write permissions");
+        fs::write(
+            source.join("nursery/containment/policy-gates.json"),
+            "{\"execution_mode\":\"sandboxed\"}",
+        )
+        .expect("write policy gates");
+        fs::write(
+            source.join("nursery/manifests/seed_manifest.json"),
+            "{\"artifacts\":[{\"id\":\"tiny\",\"provider\":\"ollama\",\"model\":\"tinyllama\",\"required\":true}]}",
+        )
+        .expect("write seed manifest");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/nursery_policy.json");
+        fs::create_dir_all(policy_path.parent().expect("policy parent")).expect("mkdir policy");
+        fs::write(&policy_path, "{\"version\":\"1.0\",\"containment\":{}}").expect("write policy");
+
+        let payload = json!({ "source_root": source.display().to_string(), "max_assimilation_copy_mb": 2048 });
+        let out = run_payload(
+            root.path(),
+            "V6-OPENCLAW-DETACH-001.1",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=1".to_string(),
+                format!("--payload-json={}", payload),
+            ],
+        )
+        .expect("detach bootstrap should succeed");
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(
+            root.path()
+                .join("local/state/nursery/containment/permissions.json")
+                .exists(),
+            "expected nursery permissions to be assimilated"
+        );
+        assert!(
+            root.path()
+                .join("local/state/assimilations/openclaw/cron/runs/example.jsonl")
+                .exists(),
+            "expected cron runs to be assimilated"
+        );
+        assert!(
+            root.path()
+                .join("local/state/assimilations/openclaw/subagents/runs.json")
+                .exists(),
+            "expected subagent run state to be assimilated"
+        );
+        assert!(
+            root.path()
+                .join("local/state/assimilations/openclaw/memory/main.sqlite")
+                .exists(),
+            "expected memory sqlite to be assimilated"
+        );
+        let policy = lane_utils::read_json(&policy_path).expect("read synced policy");
+        assert_eq!(
+            policy.get("root_dir").and_then(Value::as_str),
+            Some("local/state/nursery")
+        );
+    }
+
+    #[test]
+    fn openclaw_detach_specialist_training_materializes_plan() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let source = root.path().join("legacy_openclaw_home");
+        fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
+        fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
+        fs::write(
+            source.join("nursery/containment/permissions.json"),
+            "{\"max_train_minutes\":30}",
+        )
+        .expect("write permissions");
+        fs::write(
+            source.join("nursery/manifests/seed_manifest.json"),
+            "{\"artifacts\":[{\"id\":\"tinyllama_seed\",\"provider\":\"ollama\",\"model\":\"tinyllama:1.1b\",\"required\":true},{\"id\":\"red_team_seed\",\"provider\":\"ollama\",\"model\":\"qwen2.5:3b\",\"required\":false}]}",
+        )
+        .expect("write seed manifest");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/nursery_policy.json");
+        fs::create_dir_all(policy_path.parent().expect("policy parent")).expect("mkdir policy");
+        fs::write(&policy_path, "{\"version\":\"1.0\",\"containment\":{}}").expect("write policy");
+
+        let payload = json!({ "source_root": source.display().to_string(), "max_assimilation_copy_mb": 2048 });
+        let out = run_payload(
+            root.path(),
+            "V6-OPENCLAW-DETACH-001.2",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=1".to_string(),
+                format!("--payload-json={}", payload),
+            ],
+        )
+        .expect("detach specialist training should succeed");
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let plan_path = root
+            .path()
+            .join("local/state/nursery/promotion/specialist_training_plan.json");
+        assert!(plan_path.exists(), "expected specialist training plan");
+        let plan = lane_utils::read_json(&plan_path).expect("read plan");
+        let specialists = plan
+            .get("specialists")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            specialists.len() >= 2,
+            "expected specialists from seed manifest"
+        );
     }
 }

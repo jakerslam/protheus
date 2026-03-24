@@ -23,7 +23,7 @@ function createFixtureRepo(): string {
     'core/layer0/ops/src/swarm_runtime.rs',
     'client/runtime/systems/autonomy/swarm_sessions_bridge.ts',
     'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
-    'tests/client-memory-tools/swarm_sessions_bridge.test.js',
+    'tests/client-memory-tools/swarm_sessions_bridge.test.ts',
     'tests/tooling/scripts/ci/swarm_protocol_audit_runner.mjs',
     'docs/workspace/SRS.md',
     'docs/client/requirements/REQ-38-agent-orchestration-hardening.md',
@@ -76,7 +76,7 @@ describe('swarm companion churn guard', () => {
     tempDirs.push(repoRoot);
     fs.appendFileSync(path.join(repoRoot, 'core/layer0/ops/src/swarm_runtime.rs'), '// runtime\n');
     fs.appendFileSync(
-      path.join(repoRoot, 'tests/client-memory-tools/swarm_sessions_bridge.test.js'),
+      path.join(repoRoot, 'tests/client-memory-tools/swarm_sessions_bridge.test.ts'),
       '// test\n',
     );
     fs.appendFileSync(path.join(repoRoot, 'docs/workspace/SRS.md'), '\n- V6-SWARM-033\n');

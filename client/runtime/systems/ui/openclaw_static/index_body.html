@@ -55,7 +55,7 @@
             <div class="chat-sidebar-empty">No matching agent chats</div>
           </template>
           <template x-for="agent in chatSidebarAgents" :key="'agent-chat-' + agent.id">
-            <button class="chat-sidebar-item" :class="{ active: $store.app.activeAgentId === agent.id }" @click="selectAgentChatFromSidebar(agent)">
+            <button class="chat-sidebar-item" :class="{ active: $store.app.activeAgentId === agent.id, 'expiring-pulse': shouldPulseExpiringAgent(agent) }" @click="selectAgentChatFromSidebar(agent)">
               <span class="chat-sidebar-item-avatar-wrap">
                 <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                 <div class="chat-sidebar-item-avatar">
@@ -68,6 +68,12 @@
                   <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
                   <span x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
                 </div>
+                <span
+                  class="agent-expiry-countdown"
+                  :class="{ critical: expiryCountdownCritical(agent) }"
+                  x-show="shouldShowExpiryCountdown(agent)"
+                  x-text="expiryCountdownLabel(agent)"
+                ></span>
               </span>
               <div class="chat-sidebar-item-main">
                 <div class="chat-sidebar-item-row">
@@ -111,7 +117,7 @@
             <template x-for="agent in chatSidebarAgents" :key="'nav-agent-' + agent.id">
               <a
                 class="nav-item nav-sub-item nav-agent-row"
-                :class="{ active: page === 'chat' && $store.app.activeAgentId === agent.id }"
+                :class="{ active: page === 'chat' && $store.app.activeAgentId === agent.id, 'expiring-pulse': shouldPulseExpiringAgent(agent) }"
                 @click="selectAgentChatFromSidebar(agent)"
                 :aria-current="page === 'chat' && $store.app.activeAgentId === agent.id ? 'page' : false"
               >
@@ -128,6 +134,12 @@
                       <span class="nav-agent-avatar-emoji" x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity ? agent.identity.emoji : ''"></span>
                       <span class="nav-agent-avatar-fallback" x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" aria-hidden="true">&infin;</span>
                     </span>
+                    <span
+                      class="agent-expiry-countdown"
+                      :class="{ critical: expiryCountdownCritical(agent) }"
+                      x-show="shouldShowExpiryCountdown(agent)"
+                      x-text="expiryCountdownLabel(agent)"
+                    ></span>
                   </span>
                   <span class="agent-status-dot nav-agent-status" :class="'status-' + $store.app.agentStatusState(agent)" :title="'Agent status: ' + $store.app.agentStatusLabel(agent)" aria-hidden="true"></span>
                 </span>
@@ -327,10 +339,10 @@
           <button
             class="health-indicator topbar-agent-indicator"
             type="button"
-            :class="($store.app.connectionState === 'connected') ? 'health-ok' : (($store.app.connectionState === 'connecting' || $store.app.connectionState === 'reconnecting') ? 'health-connecting' : 'health-down')"
-            x-text="($store.app.connectionState === 'connected') ? ((($store.app.agents && $store.app.agents.length) || $store.app.agentCount || 0) + ' agent(s) running') : (($store.app.connectionState === 'connecting' || $store.app.connectionState === 'reconnecting') ? 'Connecting...' : 'Disconnected')"
+            :class="runtimeFacadeClass()"
+            x-text="runtimeFacadeLabel() + ' · ' + runtimeFacadeDetail()"
             @click="location.hash='agents'"
-            title="Open agents"
+            :title="runtimeFacadeTitle()"
             aria-label="Open agents"
           ></button>
           <button class="btn btn-ghost btn-sm topbar-icon-btn" @click="location.reload()" title="Refresh" aria-label="Refresh">

@@ -26,4 +26,4 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --include=dev
       - name: Run memory burn SLO guard
-        run: node tests/client-memory-tools/memory_burn_slo_guard.test.js
+        run: node tests/client-memory-tools/memory_burn_slo_guard.test.ts

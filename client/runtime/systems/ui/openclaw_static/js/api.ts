@@ -105,7 +105,7 @@ var InfringAPI = (function() {
   var _authToken = '';
 
   // Connection state tracking
-  var _connectionState = 'connected';
+  var _connectionState = 'connecting';
   var _reconnectAttempt = 0;
   var _connectionListeners = [];
 
@@ -128,6 +128,7 @@ var InfringAPI = (function() {
   function request(method, path, body) {
     var opts = { method: method, headers: headers() };
     if (body !== undefined) opts.body = JSON.stringify(body);
+    if (_connectionState === 'disconnected') setConnectionState('connecting');
     return fetch(BASE + path, opts).then(function(r) {
       if (_connectionState !== 'connected') setConnectionState('connected');
       if (!r.ok) {
@@ -201,7 +202,6 @@ var InfringAPI = (function() {
         _reconnectAttempts = 0;
         setConnectionState('connected');
         if (_reconnectAttempt > 0) {
-          InfringToast.success('Reconnected');
           _reconnectAttempt = 0;
         }
         if (_wsCallbacks.onOpen) _wsCallbacks.onOpen();
@@ -221,16 +221,12 @@ var InfringAPI = (function() {
           _reconnectAttempts++;
           _reconnectAttempt = _reconnectAttempts;
           setConnectionState('reconnecting');
-          if (_reconnectAttempts === 1) {
-            InfringToast.warn('Connection lost, reconnecting...');
-          }
           var delay = Math.min(1000 * Math.pow(2, _reconnectAttempts - 1), 10000);
           _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, delay);
           return;
         }
         if (_wsAgentId && _reconnectAttempts >= MAX_RECONNECT) {
           setConnectionState('disconnected');
-          InfringToast.error('Connection lost — switched to HTTP mode', 0);
         }
         if (_wsCallbacks.onClose) _wsCallbacks.onClose();
       };

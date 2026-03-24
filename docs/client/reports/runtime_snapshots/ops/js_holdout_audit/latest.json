@@ -561,7 +561,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/memory/abstraction/test_harness.js",
+      "path": "systems/memory/abstraction/test_harness.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },

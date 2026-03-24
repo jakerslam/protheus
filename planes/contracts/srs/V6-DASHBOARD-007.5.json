@@ -16,7 +16,7 @@
     { "type": "contract", "path": "planes/contracts/srs/V6-DASHBOARD-007.5.json" },
     { "type": "runtime", "path": "client/runtime/systems/ui/infring_dashboard.ts" },
     { "type": "state", "path": "client/runtime/local/state/ui/infring_dashboard/attention_deferred.json" },
-    { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.js" }
+    { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.ts" }
   ],
   "validation": {
     "lane_command": "protheus-ops srs-contract-runtime run --id=V6-DASHBOARD-007.5",

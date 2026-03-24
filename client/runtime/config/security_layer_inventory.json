@@ -33,7 +33,7 @@
       ],
       "test_paths": [
         "core/layer0/ops/src/contract_check.rs",
-        "tests/client-memory-tools/critical_path_formal_verifier.test.js"
+        "tests/client-memory-tools/critical_path_formal_verifier.test.ts"
       ]
     },
     {
@@ -91,8 +91,8 @@
         }
       ],
       "test_paths": [
-        "tests/client-memory-tools/execution_sandbox_envelope.test.js",
-        "tests/client-memory-tools/egress_gateway.test.js"
+        "tests/client-memory-tools/execution_sandbox_envelope.test.ts",
+        "tests/client-memory-tools/egress_gateway.test.ts"
       ]
     },
     {
@@ -116,7 +116,7 @@
         }
       ],
       "test_paths": [
-        "tests/client-memory-tools/supply_chain_trust_plane.test.js"
+        "tests/client-memory-tools/supply_chain_trust_plane.test.ts"
       ]
     },
     {
@@ -142,8 +142,8 @@
         }
       ],
       "test_paths": [
-        "tests/client-memory-tools/key_lifecycle_governor.test.js",
-        "tests/client-memory-tools/post_quantum_migration_lane.test.js"
+        "tests/client-memory-tools/key_lifecycle_governor.test.ts",
+        "tests/client-memory-tools/post_quantum_migration_lane.test.ts"
       ]
     },
     {
@@ -171,9 +171,9 @@
         }
       ],
       "test_paths": [
-        "tests/client-memory-tools/secure_heartbeat_endpoint.test.js",
-        "tests/client-memory-tools/operator_terms_ack.test.js",
-        "tests/client-memory-tools/repository_access_auditor.test.js"
+        "tests/client-memory-tools/secure_heartbeat_endpoint.test.ts",
+        "tests/client-memory-tools/operator_terms_ack.test.ts",
+        "tests/client-memory-tools/repository_access_auditor.test.ts"
       ]
     },
     {
@@ -201,7 +201,7 @@
         }
       ],
       "test_paths": [
-        "tests/client-memory-tools/state_kernel.test.js"
+        "tests/client-memory-tools/state_kernel.test.ts"
       ]
     }
   ]
