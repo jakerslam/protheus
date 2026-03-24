@@ -168,6 +168,7 @@ const AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS = 1200;
 const AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 2500;
 const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS = 4000;
 const AGENT_CONTRACT_MAX_IDLE_AGENTS = 5;
+const AGENT_CONTRACT_CHAT_HOLD_MAX_MS = 24 * 60 * 60 * 1000;
 const AGENT_RECONCILE_TERMINATION_BATCH = 12;
 const AGENT_RECONCILE_TERMINATION_BATCH_MAX = 96;
 const AGENT_RECONCILE_TERMINATION_COOLDOWN_MS = 4000;
@@ -4687,6 +4688,10 @@ function normalizeArchivedAgentsState(state) {
       role: cleanText(meta.role || '', 80),
       termination_condition: cleanText(meta.termination_condition || '', 40),
       terminated_at: cleanText(meta.terminated_at || '', 80),
+      git_tree_kind: normalizeGitTreeKind(meta.git_tree_kind, AGENT_GIT_TREE_KIND_ISOLATED),
+      git_branch: cleanText(meta.git_branch || '', 120),
+      workspace_dir: cleanText(meta.workspace_dir || '', 400),
+      was_master_agent: !!meta.was_master_agent,
       revival_data: meta.revival_data && typeof meta.revival_data === 'object' ? meta.revival_data : null,
     };
   }
@@ -4818,6 +4823,13 @@ function isMainTreeBoundAgent(agentId, runtimeRow = null) {
   const row = runtimeRow && typeof runtimeRow === 'object' ? runtimeRow : null;
   if (row && row.is_master_agent === true) return true;
   if (row && normalizeGitTreeKind(row.git_tree_kind || '') === AGENT_GIT_TREE_KIND_MASTER) return true;
+  if (row) {
+    const rowWorkspace = cleanText(row.workspace_dir || '', 400);
+    const rowBranch = cleanText(row.git_branch || '', 120).toLowerCase();
+    if (rowWorkspace && path.resolve(rowWorkspace) === ROOT && (rowBranch === gitMainBranch().toLowerCase() || rowBranch === 'main')) {
+      return true;
+    }
+  }
   const profile = agentProfileFor(id);
   if (normalizeGitTreeKind(profile && profile.git_tree_kind ? profile.git_tree_kind : '') === AGENT_GIT_TREE_KIND_MASTER) {
     return true;
@@ -4982,6 +4994,8 @@ function archiveAgent(agentId, meta = {}) {
   const key = cleanText(agentId || '', 140);
   if (!key) return null;
   const gitCleanup = removeGitWorkspaceForAgent(key);
+  const profile = agentProfileFor(key);
+  const treeView = agentGitTreeView(key, profile);
   const state = loadArchivedAgentsState();
   const existing = state.agents && state.agents[key] ? state.agents[key] : {};
   state.agents[key] = {
@@ -4995,6 +5009,22 @@ function archiveAgent(agentId, meta = {}) {
     role: cleanText(meta.role || existing.role || '', 80),
     termination_condition: cleanText(meta.termination_condition || existing.termination_condition || '', 40),
     terminated_at: cleanText(meta.terminated_at || existing.terminated_at || '', 80),
+    git_tree_kind: normalizeGitTreeKind(
+      meta.git_tree_kind || existing.git_tree_kind || (treeView && treeView.git_tree_kind ? treeView.git_tree_kind : ''),
+      AGENT_GIT_TREE_KIND_ISOLATED
+    ),
+    git_branch: cleanText(
+      meta.git_branch || existing.git_branch || (treeView && treeView.git_branch ? treeView.git_branch : ''),
+      120
+    ),
+    workspace_dir: cleanText(
+      meta.workspace_dir || existing.workspace_dir || (treeView && treeView.workspace_dir ? treeView.workspace_dir : ''),
+      400
+    ),
+    was_master_agent:
+      meta.was_master_agent === true ||
+      existing.was_master_agent === true ||
+      !!(treeView && treeView.is_master_agent),
     revival_data:
       meta.revival_data && typeof meta.revival_data === 'object'
         ? meta.revival_data
@@ -5114,6 +5144,9 @@ function normalizeAgentContractsState(state) {
       terminated_by: cleanText(contract.terminated_by || '', 120),
       revived_from_contract_id: cleanText(contract.revived_from_contract_id || '', 80),
       revival_data: contract.revival_data && typeof contract.revival_data === 'object' ? contract.revival_data : null,
+      conversation_hold: !!contract.conversation_hold,
+      conversation_hold_started_at: cleanText(contract.conversation_hold_started_at || '', 80),
+      conversation_hold_deadline: cleanText(contract.conversation_hold_deadline || '', 80),
       message_times_ms: Array.isArray(contract.message_times_ms)
         ? contract.message_times_ms
             .map((value) => coerceTsMs(value, 0))
@@ -5390,10 +5423,66 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     revival_data: contractInput.revival_data && typeof contractInput.revival_data === 'object'
       ? contractInput.revival_data
       : null,
+    conversation_hold: false,
+    conversation_hold_started_at: '',
+    conversation_hold_deadline: '',
     message_times_ms: [],
     security_flags: {},
     updated_at: now,
   };
+}
+
+function resetContractExpiryFromNow(contract, nowMs = Date.now()) {
+  if (!contract || typeof contract !== 'object') return contract;
+  const expirySeconds = contract.expiry_seconds == null
+    ? null
+    : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, 7 * 24 * 60 * 60);
+  if (expirySeconds == null) {
+    contract.expires_at = '';
+    return contract;
+  }
+  contract.expires_at = new Date(nowMs + (expirySeconds * 1000)).toISOString();
+  return contract;
+}
+
+function setContractConversationHold(agentId, hold = true, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return null;
+  const state = loadAgentContractsState();
+  const contract = state.contracts && state.contracts[id] ? state.contracts[id] : null;
+  if (!contract || contract.status !== 'active') return contract;
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const maxHoldMs = parsePositiveInt(
+    options && options.max_hold_ms != null ? options.max_hold_ms : AGENT_CONTRACT_CHAT_HOLD_MAX_MS,
+    AGENT_CONTRACT_CHAT_HOLD_MAX_MS,
+    1,
+    7 * 24 * 60 * 60 * 1000
+  );
+  if (hold) {
+    const shouldResetTimer = options && options.reset_timer === false ? false : true;
+    contract.conversation_hold = true;
+    contract.conversation_hold_started_at = cleanText(contract.conversation_hold_started_at || now, 80) || now;
+    contract.conversation_hold_deadline = new Date(nowMs + maxHoldMs).toISOString();
+    if (shouldResetTimer) {
+      contract.spawned_at = now;
+      resetContractExpiryFromNow(contract, nowMs);
+    }
+    contract.updated_at = now;
+  } else {
+    const shouldResetOnClose = options && options.reset_timer_on_close === false ? false : true;
+    contract.conversation_hold = false;
+    contract.conversation_hold_started_at = '';
+    contract.conversation_hold_deadline = '';
+    if (shouldResetOnClose) {
+      contract.spawned_at = now;
+      resetContractExpiryFromNow(contract, nowMs);
+    }
+    contract.updated_at = now;
+  }
+  state.contracts[id] = contract;
+  saveAgentContractsState(state);
+  return contract;
 }
 
 function upsertAgentContract(agentId, spawnPayload = {}, options = {}) {
@@ -5574,7 +5663,18 @@ function terminateAgentForContract(agentId, snapshot, reason = 'timeout', option
   const cleanId = cleanText(agentId || '', 140);
   if (!cleanId) return { terminated: false, agent_id: cleanId, reason: 'invalid_agent_id' };
   const autoTermination = !!(options && options.auto_termination);
-  if (autoTermination && isMainTreeBoundAgent(cleanId, options && options.agent_row ? options.agent_row : null)) {
+  const snapshotMasterAgentId =
+    autoTermination && snapshot
+      ? selectMasterAgentId(runtimeAgentIdsFromSnapshot(snapshot, { includeArchived: false }))
+      : '';
+  if (
+    autoTermination &&
+    (
+      isMainTreeBoundAgent(cleanId, options && options.agent_row ? options.agent_row : null) ||
+      (snapshotMasterAgentId && snapshotMasterAgentId === cleanId)
+    )
+  ) {
+    ensureAgentGitTreeProfile(cleanId, { force_master: true });
     return {
       terminated: false,
       agent_id: cleanId,
@@ -5699,9 +5799,11 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
         parseNonNegativeInt(messageActivityMs, 0, 1000000000000)
       );
       const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
+      const holdDeadlineMs = coerceTsMs(contract.conversation_hold_deadline || 0, 0);
+      const holdActive = !!(contract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
       return {
         agent_id: id,
-        auto_terminate_allowed: !isMainTreeBoundAgent(id, activeRow),
+        auto_terminate_allowed: !isMainTreeBoundAgent(id, activeRow) && !holdActive,
         status: cleanText(contract.status || 'active', 24) || 'active',
         termination_condition: cleanText(contract.termination_condition || 'task_or_timeout', 40) || 'task_or_timeout',
         revoked_at: cleanText(contract.revoked_at || '', 80),
@@ -5779,6 +5881,10 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
 
 function contractTerminationDecision(contract, nowMs = Date.now()) {
   if (!contract || contract.status !== 'active') return '';
+  if (contract.conversation_hold === true) {
+    const holdDeadlineMs = coerceTsMs(contract.conversation_hold_deadline || 0, 0);
+    if (!holdDeadlineMs || holdDeadlineMs > nowMs) return '';
+  }
   if (contract.revoked_at) return 'manual_revocation';
   if (terminationConditionMatches(contract.termination_condition, 'task_complete') && contract.completed_at) {
     return 'task_complete';
@@ -5998,12 +6104,31 @@ function enforceAgentContracts(snapshot, options = {}) {
   );
 
   const terminations = [];
-  const currentContracts = Object.entries((loadAgentContractsState() || {}).contracts || {});
+  const currentState = loadAgentContractsState() || {};
+  if (!currentState.contracts || typeof currentState.contracts !== 'object') {
+    currentState.contracts = {};
+  }
+  const currentContracts = Object.entries(currentState.contracts || {});
+  let currentStateChanged = false;
   let terminationSweepCount = 0;
   for (const [agentId, contract] of currentContracts) {
     if (terminationSweepCount >= AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP) break;
     const id = cleanText(agentId || '', 140);
     if (!id || !contract || contract.status !== 'active') continue;
+    if (contract.conversation_hold === true) {
+      const holdDeadlineMs = coerceTsMs(contract.conversation_hold_deadline || 0, 0);
+      if (!holdDeadlineMs || holdDeadlineMs > nowMs) {
+        continue;
+      }
+      contract.conversation_hold = false;
+      contract.conversation_hold_started_at = '';
+      contract.conversation_hold_deadline = '';
+      contract.spawned_at = nowIso();
+      resetContractExpiryFromNow(contract, nowMs);
+      contract.updated_at = nowIso();
+      currentState.contracts[id] = contract;
+      currentStateChanged = true;
+    }
     if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
     const reason = rustTerminationsById.get(id) || contractTerminationDecision(contract, nowMs);
     if (!reason) continue;
@@ -6021,6 +6146,9 @@ function enforceAgentContracts(snapshot, options = {}) {
       terminationSweepCount += 1;
     }
   }
+  if (currentStateChanged) {
+    saveAgentContractsState(currentState);
+  }
 
   let idleCandidates = [];
   if (
@@ -6033,21 +6161,28 @@ function enforceAgentContracts(snapshot, options = {}) {
       .map((row) => {
         const id = cleanText(row && row.agent_id ? row.agent_id : '', 140);
         if (!id) return null;
+        const heldContract = latestState && latestState.contracts ? latestState.contracts[id] : null;
+        const holdDeadlineMs = coerceTsMs(heldContract && heldContract.conversation_hold_deadline ? heldContract.conversation_hold_deadline : 0, 0);
+        const holdActive = !!(heldContract && heldContract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
         return {
           id,
           idleForMs: parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000),
           activity_ms: Math.max(0, nowMs - parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000)),
+          holdActive,
           role: cleanText(
             activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
             80
           ),
         };
       })
-      .filter(Boolean);
+      .filter((row) => !!row && !row.holdActive);
   } else {
     for (const [agentId, contract] of Object.entries((latestState && latestState.contracts) || {})) {
       const id = cleanText(agentId || '', 140);
       if (!id || !contract || contract.status !== 'active') continue;
+      const holdDeadlineMs = coerceTsMs(contract && contract.conversation_hold_deadline ? contract.conversation_hold_deadline : 0, 0);
+      const holdActive = !!(contract && contract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
+      if (holdActive) continue;
       if (!activeIds.has(id)) continue;
       if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
       const messageTimes = Array.isArray(contract.message_times_ms)
@@ -9353,7 +9488,18 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
-  const criticalAttention = parseNonNegativeInt(
+  const criticalVisibleCount = parseNonNegativeInt(
+    snapshot &&
+      snapshot.attention_queue &&
+      snapshot.attention_queue.critical_visible_count != null
+      ? snapshot.attention_queue.critical_visible_count
+      : Array.isArray(snapshot && snapshot.attention_queue && snapshot.attention_queue.critical)
+        ? snapshot.attention_queue.critical.length
+        : 0,
+    0,
+    100000000
+  );
+  const criticalAttentionByPriority = parseNonNegativeInt(
     snapshot &&
       snapshot.attention_queue &&
       snapshot.attention_queue.priority_counts &&
@@ -9363,6 +9509,7 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
+  const criticalAttention = Math.max(criticalVisibleCount, criticalAttentionByPriority);
   const telemetryAttention = parseNonNegativeInt(
     snapshot &&
       snapshot.attention_queue &&
@@ -9393,13 +9540,17 @@ function runtimeSyncSummary(snapshot) {
     0,
     100000000
   );
-  const criticalAttentionTotal = parseNonNegativeInt(
+  const criticalAttentionTotalRaw = parseNonNegativeInt(
     snapshot && snapshot.attention_queue && snapshot.attention_queue.critical_total_count != null
       ? snapshot.attention_queue.critical_total_count
       : criticalAttention,
     criticalAttention,
     100000000
   );
+  const criticalAttentionTotal = Math.max(criticalAttentionTotalRaw, criticalAttention);
+  const attentionAccountingMismatch =
+    criticalAttentionByPriority < criticalVisibleCount ||
+    criticalAttentionTotalRaw < criticalVisibleCount;
   const backpressure =
     snapshot && snapshot.attention_queue && snapshot.attention_queue.backpressure && typeof snapshot.attention_queue.backpressure === 'object'
       ? snapshot.attention_queue.backpressure
@@ -9747,6 +9898,7 @@ function runtimeSyncSummary(snapshot) {
     conduit_scale_required: conduitScaleRequired,
     critical_attention: criticalAttention,
     critical_attention_total: criticalAttentionTotal,
+    attention_accounting_mismatch: attentionAccountingMismatch,
     telemetry_attention: telemetryAttention,
     standard_attention: standardAttention,
     background_attention: backgroundAttention,
@@ -11431,6 +11583,10 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
     : [];
   const signalDeficitPressure =
     signalDeficit > 0 && queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH;
+  const lowPressureCoordinationDrift =
+    signalDeficit > 0 &&
+    staleBlocks > 0 &&
+    queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH;
   const chronicCoordinationPathology =
     staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN && signalDeficit > 0;
   const staleAutohealNeeded = staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
@@ -11438,6 +11594,7 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
     (signal.coarse && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     signalDeficitPressure ||
     stalePressure ||
+    lowPressureCoordinationDrift ||
     chronicCoordinationPathology ||
     staleAutohealNeeded;
   const rustRecommendations =
@@ -12033,6 +12190,10 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   );
   const lowSignals = signals < threshold;
   const signalDeficit = Math.max(0, threshold - signals);
+  const lowLoadCoordinationDrift =
+    lowSignals &&
+    staleCockpitBlocks > 0 &&
+    queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH;
   const nowMs = Date.now();
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const knownShadows = Array.isArray(conduitWatchdogState.active_shadows)
@@ -12100,6 +12261,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
   const fallbackRequired =
     staleMaintenance ||
+    lowLoadCoordinationDrift ||
     (
       lowSignals &&
       (
@@ -12144,6 +12306,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   }
   const triggerReady =
     staleMaintenance ||
+    lowLoadCoordinationDrift ||
     staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
     stalePressure ||
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
@@ -12449,6 +12612,31 @@ function maybeCompactAttentionQueue(runtime, recommendation = null) {
   };
 }
 
+function maybeReconcileAttentionAccounting(runtime, recommendation = null) {
+  const required =
+    recommendation && recommendation.attention_accounting_reconcile_required != null
+      ? !!recommendation.attention_accounting_reconcile_required
+      : !!(runtime && runtime.attention_accounting_mismatch);
+  const command = ['attention-queue', 'status'];
+  if (!required) {
+    return {
+      required: false,
+      applied: false,
+      mismatch_before: false,
+      command: `protheus-ops ${command.join(' ')}`,
+      lane: null,
+    };
+  }
+  const lane = runLane(command);
+  return {
+    required: true,
+    applied: !!(lane && lane.ok && lane.payload && lane.payload.ok !== false),
+    mismatch_before: !!(runtime && runtime.attention_accounting_mismatch),
+    command: `protheus-ops ${command.join(' ')}`,
+    lane: laneOutcome(lane),
+  };
+}
+
 function maybeRefreshAdaptiveHealth(runtime, recommendation = null) {
   const fallbackRequired =
     parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= 80 ||
@@ -12559,6 +12747,7 @@ function runtimeSwarmRecommendation(snapshot) {
   const staleAutohealNeeded =
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
     RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+  const attentionAccountingMismatch = !!(runtime && runtime.attention_accounting_mismatch);
   const team = DEFAULT_TEAM;
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
   const activeSwarmAgents = parseNonNegativeInt(agents.length, 0, 100000000);
@@ -12577,6 +12766,7 @@ function runtimeSwarmRecommendation(snapshot) {
     parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000) > 0 ||
     stalePressure ||
     staleAutohealNeeded ||
+    attentionAccountingMismatch ||
     (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     swarmScaleRequired ||
     reliabilityPosture.degraded ||
@@ -12664,7 +12854,14 @@ function runtimeSwarmRecommendation(snapshot) {
   const conduitAutoBalanceRequired =
     authorityRecommendations && authorityRecommendations.conduit_autobalance_required != null
       ? !!authorityRecommendations.conduit_autobalance_required
-      : runtime.conduit_signals < Math.max(authorityTargetConduitSignals, RUNTIME_AUTO_BALANCE_THRESHOLD) ||
+      : (
+          runtime.conduit_signals < Math.max(authorityTargetConduitSignals, RUNTIME_AUTO_BALANCE_THRESHOLD) &&
+          (
+            runtime.queue_depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH ||
+            parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
+            attentionAccountingMismatch
+          )
+        ) ||
         (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH);
   const memoryResumeEligible =
     authorityRecommendations && authorityRecommendations.memory_resume_eligible != null
@@ -12773,6 +12970,7 @@ function runtimeSwarmRecommendation(snapshot) {
     conduitAutoBalanceRequired ||
     memoryResumeEligible ||
     benchmarkRefreshRequired ||
+    attentionAccountingMismatch ||
     spineCanaryRequired ||
     predictiveDrainRequired ||
     predictiveDrainRelease;
@@ -12864,6 +13062,11 @@ function runtimeSwarmRecommendation(snapshot) {
     predictive_drain_active_agents: drainAgents.slice(0, 8),
     coarse_signal_remediation_required: coarseSignalRemediationRequired,
     conduit_watchdog_required: conduitWatchdogRequired,
+    attention_accounting_mismatch: attentionAccountingMismatch,
+    attention_accounting_reconcile_required:
+      authorityRecommendations && authorityRecommendations.attention_accounting_reconcile_required != null
+        ? !!authorityRecommendations.attention_accounting_reconcile_required
+        : attentionAccountingMismatch,
     ingress_control: ingressControl,
     authority:
       runtimeAuthority && runtimeAuthority.ok
@@ -12929,6 +13132,16 @@ function executeRuntimeSwarmRecommendation(snapshot) {
     retain: queueCompact.retain || RUNTIME_ATTENTION_COMPACT_RETAIN,
     min_acked: queueCompact.min_acked || RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
     lane: queueCompact.lane,
+  });
+
+  const attentionReconcile = maybeReconcileAttentionAccounting(runtime, recommendation);
+  policies.push({
+    policy: 'attention_accounting_reconcile',
+    required: !!attentionReconcile.required,
+    applied: !!attentionReconcile.applied,
+    mismatch_before: !!attentionReconcile.mismatch_before,
+    command: attentionReconcile.command,
+    lane: attentionReconcile.lane,
   });
 
   const throttle = maybeApplyRuntimeThrottle(runtime, recommendation.team || DEFAULT_TEAM, recommendation);
@@ -14337,6 +14550,11 @@ function runServe(flags) {
             payload && payload.role ? payload.role : archivedMeta.role || 'analyst',
             60
           ) || 'analyst';
+          const reviveToMain =
+            (payload && payload.force_master === true) ||
+            archivedMeta.was_master_agent === true ||
+            normalizeGitTreeKind(archivedMeta.git_tree_kind, AGENT_GIT_TREE_KIND_ISOLATED) === AGENT_GIT_TREE_KIND_MASTER ||
+            isMainTreeBoundAgent(agentId, null);
           const laneResult = runAction('collab.launchRole', {
             team: cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM,
             role,
@@ -14373,10 +14591,15 @@ function runServe(flags) {
             saveAgentContractsState(contractsState);
           }
           optimisticCollabUpsertAgent(latestSnapshot, agentId, role);
+          ensureAgentGitTreeProfile(agentId, {
+            force_master: reviveToMain,
+            force_isolated: !reviveToMain,
+            ensure_workspace_ready: !reviveToMain,
+          });
           ensureAgentGitTreeAssignments(latestSnapshot, {
             force: true,
-            preferred_master_id: agentId,
-            ensure_workspace_agent_id: agentId,
+            preferred_master_id: reviveToMain ? agentId : '',
+            ensure_workspace_agent_id: !reviveToMain ? agentId : '',
           });
           requestSnapshotRefresh(false);
           const revived = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId) || {
@@ -14393,6 +14616,7 @@ function runServe(flags) {
             state: revived.state || 'running',
             role,
             contract: revived.contract,
+            revived_to_main: reviveToMain,
           });
           return;
           } finally {
@@ -15063,8 +15287,25 @@ function runServe(flags) {
   };
 
   const dropAgentSocket = (socket) => {
+    const agentId = cleanText(agentWsClients.get(socket) || '', 140);
     agentWsClients.delete(socket);
     agentWsHeartbeat.delete(socket);
+    if (!agentId) return;
+    let openCount = 0;
+    for (const [client, socketAgentId] of Array.from(agentWsClients.entries())) {
+      if (!client || client.readyState !== 1) {
+        agentWsClients.delete(client);
+        agentWsHeartbeat.delete(client);
+        continue;
+      }
+      if (String(socketAgentId) === agentId) openCount += 1;
+    }
+    if (openCount === 0) {
+      setContractConversationHold(agentId, false, {
+        source: 'agent_ws_close',
+        reset_timer_on_close: true,
+      });
+    }
   };
 
   const realtimeClientCounts = () => {
@@ -15181,6 +15422,12 @@ function runServe(flags) {
       try { socket.close(1008, reason); } catch {}
       dropAgentSocket(socket);
       closed += 1;
+    }
+    if (closed > 0) {
+      setContractConversationHold(id, false, {
+        source: 'agent_socket_close_all',
+        reset_timer_on_close: true,
+      });
     }
     return closed;
   };
@@ -15568,6 +15815,11 @@ function runServe(flags) {
     }
     agentWsClients.set(socket, agentId);
     markWsHeartbeat(socket, true);
+    setContractConversationHold(agentId, true, {
+      source: 'agent_ws_open',
+      reset_timer: true,
+      max_hold_ms: AGENT_CONTRACT_CHAT_HOLD_MAX_MS,
+    });
     sendWs(socket, { type: 'connected', agent_id: agentId, ts: nowIso() });
     socket.on('pong', () => {
       markWsHeartbeat(socket, true);
@@ -15578,6 +15830,11 @@ function runServe(flags) {
 
     socket.on('message', async (raw) => {
       markWsHeartbeat(socket, true);
+      setContractConversationHold(agentId, true, {
+        source: 'agent_ws_message',
+        reset_timer: false,
+        max_hold_ms: AGENT_CONTRACT_CHAT_HOLD_MAX_MS,
+      });
       if (agentInactiveForRealtime(agentId)) {
         sendWs(socket, { type: 'error', content: 'Agent is inactive (archived).' });
         try { socket.close(1008, 'agent_inactive'); } catch {}
