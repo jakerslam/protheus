@@ -91,7 +91,7 @@ WS_DEBUG=1                         # Enable debug logging
 ### 5-Minute Stability Test
 
 ```bash
-node tests/websocket-stability-test.js 5 ws://127.0.0.1:18789/
+node tests/websocket-stability-test.ts 5 ws://127.0.0.1:18789/
 ```
 
 Expected output:

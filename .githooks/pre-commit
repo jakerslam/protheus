@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-node tests/client-memory-tools/org_code_format_guard.test.js
+node tests/client-memory-tools/org_code_format_guard.test.ts
 npm run -s ops:legacy-alias:guard
 npm run -s ops:churn:commit-gate
 
