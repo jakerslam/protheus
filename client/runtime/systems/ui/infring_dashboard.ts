@@ -103,7 +103,7 @@ const RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_STALE_RAW_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_STALE_SOFT_PERSISTENCE_MIN_TICKS = 3;
 const RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS = 20;
-const RUNTIME_COCKPIT_STALE_BLOCK_MS = 90_000;
+const RUNTIME_COCKPIT_STALE_BLOCK_MS = 30_000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_SOFT_PRESSURE_MS = 30 * 60 * 1000;
 const RUNTIME_COCKPIT_STALE_ACTIONABLE_MAX_AGE_LOW_PRESSURE_MS = 10 * 60 * 1000;
@@ -170,6 +170,7 @@ const TEST_AGENT_PROVIDER_DEFAULT = 'cloud';
 const TEST_AGENT_ID_PREFIXES = ['e2e-', 'test-', 'bench-', 'ci-', 'qa-'];
 const TOOL_ITERATION_LIMIT = 4;
 const TOOL_OUTPUT_LIMIT = 5000;
+const ASSISTANT_OUTPUT_REGEN_MAX_ATTEMPTS = 2;
 const ASSISTANT_EMPTY_FALLBACK_RESPONSE = 'I do not know yet. Please clarify what you want me to do next.';
 const TERMINAL_OUTPUT_LIMIT = 18000;
 const TERMINAL_COMMAND_TIMEOUT_MS = 45000;
@@ -1066,6 +1067,58 @@ function avatarExtensionFromUpload(fileName = '', contentType = '') {
 
 function sanitizeAssetToken(raw = '') {
   return cleanText(raw || '', 180).replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
+function normalizeAvatarAssetUrl(raw = '') {
+  const text = cleanText(raw || '', 512);
+  if (!text) return '';
+  try {
+    const parsed = new URL(text, 'http://infring.local');
+    return cleanText(`${parsed.pathname || ''}${parsed.search || ''}`, 512);
+  } catch {
+    return cleanText(text, 512);
+  }
+}
+
+function avatarAssetTokenFromUrl(raw = '') {
+  const normalized = normalizeAvatarAssetUrl(raw);
+  if (!normalized) return '';
+  const pathOnly = normalized.split('?')[0].split('#')[0];
+  const prefix = '/api/assets/avatars/';
+  if (!pathOnly.startsWith(prefix)) return '';
+  const token = sanitizeAssetToken(safeDecodePathToken(pathOnly.slice(prefix.length)));
+  return token || '';
+}
+
+function avatarAssetReferenceCount(raw = '') {
+  const target = normalizeAvatarAssetUrl(raw).split('?')[0].split('#')[0];
+  if (!target) return 0;
+  const state = loadAgentProfilesState();
+  const rows = state && state.agents && typeof state.agents === 'object' ? state.agents : {};
+  let count = 0;
+  for (const key of Object.keys(rows)) {
+    const row = rows[key];
+    const avatarUrl = normalizeAvatarAssetUrl(row && row.avatar_url ? row.avatar_url : '').split('?')[0].split('#')[0];
+    if (avatarUrl && avatarUrl === target) count += 1;
+  }
+  return count;
+}
+
+function deleteAvatarAssetIfUnreferenced(raw = '') {
+  const token = avatarAssetTokenFromUrl(raw);
+  if (!token) return false;
+  const normalized = normalizeAvatarAssetUrl(raw).split('?')[0].split('#')[0];
+  if (!normalized) return false;
+  if (avatarAssetReferenceCount(normalized) > 0) return false;
+  const filePath = path.resolve(AVATAR_ASSETS_DIR, token);
+  if (!filePath.startsWith(AVATAR_ASSETS_DIR)) return false;
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    fs.unlinkSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function readPrimaryDashboardAsset(pathname) {
@@ -4856,6 +4909,156 @@ function formatToolHistory(toolSteps = []) {
     : '(none)';
 }
 
+function stripAssistantSpeakerPrefix(value) {
+  if (!value) return '';
+  let out = String(value);
+  for (let i = 0; i < 4; i += 1) {
+    const next = out
+      .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
+      .replace(/^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis)(?:\*\*)?\s*:\s*/i, '');
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+function normalizeAssistantFinalText(value) {
+  return cleanText(stripAssistantSpeakerPrefix(value), 4000);
+}
+
+function responseShowsConcreteAction(text) {
+  const clean = String(text || '').trim();
+  if (!clean) return false;
+  if (/`[^`]{1,220}`/.test(clean)) return true;
+  if (/(^|\n)\s*(?:[-*]|\d+\.)\s+/.test(clean)) return true;
+  if (/\b(?:protheus|protheus-ops|infringd|infring|ollama|git|cargo|npm|node|curl|python)\b/i.test(clean)) return true;
+  if (/\b\d+(?:\.\d+)?\s*(?:ms|s|sec|seconds?|m|min|minutes?|%|x|kb|mb|gb|tokens?)\b/i.test(clean)) return true;
+  if (/\b(?:queue|latency|p95|p99|receipt|contract|status|error|stale|conduit|cockpit)\b/i.test(clean)) return true;
+  return false;
+}
+
+function outputContractViolationReason(input, response, toolSteps = []) {
+  const normalized = normalizeAssistantFinalText(response).trim();
+  if (!normalized) return 'empty_response';
+  if (isPlaceholderResponse(normalized)) return 'placeholder_response';
+
+  const lower = normalized.toLowerCase();
+  const vagueSignals = [
+    'i do not know yet',
+    'please clarify what you want me to do next',
+    'if you have specific questions',
+    'feel free to ask',
+    'let me know if you need',
+    'currently functioning well',
+    'areas for potential improvement',
+  ];
+  const hasVagueSignal = vagueSignals.some((token) => lower.includes(token));
+  const hasConcreteSignal = responseShowsConcreteAction(normalized);
+  if (hasVagueSignal && !hasConcreteSignal) return 'vague_low_signal';
+
+  const runtimeTask = /^\s*\[runtime-task\]/i.test(String(input || ''));
+  if (runtimeTask) {
+    const hasEvidencePattern =
+      /(receipt|evidence|finding|actions?|risk|severity|queue|cockpit|conduit|critical|standard|background|drain|backpressure)/i
+        .test(normalized) &&
+      hasConcreteSignal;
+    if (!hasEvidencePattern) return 'runtime_task_missing_evidence';
+  }
+
+  if (normalized.length < 28 && !hasConcreteSignal) return 'too_short';
+  return '';
+}
+
+function buildStrictOutputRepairPrompt({
+  agent = null,
+  input = '',
+  rejectedResponse = '',
+  rejectedReason = '',
+  toolSteps = [],
+}) {
+  const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'agent', 80) || 'agent';
+  const toolSummary = formatToolHistory(Array.isArray(toolSteps) ? toolSteps.slice(-3) : []);
+  return [
+    'You are repairing an assistant response that failed strict output validation.',
+    `Active agent: ${agentName}`,
+    `Rejection reason: ${cleanText(rejectedReason, 120) || 'unknown'}`,
+    'Strict contract:',
+    '- Answer the request directly and concretely.',
+    '- No speaker prefixes (no "Agent:", "Assistant:", "System:", "Jarvis:").',
+    '- No filler or deflection ("if you have specific questions", "let me know if you need...").',
+    '- Include concrete evidence/actions (numbers, commands, explicit steps, or measured status).',
+    '- If the user task starts with [runtime-task], include concise findings and actions.',
+    'Return ONLY JSON with this schema and no markdown:',
+    '{"type":"final","response":"<final response>"}',
+    '',
+    `User request:\n${cleanText(input, 3200)}`,
+    '',
+    `Rejected response:\n${cleanText(rejectedResponse, 3200)}`,
+    '',
+    `Tool history:\n${toolSummary}`,
+  ].join('\n');
+}
+
+function enforceStrictAssistantOutput({
+  agent = null,
+  input = '',
+  response = '',
+  model = '',
+  toolSteps = [],
+  runtimeMirror = null,
+}) {
+  let currentModel = cleanText(model || '', 120) || OLLAMA_MODEL_FALLBACK;
+  let currentResponse = normalizeAssistantFinalText(response);
+  let regenAttempts = 0;
+  let rejectedReason = outputContractViolationReason(input, currentResponse, toolSteps);
+
+  while (rejectedReason && regenAttempts < ASSISTANT_OUTPUT_REGEN_MAX_ATTEMPTS) {
+    const repairPrompt = buildStrictOutputRepairPrompt({
+      agent,
+      input,
+      rejectedResponse: currentResponse,
+      rejectedReason,
+      toolSteps,
+    });
+    let repair = runOllamaPrompt(currentModel, repairPrompt);
+    if (!repair.ok && currentModel !== OLLAMA_MODEL_FALLBACK) {
+      currentModel = OLLAMA_MODEL_FALLBACK;
+      repair = runOllamaPrompt(currentModel, repairPrompt);
+    }
+    if (!repair.ok) break;
+
+    const directive = extractJsonDirective(repair.output);
+    currentResponse = normalizeAssistantFinalText(
+      directive && directive.type === 'final' ? (directive.response || repair.output) : repair.output
+    );
+    regenAttempts += 1;
+    rejectedReason = outputContractViolationReason(input, currentResponse, toolSteps);
+  }
+
+  let valid = !rejectedReason;
+  if (!valid) {
+    const usableTool = (Array.isArray(toolSteps) ? toolSteps : [])
+      .slice()
+      .reverse()
+      .find((step) => step && !step.is_error && cleanText(step.result || '', 3600));
+    currentResponse = usableTool
+      ? normalizeAssistantFinalText(String(usableTool.result || ''))
+      : normalizeAssistantFinalText(runtimeCouplingFallbackResponse(input, runtimeMirror || {}));
+    if (!currentResponse || isPlaceholderResponse(currentResponse)) {
+      currentResponse = 'Unable to produce a contract-compliant final answer. Please retry with a narrower task.';
+    }
+    valid = outputContractViolationReason(input, currentResponse, toolSteps) === '';
+  }
+
+  return {
+    response: currentResponse,
+    model: currentModel,
+    valid,
+    regen_attempts: regenAttempts,
+    rejected_reason: rejectedReason || '',
+  };
+}
+
 function isPlaceholderResponse(value) {
   const text = String(value == null ? '' : value).trim().toLowerCase();
   if (!text) return true;
@@ -6191,8 +6394,12 @@ function deleteAgentProfileRecord(agentId) {
   if (!key) return false;
   const state = loadAgentProfilesState();
   if (!state || !state.agents || !state.agents[key]) return false;
+  const priorAvatarUrl = cleanText(state.agents[key] && state.agents[key].avatar_url ? state.agents[key].avatar_url : '', 512);
   delete state.agents[key];
   saveAgentProfilesState(state);
+  if (priorAvatarUrl) {
+    deleteAvatarAssetIfUnreferenced(priorAvatarUrl);
+  }
   return true;
 }
 
@@ -9663,6 +9870,27 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
   let assistant = String(assistantRaw || '').trim()
     ? String(assistantRaw || '').slice(0, 4000)
     : ASSISTANT_EMPTY_FALLBACK_RESPONSE;
+  const strictOutput = enforceStrictAssistantOutput({
+    agent,
+    input: cleanInput,
+    response: assistant,
+    model: usedModel,
+    toolSteps: tools,
+    runtimeMirror: runtimeSync,
+  });
+  assistant = cleanText(strictOutput.response || assistant, 4000) || ASSISTANT_EMPTY_FALLBACK_RESPONSE;
+  if (strictOutput && strictOutput.model) {
+    usedModel = cleanText(strictOutput.model, 120) || usedModel;
+  }
+  if (strictOutput && strictOutput.regen_attempts > 0) {
+    iterations = parsePositiveInt(
+      Number(iterations || 1) + Number(strictOutput.regen_attempts || 0),
+      iterations || 1,
+      1,
+      16
+    );
+    backend = `${backend}+contract_repair`;
+  }
   const telemetryPrompt = /runtime sync|queue depth|cockpit|attention queue|conduit/i.test(cleanInput);
   if (telemetryPrompt && !/conduit/i.test(assistant)) {
     assistant = `${assistant}\n\nConduit signals: ${parseNonNegativeInt(runtimeMirror.summary.conduit_signals, 0, 1000000)}.`.slice(0, 4000);
@@ -9812,6 +10040,16 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
     model: usedModel,
     model_provider: modelProvider,
     backend,
+    output_contract: {
+      strict: true,
+      valid: !!(strictOutput && strictOutput.valid),
+      regen_attempts: parseNonNegativeInt(
+        strictOutput && strictOutput.regen_attempts != null ? strictOutput.regen_attempts : 0,
+        0,
+        16
+      ),
+      rejected_reason: cleanText(strictOutput && strictOutput.rejected_reason ? strictOutput.rejected_reason : '', 120),
+    },
     auto_route: autoRoutePayload,
     contract: contractSummary(contractForAgent(effectiveAgentId)),
     contract_terminated: !!(contractTermination && contractTermination.terminated),
@@ -17026,6 +17264,8 @@ function runServe(flags) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
+          const priorProfile = agentProfileFor(agentId);
+          const priorAvatarUrl = cleanText(priorProfile && priorProfile.avatar_url ? priorProfile.avatar_url : '', 512);
           const contentType = cleanText(req.headers['content-type'] || '', 80).toLowerCase();
           if (contentType && !contentType.startsWith('image/')) {
             sendJson(res, 400, { ok: false, error: 'avatar_image_required', id: agentId });
@@ -17058,6 +17298,9 @@ function runServe(flags) {
           }
           const avatarUrl = `/api/assets/avatars/${fileName}`;
           upsertAgentProfile(agentId, { avatar_url: avatarUrl });
+          if (priorAvatarUrl && normalizeAvatarAssetUrl(priorAvatarUrl).split('?')[0].split('#')[0] !== avatarUrl) {
+            deleteAvatarAssetIfUnreferenced(priorAvatarUrl);
+          }
           requestSnapshotRefresh(false);
           sendJson(res, 200, {
             ok: true,
@@ -17786,6 +18029,10 @@ function runServe(flags) {
           }
           const raw = payload && typeof payload === 'object' ? payload : {};
           const existingProfile = agentProfileFor(agentId);
+          const previousAvatarUrl = cleanText(
+            existingProfile && existingProfile.avatar_url ? existingProfile.avatar_url : '',
+            512
+          );
           const existingAgent =
             compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).find((row) => row.id === agentId) || null;
           const previousName =
@@ -17880,6 +18127,16 @@ function runServe(flags) {
           if (!profile) {
             sendJson(res, 500, { ok: false, error: 'agent_profile_update_failed', id: agentId });
             return;
+          }
+          if (Object.prototype.hasOwnProperty.call(patch, 'avatar_url')) {
+            const nextAvatarUrl = cleanText(profile && profile.avatar_url ? profile.avatar_url : '', 512);
+            if (
+              previousAvatarUrl &&
+              normalizeAvatarAssetUrl(previousAvatarUrl).split('?')[0].split('#')[0] !==
+                normalizeAvatarAssetUrl(nextAvatarUrl).split('?')[0].split('#')[0]
+            ) {
+              deleteAvatarAssetIfUnreferenced(previousAvatarUrl);
+            }
           }
 
           requestSnapshotRefresh(false);
