@@ -6293,7 +6293,7 @@ function enforceAgentContracts(snapshot, options = {}) {
       currentStateChanged = true;
     }
     if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
-    const reason = rustTerminationsById.get(id) || contractTerminationDecision(contract, nowMs);
+    const reason = rustTerminationsById.get(id) || '';
     if (!reason) continue;
     const roleRow = activeRows.find((row) => row && row.id === id);
     const terminated = terminateAgentForContract(id, snapshot, reason, {
@@ -6339,65 +6339,19 @@ function enforceAgentContracts(snapshot, options = {}) {
         };
       })
       .filter((row) => !!row && !row.holdActive);
-  } else {
-    for (const [agentId, contract] of Object.entries((latestState && latestState.contracts) || {})) {
-      const id = cleanText(agentId || '', 140);
-      if (!id || !contract || contract.status !== 'active') continue;
-      const holdDeadlineMs = coerceTsMs(contract && contract.conversation_hold_deadline ? contract.conversation_hold_deadline : 0, 0);
-      const holdActive = !!(contract && contract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
-      if (holdActive) continue;
-      if (!activeIds.has(id)) continue;
-      if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
-      const messageTimes = Array.isArray(contract.message_times_ms)
-        ? contract.message_times_ms
-            .map((value) => coerceTsMs(value, 0))
-            .filter((value) => Number.isFinite(value) && value > 0)
-        : [];
-      const messageActivityMs = messageTimes.length > 0 ? Math.max(...messageTimes) : 0;
-      let sessionUpdatedMs = sessionActivityCache.has(id)
-        ? sessionActivityCache.get(id)
-        : null;
-      if (sessionUpdatedMs == null) {
-        sessionUpdatedMs = agentSessionActivityTimestampMs(id);
-        sessionActivityCache.set(id, sessionUpdatedMs);
-      }
-      const contractSpawnedMs = coerceTsMs(contract.spawned_at, 0);
-      const activityMs = Math.max(messageActivityMs, sessionUpdatedMs, contractSpawnedMs);
-      const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
-      if (idleForMs < AGENT_IDLE_TERMINATION_MS) continue;
-      idleCandidates.push({
-        id,
-        idleForMs,
-        activity_ms: activityMs,
-        role: cleanText(
-          activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
-          80
-        ),
-      });
-    }
-    idleCandidates.sort((a, b) => b.idleForMs - a.idleForMs);
   }
   const rustIdle = rustContractAuthority && rustContractAuthority.ok && rustContractAuthority.contract_enforcement
     ? rustContractAuthority.contract_enforcement
     : null;
   const idleExcess = rustIdle && rustIdle.idle_excess != null
     ? parseNonNegativeInt(rustIdle.idle_excess, 0, 100000000)
-    : Math.max(0, idleCandidates.length - idleThreshold);
+    : 0;
   const idleSweepReady = rustIdle && rustIdle.idle_sweep_ready != null
     ? !!rustIdle.idle_sweep_ready
-    : idleExcess > 0 &&
-      (nowMs - parseNonNegativeInt(agentTerminationSweepState.last_idle_run_ms, 0, 1000000000000)) >=
-        AGENT_IDLE_TERMINATION_COOLDOWN_MS;
+    : false;
   const idleBatchSize = rustIdle && rustIdle.idle_batch_size != null
     ? parseNonNegativeInt(rustIdle.idle_batch_size, 0, AGENT_IDLE_TERMINATION_BATCH_MAX)
-    : Math.min(
-        AGENT_IDLE_TERMINATION_BATCH_MAX,
-        Math.max(
-          scaleAwareBatchSize(activeAgentCount, AGENT_IDLE_TERMINATION_BATCH, AGENT_IDLE_TERMINATION_BATCH_MAX),
-          Math.ceil(idleExcess / 6)
-        ),
-        idleExcess
-      );
+    : 0;
   const boundedIdleBatchSize = Math.min(idleBatchSize, AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP);
   let idleTerminatedCount = 0;
   if (idleSweepReady) {
