@@ -9584,6 +9584,26 @@ Objective: make dashboard chat `Auto` mode a real per-turn router (not a placeho
 | V6-DASHBOARD-008.3 | in_progress | Auto Route Metadata Propagation + UI Badge Contract | Operators cannot trust Auto routing without visible proof of what was chosen and why. | Include `auto_route` metadata in HTTP/WS chat responses and render `Auto -> provider/model (reason)` in chat turn metadata while keeping model display synced. | 9 | 1/2/client/app |
 | V6-DASHBOARD-008.4 | in_progress | Auto Route Receipt Coupling Contract | Route choices must be auditable in receipts, not only transient UI state. | Embed route metadata in lane payload/action receipts for `app.chat` turns so selection and fallback lineage are replayable from receipt history. | 9 | 0/1/2/client |
 
+## Dashboard Multi-Origin Chat Semantics + Launch Stability Intake (User Spec, 2026-03-24)
+
+Source references:
+- User request for multi-origin group-chat stacking semantics (first/last run behavior per source key across user/agent/system).
+- User request for alpha/beta launch reliability hardening so dashboard boot self-recovers instead of failing hard.
+
+Notes:
+- Primitive-first normalization: no new authority plane; only rendering semantics + startup resilience wrappers around existing Rust-core lanes.
+- Relationship to existing contracts:
+  - extends dashboard UX surfaces in `V6-DASHBOARD-006.*`,
+  - complements runtime resilience in `V6-DASHBOARD-007.*`,
+  - preserves thin-client constraint by keeping runtime authority in lane-backed endpoints.
+
+Objective: make chat rendering group-safe for mixed bot origins and reduce dashboard launch fragility with deterministic retry/error status behavior.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-DASHBOARD-009.1 | in_progress | Multi-Origin Source-Run Chat Grouping Contract | Group chat readability degrades when stacking/tails are keyed only by coarse role (`agent`/`user`) instead of true message origin. | Chat renderer computes per-message source keys and applies first/last run semantics so title and tail are independent per contiguous source run (including system rows) while preserving no-tail behavior for inline artifact/tool/progress blocks. | 9 | 1/2/client/app |
+| V6-DASHBOARD-009.2 | in_progress | Dashboard Boot Retry + Error Status Contract | Alpha/beta launch reliability degrades when startup failures exit immediately without bounded self-retry and explicit status artifacts. | Dashboard launch wrapper retries bounded startup attempts with backoff and emits deterministic `server_status.json` error payloads (code/message/host/port) on listen failures to support autonomous recovery and diagnostics. | 9 | 0/1/2/client |
+
 ## Blind-Spot Hardening Intake Source Coverage (Doc `1rhlsnMmcJ2u3C3_QJgSkhK__SF0e27qTyeTFG7xagL8`, 2026-03-18)
 
 Source references:

@@ -38,20 +38,20 @@
   },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
-      "client/runtime/systems/ops/protheusd.js"
+      "client/runtime/systems/ops/protheusd.ts"
     ]
   },
   "rust_shim_contract": {
     "entries": [
       {
-        "path": "client/runtime/systems/ops/protheus_control_plane.js",
+        "path": "client/runtime/systems/ops/protheus_control_plane.ts",
         "required_tokens": [
           "runProtheusOps",
           "protheus-control-plane"
         ]
       },
       {
-        "path": "client/runtime/systems/ops/protheus_status_dashboard.js",
+        "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
         "required_tokens": [
           "status",
           "runProtheusOps"
@@ -65,7 +65,7 @@
         "path": "client/runtime/lib/strategy_resolver.ts",
         "required_tokens": [
           "createConduitLaneModule",
-          "direct_conduit_lane_bridge.js"
+          "direct_conduit_lane_bridge.ts"
         ],
         "forbidden_tokens": [
           "legacy_retired_lane_bridge"
@@ -75,7 +75,7 @@
         "path": "client/runtime/lib/duality_seed.ts",
         "required_tokens": [
           "createConduitLaneModule",
-          "direct_conduit_lane_bridge.js"
+          "direct_conduit_lane_bridge.ts"
         ],
         "forbidden_tokens": [
           "legacy_retired_lane_bridge"

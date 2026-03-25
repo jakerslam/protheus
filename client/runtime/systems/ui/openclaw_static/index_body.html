@@ -997,7 +997,7 @@
                     <template x-if="!msg.is_notice && shouldRenderMessage(msg, idx)">
                       <div
                         class="message"
-                        :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (showMessageTail(msg, idx, messages) ? ' has-tail' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
+                        :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx, messages) ? ' grouped' : '') + (showMessageTail(msg, idx, messages) ? ' has-tail' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
                         @mouseenter="setHoveredMessage(msg, idx)"
                         @mouseleave="clearHoveredMessage()"
                       >
@@ -1005,7 +1005,11 @@
                           <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
                         <div class="message-body">
-                          <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
+                          <div
+                            class="message-agent-name"
+                            x-show="showMessageTitle(msg, idx, messages)"
+                            x-text="messageActorLabel(msg)"
+                          ></div>
                           <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
                             <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
                             <div class="typing-dots"><span></span><span></span><span></span></div>
@@ -1514,7 +1518,7 @@
                         class="message"
                         x-show="!msg.is_notice"
                         :id="messageDomId(msg, idx)"
-                        :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx) ? ' grouped' : '') + (showMessageTail(msg, idx, filteredMessages) ? ' has-tail' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
+                        :class="messageRoleClass(msg) + (msg.thinking ? ' thinking' : '') + (msg.streaming ? ' streaming' : '') + (isGrouped(idx, filteredMessages) ? ' grouped' : '') + (showMessageTail(msg, idx, filteredMessages) ? ' has-tail' : '') + (isHoveredMessage(msg, idx) ? ' hover-linked' : '')"
                         @mouseenter="setHoveredMessage(msg, idx)"
                         @mouseleave="clearHoveredMessage()"
                       >
@@ -1524,8 +1528,8 @@
                         <div class="message-body">
                         <div
                           class="message-agent-name"
-                          x-show="msg.role === 'agent' || msg.role === 'system'"
-                          x-text="msg.role === 'system' ? 'System' : messageAgentLabel(msg)"
+                          x-show="showMessageTitle(msg, idx, filteredMessages)"
+                          x-text="messageActorLabel(msg)"
                         ></div>
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // Thin strict conduit launcher. Tokens in this file are audited by rust_source_of_truth policy.
 
-import { runProtheusOps } from './run_protheus_ops.js';
+import { runProtheusOps } from './run_protheus_ops.ts';
 
 const PROTHEUS_CONDUIT_STRICT = process.env.PROTHEUS_CONDUIT_STRICT ?? '1';
 

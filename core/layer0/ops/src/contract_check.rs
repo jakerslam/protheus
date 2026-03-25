@@ -348,13 +348,13 @@ fn check_rust_source_of_truth_contract(
         let wrapper_contract = require_object(&policy, "js_wrapper_contract")?;
         let wrapper_paths = require_string_array(wrapper_contract, "required_wrapper_paths")?;
         for rel in &wrapper_paths {
-            if !rel.ends_with(".js") {
-                return Err(format!("required_wrapper_must_be_js:{rel}"));
+            if !rel.ends_with(".js") && !rel.ends_with(".ts") {
+                return Err(format!("required_wrapper_must_be_ts_or_js:{rel}"));
             }
             let path = root.join(rel);
             let source = fs::read_to_string(&path)
                 .map_err(|err| format!("read_wrapper_failed:{}:{err}", path.display()))?;
-            if !is_ts_bootstrap_wrapper(&source) {
+            if rel.ends_with(".js") && !is_ts_bootstrap_wrapper(&source) {
                 return Err(format!("required_wrapper_not_bootstrap:{rel}"));
             }
         }
@@ -376,8 +376,8 @@ fn check_rust_source_of_truth_contract(
                 .as_object()
                 .ok_or_else(|| "rust_source_of_truth_policy_invalid_entry:entries".to_string())?;
             let shim_path = require_rel_path(section, "path")?;
-            if !shim_path.ends_with(".js") {
-                return Err(format!("rust_shim_must_be_js:{shim_path}"));
+            if !shim_path.ends_with(".js") && !shim_path.ends_with(".ts") {
+                return Err(format!("rust_shim_must_be_ts_or_js:{shim_path}"));
             }
             let shim_tokens = require_string_array(section, "required_tokens")?;
             check_required_tokens_at_path(root, &shim_path, &shim_tokens, "rust_shim_contract")?;
