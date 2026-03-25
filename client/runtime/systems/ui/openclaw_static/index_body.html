@@ -340,7 +340,7 @@
             class="health-indicator topbar-agent-indicator"
             type="button"
             :class="runtimeFacadeClass()"
-            x-text="runtimeFacadeLabel() + ' · ' + runtimeFacadeDetail()"
+            x-text="runtimeFacadeLabel()"
             @click="location.hash='agents'"
             :title="runtimeFacadeTitle()"
             aria-label="Open agents"
@@ -1522,7 +1522,11 @@
                           <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
                         <div class="message-body">
-                        <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
+                        <div
+                          class="message-agent-name"
+                          x-show="msg.role === 'agent' || msg.role === 'system'"
+                          x-text="msg.role === 'system' ? 'System' : messageAgentLabel(msg)"
+                        ></div>
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
                           <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
@@ -5061,6 +5065,18 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="tab" :class="{ active: tab === 'costs' }" @click="tab = 'costs'">Costs</div>
           </div>
           <div x-show="tab === 'summary'">
+            <div class="card mt-4">
+              <div class="card-header">Runtime Telemetry</div>
+              <div class="detail-grid" style="margin-top:8px" x-show="runtimeMetaRows().length">
+                <template x-for="row in runtimeMetaRows()" :key="row.label">
+                  <div class="detail-row">
+                    <span class="detail-label" x-text="row.label"></span>
+                    <span class="detail-value" x-text="row.value"></span>
+                  </div>
+                </template>
+              </div>
+              <div class="empty-state" x-show="!runtimeMetaRows().length"><p>No runtime telemetry available yet.</p></div>
+            </div>
             <div class="card mt-4">
               <div class="card-header">Token Breakdown</div>
               <div class="detail-grid" style="margin-top:8px">

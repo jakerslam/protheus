@@ -8,10 +8,11 @@ const http = require('node:http');
 const { spawnSync, spawn } = require('node:child_process');
 const ts = require('typescript');
 const { WebSocketServer } = require('ws');
-const { ROOT } = require('../ops/run_protheus_ops.js');
 
 const DASHBOARD_DIR = __dirname;
-const OPS_BRIDGE_PATH = path.resolve(ROOT, 'client/runtime/systems/ops/run_protheus_ops.js');
+const ROOT = path.resolve(DASHBOARD_DIR, '..', '..', '..', '..');
+const TS_ENTRYPOINT_PATH = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+const OPS_BRIDGE_PATH = path.resolve(ROOT, 'client/runtime/systems/ops/run_protheus_ops.ts');
 const INFRING_PRIMARY_STATIC_DIR = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static'
@@ -158,17 +159,17 @@ const TERMINAL_SESSION_IDLE_TTL_MS = 5 * 60 * 1000;
 const TERMINAL_KILL_GRACE_MS = 1200;
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 8192;
 const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
-const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 75;
-const AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS = 500;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 1000;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS = 5000;
 const AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD = 64;
-const AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 1500;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 12000;
 const AGENT_CONTRACT_ENFORCE_ULTRA_SCALE_THRESHOLD = 256;
-const AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS = 3000;
+const AGENT_CONTRACT_ENFORCE_INTERVAL_MEGA_SCALE_MS = 20000;
 const AGENT_CONTRACT_ENFORCE_MEGA_SCALE_THRESHOLD = 1000;
-const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS = 400;
-const AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS = 1200;
-const AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 2500;
-const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS = 4000;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MS = 3000;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_HIGH_SCALE_MS = 8000;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_ULTRA_SCALE_MS = 15000;
+const AGENT_CONTRACT_API_ENFORCE_INTERVAL_MEGA_SCALE_MS = 25000;
 const AGENT_CONTRACT_MAX_IDLE_AGENTS = 5;
 const AGENT_CONTRACT_CHAT_HOLD_MAX_MS = 24 * 60 * 60 * 1000;
 const AGENT_RECONCILE_TERMINATION_BATCH = 12;
@@ -177,7 +178,7 @@ const AGENT_RECONCILE_TERMINATION_COOLDOWN_MS = 4000;
 const AGENT_IDLE_TERMINATION_MS = 5 * 60 * 1000;
 const AGENT_IDLE_TERMINATION_BATCH = 8;
 const AGENT_IDLE_TERMINATION_BATCH_MAX = 128;
-const AGENT_IDLE_TERMINATION_COOLDOWN_MS = 1 * 1000;
+const AGENT_IDLE_TERMINATION_COOLDOWN_MS = 10 * 1000;
 const AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP = 4;
 const AGENT_TERMINATION_TEAM_DISCOVERY_CACHE_MS = 5 * 1000;
 const AGENT_CONTRACT_RETAIN_TERMINATED_MAX = 512;
@@ -1151,7 +1152,7 @@ function runLane(argv, options = {}) {
     timeout: timeoutMs,
     killSignal: 'SIGKILL',
   };
-  const proc = spawnSync(process.execPath, [OPS_BRIDGE_PATH, ...argv], opts);
+  const proc = spawnSync(process.execPath, [TS_ENTRYPOINT_PATH, OPS_BRIDGE_PATH, ...argv], opts);
 
   const timedOut = !!(proc && proc.error && proc.error.code === 'ETIMEDOUT');
   const status = typeof proc.status === 'number' ? proc.status : 1;
@@ -1178,6 +1179,8 @@ function runLane(argv, options = {}) {
 
 const snapshotLaneCache = new Map();
 const promptSuggestionCache = new Map();
+const RUST_RUNTIME_SYNC_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+let rustRuntimeSyncUnsupportedUntilMs = 0;
 
 function runLaneCached(cacheKey, argv, options = {}) {
   const key = cleanText(cacheKey || argv.join(' '), 240) || argv.join(' ');
@@ -4574,9 +4577,12 @@ function snapshotStorageTelemetry() {
   };
 }
 
-function bootstrapSnapshotHistoryState() {
+function bootstrapSnapshotHistoryState(options = {}) {
   const bytes = fileSizeBytes(SNAPSHOT_HISTORY_PATH);
-  const lines = countFileLines(SNAPSHOT_HISTORY_PATH);
+  const fast = !!(options && options.fast === true);
+  const lines = fast
+    ? parseNonNegativeInt(snapshotHistoryMaintenanceState.lines_after, 0, 1_000_000_000)
+    : countFileLines(SNAPSHOT_HISTORY_PATH);
   snapshotHistoryMaintenanceState = {
     ...snapshotHistoryMaintenanceState,
     bytes_after: bytes,
@@ -7803,12 +7809,14 @@ function activeSession(state) {
   return session;
 }
 
-function appendAgentConversation(agentId, snapshot, userText, assistantText, metaText = '', assistantTools = []) {
+function appendAgentConversation(agentId, snapshot, userText, assistantText, metaText = '', assistantTools = [], options = {}) {
   const state = loadAgentSession(agentId, snapshot);
   const session = activeSession(state);
   const nowMs = Date.now();
+  const userRole = cleanText(options && options.user_role ? options.user_role : 'User', 20) || 'User';
+  const assistantRole = cleanText(options && options.assistant_role ? options.assistant_role : 'Agent', 20) || 'Agent';
   if (userText && String(userText).trim()) {
-    session.messages.push({ role: 'User', content: String(userText), ts: nowMs });
+    session.messages.push({ role: userRole, content: String(userText), ts: nowMs });
   }
   if (assistantText && String(assistantText).trim()) {
     const normalizedTools = Array.isArray(assistantTools)
@@ -7825,7 +7833,7 @@ function appendAgentConversation(agentId, snapshot, userText, assistantText, met
           .filter((tool) => tool.name)
       : [];
     session.messages.push({
-      role: 'Agent',
+      role: assistantRole,
       content: String(assistantText),
       meta: cleanText(metaText || '', 120),
       tools: normalizedTools,
@@ -7901,7 +7909,11 @@ function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard
     `[runtime-task] ${task}`,
     'Task accepted. Report findings in this thread with receipt-backed evidence.',
     `queued:${cleanText(source, 80)}`,
-    []
+    [],
+    {
+      user_role: 'System',
+      assistant_role: 'System',
+    }
   );
   return {
     ok: true,
@@ -8767,6 +8779,62 @@ function cockpitMetrics(blocks = []) {
   };
 }
 
+function collectConduitAttentionCockpitFromRust(safeTeam, options = {}) {
+  const nowMs = Date.now();
+  if (nowMs < rustRuntimeSyncUnsupportedUntilMs) return null;
+  const laneTimeoutMs = parsePositiveInt(
+    options && options.lane_timeout_ms != null ? options.lane_timeout_ms : LANE_SYNC_TIMEOUT_MS,
+    LANE_SYNC_TIMEOUT_MS,
+    SNAPSHOT_LANE_TIMEOUT_MIN_MS,
+    SNAPSHOT_LANE_TIMEOUT_MAX_MS
+  );
+  const laneCacheTtlMs = parsePositiveInt(
+    options && options.lane_cache_ttl_ms != null ? options.lane_cache_ttl_ms : SNAPSHOT_LANE_CACHE_TTL_MS,
+    SNAPSHOT_LANE_CACHE_TTL_MS,
+    250,
+    600000
+  );
+  const laneCacheFailTtlMs = parsePositiveInt(
+    options && options.lane_cache_fail_ttl_ms != null
+      ? options.lane_cache_fail_ttl_ms
+      : SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    SNAPSHOT_LANE_CACHE_FAIL_TTL_MS,
+    250,
+    600000
+  );
+  const lane = runLaneCached(
+    `snapshot.runtime_sync.${safeTeam}`,
+    ['dashboard-ui', 'runtime-sync', `--team=${safeTeam}`],
+    {
+      timeout_ms: laneTimeoutMs,
+      ttl_ms: laneCacheTtlMs,
+      fail_ttl_ms: laneCacheFailTtlMs,
+      stale_fallback: true,
+    }
+  );
+  const payloadError =
+    lane && lane.payload && typeof lane.payload === 'object' && typeof lane.payload.error === 'string'
+      ? cleanText(lane.payload.error, 200).toLowerCase()
+      : '';
+  const laneStderr = cleanText(lane && lane.stderr ? lane.stderr : '', 200).toLowerCase();
+  if (payloadError.includes('unsupported_mode:runtime-sync') || laneStderr.includes('unsupported_mode:runtime-sync')) {
+    rustRuntimeSyncUnsupportedUntilMs = nowMs + RUST_RUNTIME_SYNC_RETRY_COOLDOWN_MS;
+    return null;
+  }
+  const payload = lanePayloadObject(lane, null);
+  if (!payload || typeof payload !== 'object') return null;
+  if (!payload.summary || typeof payload.summary !== 'object') return null;
+  if (!payload.attention_queue || typeof payload.attention_queue !== 'object') return null;
+  if (!payload.cockpit || typeof payload.cockpit !== 'object') return null;
+  return {
+    ...payload,
+    ok: lane.ok && payload.ok !== false,
+    rust_runtime_sync: true,
+    authority: 'rust_core_runtime_sync',
+    lane: lane.argv.join(' '),
+  };
+}
+
 function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
   const safeTeam = cleanText(team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
   const laneTimeoutMs = parsePositiveInt(
@@ -8789,6 +8857,16 @@ function collectConduitAttentionCockpit(team = DEFAULT_TEAM, options = {}) {
     250,
     600000
   );
+
+  const rustRuntimeSync = collectConduitAttentionCockpitFromRust(safeTeam, {
+    lane_timeout_ms: laneTimeoutMs,
+    lane_cache_ttl_ms: laneCacheTtlMs,
+    lane_cache_fail_ttl_ms: laneCacheFailTtlMs,
+  });
+  if (rustRuntimeSync) {
+    return rustRuntimeSync;
+  }
+
   const cockpitLane = runLaneCached(
     `snapshot.cockpit.${safeTeam}.${COCKPIT_MAX_BLOCKS}`,
     ['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1'],
@@ -9488,6 +9566,10 @@ function buildSnapshot(opts = {}) {
       refresh_ms: opts.refreshMs || DEFAULT_REFRESH_MS,
       cli_mode: cliMode,
       authority: 'rust_core_lanes',
+      runtime_sync_authority: cleanText(
+        runtimeMirror && runtimeMirror.authority ? runtimeMirror.authority : 'ts_fallback',
+        80
+      ) || 'ts_fallback',
       lanes: {
         health: healthLane.argv.join(' '),
         app: appLane.argv.join(' '),
@@ -13928,8 +14010,7 @@ function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasPrimaryDashboardUi();
   ensureDailyMemoryFile(todayDateIso());
-  bootstrapSnapshotHistoryState();
-  compactSnapshotHistory('startup', true);
+  bootstrapSnapshotHistoryState({ fast: true });
   let dashboardHtml = '';
   let dashboardUiRefreshAtMs = 0;
   const refreshUiAssets = (force = false) => {
@@ -13950,10 +14031,75 @@ function runServe(flags) {
     dashboardUiRefreshAtMs = nowMs;
   };
   refreshUiAssets(true);
-  let latestSnapshot = buildSnapshot(flags);
+  const bootstrapSnapshotFromDisk = () => {
+    const cached = readJson(SNAPSHOT_LATEST_PATH, null);
+    if (cached && typeof cached === 'object') {
+      return cached;
+    }
+    const team = cleanText(flags.team || DEFAULT_TEAM, 80) || DEFAULT_TEAM;
+    const snapshot = {
+      ok: false,
+      type: 'infring_dashboard_snapshot',
+      ts: nowIso(),
+      metadata: {
+        root: ROOT,
+        team,
+        refresh_ms: parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000),
+        cli_mode: ACTIVE_CLI_MODE,
+        authority: 'rust_core_lanes',
+        runtime_sync_authority: 'bootstrap',
+      },
+      health: {
+        checks: {},
+        alerts: { count: 0, checks: [] },
+        coverage: { gap_count: 0, gaps: [], active_checks: 0 },
+      },
+      app: { settings: {} },
+      collab: { dashboard: { agents: [] } },
+      skills: {},
+      cockpit: {
+        blocks: [],
+        summary: {
+          queue_depth: 0,
+          cockpit_blocks_active: 0,
+          cockpit_blocks_total: 0,
+          conduit_signals: 0,
+          stale_block_count: 0,
+          actionable_stale_block_count: 0,
+          dormant_stale_block_count: 0,
+        },
+      },
+      attention_queue: {
+        depth: 0,
+        deferred_count: 0,
+        items: [],
+        lane_counts: { critical: 0, standard: 0, background: 0 },
+      },
+      memory: {
+        entries: [],
+        stream: { active: false, total: 0 },
+        ingest_control: { mode: 'normal', source_count: 0, delivered_count: 0, dropped_count: 0 },
+      },
+      receipts: {
+        recent: [],
+        action_history_path: path.relative(ROOT, ACTION_HISTORY_PATH),
+      },
+      logs: { recent: [] },
+      apm: { metrics: [], checks: {}, alerts: {} },
+      agent_lifecycle: { active_agents: 0, terminated_agents: 0, idle_agents: 0, recently_terminated: [] },
+      runtime_recommendation: null,
+      runtime_autoheal: {},
+      storage: snapshotStorageTelemetry(),
+    };
+    return {
+      ...snapshot,
+      receipt_hash: sha256(JSON.stringify(snapshot)),
+    };
+  };
+  let latestSnapshot = bootstrapSnapshotFromDisk();
   let latestSnapshotJson = `${JSON.stringify(latestSnapshot, null, 2)}\n`;
   let latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
-  writeSnapshotReceipt(latestSnapshot, { forceHistory: true });
+  writeSnapshotReceipt(latestSnapshot, { forceHistory: false });
   let updating = false;
   let enforcingContracts = false;
   let enforceContractsQueued = false;
@@ -14099,15 +14245,6 @@ function runServe(flags) {
     } catch {}
     return latestSnapshot;
   };
-  try {
-    const initialEnforcement = enforceAgentContracts(latestSnapshot, {
-      team: cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM,
-    });
-    if (initialEnforcement && initialEnforcement.changed) {
-      refreshSnapshot(initialEnforcement);
-    }
-  } catch {}
-
   const server = http.createServer(async (req, res) => {
     const reqUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
     const pathname = reqUrl.pathname;
@@ -14470,8 +14607,8 @@ function runServe(flags) {
               ? contractsState.contracts
               : {};
           const nowMs = Date.now();
-          const compactRows = agents.map((row) => ({
-            (() => {
+          const compactRows = agents
+            .map((row) => {
               const id = cleanText(row && row.id ? row.id : '', 140);
               const contract = id && contractMap[id] ? contractSummary(contractMap[id], nowMs) : null;
               return {
@@ -14501,8 +14638,8 @@ function runServe(flags) {
                     ? parseNonNegativeInt(contract.remaining_ms, 0, 7 * 24 * 60 * 60 * 1000)
                     : null,
               };
-            })()
-          )).filter((entry) => !!entry.id);
+            })
+            .filter((entry) => !!(entry && entry.id));
           sendJson(res, 200, compactRows);
           return;
         }
@@ -15763,6 +15900,9 @@ function runServe(flags) {
   };
 
   const maybeEnforceAgentContractsForApi = (source = 'api') => {
+    if (realtimeClientCounts().total_open > 0) {
+      return null;
+    }
     const nowMs = Date.now();
     const minIntervalMs = apiContractEnforceIntervalMs();
     if ((nowMs - parseNonNegativeInt(lastApiContractEnforceAtMs, 0, 1000000000000)) < minIntervalMs) {
@@ -16369,6 +16509,10 @@ function runServe(flags) {
   }, flags.refreshMs);
 
   const contractInterval = setInterval(() => {
+    const hasRealtimeClients = realtimeClientCounts().total_open > 0;
+    if (hasRealtimeClients) {
+      return;
+    }
     const activeAgents = activeAgentCountFromSnapshot(latestSnapshot, 0);
     const lowScaleFloorMs = Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_MS, 2000);
     const loadPenaltyMs = Math.min(2500, parseNonNegativeInt(lastSnapshotBuildDurationMs, 0, 1000000000));
@@ -16381,12 +16525,9 @@ function runServe(flags) {
           ? Math.max(AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS, 3000)
           : lowScaleIntervalMs;
     const nowMs = Date.now();
-    const hasRealtimeClients = realtimeClientCounts().total_open > 0;
-    if (!hasRealtimeClients) {
-      const idleContractCadenceMs = Math.max(15_000, dynamicIntervalMs * 3);
-      if ((nowMs - parseNonNegativeInt(lastContractLoopRunAtMs, 0, 1000000000000)) < idleContractCadenceMs) {
-        return;
-      }
+    const idleContractCadenceMs = Math.max(20_000, dynamicIntervalMs * 4);
+    if ((nowMs - parseNonNegativeInt(lastContractLoopRunAtMs, 0, 1000000000000)) < idleContractCadenceMs) {
+      return;
     }
     if (updating) {
       return;
@@ -16468,6 +16609,12 @@ function runServe(flags) {
     writeJson(path.resolve(STATE_DIR, 'server_status.json'), status);
     process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
     process.stdout.write(`Dashboard listening at ${dashboardUrl}\n`);
+    setTimeout(() => {
+      requestSnapshotRefresh(true);
+      try {
+        compactSnapshotHistory('startup', false);
+      } catch {}
+    }, 0);
   });
 
   const shutdown = () => {
