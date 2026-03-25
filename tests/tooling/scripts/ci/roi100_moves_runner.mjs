@@ -166,10 +166,14 @@ function buildMoves(options = {}) {
   const moves = [];
   const scripts = readPackageScripts();
   const push = (move) => moves.push(move);
+  const protheusOpsBridgeArgs = [
+    'client/runtime/lib/ts_entrypoint.ts',
+    'client/runtime/systems/ops/run_protheus_ops.ts',
+  ];
   const swarm = (...args) => ({
     kind: 'cmd',
     cmd: 'node',
-    args: ['client/runtime/systems/ops/run_protheus_ops.js', 'swarm-runtime', ...args, `--state-path=${STATE}`],
+    args: [...protheusOpsBridgeArgs, 'swarm-runtime', ...args, `--state-path=${STATE}`],
   });
 
   if (!laneOnly) {
@@ -385,7 +389,7 @@ function buildMoves(options = {}) {
       'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts',
       'tests/client-memory-tools/swarm_orchestration_runtime.test.ts',
       'tests/client-memory-tools/swarm_runtime_smoothness.test.ts',
-      'client/runtime/systems/ops/run_protheus_ops.js',
+      'client/runtime/systems/ops/run_protheus_ops.ts',
       'core/layer0/ops/src/swarm_runtime.rs',
       'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
       'docs/workspace/codex_enforcer.md',
