@@ -350,6 +350,7 @@ const CLI_ALLOWLIST = new Set([
   'protheus',
   'protheus-ops',
   'infringd',
+  'swarm',
   'git',
   'rg',
   'ls',
@@ -397,6 +398,9 @@ const OPS_READ_ONLY = new Set([
   'runtime-systems',
   'dashboard-ui',
 ]);
+const MAIN_TREE_INFRING_CLI_PREFIXES = ['infring', 'protheus'];
+const CONTRACT_SUBAGENT_TARGET_MAX = 4096;
+const CONTRACT_SUBAGENT_IDS_MAX = 1024;
 let ACTIVE_CLI_MODE = DEFAULT_CLI_MODE;
 const GIT_BRANCH_CACHE_MS = 120_000;
 const GIT_WORKSPACE_READY_CACHE_MS = 8_000;
@@ -452,6 +456,60 @@ function gitMainBranch() {
     if (proc && proc.status === 0) return 'main';
   } catch {}
   return currentGitBranch();
+}
+
+function gitBranchExists(branchName) {
+  const branch = normalizeGitBranchName(branchName, '');
+  if (!branch) return false;
+  try {
+    const proc = spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], {
+      cwd: ROOT,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 1500,
+    });
+    return !!(proc && proc.status === 0);
+  } catch {
+    return false;
+  }
+}
+
+function listLocalGitBranches(limit = 240) {
+  const cap = parsePositiveInt(limit, 240, 8, 2000);
+  let rows = [];
+  try {
+    const proc = spawnSync(
+      'git',
+      ['for-each-ref', '--sort=-committerdate', '--format=%(refname:short)', 'refs/heads'],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 2500,
+        maxBuffer: 512 * 1024,
+      }
+    );
+    if (proc && proc.status === 0) {
+      rows = String(proc.stdout || '')
+        .split('\n')
+        .map((line) => normalizeGitBranchName(line, ''))
+        .filter(Boolean);
+    }
+  } catch {}
+  const main = gitMainBranch();
+  const seen = new Set();
+  const out = [];
+  if (main) {
+    seen.add(main);
+    out.push(main);
+  }
+  for (let idx = 0; idx < rows.length; idx += 1) {
+    const branch = rows[idx];
+    if (!branch || seen.has(branch)) continue;
+    seen.add(branch);
+    out.push(branch);
+    if (out.length >= cap) break;
+  }
+  return out;
 }
 
 function normalizeGitTreeKind(value, fallback = AGENT_GIT_TREE_KIND_ISOLATED) {
@@ -1390,6 +1448,44 @@ function parseToolArgs(raw) {
   return [];
 }
 
+function normalizeCliInvocation(command, args = [], options = {}) {
+  const normalizedArgs = parseToolArgs(args);
+  const rawCommand = String(command == null ? '' : command).trim();
+  const pieces = rawCommand
+    ? rawCommand
+        .split(/\s+/)
+        .map((piece) => sanitizeArg(piece, 180))
+        .filter(Boolean)
+    : [];
+  let baseCommand = sanitizeArg(pieces.length ? pieces[0] : rawCommand, 80);
+  let mergedArgs = normalizedArgs.slice();
+  if (pieces.length > 1) {
+    mergedArgs = [...pieces.slice(1), ...mergedArgs];
+  }
+  const invokingAgentId = cleanText(options && options.agent_id ? options.agent_id : '', 140);
+  const onMainTree = invokingAgentId ? isMainTreeBoundAgent(invokingAgentId) : false;
+  if (baseCommand === 'swarm') {
+    if (onMainTree) {
+      baseCommand = 'protheus-ops';
+      if (!mergedArgs.length || mergedArgs[0] !== 'collab-plane') {
+        mergedArgs = ['collab-plane', ...mergedArgs];
+      }
+    }
+  }
+  if (baseCommand === 'protheus-ops' && mergedArgs[0] === 'swarm') {
+    mergedArgs = ['collab-plane', ...mergedArgs.slice(1)];
+  }
+  if (baseCommand === 'protheus-ops' && mergedArgs[0] === 'collab-plane' && mergedArgs[1] === 'spawn-role') {
+    mergedArgs[1] = 'launch-role';
+  }
+  return {
+    command: baseCommand,
+    args: mergedArgs.slice(0, 24),
+    invoking_agent_id: invokingAgentId,
+    invoking_agent_main_tree: onMainTree,
+  };
+}
+
 function stripAnsi(value) {
   return String(value == null ? '' : value)
     .replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '')
@@ -1446,6 +1542,25 @@ function compactRelativePath(absPath) {
   return cleanText(relative || '.', 600) || '.';
 }
 
+function normalizeSuggestionToUserVoice(value) {
+  let row = cleanText(value == null ? '' : String(value), 220);
+  if (!row) return '';
+  row = row.replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '');
+  if (/^ask\s+[^.?!]{0,140}?\s+for\s+/i.test(row)) {
+    row = row.replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Give me ');
+  } else if (/^ask\s+for\s+/i.test(row)) {
+    row = row.replace(/^ask\s+for\s+/i, 'Give me ');
+  } else if (/^request\s+/i.test(row)) {
+    row = row.replace(/^request\s+/i, 'Give me ');
+  } else if (/^please\s+request\s+/i.test(row)) {
+    row = row.replace(/^please\s+request\s+/i, 'Give me ');
+  }
+  row = row.replace(/\s+/g, ' ').trim();
+  if (!/[.!?]$/.test(row)) row = `${row}.`;
+  if (row.length) row = row[0].toUpperCase() + row.slice(1);
+  return cleanText(row, 220);
+}
+
 function parseSuggestionCandidates(raw) {
   const text = String(raw || '').trim();
   if (!text) return [];
@@ -1473,6 +1588,8 @@ function parseSuggestionCandidates(raw) {
       /tool_call|\"type\"\s*:\s*\"tool|\"command\"\s*:|^\{.*\}$|^\[.*\]$|<\/?function/i.test(row) ||
       /\"args\"\s*:|\"reason\"\s*:|\"payload\"\s*:|\"provider\"\s*:|\"model\"\s*:/i.test(row);
     if (machineNoise) return '';
+    row = normalizeSuggestionToUserVoice(row);
+    if (!row) return '';
     if (row.length > 180) row = `${row.slice(0, 177)}...`;
     return row;
   };
@@ -1588,31 +1705,31 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   const topicLabel = topicWords.length ? topicWords.join(' ') : `${roleLabel} workflow`;
 
   if (convo.last_user) {
-    rows.push(`Continue this user ask: "${convo.last_user}" with one concrete next action.`);
+    rows.push(`Continue this request with one concrete next action: "${convo.last_user}".`);
   }
   if (
     convo.last_assistant &&
     !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(convo.last_assistant)
   ) {
-    rows.push(`Build directly on the last answer: "${convo.last_assistant}" with a precise follow-up prompt.`);
+    rows.push(`Build directly on the last answer with a precise follow-up prompt: "${convo.last_assistant}".`);
   }
   if (cleanHint) {
-    rows.push(`Use this hint exactly: "${cleanHint}" and turn it into one actionable next prompt.`);
+    rows.push(`Use this hint exactly and turn it into one actionable next prompt: "${cleanHint}".`);
   }
   if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure|stale|reconnect/i.test(topic)) {
-    rows.push(`Ask ${agentLabel} to propose one automatic reliability remediation with rollback criteria.`);
-    rows.push(`Request a short runbook to keep queue depth under 60 and stale blocks near 0.`);
+    rows.push('Propose one automatic reliability remediation with rollback criteria.');
+    rows.push('Give me a short runbook to keep queue depth under 60 and stale blocks near 0.');
   }
-  rows.push(`Request a 3-step execution plan focused on ${topicLabel}.`);
-  rows.push(`Ask for one command to run now and one verification command tied to ${topicLabel}.`);
-  rows.push(`Ask ${agentLabel} for the single highest-ROI change with measurable success criteria.`);
+  rows.push(`Give me a 3-step execution plan focused on ${topicLabel}.`);
+  rows.push(`Give me one command to run now and one verification command tied to ${topicLabel}.`);
+  rows.push('Give me the single highest-ROI change with measurable success criteria.');
   const rotateSeed = `${topicLabel}|${convo.last_user}|${convo.last_assistant}|${cleanHint}`;
   let rotate = 0;
   for (let i = 0; i < rotateSeed.length; i++) rotate = (rotate + rotateSeed.charCodeAt(i)) % Math.max(rows.length, 1);
   const ordered = rows.length > 1 ? rows.slice(rotate).concat(rows.slice(0, rotate)) : rows.slice();
   const seen = new Set();
   return ordered
-    .map((row) => cleanText(row, 220))
+    .map((row) => normalizeSuggestionToUserVoice(cleanText(row, 220)))
     .filter((row) => {
       const key = String(row || '').toLowerCase();
       if (!key || seen.has(key)) return false;
@@ -1665,7 +1782,7 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     ) {
       return {
         ok: true,
-        suggestions: cached.suggestions.slice(0, 3),
+        suggestions: cached.suggestions.slice(0, 3).map((row) => normalizeSuggestionToUserVoice(row)).filter(Boolean),
         source: cleanText(cached.source || 'cache', 40) || 'cache',
         model: cleanText(cached.model || '', 120),
       };
@@ -2718,9 +2835,10 @@ function optimisticCollabArchiveAgent(snapshot, shadow) {
   return next.length !== rows.length;
 }
 
-function tryDeterministicRepoAnswer(input, snapshot = null) {
+function tryDeterministicRepoAnswer(input, snapshot = null, options = {}) {
   const rawInput = String(input || '');
   const text = rawInput.toLowerCase();
+  const invokingAgentId = cleanText(options && options.agent_id ? options.agent_id : '', 140);
   const asksWeekAgo =
     /(one week ago|7 days ago|last week)/.test(text) &&
     /(what were we doing|what did we do|what was happening|what happened)/.test(text);
@@ -2785,7 +2903,10 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
       } else if (roleIndex < 0) {
         args.push(`--role=${normalizedRole}`);
       }
-      const result = runCliTool('protheus-ops', args);
+      const result = runCliTool('protheus-ops', args, {
+        agent_id: invokingAgentId,
+        source: 'deterministic_collab_launch',
+      });
       tools.push({
         id: `tool-${Date.now()}-det-collab-${tools.length + 1}`,
         name: 'protheus-ops',
@@ -2798,7 +2919,36 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
       if (!result.is_error) {
         const shadowArg = args.find((row) => String(row).startsWith('--shadow='));
         const shadow = shadowArg ? cleanText(String(shadowArg).slice('--shadow='.length), 120) : '';
-        if (shadow) launched.push(shadow);
+        if (shadow) {
+          launched.push(shadow);
+          if (invokingAgentId) {
+            const roleArg = args.find((row) => String(row).startsWith('--role='));
+            const role = cleanText(roleArg ? String(roleArg).slice('--role='.length) : 'analyst', 80) || 'analyst';
+            unarchiveAgent(shadow);
+            upsertAgentContract(
+              shadow,
+              {
+                mission: `Support ${invokingAgentId} subagent contract as ${role}.`,
+                owner: `agent:${invokingAgentId}`,
+                contract: {
+                  termination_condition: 'task_or_timeout',
+                },
+              },
+              {
+                owner: `agent:${invokingAgentId}`,
+              }
+            );
+            recordContractSubagentSpawn(invokingAgentId, shadow, {
+              role,
+              team: cleanText(
+                args.find((row) => String(row).startsWith('--team='))?.slice('--team='.length) || DEFAULT_TEAM,
+                40
+              ) || DEFAULT_TEAM,
+              write_receipt: true,
+            });
+            optimisticCollabUpsertAgent(snapshot, shadow, role);
+          }
+        }
       }
     }
     const successes = tools.filter((row) => !row.is_error).length;
@@ -2920,13 +3070,37 @@ function tryDeterministicRepoAnswer(input, snapshot = null) {
   };
 }
 
-function cliInvocationAllowed(command, args) {
+function cliInvocationAllowed(command, args, options = {}) {
   const cmd = sanitizeArg(command, 80);
+  const invokingAgentId = cleanText(
+    options && (options.agent_id || options.invoking_agent_id) ? options.agent_id || options.invoking_agent_id : '',
+    140
+  );
+  const invokingAgentMainTree =
+    options && Object.prototype.hasOwnProperty.call(options, 'invoking_agent_main_tree')
+      ? !!options.invoking_agent_main_tree
+      : (invokingAgentId ? isMainTreeBoundAgent(invokingAgentId) : false);
+  const mainTreeInfringCli =
+    invokingAgentMainTree &&
+    MAIN_TREE_INFRING_CLI_PREFIXES.some((prefix) => cmd === prefix || cmd.startsWith(`${prefix}-`));
   if (!CLI_ALLOWLIST.has(cmd)) {
+    if (mainTreeInfringCli) {
+      return { ok: true, command: cmd, mode: ACTIVE_CLI_MODE };
+    }
     return { ok: false, error: `command_not_allowed:${cmd}` };
   }
   const fullInfring = ACTIVE_CLI_MODE === CLI_MODE_FULL_INFRING;
   const first = sanitizeArg(args && args[0] ? args[0] : '', 80);
+  const second = sanitizeArg(args && args[1] ? args[1] : '', 80);
+  if (cmd === 'swarm') {
+    if (!invokingAgentId) {
+      return { ok: false, error: 'swarm_alias_requires_agent_context' };
+    }
+    if (!invokingAgentMainTree) {
+      return { ok: false, error: 'swarm_alias_requires_main_tree_agent' };
+    }
+    return { ok: true, command: cmd, mode: ACTIVE_CLI_MODE };
+  }
   if (cmd === 'git' && first && !GIT_READ_ONLY.has(first)) {
     return { ok: false, error: `git_subcommand_blocked:${first}` };
   }
@@ -2936,17 +3110,49 @@ function cliInvocationAllowed(command, args) {
   if (!fullInfring && cmd === 'protheus-ops' && first && !OPS_READ_ONLY.has(first)) {
     return { ok: false, error: `ops_subcommand_blocked:${first}` };
   }
+  if (
+    cmd === 'protheus-ops' &&
+    first === 'collab-plane' &&
+    second === 'launch-role' &&
+    invokingAgentId &&
+    !invokingAgentMainTree
+  ) {
+    return { ok: false, error: 'subagent_launch_requires_main_tree_agent' };
+  }
   return { ok: true, command: cmd, mode: ACTIVE_CLI_MODE };
 }
 
-function runCliTool(command, args = []) {
-  const normalizedArgs = parseToolArgs(args);
-  const gate = cliInvocationAllowed(command, normalizedArgs);
-  const input = [sanitizeArg(command, 80), ...normalizedArgs].filter(Boolean).join(' ');
+function parseSubagentLaunchMeta(command, args = []) {
+  const cmd = sanitizeArg(command, 80);
+  const argv = Array.isArray(args) ? args : [];
+  const first = sanitizeArg(argv[0] || '', 80);
+  const second = sanitizeArg(argv[1] || '', 80);
+  if (cmd !== 'protheus-ops' || first !== 'collab-plane' || second !== 'launch-role') return null;
+  const out = {
+    role: 'analyst',
+    shadow: '',
+    team: DEFAULT_TEAM,
+  };
+  for (let idx = 2; idx < argv.length; idx += 1) {
+    const token = sanitizeArg(argv[idx], 180);
+    if (!token || !token.startsWith('--')) continue;
+    if (token.startsWith('--role=')) out.role = normalizeCollabRole(token.slice('--role='.length));
+    if (token.startsWith('--shadow=')) out.shadow = cleanText(token.slice('--shadow='.length), 140);
+    if (token.startsWith('--team=')) out.team = cleanText(token.slice('--team='.length), 40) || DEFAULT_TEAM;
+  }
+  if (!out.shadow) return null;
+  return out;
+}
+
+function runCliTool(command, args = [], options = {}) {
+  const invocation = normalizeCliInvocation(command, args, options);
+  const normalizedArgs = invocation.args;
+  const gate = cliInvocationAllowed(invocation.command, normalizedArgs, invocation);
+  const input = [sanitizeArg(invocation.command, 80), ...normalizedArgs].filter(Boolean).join(' ');
   if (!gate.ok) {
     return {
       ok: false,
-      name: sanitizeArg(command, 80) || 'cli',
+      name: sanitizeArg(invocation.command || command, 80) || 'cli',
       input,
       result: `blocked: ${gate.error}`,
       is_error: true,
@@ -2973,6 +3179,9 @@ function runCliTool(command, args = []) {
       result: output,
       is_error: status !== 0,
       exit_code: status,
+      subagent_launch:
+        status === 0 ? parseSubagentLaunchMeta(gate.command, normalizedArgs) : null,
+      invoking_agent_id: cleanText(invocation.invoking_agent_id || '', 140),
     };
   } catch (error) {
     return {
@@ -4852,8 +5061,10 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
     fullInfring
-      ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git remains read-only).'
-      : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git read-only).',
+      ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git remains read-only). Main-tree agents may execute any infring*/protheus* CLI command.'
+      : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git read-only). Main-tree agents may execute any infring*/protheus* CLI command.',
+    'Subagent spawn command: protheus-ops collab-plane launch-role --team=<team> --role=<role> --shadow=<id>.',
+    'Main-tree agents may also use swarm alias commands (swarm/ protheus-ops swarm) which map to collab-plane launch-role.',
     'If tool history already contains what you need, return final.',
     '',
     `Conversation transcript:\n${transcript}`,
@@ -4889,7 +5100,9 @@ function buildToolFollowupPrompt({ agent, input, toolSteps = [], snapshot = null
 }
 
 function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '', runtimeMirror = null) {
-  const deterministic = tryDeterministicRepoAnswer(input, snapshot);
+  const deterministic = tryDeterministicRepoAnswer(input, snapshot, {
+    agent_id: cleanText(agent && agent.id ? agent.id : '', 140),
+  });
   if (deterministic) {
     return {
       ok: true,
@@ -5002,7 +5215,44 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
       };
     }
 
-    const toolStep = runCliTool(directive.command, directive.args);
+    const invokingAgentId = cleanText(agent && agent.id ? agent.id : '', 140);
+    const toolStep = runCliTool(directive.command, directive.args, {
+      agent_id: invokingAgentId,
+      source: 'llm_tool_call',
+    });
+    if (
+      toolStep &&
+      !toolStep.is_error &&
+      toolStep.subagent_launch &&
+      invokingAgentId &&
+      toolStep.subagent_launch.shadow
+    ) {
+      const launchRole = cleanText(toolStep.subagent_launch.role || 'analyst', 80) || 'analyst';
+      const launchShadow = cleanText(toolStep.subagent_launch.shadow || '', 140);
+      const launchTeam = cleanText(toolStep.subagent_launch.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+      if (launchShadow) {
+        unarchiveAgent(launchShadow);
+        upsertAgentContract(
+          launchShadow,
+          {
+            mission: `Support ${invokingAgentId} subagent contract as ${launchRole}.`,
+            owner: `agent:${invokingAgentId}`,
+            contract: {
+              termination_condition: 'task_or_timeout',
+            },
+          },
+          {
+            owner: `agent:${invokingAgentId}`,
+          }
+        );
+        recordContractSubagentSpawn(invokingAgentId, launchShadow, {
+          role: launchRole,
+          team: launchTeam,
+          write_receipt: true,
+        });
+        optimisticCollabUpsertAgent(snapshot, launchShadow, launchRole);
+      }
+    }
     const normalizedTool = {
       id: `tool-${Date.now()}-${toolSteps.length}`,
       name: toolStep.name,
@@ -5013,6 +5263,9 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
       expanded: false,
       exit_code: toolStep.exit_code,
     };
+    if (toolStep && toolStep.subagent_launch) {
+      normalizedTool.subagent_launch = toolStep.subagent_launch;
+    }
     toolSteps.push(normalizedTool);
 
     if (toolSteps.length >= TOOL_ITERATION_LIMIT) {
@@ -5916,6 +6169,39 @@ function normalizeTerminationCondition(value) {
   return 'task_or_timeout';
 }
 
+function parseContractSubagentTarget(rawValue, fallback = 0) {
+  return parseNonNegativeInt(rawValue, fallback, CONTRACT_SUBAGENT_TARGET_MAX);
+}
+
+function normalizeContractSubagentIds(rawValue) {
+  const values = Array.isArray(rawValue) ? rawValue : [];
+  const out = [];
+  const seen = new Set();
+  for (const row of values) {
+    const id = cleanText(row || '', 140);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= CONTRACT_SUBAGENT_IDS_MAX) break;
+  }
+  return out;
+}
+
+function contractSubagentTargetFromPayload(payload = {}, contractInput = {}) {
+  return parseContractSubagentTarget(
+    contractInput.required_subagents != null
+      ? contractInput.required_subagents
+      : contractInput.subagent_target_count != null
+        ? contractInput.subagent_target_count
+        : payload.required_subagents != null
+          ? payload.required_subagents
+          : payload.subagent_target_count != null
+            ? payload.subagent_target_count
+            : 0,
+    0
+  );
+}
+
 function normalizeAgentContractsState(state) {
   const root = state && typeof state === 'object' ? state : {};
   const defaults = root.defaults && typeof root.defaults === 'object' ? root.defaults : {};
@@ -5937,6 +6223,24 @@ function normalizeAgentContractsState(state) {
     );
     const spawnedAt = new Date(spawnedAtMs).toISOString();
     const explicitExpiresAt = cleanText(contract.expires_at || '', 80);
+    const requiredSubagents = parseContractSubagentTarget(
+      contract.required_subagents != null
+        ? contract.required_subagents
+        : contract.subagent_target_count,
+      0
+    );
+    const spawnedSubagentIds = normalizeContractSubagentIds(
+      contract.spawned_subagent_ids != null ? contract.spawned_subagent_ids : contract.subagent_ids
+    );
+    const spawnedSubagents = Math.max(
+      spawnedSubagentIds.length,
+      parseContractSubagentTarget(
+        contract.spawned_subagents != null
+          ? contract.spawned_subagents
+          : contract.subagent_spawn_count,
+        0
+      )
+    );
     const normalizedContract = {
       contract_id: cleanText(contract.contract_id || contract.id || `contract-${sha256(agentId).slice(0, 16)}`, 80),
       agent_id: agentId,
@@ -5955,6 +6259,10 @@ function normalizeAgentContractsState(state) {
       terminated_by: cleanText(contract.terminated_by || '', 120),
       revived_from_contract_id: cleanText(contract.revived_from_contract_id || '', 80),
       revival_data: contract.revival_data && typeof contract.revival_data === 'object' ? contract.revival_data : null,
+      required_subagents: requiredSubagents,
+      spawned_subagents: spawnedSubagents,
+      spawned_subagent_ids: spawnedSubagentIds.slice(0, CONTRACT_SUBAGENT_IDS_MAX),
+      subagent_progress_updated_at: cleanText(contract.subagent_progress_updated_at || '', 80),
       conversation_hold: !!contract.conversation_hold,
       conversation_hold_started_at: cleanText(contract.conversation_hold_started_at || '', 80),
       conversation_hold_deadline: cleanText(contract.conversation_hold_deadline || '', 80),
@@ -6207,6 +6515,21 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     contractInput.expires_at || payload.expires_at || options.expires_at || '',
     80
   );
+  const requiredSubagents = contractSubagentTargetFromPayload(payload, contractInput);
+  const seededSubagentIds = normalizeContractSubagentIds(
+    contractInput.spawned_subagent_ids != null
+      ? contractInput.spawned_subagent_ids
+      : payload.spawned_subagent_ids
+  );
+  const seededSubagentCount = Math.max(
+    seededSubagentIds.length,
+    parseContractSubagentTarget(
+      contractInput.spawned_subagents != null
+        ? contractInput.spawned_subagents
+        : payload.spawned_subagents,
+      0
+    )
+  );
   return {
     contract_id:
       cleanText(
@@ -6234,6 +6557,10 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     revival_data: contractInput.revival_data && typeof contractInput.revival_data === 'object'
       ? contractInput.revival_data
       : null,
+    required_subagents: requiredSubagents,
+    spawned_subagents: seededSubagentCount,
+    spawned_subagent_ids: seededSubagentIds.slice(0, CONTRACT_SUBAGENT_IDS_MAX),
+    subagent_progress_updated_at: seededSubagentCount > 0 ? now : '',
     conversation_hold: false,
     conversation_hold_started_at: '',
     conversation_hold_deadline: '',
@@ -6296,6 +6623,17 @@ function setContractConversationHold(agentId, hold = true, options = {}) {
   return contract;
 }
 
+function payloadHasSubagentContractFields(spawnPayload = {}) {
+  const payload = spawnPayload && typeof spawnPayload === 'object' ? spawnPayload : {};
+  const contractInput = payload.contract && typeof payload.contract === 'object' ? payload.contract : {};
+  const keys = ['required_subagents', 'subagent_target_count', 'spawned_subagents', 'spawned_subagent_ids'];
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(contractInput, key)) return true;
+    if (Object.prototype.hasOwnProperty.call(payload, key)) return true;
+  }
+  return false;
+}
+
 function upsertAgentContract(agentId, spawnPayload = {}, options = {}) {
   const id = cleanText(agentId || '', 140);
   if (!id) return null;
@@ -6303,11 +6641,21 @@ function upsertAgentContract(agentId, spawnPayload = {}, options = {}) {
   const state = loadAgentContractsState();
   const existing = state.contracts && state.contracts[id] ? state.contracts[id] : null;
   if (existing && !force) {
+    const nextDraft = deriveAgentContract(id, spawnPayload, options);
+    const hasSubagentPatch = payloadHasSubagentContractFields(spawnPayload);
     const touched = {
       ...existing,
-      mission: cleanText(existing.mission || '', 320) || deriveAgentContract(id, spawnPayload, options).mission,
+      mission: cleanText(existing.mission || '', 320) || nextDraft.mission,
       updated_at: nowIso(),
     };
+    if (hasSubagentPatch) {
+      touched.required_subagents = parseContractSubagentTarget(nextDraft.required_subagents, parseContractSubagentTarget(existing.required_subagents, 0));
+      touched.spawned_subagents = parseContractSubagentTarget(nextDraft.spawned_subagents, parseContractSubagentTarget(existing.spawned_subagents, 0));
+      touched.spawned_subagent_ids = normalizeContractSubagentIds(
+        nextDraft.spawned_subagent_ids != null ? nextDraft.spawned_subagent_ids : existing.spawned_subagent_ids
+      );
+      touched.subagent_progress_updated_at = cleanText(nextDraft.subagent_progress_updated_at || existing.subagent_progress_updated_at || '', 80);
+    }
     state.contracts[id] = touched;
     saveAgentContractsState(state);
     return touched;
@@ -6363,6 +6711,50 @@ function recordContractMessageTick(agentId) {
   contract.updated_at = nowIso();
   state.contracts[id] = contract;
   saveAgentContractsState(state);
+  return contract;
+}
+
+function recordContractSubagentSpawn(parentAgentId, childAgentId, options = {}) {
+  const parentId = cleanText(parentAgentId || '', 140);
+  const childId = cleanText(childAgentId || '', 140);
+  if (!parentId || !childId) return null;
+  const state = loadAgentContractsState();
+  const contract = state.contracts && state.contracts[parentId] ? state.contracts[parentId] : null;
+  if (!contract || contract.status !== 'active') return null;
+  const ids = normalizeContractSubagentIds(contract.spawned_subagent_ids);
+  if (!ids.includes(childId)) {
+    ids.push(childId);
+  }
+  contract.spawned_subagent_ids = ids.slice(0, CONTRACT_SUBAGENT_IDS_MAX);
+  const explicitCount = parseContractSubagentTarget(contract.spawned_subagents, 0);
+  contract.spawned_subagents = Math.max(contract.spawned_subagent_ids.length, explicitCount);
+  contract.required_subagents = parseContractSubagentTarget(contract.required_subagents, 0);
+  contract.subagent_progress_updated_at = nowIso();
+  contract.updated_at = contract.subagent_progress_updated_at;
+  state.contracts[parentId] = contract;
+  saveAgentContractsState(state);
+  if (options && options.write_receipt) {
+    writeActionReceipt(
+      'agent.contract.subagent_spawn',
+      {
+        parent_agent_id: parentId,
+        child_agent_id: childId,
+        required_subagents: contract.required_subagents,
+        spawned_subagents: contract.spawned_subagents,
+      },
+      {
+        ok: true,
+        status: 0,
+        argv: ['agent-contract', 'subagent-spawn', `--parent=${parentId}`, `--child=${childId}`],
+        payload: {
+          ok: true,
+          type: 'agent_contract_subagent_spawn',
+          role: cleanText(options.role || '', 80),
+          team: cleanText(options.team || '', 40),
+        },
+      }
+    );
+  }
   return contract;
 }
 
@@ -6612,6 +7004,11 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
       const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
       const holdDeadlineMs = coerceTsMs(contract.conversation_hold_deadline || 0, 0);
       const holdActive = !!(contract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
+      const requiredSubagents = parseContractSubagentTarget(contract.required_subagents, 0);
+      const spawnedSubagents = Math.max(
+        parseContractSubagentTarget(contract.spawned_subagents, 0),
+        normalizeContractSubagentIds(contract.spawned_subagent_ids).length
+      );
       return {
         agent_id: id,
         auto_terminate_allowed: !isMainTreeBoundAgent(id, activeRow) && !holdActive,
@@ -6621,6 +7018,9 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
         completed_at: cleanText(contract.completed_at || '', 80),
         remaining_ms: contractRemainingMs(contract, nowMs),
         idle_for_ms: idleForMs,
+        required_subagents: requiredSubagents,
+        spawned_subagents: spawnedSubagents,
+        subagent_remaining: Math.max(0, requiredSubagents - spawnedSubagents),
       };
     })
     .filter(Boolean);
@@ -6710,6 +7110,11 @@ function contractTerminationDecision(contract, nowMs = Date.now()) {
 function contractSummary(contract, nowMs = Date.now()) {
   if (!contract) return null;
   const remainingMs = contractRemainingMs(contract, nowMs);
+  const requiredSubagents = parseContractSubagentTarget(contract.required_subagents, 0);
+  const spawnedSubagents = Math.max(
+    parseContractSubagentTarget(contract.spawned_subagents, 0),
+    normalizeContractSubagentIds(contract.spawned_subagent_ids).length
+  );
   return {
     id: cleanText(contract.contract_id || '', 80),
     mission: cleanText(contract.mission || '', 320),
@@ -6728,6 +7133,11 @@ function contractSummary(contract, nowMs = Date.now()) {
     terminated_at: cleanText(contract.terminated_at || '', 80),
     termination_reason: cleanText(contract.termination_reason || '', 120),
     revived_from_contract_id: cleanText(contract.revived_from_contract_id || '', 80),
+    required_subagents: requiredSubagents,
+    spawned_subagents: spawnedSubagents,
+    remaining_subagents: Math.max(0, requiredSubagents - spawnedSubagents),
+    subagent_progress_updated_at: cleanText(contract.subagent_progress_updated_at || '', 80),
+    spawned_subagent_ids: normalizeContractSubagentIds(contract.spawned_subagent_ids).slice(-16),
   };
 }
 
@@ -16735,6 +17145,145 @@ function runServe(flags) {
             provider: resolved.provider,
             runtime_model: resolved.runtime_model,
             context_window: resolved.context_window,
+          });
+          return;
+        }
+        if (req.method === 'GET' && parts[3] === 'git-trees') {
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const profile = ensureAgentGitTreeProfile(agentId, { force_master: false, ensure_workspace_ready: false });
+          const currentTree = agentGitTreeView(agentId, profile);
+          const mainBranch = gitMainBranch();
+          const branches = listLocalGitBranches(240);
+          if (currentTree && currentTree.git_branch) {
+            const normalizedCurrent = normalizeGitBranchName(currentTree.git_branch, '');
+            if (normalizedCurrent && !branches.includes(normalizedCurrent)) {
+              branches.unshift(normalizedCurrent);
+            }
+          }
+          const activeIds = runtimeAgentIdsFromSnapshot(latestSnapshot, { includeArchived: false });
+          const branchUsage = {};
+          for (let idx = 0; idx < activeIds.length; idx += 1) {
+            const id = activeIds[idx];
+            const view = agentGitTreeView(id, agentProfileFor(id));
+            const branch = normalizeGitBranchName(view && view.git_branch ? view.git_branch : '', '');
+            if (!branch) continue;
+            branchUsage[branch] = parseNonNegativeInt(branchUsage[branch], 0, 100000) + 1;
+          }
+          const options = branches.map((branch) => ({
+            branch,
+            current: !!(currentTree && branch === cleanText(currentTree.git_branch || '', 120)),
+            main: branch === mainBranch,
+            kind: branch === mainBranch ? AGENT_GIT_TREE_KIND_MASTER : AGENT_GIT_TREE_KIND_ISOLATED,
+            branch_exists: gitBranchExists(branch),
+            in_use_by_agents: parseNonNegativeInt(branchUsage[branch], 0, 100000),
+          }));
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            main_branch: mainBranch,
+            current: currentTree,
+            options,
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'git-tree' && parts[4] === 'switch') {
+          const payload = await bodyJson(req);
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          if (isAgentArchived(agentId)) {
+            sendJson(res, 409, { ok: false, error: 'agent_inactive', id: agentId, state: 'inactive' });
+            return;
+          }
+          const requestedBranch = normalizeGitBranchName(payload && payload.branch ? payload.branch : '', '');
+          if (!requestedBranch) {
+            sendJson(res, 400, { ok: false, error: 'branch_required', id: agentId });
+            return;
+          }
+          const requireNew = !!(payload && payload.require_new === true);
+          if (requireNew && gitBranchExists(requestedBranch)) {
+            sendJson(res, 409, { ok: false, error: 'branch_exists', id: agentId, branch: requestedBranch });
+            return;
+          }
+          const mainBranch = gitMainBranch();
+          const switchingToMain = requestedBranch === mainBranch;
+          let replacementMasterId = '';
+          if (!switchingToMain && isMainTreeBoundAgent(agentId)) {
+            const activeIds = runtimeAgentIdsFromSnapshot(latestSnapshot, { includeArchived: false }).filter(
+              (id) => String(id) !== String(agentId)
+            );
+            if (!activeIds.length) {
+              sendJson(res, 409, {
+                ok: false,
+                error: 'main_tree_agent_required',
+                id: agentId,
+                detail: 'at_least_one_main_tree_agent_required',
+              });
+              return;
+            }
+            replacementMasterId = selectMasterAgentId(activeIds, activeIds[0] || '');
+            if (replacementMasterId) {
+              ensureAgentGitTreeProfile(replacementMasterId, {
+                force_master: true,
+                ensure_workspace_ready: false,
+              });
+            }
+          }
+          if (switchingToMain) {
+            ensureAgentGitTreeProfile(agentId, {
+              force_master: true,
+              ensure_workspace_ready: false,
+            });
+          } else {
+            const prior = ensureAgentGitTreeProfile(agentId, {
+              force_master: false,
+              force_isolated: true,
+              ensure_workspace_ready: false,
+            });
+            const ensured = ensureGitWorkspaceReady(
+              agentId,
+              requestedBranch,
+              prior && prior.workspace_dir ? prior.workspace_dir : ''
+            );
+            if (!ensured.ok) {
+              sendJson(res, 400, {
+                ok: false,
+                error: 'git_tree_checkout_failed',
+                id: agentId,
+                branch: requestedBranch,
+                detail: cleanText(ensured.error || 'git_tree_checkout_failed', 240),
+              });
+              return;
+            }
+            upsertAgentProfile(agentId, {
+              git_tree_kind: AGENT_GIT_TREE_KIND_ISOLATED,
+              git_branch: requestedBranch,
+              workspace_dir: cleanText(ensured.workspace_dir || workspaceDirForAgentGitTree(agentId), 400),
+              git_tree_ready: true,
+              git_tree_error: '',
+              git_tree_updated_at: nowIso(),
+            });
+          }
+          const assignment = ensureAgentGitTreeAssignments(latestSnapshot, {
+            force: true,
+            preferred_master_id: switchingToMain ? agentId : replacementMasterId,
+            ensure_workspace_agent_id: switchingToMain ? '' : agentId,
+          });
+          const current = agentGitTreeView(agentId, ensureAgentGitTreeProfile(agentId, { force_master: false }));
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            switched: true,
+            branch: cleanText(current && current.git_branch ? current.git_branch : requestedBranch, 120) || requestedBranch,
+            current,
+            assignment,
           });
           return;
         }
