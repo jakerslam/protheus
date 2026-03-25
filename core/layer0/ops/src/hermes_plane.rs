@@ -10,6 +10,7 @@ use crate::v8_kernel::{
 use crate::{clean, parse_args};
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -34,7 +35,12 @@ fn usage() {
     println!(
         "  protheus-ops hermes-plane delegate --task=<text> [--parent=<id>] [--roles=researcher,executor] [--tool-pack=<id>] [--strict=1|0]"
     );
-    println!("  protheus-ops hermes-plane cockpit [--max-blocks=<n>] [--strict=1|0]");
+    println!(
+        "  protheus-ops hermes-plane cockpit [--max-blocks=<n>] [--stale-threshold-ms=<n>] [--conduit-signal-window-ms=<n>] [--strict=1|0]"
+    );
+    println!(
+        "  protheus-ops hermes-plane reclaim-stale [--stale-threshold-ms=<n>] [--max-reclaims=<n>] [--dry-run=1|0] [--strict=1|0]"
+    );
 }
 
 fn state_root(root: &Path) -> PathBuf {
@@ -55,6 +61,7 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
         "continuity" => vec!["V6-HERMES-001.3", "V6-HERMES-001.5"],
         "delegate" => vec!["V6-HERMES-001.4", "V6-HERMES-001.5"],
         "cockpit" | "top" | "dashboard" => vec!["V6-HERMES-001.2", "V6-HERMES-001.5"],
+        "reclaim-stale" | "reclaim-blocks" => vec!["V6-HERMES-001.2", "V6-HERMES-001.5"],
         _ => vec!["V6-HERMES-001.5"],
     }
 }
@@ -765,6 +772,171 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
     rows
 }
 
+fn default_reclaim_protected_lanes() -> BTreeSet<String> {
+    [
+        "app_plane",
+        "skills_plane",
+        "collab_plane",
+        "hermes_plane",
+        "security_plane",
+        "attention_queue",
+        "dashboard_ui",
+    ]
+    .iter()
+    .map(|value| value.to_string())
+    .collect()
+}
+
+fn reclaim_protected_lanes(contract: &Value) -> BTreeSet<String> {
+    let mut out = default_reclaim_protected_lanes();
+    if let Some(rows) = contract
+        .get("reclaim_protected_lanes")
+        .and_then(Value::as_array)
+    {
+        for row in rows {
+            let lane = clean(row.as_str().unwrap_or_default(), 80).to_ascii_lowercase();
+            if !lane.is_empty() {
+                out.insert(lane);
+            }
+        }
+    }
+    out
+}
+
+fn reclaim_stale_latest(
+    root: &Path,
+    stale_threshold_ms: u64,
+    max_reclaims: usize,
+    protected_lanes: &BTreeSet<String>,
+    dry_run: bool,
+) -> Value {
+    let ops_root = root.join("core").join("local").join("state").join("ops");
+    if !ops_root.exists() {
+        return json!({
+            "ok": true,
+            "type": "hermes_plane_reclaim_stale",
+            "dry_run": dry_run,
+            "stale_threshold_ms": stale_threshold_ms,
+            "scanned_lanes": 0,
+            "candidate_count": 0,
+            "reclaimed_count": 0,
+            "skipped_protected_count": 0,
+            "rows": [],
+            "errors": []
+        });
+    }
+    let mut scanned_lanes: usize = 0;
+    let mut skipped_protected_count: usize = 0;
+    let mut candidates = Vec::<(u64, String, String, PathBuf, String)>::new();
+    let mut errors = Vec::<String>::new();
+    let entries = match fs::read_dir(&ops_root) {
+        Ok(rows) => rows,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "hermes_plane_reclaim_stale",
+                "dry_run": dry_run,
+                "stale_threshold_ms": stale_threshold_ms,
+                "scanned_lanes": 0,
+                "candidate_count": 0,
+                "reclaimed_count": 0,
+                "skipped_protected_count": 0,
+                "rows": [],
+                "errors": [clean(&format!("read_dir_failed:{err}"), 320)]
+            });
+        }
+    };
+    for entry in entries.flatten() {
+        let lane = entry.file_name().to_string_lossy().to_ascii_lowercase();
+        let latest_path = entry.path().join("latest.json");
+        if !latest_path.exists() {
+            continue;
+        }
+        scanned_lanes += 1;
+        if protected_lanes.contains(&lane) {
+            skipped_protected_count += 1;
+            continue;
+        }
+        let payload = read_json(&latest_path).unwrap_or(Value::Null);
+        let ts = clean(
+            payload
+                .get("ts")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("generated_at").and_then(Value::as_str))
+                .unwrap_or(""),
+            80,
+        );
+        let latest_mtime_ms = file_mtime_epoch_ms(&latest_path);
+        let (duration_ms, source) = duration_from_ts_or_mtime_ms(&ts, latest_mtime_ms);
+        if duration_ms < stale_threshold_ms {
+            continue;
+        }
+        candidates.push((
+            duration_ms,
+            lane,
+            latest_path.display().to_string(),
+            latest_path,
+            source.to_string(),
+        ));
+    }
+    candidates.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
+    let mut reclaimed_count: usize = 0;
+    let mut rows = Vec::<Value>::new();
+    let max_apply = max_reclaims.max(1);
+    let archive_dir = state_root(root).join("cockpit").join("reclaimed");
+    if !dry_run {
+        let _ = fs::create_dir_all(&archive_dir);
+    }
+    for (idx, (duration_ms, lane, from_display, from_path, source)) in candidates.iter().enumerate() {
+        if idx >= max_apply {
+            break;
+        }
+        if dry_run {
+            rows.push(json!({
+                "lane": lane,
+                "duration_ms": duration_ms,
+                "duration_source": source,
+                "from": from_display,
+                "reclaimed": false,
+                "dry_run": true
+            }));
+            continue;
+        }
+        let lane_token = clean_id(lane, "lane");
+        let stamp = Utc::now().timestamp_millis().max(0) as u64;
+        let archive_path = archive_dir.join(format!("{lane_token}-{stamp}.json"));
+        let moved = fs::rename(from_path, &archive_path)
+            .or_else(|_| fs::copy(from_path, &archive_path).map(|_| ()))
+            .and_then(|_| fs::remove_file(from_path).or(Ok(())));
+        if moved.is_ok() {
+            reclaimed_count += 1;
+            rows.push(json!({
+                "lane": lane,
+                "duration_ms": duration_ms,
+                "duration_source": source,
+                "from": from_display,
+                "to": archive_path.display().to_string(),
+                "reclaimed": true
+            }));
+        } else if let Err(err) = moved {
+            errors.push(clean(&format!("reclaim_failed:{lane}:{err}"), 320));
+        }
+    }
+    json!({
+        "ok": errors.is_empty(),
+        "type": "hermes_plane_reclaim_stale",
+        "dry_run": dry_run,
+        "stale_threshold_ms": stale_threshold_ms,
+        "max_reclaims": max_apply,
+        "scanned_lanes": scanned_lanes,
+        "candidate_count": candidates.len(),
+        "reclaimed_count": reclaimed_count,
+        "skipped_protected_count": skipped_protected_count,
+        "rows": rows,
+        "errors": errors
+    })
+}
+
 fn classify_tool_call(ty: &str) -> &'static str {
     let lower = ty.to_ascii_lowercase();
     if lower.contains("research") {
@@ -836,6 +1008,10 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "version": "v1",
             "kind": "premium_cockpit_contract",
             "max_blocks": 64,
+            "stale_block_threshold_ms": 30_000,
+            "conduit_signal_active_window_ms": 90_000,
+            "auto_reclaim_stale_blocks": true,
+            "auto_reclaim_max_per_run": 16,
             "allowed_status_colors": ["green", "amber", "red", "blue"]
         }),
     );
@@ -871,10 +1047,64 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .and_then(Value::as_u64)
             .unwrap_or(64),
     ) as usize;
-    let stale_block_threshold_ms = contract
+    let contract_stale_threshold_ms = contract
         .get("stale_block_threshold_ms")
         .and_then(Value::as_u64)
-        .unwrap_or(90_000);
+        .unwrap_or(30_000);
+    let stale_block_threshold_ms = parse_u64(
+        parsed.flags.get("stale-threshold-ms"),
+        parse_u64(parsed.flags.get("threshold-ms"), contract_stale_threshold_ms),
+    )
+    .max(1);
+    let conduit_signal_active_window_ms = parse_u64(
+        parsed.flags.get("conduit-signal-window-ms"),
+        contract
+            .get("conduit_signal_active_window_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(90_000),
+    )
+    .max(stale_block_threshold_ms);
+    let auto_reclaim_stale_blocks = contract
+        .get("auto_reclaim_stale_blocks")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let reclaim_threshold_ms = parse_u64(
+        parsed.flags.get("reclaim-threshold-ms"),
+        stale_block_threshold_ms,
+    )
+    .max(1);
+    let reclaim_max_per_run = parse_u64(
+        parsed.flags.get("max-reclaims"),
+        contract
+            .get("auto_reclaim_max_per_run")
+            .and_then(Value::as_u64)
+            .unwrap_or(16),
+    )
+    .clamp(1, 10_000) as usize;
+    let protected_lanes = reclaim_protected_lanes(&contract);
+    let reclaim = if auto_reclaim_stale_blocks {
+        reclaim_stale_latest(
+            root,
+            reclaim_threshold_ms,
+            reclaim_max_per_run,
+            &protected_lanes,
+            false,
+        )
+    } else {
+        json!({
+            "ok": true,
+            "type": "hermes_plane_reclaim_stale",
+            "dry_run": true,
+            "stale_threshold_ms": reclaim_threshold_ms,
+            "candidate_count": 0,
+            "reclaimed_count": 0,
+            "skipped_protected_count": protected_lanes.len()
+        })
+    };
+    let reclaimed_count = reclaim
+        .get("reclaimed_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0) as usize;
     let latest_rows = collect_recent_ops_latest(root, max_blocks);
 
     let mut blocks = Vec::<Value>::new();
@@ -928,7 +1158,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         }
         if conduit_enforced {
             conduit_signals_total += 1;
-            if !is_stale {
+            if duration_ms < conduit_signal_active_window_ms {
                 conduit_signals_active += 1;
             }
         }
@@ -964,6 +1194,8 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "active_block_count": active_block_count,
             "stale_block_count": stale_block_count,
             "stale_block_threshold_ms": stale_block_threshold_ms,
+            "stale_reclaimed_count": reclaimed_count,
+            "conduit_signal_active_window_ms": conduit_signal_active_window_ms,
             "conduit_signals_active": conduit_signals_active,
             "conduit_signals_total": conduit_signals_total,
             "conduit_channels_observed": conduit_signals_active
@@ -983,6 +1215,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "sha256": sha256_hex_str(&cockpit.to_string())
         },
         "cockpit": cockpit,
+        "reclaim": reclaim,
         "claim_evidence": [
             {
                 "id": "V6-HERMES-001.2",
@@ -996,6 +1229,61 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     });
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
+}
+
+fn run_reclaim_stale(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
+    let contract = load_json_or(
+        root,
+        COCKPIT_CONTRACT_PATH,
+        json!({
+            "version": "v1",
+            "kind": "premium_cockpit_contract",
+            "max_blocks": 64,
+            "stale_block_threshold_ms": 30_000,
+            "conduit_signal_active_window_ms": 90_000,
+            "auto_reclaim_stale_blocks": true,
+            "auto_reclaim_max_per_run": 16,
+            "allowed_status_colors": ["green", "amber", "red", "blue"]
+        }),
+    );
+    let default_threshold_ms = contract
+        .get("stale_block_threshold_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(30_000);
+    let threshold_ms = parse_u64(
+        parsed.flags.get("stale-threshold-ms"),
+        parse_u64(parsed.flags.get("threshold-ms"), default_threshold_ms),
+    )
+    .max(1);
+    let max_reclaims = parse_u64(
+        parsed.flags.get("max-reclaims"),
+        contract
+            .get("auto_reclaim_max_per_run")
+            .and_then(Value::as_u64)
+            .unwrap_or(16),
+    )
+    .clamp(1, 10_000) as usize;
+    let dry_run = parse_bool(parsed.flags.get("dry-run"), false);
+    let protected_lanes = reclaim_protected_lanes(&contract);
+    let reclaim = reclaim_stale_latest(root, threshold_ms, max_reclaims, &protected_lanes, dry_run);
+    json!({
+        "ok": reclaim.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        "strict": strict,
+        "type": "hermes_plane_reclaim_stale",
+        "lane": "core/layer0/ops",
+        "reclaim": reclaim,
+        "claim_evidence": [
+            {
+                "id": "V6-HERMES-001.2",
+                "claim": "premium_realtime_cockpit_stream_exposes_timings_tool_classes_and_status_colors",
+                "evidence": {
+                    "stale_threshold_ms": threshold_ms,
+                    "max_reclaims": max_reclaims,
+                    "dry_run": dry_run
+                }
+            }
+        ]
+    })
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -1041,6 +1329,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "continuity" => run_continuity(root, &parsed, strict),
         "delegate" => run_delegate(root, &parsed, strict),
         "cockpit" | "top" | "dashboard" => run_cockpit(root, &parsed, strict),
+        "reclaim-stale" | "reclaim-blocks" => run_reclaim_stale(root, &parsed, strict),
         _ => json!({
             "ok": false,
             "type": "hermes_plane_error",
@@ -1266,12 +1555,16 @@ mod tests {
         let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
         let out = run_cockpit(root.path(), &parsed, true);
         let metrics = out["cockpit"]["metrics"].clone();
+        let stale_count = metrics
+            .get("stale_block_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let reclaimed_count = metrics
+            .get("stale_reclaimed_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         assert!(
-            metrics
-                .get("stale_block_count")
-                .and_then(Value::as_u64)
-                .unwrap_or(0)
-                >= 1
+            stale_count + reclaimed_count >= 1
         );
         assert!(
             metrics

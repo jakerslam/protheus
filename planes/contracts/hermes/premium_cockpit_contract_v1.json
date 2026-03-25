@@ -2,5 +2,7 @@
   "version": "v1",
   "kind": "premium_cockpit_contract",
   "max_blocks": 64,
+  "stale_block_threshold_ms": 30000,
+  "conduit_signal_active_window_ms": 90000,
   "allowed_status_colors": ["green", "amber", "red", "blue"]
 }
