@@ -74,6 +74,8 @@ function chatPage() {
     freshInitName: '',
     freshInitEmoji: '🤖',
     freshInitLaunching: false,
+    freshInitRevealMenu: false,
+    freshInitStageToken: 0,
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     conversationCacheVersionKey: 'of-chat-conversation-cache-version',
@@ -116,9 +118,39 @@ function chatPage() {
     drawerEditingFallback: false,
     drawerEditingName: false,
     drawerEditingEmoji: false,
+    drawerEmojiPickerOpen: false,
+    drawerEmojiSearch: '',
+    drawerAvatarUploading: false,
+    drawerAvatarUploadError: '',
     drawerNewModelValue: '',
     drawerNewProviderValue: '',
     drawerNewFallbackValue: '',
+    drawerEmojiCatalog: [
+      { emoji: '🤖', name: 'robot' },
+      { emoji: '🧠', name: 'brain' },
+      { emoji: '🧑\u200d💻', name: 'developer' },
+      { emoji: '🛠️', name: 'tools' },
+      { emoji: '🔬', name: 'research' },
+      { emoji: '🧪', name: 'experiment' },
+      { emoji: '🛰️', name: 'signal' },
+      { emoji: '📡', name: 'telemetry' },
+      { emoji: '🚀', name: 'launch' },
+      { emoji: '🧭', name: 'navigator' },
+      { emoji: '🦾', name: 'strong arm' },
+      { emoji: '⚙️', name: 'gear' },
+      { emoji: '🔐', name: 'security' },
+      { emoji: '🛡️', name: 'shield' },
+      { emoji: '📈', name: 'growth' },
+      { emoji: '📊', name: 'analytics' },
+      { emoji: '📝', name: 'writer' },
+      { emoji: '🎯', name: 'target' },
+      { emoji: '💡', name: 'idea' },
+      { emoji: '🌐', name: 'network' },
+      { emoji: '🧱', name: 'builder' },
+      { emoji: '🧰', name: 'toolbox' },
+      { emoji: '🦉', name: 'wise owl' },
+      { emoji: '🔥', name: 'fire' }
+    ],
     drawerArchetypeOptions: ['Assistant', 'Researcher', 'Coder', 'Writer', 'DevOps', 'Support', 'Analyst', 'Custom'],
     drawerVibeOptions: ['professional', 'friendly', 'technical', 'creative', 'concise', 'mentor'],
     chatArchetypeTemplates: [
@@ -1173,32 +1205,78 @@ function chatPage() {
       }
     },
 
+    startFreshInitSequence(agent) {
+      if (!agent || !agent.id) return;
+      var agentId = String(agent.id);
+      var token = Number(this.freshInitStageToken || 0) + 1;
+      this.freshInitStageToken = token;
+      this._freshInitThreadShownFor = agentId;
+      this.showFreshArchetypeTiles = false;
+      this.freshInitRevealMenu = false;
+      var agentName = String(agent.name || agent.id || 'agent').trim() || 'agent';
+      this.messages = [
+        {
+          id: ++msgId,
+          role: 'agent',
+          text: 'Thinking...',
+          meta: '',
+          tools: [],
+          ts: Date.now(),
+          thinking: true,
+          agent_id: agentId,
+          agent_name: agentName
+        }
+      ];
+      this.recomputeContextEstimate();
+      this.cacheAgentConversation(agentId);
+      var self = this;
+      this.$nextTick(function() {
+        self.scrollToBottomImmediate();
+        self.stabilizeBottomScroll();
+      });
+
+      setTimeout(function() {
+        if (Number(self.freshInitStageToken || 0) !== token) return;
+        if (!self.currentAgent || String(self.currentAgent.id || '') !== agentId) return;
+        self.messages = [
+          {
+            id: ++msgId,
+            role: 'agent',
+            text: 'Who am I?',
+            meta: '',
+            tools: [],
+            ts: Date.now(),
+            agent_id: agentId,
+            agent_name: agentName
+          }
+        ];
+        self.recomputeContextEstimate();
+        self.cacheAgentConversation(agentId);
+        self.$nextTick(function() {
+          self.scrollToBottomImmediate();
+          self.stabilizeBottomScroll();
+        });
+
+        setTimeout(function() {
+          if (Number(self.freshInitStageToken || 0) !== token) return;
+          if (!self.currentAgent || String(self.currentAgent.id || '') !== agentId) return;
+          self.freshInitRevealMenu = true;
+          self.showFreshArchetypeTiles = true;
+          self.$nextTick(function() {
+            self.scrollToBottomImmediate();
+            self.stabilizeBottomScroll();
+          });
+        }, 500);
+      }, 500);
+    },
+
     ensureFreshInitThread(agent) {
       if (!agent || !agent.id) return;
       var agentId = String(agent.id);
       if (this._freshInitThreadShownFor === agentId && Array.isArray(this.messages) && this.messages.length > 0) {
         return;
       }
-      var agentName = String(agent.name || agent.id || 'agent').trim() || 'agent';
-      this.messages = [
-        {
-          id: ++msgId,
-          role: 'agent',
-          text: 'Who am I?',
-          meta: '',
-          tools: [],
-          ts: Date.now(),
-          agent_id: agentId,
-          agent_name: agentName
-        }
-      ];
-      this._freshInitThreadShownFor = agentId;
-      this.recomputeContextEstimate();
-      this.cacheAgentConversation(agentId);
-      this.$nextTick(() => {
-        this.scrollToBottomImmediate();
-        this.stabilizeBottomScroll();
-      });
+      this.startFreshInitSequence(agent);
     },
 
     pointerFxThemeMode() {
@@ -1544,8 +1622,14 @@ function chatPage() {
         var text = typeof textSource === 'string' ? textSource : JSON.stringify(textSource || '');
         text = self.sanitizeToolText(text);
         if (role === 'agent') text = self.stripModelPrefix(text);
+        var derivedSystemOrigin = '';
+        if (role === 'user' && /^\s*protheus(?:-ops)?\s+/i.test(String(text || ''))) {
+          role = 'system';
+          derivedSystemOrigin = 'runtime:ops_command';
+        }
         if (role === 'user' && /^\s*\[runtime-task\]/i.test(String(text || ''))) {
           role = 'system';
+          if (!derivedSystemOrigin) derivedSystemOrigin = 'runtime:task';
         }
 
         var tools = (m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
@@ -1601,7 +1685,7 @@ function chatPage() {
             noticeType = 'model';
           }
         }
-        var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';
+        var systemOrigin = m && m.system_origin ? String(m.system_origin) : derivedSystemOrigin;
         var compactText = typeof text === 'string' ? text.trim() : '';
         if (
           role === 'system' &&
@@ -2622,7 +2706,8 @@ function chatPage() {
         this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
         if (forceFreshSession) {
           this.messages = [];
-          this.showFreshArchetypeTiles = true;
+          this.showFreshArchetypeTiles = false;
+          this.freshInitRevealMenu = false;
           this.freshInitTemplateDef = null;
           this.freshInitTemplateName = '';
           this.freshInitLaunching = false;
@@ -2641,7 +2726,7 @@ function chatPage() {
           this.loadSessions(resolved.id);
           this.requestContextTelemetry(true);
           this.clearPromptSuggestions();
-          this.ensureFreshInitThread(resolved);
+          this.startFreshInitSequence(resolved);
           var selfFreshCurrent = this;
           this.$nextTick(function() {
             selfFreshCurrent.scrollToBottomImmediate();
@@ -2665,7 +2750,8 @@ function chatPage() {
       }
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) this.messages = [];
-      this.showFreshArchetypeTiles = !!forceFreshSession;
+      this.showFreshArchetypeTiles = false;
+      this.freshInitRevealMenu = false;
       if (forceFreshSession) {
         this.freshInitTemplateDef = null;
         this.freshInitTemplateName = '';
@@ -2677,8 +2763,9 @@ function chatPage() {
           '🤖'
         ).trim() || '🤖';
         this.clearPromptSuggestions();
-        this.ensureFreshInitThread(resolved);
+        this.startFreshInitSequence(resolved);
       } else {
+        this.freshInitStageToken = Number(this.freshInitStageToken || 0) + 1;
         this._freshInitThreadShownFor = '';
       }
       this._reconcileSendingState();
@@ -2844,6 +2931,8 @@ function chatPage() {
           notice_type: 'info',
           ts: Date.now()
         });
+        this.freshInitStageToken = Number(this.freshInitStageToken || 0) + 1;
+        this.freshInitRevealMenu = false;
         this.showFreshArchetypeTiles = false;
         this.freshInitTemplateDef = null;
         this.freshInitTemplateName = '';
@@ -2878,6 +2967,8 @@ function chatPage() {
         }
         var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data));
         if (normalized.length) {
+          self.freshInitStageToken = Number(self.freshInitStageToken || 0) + 1;
+          self.freshInitRevealMenu = false;
           self.showFreshArchetypeTiles = false;
           if (!keepCurrent || !self.messages || !self.messages.length || normalized.length >= self.messages.length) {
             self.messages = normalized;
@@ -2892,6 +2983,8 @@ function chatPage() {
             self.stabilizeBottomScroll();
           });
         } else if (!keepCurrent) {
+          self.freshInitStageToken = Number(self.freshInitStageToken || 0) + 1;
+          self.freshInitRevealMenu = false;
           self.messages = [];
           self.clearHoveredMessageHard();
           self.activeMapPreviewDomId = '';
@@ -4311,6 +4404,99 @@ function chatPage() {
       map.scrollTo({ top: nextTop, behavior: (immediate || this.suppressMapPreview) ? 'auto' : 'smooth' });
     },
 
+    filteredDrawerEmojiCatalog: function() {
+      var source = Array.isArray(this.drawerEmojiCatalog) ? this.drawerEmojiCatalog : [];
+      var query = String(this.drawerEmojiSearch || '').trim().toLowerCase();
+      if (!query) return source.slice(0, 24);
+      return source.filter(function(row) {
+        var emoji = String((row && row.emoji) || '');
+        var name = String((row && row.name) || '').toLowerCase();
+        return emoji.indexOf(query) >= 0 || name.indexOf(query) >= 0;
+      }).slice(0, 24);
+    },
+
+    toggleDrawerEmojiPicker: function() {
+      this.drawerEmojiPickerOpen = !this.drawerEmojiPickerOpen;
+      if (!this.drawerEmojiPickerOpen) {
+        this.drawerEmojiSearch = '';
+      } else {
+        this.drawerEditingEmoji = true;
+      }
+    },
+
+    selectDrawerEmoji: function(choice) {
+      var emoji = String(choice && choice.emoji ? choice.emoji : choice || '').trim();
+      if (!emoji) return;
+      if (!this.drawerConfigForm || typeof this.drawerConfigForm !== 'object') {
+        this.drawerConfigForm = {};
+      }
+      this.drawerConfigForm.emoji = emoji;
+      this.drawerEmojiPickerOpen = false;
+      this.drawerEmojiSearch = '';
+      this.drawerEditingEmoji = false;
+    },
+
+    openDrawerAvatarPicker: function() {
+      if (this.$refs && this.$refs.drawerAvatarInput) {
+        this.$refs.drawerAvatarInput.click();
+      }
+    },
+
+    uploadDrawerAvatar: async function(fileList) {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      var files = Array.isArray(fileList) ? fileList : Array.from(fileList || []);
+      if (!files.length) return;
+      var file = files[0];
+      if (!file) return;
+      var mime = String(file.type || '').toLowerCase();
+      if (mime && mime.indexOf('image/') !== 0) {
+        InfringToast.error('Avatar must be an image file.');
+        return;
+      }
+      this.drawerAvatarUploading = true;
+      this.drawerAvatarUploadError = '';
+      try {
+        var headers = {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-Filename': file.name || 'avatar'
+        };
+        var token = (typeof InfringAPI !== 'undefined' && typeof InfringAPI.getToken === 'function')
+          ? String(InfringAPI.getToken() || '')
+          : '';
+        if (token) headers.Authorization = 'Bearer ' + token;
+        var response = await fetch('/api/agents/' + encodeURIComponent(this.agentDrawer.id) + '/avatar', {
+          method: 'POST',
+          headers: headers,
+          body: file
+        });
+        var payload = null;
+        try {
+          payload = await response.json();
+        } catch (_) {
+          payload = null;
+        }
+        if (!response.ok || !payload || !payload.ok || !payload.avatar_url) {
+          var reason = payload && payload.error ? payload.error : 'avatar_upload_failed';
+          throw new Error(String(reason));
+        }
+        if (!this.drawerConfigForm || typeof this.drawerConfigForm !== 'object') {
+          this.drawerConfigForm = {};
+        }
+        this.drawerConfigForm.avatar_url = String(payload.avatar_url || '').trim();
+        this.agentDrawer.avatar_url = String(payload.avatar_url || '').trim();
+        this.drawerEditingEmoji = false;
+        this.drawerEmojiPickerOpen = false;
+        InfringToast.success('Avatar uploaded');
+        await this.saveDrawerIdentity('avatar');
+      } catch (error) {
+        var message = (error && error.message) ? String(error.message) : 'avatar_upload_failed';
+        this.drawerAvatarUploadError = message;
+        InfringToast.error('Failed to upload avatar: ' + message);
+      } finally {
+        this.drawerAvatarUploading = false;
+      }
+    },
+
     async openAgentDrawer() {
       if (!this.currentAgent || !this.currentAgent.id) return;
       this.showAgentDrawer = true;
@@ -4321,6 +4507,10 @@ function chatPage() {
       this.drawerEditingFallback = false;
       this.drawerEditingName = false;
       this.drawerEditingEmoji = false;
+      this.drawerEmojiPickerOpen = false;
+      this.drawerEmojiSearch = '';
+      this.drawerAvatarUploading = false;
+      this.drawerAvatarUploadError = '';
       this.drawerIdentitySaving = false;
       this.drawerSavePending = false;
       this.drawerNewModelValue = '';
@@ -4334,6 +4524,7 @@ function chatPage() {
         name: this.agentDrawer.name || '',
         system_prompt: this.agentDrawer.system_prompt || '',
         emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+        avatar_url: this.agentDrawer.avatar_url || '',
         color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
         archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
         vibe: (this.agentDrawer.identity && this.agentDrawer.identity.vibe) || '',
@@ -4347,6 +4538,7 @@ function chatPage() {
           name: this.agentDrawer.name || '',
           system_prompt: this.agentDrawer.system_prompt || '',
           emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+          avatar_url: this.agentDrawer.avatar_url || '',
           color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
           archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
           vibe: (this.agentDrawer.identity && this.agentDrawer.identity.vibe) || '',
@@ -4362,6 +4554,9 @@ function chatPage() {
       this.showAgentDrawer = false;
       this.drawerEditingName = false;
       this.drawerEditingEmoji = false;
+      this.drawerEmojiPickerOpen = false;
+      this.drawerEmojiSearch = '';
+      this.drawerAvatarUploadError = '';
     },
 
     toggleAgentDrawer() {
@@ -4503,6 +4698,8 @@ function chatPage() {
         payload.name = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       } else if (part === 'emoji') {
         payload.emoji = String((this.drawerConfigForm && this.drawerConfigForm.emoji) || '').trim();
+      } else if (part === 'avatar') {
+        payload.avatar_url = String((this.drawerConfigForm && this.drawerConfigForm.avatar_url) || '').trim();
       } else {
         return;
       }
@@ -4516,7 +4713,12 @@ function chatPage() {
         }
         if (part === 'name') this.drawerEditingName = false;
         if (part === 'emoji') this.drawerEditingEmoji = false;
-        InfringToast.success(part === 'name' ? 'Name updated' : 'Emoji updated');
+        if (part === 'avatar') this.drawerAvatarUploadError = '';
+        InfringToast.success(
+          part === 'name'
+            ? 'Name updated'
+            : (part === 'emoji' ? 'Emoji updated' : 'Avatar updated')
+        );
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
         InfringToast.error('Failed to save ' + part + ': ' + e.message);
