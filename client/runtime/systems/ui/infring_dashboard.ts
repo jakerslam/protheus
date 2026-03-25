@@ -42,6 +42,14 @@ const AGENT_CONTRACTS_PATH = path.resolve(STATE_DIR, 'agent_contracts.json');
 const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
 const AGENT_GIT_TREES_DIR = path.resolve(STATE_DIR, 'agent_git_trees');
 const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
+const PROVIDER_REGISTRY_PATH = path.resolve(STATE_DIR, 'provider_registry.json');
+const CUSTOM_MODELS_PATH = path.resolve(STATE_DIR, 'custom_models.json');
+const CHANNEL_REGISTRY_PATH = path.resolve(STATE_DIR, 'channel_registry.json');
+const CHANNEL_QR_STATE_PATH = path.resolve(STATE_DIR, 'channel_qr_sessions.json');
+const APPROVALS_STATE_PATH = path.resolve(STATE_DIR, 'approvals.json');
+const WORKFLOWS_STATE_PATH = path.resolve(STATE_DIR, 'workflows.json');
+const CRON_JOBS_STATE_PATH = path.resolve(STATE_DIR, 'cron_jobs.json');
+const TRIGGERS_STATE_PATH = path.resolve(STATE_DIR, 'triggers.json');
 const MODEL_ROUTER_PROVIDER_PROFILE_PATH = path.resolve(ROOT, 'local/state/ops/model_router/provider_profile.json');
 const BENCHMARK_SANITY_STATE_PATH = path.resolve(ROOT, 'core/local/state/ops/benchmark_sanity/latest.json');
 const BENCHMARK_SANITY_GATE_PATH = path.resolve(ROOT, 'core/local/artifacts/benchmark_sanity_gate_current.json');
@@ -149,6 +157,8 @@ const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg'
 const OLLAMA_BIN = 'ollama';
 const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
+const OLLAMA_MODEL_CACHE_TTL_MS = 30_000;
+const LOCAL_PROVIDER_DISCOVERY_INTERVAL_MS = 30_000;
 const PROMPT_SUGGESTION_TIMEOUT_MS = 1200;
 const PROMPT_SUGGESTION_CACHE_TTL_MS = 20_000;
 const PROMPT_SUGGESTION_CACHE_MAX = 512;
@@ -162,6 +172,11 @@ const TERMINAL_OUTPUT_LIMIT = 18000;
 const TERMINAL_COMMAND_TIMEOUT_MS = 45000;
 const TERMINAL_SESSION_IDLE_TTL_MS = 5 * 60 * 1000;
 const TERMINAL_KILL_GRACE_MS = 1200;
+const INTERACTIVE_BACKGROUND_SUPPRESS_MS = 15_000;
+const DASHBOARD_BACKGROUND_RUNTIME_LOOPS_ENABLED = cleanText(
+  process.env.INFRING_DASHBOARD_BG_LOOPS || '',
+  8
+) === '1';
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 8192;
 const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 1000;
@@ -383,7 +398,7 @@ const OPS_READ_ONLY = new Set([
   'dashboard-ui',
 ]);
 let ACTIVE_CLI_MODE = DEFAULT_CLI_MODE;
-const GIT_BRANCH_CACHE_MS = 15_000;
+const GIT_BRANCH_CACHE_MS = 120_000;
 const GIT_WORKSPACE_READY_CACHE_MS = 8_000;
 let gitBranchCache = {
   value: '',
@@ -3215,17 +3230,489 @@ function testingModelOverrideForAgent(agentId) {
   };
 }
 
+const PROVIDER_MODEL_CATALOG = {
+  openai: ['gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4o'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514'],
+  google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+  xai: ['grok-3', 'grok-2'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  cohere: ['command-r-plus', 'command-r'],
+  mistral: ['mistral-large-latest', 'mistral-small-latest'],
+  perplexity: ['sonar-pro', 'sonar-small'],
+  openrouter: ['openrouter/google/gemini-2.5-flash', 'openrouter/anthropic/claude-sonnet-4'],
+  together: ['meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo'],
+  fireworks: ['accounts/fireworks/models/llama-v3p1-70b-instruct'],
+  cloud: ['kimi2.5:cloud'],
+};
+
+const PROVIDER_DEFAULTS = [
+  { id: 'auto', display_name: 'Auto Router', is_local: false, needs_key: false },
+  { id: 'openai', display_name: 'OpenAI', is_local: false, needs_key: true },
+  { id: 'anthropic', display_name: 'Anthropic', is_local: false, needs_key: true },
+  { id: 'google', display_name: 'Google', is_local: false, needs_key: true },
+  { id: 'groq', display_name: 'Groq', is_local: false, needs_key: true },
+  { id: 'xai', display_name: 'xAI', is_local: false, needs_key: true },
+  { id: 'deepseek', display_name: 'DeepSeek', is_local: false, needs_key: true },
+  { id: 'cohere', display_name: 'Cohere', is_local: false, needs_key: true },
+  { id: 'mistral', display_name: 'Mistral', is_local: false, needs_key: true },
+  { id: 'perplexity', display_name: 'Perplexity', is_local: false, needs_key: true },
+  { id: 'openrouter', display_name: 'OpenRouter', is_local: false, needs_key: true },
+  { id: 'together', display_name: 'Together', is_local: false, needs_key: true },
+  { id: 'fireworks', display_name: 'Fireworks', is_local: false, needs_key: true },
+  { id: 'ollama', display_name: 'Ollama', is_local: true, needs_key: false, base_url: 'http://127.0.0.1:11434' },
+  { id: 'llama.cpp', display_name: 'llama.cpp', is_local: true, needs_key: false, base_url: 'http://127.0.0.1:8080' },
+  { id: 'cloud', display_name: 'Cloud (Generic)', is_local: false, needs_key: true },
+];
+
+const CHANNEL_DEFAULTS = [
+  {
+    name: 'whatsapp',
+    icon: '💬',
+    display_name: 'WhatsApp',
+    description: 'Connect WhatsApp for direct messaging and notifications.',
+    quick_setup: 'Use QR login for WhatsApp Web or configure Business API credentials.',
+    category: 'messaging',
+    difficulty: 'Medium',
+    setup_time: '2-5 min',
+    setup_type: 'qr',
+    has_token: false,
+    configured: false,
+    fields: [
+      { key: 'business_token', label: 'Business API Token', type: 'secret', advanced: true, placeholder: 'EAAG...' },
+      { key: 'phone_number_id', label: 'Phone Number ID', type: 'text', advanced: true, placeholder: '123456789' },
+    ],
+    setup_steps: ['Open WhatsApp on your phone', 'Scan QR code in this modal', 'Confirm linked status'],
+    config_template: 'WHATSAPP_BUSINESS_TOKEN=...\\nWHATSAPP_PHONE_NUMBER_ID=...',
+  },
+  {
+    name: 'discord',
+    icon: '🎮',
+    display_name: 'Discord',
+    description: 'Route agent messages into Discord channels.',
+    quick_setup: 'Create a bot token and select a target server/channel.',
+    category: 'messaging',
+    difficulty: 'Easy',
+    setup_time: '2 min',
+    setup_type: 'form',
+    has_token: false,
+    configured: false,
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', type: 'secret', advanced: false, placeholder: 'MTIz...' },
+      { key: 'channel_id', label: 'Channel ID', type: 'text', advanced: false, placeholder: '123456789012345678' },
+    ],
+    setup_steps: ['Create Discord bot', 'Invite bot to server', 'Paste token and channel id'],
+    config_template: 'DISCORD_BOT_TOKEN=...\\nDISCORD_CHANNEL_ID=...',
+  },
+  {
+    name: 'slack',
+    icon: '💼',
+    display_name: 'Slack',
+    description: 'Send updates to Slack channels and threads.',
+    quick_setup: 'Use a bot token + app-level token for socket mode.',
+    category: 'enterprise',
+    difficulty: 'Medium',
+    setup_time: '3-8 min',
+    setup_type: 'form',
+    has_token: false,
+    configured: false,
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', type: 'secret', advanced: false, placeholder: 'xoxb-...' },
+      { key: 'app_token', label: 'App Token', type: 'secret', advanced: true, placeholder: 'xapp-...' },
+      { key: 'default_channel', label: 'Default Channel', type: 'text', advanced: false, placeholder: '#ops' },
+    ],
+    setup_steps: ['Create Slack app', 'Enable bot scopes', 'Paste tokens and channel'],
+    config_template: 'SLACK_BOT_TOKEN=...\\nSLACK_APP_TOKEN=...\\nSLACK_DEFAULT_CHANNEL=#ops',
+  },
+];
+
+let localProviderProbeCache = new Map();
+let localProviderAutoDiscoverAtMs = 0;
+let ollamaModelListCache = {
+  ts: 0,
+  models: [],
+};
+
+function inferProviderFromApiKey(apiKey = '') {
+  const key = cleanText(apiKey || '', 320);
+  if (!key) return '';
+  if (/^sk-ant-/i.test(key)) return 'anthropic';
+  if (/^sk-proj-/i.test(key) || /^sk-[a-z0-9]/i.test(key)) return 'openai';
+  if (/^AIza[0-9A-Za-z_-]{20,}$/i.test(key)) return 'google';
+  if (/^gsk_[A-Za-z0-9_-]+/i.test(key)) return 'groq';
+  if (/^xai-/i.test(key)) return 'xai';
+  if (/^dsk_/i.test(key) || /^deepseek-/i.test(key)) return 'deepseek';
+  if (/^pplx-/i.test(key)) return 'perplexity';
+  if (/^co_[a-z0-9]/i.test(key)) return 'cohere';
+  if (/^mistral-/i.test(key)) return 'mistral';
+  if (/^or-/i.test(key)) return 'openrouter';
+  return 'cloud';
+}
+
+function providerDefaultById(providerId) {
+  const normalized = cleanText(providerId || '', 80).toLowerCase();
+  if (!normalized) return null;
+  return PROVIDER_DEFAULTS.find((row) => row.id === normalized) || null;
+}
+
+function normalizeProviderRecord(providerId, value = {}) {
+  const normalizedId = cleanText(providerId || value.id || '', 80).toLowerCase();
+  const def = providerDefaultById(normalizedId);
+  const now = nowIso();
+  return {
+    id: normalizedId,
+    display_name:
+      cleanText(value.display_name || (def && def.display_name) || normalizedId, 80) ||
+      normalizedId,
+    is_local: value.is_local === true || (!!def && def.is_local === true),
+    needs_key: value.needs_key === true || (!!def && def.needs_key === true),
+    auth_status: cleanText(value.auth_status || '', 24) || 'not_set',
+    base_url: cleanText(value.base_url || (def && def.base_url) || '', 320),
+    key_prefix: cleanText(value.key_prefix || '', 24),
+    key_last4: cleanText(value.key_last4 || '', 12),
+    key_hash: cleanText(value.key_hash || '', 80),
+    key_set_at: cleanText(value.key_set_at || '', 80),
+    reachable: value.reachable === true,
+    detected_models: Array.isArray(value.detected_models)
+      ? value.detected_models
+          .map((row) => cleanText(row, 160))
+          .filter(Boolean)
+          .slice(0, 128)
+      : [],
+    updated_at: cleanText(value.updated_at || now, 80) || now,
+  };
+}
+
+function loadProviderRegistry(snapshot) {
+  const now = nowIso();
+  const raw = readJson(PROVIDER_REGISTRY_PATH, null);
+  const base =
+    raw && typeof raw === 'object'
+      ? raw
+      : {
+          type: 'infring_dashboard_provider_registry',
+          updated_at: now,
+          providers: {},
+        };
+  const providers = {};
+  const seeded = Array.isArray(PROVIDER_DEFAULTS) ? PROVIDER_DEFAULTS : [];
+  for (const row of seeded) {
+    const id = cleanText(row && row.id ? row.id : '', 80).toLowerCase();
+    if (!id) continue;
+    providers[id] = normalizeProviderRecord(id, {
+      ...(row || {}),
+      ...(base.providers && base.providers[id] ? base.providers[id] : {}),
+    });
+  }
+  const configured = cleanText(configuredProvider(snapshot), 80).toLowerCase();
+  if (configured && providers[configured]) {
+    if (!providers[configured].is_local) {
+      providers[configured].auth_status = providers[configured].key_hash ? 'configured' : 'configured';
+    }
+    providers[configured].updated_at = now;
+  }
+  const normalized = {
+    type: 'infring_dashboard_provider_registry',
+    updated_at: now,
+    providers,
+  };
+  return normalized;
+}
+
+function saveProviderRegistry(state) {
+  const normalized = loadProviderRegistry(null);
+  const incomingProviders = state && state.providers && typeof state.providers === 'object' ? state.providers : {};
+  for (const providerId of Object.keys(incomingProviders)) {
+    normalized.providers[providerId] = normalizeProviderRecord(providerId, incomingProviders[providerId]);
+  }
+  normalized.updated_at = nowIso();
+  writeJson(PROVIDER_REGISTRY_PATH, normalized);
+  return normalized;
+}
+
+function providerKeyMetadata(key = '') {
+  const clean = cleanText(key || '', 640);
+  if (!clean) {
+    return {
+      key_prefix: '',
+      key_last4: '',
+      key_hash: '',
+      key_set_at: '',
+    };
+  }
+  return {
+    key_prefix: cleanText(clean.slice(0, 6), 12),
+    key_last4: cleanText(clean.slice(-4), 12),
+    key_hash: sha256(clean),
+    key_set_at: nowIso(),
+  };
+}
+
+function probeOpenAiCompatModels(baseUrl = '', apiKey = '') {
+  const normalizedUrl = cleanText(baseUrl || '', 320).replace(/\/+$/, '');
+  if (!normalizedUrl || !/^https?:\/\//i.test(normalizedUrl)) {
+    return { reachable: false, models: [] };
+  }
+  const cacheKey = `${normalizedUrl}|${cleanText(apiKey ? sha256(apiKey) : '', 20)}`;
+  const cached = localProviderProbeCache.get(cacheKey);
+  if (
+    cached &&
+    cached.ts &&
+    (Date.now() - parseNonNegativeInt(cached.ts, 0, 9_999_999_999_999)) < 20_000
+  ) {
+    return { reachable: !!cached.reachable, models: Array.isArray(cached.models) ? cached.models.slice(0, 64) : [] };
+  }
+  try {
+    const args = ['-sS', '--max-time', '1.4', `${normalizedUrl}/v1/models`];
+    if (apiKey) args.unshift('-H', `Authorization: Bearer ${apiKey}`);
+    const out = spawnSync('curl', args, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 2200,
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    const parsed = out && out.stdout ? parseJsonLoose(String(out.stdout || '')) : null;
+    const list =
+      parsed && parsed.data && Array.isArray(parsed.data)
+        ? parsed.data
+        : [];
+    const models = list
+      .map((row) => cleanText(row && row.id ? row.id : '', 160))
+      .filter(Boolean)
+      .slice(0, 128);
+    const reachable = (out && out.status === 0) && models.length > 0;
+    localProviderProbeCache.set(cacheKey, { ts: Date.now(), reachable, models });
+    return { reachable, models };
+  } catch {
+    return { reachable: false, models: [] };
+  }
+}
+
+function loadCustomModels() {
+  const state = readJson(CUSTOM_MODELS_PATH, null);
+  const rows = Array.isArray(state && state.models) ? state.models : Array.isArray(state) ? state : [];
+  return rows
+    .map((row) => ({
+      id: cleanText(row && row.id ? row.id : '', 160),
+      provider: cleanText(row && row.provider ? row.provider : '', 80).toLowerCase(),
+      display_name: cleanText(row && row.display_name ? row.display_name : row && row.id ? row.id : '', 160),
+      context_window: parsePositiveInt(row && row.context_window != null ? row.context_window : 0, 0, 0, 8_000_000),
+      max_output_tokens: parsePositiveInt(row && row.max_output_tokens != null ? row.max_output_tokens : 0, 0, 0, 8_000_000),
+      available: row && row.available !== false,
+      deployment: cleanText(row && row.deployment ? row.deployment : '', 20) || '',
+    }))
+    .filter((row) => row.id && row.provider);
+}
+
+function saveCustomModels(rows) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  writeJson(CUSTOM_MODELS_PATH, {
+    type: 'infring_dashboard_custom_models',
+    updated_at: nowIso(),
+    models: safeRows,
+  });
+}
+
+function loadChannelRegistry() {
+  const now = nowIso();
+  const raw = readJson(CHANNEL_REGISTRY_PATH, null);
+  const state =
+    raw && typeof raw === 'object'
+      ? raw
+      : { type: 'infring_dashboard_channel_registry', updated_at: now, channels: {} };
+  const channels = {};
+  for (const def of CHANNEL_DEFAULTS) {
+    const id = cleanText(def && def.name ? def.name : '', 80).toLowerCase();
+    if (!id) continue;
+    const existing = state.channels && state.channels[id] ? state.channels[id] : {};
+    const merged = {
+      ...def,
+      ...existing,
+      name: id,
+      display_name: cleanText(existing.display_name || def.display_name || id, 120) || id,
+      description: cleanText(existing.description || def.description || '', 220),
+      quick_setup: cleanText(existing.quick_setup || def.quick_setup || '', 220),
+      icon: cleanText(existing.icon || def.icon || '🔌', 8) || '🔌',
+      category: cleanText(existing.category || def.category || 'messaging', 40) || 'messaging',
+      difficulty: cleanText(existing.difficulty || def.difficulty || 'Medium', 20) || 'Medium',
+      setup_time: cleanText(existing.setup_time || def.setup_time || '2 min', 20) || '2 min',
+      setup_type: cleanText(existing.setup_type || def.setup_type || 'form', 20) || 'form',
+      configured: existing.configured === true,
+      has_token: existing.has_token === true,
+      fields: Array.isArray(def.fields) ? def.fields.map((field) => ({ ...field })) : [],
+      setup_steps: Array.isArray(def.setup_steps) ? def.setup_steps.slice(0, 8) : [],
+      config_template: cleanText(def.config_template || '', 600),
+      stored_fields: existing.stored_fields && typeof existing.stored_fields === 'object' ? existing.stored_fields : {},
+      updated_at: cleanText(existing.updated_at || now, 80) || now,
+    };
+    if (Array.isArray(merged.fields)) {
+      merged.fields = merged.fields.map((field) => {
+        const key = cleanText(field && field.key ? field.key : '', 80);
+        const value = key && Object.prototype.hasOwnProperty.call(merged.stored_fields, key)
+          ? merged.stored_fields[key]
+          : '';
+        const safeValue = field && field.type === 'secret'
+          ? ''
+          : cleanText(value, 240);
+        return {
+          ...field,
+          key,
+          value: safeValue,
+        };
+      });
+    }
+    channels[id] = merged;
+  }
+  return {
+    type: 'infring_dashboard_channel_registry',
+    updated_at: now,
+    channels,
+  };
+}
+
+function saveChannelRegistry(state) {
+  const safe = state && typeof state === 'object' ? state : loadChannelRegistry();
+  safe.updated_at = nowIso();
+  writeJson(CHANNEL_REGISTRY_PATH, safe);
+  return safe;
+}
+
+function loadQrSessions() {
+  const raw = readJson(CHANNEL_QR_STATE_PATH, null);
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+function saveQrSessions(state) {
+  const safe = state && typeof state === 'object' ? state : {};
+  writeJson(CHANNEL_QR_STATE_PATH, safe);
+  return safe;
+}
+
+function readArrayStore(filePath, fallback = []) {
+  const raw = readJson(filePath, null);
+  const rows = Array.isArray(raw)
+    ? raw
+    : raw && Array.isArray(raw.items)
+      ? raw.items
+      : raw && Array.isArray(raw.rows)
+        ? raw.rows
+        : [];
+  const out = Array.isArray(rows) ? rows : fallback;
+  return out.slice(0, 5000);
+}
+
+function writeArrayStore(filePath, rows) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  writeJson(filePath, {
+    type: 'infring_dashboard_store',
+    updated_at: nowIso(),
+    items: safeRows,
+  });
+  return safeRows;
+}
+
+function listGlobalSessionsFromAgentFiles() {
+  const rows = [];
+  try {
+    if (!fs.existsSync(AGENT_SESSIONS_DIR)) return rows;
+    const files = fs.readdirSync(AGENT_SESSIONS_DIR).filter((name) => name.endsWith('.json'));
+    for (const fileName of files) {
+      const agentId = cleanText(fileName.replace(/\.json$/i, ''), 140);
+      if (!agentId) continue;
+      const state = readJson(path.resolve(AGENT_SESSIONS_DIR, fileName), null);
+      const normalized = normalizeSessionState(state, null);
+      const list = Array.isArray(normalized.sessions) ? normalized.sessions : [];
+      for (const session of list) {
+        rows.push({
+          session_id: cleanText(session && session.session_id ? session.session_id : '', 120),
+          agent_id: agentId,
+          label: cleanText(session && session.label ? session.label : 'Session', 120) || 'Session',
+          updated_at: cleanText(session && session.updated_at ? session.updated_at : nowIso(), 80) || nowIso(),
+          created_at: cleanText(session && session.created_at ? session.created_at : nowIso(), 80) || nowIso(),
+          message_count: Array.isArray(session && session.messages) ? session.messages.length : 0,
+        });
+      }
+    }
+  } catch {}
+  rows.sort((a, b) => coerceTsMs(b && b.updated_at ? b.updated_at : 0, 0) - coerceTsMs(a && a.updated_at ? a.updated_at : 0, 0));
+  return rows.slice(0, 2000);
+}
+
+function removeSessionById(sessionId = '') {
+  const target = cleanText(sessionId || '', 140);
+  if (!target) return { ok: false, deleted: false };
+  let deleted = false;
+  try {
+    if (!fs.existsSync(AGENT_SESSIONS_DIR)) return { ok: true, deleted: false };
+    const files = fs.readdirSync(AGENT_SESSIONS_DIR).filter((name) => name.endsWith('.json'));
+    for (const fileName of files) {
+      const filePath = path.resolve(AGENT_SESSIONS_DIR, fileName);
+      const state = readJson(filePath, null);
+      const normalized = normalizeSessionState(state, null);
+      const before = normalized.sessions.length;
+      normalized.sessions = normalized.sessions.filter((row) => cleanText(row && row.session_id ? row.session_id : '', 120) !== target);
+      if (normalized.sessions.length === before) continue;
+      deleted = true;
+      if (!normalized.sessions.length) {
+        normalized.sessions = [
+          {
+            session_id: 'default',
+            label: 'Default',
+            created_at: nowIso(),
+            updated_at: nowIso(),
+            messages: [],
+          },
+        ];
+      }
+      if (!normalized.sessions.some((row) => row.session_id === normalized.active_session_id)) {
+        normalized.active_session_id = normalized.sessions[0].session_id;
+      }
+      writeJson(filePath, normalized);
+    }
+  } catch {}
+  return { ok: true, deleted };
+}
+
+function ensureDefaultApprovals() {
+  const rows = readArrayStore(APPROVALS_STATE_PATH, []);
+  if (rows.length) return rows;
+  const seeded = [
+    {
+      id: `approval_${sha256(`approval:${Date.now()}`).slice(0, 10)}`,
+      title: 'Approve runtime remediation lane execution',
+      detail: 'Allow dashboard to run runtime telemetry remediation recommendations.',
+      status: 'pending',
+      created_at: nowIso(),
+      source: 'runtime',
+    },
+  ];
+  writeArrayStore(APPROVALS_STATE_PATH, seeded);
+  return seeded;
+}
+
 function parseOllamaModelList() {
+  const cachedAt = parseNonNegativeInt(ollamaModelListCache.ts, 0, 9_999_999_999_999);
+  if (
+    cachedAt > 0 &&
+    (Date.now() - cachedAt) < OLLAMA_MODEL_CACHE_TTL_MS &&
+    Array.isArray(ollamaModelListCache.models)
+  ) {
+    return ollamaModelListCache.models.slice(0, 128);
+  }
   if (!commandExists(OLLAMA_BIN)) return [];
   try {
     const proc = spawnSync(OLLAMA_BIN, ['list'], {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: 'pipe',
-      timeout: 6000,
+      timeout: 2200,
       maxBuffer: 2 * 1024 * 1024,
     });
-    if (!proc || proc.status !== 0) return [];
+    if (!proc || proc.status !== 0) {
+      ollamaModelListCache = { ts: Date.now(), models: [] };
+      return [];
+    }
     const out = String(proc.stdout || '');
     const lines = out.split('\n').map((row) => row.trim()).filter(Boolean);
     const models = [];
@@ -3236,15 +3723,100 @@ function parseOllamaModelList() {
       if (!id || id.toLowerCase() === 'name') continue;
       models.push(id);
     }
-    return Array.from(new Set(models));
+    const deduped = Array.from(new Set(models));
+    ollamaModelListCache = {
+      ts: Date.now(),
+      models: deduped.slice(0, 128),
+    };
+    return ollamaModelListCache.models.slice(0, 128);
   } catch {
+    ollamaModelListCache = { ts: Date.now(), models: [] };
     return [];
   }
+}
+
+function discoverLocalProviderState(snapshot, options = {}) {
+  const force = !!(options && options.force === true);
+  const nowMs = Date.now();
+  if (
+    !force &&
+    (nowMs - parseNonNegativeInt(localProviderAutoDiscoverAtMs, 0, 9_999_999_999_999)) <
+      LOCAL_PROVIDER_DISCOVERY_INTERVAL_MS
+  ) {
+    return loadProviderRegistry(snapshot);
+  }
+  localProviderAutoDiscoverAtMs = nowMs;
+  const registry = loadProviderRegistry(snapshot);
+  const providers =
+    registry && registry.providers && typeof registry.providers === 'object'
+      ? { ...registry.providers }
+      : {};
+  let changed = false;
+  const ensureProvider = (providerId, nextValue) => {
+    const next = normalizeProviderRecord(providerId, nextValue);
+    const prev = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+    providers[providerId] = next;
+    if (JSON.stringify(prev) !== JSON.stringify(next)) {
+      changed = true;
+    }
+  };
+
+  const configured = configuredOllamaModel(snapshot);
+  const fromOllama = parseOllamaModelList();
+  const mergedOllama = Array.from(new Set([configured, OLLAMA_MODEL_FALLBACK, ...fromOllama].filter(Boolean))).slice(0, 128);
+  const ollamaPrev = providers.ollama || normalizeProviderRecord('ollama', {});
+  ensureProvider('ollama', {
+    ...ollamaPrev,
+    is_local: true,
+    needs_key: false,
+    reachable: mergedOllama.length > 0,
+    auth_status: mergedOllama.length > 0 ? 'configured' : 'not_set',
+    detected_models: mergedOllama,
+    updated_at: nowIso(),
+  });
+
+  for (const providerId of Object.keys(providers)) {
+    if (providerId === 'ollama') continue;
+    const providerRow = providers[providerId];
+    if (!(providerRow && providerRow.is_local)) continue;
+    const baseUrl = cleanText(providerRow.base_url || '', 320);
+    if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) continue;
+    const probe = probeOpenAiCompatModels(baseUrl, '');
+    ensureProvider(providerId, {
+      ...providerRow,
+      reachable: probe.reachable || !!providerRow.reachable,
+      auth_status:
+        probe.reachable || !!providerRow.key_hash || (Array.isArray(probe.models) && probe.models.length > 0)
+          ? 'configured'
+          : 'not_set',
+      detected_models:
+        Array.isArray(probe.models) && probe.models.length
+          ? probe.models.slice(0, 128)
+          : Array.isArray(providerRow.detected_models)
+            ? providerRow.detected_models.slice(0, 128)
+            : [],
+      updated_at: nowIso(),
+    });
+  }
+
+  if (changed) {
+    saveProviderRegistry({ providers });
+  }
+  return {
+    ...registry,
+    providers,
+  };
 }
 
 function buildDashboardModels(snapshot) {
   const rows = [];
   const configuredWindow = inferContextWindowFromModelName(configuredOllamaModel(snapshot), DEFAULT_CONTEXT_WINDOW_TOKENS);
+  const providerRegistry = discoverLocalProviderState(snapshot);
+  const providers = providerRegistry && providerRegistry.providers && typeof providerRegistry.providers === 'object'
+    ? providerRegistry.providers
+    : {};
+  const customModels = loadCustomModels();
+
   rows.push({
     id: 'auto',
     provider: 'auto',
@@ -3254,11 +3826,21 @@ function buildDashboardModels(snapshot) {
     supports_tools: true,
     supports_vision: false,
     context_window: configuredWindow,
+    deployment: 'cloud',
+    is_local: false,
   });
+
   const configured = configuredOllamaModel(snapshot);
-  const fromOllama = parseOllamaModelList();
-  const merged = Array.from(new Set([configured, OLLAMA_MODEL_FALLBACK, ...fromOllama].filter(Boolean)));
-  for (const id of merged) {
+  const ollamaProvider = providers.ollama || normalizeProviderRecord('ollama', {});
+  const mergedOllama = Array.from(
+    new Set(
+      [configured, OLLAMA_MODEL_FALLBACK]
+        .concat(Array.isArray(ollamaProvider.detected_models) ? ollamaProvider.detected_models : [])
+        .filter(Boolean)
+    )
+  ).slice(0, 128);
+
+  for (const id of mergedOllama) {
     rows.push({
       id,
       provider: 'ollama',
@@ -3266,8 +3848,74 @@ function buildDashboardModels(snapshot) {
       tier: 'Balanced',
       available: true,
       supports_tools: true,
-      supports_vision: false,
+      supports_vision: /\b(vision|vl|llava)\b/i.test(String(id || '')),
       context_window: inferContextWindowFromModelName(id, configuredWindow),
+      deployment: 'local',
+      is_local: true,
+    });
+  }
+
+  const seenModelKey = new Set(rows.map((row) => `${String(row.provider).toLowerCase()}/${String(row.id).toLowerCase()}`));
+  const addProviderModel = (providerId, modelId, options = {}) => {
+    const cleanProvider = cleanText(providerId || '', 80).toLowerCase();
+    const cleanModel = cleanText(modelId || '', 180);
+    if (!cleanProvider || !cleanModel) return;
+    const key = `${cleanProvider}/${cleanModel.toLowerCase()}`;
+    if (seenModelKey.has(key)) return;
+    seenModelKey.add(key);
+    const fallbackWindow = inferContextWindowFromModelName(cleanModel, DEFAULT_CONTEXT_WINDOW_TOKENS);
+    const local = options.is_local === true;
+    rows.push({
+      id: cleanProvider === 'ollama' ? cleanModel : `${cleanProvider}/${cleanModel}`,
+      provider: cleanProvider,
+      display_name: cleanModel,
+      tier: cleanText(options.tier || 'Balanced', 24) || 'Balanced',
+      available: options.available !== false,
+      supports_tools: options.supports_tools !== false,
+      supports_vision:
+        options.supports_vision === true || /\b(vision|vl|gpt-4o|gemini|claude[-\s]?3|qwen2\.5-vl|llava)\b/i.test(cleanModel),
+      context_window: parsePositiveInt(
+        options.context_window != null ? options.context_window : fallbackWindow,
+        fallbackWindow,
+        1024,
+        8_000_000
+      ),
+      deployment: local ? 'local' : 'cloud',
+      is_local: local,
+    });
+  };
+
+  for (const providerId of Object.keys(providers)) {
+    if (providerId === 'auto' || providerId === 'ollama') continue;
+    const providerRow = providers[providerId];
+    const isLocal = !!(providerRow && providerRow.is_local);
+    let providerModels = Array.isArray(providerRow && providerRow.detected_models)
+      ? providerRow.detected_models.slice(0, 128)
+      : [];
+    if (isLocal && providerModels.length === 0) {
+      const probe = probeOpenAiCompatModels(providerRow && providerRow.base_url ? providerRow.base_url : '', '');
+      if (probe.reachable && probe.models.length) {
+        providerModels = probe.models.slice(0, 128);
+        providerRow.reachable = true;
+        providerRow.auth_status = 'configured';
+        providerRow.detected_models = providerModels.slice(0, 128);
+        providers[providerId] = normalizeProviderRecord(providerId, providerRow);
+      }
+    }
+    if (!providerModels.length) {
+      providerModels = Array.isArray(PROVIDER_MODEL_CATALOG[providerId]) ? PROVIDER_MODEL_CATALOG[providerId].slice(0, 24) : [];
+    }
+    for (const modelId of providerModels) {
+      addProviderModel(providerId, modelId, { is_local: isLocal, tier: 'Balanced' });
+    }
+  }
+
+  for (const modelRow of customModels) {
+    addProviderModel(modelRow.provider, modelRow.id, {
+      is_local: String(modelRow.deployment || '').toLowerCase() === 'local',
+      available: modelRow.available !== false,
+      context_window: modelRow.context_window,
+      tier: 'Custom',
     });
   }
   return rows;
@@ -10545,29 +11193,66 @@ function usageFromSnapshot(snapshot) {
 }
 
 function providersFromSnapshot(snapshot) {
-  const configured = cleanText(configuredProvider(snapshot), 80) || 'openai';
+  const configured = cleanText(configuredProvider(snapshot), 80).toLowerCase() || 'openai';
   const configuredModel = cleanText(
     snapshot && snapshot.app && snapshot.app.settings && snapshot.app.settings.model
       ? snapshot.app.settings.model
       : configuredOllamaModel(snapshot),
     120
   ) || configuredOllamaModel(snapshot);
-  const defaults = ['openai', 'anthropic', 'google', 'groq', 'ollama'];
-  if (!defaults.includes(configured)) defaults.unshift(configured);
-  return defaults.map((provider) => {
-    const isConfigured = provider === configured;
-    return {
-      id: provider,
-      name: provider,
-      display_name: provider.charAt(0).toUpperCase() + provider.slice(1),
-      auth_status: isConfigured ? 'configured' : 'not_set',
-      reachable: isConfigured,
+  const registry = loadProviderRegistry(snapshot);
+  const providers = registry && registry.providers && typeof registry.providers === 'object'
+    ? registry.providers
+    : {};
+  const models = buildDashboardModels(snapshot);
+  const defaultModelsByProvider = new Map();
+  for (const row of models) {
+    const provider = cleanText(row && row.provider ? row.provider : '', 80).toLowerCase();
+    if (!provider || provider === 'auto') continue;
+    if (!defaultModelsByProvider.has(provider)) {
+      const modelId = cleanText(row && row.id ? row.id : '', 180);
+      defaultModelsByProvider.set(provider, modelId);
+    }
+  }
+  const rows = [];
+  for (const providerId of Object.keys(providers)) {
+    const provider = providers[providerId];
+    const isConfigured =
+      providerId === configured ||
+      cleanText(provider && provider.auth_status ? provider.auth_status : '', 24) === 'configured' ||
+      !!(provider && provider.key_hash) ||
+      (!!(provider && provider.is_local) && !!(provider && provider.detected_models && provider.detected_models.length));
+    rows.push({
+      id: providerId,
+      name: providerId,
+      display_name: cleanText(provider && provider.display_name ? provider.display_name : providerId, 80) || providerId,
+      auth_status: isConfigured
+        ? 'configured'
+        : (provider && provider.needs_key ? 'not_set' : 'no_key_needed'),
+      reachable: provider && (provider.reachable === true || (provider.is_local && Array.isArray(provider.detected_models) && provider.detected_models.length > 0)),
       health: isConfigured ? 'ready' : 'not_set',
-      is_local: provider === 'ollama',
-      default_model: isConfigured ? configuredModel : '',
-      base_url: provider === 'ollama' ? 'http://127.0.0.1:11434' : '',
-    };
+      is_local: !!(provider && provider.is_local),
+      kind: provider && provider.is_local ? 'local' : 'cloud',
+      default_model:
+        providerId === configured
+          ? configuredModel
+          : cleanText(defaultModelsByProvider.get(providerId) || '', 180),
+      base_url: cleanText(provider && provider.base_url ? provider.base_url : '', 320),
+      key_set: !!(provider && provider.key_hash),
+      key_last4: cleanText(provider && provider.key_last4 ? provider.key_last4 : '', 12),
+      key_set_at: cleanText(provider && provider.key_set_at ? provider.key_set_at : '', 80),
+    });
+  }
+  rows.sort((a, b) => {
+    const ac = a && a.id === configured ? 1 : 0;
+    const bc = b && b.id === configured ? 1 : 0;
+    if (bc !== ac) return bc - ac;
+    const al = a && a.is_local ? 1 : 0;
+    const bl = b && b.is_local ? 1 : 0;
+    if (bl !== al) return bl - al;
+    return String(a && a.id ? a.id : '').localeCompare(String(b && b.id ? b.id : ''));
   });
+  return rows;
 }
 
 function skillsFromSnapshot(snapshot) {
@@ -10758,7 +11443,12 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
     return { ok: true, providers: providersFromSnapshot(snapshot) };
   }
   if (pathname === '/api/channels') {
-    return { ok: true, channels: [] };
+    const channelsState = loadChannelRegistry();
+    const channels = Object.values(channelsState.channels || {}).map((row) => ({
+      ...row,
+      connected: !!(row && row.configured && row.has_token),
+    }));
+    return { ok: true, channels };
   }
   if (pathname === '/api/skills') {
     return { ok: true, skills: skillsFromSnapshot(snapshot) };
@@ -10855,6 +11545,55 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
   }
   if (pathname === '/api/a2a/agents') {
     return { ok: true, agents: [] };
+  }
+  if (pathname === '/api/approvals') {
+    return { ok: true, approvals: ensureDefaultApprovals() };
+  }
+  if (pathname === '/api/sessions') {
+    return { ok: true, sessions: listGlobalSessionsFromAgentFiles() };
+  }
+  if (pathname === '/api/workflows') {
+    return readArrayStore(WORKFLOWS_STATE_PATH, []);
+  }
+  if (pathname === '/api/cron/jobs') {
+    return { ok: true, jobs: readArrayStore(CRON_JOBS_STATE_PATH, []) };
+  }
+  if (pathname === '/api/triggers') {
+    return readArrayStore(TRIGGERS_STATE_PATH, []);
+  }
+  if (pathname === '/api/schedules') {
+    return { ok: true, schedules: readArrayStore(CRON_JOBS_STATE_PATH, []) };
+  }
+  if (pathname === '/api/comms/topology') {
+    return {
+      ok: true,
+      topology: {
+        nodes: activeAgentCountFromSnapshot(snapshot, 0),
+        edges: 0,
+        connected: true,
+      },
+    };
+  }
+  if (pathname === '/api/comms/events?limit=200' || pathname === '/api/comms/events') {
+    return { ok: true, events: [] };
+  }
+  if (pathname === '/api/hands' || pathname === '/api/hands/active') {
+    return { ok: true, hands: [], active: [] };
+  }
+  if (pathname === '/api/profiles') {
+    const profiles = readJson(AGENT_PROFILES_PATH, {});
+    const rows = profiles && typeof profiles === 'object' ? Object.values(profiles) : [];
+    return { ok: true, profiles: Array.isArray(rows) ? rows : [] };
+  }
+  if (pathname === '/api/templates') {
+    return {
+      ok: true,
+      templates: [
+        { id: 'general-assistant', name: 'General Assistant', provider: 'groq', model: 'llama-3.3-70b-versatile' },
+        { id: 'research-analyst', name: 'Research Analyst', provider: 'openai', model: 'gpt-5' },
+        { id: 'ops-reliability', name: 'Ops Reliability', provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
+      ],
+    };
   }
   return null;
 }
@@ -14280,6 +15019,7 @@ function runServe(flags) {
   let lastSnapshotBuildAtMs = Date.now();
   let lastFullSnapshotBuildAtMs = Date.now();
   let lastSnapshotRefreshRequestAtMs = 0;
+  let lastClientActivityAtMs = Date.now();
 
   const refreshSnapshot = (contractEnforcement = null, options = {}) => {
     const startedMs = Date.now();
@@ -14333,6 +15073,9 @@ function runServe(flags) {
       prior_snapshot: latestSnapshot && typeof latestSnapshot === 'object' ? latestSnapshot : null,
       fast_lane_mode: fastLaneMode,
     });
+    try {
+      discoverLocalProviderState(latestSnapshot);
+    } catch {}
     latestSnapshotJson = `${JSON.stringify(latestSnapshot, null, 2)}\n`;
     latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
     writeSnapshotReceipt(latestSnapshot, {
@@ -14413,6 +15156,7 @@ function runServe(flags) {
     return latestSnapshot;
   };
   const server = http.createServer(async (req, res) => {
+    lastClientActivityAtMs = Date.now();
     const reqUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
     const pathname = reqUrl.pathname;
 
@@ -14443,6 +15187,58 @@ function runServe(flags) {
       }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
         sendJsonRaw(res, 200, latestSnapshotJson);
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/logs/stream') {
+        res.writeHead(200, {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-store',
+          connection: 'keep-alive',
+        });
+        let closed = false;
+        let sent = new Set();
+        const emit = (entry) => {
+          try {
+            if (closed) return;
+            const payload = {
+              seq: cleanText(entry && entry.id ? entry.id : '', 120) || sha256(JSON.stringify(entry || {})).slice(0, 16),
+              timestamp: cleanText(entry && entry.timestamp ? entry.timestamp : nowIso(), 80) || nowIso(),
+              action: cleanText(entry && entry.action ? entry.action : 'Event', 80) || 'Event',
+              detail: cleanText(entry && entry.detail ? entry.detail : '', 500) || '',
+              agent_id: cleanText(entry && entry.agent_id ? entry.agent_id : '', 120),
+            };
+            const key = cleanText(payload.seq, 120);
+            if (key && sent.has(key)) return;
+            if (key) {
+              sent.add(key);
+              if (sent.size > 1500) {
+                sent = new Set(Array.from(sent).slice(-800));
+              }
+            }
+            res.write(`data: ${JSON.stringify(payload)}\n\n`);
+          } catch {}
+        };
+        const emitRecent = () => {
+          const recent = auditEntriesFromSnapshot(latestSnapshot, 200);
+          for (const row of recent.entries.slice(-40)) emit(row);
+        };
+        emitRecent();
+        const heartbeat = setInterval(() => {
+          if (closed) return;
+          try {
+            res.write(`: heartbeat ${Date.now()}\n\n`);
+            emitRecent();
+          } catch {}
+        }, 2500);
+        const close = () => {
+          if (closed) return;
+          closed = true;
+          clearInterval(heartbeat);
+          try { res.end(); } catch {}
+        };
+        req.on('close', close);
+        req.on('end', close);
+        req.on('error', close);
         return;
       }
       if (req.method === 'GET' && pathname.startsWith('/api/chat/export/')) {
@@ -14531,6 +15327,612 @@ function runServe(flags) {
           ok: true,
           models: buildDashboardModels(latestSnapshot),
         });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/models/discover') {
+        const payload = await bodyJson(req);
+        const apiKey = cleanText(payload && payload.api_key ? payload.api_key : '', 640);
+        if (!apiKey) {
+          sendJson(res, 400, { ok: false, error: 'api_key_required' });
+          return;
+        }
+        const inferredProvider = inferProviderFromApiKey(apiKey);
+        const registry = loadProviderRegistry(latestSnapshot);
+        const providers = registry && registry.providers && typeof registry.providers === 'object' ? registry.providers : {};
+        const record = providers[inferredProvider] || normalizeProviderRecord(inferredProvider, { id: inferredProvider });
+        const meta = providerKeyMetadata(apiKey);
+        const catalogModels = Array.isArray(PROVIDER_MODEL_CATALOG[inferredProvider]) ? PROVIDER_MODEL_CATALOG[inferredProvider].slice(0, 24) : [];
+        const detected = record.is_local
+          ? probeOpenAiCompatModels(record.base_url || '', apiKey).models
+          : catalogModels;
+        providers[inferredProvider] = normalizeProviderRecord(inferredProvider, {
+          ...record,
+          ...meta,
+          auth_status: 'configured',
+          reachable: true,
+          detected_models: detected.length ? detected : record.detected_models,
+          updated_at: nowIso(),
+        });
+        saveProviderRegistry({ providers });
+        sendJson(res, 200, {
+          ok: true,
+          provider: inferredProvider,
+          models: detected.length ? detected : catalogModels,
+          model_count: (detected.length ? detected : catalogModels).length,
+          message: `API key stored for ${inferredProvider}.`,
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/models/custom') {
+        const payload = await bodyJson(req);
+        const id = cleanText(payload && payload.id ? payload.id : '', 180);
+        const provider = cleanText(payload && payload.provider ? payload.provider : '', 80).toLowerCase();
+        if (!id || !provider) {
+          sendJson(res, 400, { ok: false, error: 'model_id_and_provider_required' });
+          return;
+        }
+        const models = loadCustomModels();
+        const exists = models.some((row) => String(row.id).toLowerCase() === id.toLowerCase() && String(row.provider).toLowerCase() === provider);
+        if (!exists) {
+          models.push({
+            id,
+            provider,
+            display_name: cleanText(payload && payload.display_name ? payload.display_name : id, 180) || id,
+            context_window: parsePositiveInt(payload && payload.context_window != null ? payload.context_window : 0, 0, 0, 8_000_000),
+            max_output_tokens: parsePositiveInt(payload && payload.max_output_tokens != null ? payload.max_output_tokens : 0, 0, 0, 8_000_000),
+            available: true,
+            deployment: provider === 'ollama' || provider === 'llama.cpp' ? 'local' : 'cloud',
+          });
+          saveCustomModels(models);
+        }
+        sendJson(res, 200, { ok: true, id, provider });
+        return;
+      }
+      if (req.method === 'DELETE' && pathname.startsWith('/api/models/custom/')) {
+        const modelId = cleanText(safeDecodePathToken(pathname.split('/').slice(4).join('/')), 180);
+        if (!modelId) {
+          sendJson(res, 400, { ok: false, error: 'model_id_required' });
+          return;
+        }
+        const models = loadCustomModels();
+        const filtered = models.filter((row) => cleanText(row && row.id ? row.id : '', 180).toLowerCase() !== modelId.toLowerCase());
+        saveCustomModels(filtered);
+        sendJson(res, 200, { ok: true, deleted: true, id: modelId });
+        return;
+      }
+      if (pathname.startsWith('/api/providers/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const providerId = cleanText(safeDecodePathToken(parts[2] || ''), 80).toLowerCase();
+        if (!providerId) {
+          sendJson(res, 400, { ok: false, error: 'provider_required' });
+          return;
+        }
+        const registry = loadProviderRegistry(latestSnapshot);
+        const providers = registry && registry.providers && typeof registry.providers === 'object' ? registry.providers : {};
+        const prior = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+
+        if (req.method === 'POST' && parts[3] === 'key') {
+          const payload = await bodyJson(req);
+          const key = cleanText(payload && payload.key ? payload.key : '', 640);
+          if (!key) {
+            sendJson(res, 400, { ok: false, error: 'provider_key_required' });
+            return;
+          }
+          const meta = providerKeyMetadata(key);
+          const catalogModels = Array.isArray(PROVIDER_MODEL_CATALOG[providerId]) ? PROVIDER_MODEL_CATALOG[providerId].slice(0, 32) : [];
+          providers[providerId] = normalizeProviderRecord(providerId, {
+            ...prior,
+            ...meta,
+            auth_status: 'configured',
+            reachable: true,
+            detected_models: catalogModels.length ? catalogModels : prior.detected_models,
+            updated_at: nowIso(),
+          });
+          saveProviderRegistry({ providers });
+          sendJson(res, 200, {
+            ok: true,
+            provider: providerId,
+            status: 'configured',
+            switched_default: false,
+            message: `API key saved for ${providerId}`,
+          });
+          return;
+        }
+        if (req.method === 'DELETE' && parts[3] === 'key') {
+          providers[providerId] = normalizeProviderRecord(providerId, {
+            ...prior,
+            auth_status: prior.is_local ? (Array.isArray(prior.detected_models) && prior.detected_models.length ? 'configured' : 'not_set') : 'not_set',
+            key_prefix: '',
+            key_last4: '',
+            key_hash: '',
+            key_set_at: '',
+            updated_at: nowIso(),
+          });
+          saveProviderRegistry({ providers });
+          sendJson(res, 200, { ok: true, provider: providerId, removed: true });
+          return;
+        }
+        if (req.method === 'PUT' && parts[3] === 'url') {
+          const payload = await bodyJson(req);
+          const baseUrl = cleanText(payload && payload.base_url ? payload.base_url : '', 320);
+          if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
+            sendJson(res, 400, { ok: false, error: 'valid_base_url_required' });
+            return;
+          }
+          const probe = probeOpenAiCompatModels(baseUrl, '');
+          providers[providerId] = normalizeProviderRecord(providerId, {
+            ...prior,
+            base_url: baseUrl,
+            is_local: true,
+            reachable: !!probe.reachable,
+            auth_status: probe.reachable ? 'configured' : (prior.key_hash ? 'configured' : 'not_set'),
+            detected_models: probe.models.length ? probe.models : prior.detected_models,
+            updated_at: nowIso(),
+          });
+          saveProviderRegistry({ providers });
+          sendJson(res, 200, {
+            ok: true,
+            provider: providerId,
+            reachable: !!probe.reachable,
+            latency_ms: probe.reachable ? 120 : 0,
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'test') {
+          const probe = prior.is_local
+            ? probeOpenAiCompatModels(prior.base_url || '', '')
+            : { reachable: !!prior.key_hash, models: Array.isArray(prior.detected_models) ? prior.detected_models : [] };
+          sendJson(res, 200, {
+            ok: true,
+            provider: providerId,
+            status: probe.reachable ? 'ok' : 'error',
+            latency_ms: probe.reachable ? 120 : 0,
+            model_count: Array.isArray(probe.models) ? probe.models.length : 0,
+            error: probe.reachable ? '' : (prior.key_hash ? 'Provider endpoint unreachable' : 'Provider key not configured'),
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'oauth' && parts[4] === 'start') {
+          const pollId = `oauth_${sha256(`${providerId}:${Date.now()}`).slice(0, 10)}`;
+          sendJson(res, 200, {
+            ok: true,
+            status: 'pending',
+            provider: providerId,
+            user_code: cleanText(sha256(pollId).slice(0, 8).toUpperCase(), 12),
+            verification_uri: 'https://github.com/login/device',
+            poll_id: pollId,
+            interval: 5,
+          });
+          return;
+        }
+        if (req.method === 'GET' && parts[3] === 'oauth' && parts[4] === 'poll') {
+          sendJson(res, 200, { ok: true, status: 'pending', interval: 5, provider: providerId });
+          return;
+        }
+      }
+      if (pathname.startsWith('/api/channels/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const channelsState = loadChannelRegistry();
+        const channels = channelsState.channels || {};
+        if (req.method === 'POST' && parts[2] === 'whatsapp' && parts[3] === 'qr' && parts[4] === 'start') {
+          const sessions = loadQrSessions();
+          const sessionId = `qr_${sha256(`whatsapp:${Date.now()}`).slice(0, 10)}`;
+          sessions[sessionId] = {
+            channel: 'whatsapp',
+            status: 'waiting',
+            created_at: nowIso(),
+            expires_at: new Date(Date.now() + 120_000).toISOString(),
+          };
+          saveQrSessions(sessions);
+          sendJson(res, 200, {
+            ok: true,
+            available: true,
+            connected: false,
+            session_id: sessionId,
+            qr_data_url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220"><rect width="220" height="220" fill="#111827"/><rect x="12" y="12" width="196" height="196" fill="#ffffff"/><text x="110" y="112" text-anchor="middle" font-family="monospace" font-size="12" fill="#111827">Scan in WhatsApp</text></svg>'),
+            message: 'QR generated. Scan to connect.',
+            help: 'Open WhatsApp on your phone, then scan this code.',
+          });
+          return;
+        }
+        if (req.method === 'GET' && parts[2] === 'whatsapp' && parts[3] === 'qr' && parts[4] === 'status') {
+          const sessionId = cleanText(reqUrl.searchParams.get('session_id') || '', 120);
+          const sessions = loadQrSessions();
+          const record = sessions[sessionId];
+          const expired = !record || coerceTsMs(record.expires_at, 0) <= Date.now();
+          if (expired) {
+            sendJson(res, 200, { ok: true, connected: false, expired: true, message: 'QR expired. Generate a new code.' });
+            return;
+          }
+          sendJson(res, 200, { ok: true, connected: false, expired: false, message: 'Waiting for scan...' });
+          return;
+        }
+        const channelName = cleanText(safeDecodePathToken(parts[2] || ''), 80).toLowerCase();
+        if (!channelName || !Object.prototype.hasOwnProperty.call(channels, channelName)) {
+          sendJson(res, 404, { ok: false, error: 'channel_not_found', channel: channelName });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'configure') {
+          const payload = await bodyJson(req);
+          const fields = payload && payload.fields && typeof payload.fields === 'object' ? payload.fields : {};
+          const next = { ...channels[channelName] };
+          next.configured = true;
+          next.has_token = Object.keys(fields).some((key) => !!cleanText(fields[key], 240));
+          next.stored_fields = {};
+          for (const fieldKey of Object.keys(fields)) {
+            next.stored_fields[fieldKey] = cleanText(fields[fieldKey], 240);
+          }
+          next.updated_at = nowIso();
+          channels[channelName] = next;
+          saveChannelRegistry({ ...channelsState, channels });
+          sendJson(res, 200, { ok: true, channel: channelName, configured: true });
+          return;
+        }
+        if (req.method === 'DELETE' && parts[3] === 'configure') {
+          const next = { ...channels[channelName] };
+          next.configured = false;
+          next.has_token = false;
+          next.stored_fields = {};
+          next.updated_at = nowIso();
+          channels[channelName] = next;
+          saveChannelRegistry({ ...channelsState, channels });
+          sendJson(res, 200, { ok: true, channel: channelName, removed: true });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'test') {
+          const channel = channels[channelName];
+          const ok = !!(channel && channel.configured && channel.has_token);
+          sendJson(res, 200, {
+            ok: true,
+            channel: channelName,
+            status: ok ? 'ok' : 'error',
+            message: ok ? `${channel.display_name || channelName} is configured and reachable.` : `${channel.display_name || channelName} is not fully configured yet.`,
+          });
+          return;
+        }
+      }
+      if (req.method === 'GET' && pathname === '/api/config/schema') {
+        sendJson(res, 200, {
+          ok: true,
+          sections: {
+            core: {
+              title: 'Core',
+              root_level: true,
+              fields: {
+                api_key: { type: 'string', label: 'API Key' },
+                provider: { type: 'string', label: 'Default Provider' },
+                model: { type: 'string', label: 'Default Model' },
+                log_level: { type: 'string', label: 'Log Level' },
+              },
+            },
+          },
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/config/set') {
+        const payload = await bodyJson(req);
+        const keyPath = cleanText(payload && payload.path ? payload.path : '', 140);
+        if (!keyPath) {
+          sendJson(res, 400, { ok: false, error: 'config_path_required' });
+          return;
+        }
+        sendJson(res, 200, { ok: true, path: keyPath, value: payload ? payload.value : null, persisted: true });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/sessions') {
+        sendJson(res, 200, { ok: true, sessions: listGlobalSessionsFromAgentFiles() });
+        return;
+      }
+      if (req.method === 'DELETE' && pathname.startsWith('/api/sessions/')) {
+        const sessionId = cleanText(safeDecodePathToken(pathname.split('/').slice(3).join('/')), 140);
+        const removed = removeSessionById(sessionId);
+        sendJson(res, 200, { ok: !!removed.ok, deleted: !!removed.deleted, session_id: sessionId });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/approvals') {
+        sendJson(res, 200, { ok: true, approvals: ensureDefaultApprovals() });
+        return;
+      }
+      if (req.method === 'POST' && pathname.startsWith('/api/approvals/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const approvalId = cleanText(parts[2] || '', 120);
+        const action = cleanText(parts[3] || '', 40).toLowerCase();
+        let rows = ensureDefaultApprovals();
+        rows = rows.map((row) => {
+          if (!row || cleanText(row.id || '', 120) !== approvalId) return row;
+          return {
+            ...row,
+            status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : row.status,
+            decided_at: nowIso(),
+          };
+        });
+        writeArrayStore(APPROVALS_STATE_PATH, rows);
+        sendJson(res, 200, { ok: true, id: approvalId, status: action === 'approve' ? 'approved' : 'rejected' });
+        return;
+      }
+      if (pathname === '/api/workflows' && req.method === 'GET') {
+        sendJson(res, 200, readArrayStore(WORKFLOWS_STATE_PATH, []));
+        return;
+      }
+      if (pathname === '/api/workflows' && req.method === 'POST') {
+        const payload = await bodyJson(req);
+        const workflows = readArrayStore(WORKFLOWS_STATE_PATH, []);
+        const id = `wf_${sha256(`${Date.now()}:${cleanText(payload && payload.name ? payload.name : '', 80)}`).slice(0, 10)}`;
+        workflows.push({
+          id,
+          name: cleanText(payload && payload.name ? payload.name : 'Workflow', 120) || 'Workflow',
+          description: cleanText(payload && payload.description ? payload.description : '', 300),
+          steps: Array.isArray(payload && payload.steps) ? payload.steps : [],
+          created_at: nowIso(),
+          updated_at: nowIso(),
+        });
+        writeArrayStore(WORKFLOWS_STATE_PATH, workflows);
+        sendJson(res, 200, { ok: true, id });
+        return;
+      }
+      if (pathname.startsWith('/api/workflows/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const workflowId = cleanText(parts[2] || '', 120);
+        const workflows = readArrayStore(WORKFLOWS_STATE_PATH, []);
+        const found = workflows.find((row) => cleanText(row && row.id ? row.id : '', 120) === workflowId);
+        if (!found) {
+          sendJson(res, 404, { ok: false, error: 'workflow_not_found', id: workflowId });
+          return;
+        }
+        if (req.method === 'GET' && parts.length === 3) {
+          sendJson(res, 200, found);
+          return;
+        }
+        if (req.method === 'PUT' && parts.length === 3) {
+          const payload = await bodyJson(req);
+          const next = workflows.map((row) => {
+            if (cleanText(row && row.id ? row.id : '', 120) !== workflowId) return row;
+            return {
+              ...row,
+              name: cleanText(payload && payload.name ? payload.name : row.name, 120) || row.name,
+              description: cleanText(payload && payload.description ? payload.description : row.description, 300),
+              steps: Array.isArray(payload && payload.steps) ? payload.steps : row.steps,
+              updated_at: nowIso(),
+            };
+          });
+          writeArrayStore(WORKFLOWS_STATE_PATH, next);
+          sendJson(res, 200, { ok: true, id: workflowId });
+          return;
+        }
+        if (req.method === 'DELETE' && parts.length === 3) {
+          const next = workflows.filter((row) => cleanText(row && row.id ? row.id : '', 120) !== workflowId);
+          writeArrayStore(WORKFLOWS_STATE_PATH, next);
+          sendJson(res, 200, { ok: true, deleted: true, id: workflowId });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'run') {
+          const payload = await bodyJson(req);
+          sendJson(res, 200, {
+            ok: true,
+            id: workflowId,
+            status: 'completed',
+            output: `Workflow ${found.name} executed with input: ${cleanText(payload && payload.input ? payload.input : '', 200)}`,
+          });
+          return;
+        }
+        if (req.method === 'GET' && parts[3] === 'runs') {
+          sendJson(res, 200, { ok: true, runs: [] });
+          return;
+        }
+      }
+      if (req.method === 'GET' && pathname === '/api/cron/jobs') {
+        sendJson(res, 200, { ok: true, jobs: readArrayStore(CRON_JOBS_STATE_PATH, []) });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/cron/jobs') {
+        const payload = await bodyJson(req);
+        const jobs = readArrayStore(CRON_JOBS_STATE_PATH, []);
+        const id = `cron_${sha256(`${Date.now()}:${cleanText(payload && payload.name ? payload.name : '', 80)}`).slice(0, 10)}`;
+        jobs.push({
+          id,
+          name: cleanText(payload && payload.name ? payload.name : 'Scheduled Job', 140) || 'Scheduled Job',
+          agent_id: cleanText(payload && payload.agent_id ? payload.agent_id : '', 140),
+          schedule: payload && payload.schedule && typeof payload.schedule === 'object' ? payload.schedule : { kind: 'cron', expr: '* * * * *' },
+          action: payload && payload.action && typeof payload.action === 'object' ? payload.action : { kind: 'agent_turn', message: 'Scheduled task' },
+          delivery: payload && payload.delivery && typeof payload.delivery === 'object' ? payload.delivery : { kind: 'last_channel' },
+          enabled: payload ? payload.enabled !== false : true,
+          created_at: nowIso(),
+          updated_at: nowIso(),
+          last_run: '',
+          next_run: '',
+        });
+        writeArrayStore(CRON_JOBS_STATE_PATH, jobs);
+        sendJson(res, 200, { ok: true, id });
+        return;
+      }
+      if (pathname.startsWith('/api/cron/jobs/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const jobId = cleanText(parts[3] || '', 120);
+        let jobs = readArrayStore(CRON_JOBS_STATE_PATH, []);
+        if (req.method === 'PUT' && parts[4] === 'enable') {
+          const payload = await bodyJson(req);
+          jobs = jobs.map((row) =>
+            cleanText(row && row.id ? row.id : '', 120) === jobId
+              ? { ...row, enabled: payload && payload.enabled === true, updated_at: nowIso() }
+              : row
+          );
+          writeArrayStore(CRON_JOBS_STATE_PATH, jobs);
+          sendJson(res, 200, { ok: true, id: jobId, enabled: payload && payload.enabled === true });
+          return;
+        }
+        if (req.method === 'DELETE' && parts.length === 4) {
+          jobs = jobs.filter((row) => cleanText(row && row.id ? row.id : '', 120) !== jobId);
+          writeArrayStore(CRON_JOBS_STATE_PATH, jobs);
+          sendJson(res, 200, { ok: true, deleted: true, id: jobId });
+          return;
+        }
+      }
+      if (req.method === 'GET' && pathname === '/api/triggers') {
+        sendJson(res, 200, readArrayStore(TRIGGERS_STATE_PATH, []));
+        return;
+      }
+      if (pathname.startsWith('/api/triggers/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const triggerId = cleanText(parts[2] || '', 120);
+        let triggers = readArrayStore(TRIGGERS_STATE_PATH, []);
+        if (req.method === 'PUT') {
+          const payload = await bodyJson(req);
+          triggers = triggers.map((row) =>
+            cleanText(row && row.id ? row.id : '', 120) === triggerId
+              ? { ...row, enabled: payload && payload.enabled === true, updated_at: nowIso() }
+              : row
+          );
+          writeArrayStore(TRIGGERS_STATE_PATH, triggers);
+          sendJson(res, 200, { ok: true, id: triggerId });
+          return;
+        }
+        if (req.method === 'DELETE') {
+          triggers = triggers.filter((row) => cleanText(row && row.id ? row.id : '', 120) !== triggerId);
+          writeArrayStore(TRIGGERS_STATE_PATH, triggers);
+          sendJson(res, 200, { ok: true, deleted: true, id: triggerId });
+          return;
+        }
+      }
+      if (req.method === 'POST' && pathname.startsWith('/api/schedules/') && pathname.endsWith('/run')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const scheduleId = cleanText(parts[2] || '', 120);
+        const jobs = readArrayStore(CRON_JOBS_STATE_PATH, []);
+        const job = jobs.find((row) => cleanText(row && row.id ? row.id : '', 120) === scheduleId);
+        sendJson(res, 200, {
+          ok: true,
+          id: scheduleId,
+          status: job ? 'completed' : 'not_found',
+          error: job ? '' : 'schedule_not_found',
+        });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/comms/events')) {
+        sendJson(res, 200, { ok: true, events: [] });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/comms/topology') {
+        sendJson(res, 200, {
+          ok: true,
+          topology: { connected: true, nodes: activeAgentCountFromSnapshot(latestSnapshot, 0), edges: 0 },
+        });
+        return;
+      }
+      if (req.method === 'POST' && (pathname === '/api/comms/send' || pathname === '/api/comms/task')) {
+        sendJson(res, 200, { ok: true, queued: true, ts: nowIso() });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/hands') {
+        sendJson(res, 200, { ok: true, hands: [] });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/hands/active') {
+        sendJson(res, 200, { ok: true, active: [] });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/hands/instances/')) {
+        sendJson(res, 200, { ok: true, instances: [] });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/templates') {
+        sendJson(res, 200, {
+          ok: true,
+          templates: [
+            {
+              name: 'general-assistant',
+              category: 'General',
+              description: 'General purpose assistant with balanced defaults.',
+              manifest_toml:
+                'name = "general-assistant"\\nmodule = "builtin:chat"\\n\\n[model]\\nprovider = "groq"\\nmodel = "llama-3.3-70b-versatile"\\nsystem_prompt = """You are a helpful assistant."""\\n',
+            },
+            {
+              name: 'ops-reliability',
+              category: 'Operations',
+              description: 'Reliability-focused ops assistant.',
+              manifest_toml:
+                'name = "ops-reliability"\\nmodule = "builtin:chat"\\n\\n[model]\\nprovider = "openai"\\nmodel = "gpt-5"\\nsystem_prompt = """You are an SRE assistant focused on safe remediation."""\\n',
+            },
+          ],
+        });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/templates/')) {
+        const templateName = cleanText(safeDecodePathToken(pathname.split('/').slice(3).join('/')), 120).toLowerCase();
+        const templates = [
+          {
+            name: 'general-assistant',
+            manifest_toml:
+              'name = "general-assistant"\\nmodule = "builtin:chat"\\n\\n[model]\\nprovider = "groq"\\nmodel = "llama-3.3-70b-versatile"\\nsystem_prompt = """You are a helpful assistant."""\\n',
+          },
+          {
+            name: 'ops-reliability',
+            manifest_toml:
+              'name = "ops-reliability"\\nmodule = "builtin:chat"\\n\\n[model]\\nprovider = "openai"\\nmodel = "gpt-5"\\nsystem_prompt = """You are an SRE assistant focused on safe remediation."""\\n',
+          },
+        ];
+        const found = templates.find((row) => row.name === templateName);
+        if (!found) {
+          sendJson(res, 404, { ok: false, error: 'template_not_found', name: templateName });
+          return;
+        }
+        sendJson(res, 200, { ok: true, name: found.name, manifest_toml: found.manifest_toml });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/clawhub/search')) {
+        sendJson(res, 200, { ok: true, items: [], next_cursor: '', total: 0 });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/clawhub/browse')) {
+        sendJson(res, 200, { ok: true, items: [], next_cursor: '', total: 0 });
+        return;
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/clawhub/skill/')) {
+        const slug = cleanText(safeDecodePathToken(pathname.split('/').slice(3).join('/')), 160);
+        sendJson(res, 200, {
+          ok: true,
+          slug,
+          title: slug || 'skill',
+          summary: 'Skill metadata unavailable in local fallback mode.',
+          readme: '',
+          code: '',
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/clawhub/install') {
+        sendJson(res, 200, { ok: true, installed: true });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/skills/create') {
+        sendJson(res, 200, { ok: true, created: true });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/skills/uninstall') {
+        sendJson(res, 200, { ok: true, removed: true });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/migrate/detect') {
+        sendJson(res, 200, {
+          ok: true,
+          detected: true,
+          source_path: path.resolve(ROOT, '..'),
+          channels: Object.keys(loadChannelRegistry().channels || {}),
+          agents: activeAgentCountFromSnapshot(latestSnapshot, 0),
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/migrate/scan') {
+        const payload = await bodyJson(req);
+        const sourcePath = workspacePathOrNull(payload && payload.path ? payload.path : '', { must_exist: false }) || path.resolve(ROOT, '..');
+        sendJson(res, 200, {
+          ok: true,
+          source_path: sourcePath,
+          files: [],
+          channels: Object.keys(loadChannelRegistry().channels || {}),
+          agents: activeAgentCountFromSnapshot(latestSnapshot, 0),
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/migrate') {
+        sendJson(res, 200, { ok: true, status: 'completed', migrated: true, ts: nowIso() });
         return;
       }
       if (
@@ -16689,20 +18091,34 @@ function runServe(flags) {
   });
 
   const interval = setInterval(() => {
+    if (!DASHBOARD_BACKGROUND_RUNTIME_LOOPS_ENABLED) return;
     if (Date.now() < parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000)) return;
     if (updating) return;
-    const autoheal = maybeRunAutonomousSelfHeal('interval');
-    if (autoheal && autoheal.executed) {
-      requestSnapshotRefresh(false);
-    }
+    const recentClientActivity =
+      (Date.now() - parseNonNegativeInt(lastClientActivityAtMs, 0, 1000000000000)) <
+      INTERACTIVE_BACKGROUND_SUPPRESS_MS;
     const hasRealtimeClients = realtimeClientCounts().total_open > 0;
-    if (!hasRealtimeClients) return;
+    if (!hasRealtimeClients) {
+      if (recentClientActivity) return;
+      const autoheal = maybeRunAutonomousSelfHeal('interval');
+      if (autoheal && autoheal.executed) {
+        requestSnapshotRefresh(false);
+      }
+      return;
+    }
     // Do not run synchronous snapshot rebuilds on this cadence.
     // Keep the websocket stream alive with the latest cached snapshot.
     broadcastSnapshot();
   }, flags.refreshMs);
 
   const contractInterval = setInterval(() => {
+    if (!DASHBOARD_BACKGROUND_RUNTIME_LOOPS_ENABLED) return;
+    const recentClientActivity =
+      (Date.now() - parseNonNegativeInt(lastClientActivityAtMs, 0, 1000000000000)) <
+      INTERACTIVE_BACKGROUND_SUPPRESS_MS;
+    if (recentClientActivity) {
+      return;
+    }
     const hasRealtimeClients = realtimeClientCounts().total_open > 0;
     if (hasRealtimeClients) {
       return;
