@@ -64,6 +64,7 @@ const DASHBOARD_BACKPRESSURE_WARN_DEPTH = 50;
 const DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH = 80;
 const DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH = 50;
 const RUNTIME_CRITICAL_ESCALATION_THRESHOLD = 7;
+const RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD = 12;
 const RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD = 28;
 const RUNTIME_AUTO_BALANCE_THRESHOLD = 12;
 const RUNTIME_DRAIN_TRIGGER_DEPTH = 60;
@@ -1429,11 +1430,26 @@ function compactRelativePath(absPath) {
 function parseSuggestionCandidates(raw) {
   const text = String(raw || '').trim();
   if (!text) return [];
+  const META_SUGGESTION_PATTERNS = [
+    /return exactly\s+3 actionable next user prompts/i,
+    /json array of strings/i,
+    /do not include numbering|do not include markdown|extra keys/i,
+    /^the user wants exactly 3 actionable next user prompts/i,
+    /summarize recent work and suggest the three highest-roi next steps/i,
+    /^thinking\.\.\.?$/i,
+    /for this .* agent .* propose the next highest-impact user prompt/i,
+    /ask for a concrete implementation diff plus the exact tests/i,
+    /given queue \d+ and stale cockpit \d+,? propose a safe reliability action/i,
+    /task accepted\.\s*report findings in this thread with receipt-backed evidence/i,
+  ];
   const normalizeSuggestion = (value) => {
     let row = cleanText(value == null ? '' : String(value), 220);
     if (!row) return '';
     row = row.replace(/^\s*[-*0-9.)\]]+\s*/, '');
     if (/^suggestions?[:]?$/i.test(row)) return '';
+    for (const pattern of META_SUGGESTION_PATTERNS) {
+      if (pattern.test(row)) return '';
+    }
     const machineNoise =
       /tool_call|\"type\"\s*:\s*\"tool|\"command\"\s*:|^\{.*\}$|^\[.*\]$|<\/?function/i.test(row) ||
       /\"args\"\s*:|\"reason\"\s*:|\"payload\"\s*:|\"provider\"\s*:|\"model\"\s*:/i.test(row);
@@ -1475,32 +1491,82 @@ function parseSuggestionCandidates(raw) {
   return unique.slice(0, 3);
 }
 
+function isSuggestionNoiseText(value) {
+  const text = cleanText(value == null ? '' : String(value), 280).toLowerCase();
+  if (!text) return true;
+  if (text.includes('task accepted. report findings in this thread with receipt-backed evidence')) return true;
+  if (text.startsWith('[runtime-task]')) return true;
+  if (text === 'heartbeat_ok') return true;
+  if (text.includes('return exactly 3 actionable next user prompts')) return true;
+  return false;
+}
+
+function recentSuggestionContext(recentMessages = []) {
+  let lastUser = '';
+  let lastAssistant = '';
+  const rows = Array.isArray(recentMessages) ? recentMessages.slice() : [];
+  for (let idx = rows.length - 1; idx >= 0; idx -= 1) {
+    const row = rows[idx] || {};
+    const role = cleanText(row.role || '', 40).toLowerCase();
+    const text = cleanText(
+      row.user || row.assistant || row.content || row.text || '',
+      240
+    );
+    if (!text || isSuggestionNoiseText(text)) continue;
+    if (!lastUser && (role === 'user' || row.user)) {
+      lastUser = text;
+      continue;
+    }
+    if (!lastAssistant && (role === 'agent' || role === 'assistant' || row.assistant)) {
+      lastAssistant = text;
+      continue;
+    }
+    if (lastUser && lastAssistant) break;
+  }
+  return {
+    last_user: lastUser,
+    last_assistant: lastAssistant,
+    signature: cleanText(`${lastUser}|${lastAssistant}`, 500),
+  };
+}
+
 function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint = '') {
   const rows = [];
   const runtime = runtimeSyncSummary(snapshot);
   const queueDepth = parseNonNegativeInt(runtime.queue_depth, 0, 100000000);
   const staleBlocks = parseNonNegativeInt(runtime.cockpit_stale_blocks, 0, 100000000);
-  const modelName = cleanText(agent && agent.model_name ? agent.model_name : '', 120) || 'current model';
-  const role = cleanText(agent && agent.role ? agent.role : '', 80) || 'assistant';
   const cleanHint = cleanText(hint || '', 180);
-  const recent = Array.isArray(recentMessages)
-    ? recentMessages
-        .slice(-2)
-        .map((row) => cleanText(row && (row.user || row.assistant) ? row.user || row.assistant : '', 180))
-        .filter(Boolean)
-    : [];
+  const convo = recentSuggestionContext(recentMessages);
+  const topic = cleanText(
+    cleanHint || convo.last_user || convo.last_assistant || '',
+    160
+  );
+  const topicWords = topic
+    .toLowerCase()
+    .split(/[^a-z0-9_:-]+/g)
+    .filter((word) => word.length >= 4 && !['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].includes(word))
+    .slice(0, 3);
+  const topicLabel = topicWords.length ? topicWords.join(' ') : 'this task';
 
-  if (recent.length) {
-    rows.push(`Continue from: "${recent[recent.length - 1]}" with a concrete next action.`);
+  if (convo.last_user) {
+    rows.push(`Continue this user ask: "${convo.last_user}" with one concrete next action.`);
+  }
+  if (
+    convo.last_assistant &&
+    !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(convo.last_assistant)
+  ) {
+    rows.push(`Build directly on the last answer: "${convo.last_assistant}" with a precise follow-up prompt.`);
   }
   if (cleanHint) {
-    rows.push(`Follow this hint: "${cleanHint}" and propose one immediate next prompt.`);
+    rows.push(`Use this hint exactly: "${cleanHint}" and turn it into one actionable next prompt.`);
   }
-  rows.push(`Audit runtime pressure (queue ${queueDepth}, stale cockpit ${staleBlocks}) and propose safe remediations.`);
-  rows.push(`Generate a task plan for this ${role} agent using model ${modelName}.`);
-  rows.push('Summarize recent work and suggest the three highest-ROI next steps.');
-  rows.push('Create a focused swarm subtask list with coordinator/researcher/builder roles.');
-  const rotateSeed = `${modelName}|${role}|${recent.join('|')}|${cleanHint}`;
+  if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure/i.test(topic)) {
+    rows.push(`Ask for one automatic remediation for ${topicLabel}, including rollback criteria.`);
+  }
+  rows.push(`Request a 3-step execution plan focused on ${topicLabel}.`);
+  rows.push(`Ask for one command to run now and one verification command for ${topicLabel}.`);
+  rows.push(`Ask for the highest-ROI fix for ${topicLabel} with measurable success criteria.`);
+  const rotateSeed = `${topicLabel}|${convo.last_user}|${convo.last_assistant}|${cleanHint}`;
   let rotate = 0;
   for (let i = 0; i < rotateSeed.length; i++) rotate = (rotate + rotateSeed.charCodeAt(i)) % Math.max(rows.length, 1);
   const ordered = rows.length > 1 ? rows.slice(rotate).concat(rows.slice(0, rotate)) : rows.slice();
@@ -1520,10 +1586,39 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
   const cleanAgentId = cleanText(agentId || '', 140);
   if (!cleanAgentId) return { ok: false, suggestions: [] };
   const userHint = cleanText(payload && payload.hint ? payload.hint : '', 280);
+  const state = loadAgentSession(cleanAgentId, snapshot);
+  const session = activeSession(state);
+  const agent =
+    compatAgentsFromSnapshot(snapshot, { includeArchived: true }).find((row) => row.id === cleanAgentId) || {
+      id: cleanAgentId,
+      name: cleanAgentId,
+      role: 'assistant',
+      model_name: configuredOllamaModel(snapshot),
+    };
+  const recentMessages = Array.isArray(session && session.messages) ? session.messages.slice(-8) : [];
+  const convo = recentSuggestionContext(recentMessages);
+  const clientLastUser = cleanText(payload && payload.last_user_message ? payload.last_user_message : '', 220);
+  const clientLastAgent = cleanText(payload && payload.last_agent_message ? payload.last_agent_message : '', 220);
+  const clientRecentContext = cleanText(payload && payload.recent_context ? payload.recent_context : '', 400);
+  const clientModel = cleanText(payload && payload.current_model ? payload.current_model : '', 160);
+  const cacheSignature = cleanText(
+    [
+      userHint,
+      clientLastUser,
+      clientLastAgent,
+      clientRecentContext,
+      clientModel,
+      convo.signature,
+    ]
+      .filter(Boolean)
+      .join('|'),
+    900
+  );
   if (!userHint) {
     const cached = promptSuggestionCache.get(cleanAgentId);
     if (
       cached &&
+      cached.signature === cacheSignature &&
       (Date.now() - parseNonNegativeInt(cached.ts, 0, 9_999_999_999_999)) < PROMPT_SUGGESTION_CACHE_TTL_MS &&
       Array.isArray(cached.suggestions) &&
       cached.suggestions.length > 0
@@ -1536,28 +1631,18 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
       };
     }
   }
-  const state = loadAgentSession(cleanAgentId, snapshot);
-  const session = activeSession(state);
-  const agent =
-    compatAgentsFromSnapshot(snapshot, { includeArchived: true }).find((row) => row.id === cleanAgentId) || {
-      id: cleanAgentId,
-      name: cleanAgentId,
-      role: 'assistant',
-      model_name: configuredOllamaModel(snapshot),
-    };
-  const recentMessages = Array.isArray(session && session.messages) ? session.messages.slice(-8) : [];
-  const clientLastUser = cleanText(payload && payload.last_user_message ? payload.last_user_message : '', 220);
-  const clientLastAgent = cleanText(payload && payload.last_agent_message ? payload.last_agent_message : '', 220);
-  const clientModel = cleanText(payload && payload.current_model ? payload.current_model : '', 160);
   const prompt = [
     'Return exactly 3 actionable next user prompts as a JSON array of strings.',
     'Keep each suggestion under 120 characters.',
     'Do not include numbering, markdown, explanations, or extra keys.',
+    'Do not echo instructions or policy text.',
+    'Never output generic placeholders like "Thinking..." or "Summarize recent work...".',
     `Agent name: ${cleanText(agent && agent.name ? agent.name : cleanAgentId, 120)}`,
     `Agent role: ${cleanText(agent && agent.role ? agent.role : 'assistant', 80)}`,
     clientModel ? `Client-selected model: ${clientModel}` : '',
-    clientLastUser ? `Recent user prompt hint: ${clientLastUser}` : '',
-    clientLastAgent ? `Recent assistant response hint: ${clientLastAgent}` : '',
+    clientLastUser || convo.last_user ? `Recent user prompt hint: ${clientLastUser || convo.last_user}` : '',
+    clientLastAgent || convo.last_assistant ? `Recent assistant response hint: ${clientLastAgent || convo.last_assistant}` : '',
+    clientRecentContext ? `Additional context: ${clientRecentContext}` : '',
     `Recent context: ${cleanText(
       recentMessages
         .map((row) => String((row && (row.user || row.assistant || row.content || '')) || '').trim())
@@ -1574,11 +1659,20 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
   const modelState = effectiveAgentModel(cleanAgentId, snapshot);
   const requestedModel =
     modelState && modelState.runtime_model ? modelState.runtime_model : configuredOllamaModel(snapshot);
-  let llm = runOllamaPrompt(requestedModel, prompt, { timeout_ms: PROMPT_SUGGESTION_TIMEOUT_MS });
+  const llmRequested =
+    ['1', 'true', 'yes', 'on'].includes(
+      cleanText(payload && payload.use_llm ? payload.use_llm : '', 16).toLowerCase()
+    ) || !!(payload && payload.force_llm);
+  let llm = null;
+  if (llmRequested) {
+    llm = runOllamaPrompt(requestedModel, prompt, {
+      timeout_ms: Math.min(PROMPT_SUGGESTION_TIMEOUT_MS, 2500),
+    });
+  }
   const normalizedRequestedModel = cleanText(requestedModel, 120) || OLLAMA_MODEL_FALLBACK;
 
   let suggestions = [];
-  let source = 'fallback';
+  let source = llmRequested ? 'fallback' : 'heuristic_fast';
   if (llm && llm.ok) {
     suggestions = parseSuggestionCandidates(llm.output || '');
     if (suggestions.length) source = 'llm';
@@ -1605,6 +1699,7 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     }
     promptSuggestionCache.set(cleanAgentId, {
       ts: Date.now(),
+      signature: cacheSignature,
       suggestions: result.suggestions.slice(0, 3),
       source: result.source,
       model: result.model,
@@ -7815,8 +7910,21 @@ function appendAgentConversation(agentId, snapshot, userText, assistantText, met
   const nowMs = Date.now();
   const userRole = cleanText(options && options.user_role ? options.user_role : 'User', 20) || 'User';
   const assistantRole = cleanText(options && options.assistant_role ? options.assistant_role : 'Agent', 20) || 'Agent';
+  const userAgentId = cleanText(options && options.user_agent_id ? options.user_agent_id : '', 140);
+  const userAgentName = cleanText(options && options.user_agent_name ? options.user_agent_name : '', 120);
+  const userSystemOrigin = cleanText(options && options.user_system_origin ? options.user_system_origin : '', 120);
+  const assistantAgentId = cleanText(
+    options && options.assistant_agent_id ? options.assistant_agent_id : cleanText(agentId || '', 140),
+    140
+  );
+  const assistantAgentName = cleanText(options && options.assistant_agent_name ? options.assistant_agent_name : '', 120);
+  const assistantSystemOrigin = cleanText(options && options.assistant_system_origin ? options.assistant_system_origin : '', 120);
   if (userText && String(userText).trim()) {
-    session.messages.push({ role: userRole, content: String(userText), ts: nowMs });
+    const userRow = { role: userRole, content: String(userText), ts: nowMs };
+    if (userAgentId) userRow.agent_id = userAgentId;
+    if (userAgentName) userRow.agent_name = userAgentName;
+    if (userSystemOrigin) userRow.system_origin = userSystemOrigin;
+    session.messages.push(userRow);
   }
   if (assistantText && String(assistantText).trim()) {
     const normalizedTools = Array.isArray(assistantTools)
@@ -7832,13 +7940,17 @@ function appendAgentConversation(agentId, snapshot, userText, assistantText, met
           }))
           .filter((tool) => tool.name)
       : [];
-    session.messages.push({
+    const assistantRow = {
       role: assistantRole,
       content: String(assistantText),
       meta: cleanText(metaText || '', 120),
       tools: normalizedTools,
       ts: nowMs,
-    });
+    };
+    if (assistantAgentId) assistantRow.agent_id = assistantAgentId;
+    if (assistantAgentName) assistantRow.agent_name = assistantAgentName;
+    if (assistantSystemOrigin) assistantRow.system_origin = assistantSystemOrigin;
+    session.messages.push(assistantRow);
   }
   if (session.messages.length > 800) {
     session.messages = session.messages.slice(-800);
@@ -7903,6 +8015,8 @@ function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard
       error: 'task_invalid',
     };
   }
+  const targetAgent = compatAgentsFromSnapshot(snapshot).find((row) => row && row.id === id);
+  const targetAgentName = cleanText(targetAgent && targetAgent.name ? targetAgent.name : id, 120) || id;
   appendAgentConversation(
     id,
     snapshot,
@@ -7912,7 +8026,10 @@ function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard
     [],
     {
       user_role: 'System',
-      assistant_role: 'System',
+      user_system_origin: cleanText(source, 120) || 'runtime_task',
+      assistant_role: 'Agent',
+      assistant_agent_id: id,
+      assistant_agent_name: targetAgentName,
     }
   );
   return {
@@ -11904,10 +12021,28 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const staleBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000);
-  const stalePressure = staleBlocks > 0 && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const staleBlocksRaw = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, staleBlocks, 100000000);
+  const staleBlocksDormant = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_dormant, 0, 100000000);
+  const stalePressure = (staleBlocks > 0 || staleBlocksRaw > 0) && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
   const targetSignals = parsePositiveInt(runtime && runtime.target_conduit_signals, RUNTIME_AUTO_BALANCE_THRESHOLD, 1, 128);
   const conduitSignals = parseNonNegativeInt(runtime && runtime.conduit_signals, 0, 100000000);
   const signalDeficit = Math.max(0, targetSignals - conduitSignals);
+  const laneCaps =
+    runtime && runtime.queue_lane_caps && typeof runtime.queue_lane_caps === 'object'
+      ? runtime.queue_lane_caps
+      : ATTENTION_LANE_CAPS;
+  const criticalCap = parsePositiveInt(
+    laneCaps && laneCaps.critical != null ? laneCaps.critical : ATTENTION_LANE_CAPS.critical,
+    ATTENTION_LANE_CAPS.critical,
+    1,
+    100000000
+  );
+  const criticalAttentionTotal = parseNonNegativeInt(
+    runtime && runtime.critical_attention_total != null ? runtime.critical_attention_total : 0,
+    0,
+    100000000
+  );
+  const criticalAttentionOverload = criticalAttentionTotal > Math.max(criticalCap, RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD);
   const staleLanesTop = Array.isArray(runtime && runtime.cockpit_stale_lanes_top)
     ? runtime.cockpit_stale_lanes_top
         .map((row) => ({
@@ -11917,22 +12052,49 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
         .filter((row) => row.count > 0)
         .slice(0, RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT)
     : [];
+  const staleDormantLanesTop = Array.isArray(runtime && runtime.cockpit_stale_lanes_dormant_top)
+    ? runtime.cockpit_stale_lanes_dormant_top
+        .map((row) => ({
+          lane: cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown',
+          count: parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000),
+        }))
+        .filter((row) => row.count > 0)
+        .slice(0, RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT)
+    : [];
+  const staleLaneMap = {};
+  for (const row of [...staleLanesTop, ...staleDormantLanesTop]) {
+    const key = cleanText(row && row.lane ? row.lane : 'unknown', 80) || 'unknown';
+    const count = parseNonNegativeInt(row && row.count != null ? row.count : 0, 0, 100000000);
+    if (!key || count <= 0) continue;
+    staleLaneMap[key] = Math.max(parseNonNegativeInt(staleLaneMap[key], 0, 100000000), count);
+  }
+  const staleLaneRefreshRows = Object.entries(staleLaneMap)
+    .map(([lane, count]) => ({ lane, count: parseNonNegativeInt(count, 0, 100000000) }))
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, RUNTIME_COARSE_STALE_LANE_REFRESH_LIMIT);
   const signalDeficitPressure =
     signalDeficit > 0 && queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH;
   const lowPressureCoordinationDrift =
     signalDeficit > 0 &&
-    staleBlocks > 0 &&
+    (staleBlocks > 0 || staleBlocksRaw > 0) &&
     queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH;
   const chronicCoordinationPathology =
-    staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN && signalDeficit > 0;
-  const staleAutohealNeeded = staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+    (staleBlocks >= RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN ||
+      staleBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS) &&
+    signalDeficit > 0;
+  const staleAutohealNeeded =
+    staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS ||
+    staleBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+    staleBlocksDormant >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS;
   const fallbackRequired =
     (signal.coarse && queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     signalDeficitPressure ||
     stalePressure ||
     lowPressureCoordinationDrift ||
     chronicCoordinationPathology ||
-    staleAutohealNeeded;
+    staleAutohealNeeded ||
+    criticalAttentionOverload;
   const rustRecommendations =
     recommendation && recommendation.coarse_signal_remediation_required != null
       ? null
@@ -11953,7 +12115,18 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
       stale_lanes_top: staleLanesTop,
       lane_demotion: { required: false, applied: false, command: '', lane: null },
       conduit_scale_up: { required: false, applied: false, target_signals: targetSignals, conduit_signals: conduitSignals, signal_deficit: signalDeficit, lanes: [] },
-      stale_lane_drain: { required: false, applied: false, stale_blocks: staleBlocks, stale_lanes_top: staleLanesTop, drain_limit: 0, lane: null, lanes: [] },
+      stale_lane_drain: {
+        required: false,
+        applied: false,
+        stale_blocks: staleBlocks,
+        stale_blocks_raw: staleBlocksRaw,
+        stale_blocks_dormant: staleBlocksDormant,
+        stale_lanes_top: staleLanesTop,
+        stale_lanes_dormant_top: staleDormantLanesTop,
+        drain_limit: 0,
+        lane: null,
+        lanes: [],
+      },
     };
   }
 
@@ -11968,7 +12141,8 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
     `--strategy=${RUNTIME_COARSE_THROTTLE_STRATEGY}`,
     '--strict=1',
   ];
-  const laneDemotionRequired = queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH || signalDeficit > 0;
+  const laneDemotionRequired =
+    queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH || signalDeficit > 0 || criticalAttentionOverload;
   const laneDemotionLane = laneDemotionRequired ? runLane(laneDemotionCommand) : null;
   const laneDemotionApplied = !!(
     laneDemotionLane &&
@@ -12024,7 +12198,7 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
     '--wait-ms=0',
     '--run-context=runtime_coarse_stale_lane_drain',
   ]);
-  const staleRefreshLanes = staleLanesTop.map((row) =>
+  const staleRefreshLanes = staleLaneRefreshRows.map((row) =>
     runStaleLaneRefreshWithBackoff(row.lane, row.count, normalizedTeam)
   );
   let staleCompactLane = null;
@@ -12081,7 +12255,10 @@ function maybeHealCoarseSignal(snapshot, runtime, team, recommendation = null) {
       required: true,
       applied: staleLaneDrainApplied,
       stale_blocks: staleBlocks,
+      stale_blocks_raw: staleBlocksRaw,
+      stale_blocks_dormant: staleBlocksDormant,
       stale_lanes_top: staleLanesTop,
+      stale_lanes_dormant_top: staleDormantLanesTop,
       drain_limit: drainLimit,
       lane: laneOutcome(staleDrainLane),
       lanes: staleRefreshLanes,
@@ -12496,6 +12673,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const staleMaintenance =
     staleCockpitBlocks >= RUNTIME_COCKPIT_STALE_SOFT_AUTOHEAL_MIN_BLOCKS &&
     queueDepth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH;
+  const staleRawMaintenance =
+    staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+    staleCockpitDormantBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS;
   const stalePressure =
     (staleCockpitBlocks > 0 || staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS) &&
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
@@ -12512,6 +12692,23 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
     lowSignals &&
     staleCockpitBlocks > 0 &&
     queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const laneCaps =
+    runtime && runtime.queue_lane_caps && typeof runtime.queue_lane_caps === 'object'
+      ? runtime.queue_lane_caps
+      : ATTENTION_LANE_CAPS;
+  const criticalCap = parsePositiveInt(
+    laneCaps && laneCaps.critical != null ? laneCaps.critical : ATTENTION_LANE_CAPS.critical,
+    ATTENTION_LANE_CAPS.critical,
+    1,
+    100000000
+  );
+  const criticalAttentionTotal = parseNonNegativeInt(
+    runtime && runtime.critical_attention_total != null ? runtime.critical_attention_total : 0,
+    0,
+    100000000
+  );
+  const criticalAttentionOverload =
+    criticalAttentionTotal > Math.max(criticalCap, RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD);
   const nowMs = Date.now();
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const knownShadows = Array.isArray(conduitWatchdogState.active_shadows)
@@ -12536,7 +12733,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
     }
     return { lanes, ok: allOk };
   };
-  if (!lowSignals && !staleMaintenance) {
+  if (!lowSignals && !staleMaintenance && !staleRawMaintenance && !criticalAttentionOverload) {
     let release = null;
     if (knownShadows.length > 0) {
       release = terminateShadows(knownShadows, 'conduit_recovered');
@@ -12556,6 +12753,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
       stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
       stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
       signal_deficit: signalDeficit,
+      critical_attention_total: criticalAttentionTotal,
+      critical_attention_cap: criticalCap,
+      critical_attention_overload: criticalAttentionOverload,
       low_signal: lowSignals,
       threshold,
       stale_for_ms: 0,
@@ -12579,7 +12779,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const staleForMs = lowSignals ? Math.max(0, nowMs - lowSince) : 0;
   const fallbackRequired =
     staleMaintenance ||
+    staleRawMaintenance ||
     lowLoadCoordinationDrift ||
+    criticalAttentionOverload ||
     (
       lowSignals &&
       (
@@ -12613,6 +12815,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
       stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
       stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
       signal_deficit: signalDeficit,
+      critical_attention_total: criticalAttentionTotal,
+      critical_attention_cap: criticalCap,
+      critical_attention_overload: criticalAttentionOverload,
       low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
@@ -12624,9 +12829,12 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   }
   const triggerReady =
     staleMaintenance ||
+    staleRawMaintenance ||
     lowLoadCoordinationDrift ||
+    criticalAttentionOverload ||
     staleForMs >= RUNTIME_CONDUIT_WATCHDOG_STALE_MS ||
     stalePressure ||
+    queueDepth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH ||
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
     staleCockpitBlocksRaw >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
     signalDeficit >= Math.max(2, Math.ceil(threshold * 0.3));
@@ -12644,6 +12852,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
       stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
       stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
       signal_deficit: signalDeficit,
+      critical_attention_total: criticalAttentionTotal,
+      critical_attention_cap: criticalCap,
+      critical_attention_overload: criticalAttentionOverload,
       low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
@@ -12655,7 +12866,16 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   }
   const drainLimit = Math.min(
     RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
-    Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
+    Math.max(
+      RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
+      Math.ceil(queueDepth / 3),
+      criticalAttentionOverload
+        ? Math.min(
+            RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+            Math.max(criticalAttentionTotal, RUNTIME_ATTENTION_DRAIN_MIN_BATCH)
+          )
+        : 0
+    )
   );
   const drainLane = runLane([
     'attention-queue',
@@ -12679,7 +12899,14 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const healthLane = runLane(['health-status', 'dashboard']);
   const cockpitLane = runLane(['hermes-plane', 'cockpit', `--max-blocks=${COCKPIT_MAX_BLOCKS}`, '--strict=1']);
   const desiredWatchdogCount = lowSignals
-    ? Math.min(4, Math.max(1, Math.ceil(Math.max(1, signalDeficit) / 2)))
+    ? Math.min(
+        4,
+        Math.max(
+          1,
+          Math.ceil(Math.max(1, signalDeficit) / 2),
+          staleRawMaintenance || criticalAttentionOverload ? 2 : 1
+        )
+      )
     : 0;
   const desiredShadows = Array.from({ length: desiredWatchdogCount }, (_, idx) => `${normalizedTeam}-conduit-watchdog-${idx + 1}`);
   const spawnTargets = desiredShadows.filter((shadow) => !knownShadows.includes(shadow));
@@ -12737,6 +12964,9 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
     stale_cockpit_blocks_raw: staleCockpitBlocksRaw,
     stale_cockpit_blocks_dormant: staleCockpitDormantBlocks,
     signal_deficit: signalDeficit,
+    critical_attention_total: criticalAttentionTotal,
+    critical_attention_cap: criticalCap,
+    critical_attention_overload: criticalAttentionOverload,
     low_signal: lowSignals,
     threshold,
     stale_for_ms: staleForMs,
@@ -12822,13 +13052,40 @@ function maybeApplyRuntimeThrottle(runtime, team, recommendation = null) {
 function maybeDrainAttentionQueue(runtime, recommendation = null) {
   const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
   const unackedDepth = parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 100000000);
+  const criticalAttentionTotal = parseNonNegativeInt(
+    runtime && runtime.critical_attention_total != null ? runtime.critical_attention_total : 0,
+    0,
+    100000000
+  );
+  const laneCaps =
+    runtime && runtime.queue_lane_caps && typeof runtime.queue_lane_caps === 'object'
+      ? runtime.queue_lane_caps
+      : ATTENTION_LANE_CAPS;
+  const criticalCap = parsePositiveInt(
+    laneCaps && laneCaps.critical != null ? laneCaps.critical : ATTENTION_LANE_CAPS.critical,
+    ATTENTION_LANE_CAPS.critical,
+    1,
+    100000000
+  );
+  const criticalOverload =
+    criticalAttentionTotal > Math.max(criticalCap, RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD);
   const fallbackRequired =
     queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
     unackedDepth >= RUNTIME_ATTENTION_COMPACT_MIN_ACKED * 2 ||
-    cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit';
+    cleanText(runtime && runtime.ingress_level ? runtime.ingress_level : '', 24) === 'circuit' ||
+    criticalOverload;
   const fallbackLimit = Math.min(
     RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
-    Math.max(RUNTIME_ATTENTION_DRAIN_MIN_BATCH, Math.ceil(queueDepth / 3))
+    Math.max(
+      RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
+      Math.ceil(queueDepth / 3),
+      criticalOverload
+        ? Math.min(
+            RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
+            Math.max(criticalAttentionTotal, RUNTIME_ATTENTION_DRAIN_MIN_BATCH)
+          )
+        : 0
+    )
   );
   const authorityRequired =
     recommendation && recommendation.attention_drain_required != null
@@ -12855,6 +13112,9 @@ function maybeDrainAttentionQueue(runtime, recommendation = null) {
       command: `protheus-ops ${command.join(' ')}`,
       lane: null,
       drained_count: 0,
+      critical_overload: criticalOverload,
+      critical_total: criticalAttentionTotal,
+      critical_cap: criticalCap,
     };
   }
   const lane = runLane(command);
@@ -12869,6 +13129,9 @@ function maybeDrainAttentionQueue(runtime, recommendation = null) {
     command: `protheus-ops ${command.join(' ')}`,
     limit,
     drained_count: drainedCount,
+    critical_overload: criticalOverload,
+    critical_total: criticalAttentionTotal,
+    critical_cap: criticalCap,
     lane: laneOutcome(lane),
   };
 }
@@ -13062,9 +13325,24 @@ function runtimeSwarmRecommendation(snapshot) {
   const stalePressure =
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 &&
     parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000) >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+  const staleRawBlocks = parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks_raw, 0, 100000000);
   const staleAutohealNeeded =
     parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
-    RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+    RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS ||
+    staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS;
+  const laneCaps =
+    runtime && runtime.queue_lane_caps && typeof runtime.queue_lane_caps === 'object'
+      ? runtime.queue_lane_caps
+      : ATTENTION_LANE_CAPS;
+  const criticalCap = parsePositiveInt(
+    laneCaps && laneCaps.critical != null ? laneCaps.critical : ATTENTION_LANE_CAPS.critical,
+    ATTENTION_LANE_CAPS.critical,
+    1,
+    100000000
+  );
+  const criticalAttentionOverload =
+    parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 100000000) >
+    Math.max(criticalCap, RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD);
   const attentionAccountingMismatch = !!(runtime && runtime.attention_accounting_mismatch);
   const team = DEFAULT_TEAM;
   const agents = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
@@ -13084,6 +13362,7 @@ function runtimeSwarmRecommendation(snapshot) {
     parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000) > 0 ||
     stalePressure ||
     staleAutohealNeeded ||
+    criticalAttentionOverload ||
     attentionAccountingMismatch ||
     (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
     swarmScaleRequired ||
@@ -13177,6 +13456,8 @@ function runtimeSwarmRecommendation(snapshot) {
           (
             runtime.queue_depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH ||
             parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
+            staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+            criticalAttentionOverload ||
             attentionAccountingMismatch
           )
         ) ||
@@ -13204,6 +13485,7 @@ function runtimeSwarmRecommendation(snapshot) {
       : runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
         parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 100000000) >=
           RUNTIME_ATTENTION_COMPACT_MIN_ACKED * 2 ||
+        criticalAttentionOverload ||
         ingressControl.level === 'circuit';
   const attentionDrainLimit = parseNonNegativeInt(
     authorityRecommendations && authorityRecommendations.attention_drain_limit != null
@@ -13265,7 +13547,9 @@ function runtimeSwarmRecommendation(snapshot) {
       : (cockpitSignal.coarse && runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH) ||
         (coarseSignalDeficit > 0 && runtime.queue_depth >= RUNTIME_INGRESS_DAMPEN_DEPTH) ||
         stalePressure ||
-        staleAutohealNeeded;
+        staleAutohealNeeded ||
+        staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+        criticalAttentionOverload;
   const spineMetricsStale = !!runtime.spine_metrics_stale;
   const spineMetricsLatestAgeSeconds = parseNonNegativeInt(
     runtime && runtime.spine_metrics_latest_age_seconds != null ? runtime.spine_metrics_latest_age_seconds : 0,
@@ -13280,7 +13564,13 @@ function runtimeSwarmRecommendation(snapshot) {
     authorityRecommendations && authorityRecommendations.conduit_watchdog_required != null
       ? !!authorityRecommendations.conduit_watchdog_required
       : runtime.conduit_signals < authorityTargetConduitSignals &&
-        runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
+        (
+          runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
+          runtime.queue_depth >= RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH ||
+          parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
+          staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+          criticalAttentionOverload
+        );
   const shouldRecommend =
     rolePlan.length > 0 ||
     throttleRequired ||
@@ -13298,6 +13588,8 @@ function runtimeSwarmRecommendation(snapshot) {
     queue_depth: runtime.queue_depth,
     cockpit_blocks: runtime.cockpit_blocks,
     critical_attention_total: runtime.critical_attention_total,
+    critical_attention_cap: criticalCap,
+    critical_attention_overload: criticalAttentionOverload,
     health_coverage_gap_count: runtime.health_coverage_gap_count,
     conduit_scale_required: !!runtime.conduit_scale_required,
     conduit_signals: runtime.conduit_signals,
@@ -13306,6 +13598,7 @@ function runtimeSwarmRecommendation(snapshot) {
     deferred_attention: parseNonNegativeInt(runtime && runtime.deferred_attention, 0, 100000000),
     deferred_mode: cleanText(runtime && runtime.deferred_mode ? runtime.deferred_mode : '', 24),
     cockpit_stale_blocks: parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000),
+    cockpit_stale_blocks_raw: staleRawBlocks,
     cockpit_stale_ratio: Number(runtime && runtime.cockpit_stale_ratio != null ? runtime.cockpit_stale_ratio : 0),
     cockpit_fresh_ratio: Number(runtime && runtime.cockpit_fresh_ratio != null ? runtime.cockpit_fresh_ratio : 0),
     cockpit_stale_lanes_top: Array.isArray(runtime && runtime.cockpit_stale_lanes_top)
@@ -14097,6 +14390,15 @@ function runServe(flags) {
     };
   };
   let latestSnapshot = bootstrapSnapshotFromDisk();
+  let lastKnownSidebarAgents = [];
+  try {
+    const seeded = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: false });
+    if (Array.isArray(seeded) && seeded.length) {
+      lastKnownSidebarAgents = seeded.slice(0, 500).map((row) => ({
+        ...(row && typeof row === 'object' ? row : {}),
+      }));
+    }
+  } catch {}
   let latestSnapshotJson = `${JSON.stringify(latestSnapshot, null, 2)}\n`;
   let latestSnapshotEnvelope = JSON.stringify({ type: 'snapshot', snapshot: latestSnapshot });
   writeSnapshotReceipt(latestSnapshot, { forceHistory: false });
@@ -14120,7 +14422,8 @@ function runServe(flags) {
     const requestedFastLaneMode = !!(options && options.fast_lane_mode === true);
     const fullRefreshCadenceMs = 30_000;
     const fullRefreshDue = (startedMs - parseNonNegativeInt(lastFullSnapshotBuildAtMs, 0, 1_000_000_000_000)) >= fullRefreshCadenceMs;
-    const fastLaneMode = requestedFastLaneMode && !fullRefreshDue;
+    const forceFastLaneMode = !!(options && options.force_fast_lane_mode === true);
+    const fastLaneMode = requestedFastLaneMode && (!fullRefreshDue || forceFastLaneMode);
     const cadenceMs = parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000);
     const laneTimeoutMs = parsePositiveInt(
       options && options.lane_timeout_ms != null
@@ -14275,13 +14578,6 @@ function runServe(flags) {
         }
       }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
-        const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
-        const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
-        const staleThresholdMs = Math.max(
-          15_000,
-          parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 4
-        );
-        if (snapshotAgeMs > staleThresholdMs) requestSnapshotRefresh(true);
         sendJsonRaw(res, 200, latestSnapshotJson);
         return;
       }
@@ -14313,15 +14609,6 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname === '/api/status') {
-        const snapshotTsMs = coerceTsMs(latestSnapshot && latestSnapshot.ts ? latestSnapshot.ts : 0, 0);
-        const snapshotAgeMs = snapshotTsMs > 0 ? Math.max(0, Date.now() - snapshotTsMs) : Number.MAX_SAFE_INTEGER;
-        const staleThresholdMs = Math.max(
-          12_000,
-          parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 6
-        );
-        if (snapshotAgeMs > staleThresholdMs && !updating) {
-          requestSnapshotRefresh(false);
-        }
         const agentCount = activeAgentCountFromSnapshot(latestSnapshot, 0);
         const runtimeSync = runtimeSyncSummary(latestSnapshot);
         sendJson(res, 200, {
@@ -14600,6 +14887,11 @@ function runServe(flags) {
         if (!Array.isArray(agents) || agents.length === 0) {
           agents = compatAgentsFromSnapshot(latestSnapshot);
         }
+        if ((!Array.isArray(agents) || agents.length === 0) && Array.isArray(lastKnownSidebarAgents) && lastKnownSidebarAgents.length) {
+          agents = lastKnownSidebarAgents.slice(0, 500).map((row) => ({
+            ...(row && typeof row === 'object' ? row : {}),
+          }));
+        }
         if (view === 'sidebar' || view === 'list') {
           const contractsState = loadAgentContractsState();
           const contractMap =
@@ -14640,8 +14932,20 @@ function runServe(flags) {
               };
             })
             .filter((entry) => !!(entry && entry.id));
+          if (compactRows.length > 0) {
+            lastKnownSidebarAgents = compactRows.slice(0, 500).map((row) => ({
+              ...(row && typeof row === 'object' ? row : {}),
+              identity: row && row.identity && typeof row.identity === 'object' ? { ...row.identity } : {},
+              contract: row && row.contract && typeof row.contract === 'object' ? { ...row.contract } : null,
+            }));
+          }
           sendJson(res, 200, compactRows);
           return;
+        }
+        if (Array.isArray(agents) && agents.length > 0) {
+          lastKnownSidebarAgents = agents.slice(0, 500).map((row) => ({
+            ...(row && typeof row === 'object' ? row : {}),
+          }));
         }
         sendJson(res, 200, agents);
         return;
@@ -15107,7 +15411,10 @@ function runServe(flags) {
             { input: turn.input, agent_id: agentId, session_id: turn.session_id, cli_mode: ACTIVE_CLI_MODE },
             turn.laneResult
           );
-          appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools);
+          appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
+            assistant_agent_id: turn.agent_id || agentId,
+            assistant_agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
+          });
           requestSnapshotRefresh(false);
           sendJson(res, turn.status, {
             ok: turn.ok,
@@ -15121,6 +15428,8 @@ function runServe(flags) {
             turn: {
               role: 'agent',
               text: turn.response,
+              agent_id: turn.agent_id || agentId,
+              agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
             },
             input_tokens: turn.input_tokens,
             output_tokens: turn.output_tokens,
@@ -15582,7 +15891,11 @@ function runServe(flags) {
               turn.input || cleanText(input || '', 4000),
               turn.response || '',
               turn.meta || '',
-              turn.tools
+              turn.tools,
+              {
+                assistant_agent_id: turn.agent_id || requestedAgentId,
+                assistant_agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
+              }
             );
             optimisticCollabHydrateFromTools(latestSnapshot, turn.tools);
           }
@@ -15969,11 +16282,15 @@ function runServe(flags) {
     // This avoids running heavy recovery lanes while the queue is healthy.
     const stallActionable = !!stall.detected && queueDepth >= RUNTIME_STALL_QUEUE_MIN_DEPTH;
     const stalePressure =
-      parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 &&
+      (
+        parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) > 0 ||
+        staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS
+      ) &&
       queueDepth >= RUNTIME_DRAIN_TRIGGER_DEPTH;
     const staleAutohealNeeded =
       parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
-      RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+        RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS ||
+      staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS;
     const chronicCoordinationPathology =
       parseNonNegativeInt(runtime && runtime.cockpit_stale_blocks, 0, 100000000) >=
         RUNTIME_COORDINATION_PATHOLOGY_STALE_BLOCK_MIN &&
@@ -16414,7 +16731,10 @@ function runServe(flags) {
         turn.laneResult
       );
       refreshSnapshot();
-      appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools);
+      appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
+        assistant_agent_id: turn.agent_id || agentId,
+        assistant_agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
+      });
 
       sendWs(socket, {
         type: 'response',
@@ -16428,6 +16748,8 @@ function runServe(flags) {
         cost_usd: turn.cost_usd,
         iterations: turn.iterations,
         duration_ms: turn.duration_ms,
+        agent_id: turn.agent_id || agentId,
+        agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
         model: turn.model,
         model_provider: turn.model_provider || providerForModelName(turn.model, configuredProvider(latestSnapshot)),
         auto_route: turn.auto_route || null,
@@ -16470,42 +16792,15 @@ function runServe(flags) {
   const interval = setInterval(() => {
     if (Date.now() < parseNonNegativeInt(nextSnapshotRefreshAtMs, 0, 1000000000000)) return;
     if (updating) return;
+    const autoheal = maybeRunAutonomousSelfHeal('interval');
+    if (autoheal && autoheal.executed) {
+      requestSnapshotRefresh(false);
+    }
     const hasRealtimeClients = realtimeClientCounts().total_open > 0;
-    if (!hasRealtimeClients) {
-      const idleCadenceMs = Math.max(
-        60_000,
-        parsePositiveInt(flags && flags.refreshMs, DEFAULT_REFRESH_MS, 250, 60000) * 30
-      );
-      if ((Date.now() - parseNonNegativeInt(lastSnapshotBuildAtMs, 0, 1000000000000)) < idleCadenceMs) {
-        return;
-      }
-    }
-    updating = true;
-    let followupRefreshNeeded = false;
-    try {
-      refreshSnapshot(null, { fast_lane_mode: true });
-      const autoheal = maybeRunAutonomousSelfHeal('interval');
-      if (autoheal && autoheal.executed) {
-        followupRefreshNeeded = true;
-      }
-      broadcastSnapshot();
-    } catch (error) {
-      const envelope = JSON.stringify({
-        type: 'snapshot_error',
-        ts: nowIso(),
-        error: cleanText(error && error.message ? error.message : String(error), 240),
-      });
-      for (const client of wsClients) {
-        if (client.readyState === 1) {
-          client.send(envelope);
-        }
-      }
-    } finally {
-      updating = false;
-      if (followupRefreshNeeded) {
-        requestSnapshotRefresh(false);
-      }
-    }
+    if (!hasRealtimeClients) return;
+    // Do not run synchronous snapshot rebuilds on this cadence.
+    // Keep the websocket stream alive with the latest cached snapshot.
+    broadcastSnapshot();
   }, flags.refreshMs);
 
   const contractInterval = setInterval(() => {
@@ -16588,6 +16883,54 @@ function runServe(flags) {
     wsHeartbeatInterval.unref();
   }
 
+  let shutdownInvoked = false;
+  function shutdown() {
+    if (shutdownInvoked) return;
+    shutdownInvoked = true;
+    clearInterval(interval);
+    clearInterval(contractInterval);
+    clearInterval(compactInterval);
+    clearInterval(wsHeartbeatInterval);
+    closeAllTerminalSessions('dashboard_shutdown');
+    for (const client of wsClients) {
+      try {
+        client.close();
+      } catch {}
+    }
+    for (const client of agentWsClients.keys()) {
+      try {
+        client.close();
+      } catch {}
+    }
+    wsClients.clear();
+    agentWsClients.clear();
+    wsClientHeartbeat.clear();
+    agentWsHeartbeat.clear();
+    try {
+      server.close();
+    } catch {}
+  }
+
+  server.on('error', (error) => {
+    const err = error || {};
+    const code = cleanText(err.code || '', 40);
+    const message = cleanText(err.message || String(err), 400) || 'dashboard_server_error';
+    const status = {
+      ok: false,
+      type: 'infring_dashboard_server_error',
+      ts: nowIso(),
+      host: flags.host,
+      port: flags.port,
+      code,
+      message,
+      snapshot_storage: snapshotStorageTelemetry().snapshot_history,
+    };
+    writeJson(path.resolve(STATE_DIR, 'server_status.json'), status);
+    process.stderr.write(`infring_dashboard_server_error:${code || 'unknown'}:${message}\n`);
+    shutdown();
+    if (!Number.isFinite(process.exitCode) || process.exitCode === 0) process.exitCode = 1;
+  });
+
   server.listen(flags.port, flags.host, () => {
     const dashboardUrl = `http://${flags.host}:${flags.port}/dashboard`;
     const status = {
@@ -16611,36 +16954,18 @@ function runServe(flags) {
     process.stdout.write(`Dashboard listening at ${dashboardUrl}\n`);
     setTimeout(() => {
       requestSnapshotRefresh(true);
-      try {
-        compactSnapshotHistory('startup', false);
-      } catch {}
     }, 0);
+    const startupCompactDelayMs = 15_000;
+    const startupCompactTimer = setTimeout(() => {
+      try {
+        compactSnapshotHistory('startup_deferred', false);
+      } catch {}
+    }, startupCompactDelayMs);
+    if (startupCompactTimer && typeof startupCompactTimer.unref === 'function') {
+      startupCompactTimer.unref();
+    }
   });
 
-  const shutdown = () => {
-    clearInterval(interval);
-    clearInterval(contractInterval);
-    clearInterval(compactInterval);
-    clearInterval(wsHeartbeatInterval);
-    closeAllTerminalSessions('dashboard_shutdown');
-    for (const client of wsClients) {
-      try {
-        client.close();
-      } catch {}
-    }
-    for (const client of agentWsClients.keys()) {
-      try {
-        client.close();
-      } catch {}
-    }
-    wsClients.clear();
-    agentWsClients.clear();
-    wsClientHeartbeat.clear();
-    agentWsHeartbeat.clear();
-    try {
-      server.close();
-    } catch {}
-  };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
   return null;

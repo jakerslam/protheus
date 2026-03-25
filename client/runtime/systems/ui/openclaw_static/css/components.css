@@ -788,7 +788,7 @@ tr:hover td { background: var(--surface2); }
   bottom: 0;
   left: 0;
   background: color-mix(in srgb, var(--bg) 48%, transparent);
-  z-index: 17000;
+  z-index: 18150;
 }
 
 .chat-agent-drawer {
@@ -800,7 +800,7 @@ tr:hover td { background: var(--surface2); }
   border-left: 1px solid var(--border);
   background: var(--bg-primary);
   box-shadow: var(--shadow-md);
-  z-index: 17010;
+  z-index: 18160;
   display: flex;
   flex-direction: column;
 }
@@ -1258,18 +1258,55 @@ tr:hover td { background: var(--surface2); }
   z-index: 3;
 }
 
-/* Only the last user/agent message in a contiguous role run shows a tail. */
+.message.system .message-bubble::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background: var(--message-tail-fill-color);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  z-index: 2;
+}
+
+.message.system .message-bubble::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background:
+    linear-gradient(var(--message-tail-border-color), var(--message-tail-border-color)) left top / 1px 100% no-repeat,
+    linear-gradient(
+      to bottom right,
+      transparent calc(50% - 0.5px),
+      var(--message-tail-border-color) calc(50% - 0.5px),
+      var(--message-tail-border-color) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ) 0 0 / 100% 100% no-repeat;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--message-tail-border-color) 40%, transparent)) drop-shadow(0 0 1.25px color-mix(in srgb, var(--message-tail-border-color) 30%, transparent));
+  z-index: 3;
+}
+
+/* Only the last user/agent/system message in a contiguous source run shows a tail. */
 .message.user .message-bubble::after,
 .message.user .message-bubble::before,
 .message.agent .message-bubble::before,
-.message.agent .message-bubble::after {
+.message.agent .message-bubble::after,
+.message.system .message-bubble::before,
+.message.system .message-bubble::after {
   display: none;
 }
 
 .message.user.has-tail .message-bubble:not(.message-bubble-thinking)::after,
 .message.user.has-tail .message-bubble:not(.message-bubble-thinking)::before,
 .message.agent.has-tail .message-bubble:not(.message-bubble-thinking)::before,
-.message.agent.has-tail .message-bubble:not(.message-bubble-thinking)::after {
+.message.agent.has-tail .message-bubble:not(.message-bubble-thinking)::after,
+.message.system.has-tail .message-bubble:not(.message-bubble-thinking)::before,
+.message.system.has-tail .message-bubble:not(.message-bubble-thinking)::after {
   display: block;
 }
 
@@ -1316,7 +1353,9 @@ tr:hover td { background: var(--surface2); }
 .message.user .message-bubble::after,
 .message.user .message-bubble::before,
 .message.agent .message-bubble::before,
-.message.agent .message-bubble::after {
+.message.agent .message-bubble::after,
+.message.system .message-bubble::before,
+.message.system .message-bubble::after {
   pointer-events: none;
   transform: none;
   background-clip: padding-box;
@@ -3577,9 +3616,9 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   flex-wrap: nowrap;
   gap: 12px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
   background: var(--bg-primary);
-  box-shadow: none;
+  box-shadow: 0 12px 22px -20px rgba(0, 0, 0, 0.6);
   position: fixed;
   left: 0;
   right: 0;

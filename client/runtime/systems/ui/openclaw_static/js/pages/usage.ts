@@ -77,6 +77,44 @@ function analyticsPage() {
       }
     },
 
+    runtimeSyncSnapshot() {
+      try {
+        var app = Alpine.store('app');
+        if (app && app.runtimeSync && typeof app.runtimeSync === 'object') {
+          return app.runtimeSync;
+        }
+      } catch(_) {}
+      return null;
+    },
+
+    runtimeStatusLabel() {
+      try {
+        var app = Alpine.store('app');
+        var state = String((app && app.connectionState) || '').toLowerCase();
+        if (state === 'connecting' || state === 'reconnecting') return 'Connecting...';
+        if (state === 'disconnected') return 'Disconnected';
+      } catch(_) {}
+      return 'Connected';
+    },
+
+    runtimeMetaRows() {
+      var runtime = this.runtimeSyncSnapshot();
+      if (!runtime) return [];
+      var conduit = String(Number(runtime.conduit_signals || 0)) + '/' + String(Number(runtime.target_conduit_signals || 0));
+      var spineRate = Number(runtime.spine_success_rate);
+      var spineLabel = Number.isFinite(spineRate) ? (Math.round(spineRate * 1000) / 10) + '%' : 'n/a';
+      return [
+        { label: 'Status', value: this.runtimeStatusLabel() },
+        { label: 'Queue Depth', value: Number(runtime.queue_depth || 0) },
+        { label: 'Conduit Signals', value: conduit },
+        { label: 'Stale Cockpit Blocks', value: Number(runtime.cockpit_stale_blocks || 0) },
+        { label: 'Critical Attention', value: Number(runtime.critical_attention_total || runtime.critical_attention || 0) },
+        { label: 'Backpressure', value: String(runtime.backpressure_level || runtime.sync_mode || 'normal') },
+        { label: 'Receipt P95', value: Number(runtime.receipt_latency_p95_ms || 0) > 0 ? Math.round(Number(runtime.receipt_latency_p95_ms)) + 'ms' : 'n/a' },
+        { label: 'Spine Success', value: spineLabel }
+      ];
+    },
+
     formatTokens(n) {
       if (!n) return '0';
       if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';

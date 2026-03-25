@@ -215,18 +215,23 @@ document.addEventListener('alpine:init', function() {
     },
 
     async refreshAgents(opts) {
+      // Alpine can invoke store methods through different call paths; guard against lost `this`.
+      var store = (this && typeof this === 'object' && Object.prototype.hasOwnProperty.call(this, 'agentsHydrated'))
+        ? this
+        : Alpine.store('app');
+      if (!store) return;
       var options = opts || {};
       var force = options.force === true;
       var now = Date.now();
-      if (!force && this._lastAgentsRefreshAt && (now - this._lastAgentsRefreshAt) < 1200) {
+      if (!force && store._lastAgentsRefreshAt && (now - store._lastAgentsRefreshAt) < 1200) {
         return;
       }
-      if (this._refreshAgentsInFlight) {
-        return this._refreshAgentsInFlight;
+      if (store._refreshAgentsInFlight) {
+        return store._refreshAgentsInFlight;
       }
-      this._refreshAgentsInFlight = (async () => {
-        if (!this.agentsHydrated) this.agentsLoading = true;
-        this.agentsFetchAttempts = Number(this.agentsFetchAttempts || 0) + 1;
+      store._refreshAgentsInFlight = (async () => {
+        if (!store.agentsHydrated) store.agentsLoading = true;
+        store.agentsFetchAttempts = Number(store.agentsFetchAttempts || 0) + 1;
         var agents = null;
         var fetchError = '';
         try {
@@ -263,42 +268,42 @@ document.addEventListener('alpine:init', function() {
           }
         }
         if (Array.isArray(agents)) {
-          var priorAgents = Array.isArray(this.agents) ? this.agents.slice() : [];
+          var priorAgents = Array.isArray(store.agents) ? store.agents.slice() : [];
           var hadPriorAgents = priorAgents.length > 0;
-          var holdMs = Number(this.agentTransientHoldMs || 0);
-          if (agents.length === 0 && hadPriorAgents && this.connectionState !== 'disconnected') {
-            this.agentsEmptyResponseStreak = Number(this.agentsEmptyResponseStreak || 0) + 1;
-            var lastNonEmptyAt = Number(this.agentsLastNonEmptyAt || 0);
+          var holdMs = Number(store.agentTransientHoldMs || 0);
+          if (agents.length === 0 && hadPriorAgents && store.connectionState !== 'disconnected') {
+            store.agentsEmptyResponseStreak = Number(store.agentsEmptyResponseStreak || 0) + 1;
+            var lastNonEmptyAt = Number(store.agentsLastNonEmptyAt || 0);
             var withinHoldWindow = lastNonEmptyAt > 0 && (Date.now() - lastNonEmptyAt) < holdMs;
             // Buffer transient empty responses so chat selection doesn't flap/reset.
-            if (withinHoldWindow || this.agentsEmptyResponseStreak < 3) {
-              this.agentsHydrated = true;
-              this.agentsLoading = false;
-              this.agentCount = priorAgents.length;
+            if (withinHoldWindow || store.agentsEmptyResponseStreak < 3) {
+              store.agentsHydrated = true;
+              store.agentsLoading = false;
+              store.agentCount = priorAgents.length;
               return;
             }
           } else if (agents.length > 0) {
-            this.agentsEmptyResponseStreak = 0;
-            this.agentsLastNonEmptyAt = Date.now();
+            store.agentsEmptyResponseStreak = 0;
+            store.agentsLastNonEmptyAt = Date.now();
           } else {
-            this.agentsEmptyResponseStreak = 0;
+            store.agentsEmptyResponseStreak = 0;
           }
 
           // First-load protection: do not finalize empty roster until repeated confirms.
-          if (agents.length === 0 && !this.agentsHydrated) {
-            var connectedState = String(this.connectionState || '').toLowerCase();
-            var attempts = Number(this.agentsFetchAttempts || 0);
+          if (agents.length === 0 && !store.agentsHydrated) {
+            var connectedState = String(store.connectionState || '').toLowerCase();
+            var attempts = Number(store.agentsFetchAttempts || 0);
             if (connectedState !== 'connected' || attempts < 3) {
-              this.agentsLoading = true;
-              this.agentCount = 0;
+              store.agentsLoading = true;
+              store.agentCount = 0;
               return;
             }
           }
 
-          this.agents = agents;
-          this.agentsHydrated = true;
-          this.agentsLoading = false;
-          this.agentsLastError = '';
+          store.agents = agents;
+          store.agentsHydrated = true;
+          store.agentsLoading = false;
+          store.agentsLastError = '';
           var keep = {};
           for (var ai = 0; ai < agents.length; ai++) {
             var row = agents[ai];
@@ -306,7 +311,7 @@ document.addEventListener('alpine:init', function() {
           }
           var nextActivity = {};
           var now = Date.now();
-          var srcActivity = this.agentLiveActivity || {};
+          var srcActivity = store.agentLiveActivity || {};
           Object.keys(srcActivity).forEach(function(id) {
             var entry = srcActivity[id];
             if (!keep[id] || !entry) return;
@@ -314,26 +319,26 @@ document.addEventListener('alpine:init', function() {
             if (!Number.isFinite(ts) || (now - ts) > 20000) return;
             nextActivity[id] = entry;
           });
-          this.agentLiveActivity = nextActivity;
-          if (this.activeAgentId) {
+          store.agentLiveActivity = nextActivity;
+          if (store.activeAgentId) {
             var stillActive = agents.some(function(agent) {
-              return agent && agent.id === this.activeAgentId;
-            }.bind(this));
+              return agent && agent.id === store.activeAgentId;
+            });
             if (!stillActive) {
-              this.setActiveAgentId(null);
+              store.setActiveAgentId(null);
             }
           }
-          this.agentCount = agents.length;
-        } else if (!this.agentsHydrated) {
-          this.agentsLoading = true;
-          this.agentsLastError = fetchError || 'agent_fetch_failed';
+          store.agentCount = agents.length;
+        } else if (!store.agentsHydrated) {
+          store.agentsLoading = true;
+          store.agentsLastError = fetchError || 'agent_fetch_failed';
         }
-        this._lastAgentsRefreshAt = Date.now();
+        store._lastAgentsRefreshAt = Date.now();
       })();
       try {
-        await this._refreshAgentsInFlight;
+        await store._refreshAgentsInFlight;
       } finally {
-        this._refreshAgentsInFlight = null;
+        store._refreshAgentsInFlight = null;
       }
     },
 
@@ -920,51 +925,23 @@ function app() {
       ).toLowerCase();
       if (conn === 'connecting' || conn === 'reconnecting') return 'connecting';
       if (conn === 'disconnected') return 'down';
-
-      var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
-        ? store.runtimeSync
-        : null;
-      if (!runtime) return 'ready';
-
-      var queueDepth = Number(runtime.queue_depth || 0);
-      var critical = Number(runtime.critical_attention_total || runtime.critical_attention || 0);
-      var deferred = Number(runtime.deferred_attention || 0);
-      var stale = Number(runtime.cockpit_stale_blocks || 0);
-      var conduitSignals = Number(runtime.conduit_signals || 0);
-      var targetSignals = Math.max(1, Number(runtime.target_conduit_signals || 4));
-      var signalHealthy = conduitSignals >= Math.max(3, Math.floor(targetSignals * 0.5));
-      var pressure =
-        String(runtime.backpressure_level || '').toLowerCase() ||
-        String(runtime.sync_mode || '').toLowerCase();
-
-      if (
-        queueDepth <= 6 &&
-        critical === 0 &&
-        deferred === 0 &&
-        stale <= 1 &&
-        signalHealthy &&
-        (pressure === 'normal' || pressure === 'live_sync' || !pressure)
-      ) {
-        return 'synced';
-      }
-      if (queueDepth <= 24 && critical <= 2 && stale <= 3) return 'ready';
-      return 'active';
+      return 'connected';
     },
 
     runtimeFacadeClass() {
       var state = this.runtimeFacadeState();
-      if (state === 'synced') return 'health-ok';
-      if (state === 'ready') return 'health-ok';
-      if (state === 'active') return 'health-active';
+      if (state === 'connected') return 'health-ok';
       if (state === 'connecting') return 'health-connecting';
       return 'health-down';
     },
 
     runtimeFacadeLabel() {
       var state = this.runtimeFacadeState();
-      if (state === 'synced') return 'Synced';
-      if (state === 'ready') return 'Ready';
-      if (state === 'active') return 'Active';
+      if (state === 'connected') {
+        var store = Alpine.store('app');
+        var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || this.agentCount || 0);
+        return String(agents) + ' agents';
+      }
       if (state === 'connecting') return 'Connecting...';
       return 'Disconnected';
     },
@@ -1041,9 +1018,7 @@ function app() {
     },
 
     runtimeFacadeTitle() {
-      var label = this.runtimeFacadeLabel();
-      var detail = this.runtimeFacadeDetail();
-      return label + ' — ' + detail;
+      return this.runtimeFacadeLabel();
     },
 
     toggleAgentChatsSidebar() {

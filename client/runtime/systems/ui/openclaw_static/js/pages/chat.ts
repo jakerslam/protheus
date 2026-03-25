@@ -68,8 +68,11 @@ function chatPage() {
     freshInitLaunching: false,
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
+    conversationCacheVersionKey: 'of-chat-conversation-cache-version',
+    conversationCacheVersion: 'v2-source-runs-20260325',
     _persistTimer: null,
     _responseStartedAt: 0,
+    _pendingAutoModelSwitchBaseline: '',
     _pendingWsRequest: null,
     _pendingWsRecovering: false,
     _sendWatchdogTimer: null,
@@ -621,6 +624,12 @@ function chatPage() {
 
     loadConversationCache() {
       try {
+        var cacheVersion = localStorage.getItem(this.conversationCacheVersionKey);
+        if (cacheVersion !== this.conversationCacheVersion) {
+          localStorage.removeItem(this.conversationCacheKey);
+          localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
+          return {};
+        }
         var raw = localStorage.getItem(this.conversationCacheKey);
         if (!raw) return {};
         var parsed = JSON.parse(raw);
@@ -633,6 +642,7 @@ function chatPage() {
 
     persistConversationCache() {
       try {
+        localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
         localStorage.setItem(this.conversationCacheKey, JSON.stringify(this.conversationCache || {}));
       } catch {}
     },
@@ -698,6 +708,48 @@ function chatPage() {
       if (reason.length > 80) reason = reason.slice(0, 77) + '...';
       var prefix = provider ? ('Auto -> ' + provider + '/' + shortModel) : ('Auto -> ' + shortModel);
       return reason ? (prefix + ' (' + reason + ')') : prefix;
+    },
+
+    normalizeAutoModelNoticeName(modelId) {
+      var value = String(modelId || '').trim();
+      if (!value) return '';
+      if (value.indexOf('/') >= 0) {
+        value = value.split('/').slice(-1)[0];
+      }
+      return value.replace(/-\d{8}$/, '');
+    },
+
+    formatAutoModelSwitchLabel(modelId) {
+      var normalized = this.normalizeAutoModelNoticeName(modelId);
+      return 'Auto:[' + (normalized || 'unknown') + ']';
+    },
+
+    captureAutoModelSwitchBaseline() {
+      if (!this.currentAgent || !this.isAutoModelSelected()) return '';
+      var current = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
+      return this.formatAutoModelSwitchLabel(current);
+    },
+
+    maybeAddAutoModelSwitchNotice(previousLabel, route) {
+      if (!this.currentAgent || !this.isAutoModelSelected()) return;
+      var previous = String(previousLabel || '').trim();
+      if (!previous) {
+        previous = this.formatAutoModelSwitchLabel(this.currentAgent.runtime_model || this.currentAgent.model_name || '');
+      }
+      var nextModel = '';
+      if (route && typeof route === 'object') {
+        nextModel = String(route.model || route.selected_model || route.selected_model_id || '').trim();
+      }
+      if (!nextModel) {
+        nextModel = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
+      }
+      var next = this.formatAutoModelSwitchLabel(nextModel);
+      if (!next || previous === next) return;
+      this.addNoticeEvent({
+        notice_label: 'Model switched from ' + previous + ' to ' + next,
+        notice_type: 'model',
+        ts: Date.now()
+      });
     },
 
     applyAutoRouteTelemetry(data) {
@@ -844,32 +896,54 @@ function chatPage() {
       };
       var role = compact(agent && agent.role ? agent.role : '') || 'assistant';
       var model = compact(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '');
-      var lastUser = '';
-      var lastAgent = '';
+      var context = this.collectPromptSuggestionContext();
+      var lastUser = compact(context.lastUser || '');
+      var lastAgent = compact(context.lastAgent || '');
+      var topic = compact(hint || lastUser || lastAgent || 'this task').toLowerCase();
+      var topicWords = topic.split(/[^a-z0-9_:-]+/g).filter(function(word) {
+        return word && word.length >= 4 && ['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].indexOf(word) === -1;
+      }).slice(0, 3);
+      var topicLabel = topicWords.length ? topicWords.join(' ') : 'this task';
+      if (lastUser) rows.push('Continue this exact ask: "' + lastUser + '" with one concrete next action.');
+      if (lastAgent && !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(lastAgent)) {
+        rows.push('Build on the latest answer: "' + lastAgent + '" with a focused follow-up prompt.');
+      }
+      var cleanHint = compact(hint || '');
+      if (cleanHint) rows.push('Use this hint directly: "' + cleanHint + '" and convert it into one actionable prompt.');
+      if (/queue|cockpit|conduit|latency|backpressure|reconnect|stale/i.test(topicLabel)) {
+        rows.push('Ask for one automatic reliability remediation for ' + topicLabel + ' with rollback criteria.');
+      }
+      if (model) {
+        rows.push('For model ' + model + ', ask for a 3-step execution plan focused on ' + topicLabel + '.');
+      } else {
+        rows.push('Ask for a 3-step execution plan focused on ' + topicLabel + '.');
+      }
+      rows.push('Ask for one command to run now and one verification command for ' + topicLabel + '.');
+      rows.push('Request the highest-ROI fix for ' + topicLabel + ' with measurable success criteria.');
+      return this.normalizePromptSuggestions(rows);
+    },
+
+    collectPromptSuggestionContext() {
+      var out = { lastUser: '', lastAgent: '', signature: '' };
       var history = Array.isArray(this.messages) ? this.messages : [];
       for (var i = history.length - 1; i >= 0; i--) {
         var row = history[i];
         if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
-        var text = compact(row.text || '');
+        var text = String(row.text == null ? '' : row.text).replace(/\s+/g, ' ').trim();
         if (!text) continue;
-        if (!lastUser && row.role === 'user') {
-          lastUser = text;
+        if (/^\[runtime-task\]/i.test(text)) continue;
+        if (/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(text)) continue;
+        if (!out.lastUser && row.role === 'user') {
+          out.lastUser = text;
           continue;
         }
-        if (!lastAgent && row.role === 'agent') {
-          lastAgent = text;
+        if (!out.lastAgent && row.role === 'agent') {
+          out.lastAgent = text;
         }
-        if (lastUser && lastAgent) break;
+        if (out.lastUser && out.lastAgent) break;
       }
-      if (lastUser) rows.push('Continue from "' + lastUser + '" and produce the strongest next step.');
-      if (lastAgent) rows.push('Use the last answer ("' + lastAgent + '") to create a concrete execution plan.');
-      if (model) rows.push('Given model ' + model + ', propose a high-confidence prompt for this ' + role + ' agent.');
-      else rows.push('Propose a high-confidence prompt for this ' + role + ' agent.');
-      var cleanHint = compact(hint || '');
-      if (cleanHint) rows.push('Generate one actionable follow-up based on "' + cleanHint + '".');
-      rows.push('Audit runtime state and suggest one reliability improvement with measurable impact.');
-      rows.push('Convert current context into a 3-step task list with ownership and verification.');
-      return this.normalizePromptSuggestions(rows);
+      out.signature = String(out.lastUser || '') + '|' + String(out.lastAgent || '');
+      return out;
     },
 
     clearPromptSuggestions() {
@@ -916,9 +990,10 @@ function chatPage() {
         var payload = {};
         var cleanHint = String(hint || '').trim();
         if (cleanHint) payload.hint = cleanHint;
-        var contextRows = this.derivePromptSuggestionFallback(agent, cleanHint);
-        if (contextRows[0]) payload.last_user_message = contextRows[0];
-        if (contextRows[1]) payload.last_agent_message = contextRows[1];
+        var context = this.collectPromptSuggestionContext();
+        if (context.lastUser) payload.last_user_message = String(context.lastUser).trim();
+        if (context.lastAgent) payload.last_agent_message = String(context.lastAgent).trim();
+        if (context.signature) payload.recent_context = String(context.signature).trim();
         var activeModel = String(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '').trim();
         if (activeModel) payload.current_model = activeModel;
         var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
@@ -1383,7 +1458,12 @@ function chatPage() {
           terminal: isTerminal,
           cwd: m && m.cwd ? String(m.cwd) : '',
           agent_id: m && m.agent_id ? String(m.agent_id) : '',
-          agent_name: m && m.agent_name ? String(m.agent_name) : ''
+          agent_name: m && m.agent_name ? String(m.agent_name) : '',
+          source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : '',
+          agent_origin: m && m.agent_origin ? String(m.agent_origin) : '',
+          system_origin: m && m.system_origin ? String(m.system_origin) : '',
+          actor_id: m && m.actor_id ? String(m.actor_id) : '',
+          actor: m && m.actor ? String(m.actor) : ''
         };
       });
     },
@@ -2830,7 +2910,17 @@ function chatPage() {
         case 'thinking':
           if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
             var thinkLabel = data.level ? 'Thinking (' + data.level + ')...' : 'Processing...';
-            this.messages.push({ id: ++msgId, role: 'agent', text: '*' + thinkLabel + '*', meta: '', thinking: true, streaming: true, tools: [] });
+            this.messages.push({
+              id: ++msgId,
+              role: 'agent',
+              text: '*' + thinkLabel + '*',
+              meta: '',
+              thinking: true,
+              streaming: true,
+              tools: [],
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+            });
             this.scrollToBottom();
             this._resetTypingTimeout();
           } else if (data.level) {
@@ -2844,7 +2934,17 @@ function chatPage() {
           if (data.state === 'start') {
             this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-              this.messages.push({ id: ++msgId, role: 'agent', text: '*Processing...*', meta: '', thinking: true, streaming: true, tools: [] });
+              this.messages.push({
+                id: ++msgId,
+                role: 'agent',
+                text: '*Processing...*',
+                meta: '',
+                thinking: true,
+                streaming: true,
+                tools: [],
+                agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+                agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+              });
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
@@ -2986,7 +3086,9 @@ function chatPage() {
               _thoughtText: firstSplit.thought || '',
               _stream_updated_at: Date.now(),
               thoughtStreaming: false,
-              ts: Date.now()
+              ts: Date.now(),
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             };
             if (firstSplit.thought && !firstVisible.trim()) {
               firstMessage.isHtml = true;
@@ -3060,6 +3162,8 @@ function chatPage() {
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
           this.applyContextTelemetry(data);
+          var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
+          if (!wsAutoSwitchPrevious) wsAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
           var wsRoute = this.applyAutoRouteTelemetry(data);
           var envelope = this.collectStreamedAssistantEnvelope();
           var streamedText = envelope.text;
@@ -3122,7 +3226,9 @@ function chatPage() {
             meta: meta,
             tools: streamedTools,
             ts: Date.now(),
-            _auto_fallback: usedFallback
+            _auto_fallback: usedFallback,
+            agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+            agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           };
           var lastStable = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!usedFallback && lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {
@@ -3140,6 +3246,8 @@ function chatPage() {
             self3._processQueue();
           });
           this.requestContextTelemetry(false);
+          this.maybeAddAutoModelSwitchNotice(wsAutoSwitchPrevious, wsRoute);
+          this._pendingAutoModelSwitchBaseline = '';
           if (artifactDirectives && artifactDirectives.length) {
             this.resolveArtifactDirectives(artifactDirectives);
           }
@@ -3151,6 +3259,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
+          this._pendingAutoModelSwitchBaseline = '';
           var silentEnvelope = this.collectStreamedAssistantEnvelope();
           var silentThought = String(silentEnvelope.thought || '').trim();
           var silentTools = silentEnvelope.tools || [];
@@ -3165,7 +3274,9 @@ function chatPage() {
             meta: '',
             tools: silentTools,
             ts: Date.now(),
-            _auto_fallback: true
+            _auto_fallback: true,
+            agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+            agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           });
           this.sending = false;
           this._responseStartedAt = 0;
@@ -3179,6 +3290,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
+          this._pendingAutoModelSwitchBaseline = '';
           var rawError = String(data && data.content ? data.content : 'unknown_error');
           var errorText = 'Error: ' + rawError;
           var lowerError = rawError.toLowerCase();
@@ -3424,6 +3536,78 @@ function chatPage() {
       if (!msg) return '';
       if (msg.terminal) return 'terminal';
       return String(msg.role || '');
+    },
+
+    messageSourceKey: function(msg) {
+      if (!msg || msg.is_notice) return '';
+      if (msg.terminal) {
+        var terminalAgentId = String((msg && msg.agent_id) || (this.currentAgent && this.currentAgent.id) || '').trim();
+        return terminalAgentId ? ('terminal:' + terminalAgentId) : 'terminal';
+      }
+      var role = String(msg.role || '').trim().toLowerCase();
+      if (!role) return '';
+      if (role === 'user') return 'user';
+      if (role === 'system') {
+        var systemOrigin = String(
+          (msg && msg.system_origin) ||
+          (msg && msg.agent_origin) ||
+          (msg && msg.agent_id) ||
+          (msg && msg.actor_id) ||
+          (msg && msg.actor) ||
+          ''
+        ).trim();
+        return systemOrigin ? ('system:' + systemOrigin.toLowerCase()) : 'system';
+      }
+      if (role === 'agent') {
+        var agentOrigin = String(
+          (msg && msg.agent_origin) ||
+          (msg && msg.source_agent_id) ||
+          (msg && msg.agent_id) ||
+          (msg && msg.actor_id) ||
+          (msg && msg.actor) ||
+          (msg && msg.agent_name) ||
+          ''
+        ).trim();
+        if (!agentOrigin && this.currentAgent && this.currentAgent.id) {
+          agentOrigin = String(this.currentAgent.id || '').trim();
+        }
+        return agentOrigin ? ('agent:' + agentOrigin.toLowerCase()) : 'agent';
+      }
+      var genericOrigin = String(
+        (msg && msg.agent_id) ||
+        (msg && msg.actor_id) ||
+        (msg && msg.actor) ||
+        ''
+      ).trim();
+      return genericOrigin ? (role + ':' + genericOrigin.toLowerCase()) : role;
+    },
+
+    isFirstInSourceRun: function(idx, rows) {
+      var list = Array.isArray(rows) ? rows : this.messages;
+      if (!Array.isArray(list) || idx < 0 || idx >= list.length) return false;
+      var curr = list[idx];
+      if (!curr || curr.is_notice) return false;
+      var currKey = this.messageSourceKey(curr);
+      if (!currKey) return false;
+      if (idx === 0) return true;
+      var prev = list[idx - 1];
+      if (!prev || prev.is_notice) return true;
+      var prevKey = this.messageSourceKey(prev);
+      return prevKey !== currKey;
+    },
+
+    isLastInSourceRun: function(idx, rows) {
+      var list = Array.isArray(rows) ? rows : this.messages;
+      if (!Array.isArray(list) || idx < 0 || idx >= list.length) return false;
+      var curr = list[idx];
+      if (!curr || curr.is_notice) return false;
+      var currKey = this.messageSourceKey(curr);
+      if (!currKey) return false;
+      if (idx >= list.length - 1) return true;
+      var next = list[idx + 1];
+      if (!next || next.is_notice) return true;
+      var nextKey = this.messageSourceKey(next);
+      return nextKey !== currKey;
     },
 
     messagePreview: function(msg) {
@@ -4524,6 +4708,7 @@ function chatPage() {
       this.sending = true;
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
       var targetAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+      this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();
       var preflightRoute = await this.fetchAutoRoutePreflight(finalText, uploadedFiles);
       var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
       if (preflightRoute) this.applyAutoRouteTelemetry({ auto_route: preflightRoute });
@@ -4570,6 +4755,8 @@ function chatPage() {
       try {
         var httpBody = { message: finalText };
         if (uploadedFiles && uploadedFiles.length) httpBody.attachments = uploadedFiles;
+        var httpAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
+        if (!httpAutoSwitchPrevious) httpAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
         var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', httpBody);
         this.applyContextTelemetry(res);
         var httpRoute = this.applyAutoRouteTelemetry(res);
@@ -4614,6 +4801,8 @@ function chatPage() {
           tools: httpTools,
           ts: Date.now()
         });
+        this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);
+        this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
         if (httpArtifactDirectives && httpArtifactDirectives.length) {
           this.resolveArtifactDirectives(httpArtifactDirectives);
@@ -4622,6 +4811,7 @@ function chatPage() {
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], ts: Date.now() });
+        this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
         this.scheduleConversationPersist();
       }
@@ -4833,11 +5023,21 @@ function chatPage() {
       }
     },
 
-    isGrouped(idx) {
-      if (idx === 0) return false;
-      var prev = this.messages[idx - 1];
-      var curr = this.messages[idx];
-      return prev && curr && this.messageGroupRole(prev) === this.messageGroupRole(curr) && !curr.thinking && !prev.thinking;
+    showMessageTitle(msg, idx, rows) {
+      if (!msg || msg.is_notice) return false;
+      var role = String(msg.role || '').toLowerCase();
+      if (role !== 'agent' && role !== 'system') return false;
+      return this.isFirstInSourceRun(idx, rows);
+    },
+
+    isGrouped(idx, rows) {
+      var list = Array.isArray(rows) ? rows : this.messages;
+      if (!Array.isArray(list) || idx <= 0 || idx >= list.length) return false;
+      var prev = list[idx - 1];
+      var curr = list[idx];
+      if (!prev || !curr || prev.is_notice || curr.is_notice) return false;
+      if (curr.thinking || prev.thinking) return false;
+      return !this.isFirstInSourceRun(idx, list);
     },
 
     messageHasTailBlockingBox(msg) {
@@ -4852,20 +5052,12 @@ function chatPage() {
     showMessageTail(msg, idx, rows) {
       if (!msg || msg.is_notice || msg.thinking) return false;
       var role = this.messageGroupRole(msg);
-      if (role !== 'user' && role !== 'agent') return false;
+      if (role !== 'user' && role !== 'agent' && role !== 'system') return false;
       // Tail only shows when this bubble is the terminal visible item in its source run.
       if (this.messageHasTailBlockingBox(msg)) return false;
       var list = Array.isArray(rows) ? rows : this.messages;
       if (!Array.isArray(list) || idx < 0 || idx >= list.length) return true;
-      for (var i = idx + 1; i < list.length; i++) {
-        var next = list[i];
-        if (!next || next.is_notice) continue;
-        var nextRole = this.messageGroupRole(next);
-        if (!nextRole) continue;
-        if (nextRole === role) return false;
-        return true;
-      }
-      return true;
+      return this.isLastInSourceRun(idx, list);
     },
 
     // Strip raw function-call text that some models (Llama, Groq, etc.) leak into output.

@@ -3,7 +3,7 @@
 
 // Compatibility wrapper: diagnostics uses control-plane run/status routes.
 
-const { run } = require('./protheus_control_plane.js');
+const { run } = require('./protheus_control_plane.ts');
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
@@ -15,4 +15,3 @@ if (require.main === module) {
 }
 
 module.exports = { run };
-

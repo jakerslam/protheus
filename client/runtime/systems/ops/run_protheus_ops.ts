@@ -89,16 +89,12 @@ function resolveBinary(options: ResolveBinaryOptions = {}): string | null {
     'release',
     process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
   );
-  if (isFile(release) && (allowStale || binaryFreshEnough(release))) return release;
-
   const target = path.join(
     ROOT,
     'target',
     'debug',
     process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
   );
-  if (isFile(target) && (allowStale || binaryFreshEnough(target))) return target;
-
   const vendor = path.join(
     ROOT,
     'client',
@@ -107,7 +103,13 @@ function resolveBinary(options: ResolveBinaryOptions = {}): string | null {
     'vendor',
     process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
   );
-  if (isFile(vendor) && (allowStale || binaryFreshEnough(vendor))) return vendor;
+
+  const candidates = [release, target, vendor]
+    .filter((binPath) => isFile(binPath))
+    .filter((binPath) => allowStale || binaryFreshEnough(binPath))
+    .map((binPath) => ({ binPath, mtime: mtimeMs(binPath) }))
+    .sort((a, b) => b.mtime - a.mtime);
+  if (candidates.length > 0) return candidates[0].binPath;
 
   return null;
 }
@@ -213,4 +215,3 @@ if (require.main === module) {
   const exitCode = runProtheusOps(process.argv.slice(2));
   process.exit(exitCode);
 }
-

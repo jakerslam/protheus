@@ -137,6 +137,10 @@ function assertChatEnhancementFeatures() {
   // Prompt suggestion chips above composer
   assertContains(chatSource, 'refreshPromptSuggestions', 'prompt suggestion refresh flow missing');
   assertContains(chatSource, "/api/agents/' + encodeURIComponent(agentId) + '/suggestions", 'suggestion API client call missing');
+  assertContains(chatSource, 'collectPromptSuggestionContext()', 'prompt suggestion context extractor missing');
+  assertContains(chatSource, 'payload.recent_context = String(context.signature).trim();', 'prompt suggestion request should include recent context signature');
+  assertContains(laneSource, 'Do not echo instructions or policy text.', 'prompt suggestion generator anti-echo guard missing');
+  assertContains(laneSource, 'META_SUGGESTION_PATTERNS', 'prompt suggestion meta-pattern scrubber missing');
   assertContains(htmlSource, 'class="prompt-suggestions-row"', 'prompt suggestion row missing');
   assertContains(htmlSource, 'class="prompt-suggestion-chip"', 'prompt suggestion chip missing');
 
@@ -163,6 +167,38 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'progressFillStyle: function(msg)', 'progress style function missing');
   assertContains(htmlSource, 'class="chat-progress-wrap"', 'chat progress UI wrapper missing');
   assertContains(htmlSource, 'class="chat-progress-fill"', 'chat progress fill UI missing');
+
+  // Multi-origin source-run grouping (group chat prep)
+  assertContains(chatSource, 'messageSourceKey: function(msg)', 'message source-key resolver missing');
+  assertContains(chatSource, 'isFirstInSourceRun: function(idx, rows)', 'first-in-run helper missing');
+  assertContains(chatSource, 'isLastInSourceRun: function(idx, rows)', 'last-in-run helper missing');
+  assertContains(chatSource, 'showMessageTitle(msg, idx, rows)', 'source-run title visibility helper missing');
+  assertContains(
+    htmlSource,
+    "x-show=\"showMessageTitle(msg, idx, messages)\"",
+    'primary message list missing source-run title wiring'
+  );
+  assertContains(
+    htmlSource,
+    "x-show=\"showMessageTitle(msg, idx, filteredMessages)\"",
+    'filtered message list missing source-run title wiring'
+  );
+  assertContains(
+    htmlSource,
+    "isGrouped(idx, messages)",
+    'primary message list missing source-run grouped wiring'
+  );
+  assertContains(
+    htmlSource,
+    "isGrouped(idx, filteredMessages)",
+    'filtered message list missing source-run grouped wiring'
+  );
+  assertContains(cssSource, '.message.system.has-tail', 'system-tail render support missing');
+  assertContains(chatSource, 'source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : \'\'', 'source agent id normalization missing');
+  assertContains(chatSource, 'agent_origin: m && m.agent_origin ? String(m.agent_origin) : \'\'', 'agent origin normalization missing');
+  assertContains(chatSource, 'system_origin: m && m.system_origin ? String(m.system_origin) : \'\'', 'system origin normalization missing');
+  assertContains(chatSource, 'agent_id: data && data.agent_id ? String(data.agent_id)', 'live ws agent id propagation missing');
+  assertContains(chatSource, 'agent_name: data && data.agent_name ? String(data.agent_name)', 'live ws agent name propagation missing');
 }
 
 function assertMemoryApiWired() {
@@ -418,6 +454,70 @@ function assertContract008() {
     "var prefix = provider ? ('Auto -> ' + provider + '/' + shortModel) : ('Auto -> ' + shortModel);",
     'chat auto-route metadata formatting missing'
   );
+  assertContains(
+    chatSource,
+    "formatAutoModelSwitchLabel(modelId)",
+    'auto model switch label formatter missing'
+  );
+  assertContains(
+    chatSource,
+    "Model switched from ' + previous + ' to ' + next",
+    'auto-route model switch notice copy missing'
+  );
+  assertContains(
+    chatSource,
+    "_pendingAutoModelSwitchBaseline: ''",
+    'pending auto-switch baseline state missing'
+  );
+  assertContains(
+    chatSource,
+    "this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();",
+    'send-path auto-switch baseline capture missing'
+  );
+  assertContains(
+    chatSource,
+    "var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();",
+    'ws response auto-switch baseline restore missing'
+  );
+  assertContains(
+    chatSource,
+    "var httpAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();",
+    'http response auto-switch baseline restore missing'
+  );
+  assertContains(
+    chatSource,
+    "this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);",
+    'http response auto-switch notice emission missing'
+  );
+  assertContains(
+    chatSource,
+    "this._pendingAutoModelSwitchBaseline = '';",
+    'auto-switch baseline clear missing'
+  );
+}
+
+function assertContract009() {
+  const laneSource = readUtf8(TARGET);
+  assertContains(
+    laneSource,
+    "assistant_role: 'Agent'",
+    'runtime-task acceptance message should be agent-origin for mixed-origin stacking'
+  );
+  assertContains(
+    laneSource,
+    'user_system_origin: cleanText(source, 120) || \'runtime_task\'',
+    'runtime-task system-origin metadata missing'
+  );
+  assertContains(
+    laneSource,
+    'agent_id: turn.agent_id || agentId,',
+    'ws/http response agent id metadata missing'
+  );
+  assertContains(
+    laneSource,
+    'agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : \'\', 120),',
+    'ws/http response agent name metadata missing'
+  );
 }
 
 function assertContract007() {
@@ -467,6 +567,31 @@ function assertContract007() {
     'const queueDrain = maybeDrainAttentionQueue(runtime, recommendation);',
     'attention queue drain should consume rust runtime authority recommendation'
   );
+  assertContains(
+    laneSource,
+    "const autoheal = maybeRunAutonomousSelfHeal('interval');",
+    'runtime interval loop must invoke autonomous self-heal'
+  );
+  assertContains(
+    laneSource,
+    'staleRawMaintenance ||',
+    'conduit auto-heal should include stale-raw maintenance trigger'
+  );
+  assertContains(
+    laneSource,
+    'criticalAttentionOverload',
+    'runtime authority should react to critical attention overload'
+  );
+  assertContains(
+    laneSource,
+    'cockpit_stale_blocks_raw: staleRawBlocks,',
+    'runtime recommendation payload should surface raw stale cockpit blocks'
+  );
+  assertContains(
+    laneSource,
+    'critical_attention_overload: criticalAttentionOverload,',
+    'runtime recommendation payload should surface critical overload marker'
+  );
 }
 
 function runContract(contract) {
@@ -487,6 +612,8 @@ function runContract(contract) {
   if (contract === 'V6-DASHBOARD-008.2') return assertContract008();
   if (contract === 'V6-DASHBOARD-008.3') return assertContract008();
   if (contract === 'V6-DASHBOARD-008.4') return assertContract008();
+  if (contract === 'V6-DASHBOARD-009.1') return assertContract009();
+  if (contract === 'V6-DASHBOARD-009.2') return assertContract009();
   assert.fail(`unsupported_contract:${contract}`);
 }
 
