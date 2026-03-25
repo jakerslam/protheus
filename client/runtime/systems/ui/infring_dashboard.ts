@@ -14383,7 +14383,12 @@ function bodyJson(req) {
     });
     req.on('end', () => {
       try {
-        resolve(raw.trim() ? JSON.parse(raw) : {});
+        const parsed = raw.trim() ? JSON.parse(raw) : {};
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          resolve({});
+          return;
+        }
+        resolve(parsed);
       } catch (error) {
         reject(error);
       }
@@ -16685,7 +16690,12 @@ function runServe(flags) {
       }
       let payload = null;
       try {
-        payload = JSON.parse(String(raw || '{}'));
+        const parsedPayload = JSON.parse(String(raw || '{}'));
+        if (!parsedPayload || typeof parsedPayload !== 'object' || Array.isArray(parsedPayload)) {
+          sendWs(socket, { type: 'error', content: 'Invalid websocket payload.' });
+          return;
+        }
+        payload = parsedPayload;
       } catch {
         sendWs(socket, { type: 'error', content: 'Invalid websocket payload.' });
         return;

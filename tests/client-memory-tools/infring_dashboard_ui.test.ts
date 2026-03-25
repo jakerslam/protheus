@@ -276,6 +276,7 @@ function assertAgentGitTreeAuthority() {
 function assertInterfaceSafetyGuards() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
   const clientSource = readUtf8(CLIENT_TSX_PATH);
+  const laneSource = readUtf8(TARGET);
 
   assertContains(
     appSource,
@@ -307,6 +308,15 @@ function assertInterfaceSafetyGuards() {
     clientSource,
     'const parsed = safeParseJson(asText(event.data));',
     'websocket snapshot envelopes must be parsed via safe parser (not blind JSON.parse)'
+  );
+
+  assert.ok(
+    /function bodyJson\(req\)[\s\S]*Array\.isArray\(parsed\)/.test(laneSource),
+    'server bodyJson must normalize non-object payloads to fail closed'
+  );
+  assert.ok(
+    /parsedPayload[\s\S]*Array\.isArray\(parsedPayload\)[\s\S]*Invalid websocket payload\./.test(laneSource),
+    'agent websocket handler must reject non-object payload envelopes'
   );
 }
 
