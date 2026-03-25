@@ -845,7 +845,11 @@ fn dashboard_auto_route_from_payload(payload: &Value) -> Value {
     let token_count = payload_u64(payload, "token_count", (input_text.len() as u64 / 4).max(1))
         .clamp(1, 8_000_000);
     let has_vision = payload_bool(payload, "has_vision", false);
-    let asks_speed = payload_bool(payload, "asks_speed", lowered.contains("fast") || lowered.contains("speed"));
+    let asks_speed = payload_bool(
+        payload,
+        "asks_speed",
+        lowered.contains("fast") || lowered.contains("speed"),
+    );
     let asks_cost = payload_bool(
         payload,
         "asks_cost",
@@ -893,19 +897,23 @@ fn dashboard_auto_route_from_payload(payload: &Value) -> Value {
             payload_string(&candidate, "model", "llama3.2:3b").as_str(),
         );
         let model_lower = model.to_ascii_lowercase();
-        let (prior_latency, prior_cost, prior_success) = match provider.to_ascii_lowercase().as_str() {
-            "ollama" => (120.0, 0.0, 0.92),
-            "groq" => (65.0, 0.2, 0.90),
-            "openai" => (90.0, 0.55, 0.95),
-            "anthropic" => (105.0, 0.7, 0.95),
-            "google" => (95.0, 0.6, 0.94),
-            "cloud" => (80.0, 0.3, 0.93),
-            _ => (110.0, 0.45, 0.90),
-        };
-        let model_is_small =
-            model_lower.contains("3b") || model_lower.contains("mini") || model_lower.contains("small");
-        let latency_ms = (prior_latency * if model_is_small { 0.85 } else { 1.0 }).max(1.0);
-        let cost_per_1k = (prior_cost * if model_is_small { 0.7 } else { 1.0 }).max(0.0);
+        let (prior_latency, prior_cost, prior_success): (f64, f64, f64) =
+            match provider.to_ascii_lowercase().as_str() {
+                "ollama" => (120.0_f64, 0.0_f64, 0.92_f64),
+                "groq" => (65.0_f64, 0.2_f64, 0.90_f64),
+                "openai" => (90.0_f64, 0.55_f64, 0.95_f64),
+                "anthropic" => (105.0_f64, 0.7_f64, 0.95_f64),
+                "google" => (95.0_f64, 0.6_f64, 0.94_f64),
+                "cloud" => (80.0_f64, 0.3_f64, 0.93_f64),
+                _ => (110.0_f64, 0.45_f64, 0.90_f64),
+            };
+        let model_is_small = model_lower.contains("3b")
+            || model_lower.contains("mini")
+            || model_lower.contains("small");
+        let latency_ms =
+            (prior_latency * if model_is_small { 0.85_f64 } else { 1.0_f64 }).max(1.0_f64);
+        let cost_per_1k =
+            (prior_cost * if model_is_small { 0.7_f64 } else { 1.0_f64 }).max(0.0_f64);
         let context_window = candidate
             .get("context_window")
             .and_then(Value::as_u64)
@@ -923,7 +931,11 @@ fn dashboard_auto_route_from_payload(payload: &Value) -> Value {
             .get("supports_vision")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let vision_penalty = if has_vision && !supports_vision { 0.55 } else { 0.0 };
+        let vision_penalty = if has_vision && !supports_vision {
+            0.55
+        } else {
+            0.0
+        };
         let speed_weight = if asks_speed { 1.55 } else { 1.05 };
         let cost_weight = if asks_cost { 1.35 } else { 0.75 };
         let quality_weight = if asks_quality { 1.8 } else { 1.3 };

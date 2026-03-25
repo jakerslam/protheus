@@ -3,7 +3,7 @@
 
 // Thin bridge to core authority: protheus-control-plane domain.
 
-const { runProtheusOps } = require('./run_protheus_ops.js');
+const { runProtheusOps } = require('./run_protheus_ops.ts');
 
 function normalizeSubcommand(raw: unknown): string {
   const sub = String(raw || 'status').trim().toLowerCase();
@@ -25,4 +25,3 @@ if (require.main === module) {
 }
 
 module.exports = { run, normalizeSubcommand };
-

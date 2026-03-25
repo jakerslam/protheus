@@ -309,18 +309,18 @@ fn audit_rust_source_of_truth(root: &Path) -> Value {
 
     if let Ok(wrapper_paths) = require_string_array(wrapper_contract, "required_wrapper_paths") {
         for rel in wrapper_paths {
-            if !rel.ends_with(".js") {
+            if !rel.ends_with(".js") && !rel.ends_with(".ts") {
                 violations.push(json!({
                     "context": "js_wrapper_contract",
                     "path": rel,
-                    "reason": "wrapper_must_be_js"
+                    "reason": "wrapper_must_be_ts_or_js"
                 }));
                 continue;
             }
             let path = root.join(&rel);
             match fs::read_to_string(&path) {
                 Ok(source) => {
-                    if !is_ts_bootstrap_wrapper(&source) {
+                    if rel.ends_with(".js") && !is_ts_bootstrap_wrapper(&source) {
                         violations.push(json!({
                             "context": "js_wrapper_contract",
                             "path": rel,
@@ -365,11 +365,11 @@ fn audit_rust_source_of_truth(root: &Path) -> Value {
         };
         match require_rel_path(section, "path") {
             Ok(rel) => {
-                if !rel.ends_with(".js") {
+                if !rel.ends_with(".js") && !rel.ends_with(".ts") {
                     violations.push(json!({
                         "context": "rust_shim_contract",
                         "path": rel,
-                        "reason": "rust_shim_must_be_js"
+                        "reason": "rust_shim_must_be_ts_or_js"
                     }));
                 }
                 checked_paths.push(rel);
