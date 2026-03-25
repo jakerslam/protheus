@@ -11511,47 +11511,18 @@ function classifyIngressControl(runtime, rustAuthority = null) {
       lane: authority.lane || null,
     };
   }
-  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
-  const critical = parseNonNegativeInt(runtime && runtime.critical_attention_total, 0, 100000000);
-  const growthRisk = queueDepth >= RUNTIME_INGRESS_SHED_DEPTH && critical >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD;
-  let level = 'normal';
-  let rejectNonCritical = false;
-  let delayMs = 0;
-  let reason = 'steady_state';
-
-  if (queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH || growthRisk) {
-    level = 'circuit';
-    rejectNonCritical = true;
-    delayMs = RUNTIME_INGRESS_DELAY_MS;
-    reason = queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ? 'queue_circuit_breaker' : 'critical_growth_risk';
-  } else if (queueDepth >= RUNTIME_INGRESS_SHED_DEPTH) {
-    level = 'shed';
-    rejectNonCritical = true;
-    delayMs = RUNTIME_INGRESS_DELAY_MS;
-    reason = 'priority_shed';
-  } else if (queueDepth >= RUNTIME_INGRESS_DAMPEN_DEPTH) {
-    level = 'dampen';
-    rejectNonCritical = false;
-    delayMs = RUNTIME_INGRESS_DELAY_MS;
-    reason = 'predictive_dampen';
-  }
-
-  if (ingressControllerState.level !== level) {
-    ingressControllerState = {
-      level,
-      reject_non_critical: rejectNonCritical,
-      delay_ms: delayMs,
-      reason,
-      since: nowIso(),
-    };
-  } else {
-    ingressControllerState = {
-      ...ingressControllerState,
-      reject_non_critical: rejectNonCritical,
-      delay_ms: delayMs,
-      reason,
-    };
-  }
+  const level = 'normal';
+  const rejectNonCritical = false;
+  const delayMs = 0;
+  const reason = 'rust_authority_unavailable';
+  ingressControllerState = {
+    ...ingressControllerState,
+    level,
+    reject_non_critical: rejectNonCritical,
+    delay_ms: delayMs,
+    reason,
+    since: cleanText(ingressControllerState.since || nowIso(), 80),
+  };
   return {
     level,
     reject_non_critical: rejectNonCritical,
@@ -11561,7 +11532,7 @@ function classifyIngressControl(runtime, rustAuthority = null) {
     dampen_depth: RUNTIME_INGRESS_DAMPEN_DEPTH,
     shed_depth: RUNTIME_INGRESS_SHED_DEPTH,
     circuit_depth: RUNTIME_INGRESS_CIRCUIT_DEPTH,
-    authority: 'ts_fallback',
+    authority: 'rust_unavailable',
     lane: authority && authority.lane ? authority.lane : null,
   };
 }
@@ -11603,7 +11574,7 @@ function cockpitSignalState(runtime, rustAuthority = null) {
   return {
     quality: streamCoarse ? 'coarse' : quality,
     coarse: streamCoarse,
-    authority: 'ts_fallback',
+    authority: 'rust_unavailable',
     lane: authority && authority.lane ? authority.lane : null,
   };
 }
@@ -11644,37 +11615,33 @@ function runtimeReliabilityPosture(runtime, activeSwarmAgents = 0, rustAuthority
       lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
     };
   }
-  const spineSuccessRateRaw = Number(runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN);
-  const spineSuccessRate = Number.isFinite(spineSuccessRateRaw) ? Number(spineSuccessRateRaw) : 1;
+  const spineSuccessRate = Number.isFinite(
+    Number(runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN)
+  )
+    ? Number(runtime.spine_success_rate)
+    : 1;
   const spineMetricsStale = !!(runtime && runtime.spine_metrics_stale === true);
-  const spineKnown = Number.isFinite(spineSuccessRateRaw) && !spineMetricsStale;
-  const spineDegraded = spineKnown && spineSuccessRate < RUNTIME_SPINE_SUCCESS_TARGET_MIN;
-  const escalationOpenRateRaw = Number(
-    runtime && runtime.human_escalation_open_rate != null ? runtime.human_escalation_open_rate : Number.NaN
-  );
-  const escalationOpenRate = Number.isFinite(escalationOpenRateRaw) ? Number(escalationOpenRateRaw) : 0;
-  const escalationKnown = Number.isFinite(escalationOpenRateRaw);
-  const escalationStarved = spineDegraded && escalationKnown && escalationOpenRate <= 0;
+  const escalationOpenRate = Number.isFinite(
+    Number(runtime && runtime.human_escalation_open_rate != null ? runtime.human_escalation_open_rate : Number.NaN)
+  )
+    ? Number(runtime.human_escalation_open_rate)
+    : 0;
   const handoffCount = parseNonNegativeInt(runtime && runtime.collab_handoff_count, 0, 100000000);
   const handoffsPerAgent = activeSwarmAgents > 0 ? Number((handoffCount / activeSwarmAgents).toFixed(3)) : 0;
-  const handoffCoverageWeak =
-    activeSwarmAgents >= RUNTIME_HANDOFFS_AGENT_FLOOR &&
-    handoffsPerAgent < RUNTIME_HANDOFFS_PER_AGENT_MIN;
-  const degraded = spineDegraded || handoffCoverageWeak;
   return {
-    degraded,
+    degraded: false,
     spine_success_rate: spineSuccessRate,
     spine_success_target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
     spine_metrics_stale: spineMetricsStale,
-    spine_degraded: spineDegraded,
+    spine_degraded: false,
     escalation_open_rate: escalationOpenRate,
-    escalation_starved: escalationStarved,
+    escalation_starved: false,
     handoff_count: handoffCount,
     handoffs_per_agent: handoffsPerAgent,
     handoffs_per_agent_min: RUNTIME_HANDOFFS_PER_AGENT_MIN,
-    handoff_coverage_weak: handoffCoverageWeak,
+    handoff_coverage_weak: false,
     active_swarm_agents: parseNonNegativeInt(activeSwarmAgents, 0, 100000000),
-    authority: 'ts_fallback',
+    authority: 'rust_unavailable',
     lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
   };
 }
@@ -11708,151 +11675,16 @@ function runtimeSloGate(runtime, reliabilityPosture = null, rustAuthority = null
       lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
     };
   }
-  const spineSuccessRateRaw = Number(
-    runtime && runtime.spine_success_rate != null ? runtime.spine_success_rate : Number.NaN
-  );
-  const queueDepth = parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000);
-  const latencyP95Raw = Number(
-    runtime && runtime.receipt_latency_p95_ms != null ? runtime.receipt_latency_p95_ms : Number.NaN
-  );
-  const latencyP99Raw = Number(
-    runtime && runtime.receipt_latency_p99_ms != null ? runtime.receipt_latency_p99_ms : Number.NaN
-  );
-  const escalationOpenRateRaw = Number(
-    runtime && runtime.human_escalation_open_rate != null ? runtime.human_escalation_open_rate : Number.NaN
-  );
-  const spineMetricsStale = !!(runtime && runtime.spine_metrics_stale);
-  const latencyMetricsStale = !!(runtime && runtime.receipt_latency_metrics_stale);
-  const spineKnown = Number.isFinite(spineSuccessRateRaw) && !spineMetricsStale;
-  const p95Known = Number.isFinite(latencyP95Raw) && !latencyMetricsStale;
-  const p99Known = Number.isFinite(latencyP99Raw) && !latencyMetricsStale;
-  const escalationKnown = Number.isFinite(escalationOpenRateRaw);
-  const spineValue = spineKnown ? Number(spineSuccessRateRaw) : null;
-  const p95Value = p95Known ? Number(latencyP95Raw) : null;
-  const p99Value = p99Known ? Number(latencyP99Raw) : null;
-  const escalationValue = escalationKnown ? Number(escalationOpenRateRaw) : 0;
-
-  const checkRows = [
-    {
-      id: 'spine_success_rate',
-      known: spineKnown,
-      status: spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN ? 'fail' : spineKnown ? 'pass' : 'unknown',
-      value: spineValue,
-      target: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
-      operator: '>=',
-    },
-    {
-      id: 'receipt_latency_p95_ms',
-      known: p95Known,
-      status:
-        p95Known && p95Value > RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS
-          ? 'fail'
-          : p95Known
-          ? 'pass'
-          : 'unknown',
-      value: p95Value,
-      target: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
-      operator: '<=',
-    },
-    {
-      id: 'receipt_latency_p99_ms',
-      known: p99Known,
-      status:
-        p99Known && p99Value > RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS
-          ? 'fail'
-          : p99Known
-          ? 'pass'
-          : 'unknown',
-      value: p99Value,
-      target: RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS,
-      operator: '<=',
-    },
-    {
-      id: 'queue_depth',
-      known: true,
-      status: queueDepth > RUNTIME_SLO_QUEUE_DEPTH_MAX ? 'fail' : 'pass',
-      value: queueDepth,
-      target: RUNTIME_SLO_QUEUE_DEPTH_MAX,
-      operator: '<=',
-    },
-    {
-      id: 'spine_metrics_freshness',
-      known: true,
-      status: spineMetricsStale || latencyMetricsStale ? 'warn' : 'pass',
-      value:
-        runtime && runtime.spine_metrics_latest_age_seconds != null
-          ? Number(runtime.spine_metrics_latest_age_seconds)
-          : null,
-      target:
-        runtime && runtime.spine_metrics_fresh_window_seconds != null
-          ? Number(runtime.spine_metrics_fresh_window_seconds)
-          : RUNTIME_SPINE_METRICS_STALE_MAX_AGE_SECONDS,
-      operator: '<=',
-    },
-  ];
-
-  const primaryFailedChecks = checkRows.filter((row) => row.status === 'fail').map((row) => row.id);
-  const baseDegraded = primaryFailedChecks.length > 0;
-  const escalationRequired =
-    baseDegraded ||
-    !!(reliabilityPosture && reliabilityPosture.degraded) ||
-    (spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN);
-  const escalationStatus =
-    !escalationRequired
-      ? 'pass'
-      : escalationKnown && escalationValue > RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN
-      ? 'pass'
-      : escalationKnown
-      ? 'fail'
-      : 'unknown';
-  const escalationCheck = {
-    id: 'human_escalation_open_rate',
-    known: escalationKnown,
-    status: escalationStatus,
-    value: escalationKnown ? escalationValue : null,
-    target: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
-    operator: escalationRequired ? '>' : 'n/a',
-    required: escalationRequired,
-  };
-  checkRows.push(escalationCheck);
-
-  const failedChecks = checkRows
-    .filter((row) => row.status === 'fail' && (row.id !== 'human_escalation_open_rate' || escalationRequired))
-    .map((row) => row.id);
-  const failedPrimary = primaryFailedChecks.length;
-  const severeLatency =
-    (p99Known && p99Value > RUNTIME_SLO_RECEIPT_LATENCY_P99_MAX_MS * 1.5) ||
-    (p95Known && p95Value > RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS * 1.5);
-  const severeSpine = spineKnown && spineValue < RUNTIME_SPINE_SUCCESS_TARGET_MIN * 0.75;
-  const severeBacklog = queueDepth >= RUNTIME_INGRESS_CIRCUIT_DEPTH;
-  const severity =
-    failedChecks.length === 0
-      ? 'ok'
-      : severeLatency || severeSpine || severeBacklog || failedPrimary >= 2
-      ? 'critical'
-      : 'warn';
-  const required = failedChecks.length > 0;
-  const containmentRequired =
-    required &&
-    (queueDepth > RUNTIME_SLO_QUEUE_DEPTH_MAX || severeLatency || severeSpine || failedPrimary > 0);
-  const blockScale = required && (severity === 'critical' || failedPrimary > 0);
-  const summary =
-    required
-      ? `SLO gate ${severity}: ${failedChecks.join(', ')}`
-      : spineMetricsStale || latencyMetricsStale
-      ? `SLO gate stale: spine metrics older than freshness window; queue ${queueDepth}/${RUNTIME_SLO_QUEUE_DEPTH_MAX}.`
-      : `SLO gate ok: queue ${queueDepth}/${RUNTIME_SLO_QUEUE_DEPTH_MAX}, spine ${spineKnown ? (spineValue * 100).toFixed(1) : 'unknown'}%.`;
-
   return {
-    required,
-    severity,
-    block_scale: blockScale,
-    containment_required: containmentRequired,
-    escalation_required: escalationRequired,
-    failed_checks: failedChecks,
-    checks: checkRows,
-    stale_metrics: spineMetricsStale || latencyMetricsStale,
-    summary: cleanText(summary, 260),
+    required: false,
+    severity: 'unknown',
+    block_scale: false,
+    containment_required: false,
+    escalation_required: false,
+    failed_checks: [],
+    checks: [],
+    stale_metrics: true,
+    summary: 'SLO gate unavailable: rust authority missing.',
     thresholds: {
       spine_success_rate_min: RUNTIME_SPINE_SUCCESS_TARGET_MIN,
       receipt_latency_p95_max_ms: RUNTIME_SLO_RECEIPT_LATENCY_P95_MAX_MS,
@@ -11860,7 +11692,7 @@ function runtimeSloGate(runtime, reliabilityPosture = null, rustAuthority = null
       queue_depth_max: RUNTIME_SLO_QUEUE_DEPTH_MAX,
       escalation_open_rate_min: RUNTIME_SLO_ESCALATION_OPEN_RATE_MIN,
     },
-    authority: 'ts_fallback',
+    authority: 'rust_unavailable',
     lane: rust.authority && rust.authority.lane ? rust.authority.lane : null,
   };
 }
