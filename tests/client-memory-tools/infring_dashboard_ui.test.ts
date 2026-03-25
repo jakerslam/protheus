@@ -269,12 +269,85 @@ function assertAgentGitTreeAuthority() {
   );
 }
 
+function assertLifecycleAndPlatformSrsEvidence() {
+  const laneSource = readUtf8(TARGET);
+  const agentsSource = readUtf8(
+    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/agents.ts')
+  );
+  const htmlSource = readUtf8(
+    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html')
+  );
+  const readmeSource = readUtf8(path.resolve(ROOT, 'README.md'));
+  const initiativeSource = readUtf8(path.resolve(ROOT, 'core/layer2/execution/src/initiative.rs'));
+  const importanceSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/importance.rs'));
+  const attentionQueueSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/attention_queue.rs'));
+  const opsCargoSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/Cargo.toml'));
+
+  // V6-AGENT-LIFECYCLE-001.1
+  assertContains(laneSource, 'function deriveAgentContract(', 'V6-AGENT-LIFECYCLE-001.1 missing derive contract helper');
+  assertContains(laneSource, 'termination_condition', 'V6-AGENT-LIFECYCLE-001.1 missing termination condition contract field');
+  assertContains(laneSource, 'expiry_seconds', 'V6-AGENT-LIFECYCLE-001.1 missing expiry seconds contract field');
+
+  // V6-AGENT-LIFECYCLE-001.3
+  assertContains(laneSource, "if (req.method === 'POST' && parts[3] === 'revive')", 'V6-AGENT-LIFECYCLE-001.3 missing revive API route');
+  assertContains(agentsSource, "/api/agents/' + encodeURIComponent(agentId) + '/revive'", 'V6-AGENT-LIFECYCLE-001.3 missing revive client call');
+
+  // V6-AGENT-LIFECYCLE-001.4
+  assertContains(laneSource, 'function detectContractViolation(', 'V6-AGENT-LIFECYCLE-001.4 missing contract violation detector');
+  assertContains(laneSource, 'AGENT_ROGUE_MESSAGE_RATE_MAX_PER_MIN', 'V6-AGENT-LIFECYCLE-001.4 missing rogue rate guard');
+  assertContains(laneSource, "error: 'agent_contract_terminated'", 'V6-AGENT-LIFECYCLE-001.4 missing violation termination error path');
+
+  // V6-AGENT-LIFECYCLE-001.5
+  assertContains(htmlSource, 'Recently Terminated', 'V6-AGENT-LIFECYCLE-001.5 missing recently terminated UI surface');
+  assertContains(agentsSource, 'formatAgentContractLine(agent)', 'V6-AGENT-LIFECYCLE-001.5 missing contract summary formatter');
+  assertContains(agentsSource, 'async reviveTerminated(entry)', 'V6-AGENT-LIFECYCLE-001.5 missing revive action handler');
+
+  // V7-PLATFORM-001.1
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'LICENSE')), 'V7-PLATFORM-001.1 missing LICENSE');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'LICENSE-INFRING-NC-1.0')), 'V7-PLATFORM-001.1 missing LICENSE-INFRING-NC-1.0');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'LICENSE-APACHE-2.0')), 'V7-PLATFORM-001.1 missing LICENSE-APACHE-2.0');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'LICENSE_SCOPE.md')), 'V7-PLATFORM-001.1 missing LICENSE_SCOPE.md');
+  assertContains(readmeSource, 'license-dual', 'V7-PLATFORM-001.1 missing dual-license README marker');
+
+  // V7-PLATFORM-001.2
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'roadmap.md')), 'V7-PLATFORM-001.2 missing roadmap.md');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'glossary.md')), 'V7-PLATFORM-001.2 missing glossary.md');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'apps/sovereign-memory-os')), 'V7-PLATFORM-001.2 missing sovereign-memory-os app scaffold');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'apps/local-research-agent')), 'V7-PLATFORM-001.2 missing local-research-agent app scaffold');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'apps/mcu-sensor-monitor-tiny-max')), 'V7-PLATFORM-001.2 missing mcu-sensor-monitor-tiny-max app scaffold');
+
+  // V7-PLATFORM-001.3
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'docs/client/architecture/layer2_initiative_extensions.md')), 'V7-PLATFORM-001.3 missing layer2 initiative extension doc');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'docs/example.md')), 'V7-PLATFORM-001.3 missing docs/example.md');
+  assertContains(initiativeSource, 'Layer 2 initiative primitive.', 'V7-PLATFORM-001.3 missing initiative primitive documentation context');
+
+  // V7-PLATFORM-001.4
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md')), 'V7-PLATFORM-001.4 missing plugin WASM spec');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'adapters/protocol/wasm_adapter_skeleton/wit/infring_plugin.wit')), 'V7-PLATFORM-001.4 missing WIT interface skeleton');
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'adapters/protocol/wasm_adapter_skeleton/src/lib.rs')), 'V7-PLATFORM-001.4 missing adapter skeleton rust entrypoint');
+
+  // V7-PLATFORM-001.5
+  assertContains(opsCargoSource, 'proptest = "1.5"', 'V7-PLATFORM-001.5 missing proptest dependency');
+  assertContains(importanceSource, 'proptest!', 'V7-PLATFORM-001.5 missing importance proptest coverage');
+  assertContains(attentionQueueSource, 'proptest!', 'V7-PLATFORM-001.5 missing attention queue proptest coverage');
+
+  // V7-PLATFORM-001.6
+  assert.ok(fs.existsSync(path.resolve(ROOT, 'docs/observability/OTLP_INTEGRATION_PLAN.md')), 'V7-PLATFORM-001.6 missing OTLP integration plan');
+
+  // V7-PLATFORM-001.7
+  assert.ok(
+    fs.existsSync(path.resolve(ROOT, 'docs/client/architecture/pure_mode_local_llm_adapters.md')),
+    'V7-PLATFORM-001.7 missing pure mode local LLM adapter spec'
+  );
+}
+
 function runSnapshotAssertions() {
   assertThinClientAuthorityBoundary();
   assertChatSyntaxGuards();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
   assertAgentGitTreeAuthority();
+  assertLifecycleAndPlatformSrsEvidence();
   const proc = runSnapshot();
   assert.strictEqual(proc.status, 0, `snapshot command failed: ${proc.stderr || proc.stdout}`);
 
