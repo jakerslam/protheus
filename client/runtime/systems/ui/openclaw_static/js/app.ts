@@ -726,11 +726,49 @@ function app() {
     connected: false,
     wsConnected: false,
     connectionState: 'connecting',
+    connectionIndicatorState: 'connecting',
     version: '0.1.0',
     agentCount: 0,
     bootSelectionApplied: false,
     clockTick: Date.now(),
     _themeSwitchReset: 0,
+    _lastConnectionIndicatorAt: 0,
+    _connectionIndicatorTimer: null,
+    _pendingConnectionIndicatorState: '',
+
+    normalizeConnectionIndicatorState(state) {
+      var raw = String(state || '').trim().toLowerCase();
+      if (raw === 'connected') return 'connected';
+      if (raw === 'disconnected') return 'disconnected';
+      return 'connecting';
+    },
+
+    queueConnectionIndicatorState(state) {
+      var next = this.normalizeConnectionIndicatorState(state);
+      var now = Date.now();
+      var minIntervalMs = 10000;
+      if (!this._lastConnectionIndicatorAt || (now - this._lastConnectionIndicatorAt) >= minIntervalMs) {
+        this.connectionIndicatorState = next;
+        this._lastConnectionIndicatorAt = now;
+        this._pendingConnectionIndicatorState = '';
+        if (this._connectionIndicatorTimer) {
+          clearTimeout(this._connectionIndicatorTimer);
+          this._connectionIndicatorTimer = null;
+        }
+        return;
+      }
+      this._pendingConnectionIndicatorState = next;
+      if (this._connectionIndicatorTimer) return;
+      var delay = Math.max(0, minIntervalMs - (now - this._lastConnectionIndicatorAt));
+      var self = this;
+      this._connectionIndicatorTimer = setTimeout(function() {
+        self._connectionIndicatorTimer = null;
+        var pending = self._pendingConnectionIndicatorState || next;
+        self._pendingConnectionIndicatorState = '';
+        self.connectionIndicatorState = self.normalizeConnectionIndicatorState(pending);
+        self._lastConnectionIndicatorAt = Date.now();
+      }, delay);
+    },
 
     getAppStore() {
       try {
@@ -848,6 +886,7 @@ function app() {
         var connStore = self.getAppStore();
         if (connStore) connStore.connectionState = state;
         self.connectionState = state;
+        self.queueConnectionIndicatorState(state);
       });
 
       if (!window.__infringToastCaptureInstalled) {
@@ -867,7 +906,7 @@ function app() {
       if (initStore && typeof initStore.checkOnboarding === 'function') initStore.checkOnboarding();
       if (initStore && typeof initStore.checkAuth === 'function') initStore.checkAuth();
       setInterval(function() { self.clockTick = Date.now(); }, 1000);
-      setInterval(function() { self.pollStatus(); }, 5000);
+      setInterval(function() { self.pollStatus(); }, 10000);
     },
 
     navigate(p) {
@@ -915,10 +954,11 @@ function app() {
 
     runtimeFacadeState() {
       var store = this.getAppStore();
-      var conn = String(
-        (store && store.connectionState) || this.connectionState || ''
-      ).toLowerCase();
-      if (conn === 'connecting' || conn === 'reconnecting') return 'connecting';
+      var conn = this.normalizeConnectionIndicatorState(
+        this.connectionIndicatorState ||
+        ((store && store.connectionState) || this.connectionState || '')
+      );
+      if (conn === 'connecting') return 'connecting';
       if (conn === 'disconnected') return 'down';
       return 'connected';
     },
@@ -1265,10 +1305,24 @@ function app() {
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },
 
+    agentAutoTerminateEnabled(agent) {
+      if (!agent || typeof agent !== 'object') return false;
+      if (agent.auto_terminate_allowed === false) return false;
+      if (agent.is_master_agent === true) return false;
+      var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
+      if (treeKind === 'master' || treeKind === 'main') return false;
+      var branch = String(agent.git_branch || agent.branch || '').trim().toLowerCase();
+      if (branch === 'main' || branch === 'master') return false;
+      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      if (contract && contract.auto_terminate_allowed === false) return false;
+      return true;
+    },
+
     agentContractRemainingMs(agent) {
       // Force recompute every second for live countdown updates.
       var _tick = Number(this.clockTick || 0);
       void _tick;
+      if (!this.agentAutoTerminateEnabled(agent)) return null;
       var store = this.getAppStore();
       var lastRefreshAt = Number((store && store._lastAgentsRefreshAt) || 0);
       var ageDriftMs = Math.max(0, Date.now() - lastRefreshAt);
@@ -1344,6 +1398,7 @@ function app() {
       this.version = store.version;
       this.agentCount = store.agentCount;
       this.connectionState = store.connectionState || (store.connected ? 'connected' : 'disconnected');
+      this.queueConnectionIndicatorState(this.connectionState);
       this.wsConnected = InfringAPI.isWsConnected();
       if (!this.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
         await this.applyBootChatSelection();
