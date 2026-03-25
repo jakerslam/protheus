@@ -139,8 +139,14 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, "/api/agents/' + encodeURIComponent(agentId) + '/suggestions", 'suggestion API client call missing');
   assertContains(chatSource, 'collectPromptSuggestionContext()', 'prompt suggestion context extractor missing');
   assertContains(chatSource, 'payload.recent_context = String(context.signature).trim();', 'prompt suggestion request should include recent context signature');
+  assertContains(chatSource, '/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)', 'prompt suggestion hint sanitizer missing in chat client');
   assertContains(laneSource, 'Do not echo instructions or policy text.', 'prompt suggestion generator anti-echo guard missing');
   assertContains(laneSource, 'META_SUGGESTION_PATTERNS', 'prompt suggestion meta-pattern scrubber missing');
+  assertContains(laneSource, 'function sanitizeSuggestionHint(value)', 'dashboard suggestion hint sanitizer missing');
+  assert.ok(
+    !laneSource.includes('highest-ROI fix for this task'),
+    'prompt suggestion fallback should not emit generic "this task" phrasing'
+  );
   assertContains(htmlSource, 'class="prompt-suggestions-row"', 'prompt suggestion row missing');
   assertContains(htmlSource, 'class="prompt-suggestion-chip"', 'prompt suggestion chip missing');
 
@@ -196,7 +202,15 @@ function assertChatEnhancementFeatures() {
   assertContains(cssSource, '.message.system.has-tail', 'system-tail render support missing');
   assertContains(chatSource, 'source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : \'\'', 'source agent id normalization missing');
   assertContains(chatSource, 'agent_origin: m && m.agent_origin ? String(m.agent_origin) : \'\'', 'agent origin normalization missing');
-  assertContains(chatSource, 'system_origin: m && m.system_origin ? String(m.system_origin) : \'\'', 'system origin normalization missing');
+  assertContains(chatSource, "var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';", 'system origin extraction missing');
+  assertContains(chatSource, 'system_origin: systemOrigin,', 'system origin normalization missing');
+  assertContains(chatSource, "return 'system:legacy:' + legacySystemId.toLowerCase();", 'legacy system message source key fallback missing');
+  assertContains(chatSource, "system_origin: 'slash:help'", 'slash help messages should carry explicit system origin');
+  assertContains(chatSource, "system_origin: 'agent:inactive'", 'inactive agent notices should carry explicit system origin');
+  assertContains(chatSource, "system_origin: 'runtime:error'", 'runtime error messages should carry explicit system origin');
+  assertContains(chatSource, '/^task accepted\\.\\s*report findings in this thread with receipt-backed evidence\\.?$/i.test(compactText)', 'legacy runtime task ack rows should be filtered from render history');
+  assertContains(chatSource, 'return null;', 'legacy runtime task noise should be dropped during session normalization');
+  assertContains(chatSource, '}).filter(function(row) { return !!row; });', 'session normalization should filter null rows');
   assertContains(chatSource, 'agent_id: data && data.agent_id ? String(data.agent_id)', 'live ws agent id propagation missing');
   assertContains(chatSource, 'agent_name: data && data.agent_name ? String(data.agent_name)', 'live ws agent name propagation missing');
 }
@@ -576,6 +590,40 @@ function assertContract007() {
     laneSource,
     'staleRawMaintenance ||',
     'conduit auto-heal should include stale-raw maintenance trigger'
+  );
+  assertContains(
+    laneSource,
+    'const staleLaneGc =',
+    'autonomous self-heal conduit-only path should include stale-lane gc branch'
+  );
+  assertContains(
+    laneSource,
+    "maybeHealCoarseSignal(latestSnapshot, runtime, flags.team || DEFAULT_TEAM)",
+    'autonomous self-heal conduit-only path should run coarse stale-lane remediation'
+  );
+  assertContains(
+    laneSource,
+    "policy: staleLaneGc && staleLaneGc.required",
+    'conduit-only self-heal policy should expose when stale-lane gc is bundled'
+  );
+  assertContains(
+    laneSource,
+    'function shouldSurfaceRuntimeTaskInChat(source = \'\')',
+    'runtime task chat-surface policy helper missing'
+  );
+  assertContains(
+    laneSource,
+    'const RUNTIME_TASK_CHAT_DEDUPE_MS = 5 * 60 * 1000;',
+    'runtime task dedupe window constant missing'
+  );
+  assertContains(
+    laneSource,
+    'surfaced_in_chat: surfacedInChat,',
+    'runtime task queue result should report chat surfacing status'
+  );
+  assert.ok(
+    !laneSource.includes('Task accepted. Report findings in this thread with receipt-backed evidence.'),
+    'runtime task queue should not inject synthetic task-accepted chat messages'
   );
   assertContains(
     laneSource,
