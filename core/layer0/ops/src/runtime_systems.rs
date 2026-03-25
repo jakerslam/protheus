@@ -387,6 +387,53 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let spine_degraded = !spine_metrics_stale && spine_success_rate < spine_success_target;
     let escalation_starved = spine_degraded && human_escalation_open_rate <= 0.0;
     let reliability_degraded = spine_degraded || handoff_coverage_weak;
+    let facade_response_p95_ms = if receipt_latency_p95_ms > 0.0 {
+        receipt_latency_p95_ms.round() as u64
+    } else if receipt_latency_p99_ms > 0.0 {
+        receipt_latency_p99_ms.round() as u64
+    } else {
+        0
+    };
+    let mut facade_confidence: i64 = 100;
+    if queue_depth > 20 {
+        facade_confidence -= (((queue_depth - 20) / 2).min(20)) as i64;
+    }
+    if stale_blocks > 0 {
+        facade_confidence -= ((stale_blocks.saturating_mul(2)).min(20)) as i64;
+    }
+    if health_coverage_gap_count > 0 {
+        facade_confidence -= ((health_coverage_gap_count.saturating_mul(6)).min(20)) as i64;
+    }
+    let min_signal_floor = std::cmp::max(3, target_conduit_signals / 2);
+    if conduit_signals < min_signal_floor {
+        facade_confidence -= 12;
+    }
+    let benchmark_status_lower = benchmark_cockpit_status.to_ascii_lowercase();
+    let benchmark_mirror_lower = benchmark_mirror_status.to_ascii_lowercase();
+    if benchmark_status_lower == "warn" || benchmark_mirror_lower == "warn" {
+        facade_confidence -= 8;
+    }
+    if benchmark_status_lower == "fail"
+        || benchmark_status_lower == "error"
+        || benchmark_mirror_lower == "fail"
+        || benchmark_mirror_lower == "error"
+    {
+        facade_confidence -= 20;
+    }
+    if !spine_metrics_stale {
+        if spine_success_rate < 0.9 {
+            facade_confidence -= 15;
+        }
+        if spine_success_rate < 0.6 {
+            facade_confidence -= 10;
+        }
+    }
+    let facade_confidence_percent = facade_confidence.clamp(10, 100) as u64;
+    let facade_eta_seconds = if queue_depth == 0 {
+        0
+    } else {
+        queue_depth.div_ceil(8).clamp(1, 300)
+    };
 
     let mut check_rows = Vec::<Value>::new();
     let mut failed_checks = Vec::<String>::new();
@@ -700,6 +747,9 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
             "human_escalation_open_rate": human_escalation_open_rate,
             "receipt_latency_p95_ms": receipt_latency_p95_ms,
             "receipt_latency_p99_ms": receipt_latency_p99_ms,
+            "facade_response_p95_ms": facade_response_p95_ms,
+            "facade_confidence_percent": facade_confidence_percent,
+            "facade_eta_seconds": facade_eta_seconds,
             "spine_metrics_stale": spine_metrics_stale,
             "receipt_latency_metrics_stale": receipt_latency_metrics_stale,
             "spine_metrics_latest_age_seconds": spine_metrics_latest_age_seconds

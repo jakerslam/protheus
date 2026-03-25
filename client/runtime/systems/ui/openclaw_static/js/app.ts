@@ -947,6 +947,8 @@ function app() {
         ? store.runtimeSync
         : null;
       if (!runtime) return null;
+      var facadeP95 = Number(runtime.facade_response_p95_ms);
+      if (Number.isFinite(facadeP95) && facadeP95 > 0) return Math.round(facadeP95);
       var p95 = Number(runtime.receipt_latency_p95_ms);
       if (Number.isFinite(p95) && p95 > 0) return Math.round(p95);
       var p99 = Number(runtime.receipt_latency_p99_ms);
@@ -960,6 +962,10 @@ function app() {
         ? store.runtimeSync
         : null;
       if (!runtime) return 80;
+      var facadeConfidence = Number(runtime.facade_confidence_percent);
+      if (Number.isFinite(facadeConfidence) && facadeConfidence > 0) {
+        return Math.max(10, Math.min(100, Math.round(facadeConfidence)));
+      }
 
       var score = 100;
       var queueDepth = Number(runtime.queue_depth || 0);
@@ -991,6 +997,10 @@ function app() {
         ? store.runtimeSync
         : null;
       if (!runtime) return 0;
+      var facadeEta = Number(runtime.facade_eta_seconds);
+      if (Number.isFinite(facadeEta) && facadeEta >= 0) {
+        return Math.max(0, Math.min(300, Math.round(facadeEta)));
+      }
       var queueDepth = Math.max(0, Number(runtime.queue_depth || 0));
       if (queueDepth <= 0) return 0;
       // Conservative client-side estimate for "Active" mode only.

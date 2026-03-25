@@ -302,6 +302,21 @@ function assertInterfaceSafetyGuards() {
     "if (!store) {\n        this.connected = false;\n        this.connectionState = 'connecting';\n        return;",
     'pollStatus must guard missing app store before reading hydration flags'
   );
+  assertContains(
+    appSource,
+    'runtime.facade_confidence_percent',
+    'runtime facade confidence must come from rust authority payload when available'
+  );
+  assertContains(
+    appSource,
+    'runtime.facade_eta_seconds',
+    'runtime facade eta must come from rust authority payload when available'
+  );
+  assertContains(
+    appSource,
+    'runtime.facade_response_p95_ms',
+    'runtime facade p95 must come from rust authority payload when available'
+  );
 
   assertContains(
     clientSource,
@@ -331,6 +346,16 @@ function assertInterfaceSafetyGuards() {
     laneSource,
     "const reason = rustTerminationsById.get(id) || '';",
     'contract termination sweeps must be rust-authoritative and not derive local fallback reasons'
+  );
+  assertContains(
+    laneSource,
+    "if (authoritySource !== 'rust_runtime_systems') {",
+    'runtime swarm execution must fail closed when rust runtime authority is unavailable'
+  );
+  assertContains(
+    laneSource,
+    "'rust_unavailable'",
+    'runtime recommendation authority metadata must explicitly mark rust authority outages'
   );
   assert.ok(
     !laneSource.includes('idleForMs < AGENT_IDLE_TERMINATION_MS'),

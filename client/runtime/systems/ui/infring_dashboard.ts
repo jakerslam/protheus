@@ -11392,21 +11392,6 @@ function runtimeAuthorityPayload(runtime) {
     attention_unacked_depth: parseNonNegativeInt(runtime && runtime.attention_unacked_depth, 0, 2000000),
     attention_cursor_offset: parseNonNegativeInt(runtime && runtime.attention_cursor_offset, 0, 2000000),
     memory_ingest_paused: !!(runtime && runtime.memory_ingest_paused),
-    ingress_dampen_depth: RUNTIME_INGRESS_DAMPEN_DEPTH,
-    ingress_shed_depth: RUNTIME_INGRESS_SHED_DEPTH,
-    ingress_circuit_depth: RUNTIME_INGRESS_CIRCUIT_DEPTH,
-    ingress_delay_ms: RUNTIME_INGRESS_DELAY_MS,
-    critical_escalation_threshold: RUNTIME_CRITICAL_ESCALATION_THRESHOLD,
-    throttle_max_depth: RUNTIME_THROTTLE_MAX_DEPTH,
-    attention_drain_trigger_depth: RUNTIME_DRAIN_TRIGGER_DEPTH,
-    attention_drain_min_batch: RUNTIME_ATTENTION_DRAIN_MIN_BATCH,
-    attention_drain_max_batch: RUNTIME_ATTENTION_DRAIN_MAX_BATCH,
-    attention_compact_depth: RUNTIME_ATTENTION_COMPACT_DEPTH,
-    attention_compact_retain: RUNTIME_ATTENTION_COMPACT_RETAIN,
-    attention_compact_min_acked: RUNTIME_ATTENTION_COMPACT_MIN_ACKED,
-    queue_resume_depth: DASHBOARD_QUEUE_DRAIN_RESUME_DEPTH,
-    stale_autoheal_min_blocks: RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS,
-    predictive_drain_clear_depth: RUNTIME_DRAIN_CLEAR_DEPTH,
   };
 }
 
@@ -13415,42 +13400,7 @@ function runtimeSwarmRecommendation(snapshot) {
     swarmScaleRequired ||
     reliabilityPosture.degraded ||
     sloGate.required;
-  const heavyCockpitLoad = runtime.cockpit_blocks >= RUNTIME_COCKPIT_BLOCK_ESCALATION_THRESHOLD;
   const roleOrder = ['coordinator', 'researcher', 'builder', 'reviewer', 'analyst'];
-  const roleRequired = {
-    coordinator:
-      authorityRoleSet.has('coordinator') ||
-      shouldRecommendBase ||
-      runtime.health_coverage_gap_count > 0 ||
-      reliabilityPosture.degraded ||
-      sloGate.required,
-    researcher:
-      authorityRoleSet.has('researcher') ||
-      shouldRecommendBase ||
-      runtime.critical_attention_total >= 5 ||
-      !!runtime.conduit_scale_required ||
-      reliabilityPosture.degraded ||
-      sloGate.required,
-    builder:
-      authorityRoleSet.has('builder') ||
-      heavyCockpitLoad ||
-      runtime.queue_depth >= DASHBOARD_BACKPRESSURE_BATCH_DEPTH ||
-      stalePressure ||
-      staleAutohealNeeded,
-    reviewer:
-      authorityRoleSet.has('reviewer') ||
-      swarmScaleRequired ||
-      runtime.health_coverage_gap_count > 0 ||
-      reliabilityPosture.degraded ||
-      sloGate.required,
-    analyst:
-      authorityRoleSet.has('analyst') ||
-      runtime.queue_depth >= DASHBOARD_QUEUE_DRAIN_PAUSE_DEPTH ||
-      runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
-      runtime.health_coverage_gap_count > 0 ||
-      reliabilityPosture.degraded ||
-      sloGate.required,
-  };
   const rolePrompts = {
     coordinator:
       'Audit runtime transport and health coverage. Identify missing conduit capacity vs target and any retired health checks. Return concrete remediation commands.',
@@ -13463,17 +13413,22 @@ function runtimeSwarmRecommendation(snapshot) {
     analyst:
       'Classify queue backlog into critical/standard/background lanes, then produce weighted-fair actions to drain depth below 60 without losing critical telemetry.',
   };
-  const rolePlan = roleOrder
-    .map((role) => {
+  const rolePlan = authorityRolePlan
+    .map((row) => {
+      const role = cleanText(row && row.role ? row.role : '', 40).toLowerCase();
+      if (!roleOrder.includes(role)) return null;
+      if (!(row && row.required)) return null;
       const existing = findAgentByRole(agents, role);
       return {
         role,
-        required: !!roleRequired[role],
+        required: true,
         shadow: existing && existing.id ? existing.id : '',
-        prompt: rolePrompts[role],
+        prompt:
+          cleanText(row && row.prompt ? row.prompt : rolePrompts[role], 2000) ||
+          rolePrompts[role],
       };
     })
-    .filter((row) => row.required);
+    .filter(Boolean);
   const throttleRequired =
     authorityRecommendations && authorityRecommendations.throttle_required != null
       ? !!authorityRecommendations.throttle_required
@@ -13619,16 +13574,19 @@ function runtimeSwarmRecommendation(snapshot) {
           criticalAttentionOverload
         );
   const shouldRecommend =
-    rolePlan.length > 0 ||
+    !!(runtimeAuthority && runtimeAuthority.ok) &&
+    (
+      rolePlan.length > 0 ||
     throttleRequired ||
     adaptiveHealthRequired ||
     conduitAutoBalanceRequired ||
     memoryResumeEligible ||
     benchmarkRefreshRequired ||
     attentionAccountingMismatch ||
-    spineCanaryRequired ||
-    predictiveDrainRequired ||
-    predictiveDrainRelease;
+      spineCanaryRequired ||
+      predictiveDrainRequired ||
+      predictiveDrainRelease
+    );
   return {
     recommended: shouldRecommend,
     team,
@@ -13726,24 +13684,46 @@ function runtimeSwarmRecommendation(snapshot) {
         ? !!authorityRecommendations.attention_accounting_reconcile_required
         : attentionAccountingMismatch,
     ingress_control: ingressControl,
-    authority:
-      runtimeAuthority && runtimeAuthority.ok
-        ? {
-            source: cleanText(authorityRoot && authorityRoot.authority ? authorityRoot.authority : 'rust_runtime_systems', 60) || 'rust_runtime_systems',
-            lane: runtimeAuthority.lane || null,
-            contract_id: cleanText(authorityRoot && authorityRoot.contract_id ? authorityRoot.contract_id : 'V6-DASHBOARD-007.1', 80),
-          }
-        : {
-            source: 'ts_fallback',
-            lane: runtimeAuthority && runtimeAuthority.lane ? runtimeAuthority.lane : null,
-            contract_id: 'V6-DASHBOARD-007.1',
-          },
+    authority: {
+      source:
+        runtimeAuthority && runtimeAuthority.ok
+          ? cleanText(authorityRoot && authorityRoot.authority ? authorityRoot.authority : 'rust_runtime_systems', 60) ||
+            'rust_runtime_systems'
+          : 'rust_unavailable',
+      lane: runtimeAuthority && runtimeAuthority.lane ? runtimeAuthority.lane : null,
+      contract_id:
+        cleanText(authorityRoot && authorityRoot.contract_id ? authorityRoot.contract_id : 'V6-DASHBOARD-007.1', 80) ||
+        'V6-DASHBOARD-007.1',
+      rust_authority_available: !!(runtimeAuthority && runtimeAuthority.ok),
+    },
   };
 }
 
 function executeRuntimeSwarmRecommendation(snapshot) {
   const recommendation = runtimeSwarmRecommendation(snapshot);
   const runtime = runtimeSyncSummary(snapshot);
+  const authoritySource = cleanText(
+    recommendation && recommendation.authority && recommendation.authority.source
+      ? recommendation.authority.source
+      : '',
+    80
+  );
+  if (authoritySource !== 'rust_runtime_systems') {
+    return {
+      ok: false,
+      type: 'dashboard_runtime_swarm_recommendation',
+      reason: 'rust_runtime_authority_unavailable',
+      authority: recommendation && recommendation.authority ? recommendation.authority : null,
+      recommendation: {
+        recommended: false,
+        queue_depth: parseNonNegativeInt(runtime && runtime.queue_depth, 0, 100000000),
+      },
+      launches: [],
+      turns: [],
+      policies: [],
+      timestamp: nowIso(),
+    };
+  }
   const roleAssignments = [];
   const launches = [];
   const policies = [];
