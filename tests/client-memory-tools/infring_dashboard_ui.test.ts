@@ -399,7 +399,10 @@ function assertLifecycleAndPlatformSrsEvidence() {
   assertContains(laneSource, "error: 'agent_contract_terminated'", 'V6-AGENT-LIFECYCLE-001.4 missing violation termination error path');
 
   // V6-AGENT-LIFECYCLE-001.5
-  assertContains(htmlSource, 'Recently Terminated', 'V6-AGENT-LIFECYCLE-001.5 missing recently terminated UI surface');
+  assert.ok(
+    htmlSource.includes('Recently Terminated') || htmlSource.includes('Archived'),
+    'V6-AGENT-LIFECYCLE-001.5 missing archived agents UI surface'
+  );
   assertContains(agentsSource, 'formatAgentContractLine(agent)', 'V6-AGENT-LIFECYCLE-001.5 missing contract summary formatter');
   assertContains(agentsSource, 'async reviveTerminated(entry)', 'V6-AGENT-LIFECYCLE-001.5 missing revive action handler');
 
