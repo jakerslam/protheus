@@ -176,6 +176,7 @@
                       class="nav-agent-archive nav-agent-archive-confirm"
                       x-show="confirmArchiveAgentId === String(agent.id)"
                       @click.stop="archiveAgentFromSidebar(agent)"
+                      @mouseleave="if (confirmArchiveAgentId === String(agent.id)) confirmArchiveAgentId = ''"
                       title="Confirm archive"
                     >
                       Confirm
@@ -2056,7 +2057,7 @@
         <!-- MODE 2: Agent picker + Templates (no agent chatting) -->
         <div x-show="!activeChatAgent" class="chat-wrapper">
         <div class="page-header">
-          <h2>Chat</h2>
+          <h2>Agents</h2>
           <div class="flex gap-2">
             <button class="btn btn-ghost btn-sm" x-show="agents.length" @click="openSpawnWizard()">+ New Agent</button>
             <button class="btn btn-danger btn-sm" x-show="agents.length > 1" @click="killAllAgents()">Stop All</button>
@@ -2071,7 +2072,24 @@
 
           <!-- Running agents — click to chat -->
           <div x-show="agents.length" style="margin-bottom:28px">
-            <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">Your Agents</div>
+            <div class="flex justify-between items-center mb-2" style="gap:10px">
+              <div class="text-sm font-bold" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">Your Agents</div>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="!confirmArchiveAllAgents"
+                @click="confirmArchiveAllAgents = true"
+              >
+                Archive all
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="confirmArchiveAllAgents"
+                @mouseleave="confirmArchiveAllAgents = false"
+                @click="archiveAllAgents()"
+              >
+                Confirm
+              </button>
+            </div>
             <div style="display:flex;flex-wrap:wrap;gap:10px">
               <template x-for="agent in agents" :key="agent.id">
                 <div class="agent-chip" @click="chatWithAgent(agent)" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);transition:all 0.2s var(--ease-spring, ease);min-width:200px;box-shadow:var(--shadow-xs)" @mouseenter="$el.style.borderColor='var(--accent)';$el.style.transform='translateY(-2px)';$el.style.boxShadow='var(--shadow-md)'" @mouseleave="$el.style.borderColor='var(--border)';$el.style.transform='';$el.style.boxShadow='var(--shadow-xs)'">
@@ -2106,28 +2124,62 @@
           </div>
 
           <div style="margin-bottom:24px">
-            <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">
-              Recently Terminated
+            <div class="flex justify-between items-center mb-2" style="gap:10px">
+              <div class="text-sm font-bold" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">
+                Archived
+              </div>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="terminatedAgents.length && !confirmDeleteAllArchived"
+                @click="confirmDeleteAllArchived = true"
+              >
+                Delete all
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="terminatedAgents.length && confirmDeleteAllArchived"
+                @mouseleave="confirmDeleteAllArchived = false"
+                @click="deleteAllArchived()"
+              >
+                Confirm
+              </button>
             </div>
             <div
               x-show="terminatedLoading"
               class="loading-state"
               style="padding:18px 12px;justify-content:flex-start;gap:10px">
               <div class="spinner"></div>
-              <span>Loading terminated agents...</span>
+              <span>Loading archived agents...</span>
             </div>
             <div
               x-show="!terminatedLoading && !terminatedAgents.length"
               class="text-sm text-dim"
               style="padding:10px 2px">
-              No terminated agents.
+              No archived agents.
             </div>
             <div class="card-grid" x-show="!terminatedLoading && terminatedAgents.length">
               <template x-for="entry in terminatedAgents" :key="'terminated-' + entry.contract_id + '-' + entry.agent_id">
                 <div class="card" style="padding:12px 14px">
                   <div class="flex justify-between items-center mb-1" style="gap:10px">
                     <div class="font-bold truncate" style="font-size:13px;max-width:220px" :title="entry.agent_id" x-text="entry.agent_id"></div>
-                    <button class="btn btn-primary btn-sm" @click="reviveTerminated(entry)">Revive</button>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                      <button class="btn btn-primary btn-sm" @click="reviveTerminated(entry)">Revive</button>
+                      <button
+                        class="btn btn-danger btn-sm"
+                        x-show="confirmDeleteTerminatedKey !== terminatedEntryKey(entry)"
+                        @click="setDeleteTerminatedConfirm(entry)"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        class="btn btn-danger btn-sm"
+                        x-show="confirmDeleteTerminatedKey === terminatedEntryKey(entry)"
+                        @mouseleave="clearDeleteTerminatedConfirm(entry)"
+                        @click="deleteTerminated(entry)"
+                      >
+                        Confirm
+                      </button>
+                    </div>
                   </div>
                   <div class="text-xs text-dim" style="line-height:1.45">
                     <div><span class="text-dim">Reason:</span> <span x-text="entry.reason || 'terminated'"></span></div>

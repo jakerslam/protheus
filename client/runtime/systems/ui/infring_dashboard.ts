@@ -5652,6 +5652,44 @@ function normalizeIdentityColor(value, fallback = '#2563EB') {
   return fallback;
 }
 
+const AGENT_DEFAULT_EMOJI_CATALOG = [
+  '🤖',
+  '🧠',
+  '🧑‍💻',
+  '🛠️',
+  '🔬',
+  '🧪',
+  '🛰️',
+  '📡',
+  '🚀',
+  '🧭',
+  '🦾',
+  '⚙️',
+  '🔐',
+  '🛡️',
+  '📈',
+  '📊',
+  '📝',
+  '🎯',
+  '💡',
+  '🌐',
+  '🧱',
+  '🧰',
+  '🦉',
+  '🔥',
+];
+
+function defaultAgentEmojiForId(agentId = '') {
+  const seed = cleanText(agentId || '', 140);
+  if (!seed) return '🤖';
+  let hash = 0;
+  for (let idx = 0; idx < seed.length; idx += 1) {
+    hash = ((hash * 33) ^ seed.charCodeAt(idx)) >>> 0;
+  }
+  const bucket = hash % AGENT_DEFAULT_EMOJI_CATALOG.length;
+  return AGENT_DEFAULT_EMOJI_CATALOG[bucket] || '🤖';
+}
+
 function normalizeAgentFallbackModels(value) {
   const rows = Array.isArray(value) ? value : [];
   return rows
@@ -5680,6 +5718,13 @@ function normalizeAgentProfile(agentId, value = {}, fallback = {}) {
   if (!id) return null;
   const source = value && typeof value === 'object' ? value : {};
   const prior = fallback && typeof fallback === 'object' ? fallback : {};
+  const priorIdentity =
+    prior && prior.identity && typeof prior.identity === 'object' ? prior.identity : {};
+  const defaultEmoji = defaultAgentEmojiForId(id);
+  const identityFallback = {
+    ...priorIdentity,
+    emoji: cleanText(priorIdentity.emoji || defaultEmoji, 24) || defaultEmoji,
+  };
   const hasFallbackModels = Object.prototype.hasOwnProperty.call(source, 'fallback_models');
   const treeKind = normalizeGitTreeKind(
     source.git_tree_kind != null ? source.git_tree_kind : prior.git_tree_kind,
@@ -5710,7 +5755,7 @@ function normalizeAgentProfile(agentId, value = {}, fallback = {}) {
     ),
     identity: normalizeAgentIdentity(
       source.identity && typeof source.identity === 'object' ? source.identity : source,
-      prior.identity
+      identityFallback
     ),
     fallback_models: normalizeAgentFallbackModels(
       hasFallbackModels ? source.fallback_models : prior.fallback_models
@@ -6139,6 +6184,122 @@ function unarchiveAgent(agentId) {
   delete state.agents[key];
   saveArchivedAgentsState(state);
   return true;
+}
+
+function deleteAgentProfileRecord(agentId) {
+  const key = cleanText(agentId || '', 140);
+  if (!key) return false;
+  const state = loadAgentProfilesState();
+  if (!state || !state.agents || !state.agents[key]) return false;
+  delete state.agents[key];
+  saveAgentProfilesState(state);
+  return true;
+}
+
+function deleteAgentSessionRecord(agentId) {
+  const key = cleanText(agentId || '', 140);
+  if (!key) return false;
+  const filePath = agentSessionPath(key);
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    fs.unlinkSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function permanentlyDeleteArchivedAgentRecord(agentId, options = {}) {
+  const key = cleanText(agentId || '', 140);
+  if (!key) {
+    return {
+      ok: false,
+      agent_id: '',
+      removed_archived: false,
+      removed_profile: false,
+      removed_session: false,
+      removed_contract: false,
+      removed_history_entries: 0,
+    };
+  }
+  const contractIdFilter = cleanText(options && options.contract_id ? options.contract_id : '', 80);
+  const removedArchived = unarchiveAgent(key);
+  const removedProfile = deleteAgentProfileRecord(key);
+  const removedSession = deleteAgentSessionRecord(key);
+  let removedContract = false;
+  let removedHistoryEntries = 0;
+  const contractsState = loadAgentContractsState();
+  if (contractsState && contractsState.contracts && contractsState.contracts[key]) {
+    delete contractsState.contracts[key];
+    removedContract = true;
+  }
+  if (contractsState && Array.isArray(contractsState.terminated_history)) {
+    const before = contractsState.terminated_history.length;
+    contractsState.terminated_history = contractsState.terminated_history.filter((row) => {
+      if (!row || cleanText(row.agent_id || '', 140) !== key) return true;
+      if (!contractIdFilter) return false;
+      const rowContract = cleanText(row.contract_id || '', 80);
+      return rowContract !== contractIdFilter;
+    });
+    removedHistoryEntries = Math.max(0, before - contractsState.terminated_history.length);
+  }
+  if (removedContract || removedHistoryEntries > 0) {
+    saveAgentContractsState(contractsState);
+  }
+  return {
+    ok: true,
+    agent_id: key,
+    removed_archived: removedArchived,
+    removed_profile: removedProfile,
+    removed_session: removedSession,
+    removed_contract: removedContract,
+    removed_history_entries: removedHistoryEntries,
+  };
+}
+
+function permanentlyDeleteAllArchivedAgentRecords() {
+  const archivedState = loadArchivedAgentsState();
+  const agents = archivedState && archivedState.agents && typeof archivedState.agents === 'object'
+    ? archivedState.agents
+    : {};
+  const ids = Object.keys(agents).map((value) => cleanText(value || '', 140)).filter(Boolean);
+  if (ids.length > 0) {
+    archivedState.agents = {};
+    saveArchivedAgentsState(archivedState);
+  }
+  const unique = Array.from(new Set(ids));
+  let removedProfiles = 0;
+  let removedSessions = 0;
+  for (const id of unique) {
+    if (deleteAgentProfileRecord(id)) removedProfiles += 1;
+    if (deleteAgentSessionRecord(id)) removedSessions += 1;
+  }
+  let removedContracts = 0;
+  let removedHistoryEntries = 0;
+  const contractsState = loadAgentContractsState();
+  if (contractsState && contractsState.contracts && typeof contractsState.contracts === 'object') {
+    for (const id of unique) {
+      if (contractsState.contracts[id]) {
+        delete contractsState.contracts[id];
+        removedContracts += 1;
+      }
+    }
+  }
+  if (contractsState && Array.isArray(contractsState.terminated_history)) {
+    removedHistoryEntries = contractsState.terminated_history.length;
+    contractsState.terminated_history = [];
+  }
+  if (removedContracts > 0 || removedHistoryEntries > 0) {
+    saveAgentContractsState(contractsState);
+  }
+  return {
+    ok: true,
+    deleted_archived_agents: unique.length,
+    removed_profiles: removedProfiles,
+    removed_sessions: removedSessions,
+    removed_contracts: removedContracts,
+    removed_history_entries: removedHistoryEntries,
+  };
 }
 
 function archivedAgentIdsSet() {
@@ -8744,7 +8905,7 @@ function inactiveAgentRecord(agentId, snapshot, archivedMeta = null) {
   const profile = agentProfileFor(cleanId);
   const identity = normalizeAgentIdentity(
     profile && profile.identity ? profile.identity : {},
-    { emoji: '🤖', archetype: 'assistant', color: '#2563EB' }
+    { emoji: defaultAgentEmojiForId(cleanId), archetype: 'assistant', color: '#2563EB' }
   );
   const fallbackModels =
     profile && Array.isArray(profile.fallback_models) ? profile.fallback_models : [];
@@ -12339,7 +12500,7 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
     const remainingMs = contractRemainingMs(contract);
     const identity = normalizeAgentIdentity(
       profile && profile.identity ? profile.identity : {},
-      { emoji: '🤖', archetype: 'assistant', color: '#2563EB' }
+      { emoji: defaultAgentEmojiForId(id), archetype: 'assistant', color: '#2563EB' }
     );
     const fallbackModels =
       profile && Array.isArray(profile.fallback_models) ? profile.fallback_models : [];
@@ -16686,16 +16847,63 @@ function runServe(flags) {
         sendJson(res, 200, agents);
         return;
       }
-      if (req.method === 'GET' && pathname === '/api/agents/terminated') {
-        const contractsState = loadAgentContractsState();
-        const rows = Array.isArray(contractsState && contractsState.terminated_history)
-          ? contractsState.terminated_history.slice(-50).reverse()
-          : [];
-        sendJson(res, 200, {
-          ok: true,
-          entries: rows,
-        });
-        return;
+      if (pathname === '/api/agents/terminated' || pathname.startsWith('/api/agents/terminated/')) {
+        if (req.method === 'GET' && pathname === '/api/agents/terminated') {
+          const contractsState = loadAgentContractsState();
+          const rows = Array.isArray(contractsState && contractsState.terminated_history)
+            ? contractsState.terminated_history.slice(-50).reverse()
+            : [];
+          sendJson(res, 200, {
+            ok: true,
+            entries: rows,
+          });
+          return;
+        }
+        if (req.method === 'DELETE' && pathname === '/api/agents/terminated') {
+          const deleteAll = ['1', 'true', 'yes'].includes(
+            cleanText(reqUrl.searchParams.get('all') || '', 12).toLowerCase()
+          );
+          if (!deleteAll) {
+            sendJson(res, 400, {
+              ok: false,
+              error: 'delete_all_required',
+              message: 'Set all=1 to permanently delete all archived agents.',
+            });
+            return;
+          }
+          const deleted = permanentlyDeleteAllArchivedAgentRecords();
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            ...deleted,
+          });
+          return;
+        }
+        if (req.method === 'DELETE' && pathname.startsWith('/api/agents/terminated/')) {
+          const agentId = cleanText(decodeURIComponent(pathname.slice('/api/agents/terminated/'.length) || ''), 140);
+          if (!agentId) {
+            sendJson(res, 400, { ok: false, error: 'agent_id_required' });
+            return;
+          }
+          if (agentKnownInRuntime(agentId) && !isAgentArchived(agentId)) {
+            sendJson(res, 409, {
+              ok: false,
+              error: 'agent_still_active',
+              id: agentId,
+            });
+            return;
+          }
+          const contractId = cleanText(reqUrl.searchParams.get('contract_id') || '', 80);
+          const deleted = permanentlyDeleteArchivedAgentRecord(agentId, {
+            contract_id: contractId,
+          });
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            ...deleted,
+          });
+          return;
+        }
       }
       if (req.method === 'POST' && pathname === '/api/agents') {
         const payload = await bodyJson(req);
