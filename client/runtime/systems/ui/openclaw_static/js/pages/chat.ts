@@ -51,6 +51,11 @@ function chatPage() {
     modelSwitcherFilter: '',
     modelSwitcherProviderFilter: '',
     modelSwitcherIdx: 0,
+    showGitTreeMenu: false,
+    gitTreeMenuLoading: false,
+    gitTreeMenuError: '',
+    gitTreeMenuItems: [],
+    gitTreeSwitching: false,
     modelApiKeyInput: '',
     modelApiKeySaving: false,
     modelApiKeyStatus: '',
@@ -379,6 +384,114 @@ function chatPage() {
       }
     },
 
+    normalizeBranchName: function(value) {
+      var raw = String(value == null ? '' : value).trim();
+      if (!raw) return '';
+      var normalized = raw
+        .replace(/[^A-Za-z0-9._/-]+/g, '-')
+        .replace(/\/+/g, '/')
+        .replace(/^[-./]+|[-./]+$/g, '');
+      return normalized;
+    },
+
+    closeGitTreeMenu: function() {
+      this.showGitTreeMenu = false;
+      this.gitTreeMenuError = '';
+    },
+
+    async refreshGitTreeMenu(force) {
+      if (!this.currentAgent || !this.currentAgent.id) {
+        this.gitTreeMenuItems = [];
+        this.gitTreeMenuError = '';
+        return;
+      }
+      if (!force && this.gitTreeMenuLoading) return;
+      this.gitTreeMenuLoading = true;
+      this.gitTreeMenuError = '';
+      try {
+        var payload = await InfringAPI.get('/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-trees');
+        var options = Array.isArray(payload && payload.options) ? payload.options : [];
+        this.gitTreeMenuItems = options.map(function(row) {
+          return {
+            branch: String((row && row.branch) || '').trim(),
+            current: !!(row && row.current),
+            main: !!(row && row.main),
+            kind: String((row && row.kind) || '').trim(),
+            in_use_by_agents: Number((row && row.in_use_by_agents) || 0) || 0
+          };
+        }).filter(function(row) { return !!row.branch; });
+        this.applyAgentGitTreeState(this.currentAgent, payload && payload.current ? payload.current : {});
+      } catch (e) {
+        this.gitTreeMenuItems = [];
+        this.gitTreeMenuError = (e && e.message) ? String(e.message) : 'failed_to_load_git_trees';
+      } finally {
+        this.gitTreeMenuLoading = false;
+      }
+    },
+
+    async toggleGitTreeMenu() {
+      if (!this.currentAgent || !this.currentAgent.id) return;
+      if (this.showGitTreeMenu) {
+        this.closeGitTreeMenu();
+        return;
+      }
+      this.showGitTreeMenu = true;
+      await this.refreshGitTreeMenu(true);
+    },
+
+    async switchAgentGitTree(branchName, options) {
+      if (!this.currentAgent || !this.currentAgent.id || this.gitTreeSwitching) return;
+      var branch = this.normalizeBranchName(branchName);
+      if (!branch) return;
+      var requireNew = !!(options && options.requireNew === true);
+      var current = this.normalizeBranchName(this.activeGitBranchLabel);
+      if (!requireNew && current && current === branch) {
+        this.closeGitTreeMenu();
+        return;
+      }
+      this.gitTreeSwitching = true;
+      this.gitTreeMenuError = '';
+      try {
+        var result = await InfringAPI.post(
+          '/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-tree/switch',
+          {
+            branch: branch,
+            require_new: requireNew
+          }
+        );
+        this.applyAgentGitTreeState(this.currentAgent, result && result.current ? result.current : {});
+        if (result && result.current && result.current.workspace_dir) {
+          this.terminalCwd = String(result.current.workspace_dir || this.terminalCwd || '').trim() || this.terminalCwd;
+        }
+        var store = Alpine.store('app');
+        if (store && typeof store.refreshAgents === 'function') {
+          await store.refreshAgents({ force: true });
+        }
+        await this.refreshGitTreeMenu(true);
+        this.closeGitTreeMenu();
+        InfringToast.success('Switched to branch ' + branch);
+      } catch (e) {
+        var message = (e && e.message) ? String(e.message) : 'git_tree_switch_failed';
+        this.gitTreeMenuError = message;
+        InfringToast.error('Git tree switch failed: ' + message);
+      } finally {
+        this.gitTreeSwitching = false;
+      }
+    },
+
+    async createAndCheckoutGitBranch() {
+      if (!this.currentAgent || !this.currentAgent.id || this.gitTreeSwitching) return;
+      var suggested = this.normalizeBranchName('feature/' + String(this.currentAgent.id || '').trim().toLowerCase());
+      var input = prompt('Create and checkout new branch:', suggested || 'feature/new-branch');
+      if (input == null) return;
+      var branch = this.normalizeBranchName(input);
+      if (!branch) {
+        InfringToast.error('Enter a valid branch name');
+        return;
+      }
+      await this.switchAgentGitTree(branch, { requireNew: true });
+    },
+
     get freshInitCanLaunch() {
       var hasName = String(this.freshInitName || '').trim().length > 0;
       return !!(this.showFreshArchetypeTiles && !this.freshInitLaunching && hasName && this.freshInitTemplateDef);
@@ -516,6 +629,15 @@ function chatPage() {
           target.workspace_dir = workspace;
           this.terminalCwd = workspace;
         }
+      }
+      if (Object.prototype.hasOwnProperty.call(source, 'workspace_rel')) {
+        target.workspace_rel = source.workspace_rel ? String(source.workspace_rel).trim() : '';
+      }
+      if (Object.prototype.hasOwnProperty.call(source, 'git_tree_ready')) {
+        target.git_tree_ready = !!source.git_tree_ready;
+      }
+      if (Object.prototype.hasOwnProperty.call(source, 'git_tree_error')) {
+        target.git_tree_error = source.git_tree_error ? String(source.git_tree_error).trim() : '';
       }
       if (Object.prototype.hasOwnProperty.call(source, 'is_master_agent')) {
         target.is_master_agent = !!source.is_master_agent;
@@ -2471,6 +2593,7 @@ function chatPage() {
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
+      this.closeGitTreeMenu();
       this._markAgentPreviewUnread(resolved.id, false);
       var store = Alpine.store('app');
       var pendingFreshId = store && store.pendingFreshAgentId ? String(store.pendingFreshAgentId) : '';

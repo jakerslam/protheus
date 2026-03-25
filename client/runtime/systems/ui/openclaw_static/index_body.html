@@ -1404,14 +1404,47 @@
               </div>
             </div>
             <div class="context-ring-row">
-              <div class="chat-branch-indicator" x-show="activeGitBranchLabel" :title="'Active branch: ' + activeGitBranchLabel">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="6" cy="6" r="3"></circle>
-                  <circle cx="18" cy="18" r="3"></circle>
-                  <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
-                  <path d="M18 15V9"></path>
-                </svg>
-                <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+              <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
+                <button
+                  type="button"
+                  class="chat-branch-indicator chat-branch-indicator-btn"
+                  :title="'Active branch: ' + activeGitBranchLabel"
+                  :aria-expanded="showGitTreeMenu ? 'true' : 'false'"
+                  @click="toggleGitTreeMenu()"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="6" cy="6" r="3"></circle>
+                    <circle cx="18" cy="18" r="3"></circle>
+                    <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
+                    <path d="M18 15V9"></path>
+                  </svg>
+                  <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+                  <svg class="chat-branch-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" :class="{ 'open': showGitTreeMenu }" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6"></path>
+                  </svg>
+                </button>
+                <div class="chat-branch-menu" x-show="showGitTreeMenu" x-cloak @click.outside="closeGitTreeMenu()">
+                  <div class="chat-branch-menu-head">Switch Git Tree</div>
+                  <div class="chat-branch-menu-status" x-show="gitTreeMenuLoading">Loading trees…</div>
+                  <div class="chat-branch-menu-status chat-branch-menu-error" x-show="!gitTreeMenuLoading && gitTreeMenuError" x-text="gitTreeMenuError"></div>
+                  <div class="chat-branch-menu-list" x-show="!gitTreeMenuLoading && !gitTreeMenuError">
+                    <template x-for="row in gitTreeMenuItems" :key="row.branch">
+                      <button
+                        type="button"
+                        class="chat-branch-menu-item"
+                        :class="{ 'active': row.current }"
+                        :disabled="gitTreeSwitching || row.current"
+                        @click="switchAgentGitTree(row.branch)"
+                      >
+                        <span class="chat-branch-menu-item-name" x-text="row.branch"></span>
+                        <span class="chat-branch-menu-item-meta" x-text="row.main ? 'main' : (row.in_use_by_agents > 0 ? (row.in_use_by_agents + ' agents') : 'branch')"></span>
+                      </button>
+                    </template>
+                  </div>
+                  <button type="button" class="chat-branch-menu-create" :disabled="gitTreeSwitching" @click="createAndCheckoutGitBranch()">
+                    Create and checkout new branch
+                  </button>
+                </div>
               </div>
               <div class="context-ring" :data-tooltip="contextRingTooltip" tabindex="0">
                 <svg viewBox="0 0 36 36" aria-hidden="true">
@@ -1922,14 +1955,47 @@
                 </div>
               </div>
               <div class="context-ring-row">
-                <div class="chat-branch-indicator" x-show="activeGitBranchLabel" :title="'Active branch: ' + activeGitBranchLabel">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="6" cy="6" r="3"></circle>
-                    <circle cx="18" cy="18" r="3"></circle>
-                    <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
-                    <path d="M18 15V9"></path>
-                  </svg>
-                  <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+                <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
+                  <button
+                    type="button"
+                    class="chat-branch-indicator chat-branch-indicator-btn"
+                    :title="'Active branch: ' + activeGitBranchLabel"
+                    :aria-expanded="showGitTreeMenu ? 'true' : 'false'"
+                    @click="toggleGitTreeMenu()"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="6" cy="6" r="3"></circle>
+                      <circle cx="18" cy="18" r="3"></circle>
+                      <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
+                      <path d="M18 15V9"></path>
+                    </svg>
+                    <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+                    <svg class="chat-branch-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" :class="{ 'open': showGitTreeMenu }" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6"></path>
+                    </svg>
+                  </button>
+                  <div class="chat-branch-menu" x-show="showGitTreeMenu" x-cloak @click.outside="closeGitTreeMenu()">
+                    <div class="chat-branch-menu-head">Switch Git Tree</div>
+                    <div class="chat-branch-menu-status" x-show="gitTreeMenuLoading">Loading trees…</div>
+                    <div class="chat-branch-menu-status chat-branch-menu-error" x-show="!gitTreeMenuLoading && gitTreeMenuError" x-text="gitTreeMenuError"></div>
+                    <div class="chat-branch-menu-list" x-show="!gitTreeMenuLoading && !gitTreeMenuError">
+                      <template x-for="row in gitTreeMenuItems" :key="row.branch">
+                        <button
+                          type="button"
+                          class="chat-branch-menu-item"
+                          :class="{ 'active': row.current }"
+                          :disabled="gitTreeSwitching || row.current"
+                          @click="switchAgentGitTree(row.branch)"
+                        >
+                          <span class="chat-branch-menu-item-name" x-text="row.branch"></span>
+                          <span class="chat-branch-menu-item-meta" x-text="row.main ? 'main' : (row.in_use_by_agents > 0 ? (row.in_use_by_agents + ' agents') : 'branch')"></span>
+                        </button>
+                      </template>
+                    </div>
+                    <button type="button" class="chat-branch-menu-create" :disabled="gitTreeSwitching" @click="createAndCheckoutGitBranch()">
+                      Create and checkout new branch
+                    </button>
+                  </div>
                 </div>
                 <div class="context-ring" :data-tooltip="contextRingTooltip" tabindex="0">
                   <svg viewBox="0 0 36 36" aria-hidden="true">
