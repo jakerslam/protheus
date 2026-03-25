@@ -754,7 +754,19 @@ function app() {
     clockTick: Date.now(),
     _themeSwitchReset: 0,
 
-    get agents() { return Alpine.store('app').agents; },
+    getAppStore() {
+      try {
+        var store = Alpine && typeof Alpine.store === 'function' ? Alpine.store('app') : null;
+        return (store && typeof store === 'object') ? store : null;
+      } catch(_) {
+        return null;
+      }
+    },
+
+    get agents() {
+      var store = this.getAppStore();
+      return store && Array.isArray(store.agents) ? store.agents : [];
+    },
 
     get chatSidebarAgents() {
       var list = (this.agents || []).slice();
@@ -830,7 +842,10 @@ function app() {
         // Ctrl+Shift+F — toggle focus mode
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
           e.preventDefault();
-          Alpine.store('app').toggleFocusMode();
+          var keyStore = self.getAppStore();
+          if (keyStore && typeof keyStore.toggleFocusMode === 'function') {
+            keyStore.toggleFocusMode();
+          }
         }
         // Escape — close mobile menu
         if (e.key === 'Escape') {
@@ -852,14 +867,15 @@ function app() {
 
       // Connection state listener
       InfringAPI.onConnectionChange(function(state) {
-        Alpine.store('app').connectionState = state;
+        var connStore = self.getAppStore();
+        if (connStore) connStore.connectionState = state;
         self.connectionState = state;
       });
 
       if (!window.__infringToastCaptureInstalled) {
         window.addEventListener('infring:toast', function(ev) {
           var detail = (ev && ev.detail) ? ev.detail : {};
-          var store = Alpine.store('app');
+          var store = self.getAppStore();
           if (store && typeof store.addNotification === 'function') {
             store.addNotification(detail);
           }
@@ -869,8 +885,9 @@ function app() {
 
       // Initial data load
       this.pollStatus();
-      Alpine.store('app').checkOnboarding();
-      Alpine.store('app').checkAuth();
+      var initStore = this.getAppStore();
+      if (initStore && typeof initStore.checkOnboarding === 'function') initStore.checkOnboarding();
+      if (initStore && typeof initStore.checkAuth === 'function') initStore.checkAuth();
       setInterval(function() { self.clockTick = Date.now(); }, 1000);
       setInterval(function() { self.pollStatus(); }, 5000);
     },
@@ -919,7 +936,7 @@ function app() {
     },
 
     runtimeFacadeState() {
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var conn = String(
         (store && store.connectionState) || this.connectionState || ''
       ).toLowerCase();
@@ -938,7 +955,7 @@ function app() {
     runtimeFacadeLabel() {
       var state = this.runtimeFacadeState();
       if (state === 'connected') {
-        var store = Alpine.store('app');
+        var store = this.getAppStore();
         var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || this.agentCount || 0);
         return String(agents) + ' agents';
       }
@@ -947,7 +964,7 @@ function app() {
     },
 
     runtimeResponseP95Ms() {
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
         ? store.runtimeSync
         : null;
@@ -960,7 +977,7 @@ function app() {
     },
 
     runtimeConfidencePercent() {
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
         ? store.runtimeSync
         : null;
@@ -991,7 +1008,7 @@ function app() {
     },
 
     runtimeEtaSeconds() {
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
         ? store.runtimeSync
         : null;
@@ -1008,7 +1025,8 @@ function app() {
       if (state === 'down') return 'Runtime unavailable';
       var response = this.runtimeResponseP95Ms();
       var confidence = this.runtimeConfidencePercent();
-      var agents = ((Alpine.store('app').agents && Alpine.store('app').agents.length) || Alpine.store('app').agentCount || 0);
+      var store = this.getAppStore();
+      var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || 0);
       var base = 'Response ' + (response != null ? (response + 'ms') : '—') + ' · Confidence ' + confidence + '%';
       if (state === 'active') {
         var eta = this.runtimeEtaSeconds();
@@ -1045,7 +1063,7 @@ function app() {
 
     async applyBootChatSelection() {
       if (this.bootSelectionApplied) return;
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       if (!store || store.agentsLoading || !store.agentsHydrated) {
         return;
       }
@@ -1078,7 +1096,7 @@ function app() {
 
     sidebarAgentSortTs(agent) {
       if (!agent) return 0;
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var preview = store && typeof store.getAgentChatPreview === 'function'
         ? store.getAgentChatPreview(agent.id)
         : null;
@@ -1090,7 +1108,7 @@ function app() {
 
     chatSidebarPreview(agent) {
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var preview = store && typeof store.getAgentChatPreview === 'function'
         ? store.getAgentChatPreview(agent.id)
         : null;
@@ -1164,7 +1182,7 @@ function app() {
       }
       this.archivedAgentIds = (this.archivedAgentIds || []).concat([agentId]);
       this.persistArchivedAgentIds();
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       if (store.activeAgentId === agent.id) {
         var next = this.chatSidebarAgents.length ? this.chatSidebarAgents[0] : null;
         if (next && next.id) {
@@ -1213,15 +1231,17 @@ function app() {
             // Keep default server model if model handoff fails.
           }
         }
-        await Alpine.store('app').refreshAgents();
-        var created = (this.agents || []).find(function(a) { return a && a.id === createdId; })
-          || { id: createdId, name: (res && res.name) || agentName };
-        this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
-        this.persistArchivedAgentIds();
-        Alpine.store('app').pendingAgent = created;
-        Alpine.store('app').pendingFreshAgentId = created.id;
-        if (typeof Alpine.store('app').setActiveAgentId === 'function') Alpine.store('app').setActiveAgentId(created.id);
-        else Alpine.store('app').activeAgentId = created.id;
+      var store = this.getAppStore();
+      if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
+      await store.refreshAgents();
+      var created = (this.agents || []).find(function(a) { return a && a.id === createdId; })
+        || { id: createdId, name: (res && res.name) || agentName };
+      this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
+      this.persistArchivedAgentIds();
+      store.pendingAgent = created;
+      store.pendingFreshAgentId = created.id;
+      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(created.id);
+      else store.activeAgentId = created.id;
         this.navigate('chat');
         this.closeAgentChatsSidebar();
         InfringToast.success('Agent "' + (created.name || created.id || agentName) + '" created');
@@ -1234,8 +1254,9 @@ function app() {
     selectAgentChatFromSidebar(agent) {
       if (!agent || !agent.id) return;
       this.confirmArchiveAgentId = '';
-      if (typeof Alpine.store('app').setActiveAgentId === 'function') Alpine.store('app').setActiveAgentId(agent.id);
-      else Alpine.store('app').activeAgentId = agent.id;
+      var store = this.getAppStore();
+      if (store && typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agent.id);
+      else if (store) store.activeAgentId = agent.id;
       this.navigate('chat');
       this.closeAgentChatsSidebar();
     },
@@ -1257,7 +1278,7 @@ function app() {
       // Force recompute every second for live countdown updates.
       var _tick = Number(this.clockTick || 0);
       void _tick;
-      var store = Alpine.store('app');
+      var store = this.getAppStore();
       var lastRefreshAt = Number((store && store._lastAgentsRefreshAt) || 0);
       var ageDriftMs = Math.max(0, Date.now() - lastRefreshAt);
       if (!agent || typeof agent !== 'object') return null;
@@ -1312,15 +1333,20 @@ function app() {
     },
 
     async pollStatus() {
-      var store = Alpine.store('app');
-      await store.checkStatus();
+      var store = this.getAppStore();
+      if (!store) {
+        this.connected = false;
+        this.connectionState = 'connecting';
+        return;
+      }
+      if (typeof store.checkStatus === 'function') await store.checkStatus();
       var now = Date.now();
       var shouldRefreshAgents =
         !store.agentsHydrated ||
         (store.connectionState !== 'connected') ||
         (now - Number(store._lastAgentsRefreshAt || 0)) >= 12000;
       if (shouldRefreshAgents) {
-        await store.refreshAgents();
+        if (typeof store.refreshAgents === 'function') await store.refreshAgents();
       }
       this.reconcileArchivedAgentIdsWithLiveAgents();
       this.connected = store.connected;

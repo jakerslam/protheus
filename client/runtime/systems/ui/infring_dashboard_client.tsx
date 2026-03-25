@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'https://esm.sh/react@18.2.0';
 import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
 
-type Dict = Record<string, any>;
+type Dict = Record<string, unknown>;
 
 type Snapshot = {
   ts: string;
@@ -19,6 +19,13 @@ type Snapshot = {
 
 type SnapshotEnvelope = {
   type: string;
+  snapshot?: Snapshot;
+};
+
+type ActionResponse = Dict & {
+  ok?: boolean;
+  error?: unknown;
+  type?: unknown;
   snapshot?: Snapshot;
 };
 
@@ -44,6 +51,38 @@ const PANES_KEY = 'infring_dashboard_controls_panes_v1';
 
 function cls(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
+}
+
+function isRecord(value: unknown): value is Dict {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeParseJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function readJsonObject(res: Response): Promise<Dict> {
+  const raw = await res.text();
+  const parsed = safeParseJson(raw);
+  if (!isRecord(parsed)) return {};
+  return parsed;
+}
+
+function normalizeSnapshot(value: unknown): Snapshot | null {
+  if (!isRecord(value)) return null;
+  return value as Snapshot;
+}
+
+function normalizeSnapshotEnvelope(value: unknown): SnapshotEnvelope | null {
+  if (!isRecord(value)) return null;
+  const type = asText(value.type || '').trim();
+  if (!type) return null;
+  const snapshot = normalizeSnapshot(value.snapshot);
+  return snapshot ? { type, snapshot } : { type };
 }
 
 function asText(value: unknown, fallback = ''): string {
@@ -110,20 +149,24 @@ function wsUrl(): string {
 async function fetchSnapshot(): Promise<Snapshot> {
   const res = await fetch('/api/dashboard/snapshot', { cache: 'no-store' });
   if (!res.ok) throw new Error(`snapshot_http_${res.status}`);
-  return (await res.json()) as Snapshot;
+  const payload = await readJsonObject(res);
+  const snapshot = normalizeSnapshot(payload);
+  if (!snapshot) throw new Error('snapshot_payload_invalid');
+  return snapshot;
 }
 
-async function postAction(action: string, payload: Dict): Promise<Dict> {
+async function postAction(action: string, payload: Dict): Promise<ActionResponse> {
   const res = await fetch('/api/dashboard/action', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action, payload }),
   });
-  const data = await res.json();
-  if (!res.ok || data.ok === false) {
-    throw new Error(asText(data.error || data.type || `action_http_${res.status}`));
+  const data = await readJsonObject(res);
+  const actionData = data as ActionResponse;
+  if (!res.ok || actionData.ok === false) {
+    throw new Error(asText(actionData.error || actionData.type || `action_http_${res.status}`));
   }
-  return data;
+  return actionData;
 }
 
 function readControlsOpen(): boolean {
@@ -155,9 +198,10 @@ function readPaneState(): Record<string, boolean> {
   try {
     const raw = window.localStorage.getItem(PANES_KEY);
     if (!raw) return seed;
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    const parsedUnknown = safeParseJson(raw);
+    const parsed = isRecord(parsedUnknown) ? parsedUnknown : {};
     const normalized: Record<string, boolean> = {};
-    for (const pane of CONTROL_PANES) normalized[pane.id] = !!parsed[pane.id];
+    for (const pane of CONTROL_PANES) normalized[pane.id] = parsed[pane.id] === true;
     return normalized;
   } catch {
     return seed;
@@ -201,8 +245,9 @@ function useDashboardState() {
       socket.addEventListener('message', (event) => {
         if (stop) return;
         try {
-          const envelope = JSON.parse(asText(event.data)) as SnapshotEnvelope;
-          if (envelope.type === 'snapshot' && envelope.snapshot) setSnapshot(envelope.snapshot);
+          const parsed = safeParseJson(asText(event.data));
+          const envelope = normalizeSnapshotEnvelope(parsed);
+          if (envelope && envelope.type === 'snapshot' && envelope.snapshot) setSnapshot(envelope.snapshot);
         } catch {
           // ignore malformed envelope
         }
