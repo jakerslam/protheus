@@ -285,6 +285,15 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     appSource,
+    "agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');",
+    'agent sidebar hydration must call authoritative runtime agents endpoint'
+  );
+  assert.ok(
+    !appSource.includes('/api/dashboard/snapshot'),
+    'app shell must stay thin and must not synthesize agent rows from snapshot fallback payloads'
+  );
+  assertContains(
+    appSource,
     "if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');",
     'new-agent flow must fail closed when app store is unavailable instead of throwing property-access crashes'
   );
@@ -317,6 +326,15 @@ function assertInterfaceSafetyGuards() {
   assert.ok(
     /parsedPayload[\s\S]*Array\.isArray\(parsedPayload\)[\s\S]*Invalid websocket payload\./.test(laneSource),
     'agent websocket handler must reject non-object payload envelopes'
+  );
+  assertContains(
+    laneSource,
+    "const reason = rustTerminationsById.get(id) || '';",
+    'contract termination sweeps must be rust-authoritative and not derive local fallback reasons'
+  );
+  assert.ok(
+    !laneSource.includes('idleForMs < AGENT_IDLE_TERMINATION_MS'),
+    'idle-cap terminations must be sourced from rust authority payloads, not local idle heuristics'
   );
 }
 

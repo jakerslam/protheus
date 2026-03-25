@@ -570,6 +570,10 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         if agent_id.is_empty() {
             continue;
         }
+        let auto_terminate_allowed = payload_bool(&row, "auto_terminate_allowed", true);
+        if !auto_terminate_allowed {
+            continue;
+        }
         let status = payload_string(&row, "status", "active").to_ascii_lowercase();
         if status != "active" {
             continue;
@@ -4637,6 +4641,70 @@ mod tests {
         assert_eq!(
             guard.get("reason").and_then(Value::as_str),
             Some("data_exfiltration_attempt")
+        );
+    }
+
+    #[test]
+    fn v6_dashboard_contract_enforcement_respects_auto_terminate_allowed() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_payload(
+            root.path(),
+            "V6-DASHBOARD-007.2",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=0".to_string(),
+                "--payload-json={\"contracts\":[{\"agent_id\":\"main-agent\",\"status\":\"active\",\"auto_terminate_allowed\":false,\"termination_condition\":\"task_or_timeout\",\"remaining_ms\":0,\"idle_for_ms\":900000},{\"agent_id\":\"worker-agent\",\"status\":\"active\",\"auto_terminate_allowed\":true,\"termination_condition\":\"task_or_timeout\",\"remaining_ms\":0,\"idle_for_ms\":900000}],\"idle_threshold\":1,\"idle_termination_ms\":1000,\"idle_batch\":4,\"idle_batch_max\":8,\"idle_since_last_ms\":180000}".to_string(),
+            ],
+        )
+        .expect("dashboard contract enforcement should succeed");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let enforcement = out
+            .get("contract_execution")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("specific_checks"))
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("dashboard_runtime_authority"))
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("contract_enforcement"))
+            .and_then(Value::as_object)
+            .cloned()
+            .expect("expected contract_enforcement object");
+        let terminations = enforcement
+            .get("termination_decisions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            terminations.iter().any(|row| {
+                row.get("agent_id").and_then(Value::as_str) == Some("worker-agent")
+                    && row.get("reason").and_then(Value::as_str) == Some("timeout")
+            }),
+            "expected worker-agent timeout termination from rust authority"
+        );
+        assert!(
+            !terminations
+                .iter()
+                .any(|row| row.get("agent_id").and_then(Value::as_str) == Some("main-agent")),
+            "main-agent should be excluded when auto_terminate_allowed=false"
+        );
+
+        let idle_candidates = enforcement
+            .get("idle_candidates")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            idle_candidates
+                .iter()
+                .any(|row| row.get("agent_id").and_then(Value::as_str) == Some("worker-agent")),
+            "expected worker-agent idle candidate"
+        );
+        assert!(
+            !idle_candidates
+                .iter()
+                .any(|row| row.get("agent_id").and_then(Value::as_str) == Some("main-agent")),
+            "main-agent must not be present in idle candidates when auto_terminate_allowed=false"
         );
     }
 

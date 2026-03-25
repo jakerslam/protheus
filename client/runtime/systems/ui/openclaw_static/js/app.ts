@@ -240,31 +240,9 @@ document.addEventListener('alpine:init', function() {
           fetchError = (e && e.message) ? String(e.message) : 'agent_fetch_failed';
           try {
             await new Promise(function(resolve) { setTimeout(resolve, 250); });
-            agents = await InfringAPI.get('/api/agents?view=sidebar');
+            agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
           } catch(_) {
-            try {
-              var snapshot = await InfringAPI.get('/api/dashboard/snapshot');
-              var rows =
-                snapshot &&
-                snapshot.collab &&
-                snapshot.collab.dashboard &&
-                Array.isArray(snapshot.collab.dashboard.agents)
-                  ? snapshot.collab.dashboard.agents
-                  : [];
-              agents = rows.map(function(row, idx) {
-                var id = String((row && (row.shadow || row.id)) || ('agent-' + (idx + 1)));
-                return {
-                  id: id,
-                  name: id,
-                  state: String((row && row.status) || 'running'),
-                  role: String((row && row.role) || 'analyst'),
-                  model_name: 'auto',
-                  model_provider: 'auto',
-                  runtime_model: 'auto',
-                  context_window: 8192,
-                };
-              });
-            } catch(__) {}
+            agents = null;
           }
         }
         if (Array.isArray(agents)) {
