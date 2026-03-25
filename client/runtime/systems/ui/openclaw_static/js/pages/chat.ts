@@ -1311,6 +1311,9 @@ function chatPage() {
         var text = typeof textSource === 'string' ? textSource : JSON.stringify(textSource || '');
         text = self.sanitizeToolText(text);
         if (role === 'agent') text = self.stripModelPrefix(text);
+        if (role === 'user' && /^\s*\[runtime-task\]/i.test(String(text || ''))) {
+          role = 'system';
+        }
 
         var tools = (m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
           return {

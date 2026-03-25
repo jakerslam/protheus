@@ -1327,12 +1327,19 @@ tr:hover td { background: var(--surface2); }
   overflow: visible;
 }
 .message.system .message-bubble {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  font-size: 12px;
-  padding: 0;
+  --message-tail-fill-color: color-mix(in srgb, var(--surface2) 90%, transparent);
+  --message-tail-border-color: color-mix(in srgb, var(--border) 92%, transparent);
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 22px;
+  padding: 10px 14px;
+  font-size: 14.5px;
+  line-height: 1.78;
+  width: 100%;
   max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  z-index: 1;
 }
 .message.system {
   max-width: 100%;
@@ -1389,13 +1396,15 @@ tr:hover td { background: var(--surface2); }
   gap: 0;
 }
 
-.message.agent .message-body {
+.message.agent .message-body,
+.message.system .message-body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.message.agent .message-stats-row {
+.message.agent .message-stats-row,
+.message.system .message-stats-row {
   width: 100%;
   margin-left: 0;
   margin-right: 0;
