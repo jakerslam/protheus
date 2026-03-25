@@ -85,6 +85,7 @@ const RUNTIME_CONDUIT_WATCHDOG_MIN_SIGNALS = 6;
 const RUNTIME_CONDUIT_SOFT_SCALE_QUEUE_DEPTH = 20;
 const RUNTIME_CONDUIT_WATCHDOG_STALE_MS = 30_000;
 const RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS = 60_000;
+const RUNTIME_CONDUIT_WATCHDOG_PRESSURE_COOLDOWN_MS = 15_000;
 const RUNTIME_STALE_LANE_RETRY_BASE_MS = 5_000;
 const RUNTIME_STALE_LANE_RETRY_MAX_MS = 120_000;
 const RUNTIME_CONDUIT_PERSISTENCE_MIN_TICKS = 3;
@@ -121,6 +122,7 @@ const RUNTIME_ATTENTION_COMPACT_RETAIN = 24;
 const RUNTIME_ATTENTION_COMPACT_MIN_ACKED = 16;
 const RUNTIME_AUTONOMY_HEAL_INTERVAL_MS = 30_000;
 const RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS = 10_000;
+const RUNTIME_AUTONOMY_HEAL_COORDINATION_INTERVAL_MS = 5_000;
 const RUNTIME_STALL_WINDOW = 6;
 const RUNTIME_STALL_CONDUIT_FLOOR = 6;
 const RUNTIME_STALL_QUEUE_MIN_DEPTH = 60;
@@ -140,6 +142,8 @@ const RUNTIME_SPINE_CANARY_MAX_EYES = 1;
 const DASHBOARD_BENCHMARK_STALE_SECONDS = 48 * 60 * 60;
 const RUNTIME_BENCHMARK_REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
 const RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS = 10 * 60;
+const RUNTIME_TASK_CHAT_DEDUPE_MS = 5 * 60 * 1000;
+const RUNTIME_TASK_DISPATCH_RETAIN_MS = 24 * 60 * 60 * 1000;
 const RUNTIME_TREND_WINDOW = 120;
 const TEXT_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg', '.map']);
 const OLLAMA_BIN = 'ollama';
@@ -1501,6 +1505,24 @@ function isSuggestionNoiseText(value) {
   return false;
 }
 
+function sanitizeSuggestionHint(value) {
+  const hint = cleanText(value == null ? '' : String(value), 240);
+  if (!hint) return '';
+  const lowered = hint.toLowerCase();
+  if (
+    lowered === 'post-response' ||
+    lowered === 'post-silent' ||
+    lowered === 'post-error' ||
+    lowered === 'post-terminal' ||
+    lowered === 'init' ||
+    lowered === 'refresh'
+  ) {
+    return '';
+  }
+  if (/^post-[a-z0-9_-]+$/i.test(hint)) return '';
+  return hint;
+}
+
 function recentSuggestionContext(recentMessages = []) {
   let lastUser = '';
   let lastAssistant = '';
@@ -1535,8 +1557,10 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   const runtime = runtimeSyncSummary(snapshot);
   const queueDepth = parseNonNegativeInt(runtime.queue_depth, 0, 100000000);
   const staleBlocks = parseNonNegativeInt(runtime.cockpit_stale_blocks, 0, 100000000);
-  const cleanHint = cleanText(hint || '', 180);
+  const cleanHint = sanitizeSuggestionHint(hint);
   const convo = recentSuggestionContext(recentMessages);
+  const roleLabel = cleanText(agent && agent.role ? agent.role : '', 60) || 'assistant';
+  const agentLabel = cleanText(agent && agent.name ? agent.name : agent && agent.id ? agent.id : '', 80) || 'agent';
   const topic = cleanText(
     cleanHint || convo.last_user || convo.last_assistant || '',
     160
@@ -1546,7 +1570,7 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
     .split(/[^a-z0-9_:-]+/g)
     .filter((word) => word.length >= 4 && !['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].includes(word))
     .slice(0, 3);
-  const topicLabel = topicWords.length ? topicWords.join(' ') : 'this task';
+  const topicLabel = topicWords.length ? topicWords.join(' ') : `${roleLabel} workflow`;
 
   if (convo.last_user) {
     rows.push(`Continue this user ask: "${convo.last_user}" with one concrete next action.`);
@@ -1560,12 +1584,13 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   if (cleanHint) {
     rows.push(`Use this hint exactly: "${cleanHint}" and turn it into one actionable next prompt.`);
   }
-  if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure/i.test(topic)) {
-    rows.push(`Ask for one automatic remediation for ${topicLabel}, including rollback criteria.`);
+  if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure|stale|reconnect/i.test(topic)) {
+    rows.push(`Ask ${agentLabel} to propose one automatic reliability remediation with rollback criteria.`);
+    rows.push(`Request a short runbook to keep queue depth under 60 and stale blocks near 0.`);
   }
   rows.push(`Request a 3-step execution plan focused on ${topicLabel}.`);
-  rows.push(`Ask for one command to run now and one verification command for ${topicLabel}.`);
-  rows.push(`Ask for the highest-ROI fix for ${topicLabel} with measurable success criteria.`);
+  rows.push(`Ask for one command to run now and one verification command tied to ${topicLabel}.`);
+  rows.push(`Ask ${agentLabel} for the single highest-ROI change with measurable success criteria.`);
   const rotateSeed = `${topicLabel}|${convo.last_user}|${convo.last_assistant}|${cleanHint}`;
   let rotate = 0;
   for (let i = 0; i < rotateSeed.length; i++) rotate = (rotate + rotateSeed.charCodeAt(i)) % Math.max(rows.length, 1);
@@ -1585,7 +1610,7 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
 function generatePromptSuggestions(agentId, snapshot, payload = {}) {
   const cleanAgentId = cleanText(agentId || '', 140);
   if (!cleanAgentId) return { ok: false, suggestions: [] };
-  const userHint = cleanText(payload && payload.hint ? payload.hint : '', 280);
+  const userHint = sanitizeSuggestionHint(payload && payload.hint ? payload.hint : '');
   const state = loadAgentSession(cleanAgentId, snapshot);
   const session = activeSession(state);
   const agent =
@@ -6529,6 +6554,7 @@ let runtimeSpineCanaryState = {
   last_run_at: '',
   run_count: 0,
 };
+let runtimeTaskDispatchState = {};
 let benchmarkRefreshState = {
   last_run_ms: 0,
   last_run_at: '',
@@ -8005,9 +8031,40 @@ function appendAgentNoticeEvent(agentId, snapshot, noticeLabel, options = {}) {
   };
 }
 
+function shouldSurfaceRuntimeTaskInChat(source = '') {
+  const normalized = cleanText(source || '', 120).toLowerCase();
+  if (!normalized) return false;
+  if (normalized.startsWith('swarm_recommendation.')) return false;
+  if (normalized.startsWith('runtime_') || normalized.startsWith('runtime.')) return false;
+  if (normalized.startsWith('autoheal.')) return false;
+  return true;
+}
+
+function runtimeTaskDispatchKey(agentId, source, task) {
+  const normalizedAgentId = cleanText(agentId || '', 140) || 'unknown-agent';
+  const normalizedSource = cleanText(source || '', 120).toLowerCase() || 'runtime-dashboard';
+  const taskHash = sha256(cleanText(task || '', 2000) || '').slice(0, 24);
+  return `${normalizedAgentId}|${normalizedSource}|${taskHash}`;
+}
+
+function pruneRuntimeTaskDispatchState(nowMs) {
+  const state = runtimeTaskDispatchState && typeof runtimeTaskDispatchState === 'object'
+    ? runtimeTaskDispatchState
+    : {};
+  const cutoff = Math.max(0, parseNonNegativeInt(nowMs, 0, 1000000000000) - RUNTIME_TASK_DISPATCH_RETAIN_MS);
+  for (const key of Object.keys(state)) {
+    const ts = parseNonNegativeInt(state[key], 0, 1000000000000);
+    if (!ts || ts < cutoff) {
+      delete state[key];
+    }
+  }
+  runtimeTaskDispatchState = state;
+}
+
 function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard') {
   const id = cleanText(agentId || '', 140);
   const task = cleanText(taskText || '', 2000);
+  const normalizedSource = cleanText(source, 120) || 'runtime_dashboard';
   if (!id || !task) {
     return {
       ok: false,
@@ -8015,27 +8072,51 @@ function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard
       error: 'task_invalid',
     };
   }
+  const nowMs = Date.now();
+  pruneRuntimeTaskDispatchState(nowMs);
+  const dispatchKey = runtimeTaskDispatchKey(id, normalizedSource, task);
+  const lastDispatchMs = parseNonNegativeInt(runtimeTaskDispatchState[dispatchKey], 0, 1000000000000);
+  if (lastDispatchMs > 0 && (nowMs - lastDispatchMs) < RUNTIME_TASK_CHAT_DEDUPE_MS) {
+    return {
+      ok: true,
+      agent_id: id,
+      task,
+      source: normalizedSource,
+      queued_at: nowIso(),
+      deduped: true,
+      surfaced_in_chat: false,
+      dedupe_window_ms: RUNTIME_TASK_CHAT_DEDUPE_MS,
+      last_dispatch_ms: lastDispatchMs,
+    };
+  }
+  runtimeTaskDispatchState[dispatchKey] = nowMs;
   const targetAgent = compatAgentsFromSnapshot(snapshot).find((row) => row && row.id === id);
   const targetAgentName = cleanText(targetAgent && targetAgent.name ? targetAgent.name : id, 120) || id;
-  appendAgentConversation(
-    id,
-    snapshot,
-    `[runtime-task] ${task}`,
-    'Task accepted. Report findings in this thread with receipt-backed evidence.',
-    `queued:${cleanText(source, 80)}`,
-    [],
-    {
-      user_role: 'System',
-      user_system_origin: cleanText(source, 120) || 'runtime_task',
-      assistant_role: 'Agent',
-      assistant_agent_id: id,
-      assistant_agent_name: targetAgentName,
-    }
-  );
+  const surfacedInChat = shouldSurfaceRuntimeTaskInChat(normalizedSource);
+  if (surfacedInChat) {
+    appendAgentConversation(
+      id,
+      snapshot,
+      `[runtime-task] ${task}`,
+      '',
+      `queued:${cleanText(normalizedSource, 80)}`,
+      [],
+      {
+        user_role: 'System',
+        user_system_origin: normalizedSource,
+        assistant_role: 'Agent',
+        assistant_agent_id: id,
+        assistant_agent_name: targetAgentName,
+      }
+    );
+  }
   return {
     ok: true,
     agent_id: id,
     task,
+    source: normalizedSource,
+    deduped: false,
+    surfaced_in_chat: surfacedInChat,
     queued_at: nowIso(),
   };
 }
@@ -12709,6 +12790,16 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   );
   const criticalAttentionOverload =
     criticalAttentionTotal > Math.max(criticalCap, RUNTIME_CRITICAL_ATTENTION_OVERLOAD_THRESHOLD);
+  const watchdogPressure =
+    staleMaintenance ||
+    staleRawMaintenance ||
+    lowLoadCoordinationDrift ||
+    chronicCoordinationPathology ||
+    criticalAttentionOverload ||
+    staleCockpitBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS;
+  const watchdogCooldownMs = watchdogPressure
+    ? RUNTIME_CONDUIT_WATCHDOG_PRESSURE_COOLDOWN_MS
+    : RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS;
   const nowMs = Date.now();
   const normalizedTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
   const knownShadows = Array.isArray(conduitWatchdogState.active_shadows)
@@ -12841,7 +12932,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
   const canAttempt =
     triggerReady &&
     (nowMs - parseNonNegativeInt(conduitWatchdogState.last_attempt_ms, 0, 1000000000000)) >=
-      RUNTIME_CONDUIT_WATCHDOG_COOLDOWN_MS;
+      watchdogCooldownMs;
   if (!canAttempt) {
     return {
       required: true,
@@ -12858,6 +12949,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
       low_signal: lowSignals,
       threshold,
       stale_for_ms: staleForMs,
+      cooldown_ms: watchdogCooldownMs,
       lane: null,
       active_shadows: knownShadows.slice(0, 8),
       last_attempt_at: cleanText(conduitWatchdogState.last_attempt_at || '', 80),
@@ -12970,6 +13062,7 @@ function maybeAutoHealConduit(runtime, team, recommendation = null) {
     low_signal: lowSignals,
     threshold,
     stale_for_ms: staleForMs,
+    cooldown_ms: watchdogCooldownMs,
     failure_count: parseNonNegativeInt(conduitWatchdogState.failure_count, 0, 100000000),
     lane: laneOutcome(drainLane),
     active_shadows: Array.isArray(conduitWatchdogState.active_shadows)
@@ -16323,14 +16416,15 @@ function runServe(flags) {
         -1,
         1000000000
       ) > RUNTIME_BENCHMARK_REFRESH_MAX_AGE_SECONDS;
-    const emergency =
-      runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ||
-      stalePressure ||
-      chronicCoordinationPathology ||
-      persistentCoordinationDegradation ||
-      (runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH && runtime.conduit_signals < signalFloor) ||
-      queueVelocityPerMin >= 4 ||
-      stallActionable;
+  const emergency =
+    runtime.queue_depth >= RUNTIME_INGRESS_CIRCUIT_DEPTH ||
+    stalePressure ||
+    chronicCoordinationPathology ||
+    persistentCoordinationDegradation ||
+    persistentStaleSoft ||
+    (runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH && runtime.conduit_signals < signalFloor) ||
+    queueVelocityPerMin >= 4 ||
+    stallActionable;
     const required =
       runtime.queue_depth >= RUNTIME_DRAIN_TRIGGER_DEPTH ||
       runtime.critical_attention_total >= RUNTIME_CRITICAL_ESCALATION_THRESHOLD ||
@@ -16346,8 +16440,13 @@ function runServe(flags) {
       queueVelocityPerMin >= 4 ||
       stallActionable ||
       emergency;
+    const coordinationFastPath =
+      (persistentCoordinationDegradation || persistentStaleSoft || chronicCoordinationPathology) &&
+      queueDepth < RUNTIME_DRAIN_TRIGGER_DEPTH;
     const cadenceMs = emergency
       ? RUNTIME_AUTONOMY_HEAL_EMERGENCY_INTERVAL_MS
+      : coordinationFastPath
+      ? RUNTIME_AUTONOMY_HEAL_COORDINATION_INTERVAL_MS
       : RUNTIME_AUTONOMY_HEAL_INTERVAL_MS;
     const nowMs = Date.now();
     if (!required) {
@@ -16391,11 +16490,30 @@ function runServe(flags) {
       !benchmarkRefreshNeeded;
     if (conduitOnlyEligible) {
       const conduitOnly = maybeAutoHealConduit(runtime, flags.team || DEFAULT_TEAM);
-      const ok = !conduitOnly.required || !!conduitOnly.applied || !conduitOnly.triggered;
+      const staleLaneGc =
+        staleBlocks >= RUNTIME_COCKPIT_STALE_AUTOHEAL_MIN_BLOCKS ||
+        staleRawBlocks >= RUNTIME_COCKPIT_STALE_RAW_AUTOHEAL_MIN_BLOCKS ||
+        persistentStaleSoft
+          ? maybeHealCoarseSignal(latestSnapshot, runtime, flags.team || DEFAULT_TEAM)
+          : null;
+      const staleGcOk =
+        !staleLaneGc ||
+        !staleLaneGc.required ||
+        !!(
+          staleLaneGc.stale_lane_drain &&
+          staleLaneGc.stale_lane_drain.applied &&
+          staleLaneGc.conduit_scale_up &&
+          staleLaneGc.conduit_scale_up.applied
+        );
+      const ok = (
+        !conduitOnly.required || !!conduitOnly.applied || !conduitOnly.triggered
+      ) && staleGcOk;
       runtimeAutohealState.last_run_ms = nowMs;
       runtimeAutohealState.last_run_at = nowIso();
       runtimeAutohealState.last_result = ok ? 'executed' : 'degraded';
-      runtimeAutohealState.last_stage = 'conduit_watchdog';
+      runtimeAutohealState.last_stage = staleLaneGc && staleLaneGc.required
+        ? 'conduit_watchdog_stale_gc'
+        : 'conduit_watchdog';
       runtimeAutohealState.last_stall_detected = !!stall.detected;
       runtimeAutohealState.last_stall_signature = cleanText(stall.signature || '', 240);
       runtimeAutohealState.failure_count = ok
@@ -16410,11 +16528,16 @@ function runServe(flags) {
         ok,
         lane_payload: {
           ok,
-          policy: 'conduit_watchdog_autorestart',
+          policy: staleLaneGc && staleLaneGc.required
+            ? 'conduit_watchdog_plus_stale_gc'
+            : 'conduit_watchdog_autorestart',
           conduit_watchdog: conduitOnly,
+          coarse_signal_remediation: staleLaneGc,
         },
         stall,
-        stage: 'conduit_watchdog',
+        stage: staleLaneGc && staleLaneGc.required
+          ? 'conduit_watchdog_stale_gc'
+          : 'conduit_watchdog',
         stall_recovery: null,
         source,
         persistent_coordination_degradation: persistentCoordinationDegradation,

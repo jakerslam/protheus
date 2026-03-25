@@ -894,32 +894,49 @@ function chatPage() {
         if (text.length > maxLen) return text.substring(0, maxLen - 3) + '...';
         return text;
       };
+      var sanitizeHint = function(value) {
+        var text = compact(value || '');
+        if (!text) return '';
+        var lowered = text.toLowerCase();
+        if (
+          lowered === 'post-response' ||
+          lowered === 'post-silent' ||
+          lowered === 'post-error' ||
+          lowered === 'post-terminal' ||
+          lowered === 'init' ||
+          lowered === 'refresh'
+        ) return '';
+        if (/^post-[a-z0-9_-]+$/i.test(text)) return '';
+        return text;
+      };
       var role = compact(agent && agent.role ? agent.role : '') || 'assistant';
+      var agentName = compact(agent && (agent.name || agent.id) ? (agent.name || agent.id) : '') || 'agent';
       var model = compact(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '');
       var context = this.collectPromptSuggestionContext();
       var lastUser = compact(context.lastUser || '');
       var lastAgent = compact(context.lastAgent || '');
-      var topic = compact(hint || lastUser || lastAgent || 'this task').toLowerCase();
+      var cleanHint = sanitizeHint(hint || '');
+      var topic = compact(cleanHint || lastUser || lastAgent || '').toLowerCase();
       var topicWords = topic.split(/[^a-z0-9_:-]+/g).filter(function(word) {
         return word && word.length >= 4 && ['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].indexOf(word) === -1;
       }).slice(0, 3);
-      var topicLabel = topicWords.length ? topicWords.join(' ') : 'this task';
+      var topicLabel = topicWords.length ? topicWords.join(' ') : role + ' workflow';
       if (lastUser) rows.push('Continue this exact ask: "' + lastUser + '" with one concrete next action.');
       if (lastAgent && !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(lastAgent)) {
         rows.push('Build on the latest answer: "' + lastAgent + '" with a focused follow-up prompt.');
       }
-      var cleanHint = compact(hint || '');
       if (cleanHint) rows.push('Use this hint directly: "' + cleanHint + '" and convert it into one actionable prompt.');
       if (/queue|cockpit|conduit|latency|backpressure|reconnect|stale/i.test(topicLabel)) {
-        rows.push('Ask for one automatic reliability remediation for ' + topicLabel + ' with rollback criteria.');
+        rows.push('Ask ' + agentName + ' for one automatic reliability remediation with rollback criteria.');
+        rows.push('Request a short runbook to keep queue depth under 60 and stale blocks near 0.');
       }
       if (model) {
         rows.push('For model ' + model + ', ask for a 3-step execution plan focused on ' + topicLabel + '.');
       } else {
         rows.push('Ask for a 3-step execution plan focused on ' + topicLabel + '.');
       }
-      rows.push('Ask for one command to run now and one verification command for ' + topicLabel + '.');
-      rows.push('Request the highest-ROI fix for ' + topicLabel + ' with measurable success criteria.');
+      rows.push('Ask for one command to run now and one verification command tied to ' + topicLabel + '.');
+      rows.push('Ask ' + agentName + ' for the single highest-ROI change with measurable success criteria.');
       return this.normalizePromptSuggestions(rows);
     },
 
@@ -989,6 +1006,7 @@ function chatPage() {
       try {
         var payload = {};
         var cleanHint = String(hint || '').trim();
+        if (/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)) cleanHint = '';
         if (cleanHint) payload.hint = cleanHint;
         var context = this.collectPromptSuggestionContext();
         if (context.lastUser) payload.last_user_message = String(context.lastUser).trim();
@@ -1007,7 +1025,7 @@ function chatPage() {
         this._lastSuggestionsAgentId = agentId;
       } catch (_) {
         if (this._suggestionFetchSeq === seq) {
-          this.promptSuggestions = this.derivePromptSuggestionFallback(agent, hint);
+          this.promptSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint);
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = agentId;
         }
@@ -1340,6 +1358,7 @@ function chatPage() {
           text: '',
           meta: '',
           tools: [],
+          system_origin: 'notice:' + nType,
           is_notice: true,
           notice_label: nLabel,
           notice_type: nType,
@@ -1443,6 +1462,20 @@ function chatPage() {
             noticeType = 'model';
           }
         }
+        var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';
+        var compactText = typeof text === 'string' ? text.trim() : '';
+        if (
+          role === 'system' &&
+          !isNotice &&
+          !systemOrigin &&
+          (
+            /^\[runtime-task\]/i.test(compactText) ||
+            /^task accepted\.\s*report findings in this thread with receipt-backed evidence\.?$/i.test(compactText)
+          )
+        ) {
+          // Legacy synthetic runtime-task chatter (no origin tag) is noise; skip rendering.
+          return null;
+        }
         return {
           id: ++msgId,
           role: role,
@@ -1461,11 +1494,11 @@ function chatPage() {
           agent_name: m && m.agent_name ? String(m.agent_name) : '',
           source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : '',
           agent_origin: m && m.agent_origin ? String(m.agent_origin) : '',
-          system_origin: m && m.system_origin ? String(m.system_origin) : '',
+          system_origin: systemOrigin,
           actor_id: m && m.actor_id ? String(m.actor_id) : '',
           actor: m && m.actor ? String(m.actor) : ''
         };
-      });
+      }).filter(function(row) { return !!row; });
     },
 
     init() {
@@ -2077,6 +2110,7 @@ function chatPage() {
           text: 'Connection dropped before the agent reply was delivered. Please retry.',
           meta: '',
           tools: [],
+          system_origin: 'transport:recovery',
           ts: Date.now()
         });
         this.scrollToBottom();
@@ -2106,7 +2140,7 @@ function chatPage() {
       cmdArgs = cmdArgs || '';
       switch (cmd) {
         case '/help':
-          self.messages.push({ id: ++msgId, role: 'system', text: self.slashCommands.map(function(c) { return '`' + c.cmd + '` — ' + c.desc; }).join('\n'), meta: '', tools: [] });
+          self.messages.push({ id: ++msgId, role: 'system', text: self.slashCommands.map(function(c) { return '`' + c.cmd + '` — ' + c.desc; }).join('\n'), meta: '', tools: [], system_origin: 'slash:help' });
           self.scrollToBottom();
           break;
         case '/agents':
@@ -2122,9 +2156,9 @@ function chatPage() {
           break;
         case '/compact':
           if (self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Compacting session...', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'Compacting session...', meta: '', tools: [], system_origin: 'slash:compact' });
             InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/compact', {}).then(function(res) {
-              self.messages.push({ id: ++msgId, role: 'system', text: res.message || 'Compaction complete', meta: '', tools: [] });
+              self.messages.push({ id: ++msgId, role: 'system', text: res.message || 'Compaction complete', meta: '', tools: [], system_origin: 'slash:compact' });
               self.scrollToBottom();
             }).catch(function(e) { InfringToast.error('Compaction failed: ' + e.message); });
           }
@@ -2135,7 +2169,7 @@ function chatPage() {
         case '/usage':
           if (self.currentAgent) {
             var approxTokens = self.messages.reduce(function(sum, m) { return sum + Math.round((m.text || '').length / 4); }, 0);
-            self.messages.push({ id: ++msgId, role: 'system', text: '**Session Usage**\n- Messages: ' + self.messages.length + '\n- Approx tokens: ~' + approxTokens, meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: '**Session Usage**\n- Messages: ' + self.messages.length + '\n- Approx tokens: ~' + approxTokens, meta: '', tools: [], system_origin: 'slash:usage' });
             self.scrollToBottom();
           }
           break;
@@ -2156,7 +2190,7 @@ function chatPage() {
           self.messages.push({ id: ++msgId, role: 'system', text: 'Extended thinking **' + modeLabel + '**. ' +
             (self.thinkingMode === 'stream' ? 'Reasoning tokens will appear in a collapsible panel.' :
              self.thinkingMode === 'on' ? 'The agent will show its reasoning when supported by the model.' :
-             'Normal response mode.'), meta: '', tools: [] });
+             'Normal response mode.'), meta: '', tools: [], system_origin: 'slash:think' });
           self.scrollToBottom();
           break;
         case '/context':
@@ -2172,7 +2206,7 @@ function chatPage() {
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
             self.scrollToBottom();
           }
           break;
@@ -2180,13 +2214,13 @@ function chatPage() {
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'queue', args: '' });
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
             self.scrollToBottom();
           }
           break;
         case '/status':
           InfringAPI.get('/api/status').then(function(s) {
-            self.messages.push({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [], system_origin: 'slash:status' });
             self.scrollToBottom();
           }).catch(function() {});
           break;
@@ -2205,22 +2239,22 @@ function chatPage() {
                 self.addModelSwitchNotice(previousModel, previousProvider, resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
               }).catch(function(e) { InfringToast.error('Model switch failed: ' + e.message); });
             } else {
-              self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [] });
+              self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [], system_origin: 'slash:model' });
               self.scrollToBottom();
             }
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
             self.scrollToBottom();
           }
           break;
         case '/file':
           if (!self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
             self.scrollToBottom();
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
             self.scrollToBottom();
             break;
           }
@@ -2236,6 +2270,7 @@ function chatPage() {
                 text: 'Error: failed to read file output.',
                 meta: '',
                 tools: [],
+                system_origin: 'slash:file',
                 ts: Date.now()
               });
             } else {
@@ -2268,6 +2303,7 @@ function chatPage() {
               text: 'Error: ' + (e && e.message ? e.message : 'file read failed'),
               meta: '',
               tools: [],
+              system_origin: 'slash:file',
               ts: Date.now()
             });
             self.scrollToBottom();
@@ -2275,12 +2311,12 @@ function chatPage() {
           break;
         case '/folder':
           if (!self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
             self.scrollToBottom();
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [] });
+            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
             self.scrollToBottom();
             break;
           }
@@ -2297,6 +2333,7 @@ function chatPage() {
                 text: 'Error: failed to export folder output.',
                 meta: '',
                 tools: [],
+                system_origin: 'slash:folder',
                 ts: Date.now()
               });
             } else {
@@ -2332,6 +2369,7 @@ function chatPage() {
               text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'),
               meta: '',
               tools: [],
+              system_origin: 'slash:folder',
               ts: Date.now()
             });
             self.scrollToBottom();
@@ -2354,7 +2392,7 @@ function chatPage() {
             self.messages.push({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
               '- Hourly: $' + (b.hourly_spend||0).toFixed(4) + ' / ' + fmt(b.hourly_limit) + '\n' +
               '- Daily: $' + (b.daily_spend||0).toFixed(4) + ' / ' + fmt(b.daily_limit) + '\n' +
-              '- Monthly: $' + (b.monthly_spend||0).toFixed(4) + ' / ' + fmt(b.monthly_limit), meta: '', tools: [] });
+              '- Monthly: $' + (b.monthly_spend||0).toFixed(4) + ' / ' + fmt(b.monthly_limit), meta: '', tools: [], system_origin: 'slash:budget' });
             self.scrollToBottom();
           }).catch(function() {});
           break;
@@ -2362,7 +2400,7 @@ function chatPage() {
           InfringAPI.get('/api/network/status').then(function(ns) {
             self.messages.push({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
               '- Status: ' + (ns.enabled ? 'Enabled' : 'Disabled') + '\n' +
-              '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [] });
+              '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [], system_origin: 'slash:peers' });
             self.scrollToBottom();
           }).catch(function() {});
           break;
@@ -2370,10 +2408,10 @@ function chatPage() {
           InfringAPI.get('/api/a2a/agents').then(function(res) {
             var agents = res.agents || [];
             if (!agents.length) {
-              self.messages.push({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [] });
+              self.messages.push({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [], system_origin: 'slash:a2a' });
             } else {
               var lines = agents.map(function(a) { return '- **' + a.name + '** — ' + a.url; });
-              self.messages.push({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [] });
+              self.messages.push({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [], system_origin: 'slash:a2a' });
             }
             self.scrollToBottom();
           }).catch(function() {});
@@ -2490,7 +2528,8 @@ function chatPage() {
             '- Drag & drop files to attach them\n' +
             '- `Ctrl+/` opens the command palette',
           meta: '',
-          tools: []
+          tools: [],
+          system_origin: 'chat:welcome'
         });
         localStorage.setItem('of-chat-tips-seen', 'true');
       }
@@ -2828,7 +2867,7 @@ function chatPage() {
             ? ('Agent ' + targetId + ' is now inactive (' + reasonLabel + ').')
             : ('Agent is now inactive (' + reasonLabel + ').');
         }
-        this.messages.push({ id: ++msgId, role: 'system', text: noticeText, meta: '', tools: [], ts: Date.now() });
+        this.messages.push({ id: ++msgId, role: 'system', text: noticeText, meta: '', tools: [], system_origin: 'agent:inactive', ts: Date.now() });
         this._lastInactiveNoticeKey = noticeKey;
       }
 
@@ -2888,7 +2927,7 @@ function chatPage() {
       this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
       this._clearTypingTimeout();
       this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-      this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], ts: Date.now() });
+      this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', ts: Date.now() });
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
@@ -2984,7 +3023,7 @@ function chatPage() {
             // Context warning: show prominently as a separate system message
             if (data.phase === 'context_warning') {
               var cwDetail = data.detail || 'Context limit reached.';
-              this.messages.push({ id: ++msgId, role: 'system', text: cwDetail, meta: '', tools: [] });
+              this.messages.push({ id: ++msgId, role: 'system', text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
             } else if (data.phase === 'thinking') {
               var thoughtChunk = String(data.detail || '').trim();
               if (thoughtChunk) {
@@ -3311,7 +3350,7 @@ function chatPage() {
             break;
           }
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-          this.messages.push({ id: ++msgId, role: 'system', text: errorText, meta: '', tools: [], ts: Date.now() });
+          this.messages.push({ id: ++msgId, role: 'system', text: errorText, meta: '', tools: [], system_origin: 'runtime:error', ts: Date.now() });
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -3350,7 +3389,7 @@ function chatPage() {
             Object.prototype.hasOwnProperty.call(data || {}, 'context_ratio') ||
             Object.prototype.hasOwnProperty.call(data || {}, 'context_pressure');
           if (!data.silent && !isContextTelemetryResult) {
-            this.messages.push({ id: ++msgId, role: 'system', text: data.message || 'Command executed.', meta: '', tools: [] });
+            this.messages.push({ id: ++msgId, role: 'system', text: data.message || 'Command executed.', meta: '', tools: [], system_origin: 'command:result' });
             this.scrollToBottom();
           }
           break;
@@ -3556,7 +3595,14 @@ function chatPage() {
           (msg && msg.actor) ||
           ''
         ).trim();
-        return systemOrigin ? ('system:' + systemOrigin.toLowerCase()) : 'system';
+        if (systemOrigin) return 'system:' + systemOrigin.toLowerCase();
+        // Legacy/cached rows may not carry system_origin; avoid collapsing all
+        // such rows into one visual run.
+        var legacySystemId = String(
+          (msg && msg.id != null) ? msg.id : ((msg && msg.ts != null) ? msg.ts : '')
+        ).trim();
+        if (legacySystemId) return 'system:legacy:' + legacySystemId.toLowerCase();
+        return 'system';
       }
       if (role === 'agent') {
         var agentOrigin = String(
@@ -3898,6 +3944,7 @@ function chatPage() {
         text: '',
         meta: '',
         tools: [],
+        system_origin: 'notice:' + type,
         is_notice: true,
         notice_label: label,
         notice_type: type,
@@ -4810,7 +4857,7 @@ function chatPage() {
         this.scheduleConversationPersist();
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], ts: Date.now() });
+        this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], system_origin: 'http:error', ts: Date.now() });
         this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
         this.scheduleConversationPersist();
@@ -5337,7 +5384,7 @@ function chatPage() {
       if (blob.size < 100) return; // too small
 
       // Show a temporary "Transcribing..." message
-      this.messages.push({ id: ++msgId, role: 'system', text: 'Transcribing audio...', thinking: true, ts: Date.now(), tools: [] });
+      this.messages.push({ id: ++msgId, role: 'system', text: 'Transcribing audio...', thinking: true, ts: Date.now(), tools: [], system_origin: 'voice:transcribe' });
       this.scrollToBottom();
 
       try {
