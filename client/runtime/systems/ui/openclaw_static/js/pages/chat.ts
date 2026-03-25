@@ -51,6 +51,9 @@ function chatPage() {
     modelSwitcherFilter: '',
     modelSwitcherProviderFilter: '',
     modelSwitcherIdx: 0,
+    modelApiKeyInput: '',
+    modelApiKeySaving: false,
+    modelApiKeyStatus: '',
     modelSwitching: false,
     _modelCache: null,
     _modelCacheTime: 0,
@@ -450,6 +453,20 @@ function chatPage() {
       if (!runtime) return 'Auto';
       var short = runtime.replace(/-\d{8}$/, '');
       return short ? ('Auto: ' + short) : 'Auto';
+    },
+
+    modelDeploymentKind: function(model) {
+      var row = model || {};
+      var deployment = String(row.deployment || '').trim().toLowerCase();
+      if (deployment === 'local' || deployment === 'cloud') return deployment;
+      if (row.is_local === true) return 'local';
+      var provider = String(row.provider || '').trim().toLowerCase();
+      if (provider === 'ollama' || provider === 'llama.cpp') return 'local';
+      return 'cloud';
+    },
+
+    modelDeploymentLabel: function(model) {
+      return this.modelDeploymentKind(model) === 'local' ? 'Local model' : 'Cloud/API model';
     },
 
     pickDefaultAgent(agents) {
@@ -1817,6 +1834,7 @@ function chatPage() {
       if (this.showModelSwitcher) { this.showModelSwitcher = false; return; }
       var self = this;
       var now = Date.now();
+      this.modelApiKeyStatus = '';
       if (this._modelCache && (now - this._modelCacheTime) < 300000) {
         this.modelSwitcherFilter = '';
         this.modelSwitcherProviderFilter = '';
@@ -1843,6 +1861,36 @@ function chatPage() {
         });
       }).catch(function(e) {
         InfringToast.error('Failed to load models: ' + e.message);
+      });
+    },
+
+    discoverModelsFromApiKey: function() {
+      var self = this;
+      var key = String(this.modelApiKeyInput || '').trim();
+      if (!key) {
+        InfringToast.error('Enter an API key first');
+        return;
+      }
+      this.modelApiKeySaving = true;
+      this.modelApiKeyStatus = 'Detecting...';
+      InfringAPI.post('/api/models/discover', { api_key: key }).then(function(resp) {
+        var provider = String((resp && resp.provider) || '').trim();
+        var count = Number((resp && resp.model_count) || ((resp && resp.models && resp.models.length) || 0));
+        self.modelApiKeyInput = '';
+        self.modelApiKeyStatus = provider ? ('Added ' + provider + ' (' + count + ' models)') : 'API key saved';
+        self._modelCache = null;
+        self._modelCacheTime = 0;
+        return InfringAPI.get('/api/models');
+      }).then(function(data) {
+        var models = (data && data.models) || [];
+        self._modelCache = models.filter(function(m) { return m.available; });
+        self._modelCacheTime = Date.now();
+        self.modelPickerList = self._modelCache;
+      }).catch(function(e) {
+        self.modelApiKeyStatus = '';
+        InfringToast.error('Model discovery failed: ' + (e && e.message ? e.message : e));
+      }).finally(function() {
+        self.modelApiKeySaving = false;
       });
     },
 
