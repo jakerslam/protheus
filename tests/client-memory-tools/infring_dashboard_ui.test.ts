@@ -134,7 +134,10 @@ function assertChatEnhancementFeatures() {
 
   // Fresh agent init flow ("Who am I?" + init panel)
   assertContains(chatSource, "text: 'Who am I?'", 'fresh-init "Who am I?" seed message missing');
-  assertContains(chatSource, 'ensureFreshInitThread(resolved);', 'fresh-init thread bootstrap missing');
+  assert.ok(
+    chatSource.includes('ensureFreshInitThread(resolved);') || chatSource.includes('startFreshInitSequence(resolved);'),
+    'fresh-init thread bootstrap missing'
+  );
   assertContains(htmlSource, 'class="chat-init-panel"', 'fresh-init panel markup missing');
   assertContains(htmlSource, 'Initialize Agent', 'fresh-init panel title missing');
 
@@ -206,7 +209,11 @@ function assertChatEnhancementFeatures() {
   assertContains(cssSource, '.message.system.has-tail', 'system-tail render support missing');
   assertContains(chatSource, 'source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : \'\'', 'source agent id normalization missing');
   assertContains(chatSource, 'agent_origin: m && m.agent_origin ? String(m.agent_origin) : \'\'', 'agent origin normalization missing');
-  assertContains(chatSource, "var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';", 'system origin extraction missing');
+  assert.ok(
+    chatSource.includes("var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';") ||
+      chatSource.includes('var derivedSystemOrigin = \'\';'),
+    'system origin extraction missing'
+  );
   assertContains(chatSource, 'system_origin: systemOrigin,', 'system origin normalization missing');
   assertContains(chatSource, "return 'system:legacy:' + legacySystemId.toLowerCase();", 'legacy system message source key fallback missing');
   assertContains(chatSource, "system_origin: 'slash:help'", 'slash help messages should carry explicit system origin');

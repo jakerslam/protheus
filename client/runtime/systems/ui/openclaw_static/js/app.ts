@@ -1058,8 +1058,11 @@ function app() {
       var rows = Array.isArray(store.agents) ? store.agents.slice() : [];
       if (!rows.length) {
         this.bootSelectionApplied = true;
+        if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
+        else store.activeAgentId = null;
         this.navigate('chat');
-        await this.createSidebarAgentChat();
+        this.chatSidebarMode = 'agent_list';
+        this.chatSidebarQuery = '';
         return;
       }
       var target = null;

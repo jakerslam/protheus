@@ -832,9 +832,29 @@
                     aria-hidden="true"
                   >&infin;</span>
                 </div>
-                <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar" @click.stop="drawerEditingEmoji = true" title="Edit emoji" aria-label="Edit emoji">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                </button>
+                <input
+                  type="file"
+                  x-ref="drawerAvatarInput"
+                  accept="image/*"
+                  style="display:none"
+                  @change="uploadDrawerAvatar($event.target.files); $event.target.value = ''"
+                >
+                <div class="chat-agent-avatar-actions" @click.outside="drawerEmojiPickerOpen = false">
+                  <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="toggleDrawerEmojiPicker()" title="Pick emoji" aria-label="Pick emoji">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 15c1 .8 2.1 1.2 4 1.2s3-.4 4-1.2"></path><circle cx="9" cy="10" r="1"></circle><circle cx="15" cy="10" r="1"></circle></svg>
+                  </button>
+                  <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="openDrawerAvatarPicker()" :disabled="drawerAvatarUploading" title="Upload avatar" aria-label="Upload avatar">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5-5 5 5"></path><path d="M12 5v12"></path></svg>
+                  </button>
+                  <div class="chat-agent-emoji-menu" x-show="drawerEmojiPickerOpen" x-transition.opacity>
+                    <input class="form-input chat-agent-emoji-search" x-model="drawerEmojiSearch" placeholder="Search emoji...">
+                    <div class="chat-agent-emoji-grid">
+                      <template x-for="item in filteredDrawerEmojiCatalog()" :key="'drawer-emoji-' + item.emoji + '-' + item.name">
+                        <button class="emoji-grid-item" @click.stop="selectDrawerEmoji(item)" :title="item.name" x-text="item.emoji"></button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="chat-agent-identity-name-row">
                 <div class="chat-agent-identity-name" x-text="(drawerConfigForm && drawerConfigForm.name) || (agentDrawer && (agentDrawer.name || agentDrawer.id)) || 'Agent'"></div>
@@ -842,10 +862,12 @@
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               </div>
-              <div class="chat-agent-identity-edit" x-show="drawerEditingEmoji">
+              <div class="chat-agent-identity-edit" x-show="drawerEditingEmoji && !drawerEmojiPickerOpen">
                 <input class="form-input" style="font-size:12px;max-width:120px" x-model="drawerConfigForm.emoji" placeholder="🤖" @keydown.enter.prevent="drawerEditingEmoji = false" @keydown.escape="drawerEditingEmoji = false">
                 <button class="btn btn-ghost btn-sm" @click="drawerEditingEmoji = false" style="padding:2px 8px">Cancel</button>
               </div>
+              <div class="text-xs text-dim" x-show="drawerAvatarUploading">Uploading avatar...</div>
+              <div class="text-xs text-danger" x-show="drawerAvatarUploadError" x-text="drawerAvatarUploadError"></div>
               <div class="chat-agent-identity-edit" x-show="drawerEditingName">
                 <input class="form-input" style="font-size:12px;flex:1 1 auto" x-model="drawerConfigForm.name" placeholder="Agent name" @keydown.enter.prevent="drawerEditingName = false" @keydown.escape="drawerEditingName = false">
                 <button class="btn btn-ghost btn-sm" @click="drawerEditingName = false" style="padding:2px 8px">Cancel</button>
@@ -1225,7 +1247,7 @@
                 </template>
               </div>
             </template>
-            <div class="chat-init-panel" x-show="showFreshArchetypeTiles">
+            <div class="chat-init-panel" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
               <div class="chat-archetype-title">Initialize Agent</div>
               <div class="chat-archetype-subtitle">Pick a starting archetype, then launch the agent.</div>
               <div class="chat-init-identity-row">
@@ -1262,8 +1284,19 @@
             <div class="composer-stack">
               <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
-                  <button class="prompt-suggestion-chip" type="button" @click="applyPromptSuggestion(suggestion)" :title="suggestion">
-                    <span x-text="suggestion"></span>
+                  <button
+                    class="prompt-suggestion-chip"
+                    type="button"
+                    @click="applyPromptSuggestion(suggestion)"
+                    :title="suggestion"
+                    x-transition:enter="transition ease-out duration-240"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="transition ease-in duration-180"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                  >
+                    <span class="prompt-suggestion-chip-text" x-text="suggestion"></span>
                   </button>
                 </template>
               </div>
