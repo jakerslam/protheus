@@ -21,6 +21,10 @@ const CHAT_PAGE_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static/js/pages/chat.ts'
 );
+const APP_STATIC_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/openclaw_static/js/app.ts'
+);
 const STATIC_UI_JS_ROOT = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static/js'
@@ -269,6 +273,43 @@ function assertAgentGitTreeAuthority() {
   );
 }
 
+function assertInterfaceSafetyGuards() {
+  const appSource = readUtf8(APP_STATIC_TS_PATH);
+  const clientSource = readUtf8(CLIENT_TSX_PATH);
+
+  assertContains(
+    appSource,
+    'getAppStore() {',
+    'app shell must include guarded app-store accessor to avoid undefined dereference races'
+  );
+  assertContains(
+    appSource,
+    "if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');",
+    'new-agent flow must fail closed when app store is unavailable instead of throwing property-access crashes'
+  );
+  assertContains(
+    appSource,
+    "if (!store) {\n        this.connected = false;\n        this.connectionState = 'connecting';\n        return;",
+    'pollStatus must guard missing app store before reading hydration flags'
+  );
+
+  assertContains(
+    clientSource,
+    'function safeParseJson(raw: string): unknown',
+    'dashboard react client must parse websocket/json payloads through safeParseJson guard'
+  );
+  assertContains(
+    clientSource,
+    'const payload = await readJsonObject(res);',
+    'dashboard fetch paths must decode JSON through guarded object reader'
+  );
+  assertContains(
+    clientSource,
+    'const parsed = safeParseJson(asText(event.data));',
+    'websocket snapshot envelopes must be parsed via safe parser (not blind JSON.parse)'
+  );
+}
+
 function assertLifecycleAndPlatformSrsEvidence() {
   const laneSource = readUtf8(TARGET);
   const agentsSource = readUtf8(
@@ -347,6 +388,7 @@ function runSnapshotAssertions() {
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
   assertAgentGitTreeAuthority();
+  assertInterfaceSafetyGuards();
   assertLifecycleAndPlatformSrsEvidence();
   const proc = runSnapshot();
   assert.strictEqual(proc.status, 0, `snapshot command failed: ${proc.stderr || proc.stdout}`);
