@@ -63,6 +63,9 @@ const CHAT_EXPORT_MAX_FILES = 48;
 const CHAT_FILE_READ_MAX_BYTES = 2 * 1024 * 1024;
 const CHAT_TREE_MAX_DEPTH = 8;
 const CHAT_TREE_MAX_ENTRIES = 5000;
+const LOCAL_ASSETS_DIR = path.resolve(ROOT, 'client/runtime/local/assets');
+const AVATAR_ASSETS_DIR = path.resolve(LOCAL_ASSETS_DIR, 'avatars');
+const AGENT_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
@@ -1044,6 +1047,25 @@ function contentTypeForFile(filePath) {
   if (ext === '.woff') return 'font/woff';
   if (ext === '.woff2') return 'font/woff2';
   return 'application/octet-stream';
+}
+
+function avatarExtensionFromUpload(fileName = '', contentType = '') {
+  const lowerName = cleanText(fileName || '', 200).toLowerCase();
+  const ext = path.extname(lowerName);
+  if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp' || ext === '.gif' || ext === '.svg') {
+    return ext === '.jpeg' ? '.jpg' : ext;
+  }
+  const type = cleanText(contentType || '', 80).toLowerCase();
+  if (type.includes('png')) return '.png';
+  if (type.includes('jpeg') || type.includes('jpg')) return '.jpg';
+  if (type.includes('webp')) return '.webp';
+  if (type.includes('gif')) return '.gif';
+  if (type.includes('svg')) return '.svg';
+  return '.png';
+}
+
+function sanitizeAssetToken(raw = '') {
+  return cleanText(raw || '', 180).replace(/[^a-zA-Z0-9._-]/g, '');
 }
 
 function readPrimaryDashboardAsset(pathname) {
@@ -5678,6 +5700,7 @@ function normalizeAgentProfile(agentId, value = {}, fallback = {}) {
     agent_id: id,
     name: cleanText(source.name != null ? source.name : prior.name || id, 100) || id,
     role: cleanText(source.role != null ? source.role : prior.role || 'analyst', 60) || 'analyst',
+    avatar_url: cleanText(source.avatar_url != null ? source.avatar_url : prior.avatar_url || '', 512),
     model_override: modelOverrideFromState({
       model_override: source.model_override != null ? source.model_override : prior.model_override,
     }),
@@ -12333,6 +12356,7 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
       context_window: modelState.context_window,
       role: profileRole || runtimeRole,
       identity,
+      avatar_url: cleanText(profile && profile.avatar_url ? profile.avatar_url : '', 512),
       system_prompt: cleanText(profile && profile.system_prompt ? profile.system_prompt : '', 4000),
       fallback_models: fallbackModels,
       git_tree_kind: gitTree.git_tree_kind,
@@ -15312,6 +15336,27 @@ function bodyJson(req) {
   });
 }
 
+function bodyBuffer(req, maxBytes = 1_500_000) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on('data', (chunk) => {
+      const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += part.length;
+      if (total > maxBytes) {
+        reject(new Error('payload_too_large'));
+        try { req.destroy(); } catch {}
+        return;
+      }
+      chunks.push(part);
+    });
+    req.on('end', () => {
+      resolve(Buffer.concat(chunks));
+    });
+    req.on('error', reject);
+  });
+}
+
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
   const forkUiEnabled = hasPrimaryDashboardUi();
@@ -15594,6 +15639,21 @@ function runServe(flags) {
           sendText(res, 200, forkAsset.body, forkAsset.contentType);
           return;
         }
+      }
+      if (req.method === 'GET' && pathname.startsWith('/api/assets/avatars/')) {
+        const token = sanitizeAssetToken(safeDecodePathToken(pathname.split('/').slice(4).join('/')));
+        if (!token) {
+          sendJson(res, 404, { ok: false, error: 'asset_not_found' });
+          return;
+        }
+        const filePath = path.resolve(AVATAR_ASSETS_DIR, token);
+        if (!filePath.startsWith(AVATAR_ASSETS_DIR) || !fileExists(filePath)) {
+          sendJson(res, 404, { ok: false, error: 'asset_not_found' });
+          return;
+        }
+        const body = fs.readFileSync(filePath);
+        sendText(res, 200, body, contentTypeForFile(filePath));
+        return;
       }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
         sendJsonRaw(res, 200, latestSnapshotJson);
@@ -16700,7 +16760,23 @@ function runServe(flags) {
             if (isAgentArchived(agentId)) {
               unarchiveAgent(agentId);
             }
-            sendJson(res, 200, authoritativeAgent);
+            const profile = agentProfileFor(agentId);
+            const merged = {
+              ...(authoritativeAgent && typeof authoritativeAgent === 'object' ? authoritativeAgent : {}),
+            };
+            if (profile && typeof profile === 'object') {
+              if (profile.name) merged.name = cleanText(profile.name, 100) || merged.name;
+              if (profile.role) merged.role = cleanText(profile.role, 60) || merged.role;
+              merged.identity = normalizeAgentIdentity(
+                profile.identity && typeof profile.identity === 'object' ? profile.identity : {},
+                merged.identity && typeof merged.identity === 'object' ? merged.identity : {}
+              );
+              if (Object.prototype.hasOwnProperty.call(profile, 'avatar_url')) {
+                merged.avatar_url = cleanText(profile.avatar_url, 512);
+              }
+              if (profile.system_prompt) merged.system_prompt = cleanText(profile.system_prompt, 4000);
+            }
+            sendJson(res, 200, merged);
             return;
           }
           const archivedMeta = archivedAgentMeta(agentId);
@@ -16733,6 +16809,54 @@ function runServe(flags) {
             suggestions: Array.isArray(suggestionResult.suggestions) ? suggestionResult.suggestions : [],
             source: cleanText(suggestionResult.source || 'fallback', 40) || 'fallback',
             model: cleanText(suggestionResult.model || '', 120),
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'avatar') {
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const contentType = cleanText(req.headers['content-type'] || '', 80).toLowerCase();
+          if (contentType && !contentType.startsWith('image/')) {
+            sendJson(res, 400, { ok: false, error: 'avatar_image_required', id: agentId });
+            return;
+          }
+          let body = null;
+          try {
+            body = await bodyBuffer(req, AGENT_AVATAR_MAX_BYTES);
+          } catch (error) {
+            const reason = cleanText(error && error.message ? error.message : 'avatar_upload_failed', 120);
+            sendJson(res, 400, { ok: false, error: reason || 'avatar_upload_failed', id: agentId });
+            return;
+          }
+          if (!body || body.length <= 0) {
+            sendJson(res, 400, { ok: false, error: 'avatar_upload_empty', id: agentId });
+            return;
+          }
+          ensureDir(AVATAR_ASSETS_DIR);
+          const fileNameHeader = cleanText(req.headers['x-filename'] || '', 200);
+          const ext = avatarExtensionFromUpload(fileNameHeader, contentType);
+          const digest = sha256(body).slice(0, 12);
+          const safeId = safeAgentSessionFile(agentId);
+          const fileName = `${safeId}-${Date.now().toString(36)}-${digest}${ext}`;
+          const filePath = path.resolve(AVATAR_ASSETS_DIR, fileName);
+          try {
+            fs.writeFileSync(filePath, body);
+          } catch (error) {
+            sendJson(res, 500, { ok: false, error: 'avatar_write_failed', id: agentId });
+            return;
+          }
+          const avatarUrl = `/api/assets/avatars/${fileName}`;
+          upsertAgentProfile(agentId, { avatar_url: avatarUrl });
+          requestSnapshotRefresh(false);
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            avatar_url: avatarUrl,
+            content_type: contentTypeForFile(filePath),
+            file_name: fileName,
           });
           return;
         }
@@ -17483,6 +17607,12 @@ function runServe(flags) {
             Object.prototype.hasOwnProperty.call(raw, 'role')
           ) {
             patch.role = cleanText(raw.role, 60);
+          }
+          if (
+            parts[3] === 'config' &&
+            Object.prototype.hasOwnProperty.call(raw, 'avatar_url')
+          ) {
+            patch.avatar_url = cleanText(raw.avatar_url, 512);
           }
           if (
             parts[3] === 'config' &&

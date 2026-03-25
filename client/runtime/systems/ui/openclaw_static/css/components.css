@@ -923,15 +923,50 @@ tr:hover td { background: var(--surface2); }
 }
 
 .chat-agent-identity-pencil-avatar {
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  opacity: 0;
+  position: static;
+  opacity: 1;
 }
 
-.chat-agent-identity-avatar-wrap:hover .chat-agent-identity-pencil-avatar,
-.chat-agent-identity-avatar-wrap:focus-within .chat-agent-identity-pencil-avatar {
-  opacity: 1;
+.chat-agent-avatar-actions {
+  position: absolute;
+  left: 60px;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 4;
+}
+
+.chat-agent-identity-pencil-avatar-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.chat-agent-emoji-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 220px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  z-index: 20;
+}
+
+.chat-agent-emoji-search {
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.chat-agent-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .chat-agent-identity-edit {
@@ -3370,6 +3405,15 @@ mark.search-highlight {
   overflow: hidden;
   text-overflow: ellipsis;
   will-change: flex-basis, max-width;
+}
+
+.prompt-suggestion-chip-text {
+  display: inline-block;
+  transition: opacity 0.24s var(--ease-smooth);
+}
+
+.prompt-suggestion-chip:hover .prompt-suggestion-chip-text {
+  opacity: 1;
 }
 
 .prompt-suggestion-chip:hover {
