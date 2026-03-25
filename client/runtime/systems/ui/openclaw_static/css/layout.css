@@ -13,15 +13,20 @@
   position: relative;
   width: var(--sidebar-width);
   height: calc(100vh - 46px);
-  background: var(--bg-primary);
+  background: var(--chrome-bg);
   border-top: none;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   transition: width var(--transition-normal);
-  z-index: 100;
+  z-index: 19200;
   --sidebar-edge-fade-size: 22px;
+}
+
+/* Topbar now sits above sidebar; avoid duplicating seam shadows in sidebar plane. */
+.sidebar::before {
+  content: none;
 }
 
 /* Right-edge fade shadow outside sidebar border, matching chat fade style. */
@@ -33,18 +38,38 @@
   bottom: 0;
   width: var(--sidebar-edge-fade-size);
   pointer-events: none;
-  z-index: 115;
+  z-index: 19210;
   background: linear-gradient(
     to right,
-    color-mix(in srgb, var(--bg-primary) 99%, transparent) 0%,
-    color-mix(in srgb, var(--bg-primary) 86%, transparent) 34%,
-    color-mix(in srgb, var(--bg-primary) 54%, transparent) 68%,
+    color-mix(in srgb, var(--chrome-bg) 99%, transparent) 0%,
+    color-mix(in srgb, var(--chrome-bg) 86%, transparent) 34%,
+    color-mix(in srgb, var(--chrome-bg) 54%, transparent) 68%,
     transparent 100%
   );
 }
 
 .sidebar.collapsed {
   width: var(--sidebar-collapsed);
+}
+
+.sidebar-nav-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-settings-anchor {
+  flex-shrink: 0;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 14px -14px rgba(0, 0, 0, 0.32);
+  background: var(--chrome-bg);
+  position: relative;
+  z-index: 5;
+}
+
+.sidebar-settings-item {
+  margin: 0;
 }
 
 .sidebar.collapsed .sidebar-label,
@@ -162,11 +187,45 @@
 /* Navigation */
 .sidebar-nav {
   flex: 1;
+  height: 100%;
   overflow-y: auto;
   padding: 8px;
   scrollbar-width: none;
 }
 .sidebar-nav::-webkit-scrollbar { width: 0; }
+
+.sidebar-scroll-indicator {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--chrome-bg) 94%, transparent);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 35;
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(6px) saturate(1.04);
+  -webkit-backdrop-filter: blur(6px) saturate(1.04);
+}
+
+.sidebar-scroll-indicator-top {
+  top: 10px;
+}
+
+.sidebar-scroll-indicator-bottom {
+  bottom: 10px;
+}
+
+.sidebar-scroll-indicator-chat.sidebar-scroll-indicator-top {
+  top: 86px;
+}
 
 .nav-section {
   margin-bottom: 4px;
@@ -534,6 +593,10 @@
   --sidebar-pulltab-width: 22px;
   --sidebar-pulltab-height: 54px;
   --sidebar-pulltab-cut: 8px;
+  --sidebar-pulltab-joint-size: 7px;
+  --sidebar-pulltab-border-color: color-mix(in srgb, var(--chrome-bg) 90%, var(--border) 10%);
+  --sidebar-pulltab-angle-top-color: var(--sidebar-pulltab-border-color);
+  --sidebar-pulltab-angle-bottom-color: var(--sidebar-pulltab-border-color);
   position: absolute;
   right: calc(-1 * var(--sidebar-pulltab-width));
   top: 50%;
@@ -543,11 +606,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary);
+  background: var(--chrome-bg);
   color: var(--text-muted);
-  border: none;
-  border-top-right-radius: 9px;
-  border-bottom-right-radius: 9px;
+  border: 1px solid transparent;
+  border-top-color: var(--sidebar-pulltab-border-color);
+  border-right-color: var(--sidebar-pulltab-border-color);
+  border-bottom-color: var(--sidebar-pulltab-border-color);
+  border-left-color: var(--sidebar-pulltab-border-color);
+  border-top-right-radius: 13px;
+  border-bottom-right-radius: 13px;
   clip-path: polygon(
     0 0,
     calc(100% - var(--sidebar-pulltab-cut)) 0,
@@ -557,7 +624,7 @@
     0 100%
   );
   cursor: pointer;
-  z-index: 130;
+  z-index: 19220;
   overflow: hidden;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
@@ -566,27 +633,66 @@
 .sidebar-pulltab::after {
   content: '';
   position: absolute;
-  right: 0;
+  right: calc(var(--sidebar-pulltab-cut) * -0.21);
   width: calc(var(--sidebar-pulltab-cut) * 1.42);
-  height: 1px;
-  background: color-mix(in srgb, var(--border) 48%, transparent);
+  height: 2.4px;
+  border-radius: 999px;
   pointer-events: none;
-  transform-origin: right center;
+  transform-origin: center center;
+  z-index: 2;
+  box-shadow: 0 0 0 0.5px var(--sidebar-pulltab-border-color);
 }
 
 .sidebar-pulltab::before {
-  top: calc(var(--sidebar-pulltab-cut) * 0.5);
-  transform: rotate(-45deg);
+  top: calc(var(--sidebar-pulltab-cut) * 0.5 - 0.5px);
+  transform: rotate(45deg);
+  background: var(--sidebar-pulltab-angle-top-color);
 }
 
 .sidebar-pulltab::after {
-  bottom: calc(var(--sidebar-pulltab-cut) * 0.5);
-  transform: rotate(45deg);
+  bottom: calc(var(--sidebar-pulltab-cut) * 0.5 - 0.5px);
+  transform: rotate(-45deg);
+  background: var(--sidebar-pulltab-angle-bottom-color);
+}
+
+.sidebar-pulltab-joint {
+  position: absolute;
+  width: var(--sidebar-pulltab-joint-size);
+  height: var(--sidebar-pulltab-joint-size);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 3;
+  background: var(--chrome-bg);
+  box-shadow: 0 0 0 1px var(--sidebar-pulltab-border-color);
+}
+
+.sidebar-pulltab-joint-top-left {
+  left: calc(100% - var(--sidebar-pulltab-cut));
+  top: 0;
+  transform: translate(-50%, -42%);
+}
+
+.sidebar-pulltab-joint-top-right {
+  left: 100%;
+  top: var(--sidebar-pulltab-cut);
+  transform: translate(-45%, -50%);
+}
+
+.sidebar-pulltab-joint-bottom-left {
+  left: calc(100% - var(--sidebar-pulltab-cut));
+  top: 100%;
+  transform: translate(-50%, -58%);
+}
+
+.sidebar-pulltab-joint-bottom-right {
+  left: 100%;
+  top: calc(100% - var(--sidebar-pulltab-cut));
+  transform: translate(-45%, -50%);
 }
 
 .sidebar-pulltab:hover {
   color: var(--text);
-  background: var(--surface2);
+  background: var(--chrome-bg);
 }
 
 .sidebar-pulltab-icon {
@@ -650,7 +756,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.6);
-  z-index: 99;
+  z-index: 19190;
 }
 
 /* Wide desktop — larger card grids */

@@ -82,6 +82,7 @@ function chatPage() {
     conversationCacheVersion: 'v2-source-runs-20260325',
     _persistTimer: null,
     _responseStartedAt: 0,
+    _pointerGridHideTimer: null,
     _pendingAutoModelSwitchBaseline: '',
     _pendingWsRequest: null,
     _pendingWsRecovering: false,
@@ -287,6 +288,7 @@ function chatPage() {
     _pointerTrailLastX: 0,
     _pointerTrailLastY: 0,
     _pointerTrailSeeded: false,
+    _pointerTrailHeadLastAt: 0,
     _progressCache: {},
     _freshInitThreadShownFor: '',
 
@@ -568,9 +570,9 @@ function chatPage() {
         var aUsage = self.modelUsageTs(aId);
         var bUsage = self.modelUsageTs(bId);
         if (bUsage !== aUsage) return bUsage - aUsage;
-        var activeId = self.currentAgent ? String(self.currentAgent.model_name || '').trim() : '';
-        var aActive = aId && aId === activeId ? 1 : 0;
-        var bActive = bId && bId === activeId ? 1 : 0;
+        var activeIds = self.activeModelCandidateIds();
+        var aActive = aId && activeIds.indexOf(aId) >= 0 ? 1 : 0;
+        var bActive = bId && activeIds.indexOf(bId) >= 0 ? 1 : 0;
         if (bActive !== aActive) return bActive - aActive;
         var aProvider = String((a && a.provider) || '').toLowerCase();
         var bProvider = String((b && b.provider) || '').toLowerCase();
@@ -580,10 +582,75 @@ function chatPage() {
       return filtered;
     },
 
+    activeModelCandidateIds: function() {
+      var out = [];
+      var seen = {};
+      var add = function(value) {
+        var id = String(value || '').trim();
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        out.push(id);
+      };
+      var agent = this.currentAgent || {};
+      var selected = String(agent.model_name || '').trim();
+      var runtime = String(agent.runtime_model || '').trim();
+      var provider = String(agent.model_provider || '').trim().toLowerCase();
+      if (selected) add(selected);
+      if (runtime) add(runtime);
+      if (selected && provider && provider !== 'ollama' && selected.indexOf('/') < 0) add(provider + '/' + selected);
+      if (runtime && provider && provider !== 'ollama' && runtime.indexOf('/') < 0) add(provider + '/' + runtime);
+      return out;
+    },
+
+    isSwitcherModelActive: function(model) {
+      var id = String(model && model.id ? model.id : '').trim();
+      if (!id) return false;
+      return this.activeModelCandidateIds().indexOf(id) >= 0;
+    },
+
+    resolveActiveSwitcherModel: function(filtered) {
+      var rows = Array.isArray(filtered) ? filtered : [];
+      var activeIds = this.activeModelCandidateIds();
+      for (var i = 0; i < activeIds.length; i++) {
+        var id = activeIds[i];
+        for (var j = 0; j < rows.length; j++) {
+          var row = rows[j];
+          if (row && String(row.id || '').trim() === id) return row;
+        }
+      }
+      var agent = this.currentAgent || null;
+      if (!agent) return null;
+      var selected = String(agent.model_name || '').trim();
+      var runtime = String(agent.runtime_model || '').trim();
+      var provider = String(agent.model_provider || '').trim();
+      var activeId = selected.toLowerCase() === 'auto' && runtime ? runtime : (selected || runtime);
+      if (!activeId) return null;
+      return {
+        id: activeId,
+        provider: provider || (activeId.indexOf('/') >= 0 ? activeId.split('/')[0] : 'unknown'),
+        display_name: activeId.indexOf('/') >= 0 ? activeId.split('/').slice(-1)[0] : activeId,
+        tier: 'Active',
+        context_window: Number(agent.context_window || 0) || null,
+        is_local: provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp',
+      };
+    },
+
     get groupedSwitcherModels() {
       var filtered = this.filteredSwitcherModels;
-      if (!filtered.length) return [];
-      return [{ provider: 'Recent', models: filtered }];
+      var groups = [];
+      var active = this.resolveActiveSwitcherModel(filtered);
+      if (active) groups.push({ provider: 'Active', models: [active] });
+      var activeId = active ? String(active.id || '').trim() : '';
+      var recent = filtered.filter(function(m) {
+        var id = String((m && m.id) || '').trim();
+        return !activeId || id !== activeId;
+      });
+      if (recent.length) {
+        groups.push({ provider: 'Recent', models: recent });
+      } else if (!groups.length && filtered.length) {
+        groups.push({ provider: 'Recent', models: filtered });
+      }
+      return groups;
     },
 
     modelSwitcherItemName: function(m) {
@@ -592,7 +659,7 @@ function chatPage() {
       var id = String(model.id || '').trim();
       var display = String(model.display_name || id).trim();
       var isAutoRow = provider.toLowerCase() === 'auto' || id.toLowerCase() === 'auto';
-      if (!isAutoRow) return provider + ':' + display;
+      if (!isAutoRow) return provider && provider.toLowerCase() !== 'unknown' ? (provider + ':' + display) : display;
       var activeAuto = this.currentAgent && String(this.currentAgent.model_name || '').trim().toLowerCase() === 'auto';
       var runtime = activeAuto ? String(this.currentAgent.runtime_model || '').trim() : '';
       if (!runtime) return 'Auto';
@@ -892,6 +959,11 @@ function chatPage() {
 
     formatAutoModelSwitchLabel(modelId) {
       var normalized = this.normalizeAutoModelNoticeName(modelId);
+      if (!normalized && this.currentAgent) {
+        normalized = this.normalizeAutoModelNoticeName(
+          this.currentAgent.runtime_model || this.currentAgent.model_name || ''
+        );
+      }
       return 'Auto:[' + (normalized || 'unknown') + ']';
     },
 
@@ -1043,9 +1115,28 @@ function chatPage() {
       var source = Array.isArray(rows) ? rows : [];
       var seen = {};
       var out = [];
+      var isLowValue = function(text) {
+        var lowered = String(text || '').toLowerCase();
+        if (!lowered) return true;
+        if (lowered.indexOf('the infring runtime is currently') >= 0) return true;
+        if (lowered.indexOf('if you need help') >= 0 || lowered.indexOf('feel free to ask') >= 0) return true;
+        if (lowered.indexOf('the user wants exactly 3 actionable next user prompts') >= 0) return true;
+        if (lowered.indexOf('json array of strings') >= 0) return true;
+        if (lowered === 'thinking...' || lowered === 'thinking..' || lowered === 'thinking.') return true;
+        var sentenceCount = (text.match(/[.!?]/g) || []).length;
+        if (sentenceCount > 2) return true;
+        if (/[\"“”]/.test(text) && text.length > 120) return true;
+        var actionableStart = /^(give me|run|create|draft|summarize|audit|check|fix|implement|propose|generate|compare|list|explain|plan|continue|compact|validate|review|show|write|build|convert|identify|trace)\b/i.test(text);
+        if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
+        return false;
+      };
       for (var i = 0; i < source.length; i++) {
         var raw = String(source[i] == null ? '' : source[i]).replace(/\s+/g, ' ').trim();
         if (!raw) continue;
+        raw = raw.replace(/^agent:\s*/i, '');
+        raw = raw.replace(/^ask\s+for\s+/i, 'Give me ');
+        raw = raw.replace(/^request\s+/i, 'Give me ');
+        if (isLowValue(raw)) continue;
         if (raw.length > 180) raw = raw.substring(0, 177) + '...';
         var key = raw.toLowerCase();
         if (seen[key]) continue;
@@ -1092,22 +1183,23 @@ function chatPage() {
         return word && word.length >= 4 && ['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].indexOf(word) === -1;
       }).slice(0, 3);
       var topicLabel = topicWords.length ? topicWords.join(' ') : role + ' workflow';
-      if (lastUser) rows.push('Continue this exact ask: "' + lastUser + '" with one concrete next action.');
+
+      if (lastUser) rows.push('Continue the current task with one implementation step and one verification check.');
       if (lastAgent && !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(lastAgent)) {
-        rows.push('Build on the latest answer: "' + lastAgent + '" with a focused follow-up prompt.');
+        rows.push('Challenge the latest answer with one focused follow-up request and measurable outcome.');
       }
-      if (cleanHint) rows.push('Use this hint directly: "' + cleanHint + '" and convert it into one actionable prompt.');
+      if (cleanHint) rows.push('Convert the latest hint into one direct next prompt about ' + topicLabel + '.');
       if (/queue|cockpit|conduit|latency|backpressure|reconnect|stale/i.test(topicLabel)) {
-        rows.push('Ask ' + agentName + ' for one automatic reliability remediation with rollback criteria.');
-        rows.push('Request a short runbook to keep queue depth under 60 and stale blocks near 0.');
+        rows.push('Give me one automatic reliability remediation with rollback criteria.');
+        rows.push('Give me a short runbook to keep queue depth under 60 and stale blocks near 0.');
       }
       if (model) {
-        rows.push('For model ' + model + ', ask for a 3-step execution plan focused on ' + topicLabel + '.');
+        rows.push('Give me a 3-step execution plan for ' + topicLabel + ' on model ' + model + '.');
       } else {
-        rows.push('Ask for a 3-step execution plan focused on ' + topicLabel + '.');
+        rows.push('Give me a 3-step execution plan focused on ' + topicLabel + '.');
       }
-      rows.push('Ask for one command to run now and one verification command tied to ' + topicLabel + '.');
-      rows.push('Ask ' + agentName + ' for the single highest-ROI change with measurable success criteria.');
+      rows.push('Give me one command to run now and one verification command tied to ' + topicLabel + '.');
+      rows.push('Give me the single highest-ROI change for ' + topicLabel + ' with measurable success criteria.');
       return this.normalizePromptSuggestions(rows);
     },
 
@@ -1303,7 +1395,7 @@ function chatPage() {
       container.appendChild(marker);
       setTimeout(function() {
         try { marker.remove(); } catch(_) {}
-      }, 460);
+      }, 860);
     },
 
     spawnPointerTrailSegment(container, x0, y0, x1, y1, opts) {
@@ -1328,7 +1420,7 @@ function chatPage() {
       container.appendChild(seg);
       setTimeout(function() {
         try { seg.remove(); } catch(_) {}
-      }, 260);
+      }, 760);
     },
 
     spawnPointerRipple(container, x, y) {
@@ -1347,13 +1439,24 @@ function chatPage() {
       if (!event || !event.currentTarget) return;
       if (this.pointerFxThemeMode() !== 'dark') return;
       var now = Date.now();
-      if ((now - Number(this._pointerTrailLastAt || 0)) < 10) return;
+      if ((now - Number(this._pointerTrailLastAt || 0)) < 8) return;
       this._pointerTrailLastAt = now;
       var host = event.currentTarget;
       var rect = host.getBoundingClientRect();
       // Place markers in scroll-content coordinates so they stay locked to cursor in a scrolling container.
       var x = event.clientX - rect.left + Number(host.scrollLeft || 0);
       var y = event.clientY - rect.top + Number(host.scrollTop || 0);
+      host.style.setProperty('--chat-grid-x', Math.round(x) + 'px');
+      host.style.setProperty('--chat-grid-y', Math.round(y) + 'px');
+      host.style.setProperty('--chat-grid-active', '1');
+      if (this._pointerGridHideTimer) {
+        clearTimeout(this._pointerGridHideTimer);
+      }
+      var self = this;
+      this._pointerGridHideTimer = setTimeout(function() {
+        try { host.style.setProperty('--chat-grid-active', '0'); } catch(_) {}
+        self._pointerGridHideTimer = null;
+      }, 180);
       if (!this._pointerTrailSeeded) {
         this._pointerTrailLastX = x;
         this._pointerTrailLastY = y;
@@ -1362,8 +1465,8 @@ function chatPage() {
       var dx = x - Number(this._pointerTrailLastX || x);
       var dy = y - Number(this._pointerTrailLastY || y);
       var dist = Math.sqrt(dx * dx + dy * dy);
-      var spacing = 2.2;
-      var steps = Math.max(1, Math.min(24, Math.ceil(dist / spacing)));
+      var spacing = 0.72;
+      var steps = Math.max(1, Math.min(52, Math.ceil(dist / spacing)));
       for (var i = 1; i <= steps; i++) {
         var t0 = (i - 1) / steps;
         var t1 = i / steps;
@@ -1372,22 +1475,40 @@ function chatPage() {
         var sx1 = this._pointerTrailLastX + (dx * t1);
         var sy1 = this._pointerTrailLastY + (dy * t1);
         var progress = t1;
-        var thickness = 1.8 + (progress * 1.35);
-        var alpha = 0.2 + (progress * 0.42);
-        var hueShift = -6 + (progress * 10);
+        var thickness = 2.05 + (progress * 1.85);
+        var alpha = 0.32 + (progress * 0.45);
+        var hueShift = -4 + (progress * 8);
         this.spawnPointerTrailSegment(host, sx0, sy0, sx1, sy1, {
           thickness: thickness,
           opacity: alpha,
           hueShift: hueShift,
         });
       }
-      // Soft head glow to keep the cursor anchor visually clear.
-      this.spawnPointerTrail(host, x, y, {
-        size: 4.1,
-        opacity: 0.42,
-        scale: 1.02,
-        hueShift: 0,
-      });
+      var canSpawnHead = (now - Number(this._pointerTrailHeadLastAt || 0)) >= 36;
+      if (canSpawnHead || dist < 1.5) {
+        // Render several smaller head particles instead of one large dot.
+        var invDist = dist > 0.0001 ? (1 / dist) : 0;
+        var nx = dist > 0.0001 ? (dx * invDist) : 1;
+        var ny = dist > 0.0001 ? (dy * invDist) : 0;
+        var pxTrail = [
+          { back: 0.0, lateral: 0.0, size: 3.3, opacity: 0.56, hue: 0 },
+          { back: 1.8, lateral: 0.72, size: 2.9, opacity: 0.48, hue: 2 },
+          { back: 2.8, lateral: -0.66, size: 2.6, opacity: 0.42, hue: -2 },
+          { back: 3.6, lateral: 0.0, size: 2.3, opacity: 0.36, hue: 1 },
+        ];
+        for (var j = 0; j < pxTrail.length; j++) {
+          var p = pxTrail[j];
+          var px = x - (nx * p.back) + (-ny * p.lateral);
+          var py = y - (ny * p.back) + (nx * p.lateral);
+          this.spawnPointerTrail(host, px, py, {
+            size: p.size,
+            opacity: p.opacity,
+            scale: 1.03,
+            hueShift: p.hue,
+          });
+        }
+        this._pointerTrailHeadLastAt = now;
+      }
       this._pointerTrailLastX = x;
       this._pointerTrailLastY = y;
     },
@@ -1405,11 +1526,25 @@ function chatPage() {
     clearPointerFx(event) {
       if (!event || !event.currentTarget) return;
       var host = event.currentTarget;
-      var dots = host.querySelectorAll('.chat-pointer-trail-dot,.chat-pointer-ripple');
+      if (this._pointerGridHideTimer) {
+        clearTimeout(this._pointerGridHideTimer);
+        this._pointerGridHideTimer = null;
+      }
+      try { host.style.setProperty('--chat-grid-active', '0'); } catch(_) {}
+      var dots = host.querySelectorAll('.chat-pointer-trail-dot,.chat-pointer-trail-segment,.chat-pointer-ripple');
       for (var i = 0; i < dots.length; i++) {
         try { dots[i].remove(); } catch(_) {}
       }
       this._pointerTrailSeeded = false;
+      this._pointerTrailHeadLastAt = 0;
+    },
+
+    markAgentMessageComplete(msg) {
+      if (!msg || msg.role !== 'agent') return;
+      msg._finish_bounce = true;
+      setTimeout(function() {
+        try { msg._finish_bounce = false; } catch(_) {}
+      }, 300);
     },
 
     fetchModelContextWindows(force) {
@@ -2100,6 +2235,187 @@ function chatPage() {
       });
     },
 
+    resolveModelContextWindowForSwitch: function(targetModelRef) {
+      var modelId = '';
+      var explicitWindow = 0;
+      if (targetModelRef && typeof targetModelRef === 'object') {
+        modelId = String(
+          targetModelRef.id || targetModelRef.model || targetModelRef.model_name || ''
+        ).trim();
+        explicitWindow = Number(
+          targetModelRef.context_window || targetModelRef.context_window_tokens || 0
+        );
+      } else {
+        modelId = String(targetModelRef || '').trim();
+      }
+      if (Number.isFinite(explicitWindow) && explicitWindow > 0) {
+        return Math.round(explicitWindow);
+      }
+      var map = this._contextWindowByModel || {};
+      var candidates = [];
+      if (modelId) {
+        candidates.push(modelId);
+        if (modelId.indexOf('/') >= 0) {
+          candidates.push(modelId.split('/').slice(-1)[0]);
+        }
+      }
+      for (var i = 0; i < candidates.length; i++) {
+        var fromMap = Number(map[candidates[i]] || 0);
+        if (Number.isFinite(fromMap) && fromMap > 0) {
+          return Math.round(fromMap);
+        }
+      }
+      var inferred = this.inferContextWindowFromModelId(
+        modelId.indexOf('/') >= 0 ? modelId.split('/').slice(-1)[0] : modelId
+      );
+      if (Number.isFinite(inferred) && inferred > 0) {
+        return Math.round(inferred);
+      }
+      return 0;
+    },
+
+    ensureContextBudgetForModelSwitch: function(agentId, targetModelRef, options) {
+      var self = this;
+      var opts = options && typeof options === 'object' ? options : {};
+      var id = String(agentId || '').trim();
+      if (!id) return Promise.resolve({ compacted: false });
+      var targetWindow = self.resolveModelContextWindowForSwitch(targetModelRef);
+      var usedTokens = Number(self.contextApproxTokens || 0);
+      if (
+        !Number.isFinite(targetWindow) ||
+        targetWindow <= 0 ||
+        !Number.isFinite(usedTokens) ||
+        usedTokens <= targetWindow
+      ) {
+        return Promise.resolve({
+          compacted: false,
+          target_context_window: targetWindow,
+          before_tokens: Math.max(0, Math.round(usedTokens || 0)),
+          after_tokens: Math.max(0, Math.round(usedTokens || 0))
+        });
+      }
+      var targetRatio = Number(opts.target_ratio);
+      if (!Number.isFinite(targetRatio) || targetRatio <= 0 || targetRatio >= 1) {
+        targetRatio = 0.8;
+      }
+      var targetTokens = Math.max(1, Math.floor(targetWindow * targetRatio));
+      InfringToast.info('Switching to a model with smaller context may degrade performance.');
+      return InfringAPI.post('/api/agents/' + encodeURIComponent(id) + '/session/compact', {
+        target_context_window: targetWindow,
+        target_ratio: targetRatio,
+        min_recent_messages: 12,
+        max_messages: 200
+      }).then(function(resp) {
+        var beforeTokens = Number(
+          resp && resp.before_tokens != null ? resp.before_tokens : usedTokens
+        );
+        var afterTokens = Number(
+          resp && resp.after_tokens != null ? resp.after_tokens : Math.min(usedTokens, targetTokens)
+        );
+        if (Number.isFinite(afterTokens) && afterTokens >= 0) {
+          self.contextApproxTokens = Math.max(0, Math.round(afterTokens));
+        }
+        if (Number.isFinite(targetWindow) && targetWindow > 0) {
+          self.contextWindow = Math.round(targetWindow);
+        }
+        self.refreshContextPressure();
+        self.addNoticeEvent({
+          notice_label:
+            'Context compacted from ' +
+            self.formatTokenK(beforeTokens) +
+            ' to ' +
+            self.formatTokenK(afterTokens) +
+            ' tokens (target ' +
+            self.formatTokenK(targetTokens) +
+            ')',
+          notice_type: 'info',
+          ts: Date.now()
+        });
+        return resp || {};
+      });
+    },
+
+    switchAgentModelWithGuards: function(targetModelRef, options) {
+      var self = this;
+      var opts = options && typeof options === 'object' ? options : {};
+      var agentId = String(
+        opts.agent_id || (self.currentAgent && self.currentAgent.id) || ''
+      ).trim();
+      if (!agentId) return Promise.reject(new Error('No agent selected'));
+      var requestedModel = '';
+      if (targetModelRef && typeof targetModelRef === 'object') {
+        requestedModel = String(
+          targetModelRef.id || targetModelRef.model || targetModelRef.model_name || ''
+        ).trim();
+      } else {
+        requestedModel = String(targetModelRef || '').trim();
+      }
+      if (!requestedModel) return Promise.reject(new Error('Model is required'));
+      var previousModel = String(
+        opts.previous_model != null
+          ? opts.previous_model
+          : ((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || '')
+      ).trim();
+      var previousProvider = String(
+        opts.previous_provider != null
+          ? opts.previous_provider
+          : ((self.currentAgent && self.currentAgent.model_provider) || '')
+      ).trim();
+      return self
+        .ensureContextBudgetForModelSwitch(agentId, targetModelRef, opts)
+        .catch(function(error) {
+          InfringToast.error(
+            'Context compaction failed before model switch: ' +
+              (error && error.message ? error.message : error)
+          );
+          return null;
+        })
+        .then(function() {
+          return InfringAPI.put('/api/agents/' + encodeURIComponent(agentId) + '/model', {
+            model: requestedModel
+          });
+        })
+        .then(function(resp) {
+          if (self.currentAgent && String(self.currentAgent.id || '') === agentId) {
+            self.currentAgent.model_name = (resp && resp.model) || requestedModel;
+            self.currentAgent.model_provider =
+              (resp && resp.provider) || self.currentAgent.model_provider || '';
+            self.currentAgent.runtime_model =
+              (resp && resp.runtime_model) ||
+              self.currentAgent.runtime_model ||
+              self.currentAgent.model_name;
+            var resolvedContextWindow = Number(
+              resp && resp.context_window != null ? resp.context_window : 0
+            );
+            if (Number.isFinite(resolvedContextWindow) && resolvedContextWindow > 0) {
+              self.currentAgent.context_window = Math.round(resolvedContextWindow);
+              self.contextWindow = Math.round(resolvedContextWindow);
+              self.refreshContextPressure();
+            }
+            self.touchModelUsage(requestedModel || '');
+            self.touchModelUsage(self.currentAgent.model_name || '');
+            self.touchModelUsage(self.currentAgent.runtime_model || '');
+            if (self.currentAgent.model_provider && self.currentAgent.model_name) {
+              self.touchModelUsage(
+                self.currentAgent.model_provider + '/' + self.currentAgent.model_name
+              );
+            }
+            if (self.currentAgent.model_provider && self.currentAgent.runtime_model) {
+              self.touchModelUsage(
+                self.currentAgent.model_provider + '/' + self.currentAgent.runtime_model
+              );
+            }
+            self.addModelSwitchNotice(
+              previousModel,
+              previousProvider,
+              self.currentAgent.model_name,
+              self.currentAgent.model_provider
+            );
+          }
+          return resp || {};
+        });
+    },
+
     switchModel(model) {
       if (!this.currentAgent) return;
       if (model.id === this.currentAgent.model_name) {
@@ -2108,29 +2424,15 @@ function chatPage() {
         return;
       }
       var self = this;
-      var previousModel = String((this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
-      var previousProvider = String((this.currentAgent && this.currentAgent.model_provider) || '').trim();
       this.modelSwitching = true;
-      InfringAPI.put('/api/agents/' + this.currentAgent.id + '/model', { model: model.id }).then(function(resp) {
-        // Use server-resolved model/provider to stay in sync (fixes #387/#466)
-        self.currentAgent.model_name = (resp && resp.model) || model.id;
-        self.currentAgent.model_provider = (resp && resp.provider) || model.provider;
-        self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || self.currentAgent.model_name;
-        self.touchModelUsage(model.id || '');
-        self.touchModelUsage(self.currentAgent.model_name || '');
-        self.touchModelUsage(self.currentAgent.runtime_model || '');
-        if (self.currentAgent.model_provider && self.currentAgent.model_name) {
-          self.touchModelUsage(self.currentAgent.model_provider + '/' + self.currentAgent.model_name);
-        }
-        if (self.currentAgent.model_provider && self.currentAgent.runtime_model) {
-          self.touchModelUsage(self.currentAgent.model_provider + '/' + self.currentAgent.runtime_model);
-        }
-        self.addModelSwitchNotice(previousModel, previousProvider, self.currentAgent.model_name, self.currentAgent.model_provider);
+      self.switchAgentModelWithGuards(model, {
+        agent_id: self.currentAgent.id
+      }).then(function() {
         InfringToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
-        self.modelSwitching = false;
       }).catch(function(e) {
         InfringToast.error('Switch failed: ' + e.message);
+      }).finally(function() {
         self.modelSwitching = false;
       });
     },
@@ -2171,6 +2473,7 @@ function chatPage() {
         var timeoutThought = String(timeoutEnvelope.thought || '').trim();
         var timeoutTools = timeoutEnvelope.tools || [];
         var timeoutText = self.sanitizeToolText(String(timeoutEnvelope.text || '').trim());
+        self._clearStreamingTypewriters();
         if (timeoutThought) {
           timeoutTools.unshift(self.makeThoughtToolCard(timeoutThought, Math.max(0, Date.now() - Number(self._responseStartedAt || Date.now()))));
         }
@@ -2203,6 +2506,62 @@ function chatPage() {
         clearTimeout(this._typingTimeout);
         this._typingTimeout = null;
       }
+    },
+
+    _clearMessageTypewriter: function(message) {
+      if (!message || typeof message !== 'object') return;
+      if (message._typewriterTimer) {
+        clearTimeout(message._typewriterTimer);
+        message._typewriterTimer = null;
+      }
+      message._typewriterRunning = false;
+    },
+
+    _clearStreamingTypewriters: function() {
+      var rows = Array.isArray(this.messages) ? this.messages : [];
+      for (var i = 0; i < rows.length; i++) {
+        this._clearMessageTypewriter(rows[i]);
+      }
+    },
+
+    _queueStreamTypingRender: function(message, nextText) {
+      if (!message || typeof message !== 'object') return;
+      var targetText = String(nextText || '');
+      message._streamTargetText = targetText;
+      if (message._typewriterRunning) return;
+      var self = this;
+      message._typewriterRunning = true;
+
+      var step = function() {
+        if (!message || !message.streaming) {
+          self._clearMessageTypewriter(message);
+          return;
+        }
+        var target = String(message._streamTargetText || '');
+        var current = String(message.text || '');
+        if (target === current) {
+          self._clearMessageTypewriter(message);
+          return;
+        }
+        // If sanitization trims or rewrites content, snap to the newest safe value.
+        if (target.length < current.length || target.indexOf(current) !== 0) {
+          message.text = target;
+          self._clearMessageTypewriter(message);
+          self.scrollToBottom();
+          return;
+        }
+        var remaining = target.length - current.length;
+        var take = Math.max(1, Math.min(8, Math.ceil(remaining / 4)));
+        message.text = target.slice(0, current.length + take);
+        self.scrollToBottom();
+        if (message.text.length < target.length) {
+          message._typewriterTimer = setTimeout(step, 14);
+          return;
+        }
+        self._clearMessageTypewriter(message);
+      };
+
+      step();
     },
 
     _reconcileSendingState: function() {
@@ -2481,17 +2840,11 @@ function chatPage() {
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
-              var previousModel = String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || '').trim();
-              var previousProvider = String((self.currentAgent && self.currentAgent.model_provider) || '').trim();
-              InfringAPI.put('/api/agents/' + self.currentAgent.id + '/model', { model: cmdArgs }).then(function(resp) {
-                // Use server-resolved model/provider (fixes #387/#466)
-                var resolvedModel = (resp && resp.model) || cmdArgs;
-                var resolvedProvider = (resp && resp.provider) || '';
-                self.currentAgent.model_name = resolvedModel;
-                if (resolvedProvider) { self.currentAgent.model_provider = resolvedProvider; }
-                self.currentAgent.runtime_model = (resp && resp.runtime_model) || self.currentAgent.runtime_model || resolvedModel;
-                self.addModelSwitchNotice(previousModel, previousProvider, resolvedModel, resolvedProvider || self.currentAgent.model_provider || '');
-              }).catch(function(e) { InfringToast.error('Model switch failed: ' + e.message); });
+              self.switchAgentModelWithGuards({ id: cmdArgs }, {
+                agent_id: self.currentAgent.id
+              }).catch(function(e) {
+                InfringToast.error('Model switch failed: ' + e.message);
+              });
             } else {
               self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [], system_origin: 'slash:model' });
               self.scrollToBottom();
@@ -2999,16 +3352,72 @@ function chatPage() {
       } catch(e) { /* silent */ }
       finally {
         if (self._sessionLoadSeq === loadSeq) {
-          self.$nextTick(function() {
-            self.scrollToBottomImmediate();
-            self.stabilizeBottomScroll();
-            self.sessionLoading = false;
+          await new Promise(function(resolve) {
+            self.$nextTick(function() {
+              self.scrollToBottomImmediate();
+              self.stabilizeBottomScroll();
+              self.scheduleMessageRenderWindowUpdate();
+              resolve();
+            });
           });
+          await self.waitForSessionRender(agentId, loadSeq);
+          if (self._sessionLoadSeq === loadSeq) {
+            self.sessionLoading = false;
+          }
           self._reconcileSendingState();
           if (!self.showFreshArchetypeTiles) {
             self.refreshPromptSuggestions(false);
           }
         }
+      }
+    },
+
+    waitForAnimationFrame() {
+      return new Promise(function(resolve) {
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(function() { resolve(); });
+        } else {
+          setTimeout(resolve, 16);
+        }
+      });
+    },
+
+    async waitForSessionRender(agentId, loadSeq) {
+      var self = this;
+      var expectedAgent = String(agentId || '');
+      var hasSessionMessages = Array.isArray(this.messages) && this.messages.length > 0;
+      var minFrames = hasSessionMessages ? 2 : 1;
+      var maxFrames = hasSessionMessages ? 42 : 6;
+      var messagesEl = null;
+
+      // Let Alpine commit template updates before probing for rendered blocks.
+      await this.waitForAnimationFrame();
+      await this.waitForAnimationFrame();
+
+      for (var frame = 0; frame < maxFrames; frame++) {
+        if (self._sessionLoadSeq !== loadSeq) return;
+        if (!self.currentAgent || String(self.currentAgent.id || '') !== expectedAgent) return;
+        if (!messagesEl) messagesEl = self.resolveMessagesScroller();
+        if (!messagesEl) {
+          await self.waitForAnimationFrame();
+          continue;
+        }
+
+        self.scheduleMessageRenderWindowUpdate(messagesEl);
+
+        if (!hasSessionMessages) {
+          if (frame >= minFrames) return;
+          await self.waitForAnimationFrame();
+          continue;
+        }
+
+        var blockCount = messagesEl.querySelectorAll('.chat-message-block').length;
+        var renderedCount = messagesEl.querySelectorAll('.chat-message-block .message, .chat-message-block .message-placeholder-shell, .chat-day-anchor, .chat-day-divider').length;
+        if (blockCount > 0 && renderedCount > 0 && frame >= minFrames) {
+          return;
+        }
+
+        await self.waitForAnimationFrame();
       }
     },
 
@@ -3327,17 +3736,18 @@ function chatPage() {
             last._streamRawText = String(last._streamRawText || '') + deltaText;
             last._stream_updated_at = Date.now();
             var streamingSplit = this.extractThinkingLeak(last._streamRawText);
-            var visibleText = streamingSplit.content || '';
+            var visibleText = this.stripModelPrefix(streamingSplit.content || '');
             last._cleanText = visibleText;
             last._thoughtText = streamingSplit.thought || '';
             if (streamingSplit.thought && !visibleText.trim()) {
+              this._clearMessageTypewriter(last);
               last.isHtml = true;
               last.thoughtStreaming = true;
               last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
             } else {
               if (last.isHtml) last.isHtml = false;
               last.thoughtStreaming = false;
-              last.text = visibleText;
+              this._queueStreamTypingRender(last, visibleText);
             }
             // Detect function-call patterns streamed as text and convert to tool cards
             var toolScanText = String(last._cleanText || '');
@@ -3348,12 +3758,14 @@ function chatPage() {
               var toolMatch = fcPart.match(/^(\w+)<\/function/) || fcPart.match(/^<function=(\w+)>/);
               var trimmedVisible = toolScanText.substring(0, fcIdx).trim();
               if (streamingSplit.thought && !trimmedVisible) {
+                this._clearMessageTypewriter(last);
                 last.isHtml = true;
                 last.thoughtStreaming = true;
                 last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
               } else {
                 if (last.isHtml) last.isHtml = false;
                 last.thoughtStreaming = false;
+                this._clearMessageTypewriter(last);
                 last.text = trimmedVisible;
               }
               last._cleanText = trimmedVisible;
@@ -3380,7 +3792,7 @@ function chatPage() {
             var firstMessage = {
               id: ++msgId,
               role: 'agent',
-              text: firstVisible,
+              text: '',
               meta: '',
               streaming: true,
               tools: [],
@@ -3399,6 +3811,9 @@ function chatPage() {
               firstMessage.text = this.renderLiveThoughtHtml(firstSplit.thought);
             }
             this.messages.push(firstMessage);
+            if (!firstMessage.isHtml) {
+              this._queueStreamTypingRender(firstMessage, firstVisible);
+            }
           }
           this.scrollToBottom();
           break;
@@ -3464,6 +3879,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
           this.applyContextTelemetry(data);
           var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
           if (!wsAutoSwitchPrevious) wsAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
@@ -3539,6 +3955,7 @@ function chatPage() {
           } else {
             this.messages.push(finalMessage);
           }
+          this.markAgentMessageComplete(finalMessage);
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -3562,6 +3979,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
           this._pendingAutoModelSwitchBaseline = '';
           var silentEnvelope = this.collectStreamedAssistantEnvelope();
           var silentThought = String(silentEnvelope.thought || '').trim();
@@ -3581,6 +3999,7 @@ function chatPage() {
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           });
+          this.markAgentMessageComplete(this.messages[this.messages.length - 1]);
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -3593,6 +4012,7 @@ function chatPage() {
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
           this._pendingAutoModelSwitchBaseline = '';
           var rawError = String(data && data.content ? data.content : 'unknown_error');
           var errorText = 'Error: ' + rawError;
@@ -4233,6 +4653,9 @@ function chatPage() {
         model = String(modelName || '').trim();
       }
       if (!model) return;
+      if (!previousModel && this.currentAgent) {
+        previousModel = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
+      }
       if (!previousModel) previousModel = 'unknown';
       var label = 'Model switched from ' + previousModel + ' to ' + model;
       this.touchModelUsage(model);
@@ -4449,6 +4872,11 @@ function chatPage() {
         this.drawerConfigForm = {};
       }
       this.drawerConfigForm.emoji = emoji;
+      // Choosing emoji explicitly switches away from image avatar mode.
+      this.drawerConfigForm.avatar_url = '';
+      if (this.agentDrawer && typeof this.agentDrawer === 'object') {
+        this.agentDrawer.avatar_url = '';
+      }
       this.drawerEmojiPickerOpen = false;
       this.drawerEmojiSearch = '';
       this.drawerEditingEmoji = false;
@@ -4644,24 +5072,21 @@ function chatPage() {
           var previousProviderName = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
           var previousModelName = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
           var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
-          var providerResp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
-          this.addModelSwitchNotice(
-            previousModelName,
-            previousProviderName,
-            (providerResp && providerResp.model) || this.agentDrawer.model_name || '',
-            (providerResp && providerResp.provider) || String(this.drawerNewProviderValue || '').trim()
-          );
+          await this.switchAgentModelWithGuards({ id: combined }, {
+            agent_id: agentId,
+            previous_model: previousModelName,
+            previous_provider: previousProviderName
+          });
         } else if (this.drawerEditingModel && String(this.drawerNewModelValue || '').trim()) {
           var previousModelNameForModelEdit = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
           var previousProviderForModelEdit = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
-          var modelResp = await InfringAPI.put('/api/agents/' + agentId + '/model', {
-            model: String(this.drawerNewModelValue || '').trim()
-          });
-          this.addModelSwitchNotice(
-            previousModelNameForModelEdit,
-            previousProviderForModelEdit,
-            (modelResp && modelResp.model) || String(this.drawerNewModelValue || '').trim(),
-            (modelResp && modelResp.provider) || this.agentDrawer.model_provider || ''
+          await this.switchAgentModelWithGuards(
+            { id: String(this.drawerNewModelValue || '').trim() },
+            {
+              agent_id: agentId,
+              previous_model: previousModelNameForModelEdit,
+              previous_provider: previousProviderForModelEdit
+            }
           );
         }
 
@@ -4716,6 +5141,13 @@ function chatPage() {
         payload.name = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       } else if (part === 'emoji') {
         payload.emoji = String((this.drawerConfigForm && this.drawerConfigForm.emoji) || '').trim();
+        payload.avatar_url = '';
+        if (this.drawerConfigForm && typeof this.drawerConfigForm === 'object') {
+          this.drawerConfigForm.avatar_url = '';
+        }
+        if (this.agentDrawer && typeof this.agentDrawer === 'object') {
+          this.agentDrawer.avatar_url = '';
+        }
       } else if (part === 'avatar') {
         payload.avatar_url = String((this.drawerConfigForm && this.drawerConfigForm.avatar_url) || '').trim();
       } else {
@@ -4750,14 +5182,13 @@ function chatPage() {
       try {
         var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
         var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
-        var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', {
-          model: String(this.drawerNewModelValue || '').trim()
-        });
-        this.addModelSwitchNotice(
-          previousModel,
-          previousProvider,
-          (resp && resp.model) || String(this.drawerNewModelValue || '').trim(),
-          (resp && resp.provider) || this.agentDrawer.model_provider || ''
+        var resp = await this.switchAgentModelWithGuards(
+          { id: String(this.drawerNewModelValue || '').trim() },
+          {
+            agent_id: this.agentDrawer.id,
+            previous_model: previousModel,
+            previous_provider: previousProvider
+          }
         );
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
         InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
@@ -4777,12 +5208,13 @@ function chatPage() {
         var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
         var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
         var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
-        var resp = await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/model', { model: combined });
-        this.addModelSwitchNotice(
-          previousModel,
-          previousProvider,
-          (resp && resp.model) || this.agentDrawer.model_name || '',
-          (resp && resp.provider) || String(this.drawerNewProviderValue || '').trim()
+        var resp = await this.switchAgentModelWithGuards(
+          { id: combined },
+          {
+            agent_id: this.agentDrawer.id,
+            previous_model: previousModel,
+            previous_provider: previousProvider
+          }
         );
         InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : String(this.drawerNewProviderValue || '').trim()));
         this.drawerEditingProvider = false;
@@ -5239,6 +5671,7 @@ function chatPage() {
           tools: httpTools,
           ts: Date.now()
         });
+        this.markAgentMessageComplete(this.messages[this.messages.length - 1]);
         this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);
         this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
@@ -5714,13 +6147,18 @@ function chatPage() {
       this.scheduleConversationPersist();
     },
 
-    // Remove provider/model disclosure prefixes injected by backend responses.
-    // Example: "[openai/gpt-5] hello" -> "hello"
+    // Remove disclosure/speaker prefixes injected by model/backend responses.
+    // Examples:
+    //   "[openai/gpt-5] hello" -> "hello"
+    //   "Agent: hello" -> "hello"
+    //   "**Assistant:** hello" -> "hello"
     stripModelPrefix: function(text) {
       if (!text) return text;
       var out = String(text);
-      for (var i = 0; i < 2; i++) {
-        var next = out.replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '');
+      for (var i = 0; i < 4; i++) {
+        var next = out
+          .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
+          .replace(/^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai)(?:\*\*)?\s*:\s*/i, '');
         if (next === out) break;
         out = next;
       }

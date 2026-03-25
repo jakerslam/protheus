@@ -2,10 +2,16 @@
 
 /* Font imports in index_head.html: Inter (body) + Geist Mono (code) */
 
+/* Prevent Alpine-controlled elements from flashing before hydration. */
+[x-cloak] {
+  display: none !important;
+}
+
 [data-theme="light"], :root {
   /* Backgrounds — layered depth */
   --bg: #F5F4F2;
   --bg-primary: #EDECEB;
+  --chrome-bg: #EAE7E4;
   --bg-elevated: #F8F7F6;
   --surface: #FFFFFF;
   --surface2: #F0EEEC;
@@ -90,6 +96,7 @@
 [data-theme="dark"] {
   --bg: #080706;
   --bg-primary: #0F0E0E;
+  --chrome-bg: #141210;
   --bg-elevated: #161413;
   --surface: #1F1D1C;
   --surface2: #2A2725;
