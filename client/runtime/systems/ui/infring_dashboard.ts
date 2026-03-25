@@ -4909,6 +4909,18 @@ function formatToolHistory(toolSteps = []) {
     : '(none)';
 }
 
+function isRuntimeTaskInput(input = '') {
+  return /^\s*\[runtime-task\]/i.test(String(input || ''));
+}
+
+function runtimeTaskSchemaSatisfied(text = '') {
+  const requiredHeadings = ['summary', 'findings', 'actions', 'receipts'];
+  const value = String(text || '');
+  return requiredHeadings.every((heading) =>
+    new RegExp(`(^|\\n)\\s*${heading}\\s*:`, 'i').test(value)
+  );
+}
+
 function stripAssistantSpeakerPrefix(value) {
   if (!value) return '';
   let out = String(value);
@@ -4956,8 +4968,9 @@ function outputContractViolationReason(input, response, toolSteps = []) {
   const hasConcreteSignal = responseShowsConcreteAction(normalized);
   if (hasVagueSignal && !hasConcreteSignal) return 'vague_low_signal';
 
-  const runtimeTask = /^\s*\[runtime-task\]/i.test(String(input || ''));
+  const runtimeTask = isRuntimeTaskInput(input);
   if (runtimeTask) {
+    if (!runtimeTaskSchemaSatisfied(normalized)) return 'runtime_task_schema_missing';
     const hasEvidencePattern =
       /(receipt|evidence|finding|actions?|risk|severity|queue|cockpit|conduit|critical|standard|background|drain|backpressure)/i
         .test(normalized) &&
@@ -4978,6 +4991,7 @@ function buildStrictOutputRepairPrompt({
 }) {
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'agent', 80) || 'agent';
   const toolSummary = formatToolHistory(Array.isArray(toolSteps) ? toolSteps.slice(-3) : []);
+  const runtimeTask = isRuntimeTaskInput(input);
   return [
     'You are repairing an assistant response that failed strict output validation.',
     `Active agent: ${agentName}`,
@@ -4987,7 +5001,9 @@ function buildStrictOutputRepairPrompt({
     '- No speaker prefixes (no "Agent:", "Assistant:", "System:", "Jarvis:").',
     '- No filler or deflection ("if you have specific questions", "let me know if you need...").',
     '- Include concrete evidence/actions (numbers, commands, explicit steps, or measured status).',
-    '- If the user task starts with [runtime-task], include concise findings and actions.',
+    runtimeTask
+      ? '- Because this is a [runtime-task], format response using EXACT headings: Summary:, Findings:, Actions:, Receipts:.'
+      : '- Keep the response concise and actionable.',
     'Return ONLY JSON with this schema and no markdown:',
     '{"type":"final","response":"<final response>"}',
     '',
@@ -5037,13 +5053,21 @@ function enforceStrictAssistantOutput({
 
   let valid = !rejectedReason;
   if (!valid) {
+    const runtimeTask = isRuntimeTaskInput(input);
     const usableTool = (Array.isArray(toolSteps) ? toolSteps : [])
       .slice()
       .reverse()
       .find((step) => step && !step.is_error && cleanText(step.result || '', 3600));
-    currentResponse = usableTool
-      ? normalizeAssistantFinalText(String(usableTool.result || ''))
-      : normalizeAssistantFinalText(runtimeCouplingFallbackResponse(input, runtimeMirror || {}));
+    const toolEvidence = usableTool ? normalizeAssistantFinalText(String(usableTool.result || '')) : '';
+    const runtimeFallback = normalizeAssistantFinalText(runtimeCouplingFallbackResponse(input, runtimeMirror || {}));
+    currentResponse = runtimeTask
+      ? normalizeAssistantFinalText([
+          'Summary: Generated a fallback response because model output failed strict contract validation.',
+          `Findings: ${toolEvidence || runtimeFallback || 'No reliable evidence was returned from the model/tool path.'}`,
+          'Actions: 1) Retry with stricter prompts. 2) Keep contract validation active. 3) Escalate to operator if repeated failures persist.',
+          `Receipts: validation_rejected=${cleanText(rejectedReason || 'unknown', 80)}, regen_attempts=${regenAttempts}.`,
+        ].join('\n'))
+      : (toolEvidence || runtimeFallback);
     if (!currentResponse || isPlaceholderResponse(currentResponse)) {
       currentResponse = 'Unable to produce a contract-compliant final answer. Please retry with a narrower task.';
     }
@@ -5265,6 +5289,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
   const fullInfring = ACTIVE_CLI_MODE === CLI_MODE_FULL_INFRING;
   const runtimeSummary = runtimeContextPrompt(snapshot, runtimeMirror);
+  const runtimeTask = isRuntimeTaskInput(input);
   const todayIso = nowIso().slice(0, 10);
   return [
     'You are Infring runtime chat assistant.',
@@ -5283,6 +5308,9 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
     'Return ONLY one JSON object with no markdown.',
     'Final answer schema:',
     '{"type":"final","response":"Hello! How can I help?"}',
+    runtimeTask
+      ? 'For [runtime-task] requests, the response must include exact headings: "Summary:", "Findings:", "Actions:", and "Receipts:".'
+      : '',
     'Tool call schema:',
     '{"type":"tool_call","command":"<allowed command>","args":["arg1","arg2"],"reason":"<short reason>"}',
     fullInfring
@@ -5306,6 +5334,7 @@ function buildToolFollowupPrompt({ agent, input, toolSteps = [], snapshot = null
   const agentName = cleanText(agent && (agent.name || agent.id) ? agent.name || agent.id : 'master-agent', 80);
   const toolSummary = formatToolHistory(toolSteps);
   const runtimeSummary = runtimeContextPrompt(snapshot, runtimeMirror);
+  const runtimeTask = isRuntimeTaskInput(input);
   return [
     'You are Infring runtime chat assistant.',
     `Active agent: ${agentName}`,
@@ -5315,6 +5344,9 @@ function buildToolFollowupPrompt({ agent, input, toolSteps = [], snapshot = null
     'Never output placeholders such as <text response to user> or <answer>.',
     'Return ONLY one JSON object with no markdown.',
     '{"type":"final","response":"Hello! How can I help?"}',
+    runtimeTask
+      ? 'For [runtime-task] requests, the response must include exact headings: "Summary:", "Findings:", "Actions:", and "Receipts:".'
+      : '',
     '',
     `User request:\n${cleanText(input, 3200)}`,
     '',
