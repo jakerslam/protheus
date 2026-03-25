@@ -5,14 +5,13 @@ body.theme-switching *,
 body.theme-switching *::before,
 body.theme-switching *::after {
   transition: none !important;
-  animation: none !important;
 }
 
 /* Buttons */
 .btn {
   padding: 8px 16px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 13px;
@@ -54,17 +53,22 @@ body.theme-switching *::after {
 }
 .btn-success:hover { background: var(--success-dim); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .btn-danger {
-  background: color-mix(in srgb, var(--error) 78%, transparent);
-  color: #fff;
-  border: 1px solid color-mix(in srgb, var(--error) 68%, transparent);
-  border-top-color: color-mix(in srgb, var(--error) 68%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--error) 90%, #000 10%);
-  border-right-color: color-mix(in srgb, var(--error) 90%, #000 10%);
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: color-mix(in srgb, var(--error) 88%, var(--text) 12%);
+  border: 1px solid color-mix(in srgb, var(--error) 42%, transparent);
+  border-top-color: color-mix(in srgb, var(--error) 42%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--error) 55%, transparent);
+  border-right-color: color-mix(in srgb, var(--error) 55%, transparent);
   box-shadow: var(--shadow-xs);
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
 }
-.btn-danger:hover { background: var(--error-dim); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--error) 20%, transparent);
+  color: color-mix(in srgb, var(--error) 94%, var(--text) 6%);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
 .btn-ghost {
   background: transparent;
   color: var(--text-dim);
@@ -73,6 +77,25 @@ body.theme-switching *::after {
 .btn-ghost:hover { background: var(--surface2); color: var(--text); border-color: var(--border-light); transform: translateY(-1px); }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 .btn-block { width: 100%; }
+
+.btn-archive-all {
+  color: var(--text-dim);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+
+.btn-archive-all:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text-dim) 34%, var(--border) 66%);
+  background: color-mix(in srgb, var(--surface2) 94%, transparent);
+}
+
+.btn-archive-all svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.1;
+  flex: 0 0 auto;
+}
 
 /* Cards */
 .card {
@@ -422,6 +445,9 @@ tr:hover td { background: var(--surface2); }
   mask-size: 100% 100%;
   -webkit-mask-size: 100% 100%;
   isolation: isolate;
+  --chat-grid-x: 50%;
+  --chat-grid-y: 50%;
+  --chat-grid-active: 0;
 }
 
 /* Explicit top+bottom fades so chat edges don't hard-cut while scrolling. */
@@ -458,10 +484,52 @@ tr:hover td { background: var(--surface2); }
   );
 }
 
-/* Keep rendered chat content above background pointer particles. */
-.messages > * {
+/* Keep rendered chat content above background pointer particles and overlays. */
+.messages > *:not(.chat-grid-overlay) {
   position: relative;
   z-index: 1;
+}
+
+.chat-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.22s ease-out;
+}
+
+body[data-theme='dark'] .chat-grid-overlay {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, #2aa0ff 46%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, #2aa0ff 38%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 26px 26px;
+  background-position: 0 0;
+  mask-image: radial-gradient(
+    185px circle at var(--chat-grid-x) var(--chat-grid-y),
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.86) 30%,
+    rgba(0, 0, 0, 0.44) 58%,
+    rgba(0, 0, 0, 0.1) 78%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    185px circle at var(--chat-grid-x) var(--chat-grid-y),
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.86) 30%,
+    rgba(0, 0, 0, 0.44) 58%,
+    rgba(0, 0, 0, 0.1) 78%,
+    transparent 100%
+  );
+  opacity: calc(var(--chat-grid-active) * 0.9);
 }
 
 .chat-pointer-trail-dot,
@@ -478,8 +546,8 @@ tr:hover td { background: var(--surface2); }
 }
 
 .chat-pointer-trail-dot {
-  --trail-size: 4.4;
-  --trail-opacity: 0.72;
+  --trail-size: 4.8;
+  --trail-opacity: 0.68;
   --trail-scale: 1;
   --trail-hue-shift: 0deg;
   width: calc(var(--trail-size) * 1px);
@@ -491,28 +559,28 @@ tr:hover td { background: var(--surface2); }
     0 0 16px color-mix(in srgb, #00ffff 34%, transparent);
   opacity: var(--trail-opacity);
   filter: hue-rotate(var(--trail-hue-shift));
-  animation: chatPointerTrailFade 0.48s cubic-bezier(0.2, 0.7, 0.25, 1) forwards;
+  animation: chatPointerTrailFade 0.9s cubic-bezier(0.2, 0.7, 0.25, 1) forwards;
 }
 
 .chat-pointer-trail-segment {
-  --trail-seg-thickness: 2.4;
-  --trail-seg-opacity: 0.44;
+  --trail-seg-thickness: 2.9;
+  --trail-seg-opacity: 0.54;
   --trail-seg-hue-shift: 0deg;
   height: calc(var(--trail-seg-thickness) * 1px);
   border-radius: 999px;
   transform-origin: center center;
   opacity: var(--trail-seg-opacity);
-  filter: hue-rotate(var(--trail-seg-hue-shift));
+  filter: hue-rotate(var(--trail-seg-hue-shift)) blur(0.75px);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 22%, transparent) 0%,
-    color-mix(in srgb, #00d4ff 68%, var(--accent) 32%) 52%,
-    color-mix(in srgb, var(--accent) 26%, transparent) 100%
+    color-mix(in srgb, var(--accent) 24%, transparent) 0%,
+    color-mix(in srgb, #00d4ff 72%, var(--accent) 28%) 52%,
+    color-mix(in srgb, var(--accent) 24%, transparent) 100%
   );
   box-shadow:
-    0 0 7px color-mix(in srgb, #00d4ff 48%, transparent),
-    0 0 12px color-mix(in srgb, var(--accent) 32%, transparent);
-  animation: chatPointerTrailSegmentFade 0.3s linear forwards;
+    0 0 10px color-mix(in srgb, #00d4ff 56%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: chatPointerTrailSegmentFade 0.82s linear forwards;
 }
 
 @keyframes chatPointerTrailFade {
@@ -550,6 +618,7 @@ tr:hover td { background: var(--surface2); }
 
 .chat-thread-shell {
   position: relative;
+  min-height: 100%;
 }
 
 .chat-thread-loading {
@@ -1531,6 +1600,16 @@ tr:hover td { background: var(--surface2); }
   animation: none;
 }
 
+.message-bubble.message-finish-bounce {
+  animation: messageFinishBounce 0.24s cubic-bezier(0.21, 0.7, 0.3, 1);
+}
+
+@keyframes messageFinishBounce {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
 .chat-progress-wrap {
   margin-top: 8px;
   margin-bottom: 2px;
@@ -1672,7 +1751,7 @@ tr:hover td { background: var(--surface2); }
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  z-index: 18020;
+  z-index: 850;
   overflow: visible;
   pointer-events: none;
   touch-action: pan-y;
@@ -1741,7 +1820,7 @@ tr:hover td { background: var(--surface2); }
   background: var(--bg);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
-  z-index: 18030;
+  z-index: 860;
 }
 
 .chat-map-jump-up {
@@ -2004,7 +2083,7 @@ body[data-theme='dark'] .chat-map-marker-terminal {
   text-align: left;
   display: block;
   overflow: visible;
-  z-index: 18090;
+  z-index: 890;
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
   transition: opacity 0.14s var(--ease-smooth), transform 0.14s var(--ease-smooth);
@@ -2992,7 +3071,7 @@ mark.search-highlight {
   backdrop-filter: blur(10px) saturate(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
   transition: transform 0.15s var(--ease-smooth), background 0.15s var(--ease-smooth), opacity 0.15s var(--ease-smooth);
-  z-index: 11500;
+  z-index: 10950;
   pointer-events: auto;
 }
 
@@ -3409,10 +3488,32 @@ mark.search-highlight {
 
 .prompt-suggestion-chip-text {
   display: inline-block;
-  transition: opacity 0.24s var(--ease-smooth);
+  transition: opacity 0.24s var(--ease-smooth), filter 0.2s var(--ease-smooth);
+  filter: blur(0);
+}
+
+@keyframes promptSuggestionTextHoverBlur {
+  0% {
+    filter: blur(2.6px);
+    opacity: 0.78;
+  }
+  82% {
+    filter: blur(2.6px);
+    opacity: 0.82;
+  }
+  100% {
+    filter: blur(0);
+    opacity: 1;
+  }
 }
 
 .prompt-suggestion-chip:hover .prompt-suggestion-chip-text {
+  animation: promptSuggestionTextHoverBlur 0.38s var(--ease-smooth) forwards;
+}
+
+.prompt-suggestion-chip:not(:hover) .prompt-suggestion-chip-text {
+  animation: none;
+  filter: blur(0);
   opacity: 1;
 }
 
@@ -3773,25 +3874,44 @@ body[data-theme='dark'] .prompt-suggestion-chip {
 /* Theme switcher — 3-mode pill (Light / System / Dark) */
 .theme-switcher {
   display: inline-flex;
-  position: static;
-  border-radius: var(--radius-sm);
+  position: relative;
+  gap: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
   overflow: hidden;
 }
 .theme-opt {
   cursor: pointer;
-  padding: 4px 8px;
-  font-size: 14px;
-  background: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 0;
   border: none;
-  color: var(--text-muted);
-  transition: all 0.2s;
+  border-right: 1px solid var(--border);
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-dim);
+  transition: background var(--transition-fast), color var(--transition-fast);
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.theme-opt:hover { color: var(--text-primary); background: var(--bg-hover); }
-.theme-opt.active { color: var(--accent); background: var(--accent-glow); }
+
+.theme-opt:last-child {
+  border-right: none;
+}
+
+.theme-opt:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+.theme-opt.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
 
 /* Stable universal top bar for all pages */
 .global-topbar {
@@ -3803,13 +3923,14 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   gap: 12px;
   padding: 8px 16px;
   border-bottom: none;
-  background: var(--bg-primary);
-  box-shadow: 0 12px 22px -20px rgba(0, 0, 0, 0.6);
+  background: var(--chrome-bg);
+  box-shadow: 0 12px 22px -18px rgba(0, 0, 0, 0.62), 0 1px 6px rgba(0, 0, 0, 0.24);
   position: fixed;
   left: 0;
   right: 0;
   top: 0;
-  z-index: 700;
+  /* Keep topbar above sidebar/pulltab so seam shadow renders consistently. */
+  z-index: 19300;
 }
 
 .global-topbar-left {
@@ -3866,6 +3987,52 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.topbar-icon-btn.hover-tooltip {
+  position: relative;
+  overflow: visible;
+}
+
+.topbar-icon-btn.hover-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: auto;
+  transform: translateY(-2px);
+  width: max-content;
+  max-width: min(88vw, 24ch);
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 18110;
+  transition: opacity 0.14s var(--ease-smooth), transform 0.14s var(--ease-smooth);
+}
+
+.topbar-icon-btn.hover-tooltip::before {
+  content: none;
+}
+
+.topbar-icon-btn.hover-tooltip:hover::after,
+.topbar-icon-btn.hover-tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.topbar-icon-btn.hover-tooltip:hover::before,
+.topbar-icon-btn.hover-tooltip:focus-visible::before {
+  opacity: 0;
 }
 
 .global-topbar-right {
@@ -4118,13 +4285,17 @@ body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
 }
 
 body[data-theme='dark'] .chat-pointer-trail-dot {
+  --trail-size: 6;
+  --trail-opacity: 0.72;
   background: color-mix(in srgb, #00d4ff 68%, var(--accent) 32%);
-  box-shadow: 0 0 7px rgba(0, 212, 255, 0.72), 0 0 14px rgba(0, 212, 255, 0.34);
+  box-shadow: 0 0 9px rgba(0, 212, 255, 0.74), 0 0 18px rgba(0, 212, 255, 0.4);
 }
 
 body[data-theme='dark'] .chat-pointer-trail-segment {
-  background: linear-gradient(90deg, rgba(0, 212, 255, 0.16) 0%, rgba(0, 212, 255, 0.74) 52%, rgba(0, 212, 255, 0.16) 100%);
-  box-shadow: 0 0 6px rgba(0, 212, 255, 0.44), 0 0 12px rgba(0, 212, 255, 0.22);
+  --trail-seg-thickness: 3.5;
+  --trail-seg-opacity: 0.64;
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 212, 255, 0.86) 52%, rgba(0, 212, 255, 0.2) 100%);
+  box-shadow: 0 0 9px rgba(0, 212, 255, 0.58), 0 0 18px rgba(0, 212, 255, 0.34);
 }
 
 body[data-theme='dark'] .chat-pointer-ripple {

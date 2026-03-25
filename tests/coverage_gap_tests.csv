@@ -1,0 +1,99 @@
+# CSV Format: ID, Priority, Name, Module, Function, Lines, Effort(hours), Status, Coverage_Gain
+# Status: not_started|in_progress|complete
+# Coverage_Gain: Estimated contribution to overall coverage
+
+# Priority 1: Security Fail-Closed Paths (15 tests) -> +1.2%
+1.1, P1, emergency_stop_rejects_short_approval_note, security::lib.rs, run_emergency_stop, 888-900, 2, not_started, 0.08
+1.2, P1, emergency_stop_normalizes_invalid_scopes, security::lib.rs, emergency_stop_normalize_scopes, 810-830, 2, not_started, 0.08
+1.3, P1, emergency_stop_release_short_approval_note, security::lib.rs, run_emergency_stop, 918-931, 2, not_started, 0.08
+1.4, P1, emergency_stop_unknown_command, security::lib.rs, run_emergency_stop, 935-950, 1, not_started, 0.05
+1.5, P1, capability_lease_missing_key_error, security::lib.rs, run_capability_lease, 980-995, 2, not_started, 0.08
+1.6, P1, capability_lease_empty_scope_error, security::lib.rs, run_capability_lease, 1070-1075, 2, not_started, 0.08
+1.7, P1, capability_lease_malformed_token, security::lib.rs, lease_unpack_token, 950-975, 3, not_started, 0.10
+1.8, P1, capability_lease_double_consume_fails_closed, security::lib.rs, run_capability_lease, 1150-1200, 3, not_started, 0.10
+1.9, P1, capability_lease_verify_consumed_fails, security::lib.rs, run_capability_lease, 1138-1148, 2, not_started, 0.08
+1.10, P1, startup_attestation_fails_without_key, security::lib.rs, run_startup_attestation, 1300-1310, 2, not_started, 0.08
+1.11, P1, startup_attestation_unknown_command, security::lib.rs, run_startup_attestation, 1480-1500, 1, not_started, 0.05
+1.12, P1, lease_unpack_token_invalid_base64, security::lib.rs, lease_unpack_token, 960-975, 2, not_started, 0.08
+1.13, P1, capability_lease_status_empty_state, security::lib.rs, run_capability_lease, 1200+, 1.5, not_started, 0.06
+1.14, P1, startup_attestation_verify_expired, security::lib.rs, run_startup_attestation, 1415-1425, 2, not_started, 0.08
+1.15, P1, startup_attestation_signature_mismatch, security::lib.rs, run_startup_attestation, 1450-1470, 2, not_started, 0.08
+1.16, P1, capability_lease_issue_with_custom_ttl, security::lib.rs, run_capability_lease, 1080-1100, 1.5, not_started, 0.06
+1.17, P1, capability_lease_issue_with_reason, security::lib.rs, run_capability_lease, 1090-1095, 1, not_started, 0.04
+
+# Priority 2: Skills Backward Compatibility (8 tests) -> +0.8%
+2.1, P2, evaluate_skill_run_missing_skill_in_registry, ops::skills_plane.rs, evaluate_skill_run_backward_compat, 175-180, 2, not_started, 0.10
+2.2, P2, evaluate_skill_run_invalid_version_format, ops::skills_plane.rs, parse_skill_version, 185-190, 2, not_started, 0.10
+2.3, P2, evaluate_skill_run_version_below_minimum, ops::skills_plane.rs, evaluate_skill_run_backward_compat, 200-220, 2.5, not_started, 0.10
+2.4, P2, evaluate_skill_run_legacy_version_parsing, ops::skills_plane.rs, parse_skill_version, 65-85, 2, not_started, 0.10
+2.5, P2, evaluate_skill_run_strict_semver_policy, ops::skills_plane.rs, load_backward_compat_policy, 205-212, 2, not_started, 0.08
+2.6, P2, default_migration_lane_path_edge_cases, ops::skills_plane.rs, default_migration_lane_path, 245-275, 1.5, not_started, 0.08
+2.7, P2, load_backward_compat_policy_default, ops::skills_plane.rs, load_backward_compat_policy, 155-165, 1.5, not_started, 0.12
+2.8, P2, parse_skill_version_edge_cases, ops::skills_plane.rs, parse_skill_version, 45-85, 2, not_started, 0.10
+2.9, P2, evaluate_skill_run_missing_policy_file, ops::skills_plane.rs, load_backward_compat_policy, 155-165, 1.5, not_started, 0.08
+2.10, P2, evaluate_skill_run_compatibility_gate_passed, ops::skills_plane.rs, evaluate_skill_run_backward_compat, 215-225, 1.5, not_started, 0.08
+
+# Priority 3: Conduit Strict Mode Enforcement (12 tests) -> +1.5%
+3.1, P3, conduit_empty_agent_id_validation, conduit::lib.rs, validate_structure, 1750-1760, 2, not_started, 0.12
+3.2, P3, conduit_whitespace_agent_id_validation, conduit::lib.rs, validate_structure, 1753-1755, 1, not_started, 0.08
+3.3, P3, conduit_receipt_query_limit_zero, conduit::lib.rs, validate_structure, 1760-1770, 2, not_started, 0.12
+3.4, P3, conduit_receipt_query_limit_over_1000, conduit::lib.rs, validate_structure, 1765-1770, 1, not_started, 0.12
+3.5, P3, conduit_receipt_query_valid_limit, conduit::lib.rs, validate_structure, 1760-1770, 1, not_started, 0.05
+3.6, P3, conduit_policy_update_empty_patch_id, conduit::lib.rs, validate_structure, 1770-1785, 2, not_started, 0.12
+3.7, P3, conduit_policy_update_unsafe_prefix, conduit::lib.rs, validate_structure, 1775-1782, 2, not_started, 0.12
+3.8, P3, conduit_policy_update_valid_patch, conduit::lib.rs, validate_structure, 1775-1782, 1.5, not_started, 0.05
+3.9, P3, conduit_extension_wasm_sha256_too_short, conduit::lib.rs, validate_structure, 1785-1800, 2, not_started, 0.12
+3.10, P3, conduit_extension_wasm_sha256_invalid_hex, conduit::lib.rs, validate_structure, 1788-1795, 2, not_started, 0.12
+3.11, P3, conduit_extension_empty_capabilities, conduit::lib.rs, validate_structure, 1790-1795, 2, not_started, 0.12
+3.12, P3, conduit_extension_whitespace_capabilities, conduit::lib.rs, validate_structure, 1793-1797, 1.5, not_started, 0.10
+3.13, P3, conduit_extension_invalid_plugin_type, conduit::lib.rs, validate_structure, 1795-1800, 2, not_started, 0.12
+3.14, P3, conduit_stop_agent_empty_validation, conduit::lib.rs, validate_structure, 1751-1755, 1, not_started, 0.08
+
+# Priority 4: Receipt Validation Logic (6 tests) -> +1.0%
+4.1, P4, validation_receipt_deterministic_hashing, conduit::lib.rs, fail_closed_receipt/success_receipt, 1820-1850, 2, not_started, 0.15
+4.2, P4, validation_receipt_hash_uniqueness, conduit::lib.rs, fail_closed_receipt, 1850-1870, 1.5, not_started, 0.15
+4.3, P4, crossing_receipt_ts_to_rust_direction, conduit::lib.rs, CrossingReceipt construction, 1870-1890, 2, not_started, 0.15
+4.4, P4, crossing_receipt_rust_to_ts_direction, conduit::lib.rs, CrossingReceipt construction, 1890-1910, 1.5, not_started, 0.15
+4.5, P4, validation_receipt_different_policy_hashes, conduit::lib.rs, fail_closed_receipt, 1855-1865, 1, not_started, 0.15
+4.6, P4, validation_receipt_different_security_hashes, conduit::lib.rs, fail_closed_receipt, 1860-1870, 1, not_started, 0.15
+
+# Priority 5: Error Handling Branches (11 tests) -> +2.0%
+5.1, P5, startup_attestation_critical_hash_drift, security::lib.rs, run_startup_attestation, 1455-1480, 3, not_started, 0.18
+5.2, P5, startup_attestation_missing_paths_handled, security::lib.rs, startup_hash_critical_paths, 1380-1390, 2, not_started, 0.18
+5.3, P5, startup_attestation_status_command, security::lib.rs, run_startup_attestation, 1470-1485, 1.5, not_started, 0.16
+5.4, P5, startup_policy_ttl_clamping, security::lib.rs, load_startup_policy, 1280-1285, 1, not_started, 0.14
+5.5, P5, integrity_reseal_atomic_write_failure, security::lib.rs, write_json_atomic, 900-925, 3, not_started, 0.18
+5.6, P5, emergency_stop_state_load_malformed, security::lib.rs, emergency_stop_load_state, 800-825, 2, not_started, 0.16
+5.7, P5, capability_lease_audit_append_failure, security::lib.rs, append_jsonl, 1180-1195, 2, not_started, 0.18
+5.8, P5, capability_lease_state_corrupted, security::lib.rs, load_lease_state, 930-945, 2, not_started, 0.16
+5.9, P5, lease_verify_wrong_key, security::lib.rs, run_capability_lease, 1120-1135, 2, not_started, 0.18
+5.10, P5, lease_verify_expired, security::lib.rs, run_capability_lease, 1105-1120, 2, not_started, 0.18
+5.11, P5, startup_resolve_secret_file_permission_denied, security::lib.rs, startup_resolve_secret, 1250-1270, 2, not_started, 0.14
+
+# Priority 6: Skills State Management (6 tests) -> +1.0%
+6.1, P6, skills_plane_status_empty_state, ops::skills_plane.rs, status, 300-320, 1.5, not_started, 0.16
+6.2, P6, skills_create_with_invalid_contract_version, ops::skills_plane.rs, run_create, 330-345, 2, not_started, 0.16
+6.3, P6, skills_create_with_invalid_contract_kind, ops::skills_plane.rs, run_create, 335-345, 2, not_started, 0.16
+6.4, P6, skills_create_with_missing_name, ops::skills_plane.rs, run_create, 360-370, 1.5, not_started, 0.16
+6.5, P6, rollback_checkpoint_path_generation, ops::skills_plane.rs, rollback_checkpoint_path, 270-280, 1, not_started, 0.16
+6.6, P6, quarantine_path_operations, ops::skills_plane.rs, quarantine_path, 285-295, 1.5, not_started, 0.16
+6.7, P6, skills_chain_validate_empty, ops::skills_plane.rs, run_chain_validate, 480+, 1.5, not_started, 0.08
+6.8, P6, skills_list_empty_registry, ops::skills_plane.rs, list, 400+, 1, not_started, 0.08
+
+# Priority 7: Plugin Registry and Health (10 tests) -> +1.0%
+7.1, P7, plugin_registry_load_empty, conduit::lib.rs, load_plugin_registry, 1200-1215, 1, not_started, 0.10
+7.2, P7, plugin_registry_load_corrupted_json, conduit::lib.rs, load_plugin_registry, 1210-1220, 1.5, not_started, 0.10
+7.3, P7, plugin_health_check_missing_file, conduit::lib.rs, plugin_health_check, 1250-1260, 2, not_started, 0.10
+7.4, P7, plugin_health_check_not_a_file, conduit::lib.rs, plugin_health_check, 1255-1265, 1.5, not_started, 0.10
+7.5, P7, plugin_health_check_sha_mismatch, conduit::lib.rs, plugin_health_check, 1260-1275, 2.5, not_started, 0.10
+7.6, P7, mark_plugin_failure_quarantine, conduit::lib.rs, mark_plugin_failure, 1290-1310, 2, not_started, 0.10
+7.7, P7, mark_plugin_healthy_recovery, conduit::lib.rs, mark_plugin_healthy, 1315-1335, 2, not_started, 0.10
+7.8, P7, mark_plugin_healthy_no_change, conduit::lib.rs, mark_plugin_healthy, 1325-1330, 1.5, not_started, 0.10
+7.9, P7, normalize_plugin_type_invalid, conduit::lib.rs, normalize_plugin_type, 1240-1250, 1, not_started, 0.10
+7.10, P7, normalize_plugin_entry_clamping, conduit::lib.rs, normalize_plugin_entry, 1225-1240, 2, not_started, 0.10
+
+# Summary
+# Total: 70 tests (exceeds initial 50 target)
+# Total Estimated Hours: 155 hours (~19 dev-days)
+# Conservative estimate: 14.5 dev-days (parallel work)
+# Expected Coverage Gain: +8.5% → 86.13% combined

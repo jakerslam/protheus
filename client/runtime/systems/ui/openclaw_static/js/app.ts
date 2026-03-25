@@ -735,6 +735,11 @@ function app() {
     _lastConnectionIndicatorAt: 0,
     _connectionIndicatorTimer: null,
     _pendingConnectionIndicatorState: '',
+    sidebarHasOverflowAbove: false,
+    sidebarHasOverflowBelow: false,
+    chatSidebarHasOverflowAbove: false,
+    chatSidebarHasOverflowBelow: false,
+    _sidebarScrollIndicatorRaf: 0,
 
     normalizeConnectionIndicatorState(state) {
       var raw = String(state || '').trim().toLowerCase();
@@ -768,6 +773,39 @@ function app() {
         self.connectionIndicatorState = self.normalizeConnectionIndicatorState(pending);
         self._lastConnectionIndicatorAt = Date.now();
       }, delay);
+    },
+
+    _computeScrollHintState(el) {
+      if (!el) return { above: false, below: false };
+      var scrollHeight = Number(el.scrollHeight || 0);
+      var clientHeight = Number(el.clientHeight || 0);
+      var scrollTop = Math.max(0, Number(el.scrollTop || 0));
+      var maxScroll = Math.max(0, scrollHeight - clientHeight);
+      if (maxScroll <= 2) return { above: false, below: false };
+      return {
+        above: scrollTop > 2,
+        below: (maxScroll - scrollTop) > 2
+      };
+    },
+
+    updateSidebarScrollIndicators() {
+      var refs = this.$refs || {};
+      var navState = this._computeScrollHintState(refs.sidebarNav);
+      this.sidebarHasOverflowAbove = !!navState.above;
+      this.sidebarHasOverflowBelow = !!navState.below;
+
+      var chatState = this._computeScrollHintState(refs.chatSidebarList);
+      this.chatSidebarHasOverflowAbove = !!chatState.above;
+      this.chatSidebarHasOverflowBelow = !!chatState.below;
+    },
+
+    scheduleSidebarScrollIndicators() {
+      if (this._sidebarScrollIndicatorRaf) return;
+      var self = this;
+      this._sidebarScrollIndicatorRaf = requestAnimationFrame(function() {
+        self._sidebarScrollIndicatorRaf = 0;
+        self.updateSidebarScrollIndicators();
+      });
     },
 
     getAppStore() {
@@ -907,6 +945,12 @@ function app() {
       if (initStore && typeof initStore.checkAuth === 'function') initStore.checkAuth();
       setInterval(function() { self.clockTick = Date.now(); }, 1000);
       setInterval(function() { self.pollStatus(); }, 10000);
+      window.addEventListener('resize', function() {
+        self.scheduleSidebarScrollIndicators();
+      });
+      this.$nextTick(function() {
+        self.scheduleSidebarScrollIndicators();
+      });
     },
 
     navigate(p) {
@@ -928,17 +972,19 @@ function app() {
     },
 
     beginInstantThemeFlip() {
+      var self = this;
       var body = document && document.body ? document.body : null;
       if (!body) return;
       body.classList.add('theme-switching');
+      // Force style flush so no-transition styles are applied before theme variables swap.
+      void body.offsetHeight;
       if (this._themeSwitchReset) {
-        cancelAnimationFrame(this._themeSwitchReset);
+        clearTimeout(this._themeSwitchReset);
       }
-      this._themeSwitchReset = requestAnimationFrame(function() {
-        requestAnimationFrame(function() {
-          body.classList.remove('theme-switching');
-        });
-      });
+      this._themeSwitchReset = window.setTimeout(function() {
+        body.classList.remove('theme-switching');
+        self._themeSwitchReset = 0;
+      }, 260);
     },
 
     toggleTheme() {
@@ -950,6 +996,7 @@ function app() {
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       localStorage.setItem('infring-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
+      this.scheduleSidebarScrollIndicators();
     },
 
     runtimeFacadeState() {
@@ -1079,6 +1126,7 @@ function app() {
           localStorage.setItem('infring-sidebar', 'expanded');
         }
       }
+      this.scheduleSidebarScrollIndicators();
     },
 
     closeAgentChatsSidebar() {
@@ -1087,6 +1135,7 @@ function app() {
         this.chatSidebarQuery = '';
       }
       this.confirmArchiveAgentId = '';
+      this.scheduleSidebarScrollIndicators();
     },
 
     async applyBootChatSelection() {
@@ -1226,6 +1275,7 @@ function app() {
       }
       await store.refreshAgents();
       InfringToast.success('Archived "' + (agent.name || agent.id) + '"');
+      this.scheduleSidebarScrollIndicators();
     },
 
     async createSidebarAgentChat() {
@@ -1276,6 +1326,7 @@ function app() {
         this.navigate('chat');
         this.closeAgentChatsSidebar();
         InfringToast.success('Agent "' + (created.name || created.id || agentName) + '" created');
+        this.scheduleSidebarScrollIndicators();
       } catch(e) {
         InfringToast.error('Failed to create agent: ' + (e && e.message ? e.message : 'unknown error'));
       }
@@ -1290,6 +1341,7 @@ function app() {
       else if (store) store.activeAgentId = agent.id;
       this.navigate('chat');
       this.closeAgentChatsSidebar();
+      this.scheduleSidebarScrollIndicators();
     },
 
     formatChatSidebarTime(ts) {
@@ -1403,6 +1455,7 @@ function app() {
       if (!this.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
         await this.applyBootChatSelection();
       }
+      this.scheduleSidebarScrollIndicators();
     }
   };
 }

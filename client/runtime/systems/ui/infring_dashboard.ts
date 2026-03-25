@@ -65,7 +65,9 @@ const CHAT_TREE_MAX_DEPTH = 8;
 const CHAT_TREE_MAX_ENTRIES = 5000;
 const LOCAL_ASSETS_DIR = path.resolve(ROOT, 'client/runtime/local/assets');
 const AVATAR_ASSETS_DIR = path.resolve(LOCAL_ASSETS_DIR, 'avatars');
+const UPLOAD_ASSETS_DIR = path.resolve(LOCAL_ASSETS_DIR, 'uploads');
 const AGENT_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AGENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
@@ -821,14 +823,111 @@ function contextPressureFromUsage(usedTokens, windowTokens) {
 function estimateConversationTokens(messages = []) {
   const rows = Array.isArray(messages) ? messages : [];
   return rows.reduce((sum, row) => {
-    let text = '';
-    if (row && typeof row.content === 'string') text = row.content;
-    else if (row && typeof row.text === 'string') text = row.text;
-    else if (row && typeof row.message === 'string') text = row.message;
-    else if (row && typeof row.user === 'string') text = row.user;
-    else if (row && typeof row.assistant === 'string') text = row.assistant;
-    return sum + Math.max(0, Math.round(String(text || '').length / 4));
+    return sum + estimateConversationRowTokens(row);
   }, 0);
+}
+
+function estimateConversationRowTokens(row) {
+  if (!row || typeof row !== 'object') return 0;
+  let text = '';
+  if (typeof row.content === 'string') text = row.content;
+  else if (typeof row.text === 'string') text = row.text;
+  else if (typeof row.message === 'string') text = row.message;
+  else if (typeof row.user === 'string') text = row.user;
+  else if (typeof row.assistant === 'string') text = row.assistant;
+  return Math.max(0, Math.round(String(text || '').length / 4));
+}
+
+function contextCompactionTargetTokens(targetContextWindow = 0, targetRatio = 0.8) {
+  const windowSize = parsePositiveInt(targetContextWindow, 0, 0, 8000000);
+  if (windowSize <= 0) return 0;
+  const ratioRaw = Number(targetRatio);
+  const ratio = Number.isFinite(ratioRaw) && ratioRaw > 0 && ratioRaw < 1 ? ratioRaw : 0.8;
+  return Math.max(1, Math.floor(windowSize * ratio));
+}
+
+function compactConversationRowsToTokenTarget(messages = [], targetTokens = 0, minRecentMessages = 12) {
+  const rows = Array.isArray(messages) ? messages.slice() : [];
+  const target = parsePositiveInt(targetTokens, 0, 0, 1000000000);
+  if (rows.length <= 0 || target <= 0) return rows;
+  const minRecent = parsePositiveInt(minRecentMessages, 12, 1, 400);
+  const rowTokens = rows.map((row) => estimateConversationRowTokens(row));
+  let total = rowTokens.reduce((sum, value) => sum + value, 0);
+  while (rows.length > minRecent && total > target) {
+    total -= parseNonNegativeInt(rowTokens.shift(), 0, 1000000000);
+    rows.shift();
+  }
+  return rows;
+}
+
+function compactAgentConversation(agentId, snapshot, options = {}) {
+  const state = loadAgentSession(agentId, snapshot);
+  const session = activeSession(state);
+  const sourceMessages = Array.isArray(session.messages) ? session.messages : [];
+  const beforeMessageCount = sourceMessages.length;
+  const beforeTokens = estimateConversationTokens(sourceMessages);
+  const targetContextWindow = parsePositiveInt(
+    options && options.target_context_window != null ? options.target_context_window : 0,
+    0,
+    0,
+    8000000
+  );
+  const targetRatioRaw =
+    options && options.target_ratio != null ? Number(options.target_ratio) : Number.NaN;
+  const targetRatio =
+    Number.isFinite(targetRatioRaw) && targetRatioRaw > 0 && targetRatioRaw < 1 ? targetRatioRaw : 0.8;
+  const targetTokens = contextCompactionTargetTokens(targetContextWindow, targetRatio);
+  const minRecentMessages = parsePositiveInt(
+    options && options.min_recent_messages != null ? options.min_recent_messages : 12,
+    12,
+    1,
+    400
+  );
+  const maxMessages = parsePositiveInt(
+    options && options.max_messages != null ? options.max_messages : 200,
+    200,
+    1,
+    800
+  );
+  let compactedMessages = sourceMessages.slice();
+  if (targetTokens > 0 && beforeTokens > targetTokens) {
+    compactedMessages = compactConversationRowsToTokenTarget(
+      compactedMessages,
+      targetTokens,
+      minRecentMessages
+    );
+  }
+  if (compactedMessages.length > maxMessages) {
+    compactedMessages = compactedMessages.slice(-maxMessages);
+  }
+  session.messages = compactedMessages;
+  session.updated_at = nowIso();
+  saveAgentSession(agentId, state);
+  const afterMessageCount = session.messages.length;
+  const afterTokens = estimateConversationTokens(session.messages);
+  return {
+    state,
+    compacted: afterMessageCount < beforeMessageCount || afterTokens < beforeTokens,
+    before_message_count: beforeMessageCount,
+    after_message_count: afterMessageCount,
+    before_tokens: beforeTokens,
+    after_tokens: afterTokens,
+    target_context_window: targetContextWindow,
+    target_ratio: targetRatio,
+    target_tokens: targetTokens,
+    max_messages: maxMessages,
+    min_recent_messages: minRecentMessages,
+  };
+}
+
+function sessionList(state) {
+  return state.sessions.map((session) => ({
+    session_id: session.session_id,
+    label: session.label || 'Session',
+    message_count: Array.isArray(session.messages) ? session.messages.length : 0,
+    updated_at: session.updated_at || nowIso(),
+    active: session.session_id === state.active_session_id,
+  }));
 }
 
 function contextTelemetryForMessages(messages = [], contextWindow = DEFAULT_CONTEXT_WINDOW_TOKENS, extraTokens = 0) {
@@ -1041,10 +1140,19 @@ function contentTypeForFile(filePath) {
   if (ext === '.css') return 'text/css; charset=utf-8';
   if (ext === '.js') return 'text/javascript; charset=utf-8';
   if (ext === '.json') return 'application/json; charset=utf-8';
+  if (ext === '.txt' || ext === '.log' || ext === '.md') return 'text/plain; charset=utf-8';
+  if (ext === '.csv') return 'text/csv; charset=utf-8';
   if (ext === '.ico') return 'image/x-icon';
   if (ext === '.png') return 'image/png';
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.gif') return 'image/gif';
   if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
+  if (ext === '.pdf') return 'application/pdf';
+  if (ext === '.webm') return 'audio/webm';
+  if (ext === '.ogg') return 'audio/ogg';
+  if (ext === '.mp3') return 'audio/mpeg';
+  if (ext === '.wav') return 'audio/wav';
   if (ext === '.woff') return 'font/woff';
   if (ext === '.woff2') return 'font/woff2';
   return 'application/octet-stream';
@@ -1063,6 +1171,32 @@ function avatarExtensionFromUpload(fileName = '', contentType = '') {
   if (type.includes('gif')) return '.gif';
   if (type.includes('svg')) return '.svg';
   return '.png';
+}
+
+function uploadExtensionFromUpload(fileName = '', contentType = '') {
+  const lowerName = cleanText(fileName || '', 200).toLowerCase();
+  const ext = path.extname(lowerName);
+  if (/^\.[a-z0-9]{1,10}$/.test(ext)) return ext;
+  const type = cleanText(contentType || '', 80).toLowerCase();
+  if (type.includes('png')) return '.png';
+  if (type.includes('jpeg') || type.includes('jpg')) return '.jpg';
+  if (type.includes('webp')) return '.webp';
+  if (type.includes('gif')) return '.gif';
+  if (type.includes('svg')) return '.svg';
+  if (type.includes('pdf')) return '.pdf';
+  if (type.includes('json')) return '.json';
+  if (type.includes('csv')) return '.csv';
+  if (type.includes('markdown')) return '.md';
+  if (type.includes('plain')) return '.txt';
+  if (type.includes('audio/webm')) return '.webm';
+  if (type.includes('audio/ogg')) return '.ogg';
+  if (type.includes('audio/mpeg')) return '.mp3';
+  if (type.includes('wav')) return '.wav';
+  return '.bin';
+}
+
+function uploadAssetTokenFromId(raw = '') {
+  return sanitizeAssetToken(cleanText(raw || '', 220));
 }
 
 function sanitizeAssetToken(raw = '') {
@@ -1620,6 +1754,7 @@ function compactRelativePath(absPath) {
 function normalizeSuggestionToUserVoice(value) {
   let row = cleanText(value == null ? '' : String(value), 220);
   if (!row) return '';
+  row = row.replace(/^agent:\s*/i, '');
   row = row.replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '');
   if (/^ask\s+[^.?!]{0,140}?\s+for\s+/i.test(row)) {
     row = row.replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Give me ');
@@ -1634,6 +1769,26 @@ function normalizeSuggestionToUserVoice(value) {
   if (!/[.!?]$/.test(row)) row = `${row}.`;
   if (row.length) row = row[0].toUpperCase() + row.slice(1);
   return cleanText(row, 220);
+}
+
+function isLowValueSuggestion(row) {
+  const text = cleanText(row == null ? '' : String(row), 220);
+  if (!text) return true;
+  const lowered = text.toLowerCase();
+  if (lowered.includes('the infring runtime is currently')) return true;
+  if (lowered.includes('if you need help') || lowered.includes('feel free to ask')) return true;
+  if (lowered.includes('the user wants exactly 3 actionable next user prompts')) return true;
+  if (lowered.includes('json array of strings')) return true;
+  if (lowered === 'thinking...' || lowered === 'thinking..' || lowered === 'thinking.') return true;
+  const sentenceCount = (text.match(/[.!?]/g) || []).length;
+  if (sentenceCount > 2) return true;
+  if (/[\"“”]/.test(text) && text.length > 120) return true;
+  const actionableStart =
+    /^(give me|run|create|draft|summarize|audit|check|fix|implement|propose|generate|compare|list|explain|plan|continue|compact|validate|review|show|write|build|convert|identify|trace)\b/i.test(
+      text
+    );
+  if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
+  return false;
 }
 
 function parseSuggestionCandidates(raw) {
@@ -1665,6 +1820,7 @@ function parseSuggestionCandidates(raw) {
     if (machineNoise) return '';
     row = normalizeSuggestionToUserVoice(row);
     if (!row) return '';
+    if (isLowValueSuggestion(row)) return '';
     if (row.length > 180) row = `${row.slice(0, 177)}...`;
     return row;
   };
@@ -1767,7 +1923,6 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   const cleanHint = sanitizeSuggestionHint(hint);
   const convo = recentSuggestionContext(recentMessages);
   const roleLabel = cleanText(agent && agent.role ? agent.role : '', 60) || 'assistant';
-  const agentLabel = cleanText(agent && agent.name ? agent.name : agent && agent.id ? agent.id : '', 80) || 'agent';
   const topic = cleanText(
     cleanHint || convo.last_user || convo.last_assistant || '',
     160
@@ -1780,19 +1935,19 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   const topicLabel = topicWords.length ? topicWords.join(' ') : `${roleLabel} workflow`;
 
   if (convo.last_user) {
-    rows.push(`Continue this request with one concrete next action: "${convo.last_user}".`);
+    rows.push('Give me one concrete implementation step and one verification check for the current task.');
   }
   if (
     convo.last_assistant &&
     !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(convo.last_assistant)
   ) {
-    rows.push(`Build directly on the last answer with a precise follow-up prompt: "${convo.last_assistant}".`);
+    rows.push('Give me one focused follow-up prompt that challenges the latest answer with measurable output.');
   }
   if (cleanHint) {
-    rows.push(`Use this hint exactly and turn it into one actionable next prompt: "${cleanHint}".`);
+    rows.push(`Give me one direct next prompt based on this hint: ${topicLabel}.`);
   }
   if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure|stale|reconnect/i.test(topic)) {
-    rows.push('Propose one automatic reliability remediation with rollback criteria.');
+    rows.push('Give me one automatic reliability remediation with rollback criteria.');
     rows.push('Give me a short runbook to keep queue depth under 60 and stale blocks near 0.');
   }
   rows.push(`Give me a 3-step execution plan focused on ${topicLabel}.`);
@@ -1806,6 +1961,7 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   return ordered
     .map((row) => normalizeSuggestionToUserVoice(cleanText(row, 220)))
     .filter((row) => {
+      if (isLowValueSuggestion(row)) return false;
       const key = String(row || '').toLowerCase();
       if (!key || seen.has(key)) return false;
       seen.add(key);
@@ -1868,6 +2024,9 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     'Keep each suggestion under 120 characters.',
     'Do not include numbering, markdown, explanations, or extra keys.',
     'Do not echo instructions or policy text.',
+    'Do not quote long excerpts from prior messages.',
+    'Each suggestion must be an actionable user prompt, not an assistant response.',
+    'Avoid generic diagnostics or disclaimers.',
     'Never output generic placeholders like "Thinking..." or "Summarize recent work...".',
     `Agent name: ${cleanText(agent && agent.name ? agent.name : cleanAgentId, 120)}`,
     `Agent role: ${cleanText(agent && agent.role ? agent.role : 'assistant', 80)}`,
@@ -9556,28 +9715,6 @@ function queueAgentTask(agentId, snapshot, taskText, source = 'runtime_dashboard
   };
 }
 
-function compactAgentConversation(agentId, snapshot) {
-  const state = loadAgentSession(agentId, snapshot);
-  const session = activeSession(state);
-  const keep = Math.min(200, session.messages.length);
-  if (keep > 0) {
-    session.messages = session.messages.slice(-keep);
-  }
-  session.updated_at = nowIso();
-  saveAgentSession(agentId, state);
-  return state;
-}
-
-function sessionList(state) {
-  return state.sessions.map((session) => ({
-    session_id: session.session_id,
-    label: session.label || 'Session',
-    message_count: Array.isArray(session.messages) ? session.messages.length : 0,
-    updated_at: session.updated_at || nowIso(),
-    active: session.session_id === state.active_session_id,
-  }));
-}
-
 function runAgentMessage(agentId, input, snapshot, options = {}) {
   const allowFallback = !!(options && options.allowFallback);
   let requestedAgentId = cleanText(agentId || '', 140);
@@ -16086,6 +16223,21 @@ function runServe(flags) {
         sendText(res, 200, body, contentTypeForFile(filePath));
         return;
       }
+      if (req.method === 'GET' && pathname.startsWith('/api/uploads/')) {
+        const token = uploadAssetTokenFromId(safeDecodePathToken(pathname.split('/').slice(3).join('/')));
+        if (!token) {
+          sendJson(res, 404, { ok: false, error: 'upload_not_found' });
+          return;
+        }
+        const filePath = path.resolve(UPLOAD_ASSETS_DIR, token);
+        if (!filePath.startsWith(UPLOAD_ASSETS_DIR) || !fileExists(filePath)) {
+          sendJson(res, 404, { ok: false, error: 'upload_not_found' });
+          return;
+        }
+        const body = fs.readFileSync(filePath);
+        sendText(res, 200, body, contentTypeForFile(filePath));
+        return;
+      }
       if (req.method === 'GET' && pathname === '/api/dashboard/snapshot') {
         sendJsonRaw(res, 200, latestSnapshotJson);
         return;
@@ -17070,6 +17222,14 @@ function runServe(flags) {
             .map((row) => {
               const id = cleanText(row && row.id ? row.id : '', 140);
               const contract = id && contractMap[id] ? contractSummary(contractMap[id], nowMs) : null;
+              const modelState = id
+                ? effectiveAgentModel(id, latestSnapshot, { allow_session_read: false })
+                : {
+                    selected: '',
+                    runtime_model: '',
+                    provider: '',
+                    context_window: DEFAULT_CONTEXT_WINDOW_TOKENS,
+                  };
               return {
                 id,
                 name: cleanText(row && row.name ? row.name : row && row.id ? row.id : '', 100),
@@ -17077,6 +17237,33 @@ function runServe(flags) {
                 role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
                 identity: row && row.identity && typeof row.identity === 'object' ? row.identity : {},
                 avatar_url: cleanText(row && row.avatar_url ? row.avatar_url : '', 512),
+                model_name: cleanText(
+                  row && row.model_name ? row.model_name : modelState && modelState.selected ? modelState.selected : '',
+                  160
+                ),
+                runtime_model: cleanText(
+                  row && (row.runtime_model || row.model_name)
+                    ? row.runtime_model || row.model_name
+                    : modelState && modelState.runtime_model
+                      ? modelState.runtime_model
+                      : modelState && modelState.selected
+                        ? modelState.selected
+                        : '',
+                  160
+                ),
+                model_provider: cleanText(
+                  row && row.model_provider ? row.model_provider : modelState && modelState.provider ? modelState.provider : '',
+                  80
+                ),
+                context_window:
+                  row && row.context_window != null
+                    ? parsePositiveInt(row.context_window, DEFAULT_CONTEXT_WINDOW_TOKENS, 1024, 8_000_000)
+                    : parsePositiveInt(
+                        modelState && modelState.context_window != null ? modelState.context_window : DEFAULT_CONTEXT_WINDOW_TOKENS,
+                        DEFAULT_CONTEXT_WINDOW_TOKENS,
+                        1024,
+                        8_000_000
+                      ),
                 created_at: cleanText(row && row.created_at ? row.created_at : '', 80),
                 updated_at: cleanText(row && row.updated_at ? row.updated_at : '', 80),
                 last_activity_at: cleanText(
@@ -17340,6 +17527,49 @@ function runServe(flags) {
             avatar_url: avatarUrl,
             content_type: contentTypeForFile(filePath),
             file_name: fileName,
+          });
+          return;
+        }
+        if (req.method === 'POST' && parts[3] === 'upload') {
+          const known = agentKnownInRuntime(agentId);
+          if (!known && !isAgentArchived(agentId)) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const contentType = cleanText(req.headers['content-type'] || '', 80).toLowerCase();
+          const fileNameHeader = cleanText(req.headers['x-filename'] || '', 200);
+          let body = null;
+          try {
+            body = await bodyBuffer(req, AGENT_UPLOAD_MAX_BYTES);
+          } catch (error) {
+            const reason = cleanText(error && error.message ? error.message : 'upload_failed', 120);
+            sendJson(res, 400, { ok: false, error: reason || 'upload_failed', id: agentId });
+            return;
+          }
+          if (!body || body.length <= 0) {
+            sendJson(res, 400, { ok: false, error: 'upload_empty', id: agentId });
+            return;
+          }
+          ensureDir(UPLOAD_ASSETS_DIR);
+          const ext = uploadExtensionFromUpload(fileNameHeader, contentType);
+          const digest = sha256(body).slice(0, 12);
+          const safeId = safeAgentSessionFile(agentId);
+          const fileId = `${safeId}-${Date.now().toString(36)}-${digest}${ext}`;
+          const filePath = path.resolve(UPLOAD_ASSETS_DIR, fileId);
+          try {
+            fs.writeFileSync(filePath, body);
+          } catch (error) {
+            sendJson(res, 500, { ok: false, error: 'upload_write_failed', id: agentId });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            file_id: fileId,
+            filename: fileNameHeader || fileId,
+            content_type: contentType || contentTypeForFile(filePath),
+            size: body.length,
+            upload_url: `/api/uploads/${fileId}`,
           });
           return;
         }
@@ -17927,8 +18157,42 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'compact') {
-          compactAgentConversation(agentId, latestSnapshot);
-          sendJson(res, 200, { ok: true, id: agentId, message: 'Session compacted' });
+          const payload = await bodyJson(req);
+          const result = compactAgentConversation(agentId, latestSnapshot, {
+            target_context_window: parsePositiveInt(
+              payload && payload.target_context_window != null ? payload.target_context_window : 0,
+              0,
+              0,
+              8000000
+            ),
+            target_ratio:
+              payload && payload.target_ratio != null ? Number(payload.target_ratio) : Number.NaN,
+            max_messages: parsePositiveInt(
+              payload && payload.max_messages != null ? payload.max_messages : 200,
+              200,
+              1,
+              800
+            ),
+            min_recent_messages: parsePositiveInt(
+              payload && payload.min_recent_messages != null ? payload.min_recent_messages : 12,
+              12,
+              1,
+              400
+            ),
+          });
+          sendJson(res, 200, {
+            ok: true,
+            id: agentId,
+            message: result.compacted ? 'Session compacted' : 'Session already within target',
+            compacted: !!result.compacted,
+            before_message_count: result.before_message_count,
+            after_message_count: result.after_message_count,
+            before_tokens: result.before_tokens,
+            after_tokens: result.after_tokens,
+            target_context_window: result.target_context_window,
+            target_ratio: result.target_ratio,
+            target_tokens: result.target_tokens,
+          });
           return;
         }
         if (req.method === 'GET' && parts[3] === 'sessions') {
