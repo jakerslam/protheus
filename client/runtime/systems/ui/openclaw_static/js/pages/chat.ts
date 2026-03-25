@@ -72,7 +72,7 @@ function chatPage() {
     freshInitTemplateDef: null,
     freshInitTemplateName: '',
     freshInitName: '',
-    freshInitEmoji: '🤖',
+    freshInitEmoji: '',
     freshInitLaunching: false,
     freshInitRevealMenu: false,
     freshInitStageToken: 0,
@@ -2715,8 +2715,8 @@ function chatPage() {
           this.freshInitEmoji = String(
             (resolved.identity && resolved.identity.emoji) ||
             (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
-            '🤖'
-          ).trim() || '🤖';
+            this.defaultFreshEmojiForAgent(resolved)
+          ).trim() || this.defaultFreshEmojiForAgent(resolved);
           if (this.conversationCache) {
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
@@ -2760,8 +2760,8 @@ function chatPage() {
         this.freshInitEmoji = String(
           (resolved.identity && resolved.identity.emoji) ||
           (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
-          '🤖'
-        ).trim() || '🤖';
+          this.defaultFreshEmojiForAgent(resolved)
+        ).trim() || this.defaultFreshEmojiForAgent(resolved);
         this.clearPromptSuggestions();
         this.startFreshInitSequence(resolved);
       } else {
@@ -2911,7 +2911,7 @@ function chatPage() {
       var provider = String(templateDef.provider || '').trim();
       var model = String(templateDef.model || '').trim();
       var agentName = String(this.freshInitName || '').trim() || String(this.currentAgent.name || this.currentAgent.id || '').trim() || String(agentId);
-      var agentEmoji = String(this.freshInitEmoji || '').trim() || '🤖';
+      var agentEmoji = String(this.freshInitEmoji || '').trim() || this.defaultFreshEmojiForAgent(agentId);
       this.freshInitLaunching = true;
       try {
         if (provider && model) {
@@ -4413,6 +4413,24 @@ function chatPage() {
         var name = String((row && row.name) || '').toLowerCase();
         return emoji.indexOf(query) >= 0 || name.indexOf(query) >= 0;
       }).slice(0, 24);
+    },
+
+    defaultFreshEmojiForAgent: function(agentRef) {
+      var source = Array.isArray(this.drawerEmojiCatalog) ? this.drawerEmojiCatalog : [];
+      if (!source.length) return '🤖';
+      var key = '';
+      if (agentRef && typeof agentRef === 'object') {
+        key = String(agentRef.id || agentRef.name || '').trim();
+      } else {
+        key = String(agentRef || '').trim();
+      }
+      if (!key) return String((source[0] && source[0].emoji) || '🤖');
+      var hash = 0;
+      for (var idx = 0; idx < key.length; idx += 1) {
+        hash = ((hash * 33) ^ key.charCodeAt(idx)) >>> 0;
+      }
+      var bucket = hash % source.length;
+      return String((source[bucket] && source[bucket].emoji) || '🤖');
     },
 
     toggleDrawerEmojiPicker: function() {

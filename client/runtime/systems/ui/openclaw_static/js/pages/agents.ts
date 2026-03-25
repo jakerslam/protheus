@@ -33,6 +33,9 @@ function agentsPage() {
     lifecycleLoading: false,
     terminatedLoading: true,
     terminatedHydrated: false,
+    confirmDeleteTerminatedKey: '',
+    confirmDeleteAllArchived: false,
+    confirmArchiveAllAgents: false,
     agentLifecycle: {
       active_agents: [],
       terminated_recent: [],
@@ -289,6 +292,24 @@ function agentsPage() {
       return rows.slice(0, 20);
     },
 
+    terminatedEntryKey(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      var contractId = String(row.contract_id || '').trim();
+      return agentId + '::' + contractId;
+    },
+
+    setDeleteTerminatedConfirm(entry) {
+      this.confirmDeleteTerminatedKey = this.terminatedEntryKey(entry);
+    },
+
+    clearDeleteTerminatedConfirm(entry) {
+      var key = this.terminatedEntryKey(entry);
+      if (this.confirmDeleteTerminatedKey === key) {
+        this.confirmDeleteTerminatedKey = '';
+      }
+    },
+
     get idleAgentAlertText() {
       var idle = Number(this.agentLifecycle && this.agentLifecycle.idle_agents || 0);
       var threshold = Number(this.agentLifecycle && this.agentLifecycle.idle_threshold || 0);
@@ -427,10 +448,73 @@ function agentsPage() {
       }
     },
 
+    async deleteTerminated(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      var contractId = String(row.contract_id || '').trim();
+      if (!agentId) return;
+      this.confirmDeleteTerminatedKey = '';
+      try {
+        var suffix = '/api/agents/terminated/' + encodeURIComponent(agentId);
+        if (contractId) suffix += '?contract_id=' + encodeURIComponent(contractId);
+        var result = await InfringAPI.del(suffix);
+        var removed = Number(result && result.removed_history_entries || 0);
+        var label = removed > 0 ? (' and ' + removed + ' archived record(s)') : '';
+        InfringToast.success('Permanently deleted ' + agentId + label);
+        await Alpine.store('app').refreshAgents();
+        await this.loadLifecycle();
+      } catch (e) {
+        InfringToast.error('Failed to delete archived agent: ' + (e && e.message ? e.message : 'unknown_error'));
+      }
+    },
+
+    async deleteAllArchived() {
+      this.confirmDeleteAllArchived = false;
+      var ok = window.confirm('Are you sure you want to delete all archived agents? This cannot be undone');
+      if (!ok) return;
+      try {
+        var result = await InfringAPI.del('/api/agents/terminated?all=1');
+        var removed = Number(result && result.deleted_archived_agents || 0);
+        InfringToast.success('Deleted ' + removed + ' archived agent(s).');
+        await Alpine.store('app').refreshAgents();
+        await this.loadLifecycle();
+      } catch (e) {
+        InfringToast.error('Failed to delete archived agents: ' + (e && e.message ? e.message : 'unknown_error'));
+      }
+    },
+
+    async archiveAllAgents() {
+      this.confirmArchiveAllAgents = false;
+      var rows = Array.isArray(this.agents) ? this.agents.slice() : [];
+      if (!rows.length) return;
+      var ok = window.confirm('Are you sure you want to archive all agents?');
+      if (!ok) return;
+      var failures = [];
+      for (var idx = 0; idx < rows.length; idx += 1) {
+        var row = rows[idx];
+        if (!row || !row.id) continue;
+        try {
+          await InfringAPI.del('/api/agents/' + encodeURIComponent(row.id));
+        } catch (e) {
+          failures.push(String(row.name || row.id));
+        }
+      }
+      await Alpine.store('app').refreshAgents();
+      await this.loadLifecycle();
+      if (failures.length) {
+        InfringToast.error('Failed to archive: ' + failures.join(', '));
+      } else {
+        InfringToast.success('Archived ' + rows.length + ' agent(s).');
+      }
+    },
+
     async init() {
       var self = this;
       this.loading = true;
       this.loadError = '';
+      this.confirmDeleteTerminatedKey = '';
+      this.confirmDeleteAllArchived = false;
+      this.confirmArchiveAllAgents = false;
       try {
         await Alpine.store('app').refreshAgents();
         await this.loadLifecycle();
