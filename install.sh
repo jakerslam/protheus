@@ -11,6 +11,10 @@ DEFAULT_RUSTUP_INIT_URL="https://sh.rustup.rs"
 DEFAULT_BOOTSTRAP_BASE_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/dist/install-bootstrap"
 
 INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$HOME/.local/bin}}"
+INSTALL_DIR_EXPLICIT=0
+if [ -n "${INFRING_INSTALL_DIR:-}" ] || [ -n "${PROTHEUS_INSTALL_DIR:-}" ]; then
+  INSTALL_DIR_EXPLICIT=1
+fi
 INSTALL_TMP_DIR="${INFRING_TMP_DIR:-${PROTHEUS_TMP_DIR:-${TMPDIR:-}}}"
 REQUESTED_VERSION="${INFRING_VERSION:-${PROTHEUS_VERSION:-latest}}"
 API_URL="${INFRING_RELEASE_API_URL:-${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}}"
@@ -23,8 +27,10 @@ INSTALL_FULL="${INFRING_INSTALL_FULL:-${PROTHEUS_INSTALL_FULL:-0}}"
 INSTALL_PURE="${INFRING_INSTALL_PURE:-${PROTHEUS_INSTALL_PURE:-0}}"
 INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
 INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-${PROTHEUS_INSTALL_REPAIR:-0}}"
+INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
+PATH_SHIM_DIR=""
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -44,6 +50,14 @@ is_truthy() {
     1|true|yes|on) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+curl_fetch() {
+  if is_truthy "$INSTALL_DEBUG"; then
+    curl -fsSL "$@"
+  else
+    curl -fsSL "$@" 2>/dev/null
+  fi
 }
 
 parse_install_args() {
@@ -76,9 +90,11 @@ parse_install_args() {
           exit 1
         fi
         INSTALL_DIR="$1"
+        INSTALL_DIR_EXPLICIT=1
         ;;
       --install-dir=*)
         INSTALL_DIR="${arg#--install-dir=}"
+        INSTALL_DIR_EXPLICIT=1
         ;;
       --tmp-dir)
         shift
@@ -109,6 +125,91 @@ parse_install_args() {
     esac
     shift
   done
+}
+
+first_writable_path_dir() {
+  old_ifs="$IFS"
+  IFS=':'
+  for candidate in $PATH; do
+    [ -n "$candidate" ] || continue
+    [ -d "$candidate" ] || continue
+    [ -w "$candidate" ] || continue
+    printf '%s\n' "$candidate"
+    IFS="$old_ifs"
+    return 0
+  done
+  IFS="$old_ifs"
+  return 1
+}
+
+resolve_install_dir_default() {
+  if [ "$INSTALL_DIR_EXPLICIT" = "1" ]; then
+    return 0
+  fi
+  preferred="$HOME/.local/bin"
+  case ":$PATH:" in
+    *":$preferred:"*)
+      INSTALL_DIR="$preferred"
+      return 0
+      ;;
+  esac
+  for candidate in /usr/local/bin /opt/homebrew/bin /usr/bin /usr/local/sbin; do
+    case ":$PATH:" in
+      *":$candidate:"*)
+        if [ -d "$candidate" ] && [ -w "$candidate" ]; then
+          INSTALL_DIR="$candidate"
+          return 0
+        fi
+        ;;
+    esac
+  done
+  if writable_dir="$(first_writable_path_dir 2>/dev/null || true)"; then
+    if [ -n "$writable_dir" ]; then
+      INSTALL_DIR="$writable_dir"
+      return 0
+    fi
+  fi
+  INSTALL_DIR="$preferred"
+  return 0
+}
+
+ensure_path_shims() {
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*)
+      return 0
+      ;;
+  esac
+  shim_dir="$(first_writable_path_dir 2>/dev/null || true)"
+  [ -n "$shim_dir" ] || return 0
+  [ "$shim_dir" = "$INSTALL_DIR" ] && return 0
+
+  created_any=0
+  for name in infring infringctl infringd protheus protheusctl protheusd; do
+    target="$INSTALL_DIR/$name"
+    shim="$shim_dir/$name"
+    [ -e "$target" ] || continue
+    if [ -e "$shim" ]; then
+      if [ -L "$shim" ]; then
+        link_target="$(readlink "$shim" || true)"
+        if [ "$link_target" = "$target" ]; then
+          continue
+        fi
+      fi
+      continue
+    fi
+    if ln -s "$target" "$shim" 2>/dev/null; then
+      created_any=1
+      continue
+    fi
+    if cp "$target" "$shim" 2>/dev/null; then
+      chmod 755 "$shim" 2>/dev/null || true
+      created_any=1
+    fi
+  done
+  if [ "$created_any" = "1" ]; then
+    PATH_SHIM_DIR="$shim_dir"
+    echo "[infring install] linked commands into PATH dir: $PATH_SHIM_DIR"
+  fi
 }
 
 repair_install_dir() {
@@ -205,11 +306,11 @@ platform_triple() {
 }
 
 latest_version() {
-  curl -fsSL "$API_URL" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+  curl_fetch "$API_URL" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
 }
 
 latest_version_from_redirect() {
-  final_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$LATEST_URL" || true)"
+  final_url="$(curl_fetch -I -o /dev/null -w '%{url_effective}' "$LATEST_URL" || true)"
   case "$final_url" in
     */releases/tag/v*)
       printf '%s\n' "$final_url" | sed -n 's#.*\/releases\/tag\/\(v[^/?#]*\).*#\1#p' | head -n 1
@@ -262,7 +363,7 @@ download_asset() {
   url="$BASE_URL/$version_tag/$asset_name"
   # TODO(rk): Consider adding retry logic with exponential backoff for transient network failures.
   # This would improve install reliability in CI environments and regions with intermittent connectivity.
-  if curl -fsSL "$url" -o "$asset_out"; then
+  if curl_fetch "$url" -o "$asset_out"; then
     echo "[infring install] downloaded $asset_name"
     return 0
   fi
@@ -275,7 +376,7 @@ download_bootstrap_asset() {
   if [ -z "${BOOTSTRAP_BASE_URL:-}" ]; then
     return 1
   fi
-  if curl -fsSL "${BOOTSTRAP_BASE_URL}/${asset_name}" -o "$asset_out"; then
+  if curl_fetch "${BOOTSTRAP_BASE_URL}/${asset_name}" -o "$asset_out"; then
     echo "[infring install] downloaded bootstrap fallback $asset_name"
     return 0
   fi
@@ -549,6 +650,7 @@ write_wrapper() {
 
 main() {
   parse_install_args "$@"
+  resolve_install_dir_default
 
   if [ -n "${INSTALL_TMP_DIR:-}" ]; then
     mkdir -p "$INSTALL_TMP_DIR"
@@ -684,11 +786,16 @@ main() {
   echo "[infring install] quickstart: infring gateway"
   echo "[infring install] stop: infring gateway stop"
 
+  ensure_path_shims
   case ":$PATH:" in
     *":$INSTALL_DIR:"*)
       ;;
     *)
-      echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+      if [ -n "$PATH_SHIM_DIR" ]; then
+        echo "[infring install] PATH notice: wrappers installed in $INSTALL_DIR and linked from $PATH_SHIM_DIR"
+      else
+        echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+      fi
       ;;
   esac
 
