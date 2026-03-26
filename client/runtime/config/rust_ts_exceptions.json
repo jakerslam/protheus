@@ -1,0 +1,237 @@
+{
+  "version": "1.0.0",
+  "description": "Explicit TS exceptions under Rust-critical prefixes. Any non-wrapper TS/JS file in those prefixes must be listed here with a reason.",
+  "generated_at": "2026-03-26T08:37:50.421Z",
+  "generated_from": "authority_exception_baseline_2026-03-26",
+  "wrapper_tokens": [
+    "runProtheusOps",
+    "createConduitLaneModule",
+    "core://",
+    "protheus-ops",
+    "bindLegacyRetiredModule",
+    "legacy_retired_wrapper",
+    "bindNativeRustModule"
+  ],
+  "exceptions": [
+    {
+      "path": "client/runtime/systems/assimilation/world_model_freshness.ts",
+      "reason": "Assimilation experimentation lane retained as temporary TS exception pending Rust assimilation-plane parity."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/genuine_creative_breakthrough_organ.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/hold_remediation_engine.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/lever_experiment_gate.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/model_catalog_loop.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/self_code_evolution_sandbox.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/swarm_repl_demo.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/swarm_sessions_bridge.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/zero_permission_conversational_layer.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/causal_temporal_graph.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/creative_links.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/eyes_memory_bridge.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/failure_memory_bridge.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/memory_efficiency_plane.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/memory_federation_plane.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/memory_index_freshness_gate.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/napi_build_surface_compat.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/offdevice_memory_replication.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/policy_validator.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/rust_memory_daemon_supervisor.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/rust_memory_transition_lane.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/session_isolation.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/uid_connections.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/ops/benchmark_autonomy_gate.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/dependency_boundary_guard.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/f100_readiness_remediation.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/formal_spec_guard.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/generate_coverage_badge.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/local_runtime_partitioner.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/protheus_command_list.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/protheus_debug_diagnostics.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/readiness_bridge_pack.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/system_health_audit_runner.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/system_visualizer_server.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/top50_roi_sweep.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/visualizer/app.ts",
+      "reason": "Developer-facing visualizer UI logic; user/dev interaction surface pending Rust-hosted replacement."
+    },
+    {
+      "path": "client/runtime/systems/sensory/abstain_uncertainty_contract.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/causal_vs_correlation_signal_scorer.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/conversation_eye_synthesizer.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/detector_error_taxonomy_autotune.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/dynamic_source_reliability_graph.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/feature_data_reproducibility_contract.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/gold_eval_blind_scoring_lane.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/ground_truth_label_adjudication_lane.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/hypothesis_lifecycle_ledger.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/latent_intent_inference_graph.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/multi_hop_objective_chain_mapper.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/multimodal_signal_adapter_plane.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/novelty_saturation_prioritization_engine.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/sensory/value_of_information_collection_planner.ts",
+      "reason": "Sensory experimentation/research lane retained as temporary TS exception pending Rust sensory-plane assimilation."
+    }
+  ]
+}

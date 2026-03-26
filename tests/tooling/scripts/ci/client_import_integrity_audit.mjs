@@ -30,15 +30,36 @@ function stripComments(source) {
 
 function resolveCandidates(fileDir, spec) {
   const base = spec.startsWith('/') ? spec : path.resolve(fileDir, spec);
-  return [
+  const stemCandidates = [];
+  const ext = path.extname(base);
+  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+    stemCandidates.push(base.slice(0, -ext.length));
+  }
+  const candidates = [
     base,
     `${base}.ts`,
     `${base}.js`,
     `${base}.mjs`,
     `${base}.cjs`,
     path.join(base, 'index.ts'),
-    path.join(base, 'index.js')
+    path.join(base, 'index.js'),
+    path.join(base, 'index.mjs'),
+    path.join(base, 'index.cjs')
   ];
+  for (const stem of stemCandidates) {
+    candidates.push(
+      stem,
+      `${stem}.ts`,
+      `${stem}.js`,
+      `${stem}.mjs`,
+      `${stem}.cjs`,
+      path.join(stem, 'index.ts'),
+      path.join(stem, 'index.js'),
+      path.join(stem, 'index.mjs'),
+      path.join(stem, 'index.cjs')
+    );
+  }
+  return candidates;
 }
 
 function normalizeRel(root, abs) {
@@ -63,7 +84,14 @@ for (const abs of files) {
   while ((match = re.exec(source)) !== null) {
     const spec = match[2] || match[4] || match[6];
     if (!spec || !(spec.startsWith('./') || spec.startsWith('../') || spec.startsWith('/'))) continue;
-    const exists = resolveCandidates(path.dirname(abs), spec).some((candidate) => fs.existsSync(candidate));
+    const exists = resolveCandidates(path.dirname(abs), spec).some((candidate) => {
+      if (!fs.existsSync(candidate)) return false;
+      try {
+        return fs.statSync(candidate).isFile();
+      } catch {
+        return false;
+      }
+    });
     if (!exists) {
       missing.push({ file, spec });
     }

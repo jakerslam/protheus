@@ -223,6 +223,10 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V6-DASHBOARD-001.7",
     "V6-DASHBOARD-001.8",
     "V6-DASHBOARD-001.9",
+    "V6-DASHBOARD-006.1",
+    "V6-DASHBOARD-006.2",
+    "V6-DASHBOARD-006.3",
+    "V6-DASHBOARD-006.4",
     "V6-DASHBOARD-007.1",
     "V6-DASHBOARD-007.2",
     "V6-DASHBOARD-007.3",
@@ -548,10 +552,6 @@ const MEMORY_BANK_IDS: &[&str] = &[
 const F100_IDS: &[&str] = &[
     "V7-F100-002.3",
     "V7-F100-002.7",
-    "V7-F100-005",
-    "V7-F100-006",
-    "V7-F100-007",
-    "V7-F100-008",
 ];
 
 const V5_HOLD_IDS: &[&str] = &[
@@ -866,6 +866,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
         return Some((
             "automation_mission_stack",
             "scheduler_hardening_handoff_memory_security_and_dashboard_control_plane",
+        ));
+    }
+    if id.starts_with("V6-DASHBOARD-006.") {
+        return Some((
+            "automation_mission_stack",
+            "chat_first_dashboard_boot_state_collapsible_controls_onboarding_and_polish_contracts",
         ));
     }
     if id.starts_with("V6-DASHBOARD-007.") {

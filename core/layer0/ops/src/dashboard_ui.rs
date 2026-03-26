@@ -3,6 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::cmp::Reverse;
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -144,6 +145,571 @@ fn parse_flags(argv: &[String]) -> Flags {
         }
     }
     out
+}
+
+fn write_json_stdout(value: &Value, pretty: bool) {
+    if pretty {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
+        );
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string())
+        );
+    }
+}
+
+fn arg_value(argv: &[String], prefix: &str) -> Option<String> {
+    argv.iter().find_map(|token| {
+        token
+            .strip_prefix(prefix)
+            .map(|value| clean_text(value, 4096))
+            .filter(|value| !value.is_empty())
+    })
+}
+
+fn arg_bool(argv: &[String], prefix: &str, fallback: bool) -> bool {
+    let Some(raw) = arg_value(argv, prefix) else {
+        return fallback;
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => fallback,
+    }
+}
+
+fn arg_usize(argv: &[String], prefix: &str, fallback: usize, min: usize, max: usize) -> usize {
+    arg_value(argv, prefix)
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .map(|n| n.clamp(min, max))
+        .unwrap_or(fallback)
+}
+
+fn branch_is_safe_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' || ch == '-' || ch == '/'
+}
+
+fn normalize_branch_name(value: &str) -> String {
+    let mut out = String::new();
+    let mut prev_slash = false;
+    for ch in clean_text(value, 160).chars() {
+        let normalized = if branch_is_safe_char(ch) { ch } else { '-' };
+        if normalized == '/' {
+            if prev_slash {
+                continue;
+            }
+            prev_slash = true;
+        } else {
+            prev_slash = false;
+        }
+        out.push(normalized);
+    }
+    out.trim_matches(|ch| ch == '-' || ch == '.' || ch == '/')
+        .to_string()
+}
+
+fn resolve_absolute_path(root: &Path, raw: &str) -> PathBuf {
+    let path = PathBuf::from(raw);
+    if path.is_absolute() {
+        path
+    } else {
+        root.join(path)
+    }
+}
+
+fn agent_git_trees_dir(root: &Path) -> PathBuf {
+    root.join(STATE_DIR_REL).join("agent_git_trees")
+}
+
+fn is_agent_workspace_path(root: &Path, workspace: &Path) -> bool {
+    workspace.starts_with(agent_git_trees_dir(root))
+}
+
+fn run_git(root: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|err| format!("git_spawn_failed:{err}"))
+}
+
+fn git_current_branch(root: &Path, fallback: &str) -> String {
+    let out = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"]);
+    if let Ok(output) = out {
+        if output.status.success() {
+            let value = clean_text(&String::from_utf8_lossy(&output.stdout), 80);
+            if !value.is_empty() {
+                return value;
+            }
+        }
+    }
+    let fallback_clean = clean_text(fallback, 80);
+    if fallback_clean.is_empty() {
+        "main".to_string()
+    } else {
+        fallback_clean
+    }
+}
+
+fn git_main_branch(root: &Path, fallback: &str) -> String {
+    let out = run_git(
+        root,
+        &["show-ref", "--verify", "--quiet", "refs/heads/main"],
+    );
+    if let Ok(output) = out {
+        if output.status.success() {
+            return "main".to_string();
+        }
+    }
+    git_current_branch(root, fallback)
+}
+
+fn git_branch_exists(root: &Path, branch: &str) -> bool {
+    if branch.is_empty() {
+        return false;
+    }
+    run_git(
+        root,
+        &[
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{branch}"),
+        ],
+    )
+    .map(|out| out.status.success())
+    .unwrap_or(false)
+}
+
+fn git_workspace_ready(root: &Path, workspace: &Path) -> bool {
+    if !workspace.exists() || !workspace.is_dir() {
+        return false;
+    }
+    Command::new("git")
+        .args([
+            "-C",
+            &workspace.to_string_lossy(),
+            "rev-parse",
+            "--is-inside-work-tree",
+        ])
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn list_git_branches(root: &Path, limit: usize, fallback_main: &str) -> (String, Vec<String>) {
+    let cap = limit.clamp(8, 2000);
+    let mut rows = Vec::<String>::new();
+    if let Ok(output) = run_git(
+        root,
+        &[
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname:short)",
+            "refs/heads",
+        ],
+    ) {
+        if output.status.success() {
+            rows = String::from_utf8_lossy(&output.stdout)
+                .split('\n')
+                .map(normalize_branch_name)
+                .filter(|row| !row.is_empty())
+                .collect();
+        }
+    }
+    let main = git_main_branch(root, fallback_main);
+    let mut seen = HashSet::<String>::new();
+    let mut out = Vec::<String>::new();
+    if !main.is_empty() {
+        seen.insert(main.clone());
+        out.push(main.clone());
+    }
+    for branch in rows {
+        if seen.insert(branch.clone()) {
+            out.push(branch);
+        }
+        if out.len() >= cap {
+            break;
+        }
+    }
+    (main, out)
+}
+
+fn run_git_authority(root: &Path, flags: &Flags, argv: &[String]) -> i32 {
+    let action = arg_value(argv, "--git-action=").unwrap_or_default();
+    if action.is_empty() {
+        let payload = json!({
+            "ok": false,
+            "error": "git_action_required"
+        });
+        write_json_stdout(&payload, flags.pretty);
+        return 2;
+    }
+
+    let fallback_branch =
+        arg_value(argv, "--fallback-branch=").unwrap_or_else(|| "main".to_string());
+    match action.as_str() {
+        "current-branch" => {
+            let branch = git_current_branch(root, &fallback_branch);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "branch": branch
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "main-branch" => {
+            let branch = git_main_branch(root, &fallback_branch);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "branch": branch
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "branch-exists" => {
+            let branch = normalize_branch_name(&arg_value(argv, "--branch=").unwrap_or_default());
+            let exists = git_branch_exists(root, &branch);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "branch": branch,
+                    "exists": exists
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "list-branches" => {
+            let limit = arg_usize(argv, "--limit=", 240, 8, 2000);
+            let (main, branches) = list_git_branches(root, limit, &fallback_branch);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "main_branch": main,
+                    "branches": branches
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "list-tracked-files" => {
+            let mut rows = Vec::<String>::new();
+            if let Ok(output) = run_git(root, &["ls-files"]) {
+                if output.status.success() {
+                    rows = String::from_utf8_lossy(&output.stdout)
+                        .split('\n')
+                        .map(|line| clean_text(line, 1024))
+                        .filter(|line| !line.is_empty())
+                        .collect();
+                }
+            }
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "files": rows
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "workspace-ready" => {
+            let raw_workspace = arg_value(argv, "--workspace=").unwrap_or_default();
+            let workspace = resolve_absolute_path(root, &raw_workspace);
+            let inside = is_agent_workspace_path(root, &workspace);
+            let ready = inside && git_workspace_ready(root, &workspace);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "workspace_dir": workspace.to_string_lossy().to_string(),
+                    "inside_agent_tree": inside,
+                    "ready": ready
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "ensure-workspace-ready" => {
+            let branch = normalize_branch_name(&arg_value(argv, "--branch=").unwrap_or_default());
+            let raw_workspace = arg_value(argv, "--workspace=").unwrap_or_default();
+            let workspace = resolve_absolute_path(root, &raw_workspace);
+            if branch.is_empty() || !is_agent_workspace_path(root, &workspace) {
+                write_json_stdout(
+                    &json!({
+                        "ok": false,
+                        "error": "invalid_git_tree_binding",
+                        "branch": branch,
+                        "workspace_dir": workspace.to_string_lossy().to_string()
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+            if git_workspace_ready(root, &workspace) {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "created": false,
+                        "branch": branch,
+                        "workspace_dir": workspace.to_string_lossy().to_string()
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+
+            if workspace.exists() && workspace.is_dir() {
+                let _ = fs::remove_dir_all(&workspace);
+            }
+            if let Some(parent) = workspace.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+
+            let branch_exists = git_branch_exists(root, &branch);
+            let workspace_str = workspace.to_string_lossy().to_string();
+            let mut args = vec!["worktree", "add", "--force"];
+            if branch_exists {
+                args.push(&workspace_str);
+                args.push(&branch);
+            } else {
+                args.push("-b");
+                args.push(&branch);
+                args.push(&workspace_str);
+                args.push("HEAD");
+            }
+
+            let mut output = run_git(root, &args);
+            if output
+                .as_ref()
+                .map(|out| !out.status.success())
+                .unwrap_or(true)
+            {
+                let _ = run_git(root, &["worktree", "prune", "--expire=now"]);
+                output = run_git(root, &args);
+            }
+
+            if output
+                .as_ref()
+                .map(|out| !out.status.success())
+                .unwrap_or(true)
+                || !git_workspace_ready(root, &workspace)
+            {
+                let detail = output
+                    .ok()
+                    .map(|out| {
+                        clean_text(
+                            &format!(
+                                "{} {}",
+                                String::from_utf8_lossy(&out.stdout),
+                                String::from_utf8_lossy(&out.stderr)
+                            ),
+                            280,
+                        )
+                    })
+                    .filter(|row| !row.is_empty())
+                    .unwrap_or_else(|| "git_worktree_add_failed".to_string());
+                write_json_stdout(
+                    &json!({
+                        "ok": false,
+                        "error": detail,
+                        "branch": branch,
+                        "workspace_dir": workspace_str
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "created": true,
+                    "branch": branch,
+                    "workspace_dir": workspace_str
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "remove-workspace" => {
+            let raw_workspace = arg_value(argv, "--workspace=").unwrap_or_default();
+            let workspace = resolve_absolute_path(root, &raw_workspace);
+            let inside = is_agent_workspace_path(root, &workspace);
+            if !inside || !workspace.exists() {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "removed": false,
+                        "reason": "no_isolated_workspace",
+                        "workspace_dir": workspace.to_string_lossy().to_string()
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+
+            let workspace_str = workspace.to_string_lossy().to_string();
+            let removed = Command::new("git")
+                .args(["worktree", "remove", "--force", &workspace_str])
+                .current_dir(root)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false);
+            let removed = if removed {
+                true
+            } else {
+                fs::remove_dir_all(&workspace).is_ok()
+            };
+            let _ = run_git(root, &["worktree", "prune", "--expire=now"]);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "removed": removed,
+                    "workspace_dir": workspace_str
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "delete-branch" => {
+            let branch = normalize_branch_name(&arg_value(argv, "--branch=").unwrap_or_default());
+            let main = normalize_branch_name(
+                &arg_value(argv, "--main-branch=").unwrap_or_else(|| "main".to_string()),
+            );
+            let branch_in_use = arg_bool(argv, "--branch-in-use=", false);
+
+            if branch.is_empty() {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "attempted": false,
+                        "removed": false,
+                        "reason": "no_isolated_branch",
+                        "branch": ""
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+            if !main.is_empty() && branch == main {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "attempted": false,
+                        "removed": false,
+                        "reason": "main_branch_protected",
+                        "branch": branch
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+            if branch_in_use {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "attempted": false,
+                        "removed": false,
+                        "reason": "branch_in_use",
+                        "branch": branch
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+            if !git_branch_exists(root, &branch) {
+                write_json_stdout(
+                    &json!({
+                        "ok": true,
+                        "attempted": false,
+                        "removed": false,
+                        "reason": "branch_missing",
+                        "branch": branch
+                    }),
+                    flags.pretty,
+                );
+                return 0;
+            }
+
+            match run_git(root, &["branch", "-D", &branch]) {
+                Ok(output) if output.status.success() => {
+                    write_json_stdout(
+                        &json!({
+                            "ok": true,
+                            "attempted": true,
+                            "removed": true,
+                            "reason": "deleted",
+                            "branch": branch,
+                            "detail": ""
+                        }),
+                        flags.pretty,
+                    );
+                    0
+                }
+                Ok(output) => {
+                    let detail = clean_text(
+                        &format!(
+                            "{} {}",
+                            String::from_utf8_lossy(&output.stdout),
+                            String::from_utf8_lossy(&output.stderr)
+                        ),
+                        240,
+                    );
+                    write_json_stdout(
+                        &json!({
+                            "ok": false,
+                            "attempted": true,
+                            "removed": false,
+                            "reason": "git_branch_delete_failed",
+                            "branch": branch,
+                            "detail": detail
+                        }),
+                        flags.pretty,
+                    );
+                    0
+                }
+                Err(err) => {
+                    write_json_stdout(
+                        &json!({
+                            "ok": false,
+                            "attempted": true,
+                            "removed": false,
+                            "reason": "git_branch_delete_failed",
+                            "branch": branch,
+                            "detail": clean_text(&err, 240)
+                        }),
+                        flags.pretty,
+                    );
+                    0
+                }
+            }
+        }
+        _ => {
+            write_json_stdout(
+                &json!({
+                    "ok": false,
+                    "error": format!("unsupported_git_action:{action}")
+                }),
+                flags.pretty,
+            );
+            2
+        }
+    }
 }
 
 fn parse_json_loose(raw: &str) -> Option<Value> {
@@ -1888,35 +2454,16 @@ fn run_serve(root: &Path, flags: &Flags) -> i32 {
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let flags = parse_flags(argv);
     match flags.mode.as_str() {
+        "git-authority" | "git-authority-v1" => run_git_authority(root, &flags, argv),
         "runtime-sync" | "runtime" => {
             let sync = build_runtime_sync(root, &flags);
-            if flags.pretty {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&sync).unwrap_or_else(|_| "{}".to_string())
-                );
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string(&sync).unwrap_or_else(|_| "{}".to_string())
-                );
-            }
+            write_json_stdout(&sync, flags.pretty);
             0
         }
         "snapshot" | "status" => {
             let snapshot = build_snapshot(root, &flags);
             write_snapshot_receipt(root, &snapshot);
-            if flags.pretty {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
-                );
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string(&snapshot).unwrap_or_else(|_| "{}".to_string())
-                );
-            }
+            write_json_stdout(&snapshot, flags.pretty);
             0
         }
         "serve" | "web" => run_serve(root, &flags),
@@ -1926,7 +2473,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 json!({
                     "ok": false,
                     "type": "infring_dashboard_cli_error",
-                    "error": format!("unsupported_mode:{} (expected serve|snapshot|status|runtime-sync)", flags.mode)
+                    "error": format!("unsupported_mode:{} (expected serve|snapshot|status|runtime-sync|git-authority)", flags.mode)
                 })
             );
             2

@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const http = require('node:http');
 const https = require('node:https');
+const os = require('node:os');
 const { spawnSync, spawn } = require('node:child_process');
 const ts = require('typescript');
 const { WebSocketServer } = require('ws');
@@ -177,9 +178,12 @@ const OLLAMA_MODEL_FALLBACK = 'qwen2.5:3b';
 const OLLAMA_TIMEOUT_MS = 45000;
 const OLLAMA_MODEL_CACHE_TTL_MS = 30_000;
 const LOCAL_PROVIDER_DISCOVERY_INTERVAL_MS = 30_000;
+const LOCAL_MODEL_BOOTSTRAP_REMINDER_MIN_MS = 30_000;
 const PROMPT_SUGGESTION_TIMEOUT_MS = 1200;
 const PROMPT_SUGGESTION_CACHE_TTL_MS = 20_000;
 const PROMPT_SUGGESTION_CACHE_MAX = 512;
+const SUBAGENT_ROUTER_SIMPLE_TOKEN_DEMAND = 4096;
+const SUBAGENT_ROUTER_COMPLEX_TOKEN_DEMAND = 20_000;
 const TEST_AGENT_MODEL_DEFAULT = 'kimi2.5:cloud';
 const TEST_AGENT_PROVIDER_DEFAULT = 'cloud';
 const TEST_AGENT_ID_PREFIXES = ['e2e-', 'test-', 'bench-', 'ci-', 'qa-'];
@@ -198,6 +202,8 @@ const DASHBOARD_BACKGROUND_RUNTIME_LOOPS_ENABLED = cleanText(
 ) === '1';
 const DEFAULT_CONTEXT_WINDOW_TOKENS = 8192;
 const AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS = 60 * 60;
+const AGENT_CONTRACT_MAX_EXPIRY_SECONDS = 30 * 24 * 60 * 60;
+const AGENT_CONTRACT_MAX_EXPIRY_MS = AGENT_CONTRACT_MAX_EXPIRY_SECONDS * 1000;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_MS = 1000;
 const AGENT_CONTRACT_ENFORCE_INTERVAL_HIGH_SCALE_MS = 5000;
 const AGENT_CONTRACT_ENFORCE_HIGH_SCALE_THRESHOLD = 64;
@@ -218,6 +224,7 @@ const AGENT_IDLE_TERMINATION_MS = 5 * 60 * 1000;
 const AGENT_IDLE_TERMINATION_BATCH = 8;
 const AGENT_IDLE_TERMINATION_BATCH_MAX = 128;
 const AGENT_IDLE_TERMINATION_COOLDOWN_MS = 10 * 1000;
+const AGENT_CONTRACT_TERMINATION_GRACE_MS = 10 * 1000;
 const AGENT_ENFORCE_MAX_TERMINATIONS_PER_SWEEP = 4;
 const AGENT_TERMINATION_TEAM_DISCOVERY_CACHE_MS = 5 * 1000;
 const AGENT_CONTRACT_RETAIN_TERMINATED_MAX = 512;
@@ -371,6 +378,7 @@ const EFFECTIVE_LOC_EXTENSIONS = new Set([
   '.json',
 ]);
 const CLI_ALLOWLIST = new Set([
+  'agent-self-config',
   'protheus',
   'protheus-ops',
   'infringd',
@@ -3514,6 +3522,12 @@ function tryDeterministicRepoAnswer(input, snapshot = null, options = {}) {
               write_receipt: true,
             });
             optimisticCollabUpsertAgent(snapshot, shadow, role);
+            assignSubagentModelOverride(shadow, snapshot, {
+              role,
+              input: rawInput,
+              mission: `Support ${invokingAgentId} subagent contract as ${role}.`,
+              parent_agent_id: invokingAgentId,
+            });
           }
         }
       }
@@ -3711,6 +3725,172 @@ function parseSubagentLaunchMeta(command, args = []) {
   return out;
 }
 
+function decodeToolArgValue(raw = '') {
+  const clean = sanitizeArg(raw, 640);
+  if (!clean) return '';
+  try {
+    return decodeURIComponent(clean.replace(/\+/g, '%20'));
+  } catch {
+    return clean;
+  }
+}
+
+function parseBooleanLike(raw) {
+  const value = cleanText(raw == null ? '' : raw, 32).toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+function runAgentSelfConfigTool(invocation, args = [], options = {}) {
+  const agentId = cleanText(invocation && invocation.invoking_agent_id ? invocation.invoking_agent_id : '', 140);
+  const input = [sanitizeArg(invocation && invocation.command ? invocation.command : 'agent-self-config', 80), ...(Array.isArray(args) ? args : [])]
+    .filter(Boolean)
+    .join(' ');
+  if (!agentId) {
+    return {
+      ok: false,
+      name: 'agent-self-config',
+      input,
+      result: 'blocked: agent context required',
+      is_error: true,
+      exit_code: 126,
+    };
+  }
+
+  const patch = {};
+  const identityPatch = {};
+  const normalizedArgs = Array.isArray(args) ? args : [];
+  for (const tokenRaw of normalizedArgs) {
+    const token = sanitizeArg(tokenRaw, 640);
+    if (!token) continue;
+    const eqIdx = token.indexOf('=');
+    const keyRaw = sanitizeArg((eqIdx >= 0 ? token.slice(0, eqIdx) : token).replace(/^--+/, ''), 80);
+    const valueRaw = eqIdx >= 0 ? token.slice(eqIdx + 1) : '';
+    const key = cleanText(keyRaw.replace(/-/g, '_'), 80).toLowerCase();
+    const value = decodeToolArgValue(valueRaw);
+    if (!key) continue;
+    if (key === 'name') {
+      patch.name = cleanText(value, 100);
+      continue;
+    }
+    if (key === 'emoji') {
+      identityPatch.emoji = cleanText(value, 24);
+      continue;
+    }
+    if (key === 'color') {
+      identityPatch.color = normalizeIdentityColor(value, '#2563EB');
+      continue;
+    }
+    if (key === 'archetype') {
+      identityPatch.archetype = cleanText(value, 80);
+      continue;
+    }
+    if (key === 'vibe') {
+      identityPatch.vibe = cleanText(value, 80);
+      continue;
+    }
+    if (key === 'avatar' || key === 'avatar_url' || key === 'picture' || key === 'pic' || key === 'image') {
+      const normalizedAvatar = cleanText(value, 512);
+      patch.avatar_url =
+        /^(none|clear|remove|null)$/i.test(normalizedAvatar)
+          ? ''
+          : normalizeAvatarAssetUrl(normalizedAvatar);
+      continue;
+    }
+    if (key === 'clear_avatar' && parseBooleanLike(value || '1')) {
+      patch.avatar_url = '';
+      continue;
+    }
+  }
+  if (Object.keys(identityPatch).length > 0) {
+    patch.identity = identityPatch;
+  }
+  if (Object.keys(patch).length === 0) {
+    return {
+      ok: false,
+      name: 'agent-self-config',
+      input,
+      result:
+        'No valid fields. Use key=value args like name=Jarvis emoji=🤖 avatar_url=https://... clear_avatar=1 color=#2563EB.',
+      is_error: true,
+      exit_code: 2,
+    };
+  }
+
+  const prior = agentProfileFor(agentId);
+  const priorName = cleanText(prior && prior.name ? prior.name : agentId, 100) || agentId;
+  const priorAvatarUrl = cleanText(prior && prior.avatar_url ? prior.avatar_url : '', 512);
+  const priorEmoji = cleanText(prior && prior.identity && prior.identity.emoji ? prior.identity.emoji : '', 24);
+  const updated = upsertAgentProfile(agentId, patch);
+  if (!updated) {
+    return {
+      ok: false,
+      name: 'agent-self-config',
+      input,
+      result: 'failed: unable to update profile',
+      is_error: true,
+      exit_code: 1,
+    };
+  }
+  const nextName = cleanText(updated && updated.name ? updated.name : agentId, 100) || agentId;
+  const nextAvatarUrl = cleanText(updated && updated.avatar_url ? updated.avatar_url : '', 512);
+  const nextEmoji = cleanText(updated && updated.identity && updated.identity.emoji ? updated.identity.emoji : '', 24);
+
+  if (
+    priorAvatarUrl &&
+    normalizeAvatarAssetUrl(priorAvatarUrl).split('?')[0].split('#')[0] !==
+      normalizeAvatarAssetUrl(nextAvatarUrl).split('?')[0].split('#')[0]
+  ) {
+    deleteAvatarAssetIfUnreferenced(priorAvatarUrl);
+  }
+
+  const snapshot = options && options.snapshot ? options.snapshot : null;
+  if (snapshot) {
+    if (nextName && nextName !== priorName) {
+      appendAgentNoticeEvent(agentId, snapshot, `changed name from ${priorName} to ${nextName}`, {
+        notice_type: 'info',
+        notice_icon: 'i',
+      });
+    }
+    if (patch.avatar_url != null) {
+      appendAgentNoticeEvent(
+        agentId,
+        snapshot,
+        nextAvatarUrl ? 'updated profile picture' : 'cleared profile picture',
+        { notice_type: 'info', notice_icon: 'i' }
+      );
+    }
+    if (nextEmoji && nextEmoji !== priorEmoji) {
+      appendAgentNoticeEvent(agentId, snapshot, `updated profile emoji to ${nextEmoji}`, {
+        notice_type: 'info',
+        notice_icon: 'i',
+      });
+    }
+  }
+
+  const applied = [];
+  if (Object.prototype.hasOwnProperty.call(patch, 'name')) applied.push(`name=${nextName}`);
+  if (patch.identity && Object.prototype.hasOwnProperty.call(patch.identity, 'emoji')) applied.push(`emoji=${nextEmoji || 'none'}`);
+  if (Object.prototype.hasOwnProperty.call(patch, 'avatar_url')) applied.push(`avatar_url=${nextAvatarUrl || 'none'}`);
+  if (patch.identity && Object.prototype.hasOwnProperty.call(patch.identity, 'color')) applied.push(`color=${cleanText(updated && updated.identity && updated.identity.color ? updated.identity.color : '', 16)}`);
+  if (patch.identity && Object.prototype.hasOwnProperty.call(patch.identity, 'archetype')) applied.push(`archetype=${cleanText(updated && updated.identity && updated.identity.archetype ? updated.identity.archetype : '', 80) || 'none'}`);
+  if (patch.identity && Object.prototype.hasOwnProperty.call(patch.identity, 'vibe')) applied.push(`vibe=${cleanText(updated && updated.identity && updated.identity.vibe ? updated.identity.vibe : '', 80) || 'none'}`);
+
+  return {
+    ok: true,
+    name: 'agent-self-config',
+    input,
+    result: `updated self profile: ${applied.join(', ')}`,
+    is_error: false,
+    exit_code: 0,
+    agent_profile: {
+      id: agentId,
+      name: nextName,
+      avatar_url: nextAvatarUrl,
+      identity: updated && updated.identity && typeof updated.identity === 'object' ? updated.identity : {},
+    },
+  };
+}
+
 function runCliTool(command, args = [], options = {}) {
   const invocation = normalizeCliInvocation(command, args, options);
   const normalizedArgs = invocation.args;
@@ -3725,6 +3905,9 @@ function runCliTool(command, args = [], options = {}) {
       is_error: true,
       exit_code: 126,
     };
+  }
+  if (gate.command === 'agent-self-config') {
+    return runAgentSelfConfigTool(invocation, normalizedArgs, options);
   }
   try {
     const proc = spawnSync(gate.command, normalizedArgs, {
@@ -4041,7 +4224,7 @@ const PROVIDER_DEFAULTS = [
   { id: 'cloud', display_name: 'Cloud (Generic)', is_local: false, needs_key: false },
 ];
 
-const PROVIDER_BOOTSTRAP_VERSION = 1;
+const PROVIDER_BOOTSTRAP_VERSION = 2;
 const PROVIDER_ENV_KEY_HINTS = {
   openai: ['OPENAI_API_KEY'],
   anthropic: ['ANTHROPIC_API_KEY'],
@@ -4145,6 +4328,7 @@ let ollamaModelListCache = {
   models: [],
 };
 let providerBootstrapStateCache = null;
+let localModelStartupReminderEmitted = false;
 
 function inferProviderFromApiKey(apiKey = '') {
   const key = cleanText(apiKey || '', 320);
@@ -4182,6 +4366,61 @@ function normalizeModelRating(value, fallback = 3) {
   const parsed = parsePositiveInt(value, fallback, 1, 5);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(5, parsed));
+}
+
+const MODEL_SPECIALTY_ALLOWED = new Set(['general', 'coding', 'reasoning', 'vision', 'speed']);
+const MODEL_SPECIALTY_PRIORITY = ['coding', 'reasoning', 'vision', 'speed', 'general'];
+
+function normalizeModelSpecialty(value = '', fallback = 'general') {
+  const fallbackValue = cleanText(fallback || 'general', 24).toLowerCase() || 'general';
+  const normalized = cleanText(value || '', 24).toLowerCase();
+  if (MODEL_SPECIALTY_ALLOWED.has(normalized)) return normalized;
+  if (MODEL_SPECIALTY_ALLOWED.has(fallbackValue)) return fallbackValue;
+  return 'general';
+}
+
+function normalizeModelSpecialtyTags(value = [], fallback = []) {
+  const merged = []
+    .concat(Array.isArray(value) ? value : [])
+    .concat(Array.isArray(fallback) ? fallback : []);
+  const out = [];
+  for (const row of merged) {
+    const specialty = normalizeModelSpecialty(row, '');
+    if (!specialty) continue;
+    if (out.includes(specialty)) continue;
+    out.push(specialty);
+  }
+  if (out.length === 0) out.push('general');
+  return out.slice(0, 4);
+}
+
+function inferModelSpecialty(providerId = '', modelId = '') {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const model = cleanText(modelId || '', 200).toLowerCase();
+  const tags = [];
+  if (
+    /\b(code|coder|codestral|starcoder|deepseek-coder|qwen.*coder|codex|program|dev)\b/i.test(model)
+  ) {
+    tags.push('coding');
+  }
+  if (/\b(reason|reasoner|thinking|r1|o3|analysis|deepresearch)\b/i.test(model)) {
+    tags.push('reasoning');
+  }
+  if (/\b(vision|vl|llava|multimodal|gpt-4o|gemini-2\.5)\b/i.test(model)) {
+    tags.push('vision');
+  }
+  if (/\b(flash|instant|turbo|fast|lite|mini|nano)\b/i.test(model)) {
+    tags.push('speed');
+  }
+  if ((provider === 'ollama' || provider === 'llama.cpp') && tags.length === 0) {
+    tags.push('general');
+  }
+  const normalizedTags = normalizeModelSpecialtyTags(tags, ['general']);
+  const primary = MODEL_SPECIALTY_PRIORITY.find((candidate) => normalizedTags.includes(candidate)) || 'general';
+  return {
+    specialty: primary,
+    specialty_tags: normalizedTags,
+  };
 }
 
 function inferModelParamCountBillions(modelName = '') {
@@ -4231,6 +4470,7 @@ function normalizeProviderModelProfiles(value = {}) {
     const modelId = cleanText(key || '', 180);
     if (!modelId) continue;
     const row = source[key] && typeof source[key] === 'object' ? source[key] : {};
+    const inferredSpecialty = inferModelSpecialty('', modelId);
     out[modelId] = {
       power_rating: normalizeModelRating(row.power_rating, 3),
       cost_rating: normalizeModelRating(row.cost_rating, 3),
@@ -4238,6 +4478,8 @@ function normalizeProviderModelProfiles(value = {}) {
         row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(modelId),
         0
       ),
+      specialty: normalizeModelSpecialty(row.specialty, inferredSpecialty.specialty),
+      specialty_tags: normalizeModelSpecialtyTags(row.specialty_tags, inferredSpecialty.specialty_tags),
       deployment_kind: normalizeModelDeploymentKind(row.deployment_kind, 'cloud'),
       local_download_path: cleanText(row.local_download_path || '', 640),
       download_available: row.download_available === true,
@@ -4304,6 +4546,7 @@ function deriveProviderModelProfile(providerId = '', modelId = '', providerRow =
   const model = cleanText(modelId || '', 180);
   const deploymentKind = inferModelDeploymentKind(provider, providerRow);
   const paramsB = normalizeParamCountBillions(inferModelParamCountBillions(model), 0);
+  const specialty = inferModelSpecialty(provider, model);
   const downloadable = modelLooksLocallyDownloadable(provider, model);
   const localRoot = path.resolve(ROOT, 'core', 'local', 'models');
   const localPath = downloadable
@@ -4313,6 +4556,8 @@ function deriveProviderModelProfile(providerId = '', modelId = '', providerRow =
     power_rating: inferModelPowerRating(provider, model),
     cost_rating: inferModelCostRating(provider, model),
     param_count_billion: paramsB,
+    specialty: specialty.specialty,
+    specialty_tags: specialty.specialty_tags,
     deployment_kind: deploymentKind,
     local_download_path: cleanText(localPath, 640),
     download_available: downloadable,
@@ -4601,6 +4846,24 @@ function normalizeProviderBootstrapState(value = {}) {
       : [],
     switched_provider: cleanText(root.switched_provider || '', 80).toLowerCase(),
     switched_model: cleanText(root.switched_model || '', 160),
+    local_model_notice_at: cleanText(root.local_model_notice_at || '', 80),
+    local_model_notice_count: parseNonNegativeInt(root.local_model_notice_count, 0, 1000000),
+    local_model_recommended_provider: cleanText(root.local_model_recommended_provider || '', 80).toLowerCase(),
+    local_model_recommended_model: cleanText(root.local_model_recommended_model || '', 180),
+    local_model_ready_at: cleanText(root.local_model_ready_at || '', 80),
+    system_profile: root.system_profile && typeof root.system_profile === 'object'
+      ? {
+          arch: cleanText(root.system_profile.arch || '', 40),
+          platform: cleanText(root.system_profile.platform || '', 40),
+          cpu_count: parsePositiveInt(root.system_profile.cpu_count, 0, 0, 4096),
+          memory_gb: parsePositiveInt(root.system_profile.memory_gb, 0, 0, 8192),
+          tier: cleanText(root.system_profile.tier || '', 40),
+          suggested_max_params_b: normalizeParamCountBillions(
+            root.system_profile.suggested_max_params_b,
+            0
+          ),
+        }
+      : null,
     updated_at: cleanText(root.updated_at || nowIso(), 80) || nowIso(),
   };
 }
@@ -5576,6 +5839,7 @@ function discoverLocalProviderState(snapshot, options = {}) {
       discovered_provider_ids: Array.from(discoveredProviderIds),
       switched_provider: switchedProvider,
       switched_model: switchedModel,
+      system_profile: inferSystemSpecProfile(),
     });
   }
 
@@ -5634,6 +5898,8 @@ function buildDashboardModels(snapshot) {
     power_rating: 3,
     cost_rating: 3,
     param_count_billion: 0,
+    specialty: 'general',
+    specialty_tags: ['general'],
     local_download_path: '',
     download_available: false,
   });
@@ -5650,6 +5916,7 @@ function buildDashboardModels(snapshot) {
 
   for (const id of mergedOllama) {
     const profile = profileForModel('ollama', id, ollamaProvider, true);
+    const inferredSpecialty = inferModelSpecialty('ollama', id);
     rows.push({
       id,
       provider: 'ollama',
@@ -5666,6 +5933,11 @@ function buildDashboardModels(snapshot) {
       param_count_billion: normalizeParamCountBillions(
         profile && profile.param_count_billion != null ? profile.param_count_billion : inferModelParamCountBillions(id),
         0
+      ),
+      specialty: normalizeModelSpecialty(profile && profile.specialty != null ? profile.specialty : '', inferredSpecialty.specialty),
+      specialty_tags: normalizeModelSpecialtyTags(
+        profile && profile.specialty_tags != null ? profile.specialty_tags : [],
+        inferredSpecialty.specialty_tags
       ),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
       download_available: !!(profile && profile.download_available === true),
@@ -5684,6 +5956,7 @@ function buildDashboardModels(snapshot) {
     const local = options.is_local === true;
     const providerRow = providers[cleanProvider] || normalizeProviderRecord(cleanProvider, { id: cleanProvider, is_local: local });
     const profile = profileForModel(cleanProvider, cleanModel, providerRow, local);
+    const inferredSpecialty = inferModelSpecialty(cleanProvider, cleanModel);
     rows.push({
       id: cleanProvider === 'ollama' ? cleanModel : `${cleanProvider}/${cleanModel}`,
       provider: cleanProvider,
@@ -5706,6 +5979,11 @@ function buildDashboardModels(snapshot) {
       param_count_billion: normalizeParamCountBillions(
         profile && profile.param_count_billion != null ? profile.param_count_billion : inferModelParamCountBillions(cleanModel),
         0
+      ),
+      specialty: normalizeModelSpecialty(profile && profile.specialty != null ? profile.specialty : '', inferredSpecialty.specialty),
+      specialty_tags: normalizeModelSpecialtyTags(
+        profile && profile.specialty_tags != null ? profile.specialty_tags : [],
+        inferredSpecialty.specialty_tags
       ),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
       download_available: !!(profile && profile.download_available === true),
@@ -5746,6 +6024,259 @@ function buildDashboardModels(snapshot) {
     });
   }
   return applyModelRatingNormalization(rows);
+}
+
+function inferSystemSpecProfile() {
+  const cpuRows = Array.isArray(os.cpus && os.cpus()) ? os.cpus() : [];
+  const cpuCount = Math.max(1, cpuRows.length || 1);
+  const memoryGb = Math.max(1, Math.round((Number(os.totalmem ? os.totalmem() : 0) / (1024 * 1024 * 1024)) * 10) / 10);
+  let tier = 'low';
+  let suggestedMaxParamsB = 4;
+  if (memoryGb >= 64 || cpuCount >= 24) {
+    tier = 'ultra';
+    suggestedMaxParamsB = 70;
+  } else if (memoryGb >= 32 || cpuCount >= 16) {
+    tier = 'high';
+    suggestedMaxParamsB = 32;
+  } else if (memoryGb >= 16 || cpuCount >= 10) {
+    tier = 'mid';
+    suggestedMaxParamsB = 14;
+  } else if (memoryGb >= 8 || cpuCount >= 6) {
+    tier = 'entry';
+    suggestedMaxParamsB = 8;
+  }
+  return {
+    arch: cleanText(os.arch ? os.arch() : '', 40),
+    platform: cleanText(os.platform ? os.platform() : '', 40),
+    cpu_count: cpuCount,
+    memory_gb: memoryGb,
+    tier,
+    suggested_max_params_b: normalizeParamCountBillions(suggestedMaxParamsB, suggestedMaxParamsB),
+    sampled_at: nowIso(),
+  };
+}
+
+function modelRowOverrideValue(row = {}) {
+  const provider = cleanText(row && row.provider ? row.provider : '', 80).toLowerCase();
+  const display = cleanText(row && row.display_name ? row.display_name : '', 180);
+  const id = cleanText(row && row.id ? row.id : '', 180);
+  const modelName = display || id;
+  if (!modelName) return 'auto';
+  if (provider === 'ollama') return modelName;
+  if (provider && modelName.includes('/') && modelName.toLowerCase().startsWith(`${provider}/`)) return modelName;
+  if (provider) return `${provider}/${modelName}`;
+  return modelName;
+}
+
+function localModelInventory(snapshot) {
+  const registry = discoverLocalProviderState(snapshot);
+  const providers =
+    registry && registry.providers && typeof registry.providers === 'object'
+      ? registry.providers
+      : {};
+  const out = [];
+  const seen = new Set();
+  const push = (providerId, modelId, source) => {
+    const provider = cleanText(providerId || '', 80).toLowerCase();
+    const model = cleanText(modelId || '', 180);
+    const kind = cleanText(source || '', 80).toLowerCase();
+    if (!provider || !model) return;
+    const key = `${provider}/${model}`.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      provider,
+      model,
+      source: kind || 'unknown',
+    });
+  };
+
+  const ollamaInstalled = parseOllamaModelList();
+  for (const modelId of ollamaInstalled) {
+    push('ollama', modelId, 'ollama_list');
+  }
+
+  for (const [providerId, providerRow] of Object.entries(providers)) {
+    const provider = cleanText(providerId || '', 80).toLowerCase();
+    const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+    if (!provider || row.is_local !== true) continue;
+    if (provider === 'ollama') continue;
+    const fromPaths = Array.isArray(row.local_model_paths) ? row.local_model_paths : [];
+    for (const modelPath of fromPaths) {
+      const basename = cleanText(path.basename(String(modelPath || '')), 180);
+      if (!basename) continue;
+      push(provider, basename, 'local_path');
+    }
+    const detected = Array.isArray(row.detected_models) ? row.detected_models : [];
+    for (const modelId of detected) {
+      push(provider, modelId, 'detected_models');
+    }
+  }
+  return {
+    total: out.length,
+    models: out.slice(0, 256),
+  };
+}
+
+function recommendLocalBootstrapModel(snapshot, options = {}) {
+  const spec = options && options.spec && typeof options.spec === 'object'
+    ? options.spec
+    : inferSystemSpecProfile();
+  const targetParams = normalizeParamCountBillions(
+    spec && spec.suggested_max_params_b != null ? spec.suggested_max_params_b : 8,
+    8
+  );
+  const rows = buildDashboardModels(snapshot).filter((row) => {
+    if (!row || typeof row !== 'object') return false;
+    if (String(row.id || '').toLowerCase() === 'auto') return false;
+    const provider = cleanText(row.provider || '', 80).toLowerCase();
+    const local = row.is_local === true || provider === 'ollama' || provider === 'llama.cpp';
+    if (!local) return false;
+    return row.download_available === true || !!cleanText(row.local_download_path || '', 640);
+  });
+  const scored = rows.map((row) => {
+    const provider = cleanText(row.provider || '', 80).toLowerCase();
+    const model = cleanText(row.display_name || row.id || '', 180);
+    const params = normalizeParamCountBillions(
+      row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(model),
+      0
+    );
+    const contextWindow = parsePositiveInt(row.context_window != null ? row.context_window : 0, 0, 0, 8_000_000);
+    const power = normalizeModelRating(row.power_rating, 3);
+    const cost = normalizeModelRating(row.cost_rating, 1);
+    const delta = params > 0 ? Math.abs(params - targetParams) / Math.max(1, targetParams) : 1.5;
+    let score = 0;
+    score += power * 1.2;
+    score += (6 - cost) * 1.35;
+    score += contextWindow >= 32768 ? 0.4 : 0;
+    score -= delta * 2.2;
+    if (params > (targetParams * 1.5)) score -= 1.4;
+    if (params > 0 && params <= (targetParams * 1.1)) score += 0.5;
+    if (provider === 'ollama') score += 0.4;
+    return {
+      score,
+      provider,
+      model,
+      model_override: modelRowOverrideValue(row),
+      context_window: contextWindow,
+      param_count_billion: params,
+      power_rating: power,
+      cost_rating: cost,
+      local_download_path: cleanText(row.local_download_path || '', 640),
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const best = scored[0] || null;
+  if (best) {
+    return {
+      ok: true,
+      recommendation: best,
+      system_profile: spec,
+      rationale: `Based on ${spec.memory_gb}GB RAM and ${spec.cpu_count} CPU threads`,
+    };
+  }
+  const fallbackModel = targetParams >= 32 ? 'llama3.1:8b' : targetParams >= 14 ? 'qwen2.5:7b' : 'qwen2.5:3b';
+  return {
+    ok: true,
+    recommendation: {
+      provider: 'ollama',
+      model: fallbackModel,
+      model_override: fallbackModel,
+      context_window: inferContextWindowFromModelName(fallbackModel, DEFAULT_CONTEXT_WINDOW_TOKENS),
+      param_count_billion: normalizeParamCountBillions(inferModelParamCountBillions(fallbackModel), 0),
+      power_rating: inferModelPowerRating('ollama', fallbackModel),
+      cost_rating: inferModelCostRating('ollama', fallbackModel),
+      local_download_path: safeModelDownloadTarget('ollama', fallbackModel, ''),
+    },
+    system_profile: spec,
+    rationale: `Fallback recommendation for ${spec.memory_gb}GB RAM`,
+  };
+}
+
+function localModelNoticeTargetAgent(snapshot) {
+  const rows = compatAgentsFromSnapshot(snapshot, { includeArchived: false });
+  const preferred = rows.find((row) => isMainTreeBoundAgent(cleanText(row && row.id ? row.id : '', 140))) || rows[0];
+  return cleanText(preferred && preferred.id ? preferred.id : 'chat-ui-default-agent', 140) || 'chat-ui-default-agent';
+}
+
+function maybeEmitLocalModelBootstrapReminder(snapshot, options = {}) {
+  const force = !!(options && options.force === true);
+  const checkOnly = !!(options && options.check_only === true);
+  const bootstrapState = loadProviderBootstrapState();
+  const nowMs = Date.now();
+  const inventory = localModelInventory(snapshot);
+  const hasLocalModel = inventory.total > 0;
+  if (hasLocalModel) {
+    if (!bootstrapState.local_model_ready_at) {
+      saveProviderBootstrapState({
+        local_model_ready_at: nowIso(),
+      });
+    }
+    return {
+      ok: true,
+      has_local_model: true,
+      inventory,
+    };
+  }
+  if (checkOnly) {
+    return {
+      ok: true,
+      has_local_model: false,
+      inventory,
+    };
+  }
+  const lastNoticeMs = coerceTsMs(bootstrapState.local_model_notice_at || 0, 0);
+  if (
+    !force &&
+    localModelStartupReminderEmitted &&
+    lastNoticeMs > 0 &&
+    (nowMs - lastNoticeMs) < LOCAL_MODEL_BOOTSTRAP_REMINDER_MIN_MS
+  ) {
+    return {
+      ok: true,
+      has_local_model: false,
+      skipped: 'startup_notice_cooldown',
+    };
+  }
+  const recommendation = recommendLocalBootstrapModel(snapshot);
+  const recommended = recommendation && recommendation.recommendation ? recommendation.recommendation : null;
+  const suggestedModel = cleanText(recommended && recommended.model ? recommended.model : 'qwen2.5:3b', 180) || 'qwen2.5:3b';
+  const suggestedParams = normalizeParamCountBillions(
+    recommended && recommended.param_count_billion != null ? recommended.param_count_billion : inferModelParamCountBillions(suggestedModel),
+    0
+  );
+  const suggestedCtx = parsePositiveInt(
+    recommended && recommended.context_window != null ? recommended.context_window : inferContextWindowFromModelName(suggestedModel, DEFAULT_CONTEXT_WINDOW_TOKENS),
+    DEFAULT_CONTEXT_WINDOW_TOKENS,
+    1024,
+    8_000_000
+  );
+  const noticeLabel =
+    `Download or connect a local LLM to enable offline mode. Suggested: ${suggestedModel} (${suggestedParams > 0 ? `${Math.round(suggestedParams * 10) / 10}B` : '? params'}, ${Math.round(suggestedCtx / 1024)}k ctx).`;
+  const targetAgentId = localModelNoticeTargetAgent(snapshot);
+  const notice = appendAgentNoticeEvent(targetAgentId, snapshot, noticeLabel, {
+    notice_type: 'info',
+    notice_icon: '⬇',
+  });
+  const nextCount = parseNonNegativeInt(bootstrapState.local_model_notice_count, 0, 1000000) + (notice ? 1 : 0);
+  const systemProfile = recommendation && recommendation.system_profile ? recommendation.system_profile : inferSystemSpecProfile();
+  saveProviderBootstrapState({
+    local_model_notice_at: nowIso(),
+    local_model_notice_count: nextCount,
+    local_model_recommended_provider: cleanText(recommended && recommended.provider ? recommended.provider : 'ollama', 80).toLowerCase(),
+    local_model_recommended_model: suggestedModel,
+    local_model_ready_at: '',
+    system_profile: systemProfile,
+  });
+  localModelStartupReminderEmitted = !!notice;
+  return {
+    ok: true,
+    has_local_model: false,
+    notice,
+    recommendation: recommended,
+    system_profile: systemProfile,
+    inventory,
+  };
 }
 
 function modelOverrideFromState(state) {
@@ -6082,6 +6613,186 @@ function rustRouteDecision(input, snapshot, options = {}) {
 
 function planAutoRoute(input, snapshot, options = {}) {
   return rustRouteDecision(input, snapshot, options);
+}
+
+function inferSubagentWorkProfile(role = '', contextText = '') {
+  const normalizedRole = normalizeCollabRole(role || 'analyst');
+  const text = cleanText(contextText || '', 6000).toLowerCase();
+  const coding = normalizedRole === 'builder' || normalizedRole === 'reviewer' ||
+    /\b(code|coding|typescript|javascript|rust|python|compile|build|refactor|bug|test|api|library)\b/i.test(text);
+  const reasoning = normalizedRole === 'director' || normalizedRole === 'coordinator' || normalizedRole === 'researcher' ||
+    /\b(plan|strategy|analy|investigat|root cause|triage|architecture|design)\b/i.test(text);
+  const longContext = /\b(long context|history|timeline|audit|full repo|entire repo|deep dive|comprehensive)\b/i.test(text);
+  const speedSensitive = /\b(quick|fast|latency|snappy|immediate|small task)\b/i.test(text);
+  const budgetSensitive = /\b(cheap|budget|low cost|economical)\b/i.test(text);
+  const vision = /\b(image|vision|screenshot|ocr|photo|diagram)\b/i.test(text);
+  const simpleScope = speedSensitive && !reasoning && !longContext;
+  return {
+    role: normalizedRole,
+    coding,
+    reasoning,
+    long_context: longContext,
+    speed_sensitive: speedSensitive,
+    budget_sensitive: budgetSensitive,
+    vision,
+    simple_scope: simpleScope,
+    token_demand_hint: longContext ? SUBAGENT_ROUTER_COMPLEX_TOKEN_DEMAND : SUBAGENT_ROUTER_SIMPLE_TOKEN_DEMAND,
+  };
+}
+
+function subagentModelOverrideFromSelection(row = {}) {
+  const provider = cleanText(row.provider || '', 80).toLowerCase();
+  const model = cleanText(row.display_name || row.id || '', 180);
+  if (!model) return 'auto';
+  if (provider === 'ollama') return model;
+  if (model.includes('/') && model.toLowerCase().startsWith(`${provider}/`)) return model;
+  if (provider) return `${provider}/${model}`;
+  return model;
+}
+
+function selectSubagentModel(snapshot, options = {}) {
+  const role = cleanText(options && options.role ? options.role : 'analyst', 80) || 'analyst';
+  const contextText = [
+    cleanText(options && options.scope ? options.scope : '', 2000),
+    cleanText(options && options.mission ? options.mission : '', 2000),
+    cleanText(options && options.input ? options.input : '', 2000),
+  ].filter(Boolean).join('\n');
+  const profile = inferSubagentWorkProfile(role, contextText);
+  const rows = buildDashboardModels(snapshot).filter((row) => {
+    if (!row || typeof row !== 'object') return false;
+    if (String(row.id || '').toLowerCase() === 'auto') return false;
+    return row.available !== false;
+  });
+  if (!rows.length) return null;
+  let best = null;
+  for (const row of rows) {
+    const provider = cleanText(row.provider || '', 80).toLowerCase();
+    const modelName = cleanText(row.display_name || row.id || '', 180).toLowerCase();
+    const local = row.is_local === true || provider === 'ollama' || provider === 'llama.cpp';
+    const contextWindow = parsePositiveInt(row.context_window != null ? row.context_window : 0, DEFAULT_CONTEXT_WINDOW_TOKENS, 1024, 8_000_000);
+    const power = normalizeModelRating(row.power_rating, 3);
+    const cost = normalizeModelRating(row.cost_rating, local ? 1 : 3);
+    const inferredSpecialty = inferModelSpecialty(provider, modelName);
+    const specialty = normalizeModelSpecialty(row.specialty, inferredSpecialty.specialty);
+    const specialtyTags = normalizeModelSpecialtyTags(row.specialty_tags, inferredSpecialty.specialty_tags);
+    const params = normalizeParamCountBillions(
+      row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(modelName),
+      0
+    );
+    let score = 0;
+    if (profile.simple_scope) {
+      score += (6 - power) * 1.1;
+      score += (6 - cost) * 1.45;
+    } else {
+      score += power * 1.35;
+      score += (6 - cost) * 0.45;
+    }
+    if (profile.reasoning) {
+      if (specialty === 'reasoning') score += 2.8;
+      if (/\b(reason|o3|r1|thinking|opus|sonnet)\b/i.test(modelName)) score += 1.0;
+    }
+    if (profile.coding) {
+      if (specialty === 'coding') score += 3.2;
+      if (specialtyTags.includes('coding')) score += 1.4;
+      if (/\b(code|coder|codestral|starcoder|deepseek-coder|qwen.*coder|codex)\b/i.test(modelName)) score += 1.4;
+    }
+    if (profile.vision) {
+      if (row.supports_vision) score += 2.2;
+      else score -= 4.2;
+    }
+    if (profile.long_context) {
+      score += Math.min(2.3, Math.log2(Math.max(1024, contextWindow) / 8192));
+    }
+    if (profile.token_demand_hint > contextWindow) {
+      score -= 2.0;
+    }
+    if (profile.speed_sensitive && /\b(flash|instant|turbo|mini)\b/i.test(modelName)) score += 1.2;
+    if (profile.budget_sensitive || profile.simple_scope) score += (6 - cost) * 0.8;
+    if (profile.coding && row.supports_tools !== false) score += 0.6;
+    if (!profile.long_context && params > 90) score -= 1.3;
+    if (profile.simple_scope && params > 35) score -= 1.5;
+    if (provider === 'auto') score -= 2.5;
+    const candidate = {
+      ...row,
+      score: Number(score.toFixed(6)),
+      specialty,
+      specialty_tags: specialtyTags,
+      profile,
+    };
+    if (!best || candidate.score > best.score) {
+      best = candidate;
+    }
+  }
+  if (!best) return null;
+  return {
+    provider: cleanText(best.provider || '', 80).toLowerCase(),
+    model: cleanText(best.display_name || best.id || '', 180),
+    model_override: subagentModelOverrideFromSelection(best),
+    context_window: parsePositiveInt(best.context_window, DEFAULT_CONTEXT_WINDOW_TOKENS, 1024, 8_000_000),
+    power_rating: normalizeModelRating(best.power_rating, 3),
+    cost_rating: normalizeModelRating(best.cost_rating, 3),
+    specialty: best.specialty,
+    specialty_tags: best.specialty_tags,
+    local: best.is_local === true || cleanText(best.provider || '', 80).toLowerCase() === 'ollama',
+    score: best.score,
+    profile: best.profile,
+  };
+}
+
+function assignSubagentModelOverride(agentId, snapshot, options = {}) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) return null;
+  const explicitOverride = cleanText(
+    options && (options.model_override || options.model) ? options.model_override || options.model : '',
+    120
+  );
+  const existing = agentProfileFor(id);
+  const existingOverride = modelOverrideFromState({
+    model_override: existing && existing.model_override != null ? existing.model_override : 'auto',
+  });
+  const force = !!(options && options.force === true);
+  if (!force && existingOverride && existingOverride.toLowerCase() !== 'auto' && !explicitOverride) {
+    return {
+      applied: false,
+      model_override: existingOverride,
+      reason: 'existing_override_preserved',
+    };
+  }
+  const selection = explicitOverride
+    ? {
+        provider: providerForModelName(explicitOverride, configuredProvider(snapshot)),
+        model: explicitOverride.includes('/') ? explicitOverride.split('/').slice(-1)[0] : explicitOverride,
+        model_override: explicitOverride,
+        specialty: 'general',
+        specialty_tags: ['general'],
+        profile: inferSubagentWorkProfile(
+          cleanText(options && options.role ? options.role : 'analyst', 80),
+          cleanText(options && options.input ? options.input : '', 2000)
+        ),
+      }
+    : selectSubagentModel(snapshot, options);
+  if (!selection || !selection.model_override) return null;
+  const modelOverride = cleanText(selection.model_override, 120) || 'auto';
+  const state = loadAgentSession(id, snapshot);
+  if (modelOverride && modelOverride.toLowerCase() !== 'auto') {
+    state.model_override = modelOverride;
+  } else {
+    state.model_override = 'auto';
+  }
+  saveAgentSession(id, state);
+  upsertAgentProfile(id, {
+    model_override: state.model_override,
+  });
+  return {
+    applied: true,
+    model_override: state.model_override,
+    provider: cleanText(selection.provider || '', 80).toLowerCase(),
+    model: cleanText(selection.model || '', 180),
+    specialty: normalizeModelSpecialty(selection.specialty || 'general', 'general'),
+    specialty_tags: normalizeModelSpecialtyTags(selection.specialty_tags || [], ['general']),
+    profile: selection.profile || null,
+    score: Number.isFinite(Number(selection.score)) ? Number(selection.score) : null,
+  };
 }
 
 function effectiveAgentModel(agentId, snapshot, options = {}) {
@@ -6502,6 +7213,33 @@ function responseShowsConcreteAction(text) {
   return false;
 }
 
+function responseLooksTelemetryDump(text) {
+  const clean = String(text || '').trim();
+  if (!clean) return false;
+  const lines = clean
+    .split('\n')
+    .map((row) => String(row || '').trim())
+    .filter(Boolean);
+  if (!lines.length) return false;
+  let telemetryLines = 0;
+  for (const line of lines) {
+    if (
+      /^queue depth:/i.test(line) ||
+      /^cockpit blocks:/i.test(line) ||
+      /^conduit signals:/i.test(line) ||
+      /^conduit target signals:/i.test(line) ||
+      /^backpressure level:/i.test(line) ||
+      /^critical attention events:/i.test(line) ||
+      /^top cockpit:/i.test(line) ||
+      /^top attention:/i.test(line)
+    ) {
+      telemetryLines += 1;
+    }
+  }
+  if (telemetryLines >= 2) return true;
+  return telemetryLines >= 1 && /\bqueue depth\b/i.test(clean) && /\bcockpit\b/i.test(clean);
+}
+
 function outputContractViolationReason(input, response, toolSteps = []) {
   const rawResponse = String(response || '');
   if (
@@ -6531,6 +7269,9 @@ function outputContractViolationReason(input, response, toolSteps = []) {
   if (hasVagueSignal && !hasConcreteSignal) return 'vague_low_signal';
 
   const runtimeTask = isRuntimeTaskInput(input);
+  const asksForStatus = /dashboard|system|runtime|telemetry|queue|conduit|cockpit|attention queue|backpressure|health/i.test(
+    String(input || '').toLowerCase()
+  );
   if (runtimeTask) {
     if (!runtimeTaskSchemaSatisfied(normalized)) return 'runtime_task_schema_missing';
     const hasEvidencePattern =
@@ -6538,6 +7279,9 @@ function outputContractViolationReason(input, response, toolSteps = []) {
         .test(normalized) &&
       hasConcreteSignal;
     if (!hasEvidencePattern) return 'runtime_task_missing_evidence';
+  }
+  if (!runtimeTask && !asksForStatus && responseLooksTelemetryDump(normalized)) {
+    return 'telemetry_mismatch';
   }
 
   if (normalized.length < 28 && !hasConcreteSignal) return 'too_short';
@@ -6629,7 +7373,11 @@ function enforceStrictAssistantOutput({
           'Actions: 1) Retry with stricter prompts. 2) Keep contract validation active. 3) Escalate to operator if repeated failures persist.',
           `Receipts: validation_rejected=${cleanText(rejectedReason || 'unknown', 80)}, regen_attempts=${regenAttempts}.`,
         ].join('\n'))
-      : (toolEvidence || runtimeFallback);
+      : (
+        rejectedReason === 'telemetry_mismatch'
+          ? "I'm here. What do you want to work on?"
+          : (toolEvidence || runtimeFallback)
+      );
     if (!currentResponse || isPlaceholderResponse(currentResponse)) {
       currentResponse = 'Unable to produce a contract-compliant final answer. Please retry with a narrower task.';
     }
@@ -6879,6 +7627,7 @@ function buildToolPrompt({ agent, session, input, toolSteps = [], snapshot = nul
       ? 'Allowed commands: protheus/protheus-ops/infringd (all subcommands), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git remains read-only). Main-tree agents may execute any infring*/protheus* CLI command.'
       : 'Allowed commands: protheus/protheus-ops/infringd (read-only profile), plus git/rg/ls/cat/pwd/wc/head/tail/stat/ps/top/free/vm_stat/vmstat (git read-only). Main-tree agents may execute any infring*/protheus* CLI command.',
     'Subagent spawn command: protheus-ops collab-plane launch-role --team=<team> --role=<role> --shadow=<id>.',
+    'Self-identity command (only for your own agent when user asks): agent-self-config name=<name> emoji=<emoji> avatar_url=<url> clear_avatar=1 color=<hex>.',
     'Main-tree agents may also use swarm alias commands (swarm/ protheus-ops swarm) which map to collab-plane launch-role.',
     'If tool history already contains what you need, return final.',
     '',
@@ -7038,6 +7787,7 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
     const toolStep = runCliTool(directive.command, directive.args, {
       agent_id: invokingAgentId,
       source: 'llm_tool_call',
+      snapshot,
     });
     if (
       toolStep &&
@@ -7070,6 +7820,12 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
           write_receipt: true,
         });
         optimisticCollabUpsertAgent(snapshot, launchShadow, launchRole);
+        assignSubagentModelOverride(launchShadow, snapshot, {
+          role: launchRole,
+          input,
+          mission: `Support ${invokingAgentId} subagent contract as ${launchRole}.`,
+          parent_agent_id: invokingAgentId,
+        });
       }
     }
     const normalizedTool = {
@@ -7084,6 +7840,21 @@ function runLlmChatWithCli(agent, session, input, snapshot, requestedModel = '',
     };
     if (toolStep && toolStep.subagent_launch) {
       normalizedTool.subagent_launch = toolStep.subagent_launch;
+    }
+    if (toolStep && toolStep.agent_profile && typeof toolStep.agent_profile === 'object') {
+      normalizedTool.agent_profile = toolStep.agent_profile;
+      if (toolStep.agent_profile.name) {
+        agent.name = cleanText(toolStep.agent_profile.name, 100) || agent.name;
+      }
+      if (toolStep.agent_profile.avatar_url != null) {
+        agent.avatar_url = cleanText(toolStep.agent_profile.avatar_url, 512);
+      }
+      if (toolStep.agent_profile.identity && typeof toolStep.agent_profile.identity === 'object') {
+        agent.identity = {
+          ...(agent && agent.identity && typeof agent.identity === 'object' ? agent.identity : {}),
+          ...toolStep.agent_profile.identity,
+        };
+      }
     }
     toolSteps.push(normalizedTool);
 
@@ -8225,7 +8996,7 @@ function normalizeAgentContractsState(state) {
     const contract = rawContract && typeof rawContract === 'object' ? rawContract : {};
     const expirySeconds = contract.expiry_seconds == null
       ? null
-      : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, 7 * 24 * 60 * 60);
+      : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, AGENT_CONTRACT_MAX_EXPIRY_SECONDS);
     const spawnedAtMs = coerceTsMs(
       contract.spawned_at || contract.activated_at || contract.created_at || nowIso(),
       Date.now()
@@ -8344,7 +9115,7 @@ function normalizeAgentContractsState(state) {
         defaults.default_expiry_seconds,
         AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
         1,
-        7 * 24 * 60 * 60
+        AGENT_CONTRACT_MAX_EXPIRY_SECONDS
       ),
       auto_expire_on_complete: defaults.auto_expire_on_complete !== false,
       max_idle_agents: parsePositiveInt(defaults.max_idle_agents, AGENT_CONTRACT_MAX_IDLE_AGENTS, 1, 1000),
@@ -8375,11 +9146,23 @@ function contractForAgent(agentId) {
   return state && state.contracts && state.contracts[id] ? state.contracts[id] : null;
 }
 
+function contractExpiryMs(contract) {
+  if (!contract || !contract.expires_at) return 0;
+  return coerceTsMs(contract.expires_at, 0);
+}
+
 function contractRemainingMs(contract, nowMs = Date.now()) {
-  if (!contract || !contract.expires_at) return null;
-  const expiryMs = coerceTsMs(contract.expires_at, 0);
+  const expiryMs = contractExpiryMs(contract);
   if (!expiryMs) return null;
   return expiryMs - nowMs;
+}
+
+function contractTimeoutGraceActive(contract, nowMs = Date.now()) {
+  if (!contract || contract.status !== 'active') return false;
+  if (!terminationConditionMatches(contract.termination_condition, 'timeout')) return false;
+  const remainingMs = contractRemainingMs(contract, nowMs);
+  if (remainingMs == null || remainingMs > 0) return false;
+  return Math.abs(remainingMs) < AGENT_CONTRACT_TERMINATION_GRACE_MS;
 }
 
 function formatContractStatus(contract, nowMs = Date.now()) {
@@ -8510,7 +9293,7 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
         contractInput.expiry_seconds != null ? contractInput.expiry_seconds : payload.expiry_seconds,
         AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
         1,
-        7 * 24 * 60 * 60
+        AGENT_CONTRACT_MAX_EXPIRY_SECONDS
       );
   const mission = cleanText(
     contractInput.mission || payload.mission || `Assist with assigned mission for ${agentId}.`,
@@ -8583,7 +9366,7 @@ function resetContractExpiryFromNow(contract, nowMs = Date.now()) {
   if (!contract || typeof contract !== 'object') return contract;
   const expirySeconds = contract.expiry_seconds == null
     ? null
-    : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, 7 * 24 * 60 * 60);
+    : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, AGENT_CONTRACT_MAX_EXPIRY_SECONDS);
   if (expirySeconds == null) {
     contract.expires_at = '';
     return contract;
@@ -9111,6 +9894,7 @@ function contractTerminationDecision(contract, nowMs = Date.now()) {
   }
   const remaining = contractRemainingMs(contract, nowMs);
   if (remaining != null && remaining <= 0 && terminationConditionMatches(contract.termination_condition, 'timeout')) {
+    if (contractTimeoutGraceActive(contract, nowMs)) return '';
     return 'timeout';
   }
   return '';
@@ -9134,7 +9918,7 @@ function contractSummary(contract, nowMs = Date.now()) {
     expiry_seconds:
       contract.expiry_seconds == null
         ? null
-        : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, 7 * 24 * 60 * 60),
+        : parsePositiveInt(contract.expiry_seconds, AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS, 1, AGENT_CONTRACT_MAX_EXPIRY_SECONDS),
     remaining_ms: remainingMs == null ? null : Math.max(0, Math.floor(remainingMs)),
     completed_at: cleanText(contract.completed_at || '', 80),
     completion_source: cleanText(contract.completion_source || '', 120),
@@ -9195,7 +9979,7 @@ function enforceAgentContracts(snapshot, options = {}) {
     defaults.default_expiry_seconds,
     AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
     1,
-    7 * 24 * 60 * 60
+    AGENT_CONTRACT_MAX_EXPIRY_SECONDS
   );
   const defaultTerminationCondition = defaults.auto_expire_on_complete === false ? 'timeout' : 'task_or_timeout';
 
@@ -9227,7 +10011,7 @@ function enforceAgentContracts(snapshot, options = {}) {
     const expirySeconds =
       existing.expiry_seconds == null
         ? null
-        : parsePositiveInt(existing.expiry_seconds, defaultExpirySeconds, 1, 7 * 24 * 60 * 60);
+        : parsePositiveInt(existing.expiry_seconds, defaultExpirySeconds, 1, AGENT_CONTRACT_MAX_EXPIRY_SECONDS);
     if (expirySeconds != null) {
       existing.expires_at = new Date(activatedAtMs + (expirySeconds * 1000)).toISOString();
     }
@@ -9362,6 +10146,9 @@ function enforceAgentContracts(snapshot, options = {}) {
     if (isMainTreeBoundAgent(id, activeRowById.get(id) || null)) continue;
     const reason = rustTerminationsById.get(id) || '';
     if (!reason) continue;
+    if (String(reason).toLowerCase().includes('timeout') && contractTimeoutGraceActive(contract, nowMs)) {
+      continue;
+    }
     const roleRow = activeRows.find((row) => row && row.id === id);
     const terminated = terminateAgentForContract(id, snapshot, reason, {
       source: 'agent_contract_enforcer',
@@ -9491,7 +10278,7 @@ function lifecycleTelemetry(snapshot, enforcement = null) {
         contractsState && contractsState.defaults ? contractsState.defaults.default_expiry_seconds : AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
         AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
         1,
-        7 * 24 * 60 * 60
+        AGENT_CONTRACT_MAX_EXPIRY_SECONDS
       ),
       auto_expire_on_complete:
         !(contractsState && contractsState.defaults) || contractsState.defaults.auto_expire_on_complete !== false,
@@ -10677,6 +11464,7 @@ function filterArchivedAgentsFromCollab(collab) {
 
 function authoritativeCollabForTeam(snapshot, team = DEFAULT_TEAM, options = {}) {
   const safeTeam = cleanText(team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
+  const strict = !!(options && options.strict);
   const timeoutMs = parsePositiveInt(
     options && options.timeout_ms != null ? options.timeout_ms : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
     Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
@@ -10706,6 +11494,20 @@ function authoritativeCollabForTeam(snapshot, team = DEFAULT_TEAM, options = {})
   );
   const payload = lanePayloadObject(lane, null);
   if (!payload || !payload.dashboard || !Array.isArray(payload.dashboard.agents)) {
+    if (strict) {
+      const base =
+        snapshot && snapshot.collab && typeof snapshot.collab === 'object'
+          ? { ...snapshot.collab }
+          : {};
+      return {
+        ...base,
+        dashboard: {
+          ...(base && base.dashboard && typeof base.dashboard === 'object' ? base.dashboard : {}),
+          agents: [],
+          agent_count: 0,
+        },
+      };
+    }
     return snapshot && snapshot.collab && typeof snapshot.collab === 'object' ? snapshot.collab : {};
   }
   reconcileArchivedAgentsFromCollab(payload);
@@ -18494,6 +19296,7 @@ function runServe(flags) {
             updated_at: nowIso(),
           });
           saveProviderRegistry({ providers });
+          maybeEmitLocalModelBootstrapReminder(latestSnapshot, { force: true, check_only: true });
           sendJson(res, 200, {
             ok: true,
             provider: providerId,
@@ -18621,6 +19424,10 @@ function runServe(flags) {
           target_dir: targetDir,
           created_at: nowIso(),
         });
+
+        if (method === 'ollama_pull') {
+          maybeEmitLocalModelBootstrapReminder(latestSnapshot, { force: true, check_only: true });
+        }
 
         sendJson(res, 200, {
           ok: true,
@@ -19949,6 +20756,7 @@ function runServe(flags) {
         const runtimeAuthorityRequested = ['1', 'true', 'runtime'].includes(
           cleanText(reqUrl.searchParams.get('authority') || '', 24).toLowerCase()
         );
+        const strictRuntimeAuthority = runtimeAuthorityRequested === true;
         const team = cleanText(reqUrl.searchParams.get('team') || flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
         let agents = [];
         if (runtimeAuthorityRequested || view === 'sidebar' || view === 'list') {
@@ -19956,6 +20764,7 @@ function runServe(flags) {
           try {
             agents = authoritativeAgentsFromRuntime(latestSnapshot, team, {
               includeArchived: false,
+              strict: strictRuntimeAuthority,
               timeout_ms: lowLatencyListMode ? 650 : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
               ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 900) : Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 1200),
               fail_ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 1200) : Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 800),
@@ -19964,7 +20773,7 @@ function runServe(flags) {
             agents = [];
           }
         }
-        if (!Array.isArray(agents) || agents.length === 0) {
+        if ((!Array.isArray(agents) || agents.length === 0) && !strictRuntimeAuthority) {
           agents = compatAgentsFromSnapshot(latestSnapshot);
         }
         if (!Array.isArray(agents) || agents.length === 0) {
@@ -19973,10 +20782,27 @@ function runServe(flags) {
             limit: 500,
           });
         }
-        if ((!Array.isArray(agents) || agents.length === 0) && Array.isArray(lastKnownSidebarAgents) && lastKnownSidebarAgents.length) {
+        if (
+          !strictRuntimeAuthority &&
+          (!Array.isArray(agents) || agents.length === 0) &&
+          Array.isArray(lastKnownSidebarAgents) &&
+          lastKnownSidebarAgents.length
+        ) {
           agents = lastKnownSidebarAgents.slice(0, 500).map((row) => ({
             ...(row && typeof row === 'object' ? row : {}),
           }));
+        }
+        if (runtimeAuthorityRequested && Array.isArray(agents) && agents.length > 0) {
+          for (let idx = 0; idx < agents.length; idx += 1) {
+            const row = agents[idx];
+            const id = cleanText(row && row.id ? row.id : '', 140);
+            if (!id) continue;
+            if (agentProfileFor(id)) continue;
+            upsertAgentProfile(id, {
+              name: cleanText(row && row.name ? row.name : id, 100) || id,
+              role: cleanText(row && row.role ? row.role : 'analyst', 60) || 'analyst',
+            });
+          }
         }
         if (view === 'sidebar' || view === 'list') {
           const contractsState = loadAgentContractsState();
@@ -20048,12 +20874,12 @@ function runServe(flags) {
                 contract_expires_at: contract && contract.expires_at ? cleanText(contract.expires_at, 80) : '',
                 contract_remaining_ms:
                   contract && contract.remaining_ms != null
-                    ? parseNonNegativeInt(contract.remaining_ms, 0, 7 * 24 * 60 * 60 * 1000)
+                    ? parseNonNegativeInt(contract.remaining_ms, 0, AGENT_CONTRACT_MAX_EXPIRY_MS)
                     : null,
               };
             })
             .filter((entry) => !!(entry && entry.id));
-          if (compactRows.length > 0) {
+          if (!strictRuntimeAuthority && compactRows.length > 0) {
             lastKnownSidebarAgents = compactRows.slice(0, 500).map((row) => ({
               ...(row && typeof row === 'object' ? row : {}),
               identity: row && row.identity && typeof row.identity === 'object' ? { ...row.identity } : {},
@@ -20063,7 +20889,7 @@ function runServe(flags) {
           sendJson(res, 200, compactRows);
           return;
         }
-        if (Array.isArray(agents) && agents.length > 0) {
+        if (!strictRuntimeAuthority && Array.isArray(agents) && agents.length > 0) {
           lastKnownSidebarAgents = agents.slice(0, 500).map((row) => ({
             ...(row && typeof row === 'object' ? row : {}),
           }));
@@ -20142,6 +20968,13 @@ function runServe(flags) {
         writeActionReceipt('collab.launchRole', { team: flags.team || DEFAULT_TEAM, role, shadow }, laneResult);
         if (laneResult.ok) {
           unarchiveAgent(shadow);
+          upsertAgentProfile(shadow, {
+            name: cleanText(
+              payload && payload.name ? payload.name : shadow,
+              100
+            ) || shadow,
+            role,
+          });
           upsertAgentContract(
             shadow,
             payload,
@@ -20158,6 +20991,16 @@ function runServe(flags) {
             force: true,
             preferred_master_id: shadow,
             ensure_workspace_agent_id: shadow,
+          });
+          assignSubagentModelOverride(shadow, latestSnapshot, {
+            role,
+            input: cleanText(payload && payload.input ? payload.input : '', 2000),
+            mission: cleanText(payload && payload.mission ? payload.mission : '', 2000),
+            model_override: cleanText(
+              payload && (payload.model_override || payload.model) ? payload.model_override || payload.model : '',
+              120
+            ),
+            parent_agent_id: cleanText(payload && payload.owner ? payload.owner : '', 140),
           });
         }
         requestSnapshotRefresh(false);
@@ -21230,6 +22073,104 @@ function runServe(flags) {
             patch.identity = identityPatch;
           }
 
+          let contractPatchSummary = null;
+          if (parts[3] === 'config') {
+            const rawContract = raw.contract && typeof raw.contract === 'object' ? raw.contract : {};
+            const hasRawContractObject = Object.prototype.hasOwnProperty.call(raw, 'contract');
+            const topLevelContractKeys = [
+              'mission',
+              'owner',
+              'termination_condition',
+              'expiry_seconds',
+              'indefinite',
+              'expires_at',
+              'spawned_at',
+            ];
+            const hasTopLevelContractPatch = topLevelContractKeys.some((key) =>
+              Object.prototype.hasOwnProperty.call(raw, key)
+            );
+            if (hasRawContractObject || hasTopLevelContractPatch) {
+              const existingContract = contractForAgent(agentId);
+              const mergedContract = {};
+              if (existingContract && typeof existingContract === 'object') {
+                mergedContract.contract_id = cleanText(existingContract.contract_id || '', 80);
+                mergedContract.mission = cleanText(existingContract.mission || '', 320);
+                mergedContract.owner = cleanText(existingContract.owner || '', 120);
+                mergedContract.termination_condition = normalizeTerminationCondition(existingContract.termination_condition);
+                mergedContract.expiry_seconds =
+                  existingContract.expiry_seconds == null
+                    ? null
+                    : parsePositiveInt(
+                        existingContract.expiry_seconds,
+                        AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
+                        1,
+                        AGENT_CONTRACT_MAX_EXPIRY_SECONDS
+                      );
+                mergedContract.spawned_at = cleanText(existingContract.spawned_at || '', 80);
+                mergedContract.expires_at = cleanText(existingContract.expires_at || '', 80);
+              }
+              const readContractField = (key) => {
+                if (Object.prototype.hasOwnProperty.call(rawContract, key)) return rawContract[key];
+                if (Object.prototype.hasOwnProperty.call(raw, key)) return raw[key];
+                return undefined;
+              };
+              const missionInput = readContractField('mission');
+              if (missionInput !== undefined) {
+                mergedContract.mission = cleanText(missionInput, 320);
+              }
+              if (!mergedContract.mission) {
+                mergedContract.mission = `Assist with assigned mission for ${agentId}.`;
+              }
+              const ownerInput = readContractField('owner');
+              if (ownerInput !== undefined) {
+                mergedContract.owner = cleanText(ownerInput, 120);
+              }
+              if (!mergedContract.owner) mergedContract.owner = 'dashboard_session';
+              const terminationInput = readContractField('termination_condition');
+              if (terminationInput !== undefined) {
+                mergedContract.termination_condition = normalizeTerminationCondition(terminationInput);
+              }
+              if (!mergedContract.termination_condition) mergedContract.termination_condition = 'task_or_timeout';
+              const expiryInput = readContractField('expiry_seconds');
+              if (expiryInput !== undefined) {
+                mergedContract.expiry_seconds =
+                  expiryInput == null
+                    ? null
+                    : parsePositiveInt(
+                        expiryInput,
+                        AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
+                        1,
+                        AGENT_CONTRACT_MAX_EXPIRY_SECONDS
+                      );
+              }
+              const indefiniteInput = readContractField('indefinite');
+              if (indefiniteInput !== undefined) {
+                const indefinite = indefiniteInput === true;
+                if (indefinite) {
+                  mergedContract.indefinite = true;
+                  mergedContract.expiry_seconds = null;
+                  mergedContract.expires_at = '';
+                } else {
+                  mergedContract.indefinite = false;
+                }
+              }
+              const expiresAtInput = readContractField('expires_at');
+              if (expiresAtInput !== undefined) {
+                mergedContract.expires_at = cleanText(expiresAtInput, 80);
+              }
+              const spawnedAtInput = readContractField('spawned_at');
+              if (spawnedAtInput !== undefined) {
+                mergedContract.spawned_at = cleanText(spawnedAtInput, 80);
+              }
+              const contractPayload = { contract: mergedContract };
+              const updatedContract = upsertAgentContract(agentId, contractPayload, {
+                owner: mergedContract.owner,
+                force: true,
+              });
+              contractPatchSummary = contractSummary(updatedContract);
+            }
+          }
+
           const profile = upsertAgentProfile(agentId, patch);
           let renameNotice = null;
           if (profile && Object.prototype.hasOwnProperty.call(patch, 'name')) {
@@ -21289,6 +22230,7 @@ function runServe(flags) {
             section: parts[3],
             profile,
             agent: updated,
+            contract: contractPatchSummary || contractSummary(contractForAgent(agentId)),
             rename_notice: renameNotice,
           });
           return;
@@ -22634,6 +23576,14 @@ function runServe(flags) {
     setTimeout(() => {
       requestSnapshotRefresh(true);
     }, 0);
+    const startupLocalModelReminderTimer = setTimeout(() => {
+      try {
+        maybeEmitLocalModelBootstrapReminder(latestSnapshot, { force: true });
+      } catch {}
+    }, 1200);
+    if (startupLocalModelReminderTimer && typeof startupLocalModelReminderTimer.unref === 'function') {
+      startupLocalModelReminderTimer.unref();
+    }
     const startupCompactDelayMs = 15_000;
     const startupCompactTimer = setTimeout(() => {
       try {
