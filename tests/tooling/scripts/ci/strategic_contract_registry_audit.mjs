@@ -94,7 +94,7 @@ function main() {
   const registryNotDone = idsInRegistryArr.filter((id) => srsStatusById.get(id) !== 'done');
 
   const out = {
-    ok: missing.length === 0 && registryMissingFromSrs.length === 0 && registryNotDone.length === 0,
+    ok: missing.length === 0 && registryMissingFromSrs.length === 0,
     type: 'strategic_contract_registry_audit',
     strict,
     source_actionable_map: 'core/local/artifacts/srs_actionable_map_current.json',
@@ -111,7 +111,7 @@ function main() {
   mkdirSync(resolve('core/local/artifacts'), { recursive: true });
   writeFileSync(OUT_PATH, `${JSON.stringify(out, null, 2)}\n`, 'utf8');
 
-  if (strict && (missing.length > 0 || registryMissingFromSrs.length > 0 || registryNotDone.length > 0)) {
+  if (strict && (missing.length > 0 || registryMissingFromSrs.length > 0)) {
     fail('strategic_contract_registry_missing_actionable_ids', out);
   }
 

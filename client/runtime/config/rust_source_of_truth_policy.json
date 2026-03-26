@@ -83,6 +83,18 @@
       }
     ]
   },
+  "tcb_ts_exception_contract": {
+    "path": "client/runtime/config/rust_ts_exceptions.json",
+    "wrapper_tokens": [
+      "runProtheusOps",
+      "createConduitLaneModule",
+      "core://",
+      "protheus-ops",
+      "bindLegacyRetiredModule",
+      "legacy_retired_wrapper",
+      "bindNativeRustModule"
+    ]
+  },
   "ts_surface_allowlist_prefixes": [
     "client/runtime/systems/conduit/",
     "client/runtime/systems/marketplace/",

@@ -87,7 +87,29 @@ Completion requires all of the following:
   - test/CI tooling => `tests/`
   - integration bridges for external software => `adapters/`
   - standalone deletable products only => `apps/`
-  - initialization/bootstrap only => `setup/`
+- initialization/bootstrap only => `setup/`
+
+## File Size Governance Rules (Mandatory)
+- Treat oversized files as reliability and velocity risk. Split before they become monoliths.
+- Line caps apply to **tracked source files**:
+  - `client/runtime/systems/ui/**` `*.ts|*.tsx|*.js|*.jsx`: hard cap **800** lines.
+  - other `*.ts|*.tsx|*.js|*.jsx`: hard cap **1200** lines.
+  - `*.rs`: hard cap **1000** lines.
+- New source files must start at or below **500** lines.
+- Legacy files already above cap are allowed only as migration debt:
+  - no net line growth is allowed without an exception.
+  - any non-trivial touch should reduce size or extract a module in the same batch.
+- If a file exceeds **2x** its cap, prioritize decomposition ahead of feature expansion in that file.
+
+### File Size Exceptions (Allowed, But Controlled)
+- Exceptions are allowed only when separation would materially harm correctness or operability (for example: generated sources, protocol/ABI tables that must stay contiguous, parser/state-machine sections that must remain atomic).
+- Exception requirements (all required):
+  1. Explicit operator approval in the task/prompt.
+  2. A top-of-file marker: `FILE_SIZE_EXCEPTION: reason=<...>; owner=<...>; expires=<YYYY-MM-DD>`.
+  3. A bounded expiry (default max: 14 days) and a follow-up split task.
+  4. Regression coverage proving behavior remains stable.
+- If these conditions are not met, stop with:
+  - `BLOCKED — file size policy violation (missing cap compliance or exception)`
 
 ## Git Hygiene Rules (Mandatory)
 - Do not leave path migrations as unstaged delete+untracked churn.
