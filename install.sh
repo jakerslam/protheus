@@ -688,6 +688,126 @@ write_wrapper() {
 
 gateway_wrapper_body() {
   cat <<'EOF'
+infring_gateway_pidfile() {
+  host_safe="$(printf '%s' "${1:-127.0.0.1}" | tr -c 'A-Za-z0-9._-' '_')"
+  port_safe="$(printf '%s' "${2:-4173}" | tr -c '0-9' '_')"
+  printf '%s\n' "${TMPDIR:-/tmp}/infring-dashboard-${host_safe}-${port_safe}.pid"
+}
+
+infring_gateway_pid_read() {
+  pid_file="$(infring_gateway_pidfile "$1" "$2")"
+  [ -f "$pid_file" ] || return 1
+  pid="$(sed -n '1p' "$pid_file" | tr -cd '0-9')"
+  [ -n "$pid" ] || return 1
+  printf '%s\n' "$pid"
+}
+
+infring_gateway_pid_running() {
+  pid="$(infring_gateway_pid_read "$1" "$2" 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" >/dev/null 2>&1
+}
+
+infring_gateway_pid_clear() {
+  pid_file="$(infring_gateway_pidfile "$1" "$2")"
+  rm -f "$pid_file" >/dev/null 2>&1 || true
+}
+
+infring_gateway_stop_dashboard_managed() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  pid="$(infring_gateway_pid_read "$host" "$port" 2>/dev/null || true)"
+  if [ -n "$pid" ]; then
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" >/dev/null 2>&1 || true
+      i=0
+      while [ "$i" -lt 8 ]; do
+        if ! kill -0 "$pid" >/dev/null 2>&1; then
+          break
+        fi
+        i=$((i + 1))
+        sleep 1
+      done
+      if kill -0 "$pid" >/dev/null 2>&1; then
+        kill -9 "$pid" >/dev/null 2>&1 || true
+      fi
+    fi
+  fi
+  match="client/runtime/systems/ui/infring_dashboard.ts serve --host=${host} --port=${port}"
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -f "$match" >/dev/null 2>&1 || true
+    sleep 1
+    pkill -9 -f "$match" >/dev/null 2>&1 || true
+  else
+    pids="$(ps ax -o pid= -o command= 2>/dev/null | awk -v m="$match" 'index($0,m)>0 {print $1}')"
+    for row in $pids; do
+      kill "$row" >/dev/null 2>&1 || true
+    done
+    sleep 1
+    for row in $pids; do
+      kill -9 "$row" >/dev/null 2>&1 || true
+    done
+  fi
+  infring_gateway_pid_clear "$host" "$port"
+  return 0
+}
+
+infring_gateway_health_ok() {
+  host="$1"
+  port="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -O - "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+infring_gateway_wait_dashboard() {
+  host="$1"
+  port="$2"
+  attempts="${3:-1}"
+  i=0
+  while [ "$i" -lt "$attempts" ]; do
+    if infring_gateway_health_ok "$host" "$port"; then
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
+}
+
+infring_gateway_start_dashboard_fallback() {
+  host="$1"
+  port="$2"
+  if infring_gateway_pid_running "$host" "$port"; then
+    return 0
+  fi
+  root=""
+  for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PROTHEUS_WORKSPACE_ROOT:-}" "${PWD:-.}"; do
+    [ -n "$candidate" ] || continue
+    if [ -f "$candidate/client/runtime/lib/ts_entrypoint.ts" ] && [ -f "$candidate/client/runtime/systems/ui/infring_dashboard.ts" ]; then
+      root="$candidate"
+      break
+    fi
+  done
+  [ -n "$root" ] || return 1
+  command -v node >/dev/null 2>&1 || return 1
+  (
+    cd "$root" 2>/dev/null || exit 1
+    nohup node client/runtime/lib/ts_entrypoint.ts \
+      client/runtime/systems/ui/infring_dashboard.ts \
+      serve "--host=${host}" "--port=${port}" \
+      >/tmp/infring-dashboard-serve.log 2>&1 &
+    child_pid="$!"
+    if [ -n "$child_pid" ]; then
+      printf '%s\n' "$child_pid" > "$(infring_gateway_pidfile "$host" "$port")"
+    fi
+  ) >/dev/null 2>&1 || return 1
+  return 0
+}
+
 if [ "${1:-}" = "gateway" ]; then
   shift || true
   gateway_action=""
@@ -735,22 +855,55 @@ if [ "${1:-}" = "gateway" ]; then
     root_path="$INFRING_WORKSPACE_ROOT"
   fi
 
-  if [ "$gateway_action" = "start" ]; then
-    dashboard_open="1"
-    dashboard_url="${INFRING_DASHBOARD_URL:-http://127.0.0.1:4173/dashboard#chat}"
-    if [ "${INFRING_NO_BROWSER:-0}" = "1" ] || [ "${PROTHEUS_NO_BROWSER:-0}" = "1" ]; then
-      dashboard_open="0"
+  dashboard_open="1"
+  dashboard_host="127.0.0.1"
+  dashboard_port="4173"
+  if [ "${INFRING_NO_BROWSER:-0}" = "1" ] || [ "${PROTHEUS_NO_BROWSER:-0}" = "1" ]; then
+    dashboard_open="0"
+  fi
+  for token in "$@"; do
+    case "$token" in
+      --dashboard-open=0|--no-browser)
+        dashboard_open="0"
+        ;;
+      --dashboard-open=1)
+        dashboard_open="1"
+        ;;
+      --dashboard-host=*)
+        dashboard_host="${token#*=}"
+        ;;
+      --dashboard-port=*)
+        dashboard_port="${token#*=}"
+        ;;
+    esac
+  done
+  dashboard_url="${INFRING_DASHBOARD_URL:-http://${dashboard_host}:${dashboard_port}/dashboard#chat}"
+
+  if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
+    if [ "$gateway_action" = "restart" ]; then
+      infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     fi
-    for token in "$@"; do
-      case "$token" in
-        --dashboard-open=0|--no-browser)
-          dashboard_open="0"
-          ;;
-        --dashboard-open=1)
-          dashboard_open="1"
-          ;;
-      esac
-    done
+    if ! infring_gateway_pid_running "$dashboard_host" "$dashboard_port"; then
+      infring_gateway_pid_clear "$dashboard_host" "$dashboard_port"
+    fi
+    dashboard_ready="0"
+    if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 12; then
+      dashboard_ready="1"
+    else
+      if [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ] && [ "${PROTHEUS_DASHBOARD_FALLBACK:-1}" != "0" ]; then
+        if infring_gateway_start_dashboard_fallback "$dashboard_host" "$dashboard_port"; then
+          if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 20; then
+            dashboard_ready="1"
+          fi
+        fi
+      fi
+      if [ "$dashboard_ready" != "1" ]; then
+        sleep 1
+        if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 8; then
+          dashboard_ready="1"
+        fi
+      fi
+    fi
     if [ "$dashboard_open" = "1" ]; then
       if command -v open >/dev/null 2>&1; then
         open "$dashboard_url" >/dev/null 2>&1 || true
@@ -758,19 +911,33 @@ if [ "${1:-}" = "gateway" ]; then
         xdg-open "$dashboard_url" >/dev/null 2>&1 || true
       fi
     fi
-    echo "[infring gateway] runtime started"
+    if [ "$dashboard_ready" != "1" ]; then
+      echo "[infring gateway] warning: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
+    fi
+    if [ "$gateway_action" = "restart" ]; then
+      echo "[infring gateway] runtime restarted"
+    else
+      echo "[infring gateway] runtime started"
+    fi
     echo "[infring gateway] dashboard: $dashboard_url"
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   elif [ "$gateway_action" = "stop" ]; then
+    infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     echo "[infring gateway] runtime stopped"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   elif [ "$gateway_action" = "status" ]; then
     echo "[infring gateway] runtime status received"
+    if infring_gateway_health_ok "$dashboard_host" "$dashboard_port"; then
+      echo "[infring gateway] dashboard healthy: http://${dashboard_host}:${dashboard_port}/healthz"
+    else
+      echo "[infring gateway] dashboard down: http://${dashboard_host}:${dashboard_port}/healthz"
+    fi
+    if infring_gateway_pid_running "$dashboard_host" "$dashboard_port"; then
+      echo "[infring gateway] dashboard pid: $(infring_gateway_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true)"
+    fi
+    echo "[infring gateway] dashboard: $dashboard_url"
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
-    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
-  elif [ "$gateway_action" = "restart" ]; then
-    echo "[infring gateway] runtime restarted"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   else
     echo "[infring gateway] action complete: $gateway_action"
