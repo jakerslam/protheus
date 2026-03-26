@@ -448,34 +448,180 @@ if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "prothe
   Write-Host "[infring install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
 }
 
+$wrapperPrelude = @'
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+set "_infring_root="
+if defined INFRING_WORKSPACE_ROOT call :_check_candidate "%INFRING_WORKSPACE_ROOT%"
+if not defined _infring_root if defined PROTHEUS_WORKSPACE_ROOT call :_check_candidate "%PROTHEUS_WORKSPACE_ROOT%"
+if not defined _infring_root call :_search_up "%CD%"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.openclaw\workspace"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring\workspace"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.openclaw"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring"
+if defined _infring_root (
+  set "INFRING_WORKSPACE_ROOT=%_infring_root%"
+  set "PROTHEUS_WORKSPACE_ROOT=%_infring_root%"
+  cd /d "%_infring_root%" >nul 2>&1
+)
+goto :_dispatch
+
+:_check_candidate
+set "_candidate=%~1"
+if "%_candidate%"=="" goto :eof
+if exist "%_candidate%\core\layer0\ops\Cargo.toml" if exist "%_candidate%\client\runtime" set "_infring_root=%_candidate%"
+goto :eof
+
+:_search_up
+set "_probe=%~1"
+:_search_up_loop
+if "!_probe!"=="" goto :eof
+call :_check_candidate "!_probe!"
+if defined _infring_root goto :eof
+for %%I in ("!_probe!") do set "_parent=%%~dpI"
+if not defined _parent goto :eof
+if "!_parent:~-1!"=="\" set "_parent=!_parent:~0,-1!"
+if /I "!_parent!"=="!_probe!" goto :eof
+set "_probe=!_parent!"
+goto :_search_up_loop
+'@
+
+$gatewayDispatchTemplate = @'
+:_dispatch
+if /I "%~1"=="gateway" (
+  shift
+  call :_gateway_dispatch %*
+  set "_gateway_rc=!ERRORLEVEL!"
+  exit /b !_gateway_rc!
+)
+call __ENTRY__ __ENTRY_ARGS__ %*
+set "_cmd_rc=!ERRORLEVEL!"
+exit /b !_cmd_rc!
+
+:_gateway_usage
+echo Usage: infring gateway [start^|stop^|restart^|status^|attach^|subscribe^|tick^|diagnostics] [flags]
+echo   default action is 'start'
+echo   add --dashboard-open=0 to skip browser auto-open on start
+exit /b 0
+
+:_gateway_dispatch
+set "_gateway_arg1=%~1"
+set "_gateway_action="
+set "_gateway_shift=0"
+if "%_gateway_arg1%"=="" set "_gateway_action=start"
+if /I "%_gateway_arg1%"=="start" set "_gateway_action=start" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="boot" set "_gateway_action=start" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="stop" set "_gateway_action=stop" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="restart" set "_gateway_action=restart" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="status" set "_gateway_action=status" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="attach" set "_gateway_action=attach" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="subscribe" set "_gateway_action=subscribe" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="tick" set "_gateway_action=tick" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="diagnostics" set "_gateway_action=diagnostics" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="efficiency-status" set "_gateway_action=efficiency-status" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="embedded-core-status" set "_gateway_action=embedded-core-status" & set "_gateway_shift=1"
+if /I "%_gateway_arg1%"=="--help" goto :_gateway_usage
+if /I "%_gateway_arg1%"=="-h" goto :_gateway_usage
+if /I "%_gateway_arg1%"=="help" goto :_gateway_usage
+if not defined _gateway_action set "_gateway_action=start"
+if "!_gateway_shift!"=="1" shift
+
+set "_gateway_tmp=%TEMP%\infring-gateway-%RANDOM%-%RANDOM%.log"
+call "%~dp0infringd.cmd" "!_gateway_action!" %* > "!_gateway_tmp!" 2>&1
+set "_gateway_status=!ERRORLEVEL!"
+if not "!_gateway_status!"=="0" (
+  if exist "!_gateway_tmp!" type "!_gateway_tmp!" 1>&2
+  echo [infring gateway] !_gateway_action! failed 1>&2
+  if exist "!_gateway_tmp!" del /q "!_gateway_tmp!" >nul 2>&1
+  exit /b !_gateway_status!
+)
+
+set "_gateway_raw=0"
+if /I "%INFRING_GATEWAY_RAW%"=="1" set "_gateway_raw=1"
+if /I "%PROTHEUS_GATEWAY_RAW%"=="1" set "_gateway_raw=1"
+if "!_gateway_raw!"=="1" if exist "!_gateway_tmp!" type "!_gateway_tmp!"
+
+if /I "!_gateway_action!"=="start" (
+  set "_dashboard_url=%INFRING_DASHBOARD_URL%"
+  if "!_dashboard_url!"=="" set "_dashboard_url=http://127.0.0.1:4173/dashboard#chat"
+  set "_dashboard_open=1"
+  if /I "%INFRING_NO_BROWSER%"=="1" set "_dashboard_open=0"
+  if /I "%PROTHEUS_NO_BROWSER%"=="1" set "_dashboard_open=0"
+  for %%A in (%*) do (
+    if /I "%%~A"=="--dashboard-open=0" set "_dashboard_open=0"
+    if /I "%%~A"=="--dashboard-open=1" set "_dashboard_open=1"
+    if /I "%%~A"=="--no-browser" set "_dashboard_open=0"
+  )
+  if "!_dashboard_open!"=="1" start "" "!_dashboard_url!" >nul 2>&1
+  echo [infring gateway] runtime started
+  echo [infring gateway] dashboard: !_dashboard_url!
+  if defined INFRING_WORKSPACE_ROOT echo [infring gateway] workspace: !INFRING_WORKSPACE_ROOT!
+) else if /I "!_gateway_action!"=="stop" (
+  echo [infring gateway] runtime stopped
+) else if /I "!_gateway_action!"=="status" (
+  echo [infring gateway] runtime status received
+  if defined INFRING_WORKSPACE_ROOT echo [infring gateway] workspace: !INFRING_WORKSPACE_ROOT!
+) else if /I "!_gateway_action!"=="restart" (
+  echo [infring gateway] runtime restarted
+) else (
+  echo [infring gateway] action complete: !_gateway_action!
+)
+if exist "!_gateway_tmp!" del /q "!_gateway_tmp!" >nul 2>&1
+exit /b 0
+'@
+
+$plainDispatchTemplate = @'
+:_dispatch
+call __ENTRY__ __ENTRY_ARGS__ %*
+set "_cmd_rc=!ERRORLEVEL!"
+exit /b !_cmd_rc!
+'@
+
+function Write-CmdWrapper {
+  param(
+    [string]$Path,
+    [string]$Entry,
+    [string]$EntryArgs,
+    [switch]$Gateway
+  )
+
+  $dispatch = if ($Gateway) { $gatewayDispatchTemplate } else { $plainDispatchTemplate }
+  $dispatch = $dispatch.Replace("__ENTRY__", $Entry)
+  if ([string]::IsNullOrWhiteSpace($EntryArgs)) {
+    $dispatch = $dispatch.Replace("__ENTRY_ARGS__", "")
+  } else {
+    $dispatch = $dispatch.Replace("__ENTRY_ARGS__", $EntryArgs)
+  }
+
+  $content = $wrapperPrelude + "`r`n" + $dispatch + "`r`n"
+  Set-Content -Path $Path -Value $content
+}
+
 $infringCmd = Join-Path $InstallDir "infring.cmd"
+$infringctlCmd = Join-Path $InstallDir "infringctl.cmd"
+$infringdCmd = Join-Path $InstallDir "infringd.cmd"
+
 if ($InstallPure) {
   if ($InstallTinyMax) {
-    Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" --tiny-max=1 %*"
+    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs '--tiny-max=1' -Gateway
   } else {
-    Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
+    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs '' -Gateway
   }
+  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs 'conduit' -Gateway
 } else {
-  Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+  Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'protheusctl' -Gateway
+  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'protheusctl' -Gateway
 }
 
-$infringctlCmd = Join-Path $InstallDir "infringctl.cmd"
-if ($InstallPure) {
-  Set-Content -Path $infringctlCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" conduit %*"
-} else {
-  Set-Content -Path $infringctlCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
-}
-
-$infringdCmd = Join-Path $InstallDir "infringd.cmd"
 if ($daemonMode -eq "protheusd") {
-  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0protheusd.exe`" %*"
+  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0protheusd.exe"' -EntryArgs ''
 } elseif ($daemonMode -eq "conduit") {
-  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0conduit_daemon.exe`" %*"
+  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0conduit_daemon.exe"' -EntryArgs ''
 } else {
   if ($InstallPure) {
     throw "No daemon binary available for pure mode"
   }
-  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" spine %*"
+  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'spine'
 }
 
 $protheusCmd = Join-Path $InstallDir "protheus.cmd"
@@ -505,12 +651,16 @@ if ($machinePath -notlike "*$InstallDir*") {
   [Environment]::SetEnvironmentVariable("Path", "$machinePath;$InstallDir", "User")
   Write-Host "[infring install] added install dir to user PATH"
 }
+if ($env:Path -notlike "*$InstallDir*") {
+  $env:Path = "$InstallDir;$env:Path"
+}
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"
 Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"
 Write-Host "[infring install] open a new terminal and run: infring --help"
 Write-Host "[infring install] quickstart: infring gateway"
 Write-Host "[infring install] stop: infring gateway stop"
+Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"
 
 if ($script:SourceFallbackTmp -and (Test-Path $script:SourceFallbackTmp.FullName)) {
   Remove-Item -Force -Recurse $script:SourceFallbackTmp.FullName
