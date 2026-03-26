@@ -4,13 +4,17 @@
 use crate::deterministic_receipt_hash;
 use serde_json::{json, Value};
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::Path;
 #[cfg(test)]
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
+
+const DASHBOARD_CONNECT_TIMEOUT_MS: u64 = 800;
+const DASHBOARD_IO_TIMEOUT_MS: u64 = 1_500;
+const DASHBOARD_HEALTH_MAX_BYTES: usize = 4096;
 
 fn print_json_line(value: &Value) {
     println!(
@@ -84,6 +88,7 @@ struct DashboardLaunchConfig {
     port: u16,
     team: String,
     refresh_ms: u64,
+    ready_timeout_ms: u64,
 }
 
 impl DashboardLaunchConfig {
@@ -121,6 +126,14 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
         800,
         60_000,
     );
+    let ready_timeout_ms = parse_u64(
+        parse_flag(argv, "dashboard-ready-timeout-ms")
+            .or_else(|| std::env::var("PROTHEUS_DASHBOARD_READY_TIMEOUT_MS").ok())
+            .as_deref(),
+        36_000,
+        1_500,
+        180_000,
+    );
     DashboardLaunchConfig {
         enabled,
         open_browser,
@@ -128,6 +141,7 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
         port,
         team,
         refresh_ms,
+        ready_timeout_ms,
     }
 }
 
@@ -144,6 +158,68 @@ fn dashboard_pid_path(root: &Path) -> std::path::PathBuf {
 
 fn dashboard_log_path(root: &Path) -> std::path::PathBuf {
     dashboard_state_dir(root).join("dashboard_ui.log")
+}
+
+fn kill_pid(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        Command::new("kill")
+            .arg(pid.to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+    #[cfg(windows)]
+    {
+        Command::new("taskkill")
+            .arg("/PID")
+            .arg(pid.to_string())
+            .arg("/F")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        false
+    }
+}
+
+fn dashboard_listener_pids(port: u16) -> Vec<u32> {
+    #[cfg(unix)]
+    {
+        let query = format!("TCP:{port}");
+        let output = Command::new("lsof")
+            .arg("-ti")
+            .arg(query)
+            .arg("-sTCP:LISTEN")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output();
+        if let Ok(out) = output {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let mut pids = Vec::<u32>::new();
+            for line in text.lines() {
+                if let Ok(pid) = line.trim().parse::<u32>() {
+                    if !pids.contains(&pid) {
+                        pids.push(pid);
+                    }
+                }
+            }
+            return pids;
+        }
+    }
+    Vec::new()
 }
 
 #[cfg(test)]
@@ -182,26 +258,48 @@ fn dashboard_health_ok(host: &str, port: u16) -> bool {
     let Some(sock_addr) = resolved.next() else {
         return false;
     };
-    let mut stream = match TcpStream::connect_timeout(&sock_addr, Duration::from_millis(220)) {
+    let mut stream = match TcpStream::connect_timeout(
+        &sock_addr,
+        Duration::from_millis(DASHBOARD_CONNECT_TIMEOUT_MS),
+    ) {
         Ok(s) => s,
         Err(_) => return false,
     };
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(220)));
-    let _ = stream.set_write_timeout(Some(Duration::from_millis(220)));
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
     if stream
         .write_all(
             format!("GET /healthz HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n")
                 .as_bytes(),
         )
-        .is_err()
+    .is_err()
     {
         return false;
     }
-    let mut buf = [0u8; 256];
-    match stream.read(&mut buf) {
-        Ok(n) if n > 0 => String::from_utf8_lossy(&buf[..n]).contains("200 OK"),
-        _ => false,
+
+    let mut collected = Vec::<u8>::new();
+    let mut buf = [0u8; 1024];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                collected.extend_from_slice(&buf[..n]);
+                if collected.len() > DASHBOARD_HEALTH_MAX_BYTES {
+                    collected.truncate(DASHBOARD_HEALTH_MAX_BYTES);
+                }
+                if String::from_utf8_lossy(&collected).contains("200 OK") {
+                    return true;
+                }
+            }
+            Err(err)
+                if err.kind() == ErrorKind::WouldBlock || err.kind() == ErrorKind::TimedOut =>
+            {
+                break;
+            }
+            Err(_) => return false,
+        }
     }
+    String::from_utf8_lossy(&collected).contains("200 OK")
 }
 
 fn wait_for_dashboard(host: &str, port: u16, attempts: usize) -> bool {
@@ -212,6 +310,47 @@ fn wait_for_dashboard(host: &str, port: u16, attempts: usize) -> bool {
         std::thread::sleep(Duration::from_millis(150));
     }
     false
+}
+
+fn wait_for_dashboard_stable(
+    host: &str,
+    port: u16,
+    attempts: usize,
+    required_successes: usize,
+) -> bool {
+    let needed = required_successes.max(1);
+    let mut ok_streak = 0usize;
+    for _ in 0..attempts {
+        if dashboard_health_ok(host, port) {
+            ok_streak += 1;
+            if ok_streak >= needed {
+                return true;
+            }
+        } else {
+            ok_streak = 0;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    false
+}
+
+fn dashboard_wait_attempts(cfg: &DashboardLaunchConfig) -> usize {
+    let ticks = (cfg.ready_timeout_ms / 150).max(1);
+    usize::try_from(ticks).unwrap_or(240).clamp(1, 1200)
+}
+
+fn dashboard_log_tail(root: &Path, lines: usize) -> String {
+    let log_path = dashboard_log_path(root);
+    let raw = fs::read_to_string(log_path).unwrap_or_default();
+    let mut tail = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .rev()
+        .take(lines)
+        .collect::<Vec<_>>();
+    tail.reverse();
+    tail.join("\n")
 }
 
 fn open_browser(url: &str) -> bool {
@@ -255,55 +394,39 @@ fn open_browser(url: &str) -> bool {
     false
 }
 
-fn kill_dashboard_process(root: &Path) -> Value {
+fn kill_dashboard_process(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
     let pid_path = dashboard_pid_path(root);
     let raw = fs::read_to_string(&pid_path).unwrap_or_default();
-    let pid = raw.trim().parse::<u32>().ok();
-    if pid.is_none() {
-        return json!({
-            "ok": true,
-            "stopped": false,
-            "reason": "pid_missing"
-        });
+    let mut candidate_pids = Vec::<u32>::new();
+    if let Some(pid) = raw.trim().parse::<u32>().ok() {
+        candidate_pids.push(pid);
     }
-    let pid = pid.unwrap_or(0);
-    let killed = if pid == 0 {
-        false
-    } else {
-        #[cfg(unix)]
-        {
-            Command::new("kill")
-                .arg(pid.to_string())
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .map(|s| s.success())
-                .unwrap_or(false)
+
+    if candidate_pids.is_empty() || dashboard_health_ok(cfg.host.as_str(), cfg.port) {
+        for pid in dashboard_listener_pids(cfg.port) {
+            if !candidate_pids.contains(&pid) {
+                candidate_pids.push(pid);
+            }
         }
-        #[cfg(windows)]
-        {
-            Command::new("taskkill")
-                .arg("/PID")
-                .arg(pid.to_string())
-                .arg("/F")
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .map(|s| s.success())
-                .unwrap_or(false)
+    }
+
+    let mut killed_pids = Vec::<u32>::new();
+    for pid in candidate_pids {
+        if kill_pid(pid) {
+            killed_pids.push(pid);
         }
-        #[cfg(not(any(unix, windows)))]
-        {
-            false
-        }
-    };
+    }
+
     let _ = fs::remove_file(pid_path);
+    let still_running = wait_for_dashboard(cfg.host.as_str(), cfg.port, 5);
     json!({
         "ok": true,
-        "stopped": killed,
-        "pid": pid
+        "stopped": !killed_pids.is_empty() && !still_running,
+        "killed_pids": killed_pids,
+        "host": cfg.host.as_str(),
+        "port": cfg.port,
+        "still_running": still_running,
+        "reason": if killed_pids.is_empty() { "no_pid_killed" } else { "pid_killed" }
     })
 }
 
@@ -356,26 +479,61 @@ fn start_dashboard_if_enabled(root: &Path, argv: &[String], command: &str) -> Va
             "running": true,
             "launched": false,
             "opened_browser": false,
-            "url": url
+            "url": url,
+            "ready_timeout_ms": cfg.ready_timeout_ms
         });
     }
 
-    let spawned = spawn_dashboard(root, &cfg);
-    let running = wait_for_dashboard(cfg.host.as_str(), cfg.port, 40);
+    let wait_attempts = dashboard_wait_attempts(&cfg);
+    let first_spawn = spawn_dashboard(root, &cfg);
+    let mut running = wait_for_dashboard_stable(cfg.host.as_str(), cfg.port, wait_attempts, 2);
+    let mut launched = first_spawn.is_ok();
+    let mut pid = first_spawn.as_ref().ok().copied();
+    let mut recovery_attempted = false;
+    let mut recovery = Value::Null;
+
+    if !running {
+        recovery_attempted = true;
+        let stopped = kill_dashboard_process(root, &cfg);
+        let second_spawn = spawn_dashboard(root, &cfg);
+        running = wait_for_dashboard_stable(cfg.host.as_str(), cfg.port, wait_attempts, 2);
+        launched = second_spawn.is_ok();
+        pid = second_spawn.as_ref().ok().copied();
+        let mut recovery_payload = json!({
+            "attempted": true,
+            "stopped": stopped,
+            "launched": second_spawn.is_ok()
+        });
+        if let Err(err) = second_spawn {
+            recovery_payload["error"] = Value::String(err);
+        }
+        recovery = recovery_payload;
+    }
+
     let mut out = json!({
         "enabled": true,
         "running": running,
-        "launched": spawned.is_ok(),
-        "pid": spawned.ok(),
+        "launched": launched,
+        "pid": pid,
         "opened_browser": false,
         "url": url,
-        "log_path": dashboard_log_path(root).to_string_lossy().to_string()
+        "log_path": dashboard_log_path(root).to_string_lossy().to_string(),
+        "ready_timeout_ms": cfg.ready_timeout_ms,
+        "recovery_attempted": recovery_attempted,
+        "recovery": recovery
     });
     if cfg.open_browser && running {
         out["opened_browser"] = Value::Bool(open_browser(cfg.url().as_str()));
     }
+    if let Err(err) = first_spawn {
+        out["spawn_error"] = Value::String(err);
+    }
     if !running {
         out["error"] = Value::String("dashboard_healthz_not_ready".to_string());
+        let tail = dashboard_log_tail(root, 8);
+        if !tail.is_empty() {
+            out["log_tail"] = Value::String(tail);
+        }
     }
     out
 }
@@ -388,6 +546,7 @@ fn usage() {
     println!("    --dashboard-open=1|0       (default: 1)");
     println!("    --dashboard-host=<ip>      (default: 127.0.0.1)");
     println!("    --dashboard-port=<n>       (default: 4173)");
+    println!("    --dashboard-ready-timeout-ms=<n> (default: 36000)");
 }
 
 pub(crate) fn success_receipt(
@@ -474,14 +633,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let dashboard = match command.as_str() {
             "start" => start_dashboard_if_enabled(root, argv, "start"),
             "restart" => {
-                let stopped = kill_dashboard_process(root);
+                let cfg = parse_dashboard_launch_config(argv, "restart");
+                let stopped = kill_dashboard_process(root, &cfg);
                 let started = start_dashboard_if_enabled(root, argv, "restart");
                 json!({
                     "stopped": stopped,
                     "started": started
                 })
             }
-            "stop" => kill_dashboard_process(root),
+            "stop" => {
+                let cfg = parse_dashboard_launch_config(argv, "stop");
+                kill_dashboard_process(root, &cfg)
+            }
             "status" => {
                 let cfg = parse_dashboard_launch_config(argv, "status");
                 json!({
@@ -557,6 +720,7 @@ mod tests {
         assert!(cfg.open_browser);
         assert_eq!(cfg.host, "127.0.0.1");
         assert_eq!(cfg.port, 4173);
+        assert_eq!(cfg.ready_timeout_ms, 36_000);
     }
 
     #[test]
@@ -567,6 +731,7 @@ mod tests {
                 "--dashboard-open=0".to_string(),
                 "--dashboard-host=0.0.0.0".to_string(),
                 "--dashboard-port=4321".to_string(),
+                "--dashboard-ready-timeout-ms=1200".to_string(),
             ],
             "start",
         );
@@ -574,6 +739,7 @@ mod tests {
         assert!(!cfg.open_browser);
         assert_eq!(cfg.host, "0.0.0.0");
         assert_eq!(cfg.port, 4321);
+        assert_eq!(cfg.ready_timeout_ms, 1_500);
     }
 
     #[test]
