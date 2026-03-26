@@ -325,6 +325,23 @@ install_binary_from_source_fallback() {
   return 0
 }
 
+ops_binary_supports_gateway() {
+  binary_path="$1"
+  [ -x "$binary_path" ] || return 1
+  help_out="$("$binary_path" protheusctl --help 2>/dev/null || true)"
+  printf '%s\n' "$help_out" | grep -Eq '(^|[[:space:]])gateway([[:space:]]|$)'
+}
+
+ensure_ops_gateway_contract() {
+  version_tag="$1" # reserved for forward-compatible policy checks
+  binary_path="$2"
+  if ops_binary_supports_gateway "$binary_path"; then
+    return 0
+  fi
+  echo "[infring install] notice: protheus-ops does not expose 'gateway' directly; gateway is provided by control-surface wrappers when available"
+  return 0
+}
+
 install_binary() {
   version_tag="$1"
   triple_id="$2"
@@ -494,6 +511,9 @@ main() {
   else
     if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
       echo "[infring install] failed to fetch protheus-ops for $triple ($version)" >&2
+      exit 1
+    fi
+    if ! ensure_ops_gateway_contract "$version" "$ops_bin"; then
       exit 1
     fi
   fi
