@@ -125,6 +125,7 @@ resolve_workspace_root_for_repair() {
     "${INFRING_WORKSPACE_ROOT:-}" \
     "${PROTHEUS_WORKSPACE_ROOT:-}" \
     "$(pwd)" \
+    "$HOME/.infring/workspace" \
     "$HOME/.openclaw/workspace"
   do
     [ -n "$candidate" ] || continue
