@@ -686,6 +686,69 @@ write_wrapper() {
   chmod 755 "$wrapper_path"
 }
 
+gateway_wrapper_body() {
+  cat <<'EOF'
+if [ "${1:-}" = "gateway" ]; then
+  shift || true
+  gateway_action=""
+  case "${1:-}" in
+    "" )
+      gateway_action="start"
+      ;;
+    start|boot|stop|restart|status|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status)
+      gateway_action="${1:-start}"
+      shift || true
+      ;;
+    --help|-h|help)
+      echo "Usage: infring gateway [start|stop|restart|status|attach|subscribe|tick|diagnostics] [flags]"
+      echo "  default action is 'start'"
+      echo "  add --dashboard-open=0 to skip browser auto-open on start"
+      exit 0
+      ;;
+    *)
+      gateway_action="start"
+      ;;
+  esac
+
+  if [ "$gateway_action" = "boot" ]; then
+    gateway_action="start"
+  fi
+
+  "__INSTALL_DIR__/infringd" "$gateway_action" "$@"
+  gateway_status=$?
+  if [ "$gateway_status" -ne 0 ]; then
+    exit "$gateway_status"
+  fi
+
+  if [ "$gateway_action" = "start" ]; then
+    dashboard_open="1"
+    dashboard_url="${INFRING_DASHBOARD_URL:-http://127.0.0.1:4173/dashboard#chat}"
+    if [ "${INFRING_NO_BROWSER:-0}" = "1" ] || [ "${PROTHEUS_NO_BROWSER:-0}" = "1" ]; then
+      dashboard_open="0"
+    fi
+    for token in "$@"; do
+      case "$token" in
+        --dashboard-open=0|--no-browser)
+          dashboard_open="0"
+          ;;
+        --dashboard-open=1)
+          dashboard_open="1"
+          ;;
+      esac
+    done
+    if [ "$dashboard_open" = "1" ]; then
+      if command -v open >/dev/null 2>&1; then
+        open "$dashboard_url" >/dev/null 2>&1 || true
+      elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$dashboard_url" >/dev/null 2>&1 || true
+      fi
+    fi
+  fi
+  exit 0
+fi
+EOF
+}
+
 main() {
   parse_install_args "$@"
   resolve_install_dir_default
@@ -779,16 +842,22 @@ main() {
     fi
   fi
 
+  gateway_shim="$(gateway_wrapper_body | sed "s|__INSTALL_DIR__|${INSTALL_DIR}|g")"
   if is_truthy "$INSTALL_PURE"; then
     if is_truthy "$INSTALL_TINY_MAX"; then
-      write_wrapper "infring" "exec \"$pure_bin\" --tiny-max=1 \"\$@\""
+      write_wrapper "infring" "${gateway_shim}
+exec \"$pure_bin\" --tiny-max=1 \"\$@\""
     else
-      write_wrapper "infring" "exec \"$pure_bin\" \"\$@\""
+      write_wrapper "infring" "${gateway_shim}
+exec \"$pure_bin\" \"\$@\""
     fi
-    write_wrapper "infringctl" "exec \"$pure_bin\" conduit \"\$@\""
+    write_wrapper "infringctl" "${gateway_shim}
+exec \"$pure_bin\" conduit \"\$@\""
   else
-    write_wrapper "infring" "exec \"$ops_bin\" protheusctl \"\$@\""
-    write_wrapper "infringctl" "exec \"$ops_bin\" protheusctl \"\$@\""
+    write_wrapper "infring" "${gateway_shim}
+exec \"$ops_bin\" protheusctl \"\$@\""
+    write_wrapper "infringctl" "${gateway_shim}
+exec \"$ops_bin\" protheusctl \"\$@\""
   fi
 
   if [ -n "$daemon_wrapper_body" ]; then
