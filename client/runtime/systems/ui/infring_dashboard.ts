@@ -14745,6 +14745,155 @@ function compatAgentsFromSnapshot(snapshot, options = {}) {
     .filter((agent) => includeArchived || !archived.has(agent.id));
 }
 
+function profileBackedAgentsFromState(snapshot, options = {}) {
+  const includeArchived = !!(options && options.includeArchived);
+  const cap = parsePositiveInt(options && options.limit != null ? options.limit : 500, 500, 1, 5000);
+  const archived = includeArchived ? null : archivedAgentIdsSet();
+  const state = loadAgentProfilesState();
+  const rows = [];
+  const profiles = state && state.agents && typeof state.agents === 'object' ? state.agents : {};
+  for (const [rawId, rawProfile] of Object.entries(profiles)) {
+    const id = cleanText(rawId || '', 140);
+    if (!id) continue;
+    if (!includeArchived && archived && archived.has(id)) continue;
+    const profile = rawProfile && typeof rawProfile === 'object' ? rawProfile : {};
+    const modelState = effectiveAgentModel(id, snapshot, {
+      allow_session_read: false,
+    });
+    const contract = contractForAgent(id);
+    const gitTree = agentGitTreeView(id, profile);
+    const identity = normalizeAgentIdentity(
+      profile && profile.identity ? profile.identity : {},
+      { emoji: defaultAgentEmojiForId(id), archetype: 'assistant', color: '#2563EB' }
+    );
+    rows.push({
+      id,
+      name: cleanText(profile && profile.name ? profile.name : id, 100) || id,
+      state: cleanText(profile && profile.state ? profile.state : 'running', 40) || 'running',
+      activated_at: cleanText(profile && profile.created_at ? profile.created_at : '', 80),
+      model_name: modelState.selected,
+      model_provider: modelState.provider,
+      runtime_model: modelState.runtime_model,
+      context_window: modelState.context_window,
+      role: cleanText(profile && profile.role ? profile.role : 'analyst', 60) || 'analyst',
+      identity,
+      avatar_url: cleanText(profile && profile.avatar_url ? profile.avatar_url : '', 512),
+      system_prompt: cleanText(profile && profile.system_prompt ? profile.system_prompt : '', 4000),
+      fallback_models: Array.isArray(profile && profile.fallback_models) ? profile.fallback_models : [],
+      git_tree_kind: gitTree.git_tree_kind,
+      git_branch: gitTree.git_branch,
+      workspace_dir: gitTree.workspace_dir,
+      workspace_rel: gitTree.workspace_rel,
+      git_tree_ready: gitTree.git_tree_ready,
+      git_tree_error: gitTree.git_tree_error,
+      is_master_agent: !!(gitTree && gitTree.is_master_agent),
+      contract: contractSummary(contract),
+      contract_status: formatContractStatus(contract),
+      contract_remaining_ms: (() => {
+        const remainingMs = contractRemainingMs(contract);
+        return remainingMs == null ? null : Math.max(0, Math.floor(remainingMs));
+      })(),
+      capabilities: [],
+      updated_at: cleanText(profile && profile.updated_at ? profile.updated_at : '', 80),
+      created_at: cleanText(profile && profile.created_at ? profile.created_at : '', 80),
+    });
+  }
+  rows.sort((a, b) => {
+    const aMaster = !!(a && a.is_master_agent);
+    const bMaster = !!(b && b.is_master_agent);
+    if (aMaster !== bMaster) return aMaster ? -1 : 1;
+    const aTs = coerceTsMs(a && a.updated_at ? a.updated_at : a && a.created_at ? a.created_at : 0, 0);
+    const bTs = coerceTsMs(b && b.updated_at ? b.updated_at : b && b.created_at ? b.created_at : 0, 0);
+    if (aTs !== bTs) return bTs - aTs;
+    return String(a && a.id ? a.id : '').localeCompare(String(b && b.id ? b.id : ''));
+  });
+  return rows.slice(0, cap);
+}
+
+function preferredAgentId(snapshot, options = {}) {
+  const includeArchived = !!(options && options.includeArchived);
+  const archived = includeArchived ? null : archivedAgentIdsSet();
+  const runtimeRows = compatAgentsFromSnapshot(snapshot, { includeArchived: true });
+  const activeRuntime = runtimeRows
+    .filter((row) => {
+      const id = cleanText(row && row.id ? row.id : '', 140);
+      if (!id) return false;
+      return includeArchived || !(archived && archived.has(id));
+    })
+    .sort((a, b) => {
+      const aMaster = !!(a && a.is_master_agent);
+      const bMaster = !!(b && b.is_master_agent);
+      if (aMaster !== bMaster) return aMaster ? -1 : 1;
+      const aName = String(a && (a.name || a.id) ? a.name || a.id : '');
+      const bName = String(b && (b.name || b.id) ? b.name || b.id : '');
+      return aName.localeCompare(bName);
+    });
+  if (activeRuntime.length > 0) {
+    return cleanText(activeRuntime[0] && activeRuntime[0].id ? activeRuntime[0].id : '', 140) || '';
+  }
+  const profileRows = profileBackedAgentsFromState(snapshot, {
+    includeArchived,
+    limit: 500,
+  });
+  if (profileRows.length > 0) {
+    return cleanText(profileRows[0] && profileRows[0].id ? profileRows[0].id : '', 140) || '';
+  }
+  return '';
+}
+
+function resolveKnownAgentId(agentId, snapshot, options = {}) {
+  const fallbackPrimary = !!(options && options.fallback_primary);
+  const includeArchived = !!(options && options.includeArchived);
+  const requested = cleanText(agentId || '', 140);
+  if (!requested) {
+    return fallbackPrimary ? preferredAgentId(snapshot, { includeArchived }) : '';
+  }
+  const lowerRequested = requested.toLowerCase();
+  const archived = includeArchived ? null : archivedAgentIdsSet();
+  const runtimeRows = compatAgentsFromSnapshot(snapshot, { includeArchived: true });
+  const runtimeIds = new Set(
+    runtimeRows
+      .map((row) => cleanText(row && row.id ? row.id : '', 140))
+      .filter(Boolean)
+  );
+  if (runtimeIds.has(requested)) return requested;
+  const profileState = loadAgentProfilesState();
+  const profiles = profileState && profileState.agents && typeof profileState.agents === 'object'
+    ? profileState.agents
+    : {};
+  if (profiles[requested]) return requested;
+  if (includeArchived || !(archived && archived.has(requested))) {
+    for (const id of runtimeIds) {
+      if (String(id).toLowerCase() === lowerRequested) return id;
+    }
+    for (const key of Object.keys(profiles)) {
+      if (String(key).toLowerCase() === lowerRequested) return key;
+    }
+    const runtimeNameMatches = runtimeRows.filter((row) => {
+      const id = cleanText(row && row.id ? row.id : '', 140);
+      if (!id) return false;
+      if (!includeArchived && archived && archived.has(id)) return false;
+      const name = cleanText(row && row.name ? row.name : '', 100).toLowerCase();
+      return !!name && name === lowerRequested;
+    });
+    if (runtimeNameMatches.length === 1) {
+      return cleanText(runtimeNameMatches[0] && runtimeNameMatches[0].id ? runtimeNameMatches[0].id : '', 140) || requested;
+    }
+    const profileNameMatches = [];
+    for (const [id, profile] of Object.entries(profiles)) {
+      if (!includeArchived && archived && archived.has(id)) continue;
+      const name = cleanText(profile && profile.name ? profile.name : '', 100).toLowerCase();
+      if (name && name === lowerRequested) profileNameMatches.push(id);
+    }
+    if (profileNameMatches.length === 1) return cleanText(profileNameMatches[0], 140) || requested;
+  }
+  if (fallbackPrimary) {
+    const fallbackId = preferredAgentId(snapshot, { includeArchived: false });
+    if (fallbackId) return fallbackId;
+  }
+  return requested;
+}
+
 function latestAssistantFromSnapshot(snapshot) {
   const turns = snapshot && snapshot.app && Array.isArray(snapshot.app.turns) ? snapshot.app.turns : [];
   if (turns.length === 0) return '';
@@ -19818,6 +19967,12 @@ function runServe(flags) {
         if (!Array.isArray(agents) || agents.length === 0) {
           agents = compatAgentsFromSnapshot(latestSnapshot);
         }
+        if (!Array.isArray(agents) || agents.length === 0) {
+          agents = profileBackedAgentsFromState(latestSnapshot, {
+            includeArchived: false,
+            limit: 500,
+          });
+        }
         if ((!Array.isArray(agents) || agents.length === 0) && Array.isArray(lastKnownSidebarAgents) && lastKnownSidebarAgents.length) {
           agents = lastKnownSidebarAgents.slice(0, 500).map((row) => ({
             ...(row && typeof row === 'object' ? row : {}),
@@ -20024,7 +20179,11 @@ function runServe(flags) {
           maybeEnforceAgentContractsForApi('api.agent_scope');
         }
         const parts = pathname.split('/').filter(Boolean);
-        const agentId = cleanText(parts[2] || '', 140);
+        const requestedAgentId = cleanText(parts[2] || '', 140);
+        const agentId = resolveKnownAgentId(requestedAgentId, latestSnapshot, {
+          fallback_primary: false,
+          includeArchived: true,
+        });
         if (req.method === 'GET' && parts.length === 3) {
           const team = cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
           const authoritativeAgents = authoritativeAgentsFromRuntime(latestSnapshot, team, {
@@ -20545,9 +20704,13 @@ function runServe(flags) {
           const input = payload && (payload.input || payload.message || payload.prompt || payload.text)
             ? payload.input || payload.message || payload.prompt || payload.text
             : '';
-          const turn = runAgentMessage(agentId, input, latestSnapshot);
+          const messageAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          }) || agentId;
+          const turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
           if (!turn.ok && turn.error === 'agent_not_found') {
-            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: messageAgentId });
             return;
           }
           if (!turn.ok && turn.error === 'message_required') {
@@ -20571,17 +20734,17 @@ function runServe(flags) {
           }
           writeActionReceipt(
             'app.chat',
-            { input: turn.input, agent_id: agentId, session_id: turn.session_id, cli_mode: ACTIVE_CLI_MODE },
+            { input: turn.input, agent_id: messageAgentId, session_id: turn.session_id, cli_mode: ACTIVE_CLI_MODE },
             turn.laneResult
           );
-          appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
-            assistant_agent_id: turn.agent_id || agentId,
+          appendAgentConversation(messageAgentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
+            assistant_agent_id: turn.agent_id || messageAgentId,
             assistant_agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
           });
           requestSnapshotRefresh(false);
           sendJson(res, turn.status, {
             ok: turn.ok,
-            agent_id: agentId,
+            agent_id: messageAgentId,
             session_id: turn.session_id,
             response: turn.response,
             tools: turn.tools,
@@ -20591,7 +20754,7 @@ function runServe(flags) {
             turn: {
               role: 'agent',
               text: turn.response,
-              agent_id: turn.agent_id || agentId,
+              agent_id: turn.agent_id || messageAgentId,
               agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
             },
             input_tokens: turn.input_tokens,
@@ -20609,25 +20772,29 @@ function runServe(flags) {
         }
         if (req.method === 'PUT' && parts[3] === 'model') {
           const payload = await bodyJson(req);
-          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          const modelAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          }) || agentId;
+          const presence = resolveAgentPresence(modelAgentId, { allow_archived: true, accept_profile: true });
           if (!presence.ok) {
-            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: modelAgentId });
             return;
           }
           const requested = cleanText(
             payload && payload.model != null ? payload.model : '',
             120
           );
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const state = loadAgentSession(modelAgentId, latestSnapshot);
           state.model_override = requested && requested.toLowerCase() !== 'auto' ? requested : 'auto';
-          saveAgentSession(agentId, state);
-          upsertAgentProfile(agentId, {
+          saveAgentSession(modelAgentId, state);
+          upsertAgentProfile(modelAgentId, {
             model_override: state.model_override,
           });
-          const resolved = effectiveAgentModel(agentId, latestSnapshot);
+          const resolved = effectiveAgentModel(modelAgentId, latestSnapshot);
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: modelAgentId,
             model: resolved.selected,
             provider: resolved.provider,
             runtime_model: resolved.runtime_model,
@@ -20775,17 +20942,21 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'GET' && parts[3] === 'session') {
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
           ensureAgentGitTreeAssignments(latestSnapshot, {
             force: false,
-            preferred_master_id: agentId,
+            preferred_master_id: sessionAgentId || agentId,
           });
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
           const session = activeSession(state);
-          const profile = ensureAgentGitTreeProfile(agentId, { force_master: false, ensure_workspace_ready: false });
-          const gitTree = agentGitTreeView(agentId, profile);
+          const profile = ensureAgentGitTreeProfile(sessionAgentId || agentId, { force_master: false, ensure_workspace_ready: false });
+          const gitTree = agentGitTreeView(sessionAgentId || agentId, profile);
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: sessionAgentId || agentId,
             session_id: session.session_id,
             messages: Array.isArray(session.messages) ? session.messages : [],
             git_tree_kind: gitTree.git_tree_kind,
@@ -20798,17 +20969,25 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'reset') {
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
+          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
           const session = activeSession(state);
           session.messages = [];
           session.updated_at = nowIso();
-          saveAgentSession(agentId, state);
-          sendJson(res, 200, { ok: true, id: agentId, message: 'Session reset' });
+          saveAgentSession(sessionAgentId || agentId, state);
+          sendJson(res, 200, { ok: true, id: sessionAgentId || agentId, message: 'Session reset' });
           return;
         }
         if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'compact') {
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
           const payload = await bodyJson(req);
-          const result = compactAgentConversation(agentId, latestSnapshot, {
+          const result = compactAgentConversation(sessionAgentId || agentId, latestSnapshot, {
             target_context_window: parsePositiveInt(
               payload && payload.target_context_window != null ? payload.target_context_window : 0,
               0,
@@ -20832,7 +21011,7 @@ function runServe(flags) {
           });
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: sessionAgentId || agentId,
             message: result.compacted ? 'Session compacted' : 'Session already within target',
             compacted: !!result.compacted,
             before_message_count: result.before_message_count,
@@ -20846,18 +21025,26 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'GET' && parts[3] === 'sessions') {
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
+          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: sessionAgentId || agentId,
             sessions: sessionList(state),
             active_session_id: state.active_session_id,
           });
           return;
         }
         if (req.method === 'POST' && parts[3] === 'sessions' && parts.length === 4) {
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
           const payload = await bodyJson(req);
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
           const sessionId = `session_${Date.now().toString(36)}`;
           const label =
             cleanText(payload && payload.label ? payload.label : '', 80) ||
@@ -20870,10 +21057,10 @@ function runServe(flags) {
             messages: [],
           });
           state.active_session_id = sessionId;
-          saveAgentSession(agentId, state);
+          saveAgentSession(sessionAgentId || agentId, state);
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: sessionAgentId || agentId,
             created: sessionId,
             sessions: sessionList(state),
             active_session_id: state.active_session_id,
@@ -20887,18 +21074,22 @@ function runServe(flags) {
           parts[5] === 'switch'
         ) {
           const targetSessionId = cleanText(parts[4] || '', 80);
-          const state = loadAgentSession(agentId, latestSnapshot);
+          const sessionAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+            fallback_primary: true,
+            includeArchived: false,
+          });
+          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
           const exists = state.sessions.some((session) => session.session_id === targetSessionId);
           if (!exists) {
             sendJson(res, 404, { ok: false, error: 'session_not_found', session_id: targetSessionId });
             return;
           }
           state.active_session_id = targetSessionId;
-          saveAgentSession(agentId, state);
+          saveAgentSession(sessionAgentId || agentId, state);
           const session = activeSession(state);
           sendJson(res, 200, {
             ok: true,
-            id: agentId,
+            id: sessionAgentId || agentId,
             session_id: targetSessionId,
             messages: Array.isArray(session.messages) ? session.messages : [],
             sessions: sessionList(state),
@@ -21490,7 +21681,11 @@ function runServe(flags) {
   };
 
   const resolveAgentPresence = (agentId, options = {}) => {
-    const id = cleanText(agentId || '', 140);
+    const requestedId = cleanText(agentId || '', 140);
+    const id = resolveKnownAgentId(requestedId, latestSnapshot, {
+      fallback_primary: false,
+      includeArchived: true,
+    });
     if (!id) return { ok: false, error: 'agent_id_required', id: '' };
     const allowArchived = options && options.allow_archived === true;
     const acceptProfile = !(options && options.accept_profile === false);
@@ -21503,6 +21698,7 @@ function runServe(flags) {
       return {
         ok: true,
         id,
+        requested_id: requestedId || id,
         archived,
         runtime_known: true,
         profile_only: false,
@@ -21537,6 +21733,7 @@ function runServe(flags) {
       return {
         ok: true,
         id,
+        requested_id: requestedId || id,
         archived: false,
         runtime_known: knownAfter,
         profile_only: !knownAfter,
@@ -22145,7 +22342,11 @@ function runServe(flags) {
       const input = payload && (payload.content || payload.input || payload.message)
         ? payload.content || payload.input || payload.message
         : '';
-      const turn = runAgentMessage(agentId, input, latestSnapshot);
+      const messageAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
+        fallback_primary: true,
+        includeArchived: false,
+      }) || agentId;
+      const turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
       if (!turn.ok && turn.error === 'message_required') {
         sendWs(socket, { type: 'error', content: 'Message required.' });
         return;
@@ -22191,12 +22392,12 @@ function runServe(flags) {
 
       writeActionReceipt(
         'app.chat',
-        { input: turn.input, agent_id: agentId, session_id: turn.session_id, cli_mode: ACTIVE_CLI_MODE },
+        { input: turn.input, agent_id: messageAgentId, session_id: turn.session_id, cli_mode: ACTIVE_CLI_MODE },
         turn.laneResult
       );
       refreshSnapshot();
-      appendAgentConversation(agentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
-        assistant_agent_id: turn.agent_id || agentId,
+      appendAgentConversation(messageAgentId, latestSnapshot, turn.input, turn.response, turn.meta, turn.tools, {
+        assistant_agent_id: turn.agent_id || messageAgentId,
         assistant_agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
       });
 
@@ -22212,7 +22413,7 @@ function runServe(flags) {
         cost_usd: turn.cost_usd,
         iterations: turn.iterations,
         duration_ms: turn.duration_ms,
-        agent_id: turn.agent_id || agentId,
+        agent_id: turn.agent_id || messageAgentId,
         agent_name: cleanText(turn && turn.agent && turn.agent.name ? turn.agent.name : '', 120),
         model: turn.model,
         model_provider: turn.model_provider || providerForModelName(turn.model, configuredProvider(latestSnapshot)),
