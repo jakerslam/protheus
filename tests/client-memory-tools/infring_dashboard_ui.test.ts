@@ -25,6 +25,10 @@ const APP_STATIC_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static/js/app.ts'
 );
+const API_STATIC_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/openclaw_static/js/api.ts'
+);
 const STATIC_UI_JS_ROOT = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static/js'
@@ -128,6 +132,7 @@ function assertChatSyntaxGuards() {
 
 function assertChatEnhancementFeatures() {
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
+  const apiSource = readUtf8(API_STATIC_TS_PATH);
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
   const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/css/components.css'));
   const laneSource = readUtf8(TARGET);
@@ -177,6 +182,8 @@ function assertChatEnhancementFeatures() {
   assertContains(laneSource, "parts[3] === 'file' && parts[4] === 'read'", 'lane file-read endpoint missing');
   assertContains(laneSource, "parts[3] === 'folder' && parts[4] === 'export'", 'lane folder-export endpoint missing');
   assertContains(laneSource, "pathname.startsWith('/api/chat/export/')", 'chat export download endpoint missing');
+  assertContains(apiSource, 'upload_endpoint_stub_requires_dashboard_restart', 'upload client should detect stale compat-stub responses');
+  assertContains(chatSource, "Failed to upload ' + att.file.name + ': ' + reason", 'upload failure toast should include backend reason');
   assertContains(htmlSource, 'msg.file_output && msg.file_output.path', 'file output chat render missing');
   assertContains(htmlSource, 'msg.folder_output && msg.folder_output.path', 'folder output chat render missing');
   assertContains(htmlSource, 'class="chat-folder-download-link"', 'folder archive download link missing');
