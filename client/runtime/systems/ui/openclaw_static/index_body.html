@@ -274,6 +274,10 @@
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18"/></svg></span>
               <span class="nav-label">Channels</span>
             </a>
+            <a class="nav-item" :class="{ active: page === 'eyes' }" @click="navigate('eyes')" :aria-current="page === 'eyes' ? 'page' : false">
+              <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span class="nav-label">Eyes</span>
+            </a>
             <a class="nav-item" :class="{ active: page === 'skills' }" @click="navigate('skills')" :aria-current="page === 'skills' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 10h18"/><path d="m4.5 10 1.2-5h12.6l1.2 5"/><path d="M5 10v9h14v-9"/><path d="M9 14h6"/></svg></span>
               <span class="nav-label">Skills</span>
@@ -3584,6 +3588,106 @@
               </div>
             </div>
           </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Eyes -->
+    <template x-if="page === 'eyes'">
+      <div x-data="eyesPage">
+        <div class="page-header">
+          <h2>Eyes <span class="badge badge-muted" x-text="activeCount + '/' + eyes.length + ' active'"></span></h2>
+        </div>
+        <div class="page-body" x-init="loadEyes()">
+          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading eyes...</span></div>
+          <div x-show="!loading && loadError" class="error-state">
+            <span class="error-icon">!</span>
+            <p x-text="loadError"></p>
+            <button class="btn btn-ghost btn-sm" @click="loadEyes()">Retry</button>
+          </div>
+          <div x-show="!loading && !loadError">
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">Add Eye</div>
+            <p class="text-sm text-dim" style="margin:0 0 12px">
+              Syncs directly with the system eyes catalog. Add a URL source, an API key, or both.
+            </p>
+            <div class="grid grid-cols-2" style="gap:10px">
+              <div class="form-group" style="margin:0">
+                <label>Name</label>
+                <input class="form-input" type="text" x-model="form.name" placeholder="My Eye">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select class="form-select" x-model="form.status">
+                  <option value="active">active</option>
+                  <option value="paused">paused</option>
+                  <option value="dormant">dormant</option>
+                  <option value="disabled">disabled</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;grid-column:1 / span 2">
+                <label>Source URL</label>
+                <input class="form-input" type="text" x-model="form.url" placeholder="https://example.com/feed">
+              </div>
+              <div class="form-group" style="margin:0;grid-column:1 / span 2">
+                <label>API Key</label>
+                <input class="form-input" type="password" x-model="form.apiKey" placeholder="Optional API key">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Cadence (hours)</label>
+                <input class="form-input" type="number" min="1" max="168" x-model="form.cadenceHours">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Topics</label>
+                <input class="form-input" type="text" x-model="form.topics" placeholder="ai, agents, infra">
+              </div>
+            </div>
+            <div x-show="formError" class="text-xs" style="color:var(--danger,#ef4444);margin-top:8px" x-text="formError"></div>
+            <div class="text-xs text-dim" style="margin-top:8px">
+              API keys are hashed before being stored in the local catalog.
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button class="btn btn-primary btn-sm" @click="addEye()" :disabled="saving" x-text="saving ? 'Saving...' : 'Add Eye'"></button>
+              <button class="btn btn-ghost btn-sm" @click="resetForm()" :disabled="saving">Reset</button>
+              <button class="btn btn-ghost btn-sm" @click="loadEyes()" :disabled="saving">Refresh</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">System Eyes</div>
+            <table class="table" x-show="eyes.length" style="margin-top:8px">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Cadence</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="eye in eyes" :key="eye.uid || eye.id">
+                  <tr>
+                    <td>
+                      <div class="font-bold" x-text="eye.name"></div>
+                      <div class="text-xs text-dim" x-text="eye.id"></div>
+                    </td>
+                    <td><span class="badge" :class="statusBadge(eye).cls" x-text="statusBadge(eye).text"></span></td>
+                    <td x-text="sourceLabel(eye)"></td>
+                    <td x-text="eye.cadence_hours + 'h'"></td>
+                    <td x-text="formatUpdated(eye.updated_ts)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div x-show="!eyes.length" class="empty-state">
+              <h4>No eyes configured</h4>
+              <p class="hint">Add your first eye using URL or API key above.</p>
+            </div>
+          </div>
+
+          </div>
         </div>
       </div>
     </template>
