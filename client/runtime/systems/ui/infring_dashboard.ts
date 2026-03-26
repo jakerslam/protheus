@@ -739,6 +739,138 @@ function removeGitWorkspaceForAgent(agentId) {
   };
 }
 
+function gitBranchReferencedByOtherAgents(branchName, excludedAgentId = '') {
+  const branch = normalizeGitBranchName(branchName, '');
+  if (!branch) return false;
+  const excluded = cleanText(excludedAgentId || '', 140);
+
+  const profilesState = loadAgentProfilesState();
+  const profileAgents =
+    profilesState && profilesState.agents && typeof profilesState.agents === 'object' ? profilesState.agents : {};
+  for (const [rawId, rawProfile] of Object.entries(profileAgents)) {
+    const id = cleanText(rawId || '', 140);
+    if (!id || id === excluded) continue;
+    const profile = rawProfile && typeof rawProfile === 'object' ? rawProfile : {};
+    if (normalizeGitTreeKind(profile.git_tree_kind || '', AGENT_GIT_TREE_KIND_ISOLATED) === AGENT_GIT_TREE_KIND_MASTER) {
+      continue;
+    }
+    const rowBranch = normalizeGitBranchName(profile.git_branch || '', '');
+    if (rowBranch && rowBranch === branch) return true;
+  }
+
+  const archivedState = loadArchivedAgentsState();
+  const archivedAgents =
+    archivedState && archivedState.agents && typeof archivedState.agents === 'object' ? archivedState.agents : {};
+  for (const [rawId, rawMeta] of Object.entries(archivedAgents)) {
+    const id = cleanText(rawId || '', 140);
+    if (!id || id === excluded) continue;
+    const meta = rawMeta && typeof rawMeta === 'object' ? rawMeta : {};
+    if (normalizeGitTreeKind(meta.git_tree_kind || '', AGENT_GIT_TREE_KIND_ISOLATED) === AGENT_GIT_TREE_KIND_MASTER) {
+      continue;
+    }
+    const rowBranch = normalizeGitBranchName(meta.git_branch || '', '');
+    if (rowBranch && rowBranch === branch) return true;
+  }
+
+  return false;
+}
+
+function deleteGitBranchIfSafeForAgent(agentId, profile = null, archivedMeta = null) {
+  const id = cleanText(agentId || '', 140);
+  if (!id) {
+    return {
+      ok: false,
+      attempted: false,
+      removed: false,
+      reason: 'invalid_agent_id',
+      branch: '',
+    };
+  }
+  const profileRow = profile && typeof profile === 'object' ? profile : {};
+  const archivedRow = archivedMeta && typeof archivedMeta === 'object' ? archivedMeta : {};
+  const treeKind = normalizeGitTreeKind(
+    profileRow.git_tree_kind || archivedRow.git_tree_kind || '',
+    AGENT_GIT_TREE_KIND_ISOLATED
+  );
+  const branch = normalizeGitBranchName(profileRow.git_branch || archivedRow.git_branch || '', '');
+  if (treeKind === AGENT_GIT_TREE_KIND_MASTER) {
+    return {
+      ok: true,
+      attempted: false,
+      removed: false,
+      reason: 'master_tree',
+      branch,
+    };
+  }
+  if (!branch) {
+    return {
+      ok: true,
+      attempted: false,
+      removed: false,
+      reason: 'no_isolated_branch',
+      branch: '',
+    };
+  }
+  if (branch === gitMainBranch()) {
+    return {
+      ok: true,
+      attempted: false,
+      removed: false,
+      reason: 'main_branch_protected',
+      branch,
+    };
+  }
+  if (gitBranchReferencedByOtherAgents(branch, id)) {
+    return {
+      ok: true,
+      attempted: false,
+      removed: false,
+      reason: 'branch_in_use',
+      branch,
+    };
+  }
+  if (!gitBranchExists(branch)) {
+    return {
+      ok: true,
+      attempted: false,
+      removed: false,
+      reason: 'branch_missing',
+      branch,
+    };
+  }
+
+  let proc = null;
+  try {
+    proc = spawnSync('git', ['branch', '-D', branch], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 12000,
+      maxBuffer: 1024 * 1024,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      attempted: true,
+      removed: false,
+      reason: 'git_branch_delete_failed',
+      branch,
+      detail: cleanText(error && error.message ? error.message : 'git_branch_delete_failed', 240),
+    };
+  }
+  const removed = !!(proc && proc.status === 0);
+  return {
+    ok: removed,
+    attempted: true,
+    removed,
+    reason: removed ? 'deleted' : 'git_branch_delete_failed',
+    branch,
+    detail: removed
+      ? ''
+      : cleanText((proc && (proc.stderr || proc.stdout)) || `git_branch_delete_failed:${proc ? proc.status : 'unknown'}`, 240),
+  };
+}
+
 function parsePositiveInt(value, fallback, min = 1, max = 65535) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
@@ -1088,6 +1220,7 @@ function buildPrimaryDashboardHtml() {
     'workflows',
     'workflow-builder',
     'channels',
+    'eyes',
     'skills',
     'hands',
     'scheduler',
@@ -1752,24 +1885,48 @@ function compactRelativePath(absPath) {
   return cleanText(relative || '.', 600) || '.';
 }
 
+function suggestionWordCount(value) {
+  return String(value == null ? '' : value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function clampSuggestionWords(value, maxWords = 12) {
+  const cap = parsePositiveInt(maxWords, 12, 4, 24);
+  const words = String(value == null ? '' : value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length <= cap) return words.join(' ');
+  return words.slice(0, cap).join(' ');
+}
+
 function normalizeSuggestionToUserVoice(value) {
   let row = cleanText(value == null ? '' : String(value), 220);
   if (!row) return '';
-  row = row.replace(/^agent:\s*/i, '');
-  row = row.replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '');
-  if (/^ask\s+[^.?!]{0,140}?\s+for\s+/i.test(row)) {
-    row = row.replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Give me ');
-  } else if (/^ask\s+for\s+/i.test(row)) {
-    row = row.replace(/^ask\s+for\s+/i, 'Give me ');
-  } else if (/^request\s+/i.test(row)) {
-    row = row.replace(/^request\s+/i, 'Give me ');
-  } else if (/^please\s+request\s+/i.test(row)) {
-    row = row.replace(/^please\s+request\s+/i, 'Give me ');
+  row = row
+    .replace(/^\s*[-*0-9.)\]]+\s*/, '')
+    .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
+    .replace(/^\s*(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis|user|human)(?:\*\*)?\s*:\s*/i, '')
+    .replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '')
+    .replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Can you ')
+    .replace(/^ask\s+for\s+/i, 'Can you ')
+    .replace(/^request\s+/i, 'Can you ')
+    .replace(/^please\s+request\s+/i, 'Can you ')
+    .replace(/^give me\s+/i, 'Can you ')
+    .replace(/^show me\s+/i, 'Can you show ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!row) return '';
+  row = clampSuggestionWords(row, 12);
+  row = row.replace(/[.!?]+$/g, '').trim();
+  if (!row) return '';
+  if (/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) {
+    row = `${row}?`;
   }
-  row = row.replace(/\s+/g, ' ').trim();
-  if (!/[.!?]$/.test(row)) row = `${row}.`;
   if (row.length) row = row[0].toUpperCase() + row.slice(1);
-  return cleanText(row, 220);
+  return cleanText(row, 180);
 }
 
 function isLowValueSuggestion(row) {
@@ -1780,12 +1937,23 @@ function isLowValueSuggestion(row) {
   if (lowered.includes('if you need help') || lowered.includes('feel free to ask')) return true;
   if (lowered.includes('the user wants exactly 3 actionable next user prompts')) return true;
   if (lowered.includes('json array of strings')) return true;
+  if (lowered.includes('output only the')) return true;
+  if (lowered.includes('do not include numbering')) return true;
+  if (lowered.includes('highest-roi')) return true;
+  if (lowered.includes('runbook')) return true;
+  if (lowered.includes('reliability remediation')) return true;
+  if (lowered.includes('rollback criteria')) return true;
+  if (lowered.includes('3-step execution plan')) return true;
+  if (lowered.includes('this task')) return true;
   if (lowered === 'thinking...' || lowered === 'thinking..' || lowered === 'thinking.') return true;
   const sentenceCount = (text.match(/[.!?]/g) || []).length;
   if (sentenceCount > 2) return true;
   if (/[\"“”]/.test(text) && text.length > 120) return true;
+  if (/^(give me|request|ask for)\b/i.test(text)) return true;
+  const words = suggestionWordCount(text);
+  if (words < 3 || words > 14) return true;
   const actionableStart =
-    /^(give me|run|create|draft|summarize|audit|check|fix|implement|propose|generate|compare|list|explain|plan|continue|compact|validate|review|show|write|build|convert|identify|trace)\b/i.test(
+    /^(can|could|would|should|what|why|how|when|where|who|show|fix|check|run|retry|switch|clear|drain|scale|continue|compare|explain|validate|review|open|trace)\b/i.test(
       text
     );
   if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
@@ -1856,7 +2024,7 @@ function parseSuggestionCandidates(raw) {
     seen.add(key);
     unique.push(row);
   }
-  return unique.slice(0, 3);
+  return unique.slice(0, 4);
 }
 
 function isSuggestionNoiseText(value) {
@@ -1890,15 +2058,22 @@ function sanitizeSuggestionHint(value) {
 function recentSuggestionContext(recentMessages = []) {
   let lastUser = '';
   let lastAssistant = '';
+  const history = [];
   const rows = Array.isArray(recentMessages) ? recentMessages.slice() : [];
   for (let idx = rows.length - 1; idx >= 0; idx -= 1) {
     const row = rows[idx] || {};
     const role = cleanText(row.role || '', 40).toLowerCase();
     const text = cleanText(
-      row.user || row.assistant || row.content || row.text || '',
+      stripAssistantSpeakerPrefix(row.user || row.assistant || row.content || row.text || ''),
       240
     );
     if (!text || isSuggestionNoiseText(text)) continue;
+    if (history.length < 8) {
+      history.unshift({
+        role: role || (row.user ? 'user' : row.assistant ? 'agent' : 'agent'),
+        text,
+      });
+    }
     if (!lastUser && (role === 'user' || row.user)) {
       lastUser = text;
       continue;
@@ -1912,7 +2087,12 @@ function recentSuggestionContext(recentMessages = []) {
   return {
     last_user: lastUser,
     last_assistant: lastAssistant,
-    signature: cleanText(`${lastUser}|${lastAssistant}`, 500),
+    history,
+    signature: cleanText(
+      history.map((entry) => `${cleanText(entry.role || 'agent', 20)}:${cleanText(entry.text || '', 180)}`).join(' || ') ||
+        `${lastUser}|${lastAssistant}`,
+      1200
+    ),
   };
 }
 
@@ -1921,9 +2101,10 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
   const runtime = runtimeSyncSummary(snapshot);
   const queueDepth = parseNonNegativeInt(runtime.queue_depth, 0, 100000000);
   const staleBlocks = parseNonNegativeInt(runtime.cockpit_stale_blocks, 0, 100000000);
+  const conduitSignals = parseNonNegativeInt(runtime.conduit_signals, 0, 100000000);
+  const targetConduitSignals = parseNonNegativeInt(runtime.target_conduit_signals, 0, 100000000);
   const cleanHint = sanitizeSuggestionHint(hint);
   const convo = recentSuggestionContext(recentMessages);
-  const roleLabel = cleanText(agent && agent.role ? agent.role : '', 60) || 'assistant';
   const topic = cleanText(
     cleanHint || convo.last_user || convo.last_assistant || '',
     160
@@ -1933,28 +2114,42 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
     .split(/[^a-z0-9_:-]+/g)
     .filter((word) => word.length >= 4 && !['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].includes(word))
     .slice(0, 3);
-  const topicLabel = topicWords.length ? topicWords.join(' ') : `${roleLabel} workflow`;
+  const topicLabel = topicWords.length ? topicWords.join(' ') : 'current task';
+  const lastAgentLower = cleanText(convo.last_assistant || '', 400).toLowerCase();
 
-  if (convo.last_user) {
-    rows.push('Give me one concrete implementation step and one verification check for the current task.');
+  if (queueDepth >= 60) rows.push(`Can you drain queue depth from ${queueDepth} right now`);
+  else if (queueDepth >= 30) rows.push(`Can you reduce queue depth before it spikes again`);
+
+  if (staleBlocks > 0) {
+    rows.push(`Can you reclaim the ${staleBlocks} stale cockpit blocks now`);
   }
-  if (
-    convo.last_assistant &&
-    !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(convo.last_assistant)
-  ) {
-    rows.push('Give me one focused follow-up prompt that challenges the latest answer with measurable output.');
+  if (targetConduitSignals > 0 && conduitSignals > 0 && conduitSignals < targetConduitSignals) {
+    rows.push(`Can you scale conduit signals to ${targetConduitSignals} now`);
+  }
+  if (/couldn't reach|failed to|timeout|lane_timeout|backend unavailable|provider-sync/i.test(lastAgentLower)) {
+    rows.push('Can you auto-switch models and retry the same request');
+    rows.push('What failed first, provider sync or app-plane lane');
+  }
+  if (/upload|file|attachment/.test(`${cleanHint} ${convo.last_user} ${convo.last_assistant}`.toLowerCase())) {
+    rows.push('Can you retry upload and show the failing endpoint');
+  }
+  if (/diff|patch|commit|branch|git/.test(`${cleanHint} ${convo.last_user}`.toLowerCase())) {
+    rows.push('Can you show the exact diff for that change');
   }
   if (cleanHint) {
-    rows.push(`Give me one direct next prompt based on this hint: ${topicLabel}.`);
+    rows.push(`Can you take the next step on ${topicLabel}`);
   }
-  if (staleBlocks > 0 || queueDepth >= 40 || /queue|cockpit|conduit|latency|backpressure|stale|reconnect/i.test(topic)) {
-    rows.push('Give me one automatic reliability remediation with rollback criteria.');
-    rows.push('Give me a short runbook to keep queue depth under 60 and stale blocks near 0.');
+  if (convo.last_assistant) {
+    rows.push('Can you turn that into a concrete checklist');
+    rows.push('Can you show the first command to run now');
   }
-  rows.push(`Give me a 3-step execution plan focused on ${topicLabel}.`);
-  rows.push(`Give me one command to run now and one verification command tied to ${topicLabel}.`);
-  rows.push('Give me the single highest-ROI change with measurable success criteria.');
-  const rotateSeed = `${topicLabel}|${convo.last_user}|${convo.last_assistant}|${cleanHint}`;
+  if (convo.last_user) {
+    rows.push('Can you continue this and keep the same direction');
+    rows.push('Can you summarize progress in three concrete bullets');
+  }
+  rows.push('Can you propose the best next move from here');
+
+  const rotateSeed = `${topicLabel}|${convo.signature}|${cleanHint}`;
   let rotate = 0;
   for (let i = 0; i < rotateSeed.length; i++) rotate = (rotate + rotateSeed.charCodeAt(i)) % Math.max(rows.length, 1);
   const ordered = rows.length > 1 ? rows.slice(rotate).concat(rows.slice(0, rotate)) : rows.slice();
@@ -1968,7 +2163,7 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
       seen.add(key);
       return true;
     })
-    .slice(0, 3);
+    .slice(0, 4);
 }
 
 function generatePromptSuggestions(agentId, snapshot, payload = {}) {
@@ -2014,34 +2209,34 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     ) {
       return {
         ok: true,
-        suggestions: cached.suggestions.slice(0, 3).map((row) => normalizeSuggestionToUserVoice(row)).filter(Boolean),
+        suggestions: cached.suggestions.slice(0, 4).map((row) => normalizeSuggestionToUserVoice(row)).filter(Boolean),
         source: cleanText(cached.source || 'cache', 40) || 'cache',
         model: cleanText(cached.model || '', 120),
       };
     }
   }
   const prompt = [
-    'Return exactly 3 actionable next user prompts as a JSON array of strings.',
-    'Keep each suggestion under 120 characters.',
+    'Generate 3 or 4 short follow-up prompts as a JSON array of strings.',
+    'Each suggestion must be a natural user utterance.',
+    'Keep each suggestion at 12 words or fewer.',
     'Do not include numbering, markdown, explanations, or extra keys.',
     'Do not echo instructions or policy text.',
     'Do not quote long excerpts from prior messages.',
-    'Each suggestion must be an actionable user prompt, not an assistant response.',
-    'Avoid generic diagnostics or disclaimers.',
-    'Never output generic placeholders like "Thinking..." or "Summarize recent work...".',
+    'Never output assistant-role framing, diagnostics templates, or policy meta text.',
+    'Ban these generic patterns: "highest-ROI", "runbook", "reliability remediation", "3-step execution plan", "this task".',
     `Agent name: ${cleanText(agent && agent.name ? agent.name : cleanAgentId, 120)}`,
     `Agent role: ${cleanText(agent && agent.role ? agent.role : 'assistant', 80)}`,
     clientModel ? `Client-selected model: ${clientModel}` : '',
     clientLastUser || convo.last_user ? `Recent user prompt hint: ${clientLastUser || convo.last_user}` : '',
     clientLastAgent || convo.last_assistant ? `Recent assistant response hint: ${clientLastAgent || convo.last_assistant}` : '',
     clientRecentContext ? `Additional context: ${clientRecentContext}` : '',
-    `Recent context: ${cleanText(
-      recentMessages
-        .map((row) => String((row && (row.user || row.assistant || row.content || '')) || '').trim())
+    `Conversation history (oldest to newest, max 8): ${cleanText(
+      (convo.history || [])
+        .map((entry) => `${cleanText(entry && entry.role ? entry.role : 'agent', 20)}: ${cleanText(entry && entry.text ? entry.text : '', 220)}`)
         .filter(Boolean)
-        .slice(-4)
+        .slice(-8)
         .join(' || '),
-      1200
+      1400
     )}`,
     userHint ? `Hint from client: ${userHint}` : '',
   ]
@@ -2051,10 +2246,13 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
   const modelState = effectiveAgentModel(cleanAgentId, snapshot);
   const requestedModel =
     modelState && modelState.runtime_model ? modelState.runtime_model : configuredOllamaModel(snapshot);
-  const llmRequested =
-    ['1', 'true', 'yes', 'on'].includes(
-      cleanText(payload && payload.use_llm ? payload.use_llm : '', 16).toLowerCase()
-    ) || !!(payload && payload.force_llm);
+  const llmHint = cleanText(payload && payload.use_llm ? payload.use_llm : '', 16).toLowerCase();
+  const llmRequested = !(
+    llmHint === '0' ||
+    llmHint === 'false' ||
+    llmHint === 'off' ||
+    llmHint === 'no'
+  );
   let llm = null;
   if (llmRequested) {
     llm = runOllamaPrompt(requestedModel, prompt, {
@@ -2080,7 +2278,7 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
   }
   const result = {
     ok: suggestions.length > 0,
-    suggestions: suggestions.slice(0, 3),
+    suggestions: suggestions.slice(0, 4),
     source,
     model: llm && llm.ok ? cleanText(llm.model || normalizedRequestedModel || '', 120) : '',
   };
@@ -2092,7 +2290,7 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     promptSuggestionCache.set(cleanAgentId, {
       ts: Date.now(),
       signature: cacheSignature,
-      suggestions: result.suggestions.slice(0, 3),
+      suggestions: result.suggestions.slice(0, 4),
       source: result.source,
       model: result.model,
     });
@@ -4460,6 +4658,330 @@ function saveQrSessions(state) {
   return safe;
 }
 
+function normalizeEyeStatus(value = '') {
+  const status = cleanText(value || '', 24).toLowerCase();
+  if (status === 'active' || status === 'paused' || status === 'dormant' || status === 'disabled') {
+    return status;
+  }
+  return 'active';
+}
+
+function normalizeEyeUrl(value = '') {
+  const raw = cleanText(value || '', 600);
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    const protocol = cleanText(parsed.protocol || '', 12).toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return '';
+    parsed.hash = '';
+    return cleanText(parsed.toString(), 600);
+  } catch {
+    return '';
+  }
+}
+
+function eyeHostFromUrl(value = '') {
+  const normalized = normalizeEyeUrl(value);
+  if (!normalized) return '';
+  try {
+    const parsed = new URL(normalized);
+    return cleanText(parsed.host || '', 160).toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeEyeTopics(value, max = 12) {
+  const cap = parsePositiveInt(max, 12, 1, 64);
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[,\n]+/)
+      : [];
+  const seen = new Set();
+  const out = [];
+  for (const entry of source) {
+    const topic = cleanText(entry || '', 60).toLowerCase();
+    if (!topic || seen.has(topic)) continue;
+    seen.add(topic);
+    out.push(topic);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+function normalizeEyeDomains(value, fallbackHost = '') {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[,\n]+/)
+      : [];
+  const seen = new Set();
+  const out = [];
+  for (const entry of source) {
+    const domain = cleanText(entry || '', 160).toLowerCase();
+    if (!domain || seen.has(domain)) continue;
+    seen.add(domain);
+    out.push(domain);
+    if (out.length >= 12) break;
+  }
+  const fallback = cleanText(fallbackHost || '', 160).toLowerCase();
+  if (fallback && !seen.has(fallback)) out.push(fallback);
+  if (!out.length) out.push('manual.local');
+  return out.slice(0, 12);
+}
+
+function sanitizeEyeId(value = '', fallback = '') {
+  const raw = cleanText(value || fallback || '', 120)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (raw) return raw.slice(0, 80);
+  const alt = cleanText(fallback || '', 120)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (alt) return alt.slice(0, 80);
+  return `eye_${Date.now().toString(36)}`;
+}
+
+function lanePayloadObject(result) {
+  if (!result || !result.payload || typeof result.payload !== 'object') return null;
+  const payload = result.payload && result.payload.payload && typeof result.payload.payload === 'object'
+    ? result.payload.payload
+    : result.payload;
+  return payload && typeof payload === 'object' ? payload : null;
+}
+
+function eyesCatalogLane(command, payload = {}, options = {}) {
+  const action = cleanText(command || '', 48).toLowerCase();
+  if (!action) {
+    return { ok: false, error: 'eyes_catalog_command_required', lane: null, payload: null };
+  }
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+  const encodedPayload = Buffer.from(JSON.stringify(safePayload), 'utf8').toString('base64');
+  const lane = runLane(
+    ['catalog-store-kernel', action, `--payload-base64=${encodedPayload}`],
+    {
+      timeout_ms: parsePositiveInt(
+        options && options.timeout_ms != null ? options.timeout_ms : Math.max(LANE_ACTION_TIMEOUT_MS, 2500),
+        Math.max(LANE_ACTION_TIMEOUT_MS, 2500),
+        500,
+        60000
+      ),
+    }
+  );
+  const lanePayload = lanePayloadObject(lane);
+  const error = cleanText(
+    lanePayload && lanePayload.error
+      ? lanePayload.error
+      : lane && lane.stderr
+        ? lane.stderr
+        : `eyes_catalog_${action}_failed`,
+    280
+  ) || `eyes_catalog_${action}_failed`;
+  if (!lane || !lane.ok || !lanePayload || lanePayload.ok === false) {
+    return { ok: false, error, lane, payload: lanePayload };
+  }
+  return { ok: true, error: '', lane, payload: lanePayload };
+}
+
+function readEyesCatalogState() {
+  const ensured = eyesCatalogLane('ensure-state', {});
+  if (ensured.ok && ensured.payload && ensured.payload.state && typeof ensured.payload.state === 'object') {
+    return ensured.payload.state;
+  }
+  const read = eyesCatalogLane('read-state', {});
+  if (read.ok && read.payload && read.payload.state && typeof read.payload.state === 'object') {
+    return read.payload.state;
+  }
+  return {
+    version: '1.0',
+    eyes: [],
+    global_limits: {
+      max_concurrent_runs: 3,
+      global_max_requests_per_day: 50,
+      global_max_bytes_per_day: 5242880,
+    },
+    scoring: {
+      ema_alpha: 0.3,
+      score_threshold_high: 70,
+      score_threshold_low: 30,
+      score_threshold_dormant: 20,
+      cadence_min_hours: 1,
+      cadence_max_hours: 168,
+    },
+  };
+}
+
+function writeEyesCatalogState(state, reason = 'dashboard_eyes_update') {
+  const nextState = state && typeof state === 'object' ? state : readEyesCatalogState();
+  const result = eyesCatalogLane('set-state', {
+    state: nextState,
+    meta: {
+      reason: cleanText(reason || 'dashboard_eyes_update', 120) || 'dashboard_eyes_update',
+    },
+  });
+  if (!result.ok || !result.payload || !result.payload.state || typeof result.payload.state !== 'object') {
+    return { ok: false, error: result.error || 'eyes_catalog_set_failed', state: nextState };
+  }
+  return { ok: true, error: '', state: result.payload.state };
+}
+
+function presentEyesCatalogForApi(catalogState) {
+  const state = catalogState && typeof catalogState === 'object' ? catalogState : {};
+  const rows = Array.isArray(state.eyes) ? state.eyes : [];
+  const eyes = rows.map((row, idx) => {
+    const eye = row && typeof row === 'object' ? row : {};
+    const endpointUrl = normalizeEyeUrl(
+      eye.endpoint_url ||
+      eye.url ||
+      (eye.source && typeof eye.source === 'object' ? eye.source.url : '') ||
+      ''
+    );
+    const endpointHost = eyeHostFromUrl(endpointUrl);
+    const id = sanitizeEyeId(eye.id || eye.uid || '', `eye_${idx + 1}`);
+    const name = cleanText(eye.name || id, 120) || id;
+    const status = normalizeEyeStatus(eye.status);
+    const cadenceHours = parsePositiveInt(eye.cadence_hours, 4, 1, 168);
+    const topics = normalizeEyeTopics(eye.topics, 16);
+    const allowedDomains = normalizeEyeDomains(eye.allowed_domains, endpointHost);
+    const apiKeyPresent = !!(
+      cleanText(eye.api_key_hash || '', 240) ||
+      eye.api_key_present ||
+      (eye.auth && typeof eye.auth === 'object' && eye.auth.type === 'api_key')
+    );
+    return {
+      uid: cleanText(eye.uid || id, 64) || id,
+      id,
+      name,
+      status,
+      cadence_hours: cadenceHours,
+      parser_type: cleanText(eye.parser_type || '', 80) || 'external_eye',
+      endpoint_url: endpointUrl,
+      endpoint_host: endpointHost,
+      allowed_domains: allowedDomains,
+      topics,
+      api_key_present: apiKeyPresent,
+      source: cleanText(eye.source || (endpointUrl ? 'manual' : 'system'), 40) || (endpointUrl ? 'manual' : 'system'),
+      updated_ts: cleanText(eye.updated_ts || eye.updated_at || '', 80) || '',
+      created_ts: cleanText(eye.created_ts || eye.created_at || '', 80) || '',
+    };
+  });
+  const active = eyes.filter((eye) => eye.status === 'active').length;
+  return {
+    ok: true,
+    version: cleanText(state.version || '1.0', 20) || '1.0',
+    active,
+    total: eyes.length,
+    global_limits: state.global_limits && typeof state.global_limits === 'object' ? state.global_limits : {},
+    scoring: state.scoring && typeof state.scoring === 'object' ? state.scoring : {},
+    eyes,
+  };
+}
+
+function upsertManualEye(payload = {}) {
+  const input = payload && typeof payload === 'object' ? payload : {};
+  const endpointUrl = normalizeEyeUrl(input.url || input.endpoint_url || input.base_url || '');
+  const endpointHost = eyeHostFromUrl(endpointUrl);
+  const apiKey = cleanText(input.api_key || input.apiKey || '', 2400);
+  if (!endpointUrl && !apiKey) {
+    return { ok: false, status: 400, error: 'url_or_api_key_required' };
+  }
+  const requestedName = cleanText(input.name || input.display_name || '', 120);
+  const fallbackName = requestedName || (endpointHost ? `${endpointHost} eye` : 'Manual eye');
+  const requestedId = sanitizeEyeId(input.id || requestedName || endpointHost || '', `manual_eye_${Date.now().toString(36)}`);
+  const requestedUid = cleanText(input.uid || '', 64);
+
+  const current = readEyesCatalogState();
+  const eyes = Array.isArray(current.eyes) ? current.eyes.slice() : [];
+  let existingIndex = -1;
+  if (requestedUid) {
+    existingIndex = eyes.findIndex((row) => cleanText(row && row.uid ? row.uid : '', 64) === requestedUid);
+  }
+  if (existingIndex < 0) {
+    existingIndex = eyes.findIndex((row) => sanitizeEyeId(row && row.id ? row.id : '', '') === requestedId);
+  }
+  if (existingIndex < 0 && endpointUrl) {
+    existingIndex = eyes.findIndex((row) => normalizeEyeUrl(row && row.endpoint_url ? row.endpoint_url : row && row.url ? row.url : '') === endpointUrl);
+  }
+  const existing = existingIndex >= 0 && eyes[existingIndex] && typeof eyes[existingIndex] === 'object'
+    ? eyes[existingIndex]
+    : {};
+  const now = nowIso();
+  const effectiveId = sanitizeEyeId(existing.id || requestedId, requestedId);
+  const next = {
+    ...existing,
+    id: effectiveId,
+    name: requestedName || cleanText(existing.name || fallbackName, 120) || fallbackName,
+    status: normalizeEyeStatus(input.status || existing.status || 'active'),
+    cadence_hours: parsePositiveInt(
+      input.cadence_hours != null ? input.cadence_hours : existing.cadence_hours,
+      4,
+      1,
+      168
+    ),
+    parser_type: cleanText(
+      input.parser_type || existing.parser_type || (endpointUrl ? 'url_eye' : 'api_key_eye'),
+      80
+    ) || (endpointUrl ? 'url_eye' : 'api_key_eye'),
+    allowed_domains: normalizeEyeDomains(
+      input.allowed_domains != null ? input.allowed_domains : existing.allowed_domains,
+      endpointHost
+    ),
+    topics: (() => {
+      const parsed = normalizeEyeTopics(input.topics != null ? input.topics : existing.topics, 16);
+      return parsed.length ? parsed : ['external', 'signal'];
+    })(),
+    source: 'manual',
+    endpoint_url: endpointUrl || normalizeEyeUrl(existing.endpoint_url || existing.url || ''),
+    api_key_hash: apiKey ? sha256(`eyes_manual:${effectiveId}:${apiKey}`) : cleanText(existing.api_key_hash || '', 240),
+    api_key_present: apiKey
+      ? true
+      : !!(
+          existing.api_key_present ||
+          cleanText(existing.api_key_hash || '', 240) ||
+          (existing.auth && typeof existing.auth === 'object' && existing.auth.type === 'api_key')
+        ),
+    updated_ts: now,
+    created_ts: cleanText(existing.created_ts || now, 80) || now,
+    budgets: existing.budgets && typeof existing.budgets === 'object'
+      ? existing.budgets
+      : {
+          max_items: 6,
+          max_seconds: 8,
+          max_bytes: 65536,
+          max_requests: 1,
+          max_rows: 96,
+        },
+  };
+  if (!next.endpoint_url) delete next.endpoint_url;
+  if (existingIndex >= 0) eyes[existingIndex] = next;
+  else eyes.push(next);
+  const write = writeEyesCatalogState(
+    {
+      ...current,
+      eyes,
+    },
+    existingIndex >= 0 ? 'dashboard_eyes_upsert' : 'dashboard_eyes_add'
+  );
+  if (!write.ok) {
+    return { ok: false, status: 500, error: write.error || 'eyes_catalog_set_failed' };
+  }
+  const presented = presentEyesCatalogForApi(write.state);
+  const eye =
+    presented.eyes.find((row) => row.id === effectiveId) ||
+    presented.eyes.find((row) => row.uid && row.uid === cleanText(next.uid || '', 64)) ||
+    null;
+  return {
+    ok: true,
+    status: 200,
+    created: existingIndex < 0,
+    eye,
+    catalog: presented,
+  };
+}
+
 function readArrayStore(filePath, fallback = []) {
   const raw = readJson(filePath, null);
   const rows = Array.isArray(raw)
@@ -5675,12 +6197,22 @@ function runtimeTaskSchemaSatisfied(text = '') {
 function stripAssistantSpeakerPrefix(value) {
   if (!value) return '';
   let out = String(value);
-  for (let i = 0; i < 4; i += 1) {
-    const next = out
-      .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
-      .replace(/^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis)(?:\*\*)?\s*:\s*/i, '');
-    if (next === out) break;
-    out = next;
+  for (let i = 0; i < 6; i += 1) {
+    const prior = out;
+    out = out.replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '');
+    // Strip leaked transcript frames such as "User: ... Agent: <final>".
+    const transcriptLead = out.match(
+      /^\s*(?:[-*]\s*)?(?:\*\*)?(?:user|human|you)(?:\*\*)?\s*:\s*[\s\S]{0,1200}?(?:\*\*)?(?:agent|assistant|model|ai|jarvis)(?:\*\*)?\s*:\s*/i
+    );
+    if (transcriptLead && transcriptLead[0]) {
+      out = out.slice(transcriptLead[0].length);
+      continue;
+    }
+    out = out.replace(
+      /^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis|user|human|you)(?:\*\*)?\s*:\s*/i,
+      ''
+    );
+    if (out === prior) break;
   }
   return out;
 }
@@ -5701,6 +6233,15 @@ function responseShowsConcreteAction(text) {
 }
 
 function outputContractViolationReason(input, response, toolSteps = []) {
+  const rawResponse = String(response || '');
+  if (
+    /\b(?:user|human|you)\s*:[\s\S]{0,1200}?(?:agent|assistant|model|ai|jarvis)\s*:/i.test(rawResponse)
+  ) {
+    return 'transcript_speaker_leak';
+  }
+  if (/^\s*(?:\[[^\]\n]{2,96}\]\s*)?(?:user|human|you)\s*:/i.test(rawResponse)) {
+    return 'user_speaker_prefix';
+  }
   const normalized = normalizeAssistantFinalText(response).trim();
   if (!normalized) return 'empty_response';
   if (isPlaceholderResponse(normalized)) return 'placeholder_response';
@@ -7210,8 +7751,13 @@ function permanentlyDeleteArchivedAgentRecord(agentId, options = {}) {
       removed_session: false,
       removed_contract: false,
       removed_history_entries: 0,
+      removed_branch: false,
+      branch_cleanup_reason: 'invalid_agent_id',
+      branch: '',
     };
   }
+  const profileBeforeDelete = agentProfileFor(key);
+  const archived = archivedAgentMeta(key);
   const contractIdFilter = cleanText(options && options.contract_id ? options.contract_id : '', 80);
   const removedArchived = unarchiveAgent(key);
   const removedProfile = deleteAgentProfileRecord(key);
@@ -7236,6 +7782,7 @@ function permanentlyDeleteArchivedAgentRecord(agentId, options = {}) {
   if (removedContract || removedHistoryEntries > 0) {
     saveAgentContractsState(contractsState);
   }
+  const branchCleanup = deleteGitBranchIfSafeForAgent(key, profileBeforeDelete, archived);
   return {
     ok: true,
     agent_id: key,
@@ -7244,6 +7791,10 @@ function permanentlyDeleteArchivedAgentRecord(agentId, options = {}) {
     removed_session: removedSession,
     removed_contract: removedContract,
     removed_history_entries: removedHistoryEntries,
+    removed_branch: !!branchCleanup.removed,
+    branch_cleanup_reason: cleanText(branchCleanup.reason || '', 120),
+    branch: cleanText(branchCleanup.branch || '', 120),
+    branch_cleanup_detail: cleanText(branchCleanup.detail || '', 240),
   };
 }
 
@@ -7258,6 +7809,13 @@ function permanentlyDeleteAllArchivedAgentRecords() {
     saveArchivedAgentsState(archivedState);
   }
   const unique = Array.from(new Set(ids));
+  const branchCleanupCandidates = {};
+  for (const id of unique) {
+    branchCleanupCandidates[id] = {
+      profile: agentProfileFor(id),
+      archived: agents && agents[id] && typeof agents[id] === 'object' ? agents[id] : null,
+    };
+  }
   let removedProfiles = 0;
   let removedSessions = 0;
   for (const id of unique) {
@@ -7282,6 +7840,12 @@ function permanentlyDeleteAllArchivedAgentRecords() {
   if (removedContracts > 0 || removedHistoryEntries > 0) {
     saveAgentContractsState(contractsState);
   }
+  let removedBranches = 0;
+  for (const id of unique) {
+    const candidate = branchCleanupCandidates[id] || {};
+    const branchCleanup = deleteGitBranchIfSafeForAgent(id, candidate.profile, candidate.archived);
+    if (branchCleanup && branchCleanup.removed) removedBranches += 1;
+  }
   return {
     ok: true,
     deleted_archived_agents: unique.length,
@@ -7289,6 +7853,7 @@ function permanentlyDeleteAllArchivedAgentRecords() {
     removed_sessions: removedSessions,
     removed_contracts: removedContracts,
     removed_history_entries: removedHistoryEntries,
+    removed_branches: removedBranches,
   };
 }
 
@@ -13043,6 +13608,9 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
     }));
     return { ok: true, channels };
   }
+  if (pathname === '/api/eyes') {
+    return presentEyesCatalogForApi(readEyesCatalogState());
+  }
   if (pathname === '/api/skills') {
     return { ok: true, skills: skillsFromSnapshot(snapshot) };
   }
@@ -17378,6 +17946,30 @@ function runServe(flags) {
             channel: channelName,
             status: ok ? 'ok' : 'error',
             message: ok ? `${channel.display_name || channelName} is configured and reachable.` : `${channel.display_name || channelName} is not fully configured yet.`,
+          });
+          return;
+        }
+      }
+      if (pathname === '/api/eyes') {
+        if (req.method === 'GET') {
+          sendJson(res, 200, presentEyesCatalogForApi(readEyesCatalogState()));
+          return;
+        }
+        if (req.method === 'POST') {
+          const payload = await bodyJson(req);
+          const result = upsertManualEye(payload);
+          if (!result.ok) {
+            sendJson(res, Number(result.status || 500), {
+              ok: false,
+              error: cleanText(result.error || 'eyes_upsert_failed', 240) || 'eyes_upsert_failed',
+            });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            created: !!result.created,
+            eye: result.eye || null,
+            catalog: result.catalog || presentEyesCatalogForApi(readEyesCatalogState()),
           });
           return;
         }
