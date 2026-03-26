@@ -6,6 +6,9 @@ REPO_NAME="InfRing"
 DEFAULT_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_LATEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
+DEFAULT_SOURCE_ARCHIVE_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/tags"
+DEFAULT_RUSTUP_INIT_URL="https://sh.rustup.rs"
+DEFAULT_BOOTSTRAP_BASE_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/dist/install-bootstrap"
 
 INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$HOME/.local/bin}}"
 INSTALL_TMP_DIR="${INFRING_TMP_DIR:-${PROTHEUS_TMP_DIR:-${TMPDIR:-}}}"
@@ -13,6 +16,9 @@ REQUESTED_VERSION="${INFRING_VERSION:-${PROTHEUS_VERSION:-latest}}"
 API_URL="${INFRING_RELEASE_API_URL:-${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}}"
 LATEST_URL="${INFRING_RELEASE_LATEST_URL:-${PROTHEUS_RELEASE_LATEST_URL:-$DEFAULT_LATEST_URL}}"
 BASE_URL="${INFRING_RELEASE_BASE_URL:-${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}}"
+SOURCE_ARCHIVE_BASE="${INFRING_SOURCE_ARCHIVE_BASE_URL:-${PROTHEUS_SOURCE_ARCHIVE_BASE_URL:-$DEFAULT_SOURCE_ARCHIVE_BASE}}"
+RUSTUP_INIT_URL="${INFRING_RUSTUP_INIT_URL:-${PROTHEUS_RUSTUP_INIT_URL:-$DEFAULT_RUSTUP_INIT_URL}}"
+BOOTSTRAP_BASE_URL="${INFRING_BOOTSTRAP_BASE_URL:-${PROTHEUS_BOOTSTRAP_BASE_URL:-$DEFAULT_BOOTSTRAP_BASE_URL}}"
 INSTALL_FULL="${INFRING_INSTALL_FULL:-${PROTHEUS_INSTALL_FULL:-0}}"
 INSTALL_PURE="${INFRING_INSTALL_PURE:-${PROTHEUS_INSTALL_PURE:-0}}"
 INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
@@ -263,6 +269,19 @@ download_asset() {
   return 1
 }
 
+download_bootstrap_asset() {
+  asset_name="$1"
+  asset_out="$2"
+  if [ -z "${BOOTSTRAP_BASE_URL:-}" ]; then
+    return 1
+  fi
+  if curl -fsSL "${BOOTSTRAP_BASE_URL}/${asset_name}" -o "$asset_out"; then
+    echo "[infring install] downloaded bootstrap fallback $asset_name"
+    return 0
+  fi
+  return 1
+}
+
 source_fallback_bin_name() {
   stem_name="$1"
   case "$stem_name" in
@@ -274,12 +293,42 @@ source_fallback_bin_name() {
   esac
 }
 
+fallback_triple_alias() {
+  triple_id="$1"
+  case "$triple_id" in
+    x86_64-unknown-linux-gnu) echo "x86_64-unknown-linux-musl" ;;
+    aarch64-unknown-linux-gnu) echo "aarch64-unknown-linux-musl" ;;
+    *) return 1 ;;
+  esac
+}
+
+ensure_source_build_prereqs() {
+  if command -v cargo >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "[infring install] cargo missing; bootstrapping rustup toolchain for source fallback"
+  rustup_tmp="$(mktemp -d)"
+  rustup_script="$rustup_tmp/rustup-init.sh"
+  if ! curl -fsSL "$RUSTUP_INIT_URL" -o "$rustup_script"; then
+    rm -rf "$rustup_tmp"
+    return 1
+  fi
+  if ! sh "$rustup_script" -y --profile minimal --default-toolchain stable >/dev/null 2>&1; then
+    rm -rf "$rustup_tmp"
+    return 1
+  fi
+  rm -rf "$rustup_tmp"
+  export PATH="$HOME/.cargo/bin:$PATH"
+  command -v cargo >/dev/null 2>&1
+}
+
 prepare_source_fallback_repo() {
   version_tag="$1"
   if [ -n "$SOURCE_FALLBACK_DIR" ] && [ -d "$SOURCE_FALLBACK_DIR" ]; then
     return 0
   fi
-  if ! command -v git >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
+  if ! ensure_source_build_prereqs; then
     return 1
   fi
 
@@ -287,11 +336,25 @@ prepare_source_fallback_repo() {
   SOURCE_FALLBACK_DIR="$SOURCE_FALLBACK_TMP/repo"
   repo_url="https://github.com/${REPO_OWNER}/${REPO_NAME}.git"
 
-  if git clone --depth 1 --branch "$version_tag" "$repo_url" "$SOURCE_FALLBACK_DIR" >/dev/null 2>&1; then
-    return 0
+  if command -v git >/dev/null 2>&1; then
+    if git clone --depth 1 --branch "$version_tag" "$repo_url" "$SOURCE_FALLBACK_DIR" >/dev/null 2>&1; then
+      return 0
+    fi
+    if git clone --depth 1 "$repo_url" "$SOURCE_FALLBACK_DIR" >/dev/null 2>&1; then
+      return 0
+    fi
   fi
-  if git clone --depth 1 "$repo_url" "$SOURCE_FALLBACK_DIR" >/dev/null 2>&1; then
-    return 0
+
+  archive="$SOURCE_FALLBACK_TMP/source.tar.gz"
+  archive_url="${SOURCE_ARCHIVE_BASE}/${version_tag}.tar.gz"
+  if curl -fsSL "$archive_url" -o "$archive"; then
+    if tar -xzf "$archive" -C "$SOURCE_FALLBACK_TMP"; then
+      extracted_dir="$(find "$SOURCE_FALLBACK_TMP" -maxdepth 1 -type d -name "${REPO_NAME}-*" | head -n 1)"
+      if [ -n "$extracted_dir" ] && [ -f "$extracted_dir/core/layer0/ops/Cargo.toml" ]; then
+        SOURCE_FALLBACK_DIR="$extracted_dir"
+        return 0
+      fi
+    fi
   fi
 
   rm -rf "$SOURCE_FALLBACK_TMP"
@@ -348,46 +411,70 @@ install_binary() {
   stem_name="$3"
   binary_out="$4"
 
-  tmpdir="$(mktemp -d)"
-  if download_asset "$version_tag" "${stem_name}-${triple_id}" "$tmpdir/$stem_name"; then
-    mv "$tmpdir/$stem_name" "$binary_out"
-    chmod 755 "$binary_out"
-    rm -rf "$tmpdir"
-    return 0
+  triples_to_try="$triple_id"
+  if alias_triple="$(fallback_triple_alias "$triple_id" 2>/dev/null || true)"; then
+    if [ -n "$alias_triple" ] && [ "$alias_triple" != "$triple_id" ]; then
+      triples_to_try="$triples_to_try $alias_triple"
+    fi
   fi
 
-  if download_asset "$version_tag" "${stem_name}-${triple_id}.bin" "$tmpdir/$stem_name"; then
-    mv "$tmpdir/$stem_name" "$binary_out"
-    chmod 755 "$binary_out"
-    rm -rf "$tmpdir"
-    return 0
-  fi
-
-  if download_asset "$version_tag" "${stem_name}" "$tmpdir/$stem_name"; then
-    mv "$tmpdir/$stem_name" "$binary_out"
-    chmod 755 "$binary_out"
-    rm -rf "$tmpdir"
-    return 0
-  fi
-
-  if download_asset "$version_tag" "${stem_name}.bin" "$tmpdir/$stem_name"; then
-    mv "$tmpdir/$stem_name" "$binary_out"
-    chmod 755 "$binary_out"
-    rm -rf "$tmpdir"
-    return 0
-  fi
-
-  if download_asset "$version_tag" "${stem_name}-${triple_id}.tar.gz" "$tmpdir/${stem_name}.tar.gz"; then
-    tar -xzf "$tmpdir/${stem_name}.tar.gz" -C "$tmpdir"
-    if [ -f "$tmpdir/$stem_name" ]; then
+  for candidate_triple in $triples_to_try; do
+    tmpdir="$(mktemp -d)"
+    if download_asset "$version_tag" "${stem_name}-${candidate_triple}" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
       chmod 755 "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
-  fi
 
-  rm -rf "$tmpdir"
+    if download_asset "$version_tag" "${stem_name}-${candidate_triple}.bin" "$tmpdir/$stem_name"; then
+      mv "$tmpdir/$stem_name" "$binary_out"
+      chmod 755 "$binary_out"
+      rm -rf "$tmpdir"
+      return 0
+    fi
+
+    if download_asset "$version_tag" "${stem_name}" "$tmpdir/$stem_name"; then
+      mv "$tmpdir/$stem_name" "$binary_out"
+      chmod 755 "$binary_out"
+      rm -rf "$tmpdir"
+      return 0
+    fi
+
+    if download_asset "$version_tag" "${stem_name}.bin" "$tmpdir/$stem_name"; then
+      mv "$tmpdir/$stem_name" "$binary_out"
+      chmod 755 "$binary_out"
+      rm -rf "$tmpdir"
+      return 0
+    fi
+
+    if download_asset "$version_tag" "${stem_name}-${candidate_triple}.tar.gz" "$tmpdir/${stem_name}.tar.gz"; then
+      tar -xzf "$tmpdir/${stem_name}.tar.gz" -C "$tmpdir"
+      if [ -f "$tmpdir/$stem_name" ]; then
+        mv "$tmpdir/$stem_name" "$binary_out"
+        chmod 755 "$binary_out"
+        rm -rf "$tmpdir"
+        return 0
+      fi
+    fi
+
+    if download_bootstrap_asset "${stem_name}-${candidate_triple}" "$tmpdir/$stem_name"; then
+      mv "$tmpdir/$stem_name" "$binary_out"
+      chmod 755 "$binary_out"
+      rm -rf "$tmpdir"
+      return 0
+    fi
+
+    if download_bootstrap_asset "${stem_name}-${candidate_triple}.bin" "$tmpdir/$stem_name"; then
+      mv "$tmpdir/$stem_name" "$binary_out"
+      chmod 755 "$binary_out"
+      rm -rf "$tmpdir"
+      return 0
+    fi
+
+    rm -rf "$tmpdir"
+  done
+
   if install_binary_from_source_fallback "$version_tag" "$stem_name" "$binary_out"; then
     return 0
   fi
