@@ -216,6 +216,7 @@ function assertChatEnhancementFeatures() {
   assertContains(cssSource, '.message.system.has-tail', 'system-tail render support missing');
   assertContains(chatSource, 'source_agent_id: m && m.source_agent_id ? String(m.source_agent_id) : \'\'', 'source agent id normalization missing');
   assertContains(chatSource, 'agent_origin: m && m.agent_origin ? String(m.agent_origin) : \'\'', 'agent origin normalization missing');
+  assertContains(chatSource, 'User: ... Agent: <answer>', 'chat transcript-leak sanitizer doc missing');
   assert.ok(
     chatSource.includes("var systemOrigin = m && m.system_origin ? String(m.system_origin) : '';") ||
       chatSource.includes('var derivedSystemOrigin = \'\';'),
@@ -226,6 +227,11 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, "system_origin: 'slash:help'", 'slash help messages should carry explicit system origin');
   assertContains(chatSource, "system_origin: 'agent:inactive'", 'inactive agent notices should carry explicit system origin');
   assertContains(chatSource, "system_origin: 'runtime:error'", 'runtime error messages should carry explicit system origin');
+  assertContains(
+    laneSource,
+    'User: ... Agent: <final>',
+    'server transcript-leak sanitizer doc missing'
+  );
   assertContains(chatSource, '/^task accepted\\.\\s*report findings in this thread with receipt-backed evidence\\.?$/i.test(compactText)', 'legacy runtime task ack rows should be filtered from render history');
   assertContains(chatSource, 'return null;', 'legacy runtime task noise should be dropped during session normalization');
   assertContains(chatSource, '}).filter(function(row) { return !!row; });', 'session normalization should filter null rows');
@@ -250,6 +256,23 @@ function assertMemoryApiWired() {
     'recordPassiveConversationMemory(agentId, userText, assistantText, metaText);',
     'passive memory ingestion hook missing from chat conversation append path'
   );
+}
+
+function assertEyesPageWired() {
+  const laneSource = readUtf8(TARGET);
+  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
+  const appSource = readUtf8(APP_STATIC_TS_PATH);
+  const eyesPagePath = path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/eyes.ts');
+
+  assert.ok(fs.existsSync(eyesPagePath), 'eyes page module missing');
+  assertContains(laneSource, "'eyes',", 'dashboard static bundle should include eyes page script');
+  assertContains(appSource, "'eyes'", 'router valid pages should include eyes');
+  assertContains(htmlSource, "page === 'eyes'", 'eyes page template missing');
+  assertContains(htmlSource, 'x-data="eyesPage"', 'eyes page x-data binding missing');
+  assertContains(htmlSource, '<span class="nav-label">Eyes</span>', 'eyes sidebar nav entry missing');
+  assertContains(laneSource, "if (pathname === '/api/eyes')", 'eyes API route missing');
+  assertContains(laneSource, 'upsertManualEye', 'manual eyes upsert helper missing');
+  assertContains(laneSource, 'catalog-store-kernel', 'eyes API should sync through catalog-store rust authority');
 }
 
 function assertAgentGitTreeAuthority() {
@@ -284,6 +307,21 @@ function assertAgentGitTreeAuthority() {
     chatSource,
     'self.applyAgentGitTreeState(self.currentAgent, data || {});',
     'chat session git-tree sync bridge missing'
+  );
+  assertContains(
+    laneSource,
+    'function deleteGitBranchIfSafeForAgent(agentId, profile = null, archivedMeta = null)',
+    'agent git branch delete helper missing'
+  );
+  assertContains(
+    laneSource,
+    'const branchCleanup = deleteGitBranchIfSafeForAgent(key, profileBeforeDelete, archived);',
+    'single archived agent delete must cleanup isolated git branch'
+  );
+  assertContains(
+    laneSource,
+    'const branchCleanup = deleteGitBranchIfSafeForAgent(id, candidate.profile, candidate.archived);',
+    'bulk archived agent delete must cleanup isolated git branches'
   );
 }
 
@@ -457,6 +495,7 @@ function runSnapshotAssertions() {
   assertChatSyntaxGuards();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
+  assertEyesPageWired();
   assertAgentGitTreeAuthority();
   assertInterfaceSafetyGuards();
   assertLifecycleAndPlatformSrsEvidence();
