@@ -161,6 +161,14 @@ function assertChatEnhancementFeatures() {
   );
   assertContains(htmlSource, 'class="prompt-suggestions-row"', 'prompt suggestion row missing');
   assertContains(htmlSource, 'class="prompt-suggestion-chip"', 'prompt suggestion chip missing');
+  assertContains(chatSource, 'appendUserChatMessage: function(finalText, msgImages, options)', 'queued prompt render helper missing');
+  assertContains(chatSource, 'this.appendUserChatMessage(nextText, nextImages, { deferPersist: true });', 'queued prompts must render only when dequeued');
+  assertContains(chatSource, "this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });", 'immediate dispatch should render via shared append helper');
+  assertContains(chatSource, 'queue_id: next && next.queue_id ? String(next.queue_id) : \'\'', 'dequeue payload should keep queue id context');
+  assertContains(cssSource, 'max-width: 90%;', 'prompt queue stack should cap width at 90%');
+  assertContains(cssSource, '.prompt-queue-item:first-child', 'prompt queue top item selector missing');
+  assertContains(cssSource, 'border-top-left-radius: 10px;', 'prompt queue top item top-left radius missing');
+  assertContains(cssSource, 'border-top-right-radius: 10px;', 'prompt queue top item top-right radius missing');
 
   // Local model download flow in model switcher
   assertContains(chatSource, 'downloadModelToLocal: function(model)', 'model download action handler missing');

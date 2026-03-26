@@ -1604,6 +1604,75 @@ body[data-theme='dark'] .chat-grid-overlay {
   justify-content: flex-start;
 }
 
+.terminal-toolbox {
+  width: auto;
+  max-width: min(90%, 760px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #6bff59 72%, #1f3f1b 28%);
+  background: color-mix(in srgb, #091108 90%, transparent);
+  color: #b8ff9f;
+  box-shadow: 0 0 0 0.5px rgba(114, 255, 92, 0.2) inset;
+}
+
+.terminal-toolbox.terminal-toolbox-right {
+  margin-left: auto;
+}
+
+.terminal-toolbox.terminal-toolbox-left {
+  margin-right: auto;
+}
+
+.terminal-toolbox-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #7dff67;
+}
+
+.terminal-toolbox-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.terminal-toolbox-copy {
+  min-width: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.terminal-toolbox-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #95ff7e;
+}
+
+.terminal-toolbox-preview {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.25;
+  color: #cbffba;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: min(74vw, 620px);
+}
+
 /* Streaming state keeps default bubble border styling (no special left accent). */
 .message.streaming .message-bubble {
   animation: none;
@@ -3460,6 +3529,8 @@ mark.search-highlight {
   flex-direction: column;
   gap: 6px;
   margin: 0 0 6px;
+  width: 100%;
+  max-width: 90%;
 }
 
 .prompt-queue-header {
@@ -3490,7 +3561,7 @@ mark.search-highlight {
 .prompt-queue-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .prompt-queue-item {
@@ -3498,9 +3569,18 @@ mark.search-highlight {
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   background: color-mix(in srgb, var(--surface2) 90%, transparent);
+}
+
+.prompt-queue-item + .prompt-queue-item {
+  margin-top: -1px;
+}
+
+.prompt-queue-item:first-child {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
 }
 
 .prompt-queue-item:active {

@@ -1064,10 +1064,24 @@
                             <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
                             <div class="typing-dots"><span></span><span></span><span></span></div>
                           </div>
+                          <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, messages)">
+                            <div class="terminal-toolbox" :class="terminalToolboxSideClass(msg)">
+                              <span class="terminal-toolbox-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                  <path d="m4 6 6 6-6 6"></path>
+                                  <path d="M12 18h8"></path>
+                                </svg>
+                              </span>
+                              <span class="terminal-toolbox-copy">
+                                <span class="terminal-toolbox-title">Terminal Output</span>
+                                <span class="terminal-toolbox-preview" x-text="terminalToolboxPreview(msg)"></span>
+                              </span>
+                            </div>
+                          </template>
                           <div
                             class="message-bubble"
                             :class="{ 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
-                            x-show="msg.text && msg.text.trim() && !msg.thinking"
+                            x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, messages))"
                             x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
                           ></div>
                           <template x-if="messageProgress(msg)">
@@ -1678,8 +1692,22 @@
                           <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
                           <div class="typing-dots"><span></span><span></span><span></span></div>
                         </div>
+                        <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)">
+                          <div class="terminal-toolbox" :class="terminalToolboxSideClass(msg)">
+                            <span class="terminal-toolbox-icon" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" focusable="false">
+                                <path d="m4 6 6 6-6 6"></path>
+                                <path d="M12 18h8"></path>
+                              </svg>
+                            </span>
+                            <span class="terminal-toolbox-copy">
+                              <span class="terminal-toolbox-title">Terminal Output</span>
+                              <span class="terminal-toolbox-preview" x-text="terminalToolboxPreview(msg)"></span>
+                            </span>
+                          </div>
+                        </template>
                         <!-- Normal message content -->
-                        <div class="message-bubble" :class="{ 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="msg.text && msg.text.trim() && !msg.thinking" x-html="highlightSearch(msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') && !msg.thinking ? renderMarkdown(msg.text) : escapeHtml(msg.text)))"></div>
+                        <div class="message-bubble" :class="{ 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages))" x-html="highlightSearch(msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') && !msg.thinking ? renderMarkdown(msg.text) : escapeHtml(msg.text)))"></div>
                         <template x-if="messageProgress(msg)">
                           <div class="chat-progress-wrap">
                             <div class="chat-progress-meta">
