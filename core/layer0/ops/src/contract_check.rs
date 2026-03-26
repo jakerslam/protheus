@@ -5,7 +5,7 @@ use foundation_hook_enforcer::{
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION,
 };
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -99,11 +99,19 @@ pub fn with_contract_check_ids(args: &[String]) -> Vec<String> {
         return args.to_vec();
     }
 
+    let mut defaults = crate::foundation_contract_gate::FOUNDATION_CONTRACT_CHECK_IDS
+        .iter()
+        .map(|id| (*id).to_string())
+        .collect::<Vec<_>>();
+    if !defaults
+        .iter()
+        .any(|id| id == CHECK_ID_RUST_SOURCE_OF_TRUTH)
+    {
+        defaults.push(CHECK_ID_RUST_SOURCE_OF_TRUTH.to_string());
+    }
+
     let mut out = args.to_vec();
-    out.push(format!(
-        "{CHECK_IDS_FLAG_PREFIX}{}",
-        crate::foundation_contract_gate::FOUNDATION_CONTRACT_CHECK_IDS.join(",")
-    ));
+    out.push(format!("{CHECK_IDS_FLAG_PREFIX}{}", defaults.join(",")));
     out
 }
 
@@ -286,6 +294,7 @@ fn check_rust_source_of_truth_contract(
     let run_js_wrapper = should_run_rust_subcheck(selected, "js_wrapper_contract");
     let run_rust_shim = should_run_rust_subcheck(selected, "rust_shim_contract");
     let run_primitive_wrapper = should_run_rust_subcheck(selected, "primitive_ts_wrapper_contract");
+    let run_tcb_ts_exception = should_run_rust_subcheck(selected, "tcb_ts_exception_contract");
 
     let mut entrypoint_path: Option<String> = None;
     if run_entrypoint {
@@ -498,6 +507,136 @@ fn check_rust_source_of_truth_contract(
         }
     }
 
+    let mut tcb_ts_exception_manifest_path: Option<String> = None;
+    let mut tcb_ts_exception_total_paths = 0usize;
+    let mut tcb_ts_exception_wrapper_paths = 0usize;
+    let mut tcb_ts_exception_explicit_paths = 0usize;
+    let mut tcb_ts_exception_stale_entries = 0usize;
+    if run_tcb_ts_exception {
+        let exception_contract = require_object(&policy, "tcb_ts_exception_contract")?;
+        let manifest_rel = require_rel_path(exception_contract, "path")?;
+        let wrapper_tokens = require_string_array(exception_contract, "wrapper_tokens")?;
+        let manifest_path = root.join(&manifest_rel);
+        let manifest_raw = fs::read_to_string(&manifest_path).map_err(|err| {
+            format!(
+                "read_tcb_ts_exception_manifest_failed:{}:{err}",
+                manifest_path.display()
+            )
+        })?;
+        let manifest = serde_json::from_str::<Value>(&manifest_raw).map_err(|err| {
+            format!(
+                "parse_tcb_ts_exception_manifest_failed:{}:{err}",
+                manifest_path.display()
+            )
+        })?;
+        let exception_entries = manifest
+            .get("exceptions")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "tcb_ts_exception_manifest_missing_array:exceptions".to_string())?;
+
+        let mut exception_reasons = HashMap::<String, String>::new();
+        for entry in exception_entries {
+            let section = entry
+                .as_object()
+                .ok_or_else(|| "tcb_ts_exception_manifest_invalid_entry".to_string())?;
+            let path = require_rel_path(section, "path")?;
+            let reason = section
+                .get("reason")
+                .and_then(Value::as_str)
+                .map(|raw| raw.trim().to_string())
+                .unwrap_or_default();
+            if reason.is_empty() {
+                return Err(format!("tcb_ts_exception_missing_reason:{path}"));
+            }
+            exception_reasons.insert(path, reason);
+        }
+
+        let tcb_prefixes = policy
+            .get("tcb_rust_required_prefixes")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                "rust_source_of_truth_policy_missing_array:tcb_rust_required_prefixes".to_string()
+            })?
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|raw| raw.trim().to_string())
+            .filter(|raw| !raw.is_empty())
+            .collect::<Vec<_>>();
+        if tcb_prefixes.is_empty() {
+            return Err(
+                "rust_source_of_truth_policy_empty_array:tcb_rust_required_prefixes".to_string(),
+            );
+        }
+
+        let mut missing_exceptions = Vec::<String>::new();
+        let mut seen_exceptions = HashSet::<String>::new();
+        for prefix in tcb_prefixes {
+            let abs_prefix = root.join(&prefix);
+            if !abs_prefix.exists() {
+                continue;
+            }
+            for entry in WalkDir::new(&abs_prefix).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let file_path = entry.path();
+                let ext = file_path.extension().and_then(|row| row.to_str()).unwrap_or("");
+                if ext != "ts" && ext != "js" {
+                    continue;
+                }
+                let rel = file_path
+                    .strip_prefix(root)
+                    .map_err(|_| "tcb_ts_exception_strip_prefix_failed".to_string())?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if rel.contains("/tests/")
+                    || rel.ends_with(".test.ts")
+                    || rel.ends_with(".spec.ts")
+                    || rel.ends_with(".d.ts")
+                {
+                    continue;
+                }
+                tcb_ts_exception_total_paths += 1;
+                let source = fs::read_to_string(file_path)
+                    .map_err(|err| format!("read_source_failed:{}:{err}", file_path.display()))?;
+                let is_wrapper = wrapper_tokens
+                    .iter()
+                    .any(|token| !token.is_empty() && source.contains(token.as_str()));
+                if is_wrapper {
+                    tcb_ts_exception_wrapper_paths += 1;
+                    continue;
+                }
+                if exception_reasons.contains_key(&rel) {
+                    tcb_ts_exception_explicit_paths += 1;
+                    seen_exceptions.insert(rel);
+                } else {
+                    missing_exceptions.push(rel);
+                }
+            }
+        }
+
+        if !missing_exceptions.is_empty() {
+            missing_exceptions.sort();
+            let preview = missing_exceptions
+                .iter()
+                .take(20)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(",");
+            return Err(format!(
+                "tcb_ts_exception_missing:{}:{}",
+                missing_exceptions.len(),
+                preview
+            ));
+        }
+
+        tcb_ts_exception_stale_entries = exception_reasons
+            .keys()
+            .filter(|path| !seen_exceptions.contains(path.as_str()))
+            .count();
+        tcb_ts_exception_manifest_path = Some(manifest_rel);
+    }
+
     let mut scoped_check_ids = selected.iter().cloned().collect::<Vec<_>>();
     scoped_check_ids.sort();
 
@@ -513,6 +652,11 @@ fn check_rust_source_of_truth_contract(
         "rust_shims_checked": rust_shim_checked,
         "primitive_ts_wrappers_checked": primitive_ts_wrappers_checked,
         "ts_surface_allowlist_prefixes": ts_surface_allowlist_prefixes,
+        "tcb_ts_exception_manifest_path": tcb_ts_exception_manifest_path,
+        "tcb_ts_exception_total_paths": tcb_ts_exception_total_paths,
+        "tcb_ts_exception_wrapper_paths": tcb_ts_exception_wrapper_paths,
+        "tcb_ts_exception_explicit_paths": tcb_ts_exception_explicit_paths,
+        "tcb_ts_exception_stale_entries": tcb_ts_exception_stale_entries,
         "scoped_check_ids": scoped_check_ids,
     }))
 }

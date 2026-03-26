@@ -1,12 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-const fs = require('fs');
-const path = require('path');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
-
-const repoRoot = path.resolve(__dirname, '../../../../');
-const localOpsBin = path.join(repoRoot, 'target', 'debug', 'protheus-ops');
-if (fs.existsSync(localOpsBin)) process.env.PROTHEUS_OPS_BIN = localOpsBin;
 
 const SYSTEM_ID = 'V6-OPENCLAW-DETACH-001.2';
 const bridge = createOpsLaneBridge(__dirname, 'specialist_training', 'runtime-systems', {

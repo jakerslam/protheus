@@ -24,6 +24,7 @@ An item may be marked `done` only if all checks are true:
 4. Validation exists and passes (`verify.sh`, lane test, or targeted regression command).
 5. No conflict with unchecked TODO state for the same ID.
 6. Repository churn is reconciled for the touched scope: no unresolved delete+untracked move pairs (`npm run -s ops:churn:guard`).
+7. Touched source files comply with `docs/workspace/codex_enforcer.md` file-size caps, or include a valid time-bounded exception per policy.
 
 ## Prohibited
 

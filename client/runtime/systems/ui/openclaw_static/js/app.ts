@@ -740,6 +740,12 @@ function app() {
     chatSidebarHasOverflowAbove: false,
     chatSidebarHasOverflowBelow: false,
     _sidebarScrollIndicatorRaf: 0,
+    bootSplashVisible: true,
+    _bootSplashStartedAt: Date.now(),
+    _bootSplashMinMs: 850,
+    _bootSplashMaxMs: 5000,
+    _bootSplashHideTimer: 0,
+    _bootSplashMaxTimer: 0,
 
     normalizeConnectionIndicatorState(state) {
       var raw = String(state || '').trim().toLowerCase();
@@ -845,6 +851,15 @@ function app() {
 
     init() {
       var self = this;
+      this._bootSplashStartedAt = Date.now();
+      this.bootSplashVisible = true;
+      if (this._bootSplashMaxTimer) {
+        clearTimeout(this._bootSplashMaxTimer);
+        this._bootSplashMaxTimer = 0;
+      }
+      this._bootSplashMaxTimer = window.setTimeout(function() {
+        self.releaseBootSplash(true);
+      }, Number(this._bootSplashMaxMs || 5000));
 
       // Listen for OS theme changes (only matters when mode is 'system')
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
@@ -951,6 +966,37 @@ function app() {
       this.$nextTick(function() {
         self.scheduleSidebarScrollIndicators();
       });
+    },
+
+    releaseBootSplash(force) {
+      if (!this.bootSplashVisible) return;
+      var now = Date.now();
+      var elapsed = Math.max(0, now - Number(this._bootSplashStartedAt || now));
+      var minRemain = Math.max(0, Number(this._bootSplashMinMs || 0) - elapsed);
+      var store = this.getAppStore();
+      var ready = !!force || !store || store.booting === false;
+      if (!ready) return;
+      if (this._bootSplashHideTimer) {
+        clearTimeout(this._bootSplashHideTimer);
+        this._bootSplashHideTimer = 0;
+      }
+      var self = this;
+      if (minRemain <= 0) {
+        this.bootSplashVisible = false;
+        if (this._bootSplashMaxTimer) {
+          clearTimeout(this._bootSplashMaxTimer);
+          this._bootSplashMaxTimer = 0;
+        }
+        return;
+      }
+      this._bootSplashHideTimer = window.setTimeout(function() {
+        self.bootSplashVisible = false;
+        self._bootSplashHideTimer = 0;
+        if (self._bootSplashMaxTimer) {
+          clearTimeout(self._bootSplashMaxTimer);
+          self._bootSplashMaxTimer = 0;
+        }
+      }, minRemain);
     },
 
     navigate(p) {
@@ -1297,36 +1343,60 @@ function app() {
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
         if (!createdId) throw new Error('spawn_failed');
-        var preferredModel = this.mostRecentModelFromUsageCache();
-        if (preferredModel) {
-          try {
-            var modelResp = await InfringAPI.put('/api/agents/' + encodeURIComponent(createdId) + '/model', {
-              model: preferredModel
-            });
-            if (modelResp && typeof modelResp === 'object') {
-              if (modelResp.model) res.model_name = modelResp.model;
-              if (modelResp.provider) res.model_provider = modelResp.provider;
-              if (modelResp.runtime_model) res.runtime_model = modelResp.runtime_model;
-            }
-          } catch (_) {
-            // Keep default server model if model handoff fails.
-          }
+        var created = {
+          id: createdId,
+          name: String((res && res.name) || agentName),
+          state: String((res && res.state) || 'running'),
+          model_name: String((res && (res.model_name || res.runtime_model || '')) || ''),
+          model_provider: String((res && res.model_provider) || ''),
+          runtime_model: String((res && res.runtime_model) || ''),
+          created_at: String((res && res.created_at) || new Date().toISOString())
+        };
+        var store = this.getAppStore();
+        if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
+
+        var currentAgents = Array.isArray(store.agents) ? store.agents.slice() : [];
+        var existingIdx = currentAgents.findIndex(function(agent) {
+          return !!(agent && String(agent.id || '') === createdId);
+        });
+        if (existingIdx >= 0) {
+          currentAgents[existingIdx] = Object.assign({}, currentAgents[existingIdx], created);
+        } else {
+          currentAgents.unshift(created);
         }
-      var store = this.getAppStore();
-      if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
-      await store.refreshAgents();
-      var created = (this.agents || []).find(function(a) { return a && a.id === createdId; })
-        || { id: createdId, name: (res && res.name) || agentName };
-      this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
-      this.persistArchivedAgentIds();
-      store.pendingAgent = created;
-      store.pendingFreshAgentId = created.id;
-      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(created.id);
-      else store.activeAgentId = created.id;
+        store.agents = currentAgents;
+        store.agentCount = currentAgents.length;
+        store.agentsHydrated = true;
+        store.agentsLoading = false;
+
+        this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
+        this.persistArchivedAgentIds();
+        store.pendingAgent = created;
+        store.pendingFreshAgentId = created.id;
+        if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(created.id);
+        else store.activeAgentId = created.id;
         this.navigate('chat');
         this.closeAgentChatsSidebar();
         InfringToast.success('Agent "' + (created.name || created.id || agentName) + '" created');
         this.scheduleSidebarScrollIndicators();
+
+        var preferredModel = this.mostRecentModelFromUsageCache();
+        (async function() {
+          if (preferredModel) {
+            try {
+              await InfringAPI.put('/api/agents/' + encodeURIComponent(createdId) + '/model', {
+                model: preferredModel
+              });
+            } catch(_) {
+              // Keep default server model if model handoff fails.
+            }
+          }
+          try {
+            await store.refreshAgents({ force: true });
+          } catch(_) {
+            // Keep optimistic local state if refresh fails.
+          }
+        })();
       } catch(e) {
         InfringToast.error('Failed to create agent: ' + (e && e.message ? e.message : 'unknown error'));
       }
@@ -1401,7 +1471,61 @@ function app() {
       return Math.max(0, expiryTs - Date.now());
     },
 
+    agentContractExpiryMs(agent) {
+      if (!agent || typeof agent !== 'object') return 0;
+      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      var expiresAt = String(
+        agent.contract_expires_at ||
+        (contract && contract.expires_at ? contract.expires_at : '') ||
+        ''
+      ).trim();
+      if (!expiresAt) return 0;
+      var expiryTs = Number(new Date(expiresAt).getTime());
+      if (!Number.isFinite(expiryTs) || expiryTs <= 0) return 0;
+      return expiryTs;
+    },
+
+    agentContractHasFiniteExpiry(agent) {
+      if (!agent || typeof agent !== 'object') return false;
+      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      var directRemaining = Number(agent.contract_remaining_ms);
+      if (Number.isFinite(directRemaining) && directRemaining >= 0) return true;
+      if (contract && contract.remaining_ms != null) {
+        var remainingFromContract = Number(contract.remaining_ms);
+        if (Number.isFinite(remainingFromContract) && remainingFromContract >= 0) return true;
+      }
+      return this.agentContractExpiryMs(agent) > 0;
+    },
+
+    agentContractTerminationGraceMs() {
+      return 10000;
+    },
+
+    agentContractOverdueMs(agent) {
+      if (!this.agentAutoTerminateEnabled(agent)) return null;
+      var expiryTs = this.agentContractExpiryMs(agent);
+      if (!expiryTs) return null;
+      return Math.max(0, Date.now() - expiryTs);
+    },
+
+    isAgentPendingTermination(agent) {
+      if (!this.agentAutoTerminateEnabled(agent)) return false;
+      if (!this.agentContractHasFiniteExpiry(agent)) return false;
+      var remainingMs = this.agentContractRemainingMs(agent);
+      if (remainingMs == null || remainingMs > 0) return false;
+      var overdueMs = this.agentContractOverdueMs(agent);
+      if (overdueMs == null) return false;
+      return overdueMs < this.agentContractTerminationGraceMs();
+    },
+
+    shouldShowInfinityLifespan(agent) {
+      if (!agent || typeof agent !== 'object') return false;
+      if (!this.agentAutoTerminateEnabled(agent)) return true;
+      return !this.agentContractHasFiniteExpiry(agent);
+    },
+
     shouldPulseExpiringAgent(agent) {
+      if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
       return remainingMs > 0 && remainingMs <= 3000;
@@ -1410,12 +1534,14 @@ function app() {
     shouldShowExpiryCountdown(agent) {
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
-      return remainingMs > 0 && remainingMs <= 60000;
+      if (remainingMs <= 0) return this.isAgentPendingTermination(agent);
+      return remainingMs <= 60000;
     },
 
     expiryCountdownLabel(agent) {
       var remainingMs = this.agentContractRemainingMs(agent);
-      if (remainingMs == null || remainingMs <= 0) return '';
+      if (remainingMs == null) return '';
+      if (remainingMs <= 0) return this.isAgentPendingTermination(agent) ? '0s' : '';
       var totalSec = Math.ceil(remainingMs / 1000);
       var min = Math.floor(totalSec / 60);
       var sec = totalSec % 60;
@@ -1424,6 +1550,7 @@ function app() {
     },
 
     expiryCountdownCritical(agent) {
+      if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
       return remainingMs > 0 && remainingMs <= 10000;
@@ -1456,6 +1583,7 @@ function app() {
         await this.applyBootChatSelection();
       }
       this.scheduleSidebarScrollIndicators();
+      this.releaseBootSplash(false);
     }
   };
 }

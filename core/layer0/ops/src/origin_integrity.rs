@@ -420,6 +420,18 @@ fn resolve_local_spec(from_file: &Path, spec: &str) -> Option<PathBuf> {
         .parent()
         .unwrap_or_else(|| Path::new(""))
         .join(spec);
+    let mut stem_candidates = Vec::<PathBuf>::new();
+    if let Some(raw_name) = base.file_name().and_then(|row| row.to_str()) {
+        if let Some(stem) = raw_name.strip_suffix(".js") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+        if let Some(stem) = raw_name.strip_suffix(".mjs") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+        if let Some(stem) = raw_name.strip_suffix(".cjs") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+    }
     let candidates = [
         base.clone(),
         PathBuf::from(format!("{}.ts", base.display())),
@@ -429,7 +441,28 @@ fn resolve_local_spec(from_file: &Path, spec: &str) -> Option<PathBuf> {
         base.join("index.js"),
         base.join("index.mjs"),
     ];
-    candidates.into_iter().find(|candidate| candidate.is_file())
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    for stem in stem_candidates {
+        let stem_checks = [
+            stem.clone(),
+            PathBuf::from(format!("{}.ts", stem.display())),
+            PathBuf::from(format!("{}.js", stem.display())),
+            PathBuf::from(format!("{}.mjs", stem.display())),
+            stem.join("index.ts"),
+            stem.join("index.js"),
+            stem.join("index.mjs"),
+        ];
+        for candidate in stem_checks {
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
 }
 
 fn parse_import_specs(source: &str) -> Vec<String> {

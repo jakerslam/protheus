@@ -104,6 +104,11 @@ function parseSpecs(source) {
 
 function resolveLocalSpec(fromFile, spec) {
   const base = path.resolve(path.dirname(fromFile), spec);
+  const stemCandidates = [];
+  const ext = path.extname(base);
+  if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+    stemCandidates.push(base.slice(0, -ext.length));
+  }
   const candidates = [
     base,
     `${base}.ts`,
@@ -115,6 +120,20 @@ function resolveLocalSpec(fromFile, spec) {
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+  }
+  for (const stem of stemCandidates) {
+    const stemChecks = [
+      stem,
+      `${stem}.ts`,
+      `${stem}.js`,
+      `${stem}.mjs`,
+      path.join(stem, 'index.ts'),
+      path.join(stem, 'index.js'),
+      path.join(stem, 'index.mjs'),
+    ];
+    for (const candidate of stemChecks) {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+    }
   }
   return null;
 }

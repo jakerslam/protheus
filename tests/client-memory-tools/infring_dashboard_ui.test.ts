@@ -174,8 +174,14 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'downloadModelToLocal: function(model)', 'model download action handler missing');
   assertContains(chatSource, "InfringAPI.post('/api/models/download'", 'model download API call missing');
   assertContains(chatSource, 'isModelDownloadable: function(model)', 'model download availability helper missing');
+  assertContains(chatSource, 'modelSpecialtyLabel: function(model)', 'model specialty label helper missing');
   assertContains(htmlSource, 'class="model-download-inline-btn"', 'model download button missing in model switcher');
+  assertContains(htmlSource, 'class="model-meta-stat model-meta-specialty"', 'model specialty metadata row missing');
   assertContains(laneSource, "req.method === 'POST' && pathname === '/api/models/download'", 'model download backend endpoint missing');
+  assertContains(laneSource, 'function inferSystemSpecProfile()', 'local model recommendation should derive system profile');
+  assertContains(laneSource, 'function maybeEmitLocalModelBootstrapReminder(snapshot, options = {})', 'startup local-model reminder helper missing');
+  assertContains(laneSource, 'Download or connect a local LLM to enable offline mode.', 'offline local-model startup notice text missing');
+  assertContains(laneSource, 'function assignSubagentModelOverride(agentId, snapshot, options = {})', 'subagent model routing helper missing');
 
   // Pointer effects: neon trail in dark mode + ripple in light mode
   assertContains(chatSource, 'handleMessagesPointerMove(event)', 'pointer move handler missing');
@@ -354,6 +360,36 @@ function assertInterfaceSafetyGuards() {
     appSource,
     "agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');",
     'agent sidebar hydration must call authoritative runtime agents endpoint'
+  );
+  assertContains(
+    laneSource,
+    'const strictRuntimeAuthority = runtimeAuthorityRequested === true;',
+    'runtime authority sidebar queries must run in strict mode to avoid stale roster poisoning'
+  );
+  assertContains(
+    laneSource,
+    'strict: strictRuntimeAuthority,',
+    'runtime authority roster fetch must pass strict runtime mode into authoritative resolver'
+  );
+  assertContains(
+    laneSource,
+    '!strictRuntimeAuthority &&',
+    'runtime authority roster path must not fall back to stale cached sidebar agent rows'
+  );
+  assertContains(
+    laneSource,
+    "function responseLooksTelemetryDump(text) {",
+    'strict output contract must include telemetry-dump detector for non-status prompts'
+  );
+  assertContains(
+    laneSource,
+    "if (!runtimeTask && !asksForStatus && responseLooksTelemetryDump(normalized)) {",
+    'strict output contract must reject telemetry dumps when user did not request status'
+  );
+  assertContains(
+    laneSource,
+    "rejectedReason === 'telemetry_mismatch'",
+    'strict fallback path must recover telemetry mismatch with conversational response'
   );
   assert.ok(
     !appSource.includes('/api/dashboard/snapshot'),
