@@ -714,10 +714,25 @@ if [ "${1:-}" = "gateway" ]; then
     gateway_action="start"
   fi
 
-  "__INSTALL_DIR__/infringd" "$gateway_action" "$@"
+  gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
   gateway_status=$?
   if [ "$gateway_status" -ne 0 ]; then
+    if [ -n "$gateway_output" ]; then
+      printf '%s\n' "$gateway_output" >&2
+    fi
+    echo "[infring gateway] ${gateway_action} failed" >&2
     exit "$gateway_status"
+  fi
+  if [ "${INFRING_GATEWAY_RAW:-0}" = "1" ] || [ "${PROTHEUS_GATEWAY_RAW:-0}" = "1" ]; then
+    if [ -n "$gateway_output" ]; then
+      printf '%s\n' "$gateway_output"
+    fi
+  fi
+
+  receipt_hash="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"receipt_hash":"\([^"]*\)".*/\1/p' | head -n 1)"
+  root_path="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"root":"\([^"]*\)".*/\1/p' | head -n 1)"
+  if [ -z "$root_path" ] && [ -n "${INFRING_WORKSPACE_ROOT:-}" ]; then
+    root_path="$INFRING_WORKSPACE_ROOT"
   fi
 
   if [ "$gateway_action" = "start" ]; then
@@ -743,6 +758,23 @@ if [ "${1:-}" = "gateway" ]; then
         xdg-open "$dashboard_url" >/dev/null 2>&1 || true
       fi
     fi
+    echo "[infring gateway] runtime started"
+    echo "[infring gateway] dashboard: $dashboard_url"
+    [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
+    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
+  elif [ "$gateway_action" = "stop" ]; then
+    echo "[infring gateway] runtime stopped"
+    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
+  elif [ "$gateway_action" = "status" ]; then
+    echo "[infring gateway] runtime status received"
+    [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
+    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
+  elif [ "$gateway_action" = "restart" ]; then
+    echo "[infring gateway] runtime restarted"
+    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
+  else
+    echo "[infring gateway] action complete: $gateway_action"
+    [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   fi
   exit 0
 fi
