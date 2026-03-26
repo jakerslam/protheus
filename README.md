@@ -88,11 +88,11 @@ Install to specific paths (macOS/Linux):
 ```bash
 # Flags
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | \
-  sh -s -- --pure --install-dir "$HOME/.openclaw/bin" --tmp-dir "$HOME/.openclaw/tmp"
+  sh -s -- --pure --install-dir "$HOME/.infring/bin" --tmp-dir "$HOME/.infring/tmp"
 
 # Equivalent env vars
-INFRING_INSTALL_DIR="$HOME/.openclaw/bin" \
-INFRING_TMP_DIR="$HOME/.openclaw/tmp" \
+INFRING_INSTALL_DIR="$HOME/.infring/bin" \
+INFRING_TMP_DIR="$HOME/.infring/tmp" \
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
 ```
 
@@ -112,7 +112,7 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | ie
 Install to specific paths (Windows):
 
 ```powershell
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Pure -InstallDir "$HOME\\.openclaw\\bin" -TmpDir "$HOME\\.openclaw\\tmp"
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Pure -InstallDir "$HOME\\.infring\\bin" -TmpDir "$HOME\\.infring\\tmp"
 ```
 
 Then verify:
@@ -180,6 +180,8 @@ npm ci
 npm run local:init
 npm run build
 npm run start
+# one-command runtime + dashboard auto-open
+npm run gateway
 ```
 
 > **Note:** Ensure Node.js 22+ is active before running `npm ci`. If you encounter 
