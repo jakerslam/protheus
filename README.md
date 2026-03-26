@@ -123,6 +123,19 @@ infringctl --help
 infringd --help
 ```
 
+If your shell still says `command not found`, refresh PATH and retry:
+
+```bash
+# macOS/Linux
+hash -r 2>/dev/null || true
+~/.local/bin/infring --help
+```
+
+```powershell
+# Windows
+$HOME\.protheus\bin\infring.cmd --help
+```
+
 One-command rich runtime boot (auto-opens dashboard):
 
 ```bash
