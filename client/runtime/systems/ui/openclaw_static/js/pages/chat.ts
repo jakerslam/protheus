@@ -62,6 +62,8 @@ function chatPage() {
     modelApiKeySaving: false,
     modelApiKeyStatus: '',
     modelDownloadBusy: {},
+    modelDownloadProgress: {},
+    _modelDownloadProgressTimers: {},
     modelSwitching: false,
     _modelCache: null,
     _modelCacheTime: 0,
@@ -76,6 +78,8 @@ function chatPage() {
     freshInitTemplateName: '',
     freshInitName: '',
     freshInitEmoji: '',
+    freshInitDefaultName: '',
+    freshInitDefaultEmoji: '',
     freshInitLaunching: false,
     freshInitRevealMenu: false,
     freshInitStageToken: 0,
@@ -296,6 +300,9 @@ function chatPage() {
     _pointerTrailHeadLastAt: 0,
     _progressCache: {},
     _freshInitThreadShownFor: '',
+    _releaseCheckInFlight: false,
+    _releaseUpdateNoticeKey: '',
+    systemUpdateBusy: false,
 
     // ── Tip Bar ──
     tipIndex: 0,
@@ -499,9 +506,6 @@ function chatPage() {
           }
         );
         this.applyAgentGitTreeState(this.currentAgent, result && result.current ? result.current : {});
-        if (result && result.current && result.current.workspace_dir) {
-          this.terminalCwd = String(result.current.workspace_dir || this.terminalCwd || '').trim() || this.terminalCwd;
-        }
         var store = Alpine.store('app');
         if (store && typeof store.refreshAgents === 'function') {
           await store.refreshAgents({ force: true });
@@ -669,7 +673,7 @@ function chatPage() {
       var id = String(model.id || '').trim();
       var display = String(model.display_name || id).trim();
       var isAutoRow = provider.toLowerCase() === 'auto' || id.toLowerCase() === 'auto';
-      if (!isAutoRow) return provider && provider.toLowerCase() !== 'unknown' ? (provider + ':' + display) : display;
+      if (!isAutoRow) return display || id || 'model';
       var activeAuto = this.currentAgent && String(this.currentAgent.model_name || '').trim().toLowerCase() === 'auto';
       var runtime = activeAuto ? String(this.currentAgent.runtime_model || '').trim() : '';
       if (!runtime) return 'Auto';
@@ -695,18 +699,126 @@ function chatPage() {
       return 'Cloud model';
     },
 
+    normalizeModelRating: function(value, fallback) {
+      var level = Number(value);
+      var base = Number(fallback);
+      if (!Number.isFinite(base)) base = 3;
+      if (!Number.isFinite(level)) level = base;
+      level = Math.round(level);
+      if (level < 1) level = 1;
+      if (level > 5) level = 5;
+      return level;
+    },
+
+    modelPowerLevel: function(model) {
+      return this.normalizeModelRating(model && model.power_rating, 3);
+    },
+
+    modelCostLevel: function(model) {
+      return this.normalizeModelRating(model && model.cost_rating, 3);
+    },
+
+    modelContextWindowLabel: function(model) {
+      var raw = Number(model && model.context_window != null ? model.context_window : 0);
+      if (!Number.isFinite(raw) || raw <= 0) return '? ctx';
+      return this.formatTokenK(raw) + ' ctx';
+    },
+
+    inferModelParamsFromId: function(model) {
+      var id = String((model && (model.display_name || model.id)) || '').toLowerCase();
+      if (!id) return 0;
+      var pair = id.match(/([0-9]+(?:\.[0-9]+)?)x([0-9]+(?:\.[0-9]+)?)b/i);
+      if (pair && pair[1] && pair[2]) {
+        var left = Number(pair[1]);
+        var right = Number(pair[2]);
+        if (Number.isFinite(left) && Number.isFinite(right) && left > 0 && right > 0) return left * right;
+      }
+      var bMatch = id.match(/(?:^|[^a-z0-9])([0-9]+(?:\.[0-9]+)?)b(?:[^a-z0-9]|$)/i);
+      if (bMatch && bMatch[1]) {
+        var b = Number(bMatch[1]);
+        if (Number.isFinite(b) && b > 0) return b;
+      }
+      var mMatch = id.match(/(?:^|[^a-z0-9])([0-9]{3,5})m(?:[^a-z0-9]|$)/i);
+      if (mMatch && mMatch[1]) {
+        var m = Number(mMatch[1]);
+        if (Number.isFinite(m) && m > 0) return m / 1000;
+      }
+      return 0;
+    },
+
+    modelParamCountB: function(model) {
+      var raw = Number(model && model.param_count_billion != null ? model.param_count_billion : 0);
+      if (Number.isFinite(raw) && raw > 0) return raw;
+      return this.inferModelParamsFromId(model);
+    },
+
+    modelParamLabel: function(model) {
+      var params = this.modelParamCountB(model);
+      if (!Number.isFinite(params) || params <= 0) return '? params';
+      if (params >= 100) return Math.round(params) + 'B';
+      if (params >= 10) return (Math.round(params * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'B';
+      if (params >= 1) return (Math.round(params * 100) / 100).toFixed(2).replace(/0$/, '').replace(/\.$/, '') + 'B';
+      return Math.max(1, Math.round(params * 1000)) + 'M';
+    },
+
+    modelDownloadProgressValue: function(model) {
+      var key = this.modelDownloadKey(model);
+      if (!key || !this.modelDownloadProgress) return 0;
+      var raw = Number(this.modelDownloadProgress[key] || 0);
+      if (!Number.isFinite(raw) || raw <= 0) return 0;
+      if (raw >= 100) return 100;
+      return Math.max(1, Math.min(99, Math.round(raw)));
+    },
+
+    modelDownloadProgressStyle: function(model) {
+      return 'width:' + this.modelDownloadProgressValue(model) + '%';
+    },
+
+    setModelDownloadProgress: function(key, value) {
+      if (!key) return;
+      if (!this.modelDownloadProgress) this.modelDownloadProgress = {};
+      var raw = Number(value);
+      if (!Number.isFinite(raw)) raw = 0;
+      raw = Math.max(0, Math.min(100, Math.round(raw)));
+      if (raw <= 0) {
+        delete this.modelDownloadProgress[key];
+      } else {
+        this.modelDownloadProgress[key] = raw;
+      }
+    },
+
+    clearModelDownloadProgressTimer: function(key) {
+      if (!key) return;
+      if (!this._modelDownloadProgressTimers) this._modelDownloadProgressTimers = {};
+      var timer = this._modelDownloadProgressTimers[key];
+      if (timer) {
+        clearInterval(timer);
+      }
+      delete this._modelDownloadProgressTimers[key];
+    },
+
+    startModelDownloadProgressTimer: function(key) {
+      if (!key) return;
+      this.clearModelDownloadProgressTimer(key);
+      var self = this;
+      var seeded = Number(self.modelDownloadProgress && self.modelDownloadProgress[key] ? self.modelDownloadProgress[key] : 0);
+      if (!Number.isFinite(seeded) || seeded <= 0) seeded = 2;
+      self.setModelDownloadProgress(key, seeded);
+      self._modelDownloadProgressTimers[key] = setInterval(function() {
+        var current = Number(self.modelDownloadProgress[key] || 0);
+        if (!Number.isFinite(current) || current <= 0) current = 2;
+        if (current >= 94) return;
+        var bump = current < 30 ? 7 : (current < 60 ? 4 : 2);
+        self.setModelDownloadProgress(key, Math.min(94, current + bump));
+      }, 520);
+    },
+
     modelPowerIcons: function(model) {
-      var level = Number(model && model.power_rating != null ? model.power_rating : 3);
-      if (!Number.isFinite(level)) level = 3;
-      level = Math.max(1, Math.min(5, Math.round(level)));
-      return '🔥'.repeat(level);
+      return 'ϟ'.repeat(this.modelPowerLevel(model));
     },
 
     modelCostIcons: function(model) {
-      var level = Number(model && model.cost_rating != null ? model.cost_rating : 3);
-      if (!Number.isFinite(level)) level = 3;
-      level = Math.max(1, Math.min(5, Math.round(level)));
-      return '$'.repeat(level);
+      return '$'.repeat(this.modelCostLevel(model));
     },
 
     modelDownloadKey: function(model) {
@@ -738,6 +850,8 @@ function chatPage() {
       if (!self.modelDownloadBusy) self.modelDownloadBusy = {};
       if (self.modelDownloadBusy[key]) return;
       self.modelDownloadBusy[key] = true;
+      self.setModelDownloadProgress(key, 2);
+      self.startModelDownloadProgressTimer(key);
       var modelRef = String(row.id || row.display_name || '').trim();
       var provider = String(row.provider || '').trim();
       InfringAPI.post('/api/models/download', {
@@ -746,10 +860,23 @@ function chatPage() {
       }).then(function(resp) {
         var method = String((resp && resp.method) || '').trim();
         var localPath = String((resp && resp.download_path) || '').trim();
+        self.setModelDownloadProgress(key, 100);
         if (method === 'ollama_pull') {
           InfringToast.success('Model downloaded locally: ' + localPath);
+          self.addNoticeEvent({
+            notice_label: 'Downloaded ' + (String(row.display_name || row.id || 'model').trim()) + ' locally',
+            notice_type: 'info',
+            notice_icon: '⬇',
+            ts: Date.now(),
+          });
         } else {
           InfringToast.success('Local download path prepared: ' + localPath);
+          self.addNoticeEvent({
+            notice_label: 'Prepared local download path for ' + (String(row.display_name || row.id || 'model').trim()),
+            notice_type: 'info',
+            notice_icon: '⬇',
+            ts: Date.now(),
+          });
         }
         self._modelCache = null;
         self._modelCacheTime = 0;
@@ -761,8 +888,17 @@ function chatPage() {
         self.modelPickerList = self._modelCache;
       }).catch(function(e) {
         InfringToast.error('Model download failed: ' + (e && e.message ? e.message : e));
+        self.setModelDownloadProgress(key, 0);
       }).finally(function() {
         self.modelDownloadBusy[key] = false;
+        self.clearModelDownloadProgressTimer(key);
+        if (self.modelDownloadProgress && self.modelDownloadProgress[key] >= 100) {
+          setTimeout(function() {
+            self.setModelDownloadProgress(key, 0);
+          }, 900);
+        } else {
+          self.setModelDownloadProgress(key, 0);
+        }
       });
     },
 
@@ -792,7 +928,33 @@ function chatPage() {
       for (var i = 0; i < list.length; i++) {
         if (list[i] && String(list[i].id) === String(id)) return list[i];
       }
-      if (typeof agentOrId === 'object' && agentOrId.id) return agentOrId;
+      // Only trust stale object references while the store has no live agent list yet.
+      if (!list.length && typeof agentOrId === 'object' && agentOrId.id) return agentOrId;
+      return null;
+    },
+
+    ensureValidCurrentAgent: function(options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var store = Alpine.store('app');
+      var rows = store && Array.isArray(store.agents) ? store.agents : [];
+      var currentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+      var currentLive = currentId ? this.resolveAgent(currentId) : null;
+      if (currentLive) {
+        if (!this.currentAgent || String(this.currentAgent.id || '') !== String(currentLive.id || '')) {
+          this.currentAgent = currentLive;
+        } else {
+          this.syncCurrentAgentFromStore(currentLive);
+        }
+        return this.currentAgent;
+      }
+      var preferred = null;
+      if (store && store.activeAgentId) preferred = this.resolveAgent(store.activeAgentId);
+      if (!preferred && rows.length) preferred = this.pickDefaultAgent(rows);
+      if (preferred) {
+        this.selectAgent(preferred);
+        return this.resolveAgent(preferred.id || preferred) || preferred;
+      }
+      if (opts.clear_when_missing) this.currentAgent = null;
       return null;
     },
 
@@ -811,7 +973,6 @@ function chatPage() {
         var workspace = source.workspace_dir ? String(source.workspace_dir).trim() : '';
         if (workspace) {
           target.workspace_dir = workspace;
-          this.terminalCwd = workspace;
         }
       }
       if (Object.prototype.hasOwnProperty.call(source, 'workspace_rel')) {
@@ -1196,12 +1357,54 @@ function chatPage() {
       else this.contextPressure = 'low';
     },
 
-    normalizePromptSuggestions(rows) {
+    normalizePromptSuggestions(rows, contextText, disallowSamples) {
       var source = Array.isArray(rows) ? rows : [];
+      var blocked = Array.isArray(disallowSamples) ? disallowSamples : [];
       var seen = {};
       var out = [];
+      var contextKeywords = [];
       var wordCount = function(text) {
         return String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean).length;
+      };
+      var tokenize = function(value) {
+        var stop = {
+          can: true, could: true, would: true, should: true, what: true, why: true, how: true, when: true, where: true, who: true,
+          the: true, this: true, that: true, with: true, from: true, into: true, your: true, you: true, and: true, for: true,
+          then: true, now: true, again: true, please: true
+        };
+        return String(value == null ? '' : value)
+          .toLowerCase()
+          .replace(/[^a-z0-9_:-]+/g, ' ')
+          .split(/\s+/g)
+          .filter(function(token) { return !!(token && token.length >= 3 && !stop[token]); });
+      };
+      var tokenSimilarity = function(a, b) {
+        var left = tokenize(a);
+        var right = tokenize(b);
+        if (!left.length && !right.length) return 1;
+        if (!left.length || !right.length) return 0;
+        var leftSet = {};
+        var rightSet = {};
+        var i;
+        for (i = 0; i < left.length; i++) leftSet[left[i]] = true;
+        for (i = 0; i < right.length; i++) rightSet[right[i]] = true;
+        var overlap = 0;
+        var union = {};
+        Object.keys(leftSet).forEach(function(token) {
+          union[token] = true;
+          if (rightSet[token]) overlap += 1;
+        });
+        Object.keys(rightSet).forEach(function(token) { union[token] = true; });
+        var unionSize = Object.keys(union).length || 1;
+        return overlap / unionSize;
+      };
+      var isNearDuplicate = function(a, b) {
+        var left = String(a == null ? '' : a).toLowerCase().trim();
+        var right = String(b == null ? '' : b).toLowerCase().trim();
+        if (!left || !right) return false;
+        if (left === right) return true;
+        if (left.indexOf(right) >= 0 || right.indexOf(left) >= 0) return true;
+        return tokenSimilarity(left, right) >= 0.72;
       };
       var clampWords = function(text, maxWords) {
         var cap = Number(maxWords || 12);
@@ -1264,19 +1467,59 @@ function chatPage() {
         if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
         return false;
       };
+      var isGeneric = function(text) {
+        var lowered = String(text || '').toLowerCase();
+        if (!lowered) return true;
+        return (
+          lowered.indexOf('continue this and keep the same direction') >= 0 ||
+          lowered.indexOf('best next move from here') >= 0 ||
+          lowered.indexOf('summarize progress in three concrete bullets') >= 0 ||
+          lowered.indexOf('show the first command to run now') >= 0 ||
+          lowered.indexOf('turn that into a concrete checklist') >= 0 ||
+          lowered.indexOf('take the next step on current task') >= 0
+        );
+      };
+      var rawContext = String(contextText == null ? '' : contextText).toLowerCase();
+      contextKeywords = rawContext
+        .split(/[^a-z0-9_:-]+/g)
+        .filter(function(token) {
+          return !!(
+            token &&
+            token.length >= 4 &&
+            ['this', 'that', 'with', 'from', 'into', 'your', 'have', 'will', 'when', 'where', 'what'].indexOf(token) === -1
+          );
+        })
+        .slice(0, 10);
       for (var i = 0; i < source.length; i++) {
         var raw = normalizeVoice(source[i]);
         if (!raw || isLowValue(raw)) continue;
+        var parrotsSample = blocked.some(function(sample) {
+          var cleanSample = normalizeVoice(sample || '');
+          if (!cleanSample) return false;
+          return isNearDuplicate(raw, cleanSample);
+        });
+        if (parrotsSample) continue;
+        if (isGeneric(raw) && contextKeywords.length) {
+          var loweredRaw = String(raw || '').toLowerCase();
+          var hasContextOverlap = contextKeywords.some(function(keyword) {
+            return loweredRaw.indexOf(keyword) >= 0;
+          });
+          if (!hasContextOverlap) continue;
+        }
         var key = String(raw || '').toLowerCase();
         if (seen[key]) continue;
+        var duplicate = out.some(function(existing) {
+          return isNearDuplicate(existing, raw);
+        });
+        if (duplicate) continue;
         seen[key] = true;
         out.push(raw);
-        if (out.length >= 4) break;
+        if (out.length >= 3) break;
       }
       return out;
     },
 
-    derivePromptSuggestionFallback(agent, hint) {
+    derivePromptSuggestionFallback(agent, hint, gateContext) {
       var rows = [];
       var compact = function(value) {
         var text = String(value == null ? '' : value)
@@ -1354,21 +1597,11 @@ function chatPage() {
         rows = rows.slice(rotate).concat(rows.slice(0, rotate));
       }
 
-      var normalized = this.normalizePromptSuggestions(rows);
-      while (normalized.length < 3) {
-        var fill = this.normalizePromptSuggestions([
-          'Can you show the single next command to run',
-          'Can you summarize progress in three concrete bullets',
-          'Can you verify the latest change and report result'
-        ]);
-        if (!fill.length) break;
-        for (var j = 0; j < fill.length && normalized.length < 3; j++) {
-          if (normalized.indexOf(fill[j]) >= 0) continue;
-          normalized.push(fill[j]);
-        }
-        break;
-      }
-      return normalized.slice(0, 4);
+      var normalized = this.normalizePromptSuggestions(
+        rows,
+        String(gateContext || [cleanHint, lastUser, lastAgent, String(context.signature || '')].join(' | '))
+      );
+      return normalized.slice(0, 3);
     },
 
     collectPromptSuggestionContext() {
@@ -1403,8 +1636,9 @@ function chatPage() {
         if (!out.lastAgent && row.role === 'agent') {
           out.lastAgent = text;
         }
-        if (out.lastUser && out.lastAgent) break;
+        if (out.lastUser && out.lastAgent && out.history.length >= 8) break;
       }
+      if (out.history.length > 8) out.history = out.history.slice(-8);
       out.signature = compact(
         out.history
           .map(function(entry) {
@@ -1415,6 +1649,25 @@ function chatPage() {
         1200
       );
       return out;
+    },
+
+    recentUserSuggestionSamples() {
+      var history = Array.isArray(this.messages) ? this.messages : [];
+      var out = [];
+      for (var i = history.length - 1; i >= 0; i--) {
+        var row = history[i];
+        if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
+        if (String(row.role || '').toLowerCase() !== 'user') continue;
+        var text = String(row.text == null ? '' : row.text).replace(/\s+/g, ' ').trim();
+        if (!text) continue;
+        out.unshift(text);
+        if (out.length >= 8) break;
+      }
+      return out;
+    },
+
+    hasConversationSuggestionSeed() {
+      return this.recentUserSuggestionSamples().length > 0;
     },
 
     nextPromptQueueId() {
@@ -1541,9 +1794,12 @@ function chatPage() {
       this.scheduleConversationPersist();
 
       if (!this.sending) {
+        var liveAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+        if (!liveAgent || !liveAgent.id) return;
         this.appendUserChatMessage(text, images, { deferPersist: true });
         this.scheduleConversationPersist();
         this._sendPayload(text, files, images, {
+          agent_id: liveAgent.id,
           steer_injected: true,
           from_queue: true,
           queue_id: id
@@ -1560,8 +1816,10 @@ function chatPage() {
       }
 
       if (this.currentAgent && this.currentAgent.id) {
+        var reboundAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+        if (!reboundAgent || !reboundAgent.id) return;
         try {
-          await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', {
+          await InfringAPI.post('/api/agents/' + reboundAgent.id + '/message', {
             message: text,
             attachments: files,
             steer: true,
@@ -1611,6 +1869,56 @@ function chatPage() {
       await this.sendMessage();
     },
 
+    promptSuggestionNeedsResize(chip) {
+      if (!chip) return false;
+      var wasExpanded = chip.classList.contains('is-expanded');
+      var wasResizing = chip.classList.contains('is-resizing');
+      if (wasExpanded) chip.classList.remove('is-expanded');
+      if (wasResizing) chip.classList.remove('is-resizing');
+      var needs = false;
+      try {
+        var text = chip.querySelector('.prompt-suggestion-chip-text');
+        if (text) needs = (Number(text.scrollWidth || 0) - Number(text.clientWidth || 0)) > 1;
+        if (!needs) needs = (Number(chip.scrollWidth || 0) - Number(chip.clientWidth || 0)) > 1;
+      } catch(_) {}
+      if (wasExpanded) chip.classList.add('is-expanded');
+      if (wasResizing) chip.classList.add('is-resizing');
+      return !!needs;
+    },
+
+    onPromptSuggestionHoverIn(event) {
+      if (!event || !event.currentTarget) return;
+      var chip = event.currentTarget;
+      if (chip._resizeBlurTimer) {
+        clearTimeout(chip._resizeBlurTimer);
+        chip._resizeBlurTimer = 0;
+      }
+      if (!this.promptSuggestionNeedsResize(chip)) {
+        chip.classList.remove('is-expanded');
+        chip.classList.remove('is-resizing');
+        return;
+      }
+      chip.classList.add('is-expanded');
+      chip.classList.add('is-resizing');
+      chip._resizeBlurTimer = setTimeout(function() {
+        try {
+          chip.classList.remove('is-resizing');
+          chip._resizeBlurTimer = 0;
+        } catch(_) {}
+      }, 220);
+    },
+
+    onPromptSuggestionHoverOut(event) {
+      if (!event || !event.currentTarget) return;
+      var chip = event.currentTarget;
+      if (chip._resizeBlurTimer) {
+        clearTimeout(chip._resizeBlurTimer);
+        chip._resizeBlurTimer = 0;
+      }
+      chip.classList.remove('is-resizing');
+      chip.classList.remove('is-expanded');
+    },
+
     async refreshPromptSuggestions(force, hint) {
       var agent = this.currentAgent;
       if (!agent || !agent.id) {
@@ -1622,6 +1930,11 @@ function chatPage() {
         return;
       }
       if (this.hasPromptQueue) {
+        this.promptSuggestions = [];
+        this.suggestionsLoading = false;
+        return;
+      }
+      if (!this.hasConversationSuggestionSeed()) {
         this.promptSuggestions = [];
         this.suggestionsLoading = false;
         return;
@@ -1645,31 +1958,23 @@ function chatPage() {
         if (/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)) cleanHint = '';
         if (cleanHint) payload.hint = cleanHint;
         var context = this.collectPromptSuggestionContext();
-        if (context.lastUser) payload.last_user_message = String(context.lastUser).trim();
-        if (context.lastAgent) payload.last_agent_message = String(context.lastAgent).trim();
         if (context.signature) payload.recent_context = String(context.signature).trim();
-        if (Array.isArray(context.history) && context.history.length) {
-          payload.recent_history = context.history
-            .map(function(entry) {
-              return String(entry && entry.role ? entry.role : 'agent') + ': ' + String(entry && entry.text ? entry.text : '');
-            })
-            .join(' || ')
-            .trim();
-        }
         var activeModel = String(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '').trim();
         if (activeModel) payload.current_model = activeModel;
         var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
         if (this._suggestionFetchSeq !== seq) return;
-        var suggestions = this.normalizePromptSuggestions(result && result.suggestions ? result.suggestions : []);
-        if (!suggestions.length) {
-          suggestions = this.derivePromptSuggestionFallback(agent, cleanHint);
-        }
+        var gatingContext = [cleanHint, String(context.signature || '')].join(' | ');
+        var suggestions = this.normalizePromptSuggestions(
+          result && result.suggestions ? result.suggestions : [],
+          gatingContext,
+          this.recentUserSuggestionSamples()
+        );
         this.promptSuggestions = suggestions;
         this._lastSuggestionsAt = Date.now();
         this._lastSuggestionsAgentId = agentId;
       } catch (_) {
         if (this._suggestionFetchSeq === seq) {
-          this.promptSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint);
+          this.promptSuggestions = [];
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = agentId;
         }
@@ -1849,20 +2154,14 @@ function chatPage() {
       this._pointerTrailLastAt = now;
       var host = event.currentTarget;
       var rect = host.getBoundingClientRect();
+      var viewportX = event.clientX - rect.left;
+      var viewportY = event.clientY - rect.top;
       // Place markers in scroll-content coordinates so they stay locked to cursor in a scrolling container.
-      var x = event.clientX - rect.left + Number(host.scrollLeft || 0);
-      var y = event.clientY - rect.top + Number(host.scrollTop || 0);
+      var x = viewportX + Number(host.scrollLeft || 0);
+      var y = viewportY + Number(host.scrollTop || 0);
       host.style.setProperty('--chat-grid-x', Math.round(x) + 'px');
       host.style.setProperty('--chat-grid-y', Math.round(y) + 'px');
       host.style.setProperty('--chat-grid-active', '1');
-      if (this._pointerGridHideTimer) {
-        clearTimeout(this._pointerGridHideTimer);
-      }
-      var self = this;
-      this._pointerGridHideTimer = setTimeout(function() {
-        try { host.style.setProperty('--chat-grid-active', '0'); } catch(_) {}
-        self._pointerGridHideTimer = null;
-      }, 180);
       if (!this._pointerTrailSeeded) {
         this._pointerTrailLastX = x;
         this._pointerTrailLastY = y;
@@ -1871,7 +2170,7 @@ function chatPage() {
       var dx = x - Number(this._pointerTrailLastX || x);
       var dy = y - Number(this._pointerTrailLastY || y);
       var dist = Math.sqrt(dx * dx + dy * dy);
-      var spacing = 0.72;
+      var spacing = 0.26;
       var steps = Math.max(1, Math.min(52, Math.ceil(dist / spacing)));
       for (var i = 1; i <= steps; i++) {
         var t0 = (i - 1) / steps;
@@ -1890,17 +2189,17 @@ function chatPage() {
           hueShift: hueShift,
         });
       }
-      var canSpawnHead = (now - Number(this._pointerTrailHeadLastAt || 0)) >= 36;
+      var canSpawnHead = (now - Number(this._pointerTrailHeadLastAt || 0)) >= 28;
       if (canSpawnHead || dist < 1.5) {
         // Render several smaller head particles instead of one large dot.
         var invDist = dist > 0.0001 ? (1 / dist) : 0;
         var nx = dist > 0.0001 ? (dx * invDist) : 1;
         var ny = dist > 0.0001 ? (dy * invDist) : 0;
         var pxTrail = [
-          { back: 0.0, lateral: 0.0, size: 3.3, opacity: 0.56, hue: 0 },
-          { back: 1.8, lateral: 0.72, size: 2.9, opacity: 0.48, hue: 2 },
-          { back: 2.8, lateral: -0.66, size: 2.6, opacity: 0.42, hue: -2 },
-          { back: 3.6, lateral: 0.0, size: 2.3, opacity: 0.36, hue: 1 },
+          { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
+          { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
+          { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
+          { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 },
         ];
         for (var j = 0; j < pxTrail.length; j++) {
           var p = pxTrail[j];
@@ -1936,7 +2235,6 @@ function chatPage() {
         clearTimeout(this._pointerGridHideTimer);
         this._pointerGridHideTimer = null;
       }
-      try { host.style.setProperty('--chat-grid-active', '0'); } catch(_) {}
       var dots = host.querySelectorAll('.chat-pointer-trail-dot,.chat-pointer-trail-segment,.chat-pointer-ripple');
       for (var i = 0; i < dots.length; i++) {
         try { dots[i].remove(); } catch(_) {}
@@ -2203,6 +2501,7 @@ function chatPage() {
         var noticeLabel = '';
         var noticeType = '';
         var noticeIcon = '';
+        var noticeAction = null;
         if (m && (m.is_notice || m.notice_label || m.notice_type)) {
           var explicitLabel = String(m.notice_label || '').trim();
           var inferredLabel = typeof text === 'string' ? text.trim() : '';
@@ -2215,6 +2514,7 @@ function chatPage() {
               self.isModelSwitchNoticeLabel(noticeLabel) ? 'model' : 'info'
             );
             noticeIcon = String(m.notice_icon || '').trim();
+            noticeAction = self.normalizeNoticeAction(m.notice_action || m.noticeAction || null);
           }
         }
         if (!isNotice && role === 'system' && typeof text === 'string') {
@@ -2252,6 +2552,7 @@ function chatPage() {
           notice_label: noticeLabel,
           notice_type: noticeType,
           notice_icon: noticeIcon,
+          notice_action: noticeAction,
           terminal: isTerminal,
           terminal_source: m && m.terminal_source ? String(m.terminal_source).toLowerCase() : (isTerminal ? 'user' : ''),
           cwd: m && m.cwd ? String(m.cwd) : '',
@@ -2343,6 +2644,7 @@ function chatPage() {
           self.setContextWindowFromCurrentAgent();
           self.requestContextTelemetry(true);
           self.refreshPromptSuggestions(false);
+          self.checkForSystemReleaseUpdate(false);
         } else {
           self.clearPromptSuggestions();
         }
@@ -2755,9 +3057,8 @@ function chatPage() {
     switchAgentModelWithGuards: function(targetModelRef, options) {
       var self = this;
       var opts = options && typeof options === 'object' ? options : {};
-      var agentId = String(
-        opts.agent_id || (self.currentAgent && self.currentAgent.id) || ''
-      ).trim();
+      var reboundAgent = self.ensureValidCurrentAgent({ clear_when_missing: true });
+      var agentId = String(opts.agent_id || (reboundAgent && reboundAgent.id) || '').trim();
       if (!agentId) return Promise.reject(new Error('No agent selected'));
       var requestedModel = '';
       if (targetModelRef && typeof targetModelRef === 'object') {
@@ -2791,6 +3092,26 @@ function chatPage() {
           return InfringAPI.put('/api/agents/' + encodeURIComponent(agentId) + '/model', {
             model: requestedModel
           });
+        })
+        .catch(function(error) {
+          var message = String(error && error.message ? error.message : error || '');
+          var lower = message.toLowerCase();
+          var allowRetry = !opts._rebind_retry && (lower.indexOf('agent_not_found') >= 0 || lower.indexOf('agent not found') >= 0);
+          if (!allowRetry) throw error;
+          var rebound = self.ensureValidCurrentAgent({ clear_when_missing: true });
+          var reboundId = String(rebound && rebound.id ? rebound.id : '').trim();
+          if (!reboundId || reboundId === agentId) throw error;
+          self.addNoticeEvent({
+            notice_label: 'Active agent reference expired. Rebound to ' + String(rebound.name || rebound.id || reboundId),
+            notice_type: 'warn',
+            ts: Date.now()
+          });
+          var retryOptions = {};
+          var keys = Object.keys(opts);
+          for (var k = 0; k < keys.length; k++) retryOptions[keys[k]] = opts[keys[k]];
+          retryOptions.agent_id = reboundId;
+          retryOptions._rebind_retry = true;
+          return self.switchAgentModelWithGuards(targetModelRef, retryOptions);
         })
         .then(function(resp) {
           if (self.currentAgent && String(self.currentAgent.id || '') === agentId) {
@@ -2834,7 +3155,8 @@ function chatPage() {
     },
 
     switchModel(model) {
-      if (!this.currentAgent) return;
+      var activeAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+      if (!activeAgent) return;
       if (model.id === this.currentAgent.model_name) {
         this.touchModelUsage(model.id || '');
         this.showModelSwitcher = false;
@@ -2843,7 +3165,7 @@ function chatPage() {
       var self = this;
       this.modelSwitching = true;
       self.switchAgentModelWithGuards(model, {
-        agent_id: self.currentAgent.id
+        agent_id: activeAgent.id
       }).then(function() {
         InfringToast.success('Switched to ' + (model.display_name || model.id));
         self.showModelSwitcher = false;
@@ -3711,6 +4033,8 @@ function chatPage() {
             (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
             this.defaultFreshEmojiForAgent(resolved)
           ).trim() || this.defaultFreshEmojiForAgent(resolved);
+          this.freshInitDefaultName = String(this.freshInitName || '').trim();
+          this.freshInitDefaultEmoji = String(this.freshInitEmoji || '').trim();
           if (this.conversationCache) {
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
@@ -3756,6 +4080,8 @@ function chatPage() {
           (this.agentDrawer && this.agentDrawer.identity && this.agentDrawer.identity.emoji) ||
           this.defaultFreshEmojiForAgent(resolved)
         ).trim() || this.defaultFreshEmojiForAgent(resolved);
+        this.freshInitDefaultName = String(this.freshInitName || '').trim();
+        this.freshInitDefaultEmoji = String(this.freshInitEmoji || '').trim();
         this.clearPromptSuggestions();
         this.startFreshInitSequence(resolved);
       } else {
@@ -3906,6 +4232,17 @@ function chatPage() {
       var model = String(templateDef.model || '').trim();
       var agentName = String(this.freshInitName || '').trim() || String(this.currentAgent.name || this.currentAgent.id || '').trim() || String(agentId);
       var agentEmoji = String(this.freshInitEmoji || '').trim() || this.defaultFreshEmojiForAgent(agentId);
+      var defaultName = String(this.freshInitDefaultName || '').trim();
+      var defaultEmoji = String(this.freshInitDefaultEmoji || '').trim();
+      var identityPick = this.suggestedFreshIdentityForAgent(this.currentAgent || agentId, templateDef);
+      if (!agentName || (defaultName && agentName === defaultName)) {
+        agentName = String(identityPick.name || agentName || '').trim() || String(agentId);
+      }
+      if (!agentEmoji || (defaultEmoji && agentEmoji === defaultEmoji)) {
+        agentEmoji = String(identityPick.emoji || agentEmoji || '').trim() || this.defaultFreshEmojiForAgent(agentId);
+      }
+      this.freshInitName = agentName;
+      this.freshInitEmoji = agentEmoji;
       this.freshInitLaunching = true;
       try {
         if (provider && model) {
@@ -4692,6 +5029,45 @@ function chatPage() {
             );
             break;
           }
+          if (lowerError.indexOf('agent not found') !== -1 || lowerError.indexOf('agent_not_found') !== -1) {
+            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            this.sending = false;
+            this._responseStartedAt = 0;
+            this.tokenCount = 0;
+            var priorAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+            var reboundAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+            var reboundAgentId = reboundAgent && reboundAgent.id ? String(reboundAgent.id) : '';
+            var inflight = this._inflightPayload && typeof this._inflightPayload === 'object' ? this._inflightPayload : null;
+            if (
+              reboundAgentId &&
+              reboundAgentId !== priorAgentId &&
+              inflight &&
+              !inflight._agent_rebind_attempted
+            ) {
+              inflight._agent_rebind_attempted = true;
+              inflight.agent_id = reboundAgentId;
+              this.addNoticeEvent({
+                notice_label:
+                  'Active agent reference expired. Switched to ' +
+                  String(reboundAgent.name || reboundAgent.id || reboundAgentId) +
+                  ' and retried.',
+                notice_type: 'warn',
+                ts: Date.now(),
+              });
+              var selfRebound = this;
+              Promise.resolve()
+                .then(function() {
+                  return selfRebound._sendPayload(
+                    inflight.final_text || '',
+                    Array.isArray(inflight.uploaded_files) ? inflight.uploaded_files : [],
+                    Array.isArray(inflight.msg_images) ? inflight.msg_images : [],
+                    { agent_id: reboundAgentId, retry_from_agent_rebind: true }
+                  );
+                })
+                .catch(function() {});
+              break;
+            }
+          }
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
           this.sending = false;
           this._responseStartedAt = 0;
@@ -5322,6 +5698,99 @@ function chatPage() {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
+    normalizeNoticeAction: function(action) {
+      if (!action || typeof action !== 'object') return null;
+      var kind = String(action.kind || action.type || '').trim().toLowerCase();
+      if (!kind || kind !== 'system_update') return null;
+      var label = String(action.label || '').trim() || 'Update';
+      return {
+        kind: kind,
+        label: label,
+        latest_version: String(action.latest_version || '').trim(),
+        current_version: String(action.current_version || '').trim(),
+        busy: !!action.busy
+      };
+    },
+
+    noticeActionVisible: function(msg) {
+      return !!this.normalizeNoticeAction(msg && msg.notice_action ? msg.notice_action : null);
+    },
+
+    noticeActionLabel: function(msg) {
+      var action = this.normalizeNoticeAction(msg && msg.notice_action ? msg.notice_action : null);
+      return action ? String(action.label || 'Update') : '';
+    },
+
+    noticeActionBusy: function(msg) {
+      return !!(msg && msg.notice_action && msg.notice_action.busy === true);
+    },
+
+    async triggerNoticeAction(msg) {
+      var action = this.normalizeNoticeAction(msg && msg.notice_action ? msg.notice_action : null);
+      if (!action || action.kind !== 'system_update') return;
+      if (this.systemUpdateBusy || this.noticeActionBusy(msg)) return;
+      if (msg && msg.notice_action) msg.notice_action.busy = true;
+      this.systemUpdateBusy = true;
+      this.scheduleConversationPersist();
+      try {
+        var payload = {};
+        if (action.latest_version) payload.latest_version = action.latest_version;
+        if (action.current_version) payload.current_version = action.current_version;
+        var result = await InfringAPI.post('/api/system/update', payload);
+        this.addNoticeEvent({
+          notice_label: String(result && result.message ? result.message : 'System update started.'),
+          notice_type: 'info',
+          notice_icon: '\u21bb'
+        });
+        if (msg) msg.notice_action = null;
+      } catch (e) {
+        var reason = e && e.message ? String(e.message) : 'unknown_error';
+        InfringToast.error('Failed to start system update: ' + reason);
+        if (msg && msg.notice_action) msg.notice_action.busy = false;
+      } finally {
+        this.systemUpdateBusy = false;
+        this.scheduleConversationPersist();
+      }
+    },
+
+    async checkForSystemReleaseUpdate(force) {
+      if (this._releaseCheckInFlight) return;
+      if (!this.currentAgent || !this.currentAgent.id) return;
+      this._releaseCheckInFlight = true;
+      try {
+        var result = await InfringAPI.get('/api/system/release-check' + (force ? '?force=1' : ''));
+        if (!result || result.ok === false || !result.update_available) return;
+        var latest = String(result.latest_version || '').trim();
+        var current = String(result.current_version || '').trim();
+        if (!latest) return;
+        var noticeKey = latest + '|' + current;
+        if (noticeKey && this._releaseUpdateNoticeKey === noticeKey) return;
+        var label = 'Update available: ' + latest + (current ? ' (current ' + current + ')' : '');
+        var existing = Array.isArray(this.messages) && this.messages.some(function(row) {
+          return !!(row && row.is_notice && String(row.notice_label || '').trim() === label);
+        });
+        if (existing) {
+          this._releaseUpdateNoticeKey = noticeKey;
+          return;
+        }
+        this._releaseUpdateNoticeKey = noticeKey;
+        this.addNoticeEvent({
+          notice_label: label,
+          notice_type: 'info',
+          notice_icon: '\u21e7',
+          notice_action: {
+            kind: 'system_update',
+            label: 'Update',
+            latest_version: latest,
+            current_version: current
+          }
+        });
+      } catch (_) {
+      } finally {
+        this._releaseCheckInFlight = false;
+      }
+    },
+
     addNoticeEvent: function(notice) {
       if (!notice || typeof notice !== 'object') return;
       var label = String(notice.notice_label || notice.label || '').trim();
@@ -5336,6 +5805,7 @@ function chatPage() {
       }
       var tsRaw = Number(notice.ts || 0);
       var ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
+      var action = this.normalizeNoticeAction(notice.notice_action || notice.noticeAction || null);
       this.messages.push({
         id: ++msgId,
         role: 'system',
@@ -5347,6 +5817,7 @@ function chatPage() {
         notice_label: label,
         notice_type: type,
         notice_icon: icon,
+        notice_action: action,
         ts: ts
       });
       if (this.currentAgent && this.currentAgent.id) {
@@ -5568,6 +6039,48 @@ function chatPage() {
       }
       var bucket = hash % source.length;
       return String((source[bucket] && source[bucket].emoji) || '🤖');
+    },
+
+    suggestedFreshIdentityForAgent: function(agentRef, templateDef) {
+      var agent = agentRef && typeof agentRef === 'object' ? agentRef : {};
+      var id = String(agent.id || agentRef || '').trim();
+      var role = String(agent.role || '').trim().toLowerCase();
+      var templateName = String(templateDef && templateDef.name ? templateDef.name : '').trim();
+      var archetype = String(templateDef && templateDef.archetype ? templateDef.archetype : '').trim().toLowerCase();
+      var seed = [id, role, templateName, archetype].join('|');
+      var hash = 0;
+      for (var idx = 0; idx < seed.length; idx += 1) {
+        hash = ((hash * 31) ^ seed.charCodeAt(idx)) >>> 0;
+      }
+      var prefixOptions = [
+        'Nimbus', 'Vector', 'Harbor', 'Atlas', 'Signal', 'Flux',
+        'Forge', 'Scout', 'Axiom', 'Nova', 'Beacon', 'Cipher'
+      ];
+      var suffixByArchetype = {
+        assistant: ['Guide', 'Assist', 'Navigator', 'Anchor'],
+        coder: ['Builder', 'Compiler', 'Kernel', 'Patcher'],
+        researcher: ['Analyst', 'Research', 'Surveyor', 'Trace'],
+        writer: ['Draft', 'Scribe', 'Composer', 'Narrator'],
+        devops: ['Ops', 'Reliability', 'Deploy', 'Runtime'],
+        support: ['Support', 'Resolver', 'Bridge', 'Caretaker'],
+        analyst: ['Insight', 'Signal', 'Vector', 'Ledger'],
+        custom: ['Agent', 'Core', 'Node', 'Prime']
+      };
+      var suffixPool = suffixByArchetype[archetype] || suffixByArchetype[role] || suffixByArchetype.assistant;
+      var prefix = prefixOptions[hash % prefixOptions.length];
+      var suffix = suffixPool[(Math.floor(hash / 17) % suffixPool.length)];
+      var emoji = this.defaultFreshEmojiForAgent(id || (prefix + '-' + suffix));
+      if (templateDef && templateDef.category) {
+        var category = String(templateDef.category).toLowerCase();
+        if (category.indexOf('development') >= 0) emoji = '🧑\u200d💻';
+        else if (category.indexOf('research') >= 0) emoji = '🔬';
+        else if (category.indexOf('operations') >= 0 || category.indexOf('ops') >= 0) emoji = '🛠️';
+        else if (category.indexOf('writing') >= 0) emoji = '📝';
+      }
+      return {
+        name: (prefix + ' ' + suffix).trim(),
+        emoji: String(emoji || '🤖').trim() || '🤖',
+      };
     },
 
     toggleDrawerEmojiPicker: function() {
@@ -6173,7 +6686,8 @@ function chatPage() {
         InfringToast.info('Launch agent initialization before running terminal commands.');
         return;
       }
-      if (!this.currentAgent || !this.inputText.trim()) return;
+      var activeAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+      if (!activeAgent || !this.inputText.trim()) return;
       this.showFreshArchetypeTiles = false;
       var command = this.inputText.trim();
       this.inputText = '';
@@ -6196,7 +6710,7 @@ function chatPage() {
         return;
       }
 
-      this._sendTerminalPayload(command);
+      this._sendTerminalPayload(command, activeAgent.id);
     },
 
     async sendMessage() {
@@ -6208,7 +6722,8 @@ function chatPage() {
         InfringToast.info('Launch agent initialization before chatting.');
         return;
       }
-      if (!this.currentAgent || (!this.inputText.trim() && !this.attachments.length)) return;
+      var activeAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+      if (!activeAgent || (!this.inputText.trim() && !this.attachments.length)) return;
       this.showFreshArchetypeTiles = false;
       var text = this.inputText.trim();
 
@@ -6237,7 +6752,7 @@ function chatPage() {
           var att = this.attachments[i];
           att.uploading = true;
           try {
-            var uploadRes = await InfringAPI.upload(this.currentAgent.id, att.file);
+            var uploadRes = await InfringAPI.upload(activeAgent.id, att.file);
             fileRefs.push('[File: ' + att.file.name + ']');
             uploadedFiles.push({ file_id: uploadRes.file_id, filename: uploadRes.filename, content_type: uploadRes.content_type });
           } catch(e) {
@@ -6282,12 +6797,14 @@ function chatPage() {
 
       this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });
       this.scheduleConversationPersist();
-      this._sendPayload(finalText, uploadedFiles, msgImages);
+      this._sendPayload(finalText, uploadedFiles, msgImages, { agent_id: activeAgent.id });
     },
 
-    async _sendTerminalPayload(command) {
+    async _sendTerminalPayload(command, agentIdOverride) {
+      var targetAgentId = String(agentIdOverride || (this.currentAgent && this.currentAgent.id) || '').trim();
+      if (!targetAgentId) return;
       this.sending = true;
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
+      this.setAgentLiveActivity(targetAgentId, 'working');
       this._responseStartedAt = Date.now();
       this._appendTerminalMessage({
         role: 'terminal',
@@ -6302,10 +6819,10 @@ function chatPage() {
       this.scrollToBottom();
       this.scheduleConversationPersist();
 
-      if (!InfringAPI.isWsConnected() && this.currentAgent) {
-        this.connectWs(this.currentAgent.id);
+      if ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && targetAgentId) {
+        this.connectWs(targetAgentId);
         var wsWaitStarted = Date.now();
-        while (!InfringAPI.isWsConnected() && (Date.now() - wsWaitStarted) < 1500) {
+        while ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && (Date.now() - wsWaitStarted) < 1500) {
           await new Promise(function(resolve) { setTimeout(resolve, 75); });
         }
       }
@@ -6315,7 +6832,7 @@ function chatPage() {
       }
 
       try {
-        var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/terminal', {
+        var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/terminal', {
           command: command,
           cwd: this.terminalPromptPath,
         });
@@ -6337,9 +6854,22 @@ function chatPage() {
 
     async _sendPayload(finalText, uploadedFiles, msgImages, options) {
       var opts = options && typeof options === 'object' ? options : {};
+      var ensuredAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+      if (!ensuredAgent && !opts.agent_id) {
+        this.sending = false;
+        this._responseStartedAt = 0;
+        return;
+      }
       this.sending = true;
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
-      var targetAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+      var targetAgentId = String(
+        opts.agent_id || (ensuredAgent && ensuredAgent.id) || (this.currentAgent && this.currentAgent.id) || ''
+      ).trim();
+      if (!targetAgentId) {
+        this.sending = false;
+        this._responseStartedAt = 0;
+        return;
+      }
+      this.setAgentLiveActivity(targetAgentId, 'typing');
       var safeFiles = Array.isArray(uploadedFiles) ? uploadedFiles.slice() : [];
       var safeImages = Array.isArray(msgImages) ? msgImages.slice() : [];
       if (
@@ -6366,7 +6896,14 @@ function chatPage() {
       var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
       if (preflightRoute) this.applyAutoRouteTelemetry({ auto_route: preflightRoute });
 
-      // Try WebSocket first
+      // Try WebSocket first (ensure socket is bound to the target agent).
+      if (!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) {
+        this.connectWs(targetAgentId);
+        var waitStarted = Date.now();
+        while ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && (Date.now() - waitStarted) < 1500) {
+          await new Promise(function(resolve) { setTimeout(resolve, 75); });
+        }
+      }
       var wsPayload = { type: 'message', content: finalText };
       if (uploadedFiles && uploadedFiles.length) wsPayload.attachments = uploadedFiles;
       if (InfringAPI.wsSend(wsPayload)) {
@@ -6411,7 +6948,7 @@ function chatPage() {
         if (uploadedFiles && uploadedFiles.length) httpBody.attachments = uploadedFiles;
         var httpAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
         if (!httpAutoSwitchPrevious) httpAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
-        var res = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', httpBody);
+        var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/message', httpBody);
         this.applyContextTelemetry(res);
         var httpRoute = this.applyAutoRouteTelemetry(res);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
@@ -6490,9 +7027,33 @@ function chatPage() {
         this.tokenCount = 0;
         this._clearTypingTimeout();
         this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+        var rawHttpError = String(e && e.message ? e.message : e || '');
+        var lowerHttpError = rawHttpError.toLowerCase();
+        if (
+          !opts.retry_from_agent_rebind &&
+          (lowerHttpError.indexOf('agent_not_found') >= 0 || lowerHttpError.indexOf('agent not found') >= 0)
+        ) {
+          var reboundAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+          var reboundAgentId = reboundAgent && reboundAgent.id ? String(reboundAgent.id) : '';
+          if (reboundAgentId && reboundAgentId !== targetAgentId) {
+            this.addNoticeEvent({
+              notice_label:
+                'Active agent reference expired. Switched to ' +
+                String(reboundAgent.name || reboundAgent.id || reboundAgentId) +
+                ' and retried.',
+              notice_type: 'warn',
+              ts: Date.now(),
+            });
+            await this._sendPayload(finalText, uploadedFiles, msgImages, {
+              agent_id: reboundAgentId,
+              retry_from_agent_rebind: true,
+            });
+            return;
+          }
+        }
         handedOffToRecovery = await this.attemptAutomaticFailoverRecovery(
           'http_error',
-          e && e.message ? e.message : e,
+          rawHttpError,
           { remove_last_agent_failure: false }
         );
         if (!handedOffToRecovery) {
@@ -7043,7 +7604,8 @@ function chatPage() {
 
     // Voice: handle completed recording — upload and transcribe
     _handleRecordingComplete: async function() {
-      if (!this._audioChunks.length || !this.currentAgent) return;
+      var voiceAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
+      if (!this._audioChunks.length || !voiceAgent || !voiceAgent.id) return;
       var blob = new Blob(this._audioChunks, { type: this._audioChunks[0].type || 'audio/webm' });
       this._audioChunks = [];
       if (blob.size < 100) return; // too small
@@ -7056,7 +7618,7 @@ function chatPage() {
         // Upload audio file
         var ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : 'mp3';
         var file = new File([blob], 'voice_' + Date.now() + '.' + ext, { type: blob.type });
-        var upload = await InfringAPI.upload(this.currentAgent.id, file);
+        var upload = await InfringAPI.upload(voiceAgent.id, file);
 
         // Remove the "Transcribing..." message
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
@@ -7065,7 +7627,7 @@ function chatPage() {
         var text = (upload.transcription && upload.transcription.trim())
           ? upload.transcription.trim()
           : '[Voice message - audio: ' + upload.filename + ']';
-        this._sendPayload(text, [upload], []);
+        this._sendPayload(text, [upload], [], { agent_id: voiceAgent.id });
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
         if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to upload audio: ' + (e.message || 'unknown error'));
