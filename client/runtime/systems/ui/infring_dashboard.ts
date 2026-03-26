@@ -43,6 +43,7 @@ const AGENT_PROFILES_PATH = path.resolve(STATE_DIR, 'agent_profiles.json');
 const AGENT_GIT_TREES_DIR = path.resolve(STATE_DIR, 'agent_git_trees');
 const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
 const PROVIDER_REGISTRY_PATH = path.resolve(STATE_DIR, 'provider_registry.json');
+const PROVIDER_BOOTSTRAP_STATE_PATH = path.resolve(STATE_DIR, 'provider_bootstrap_state.json');
 const CUSTOM_MODELS_PATH = path.resolve(STATE_DIR, 'custom_models.json');
 const CHANNEL_REGISTRY_PATH = path.resolve(STATE_DIR, 'channel_registry.json');
 const CHANNEL_QR_STATE_PATH = path.resolve(STATE_DIR, 'channel_qr_sessions.json');
@@ -3705,8 +3706,44 @@ const PROVIDER_DEFAULTS = [
   { id: 'fireworks', display_name: 'Fireworks', is_local: false, needs_key: true },
   { id: 'ollama', display_name: 'Ollama', is_local: true, needs_key: false, base_url: 'http://127.0.0.1:11434' },
   { id: 'llama.cpp', display_name: 'llama.cpp', is_local: true, needs_key: false, base_url: 'http://127.0.0.1:8080' },
-  { id: 'cloud', display_name: 'Cloud (Generic)', is_local: false, needs_key: true },
+  { id: 'cloud', display_name: 'Cloud (Generic)', is_local: false, needs_key: false },
 ];
+
+const PROVIDER_BOOTSTRAP_VERSION = 1;
+const PROVIDER_ENV_KEY_HINTS = {
+  openai: ['OPENAI_API_KEY'],
+  anthropic: ['ANTHROPIC_API_KEY'],
+  google: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+  groq: ['GROQ_API_KEY'],
+  xai: ['XAI_API_KEY'],
+  deepseek: ['DEEPSEEK_API_KEY'],
+  cohere: ['COHERE_API_KEY'],
+  mistral: ['MISTRAL_API_KEY'],
+  perplexity: ['PPLX_API_KEY', 'PERPLEXITY_API_KEY'],
+  openrouter: ['OPENROUTER_API_KEY'],
+  together: ['TOGETHER_API_KEY'],
+  fireworks: ['FIREWORKS_API_KEY'],
+};
+const PROVIDER_ONE_SHOT_LOCAL_PROBES = [
+  {
+    id: 'lmstudio',
+    display_name: 'LM Studio',
+    base_urls: ['http://127.0.0.1:1234'],
+  },
+  {
+    id: 'jan',
+    display_name: 'Jan',
+    base_urls: ['http://127.0.0.1:1337'],
+  },
+  {
+    id: 'vllm',
+    display_name: 'vLLM',
+    base_urls: ['http://127.0.0.1:8000'],
+  },
+];
+const PROVIDER_ONE_SHOT_LOCAL_IDS = new Set(
+  PROVIDER_ONE_SHOT_LOCAL_PROBES.map((row) => cleanText(row && row.id ? row.id : '', 80).toLowerCase()).filter(Boolean)
+);
 
 const CHANNEL_DEFAULTS = [
   {
@@ -3775,6 +3812,7 @@ let ollamaModelListCache = {
   ts: 0,
   models: [],
 };
+let providerBootstrapStateCache = null;
 
 function inferProviderFromApiKey(apiKey = '') {
   const key = cleanText(apiKey || '', 320);
@@ -3796,6 +3834,149 @@ function providerDefaultById(providerId) {
   const normalized = cleanText(providerId || '', 80).toLowerCase();
   if (!normalized) return null;
   return PROVIDER_DEFAULTS.find((row) => row.id === normalized) || null;
+}
+
+const PROVIDER_MODEL_PROFILE_MAX = 512;
+
+function sanitizeModelProfileToken(value = '') {
+  return cleanText(value || '', 180)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 160);
+}
+
+function normalizeModelRating(value, fallback = 3) {
+  const parsed = parsePositiveInt(value, fallback, 1, 5);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(5, parsed));
+}
+
+function normalizeModelDeploymentKind(value = '', fallback = 'cloud') {
+  const normalized = cleanText(value || '', 20).toLowerCase();
+  if (normalized === 'local' || normalized === 'api' || normalized === 'cloud') return normalized;
+  return fallback;
+}
+
+function normalizeProviderModelProfiles(value = {}) {
+  const source = value && typeof value === 'object' ? value : {};
+  const out = {};
+  for (const key of Object.keys(source).slice(0, PROVIDER_MODEL_PROFILE_MAX)) {
+    const modelId = cleanText(key || '', 180);
+    if (!modelId) continue;
+    const row = source[key] && typeof source[key] === 'object' ? source[key] : {};
+    out[modelId] = {
+      power_rating: normalizeModelRating(row.power_rating, 3),
+      cost_rating: normalizeModelRating(row.cost_rating, 3),
+      deployment_kind: normalizeModelDeploymentKind(row.deployment_kind, 'cloud'),
+      local_download_path: cleanText(row.local_download_path || '', 640),
+      download_available: row.download_available === true,
+      updated_at: cleanText(row.updated_at || nowIso(), 80) || nowIso(),
+    };
+  }
+  return out;
+}
+
+function modelLooksLocallyDownloadable(providerId = '', modelId = '') {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const model = cleanText(modelId || '', 180).toLowerCase();
+  if (!provider || !model) return false;
+  if (provider === 'ollama' || provider === 'llama.cpp') return true;
+  if (
+    /\b(llama|mistral|deepseek|qwen|gemma|phi|mixtral|yi|falcon|starcoder|codestral|command-r|openhermes)\b/i.test(
+      model
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function inferModelPowerRating(providerId = '', modelId = '') {
+  const id = cleanText(modelId || '', 180).toLowerCase();
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  if (!id) return 3;
+  if (/\b(opus|gpt-5|o3|r1|reasoner|sonnet-4|70b|72b|90b|120b|405b)\b/i.test(id)) return 5;
+  if (/\b(claude|gpt-4|gemini-2\.5-pro|pro|34b|32b|27b|24b)\b/i.test(id)) return 4;
+  if (/\b(mini|flash|instant|small|8b|7b|6b|3b|2b|1b)\b/i.test(id)) return 2;
+  if (provider === 'cloud' && /:cloud$/i.test(id)) return 4;
+  return 3;
+}
+
+function inferModelCostRating(providerId = '', modelId = '') {
+  const id = cleanText(modelId || '', 180).toLowerCase();
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  if (!id) return 3;
+  if (provider === 'ollama' || provider === 'llama.cpp') return 1;
+  if (/\b(opus|gpt-5|o3|reasoner|pro|70b|72b|90b|120b|405b)\b/i.test(id)) return 5;
+  if (/\b(sonnet|gpt-4|gemini-2\.5-pro|34b|32b|27b|24b)\b/i.test(id)) return 4;
+  if (/\b(mini|flash|instant|small|8b|7b|6b|3b|2b|1b)\b/i.test(id)) return 2;
+  return 3;
+}
+
+function inferModelDeploymentKind(providerId = '', providerRow = null) {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+  if (row.is_local === true || provider === 'ollama' || provider === 'llama.cpp') return 'local';
+  if (row.needs_key === true) return 'api';
+  return 'cloud';
+}
+
+function deriveProviderModelProfile(providerId = '', modelId = '', providerRow = null) {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const model = cleanText(modelId || '', 180);
+  const deploymentKind = inferModelDeploymentKind(provider, providerRow);
+  const downloadable = modelLooksLocallyDownloadable(provider, model);
+  const localRoot = path.resolve(ROOT, 'core', 'local', 'models');
+  const localPath = downloadable
+    ? path.resolve(localRoot, sanitizeModelProfileToken(provider) || 'provider', sanitizeModelProfileToken(model) || 'model')
+    : '';
+  return {
+    power_rating: inferModelPowerRating(provider, model),
+    cost_rating: inferModelCostRating(provider, model),
+    deployment_kind: deploymentKind,
+    local_download_path: cleanText(localPath, 640),
+    download_available: downloadable,
+    updated_at: nowIso(),
+  };
+}
+
+function providerModelCandidates(providerId = '', providerRow = null) {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+  const merged = [];
+  const append = (value) => {
+    const model = cleanText(value || '', 180);
+    if (!model || merged.includes(model)) return;
+    merged.push(model);
+  };
+  const detected = Array.isArray(row.detected_models) ? row.detected_models : [];
+  for (const modelId of detected) append(modelId);
+  const catalog = providerCatalogModels(provider, 64);
+  for (const modelId of catalog) append(modelId);
+  return merged.slice(0, PROVIDER_MODEL_PROFILE_MAX);
+}
+
+function applyProviderModelProfiles(providerId = '', providerRow = null) {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+  const priorProfiles = normalizeProviderModelProfiles(row.model_profiles || {});
+  const nextProfiles = { ...priorProfiles };
+  let changed = false;
+  const candidates = providerModelCandidates(provider, row);
+  for (const modelId of candidates) {
+    const existing = nextProfiles[modelId] && typeof nextProfiles[modelId] === 'object' ? nextProfiles[modelId] : null;
+    if (existing) continue;
+    nextProfiles[modelId] = deriveProviderModelProfile(provider, modelId, row);
+    changed = true;
+  }
+  return {
+    changed,
+    row: {
+      ...row,
+      model_profiles: nextProfiles,
+    },
+  };
 }
 
 function normalizeProviderRecord(providerId, value = {}) {
@@ -3822,6 +4003,14 @@ function normalizeProviderRecord(providerId, value = {}) {
           .filter(Boolean)
           .slice(0, 128)
       : [],
+    local_model_root: cleanText(value.local_model_root || '', 640),
+    local_model_paths: Array.isArray(value.local_model_paths)
+      ? value.local_model_paths
+          .map((row) => cleanText(row, 1024))
+          .filter(Boolean)
+          .slice(0, 128)
+      : [],
+    model_profiles: normalizeProviderModelProfiles(value.model_profiles || {}),
     updated_at: cleanText(value.updated_at || now, 80) || now,
   };
 }
@@ -3850,7 +4039,8 @@ function loadProviderRegistry(snapshot) {
   const configured = cleanText(configuredProvider(snapshot), 80).toLowerCase();
   if (configured && providers[configured]) {
     if (!providers[configured].is_local) {
-      providers[configured].auth_status = providers[configured].key_hash ? 'configured' : 'configured';
+      providers[configured].auth_status =
+        providers[configured].needs_key && !providers[configured].key_hash ? 'not_set' : 'configured';
     }
     providers[configured].updated_at = now;
   }
@@ -3866,10 +4056,50 @@ function saveProviderRegistry(state) {
   const normalized = loadProviderRegistry(null);
   const incomingProviders = state && state.providers && typeof state.providers === 'object' ? state.providers : {};
   for (const providerId of Object.keys(incomingProviders)) {
-    normalized.providers[providerId] = normalizeProviderRecord(providerId, incomingProviders[providerId]);
+    const normalizedRow = normalizeProviderRecord(providerId, incomingProviders[providerId]);
+    const profiled = applyProviderModelProfiles(providerId, normalizedRow);
+    normalized.providers[providerId] = profiled.row;
   }
   normalized.updated_at = nowIso();
   writeJson(PROVIDER_REGISTRY_PATH, normalized);
+  return normalized;
+}
+
+function normalizeProviderBootstrapState(value = {}) {
+  const root = value && typeof value === 'object' ? value : {};
+  return {
+    type: 'infring_dashboard_provider_bootstrap',
+    version: parsePositiveInt(root.version, 0, 0, 9999),
+    completed: root.completed === true,
+    completed_at: cleanText(root.completed_at || '', 80),
+    discovered_provider_ids: Array.isArray(root.discovered_provider_ids)
+      ? root.discovered_provider_ids
+          .map((row) => cleanText(row, 80).toLowerCase())
+          .filter(Boolean)
+          .slice(0, 48)
+      : [],
+    switched_provider: cleanText(root.switched_provider || '', 80).toLowerCase(),
+    switched_model: cleanText(root.switched_model || '', 160),
+    updated_at: cleanText(root.updated_at || nowIso(), 80) || nowIso(),
+  };
+}
+
+function loadProviderBootstrapState() {
+  if (providerBootstrapStateCache) return providerBootstrapStateCache;
+  providerBootstrapStateCache = normalizeProviderBootstrapState(
+    readJson(PROVIDER_BOOTSTRAP_STATE_PATH, null)
+  );
+  return providerBootstrapStateCache;
+}
+
+function saveProviderBootstrapState(state) {
+  const normalized = normalizeProviderBootstrapState({
+    ...(providerBootstrapStateCache || {}),
+    ...(state && typeof state === 'object' ? state : {}),
+    updated_at: nowIso(),
+  });
+  writeJson(PROVIDER_BOOTSTRAP_STATE_PATH, normalized);
+  providerBootstrapStateCache = normalized;
   return normalized;
 }
 
@@ -3889,6 +4119,142 @@ function providerKeyMetadata(key = '') {
     key_hash: sha256(clean),
     key_set_at: nowIso(),
   };
+}
+
+function expandHomePath(inputPath = '') {
+  const value = cleanText(inputPath || '', 640);
+  if (!value) return '';
+  if (value === '~') return cleanText(process.env.HOME || '', 640);
+  if (value.startsWith('~/')) {
+    const home = cleanText(process.env.HOME || '', 640);
+    if (!home) return value.slice(2);
+    return path.resolve(home, value.slice(2));
+  }
+  return value;
+}
+
+function looksLikeLocalModelPath(value = '') {
+  const raw = cleanText(value || '', 640);
+  if (!raw) return false;
+  if (/^(https?:\/\/|sk-|sk-proj-|gsk_|AIza|xai-|dsk_|pplx-|co_|mistral-|or-)/i.test(raw)) return false;
+  if (/^[A-Za-z]:\\/.test(raw)) return true;
+  if (raw.startsWith('/') || raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('~/')) return true;
+  if (raw.includes(path.sep) || raw.includes('/')) return true;
+  return false;
+}
+
+function discoverLocalModelFilesFromPath(inputPath = '') {
+  const expanded = expandHomePath(inputPath);
+  const resolved = expanded ? path.resolve(expanded) : '';
+  if (!resolved || !fs.existsSync(resolved)) {
+    return { ok: false, error: 'path_not_found', models: [], resolved_path: resolved };
+  }
+  let stat = null;
+  try {
+    stat = fs.statSync(resolved);
+  } catch {
+    stat = null;
+  }
+  if (!stat) return { ok: false, error: 'path_stat_failed', models: [], resolved_path: resolved };
+  const exts = new Set(['.gguf', '.safetensors', '.bin', '.onnx', '.pt', '.pth']);
+  const modelPaths = [];
+  const addModelFile = (filePath) => {
+    const ext = String(path.extname(filePath || '') || '').toLowerCase();
+    if (!exts.has(ext)) return;
+    const abs = path.resolve(String(filePath || ''));
+    if (!modelPaths.includes(abs)) modelPaths.push(abs);
+  };
+  if (stat.isFile()) {
+    addModelFile(resolved);
+  } else if (stat.isDirectory()) {
+    const stack = [{ dir: resolved, depth: 0 }];
+    const maxDepth = 3;
+    while (stack.length && modelPaths.length < 128) {
+      const current = stack.shift();
+      if (!current) continue;
+      let entries = [];
+      try {
+        entries = fs.readdirSync(current.dir, { withFileTypes: true });
+      } catch {
+        entries = [];
+      }
+      for (const entry of entries) {
+        if (!entry) continue;
+        const entryPath = path.resolve(current.dir, String(entry.name || ''));
+        if (entry.isFile()) {
+          addModelFile(entryPath);
+          continue;
+        }
+        if (entry.isDirectory() && current.depth < maxDepth) {
+          stack.push({ dir: entryPath, depth: current.depth + 1 });
+        }
+      }
+    }
+  }
+  const models = modelPaths
+    .map((filePath) => cleanText(path.basename(filePath, path.extname(filePath)), 160))
+    .filter(Boolean)
+    .slice(0, 128);
+  return {
+    ok: models.length > 0,
+    error: models.length > 0 ? '' : 'no_model_files_found',
+    models,
+    model_paths: modelPaths.slice(0, 128),
+    resolved_path: resolved,
+  };
+}
+
+function providerCatalogModels(providerId = '', limit = 32) {
+  const key = cleanText(providerId || '', 80).toLowerCase();
+  const cap = parsePositiveInt(limit, 32, 1, 128);
+  return Array.isArray(PROVIDER_MODEL_CATALOG[key])
+    ? PROVIDER_MODEL_CATALOG[key]
+        .map((row) => cleanText(row, 160))
+        .filter(Boolean)
+        .slice(0, cap)
+    : [];
+}
+
+function envApiKeyForProvider(providerId = '') {
+  const key = cleanText(providerId || '', 80).toLowerCase();
+  const envNames = Array.isArray(PROVIDER_ENV_KEY_HINTS[key]) ? PROVIDER_ENV_KEY_HINTS[key] : [];
+  for (const envName of envNames) {
+    const value = cleanText(process.env && process.env[envName] ? process.env[envName] : '', 640);
+    if (value) return value;
+  }
+  return '';
+}
+
+function providerCanRunWithoutManualKey(providerId = '', providerRow = null) {
+  const id = cleanText(providerId || '', 80).toLowerCase();
+  const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+  const needsKey = row.needs_key === true;
+  const keyHash = cleanText(row.key_hash || '', 80);
+  const models = Array.isArray(row.detected_models) ? row.detected_models.filter(Boolean) : [];
+  if (row.is_local === true) return models.length > 0;
+  if (!needsKey) return models.length > 0 || row.reachable === true;
+  if (keyHash) return true;
+  if (id === 'cloud' && models.length > 0) return true;
+  return false;
+}
+
+function bestFreeProviderCandidate(providers = {}) {
+  const map = providers && typeof providers === 'object' ? providers : {};
+  const preferredOrder = ['ollama', 'llama.cpp', 'lmstudio', 'jan', 'vllm', 'cloud'];
+  for (const providerId of preferredOrder) {
+    const row = map[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+    if (!providerCanRunWithoutManualKey(providerId, row)) continue;
+    const models = Array.isArray(row.detected_models) && row.detected_models.length
+      ? row.detected_models
+      : providerCatalogModels(providerId, 32);
+    const model = cleanText(models[0] || '', 160);
+    if (!model) continue;
+    return {
+      provider: providerId,
+      model,
+    };
+  }
+  return null;
 }
 
 function probeOpenAiCompatModels(baseUrl = '', apiKey = '') {
@@ -4180,9 +4546,16 @@ function parseOllamaModelList() {
 
 function discoverLocalProviderState(snapshot, options = {}) {
   const force = !!(options && options.force === true);
+  const bootstrapState = loadProviderBootstrapState();
+  const bootstrapVersion = parsePositiveInt(bootstrapState.version, 0, 0, 9999);
+  const bootstrapNeeded =
+    force ||
+    bootstrapState.completed !== true ||
+    bootstrapVersion !== PROVIDER_BOOTSTRAP_VERSION;
   const nowMs = Date.now();
   if (
     !force &&
+    !bootstrapNeeded &&
     (nowMs - parseNonNegativeInt(localProviderAutoDiscoverAtMs, 0, 9_999_999_999_999)) <
       LOCAL_PROVIDER_DISCOVERY_INTERVAL_MS
   ) {
@@ -4194,6 +4567,11 @@ function discoverLocalProviderState(snapshot, options = {}) {
     registry && registry.providers && typeof registry.providers === 'object'
       ? { ...registry.providers }
       : {};
+  const discoveredProviderIds = new Set(
+    Array.isArray(bootstrapState.discovered_provider_ids)
+      ? bootstrapState.discovered_provider_ids.map((row) => cleanText(row, 80).toLowerCase()).filter(Boolean)
+      : []
+  );
   let changed = false;
   const ensureProvider = (providerId, nextValue) => {
     const next = normalizeProviderRecord(providerId, nextValue);
@@ -4217,11 +4595,28 @@ function discoverLocalProviderState(snapshot, options = {}) {
     detected_models: mergedOllama,
     updated_at: nowIso(),
   });
+  discoveredProviderIds.add('ollama');
+
+  const cloudPrev = providers.cloud || normalizeProviderRecord('cloud', {});
+  const cloudCatalogModels = providerCatalogModels('cloud', 16);
+  ensureProvider('cloud', {
+    ...cloudPrev,
+    needs_key: false,
+    auth_status: cloudCatalogModels.length > 0 || cloudPrev.reachable ? 'configured' : cloudPrev.auth_status || 'configured',
+    reachable: cloudCatalogModels.length > 0 || cloudPrev.reachable === true,
+    detected_models:
+      Array.isArray(cloudPrev.detected_models) && cloudPrev.detected_models.length
+        ? cloudPrev.detected_models.slice(0, 128)
+        : cloudCatalogModels,
+    updated_at: nowIso(),
+  });
+  discoveredProviderIds.add('cloud');
 
   for (const providerId of Object.keys(providers)) {
     if (providerId === 'ollama') continue;
     const providerRow = providers[providerId];
     if (!(providerRow && providerRow.is_local)) continue;
+    if (PROVIDER_ONE_SHOT_LOCAL_IDS.has(providerId) && !bootstrapNeeded && !force) continue;
     const baseUrl = cleanText(providerRow.base_url || '', 320);
     if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) continue;
     const probe = probeOpenAiCompatModels(baseUrl, '');
@@ -4240,6 +4635,114 @@ function discoverLocalProviderState(snapshot, options = {}) {
             : [],
       updated_at: nowIso(),
     });
+    if (probe.reachable && Array.isArray(probe.models) && probe.models.length > 0) {
+      discoveredProviderIds.add(providerId);
+    }
+  }
+
+  let switchedProvider = cleanText(bootstrapState.switched_provider || '', 80).toLowerCase();
+  let switchedModel = cleanText(bootstrapState.switched_model || '', 160);
+  if (bootstrapNeeded) {
+    for (const providerId of Object.keys(PROVIDER_ENV_KEY_HINTS)) {
+      const key = envApiKeyForProvider(providerId);
+      if (!key) continue;
+      const prior = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+      const meta = providerKeyMetadata(key);
+      ensureProvider(providerId, {
+        ...prior,
+        ...meta,
+        auth_status: 'configured',
+        reachable: true,
+        detected_models:
+          Array.isArray(prior.detected_models) && prior.detected_models.length
+            ? prior.detected_models.slice(0, 128)
+            : providerCatalogModels(providerId, 32),
+        updated_at: nowIso(),
+      });
+      discoveredProviderIds.add(providerId);
+    }
+
+    for (const probeDef of PROVIDER_ONE_SHOT_LOCAL_PROBES) {
+      const providerId = cleanText(probeDef && probeDef.id ? probeDef.id : '', 80).toLowerCase();
+      if (!providerId) continue;
+      const baseUrls = Array.isArray(probeDef && probeDef.base_urls) ? probeDef.base_urls : [];
+      let matchedUrl = '';
+      let matchedModels = [];
+      for (const baseUrlCandidate of baseUrls) {
+        const baseUrl = cleanText(baseUrlCandidate || '', 320);
+        if (!baseUrl) continue;
+        const probe = probeOpenAiCompatModels(baseUrl, '');
+        if (!probe.reachable || !Array.isArray(probe.models) || probe.models.length === 0) continue;
+        matchedUrl = baseUrl;
+        matchedModels = probe.models.slice(0, 128);
+        break;
+      }
+      if (!matchedUrl || matchedModels.length === 0) continue;
+      const prior = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+      ensureProvider(providerId, {
+        ...prior,
+        display_name:
+          cleanText(probeDef && probeDef.display_name ? probeDef.display_name : providerId, 80) || providerId,
+        is_local: true,
+        needs_key: false,
+        base_url: matchedUrl,
+        reachable: true,
+        auth_status: 'configured',
+        detected_models: matchedModels,
+        updated_at: nowIso(),
+      });
+      discoveredProviderIds.add(providerId);
+    }
+
+    const currentProvider = cleanText(configuredProvider(snapshot), 80).toLowerCase() || 'ollama';
+    const currentModel = cleanText(
+      snapshot &&
+      snapshot.app &&
+      snapshot.app.settings &&
+      snapshot.app.settings.model
+        ? snapshot.app.settings.model
+        : configuredOllamaModel(snapshot),
+      160
+    ) || configuredOllamaModel(snapshot);
+    const currentProviderRow = providers[currentProvider] || normalizeProviderRecord(currentProvider, { id: currentProvider });
+    const currentUsable = providerCanRunWithoutManualKey(currentProvider, currentProviderRow);
+    if (!currentUsable) {
+      const fallback = bestFreeProviderCandidate(providers);
+      if (fallback && fallback.provider && fallback.model) {
+        const currentKey = `${currentProvider}/${currentModel}`.toLowerCase();
+        const fallbackKey = `${fallback.provider}/${fallback.model}`.toLowerCase();
+        if (currentKey !== fallbackKey) {
+          const lane = runAction('app.switchProvider', {
+            provider: fallback.provider,
+            model: fallback.model,
+          });
+          if (lane && lane.ok) {
+            switchedProvider = cleanText(fallback.provider, 80).toLowerCase();
+            switchedModel = cleanText(fallback.model, 160);
+          }
+        }
+      }
+    }
+
+    saveProviderBootstrapState({
+      version: PROVIDER_BOOTSTRAP_VERSION,
+      completed: true,
+      completed_at: nowIso(),
+      discovered_provider_ids: Array.from(discoveredProviderIds),
+      switched_provider: switchedProvider,
+      switched_model: switchedModel,
+    });
+  }
+
+  for (const providerId of Object.keys(providers)) {
+    const current = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+    const profiled = applyProviderModelProfiles(providerId, current);
+    if (profiled.changed) {
+      ensureProvider(providerId, {
+        ...profiled.row,
+        updated_at: nowIso(),
+      });
+    }
   }
 
   if (changed) {
@@ -4259,6 +4762,18 @@ function buildDashboardModels(snapshot) {
     ? providerRegistry.providers
     : {};
   const customModels = loadCustomModels();
+  const profileForModel = (providerId, modelId, providerRow, forceLocal = false) => {
+    const provider = cleanText(providerId || '', 80).toLowerCase();
+    const model = cleanText(modelId || '', 180);
+    const row = providerRow && typeof providerRow === 'object' ? providerRow : {};
+    const profileMap = row.model_profiles && typeof row.model_profiles === 'object' ? row.model_profiles : {};
+    const direct = profileMap[model] && typeof profileMap[model] === 'object' ? profileMap[model] : null;
+    if (direct) return direct;
+    return deriveProviderModelProfile(provider, model, {
+      ...row,
+      is_local: forceLocal || row.is_local === true,
+    });
+  };
 
   rows.push({
     id: 'auto',
@@ -4271,6 +4786,9 @@ function buildDashboardModels(snapshot) {
     context_window: configuredWindow,
     deployment: 'cloud',
     is_local: false,
+    power_rating: 3,
+    cost_rating: 3,
+    local_download_path: '',
   });
 
   const configured = configuredOllamaModel(snapshot);
@@ -4284,6 +4802,7 @@ function buildDashboardModels(snapshot) {
   ).slice(0, 128);
 
   for (const id of mergedOllama) {
+    const profile = profileForModel('ollama', id, ollamaProvider, true);
     rows.push({
       id,
       provider: 'ollama',
@@ -4293,8 +4812,11 @@ function buildDashboardModels(snapshot) {
       supports_tools: true,
       supports_vision: /\b(vision|vl|llava)\b/i.test(String(id || '')),
       context_window: inferContextWindowFromModelName(id, configuredWindow),
-      deployment: 'local',
+      deployment: cleanText(profile && profile.deployment_kind ? profile.deployment_kind : 'local', 20) || 'local',
       is_local: true,
+      power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
+      cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 1, 1),
+      local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
     });
   }
 
@@ -4308,6 +4830,8 @@ function buildDashboardModels(snapshot) {
     seenModelKey.add(key);
     const fallbackWindow = inferContextWindowFromModelName(cleanModel, DEFAULT_CONTEXT_WINDOW_TOKENS);
     const local = options.is_local === true;
+    const providerRow = providers[cleanProvider] || normalizeProviderRecord(cleanProvider, { id: cleanProvider, is_local: local });
+    const profile = profileForModel(cleanProvider, cleanModel, providerRow, local);
     rows.push({
       id: cleanProvider === 'ollama' ? cleanModel : `${cleanProvider}/${cleanModel}`,
       provider: cleanProvider,
@@ -4323,8 +4847,11 @@ function buildDashboardModels(snapshot) {
         1024,
         8_000_000
       ),
-      deployment: local ? 'local' : 'cloud',
+      deployment: cleanText(profile && profile.deployment_kind ? profile.deployment_kind : (local ? 'local' : 'api'), 20) || (local ? 'local' : 'api'),
       is_local: local,
+      power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
+      cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 3, 3),
+      local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
     });
   };
 
@@ -16384,19 +16911,61 @@ function runServe(flags) {
       }
       if (req.method === 'POST' && pathname === '/api/models/discover') {
         const payload = await bodyJson(req);
-        const apiKey = cleanText(payload && payload.api_key ? payload.api_key : '', 640);
-        if (!apiKey) {
-          sendJson(res, 400, { ok: false, error: 'api_key_required' });
+        const discoveryInput = cleanText(
+          payload && (payload.input || payload.api_key) ? payload.input || payload.api_key : '',
+          640
+        );
+        if (!discoveryInput) {
+          sendJson(res, 400, { ok: false, error: 'api_key_or_path_required' });
           return;
         }
-        const inferredProvider = inferProviderFromApiKey(apiKey);
         const registry = loadProviderRegistry(latestSnapshot);
         const providers = registry && registry.providers && typeof registry.providers === 'object' ? registry.providers : {};
+        if (looksLikeLocalModelPath(discoveryInput)) {
+          const localDiscovery = discoverLocalModelFilesFromPath(discoveryInput);
+          if (!localDiscovery.ok) {
+            sendJson(res, 400, {
+              ok: false,
+              error: localDiscovery.error || 'local_model_discovery_failed',
+              resolved_path: cleanText(localDiscovery.resolved_path || '', 640),
+            });
+            return;
+          }
+          const providerId = 'llama.cpp';
+          const record = providers[providerId] || normalizeProviderRecord(providerId, { id: providerId });
+          providers[providerId] = normalizeProviderRecord(providerId, {
+            ...record,
+            display_name: cleanText(record.display_name || 'llama.cpp', 80) || 'llama.cpp',
+            is_local: true,
+            needs_key: false,
+            auth_status: 'configured',
+            reachable: true,
+            detected_models: Array.isArray(localDiscovery.models) ? localDiscovery.models.slice(0, 128) : [],
+            local_model_root: cleanText(localDiscovery.resolved_path || '', 640),
+            local_model_paths: Array.isArray(localDiscovery.model_paths)
+              ? localDiscovery.model_paths.slice(0, 128)
+              : [],
+            updated_at: nowIso(),
+          });
+          saveProviderRegistry({ providers });
+          sendJson(res, 200, {
+            ok: true,
+            provider: providerId,
+            input_kind: 'local_path',
+            resolved_path: cleanText(localDiscovery.resolved_path || '', 640),
+            models: Array.isArray(localDiscovery.models) ? localDiscovery.models.slice(0, 128) : [],
+            model_count: Array.isArray(localDiscovery.models) ? localDiscovery.models.length : 0,
+            message: `Local models registered from ${cleanText(localDiscovery.resolved_path || '', 240)}.`,
+          });
+          return;
+        }
+
+        const inferredProvider = inferProviderFromApiKey(discoveryInput);
         const record = providers[inferredProvider] || normalizeProviderRecord(inferredProvider, { id: inferredProvider });
-        const meta = providerKeyMetadata(apiKey);
-        const catalogModels = Array.isArray(PROVIDER_MODEL_CATALOG[inferredProvider]) ? PROVIDER_MODEL_CATALOG[inferredProvider].slice(0, 24) : [];
+        const meta = providerKeyMetadata(discoveryInput);
+        const catalogModels = providerCatalogModels(inferredProvider, 24);
         const detected = record.is_local
-          ? probeOpenAiCompatModels(record.base_url || '', apiKey).models
+          ? probeOpenAiCompatModels(record.base_url || '', discoveryInput).models
           : catalogModels;
         providers[inferredProvider] = normalizeProviderRecord(inferredProvider, {
           ...record,
@@ -16410,6 +16979,7 @@ function runServe(flags) {
         sendJson(res, 200, {
           ok: true,
           provider: inferredProvider,
+          input_kind: 'api_key',
           models: detected.length ? detected : catalogModels,
           model_count: (detected.length ? detected : catalogModels).length,
           message: `API key stored for ${inferredProvider}.`,
