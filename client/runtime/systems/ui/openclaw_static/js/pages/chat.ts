@@ -6151,7 +6151,8 @@ function chatPage() {
             fileRefs.push('[File: ' + att.file.name + ']');
             uploadedFiles.push({ file_id: uploadRes.file_id, filename: uploadRes.filename, content_type: uploadRes.content_type });
           } catch(e) {
-            InfringToast.error('Failed to upload ' + att.file.name);
+            var reason = (e && e.message) ? String(e.message) : 'upload_failed';
+            InfringToast.error('Failed to upload ' + att.file.name + ': ' + reason);
             fileRefs.push('[File: ' + att.file.name + ' (upload failed)]');
           }
           att.uploading = false;

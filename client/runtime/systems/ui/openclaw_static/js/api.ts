@@ -273,8 +273,23 @@ var InfringAPI = (function() {
       headers: hdrs,
       body: file
     }).then(function(r) {
-      if (!r.ok) throw new Error('Upload failed');
-      return r.json();
+      return r.text().then(function(raw) {
+        var payload = {};
+        if (raw && String(raw).trim()) {
+          try { payload = JSON.parse(raw); } catch (_) { payload = {}; }
+        }
+        if (!r.ok) {
+          var reason = (payload && payload.error) ? String(payload.error) : '';
+          throw new Error(reason || 'upload_failed');
+        }
+        if (!payload || typeof payload !== 'object' || !payload.file_id) {
+          if (payload && payload.type === 'infring_external_compat_stub') {
+            throw new Error('upload_endpoint_stub_requires_dashboard_restart');
+          }
+          throw new Error('upload_invalid_response');
+        }
+        return payload;
+      });
     });
   }
 
