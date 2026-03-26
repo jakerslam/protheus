@@ -1200,6 +1200,43 @@ function chatPage() {
       var source = Array.isArray(rows) ? rows : [];
       var seen = {};
       var out = [];
+      var wordCount = function(text) {
+        return String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean).length;
+      };
+      var clampWords = function(text, maxWords) {
+        var cap = Number(maxWords || 12);
+        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
+        if (!words.length) return '';
+        if (!Number.isFinite(cap) || cap < 4) cap = 12;
+        if (words.length <= cap) return words.join(' ');
+        return words.slice(0, cap).join(' ');
+      };
+      var normalizeVoice = function(value) {
+        var row = String(value == null ? '' : value)
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!row) return '';
+        row = row
+          .replace(/^\s*[-*0-9.)\]]+\s*/, '')
+          .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
+          .replace(/^\s*(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis|user|human)(?:\*\*)?\s*:\s*/i, '')
+          .replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '')
+          .replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Can you ')
+          .replace(/^ask\s+for\s+/i, 'Can you ')
+          .replace(/^request\s+/i, 'Can you ')
+          .replace(/^please\s+request\s+/i, 'Can you ')
+          .replace(/^give me\s+/i, 'Can you ')
+          .replace(/^show me\s+/i, 'Can you show ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        row = clampWords(row, 12);
+        row = row.replace(/[.!?]+$/g, '').trim();
+        if (!row) return '';
+        if (/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) row = row + '?';
+        if (row.length) row = row.charAt(0).toUpperCase() + row.slice(1);
+        if (row.length > 180) row = row.substring(0, 177) + '...';
+        return row;
+      };
       var isLowValue = function(text) {
         var lowered = String(text || '').toLowerCase();
         if (!lowered) return true;
@@ -1207,38 +1244,47 @@ function chatPage() {
         if (lowered.indexOf('if you need help') >= 0 || lowered.indexOf('feel free to ask') >= 0) return true;
         if (lowered.indexOf('the user wants exactly 3 actionable next user prompts') >= 0) return true;
         if (lowered.indexOf('json array of strings') >= 0) return true;
+        if (lowered.indexOf('output only the') >= 0) return true;
+        if (lowered.indexOf('do not include numbering') >= 0) return true;
+        if (lowered.indexOf('highest-roi') >= 0) return true;
+        if (lowered.indexOf('runbook') >= 0) return true;
+        if (lowered.indexOf('reliability remediation') >= 0) return true;
+        if (lowered.indexOf('rollback criteria') >= 0) return true;
+        if (lowered.indexOf('3-step execution plan') >= 0) return true;
+        if (lowered.indexOf('this task') >= 0) return true;
         if (lowered === 'thinking...' || lowered === 'thinking..' || lowered === 'thinking.') return true;
         var sentenceCount = (text.match(/[.!?]/g) || []).length;
         if (sentenceCount > 2) return true;
         if (/[\"“”]/.test(text) && text.length > 120) return true;
-        var actionableStart = /^(give me|run|create|draft|summarize|audit|check|fix|implement|propose|generate|compare|list|explain|plan|continue|compact|validate|review|show|write|build|convert|identify|trace)\b/i.test(text);
+        if (/^(give me|request|ask for)\b/i.test(text)) return true;
+        var words = wordCount(text);
+        if (words < 3 || words > 14) return true;
+        var actionableStart =
+          /^(can|could|would|should|what|why|how|when|where|who|show|fix|check|run|retry|switch|clear|drain|scale|continue|compare|explain|validate|review|open|trace)\b/i.test(text);
         if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
         return false;
       };
       for (var i = 0; i < source.length; i++) {
-        var raw = String(source[i] == null ? '' : source[i]).replace(/\s+/g, ' ').trim();
-        if (!raw) continue;
-        raw = raw.replace(/^agent:\s*/i, '');
-        raw = raw.replace(/^ask\s+for\s+/i, 'Give me ');
-        raw = raw.replace(/^request\s+/i, 'Give me ');
-        if (isLowValue(raw)) continue;
-        if (raw.length > 180) raw = raw.substring(0, 177) + '...';
-        var key = raw.toLowerCase();
+        var raw = normalizeVoice(source[i]);
+        if (!raw || isLowValue(raw)) continue;
+        var key = String(raw || '').toLowerCase();
         if (seen[key]) continue;
         seen[key] = true;
         out.push(raw);
-        if (out.length >= 3) break;
+        if (out.length >= 4) break;
       }
       return out;
     },
 
     derivePromptSuggestionFallback(agent, hint) {
       var rows = [];
-      var maxLen = 180;
       var compact = function(value) {
-        var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+        var text = String(value == null ? '' : value)
+          .replace(/^\s*(?:agent|assistant|system|user|jarvis)\s*:\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
         if (!text) return '';
-        if (text.length > maxLen) return text.substring(0, maxLen - 3) + '...';
+        if (text.length > 180) return text.substring(0, 177) + '...';
         return text;
       };
       var sanitizeHint = function(value) {
@@ -1257,47 +1303,99 @@ function chatPage() {
         return text;
       };
       var role = compact(agent && agent.role ? agent.role : '') || 'assistant';
-      var agentName = compact(agent && (agent.name || agent.id) ? (agent.name || agent.id) : '') || 'agent';
-      var model = compact(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '');
       var context = this.collectPromptSuggestionContext();
       var lastUser = compact(context.lastUser || '');
       var lastAgent = compact(context.lastAgent || '');
       var cleanHint = sanitizeHint(hint || '');
-      var topic = compact(cleanHint || lastUser || lastAgent || '').toLowerCase();
-      var topicWords = topic.split(/[^a-z0-9_:-]+/g).filter(function(word) {
+      var topic = compact(cleanHint || lastUser || lastAgent || '');
+      var topicWords = String(topic || '')
+        .toLowerCase()
+        .split(/[^a-z0-9_:-]+/g)
+        .filter(function(word) {
         return word && word.length >= 4 && ['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].indexOf(word) === -1;
-      }).slice(0, 3);
-      var topicLabel = topicWords.length ? topicWords.join(' ') : role + ' workflow';
+      })
+        .slice(0, 3);
+      var topicLabel = topicWords.length ? topicWords.join(' ') : 'current task';
+      var combinedLower = [cleanHint, lastUser, lastAgent].join(' ').toLowerCase();
+      var rotateSeed = topicLabel + '|' + String(context.signature || '') + '|' + cleanHint;
+      var rotate = 0;
+      for (var ridx = 0; ridx < rotateSeed.length; ridx++) {
+        rotate = (rotate + rotateSeed.charCodeAt(ridx)) % 97;
+      }
 
-      if (lastUser) rows.push('Continue the current task with one implementation step and one verification check.');
+      if (/\bcouldn'?t reach|failed to|timeout|lane_timeout|backend unavailable|provider-sync\b/i.test(combinedLower)) {
+        rows.push('Can you auto-switch models and retry the same request');
+        rows.push('What failed first, provider sync or app-plane lane');
+      }
+      if (/\bqueue|cockpit|conduit|latency|backpressure|reconnect|stale\b/i.test(combinedLower)) {
+        rows.push('Can you reclaim stale blocks and verify queue depth after');
+        rows.push('Can you scale conduit and report before and after metrics');
+      }
+      if (/\bupload|file|attachment\b/i.test(combinedLower)) {
+        rows.push('Can you retry upload and show the failing endpoint');
+      }
+      if (/\bdiff|patch|commit|branch|git\b/i.test(combinedLower)) {
+        rows.push('Can you show the exact diff for that change');
+      }
+      if (cleanHint) rows.push('Can you take the next step on ' + topicLabel);
       if (lastAgent && !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(lastAgent)) {
-        rows.push('Challenge the latest answer with one focused follow-up request and measurable outcome.');
+        rows.push('Can you turn that into a concrete checklist');
+        rows.push('Can you show the first command to run now');
       }
-      if (cleanHint) rows.push('Convert the latest hint into one direct next prompt about ' + topicLabel + '.');
-      if (/queue|cockpit|conduit|latency|backpressure|reconnect|stale/i.test(topicLabel)) {
-        rows.push('Give me one automatic reliability remediation with rollback criteria.');
-        rows.push('Give me a short runbook to keep queue depth under 60 and stale blocks near 0.');
+      if (lastUser) {
+        rows.push('Can you continue this and keep the same direction');
+        rows.push('Can you summarize progress in three concrete bullets');
       }
-      if (model) {
-        rows.push('Give me a 3-step execution plan for ' + topicLabel + ' on model ' + model + '.');
-      } else {
-        rows.push('Give me a 3-step execution plan focused on ' + topicLabel + '.');
+      rows.push('Can you propose the best next move from here');
+      rows.push('Can you verify the latest change and report result');
+
+      if (rows.length > 1) {
+        rotate = rotate % rows.length;
+        rows = rows.slice(rotate).concat(rows.slice(0, rotate));
       }
-      rows.push('Give me one command to run now and one verification command tied to ' + topicLabel + '.');
-      rows.push('Give me the single highest-ROI change for ' + topicLabel + ' with measurable success criteria.');
-      return this.normalizePromptSuggestions(rows);
+
+      var normalized = this.normalizePromptSuggestions(rows);
+      while (normalized.length < 3) {
+        var fill = this.normalizePromptSuggestions([
+          'Can you show the single next command to run',
+          'Can you summarize progress in three concrete bullets',
+          'Can you verify the latest change and report result'
+        ]);
+        if (!fill.length) break;
+        for (var j = 0; j < fill.length && normalized.length < 3; j++) {
+          if (normalized.indexOf(fill[j]) >= 0) continue;
+          normalized.push(fill[j]);
+        }
+        break;
+      }
+      return normalized.slice(0, 4);
     },
 
     collectPromptSuggestionContext() {
-      var out = { lastUser: '', lastAgent: '', signature: '' };
+      var out = { lastUser: '', lastAgent: '', history: [], signature: '' };
       var history = Array.isArray(this.messages) ? this.messages : [];
+      var compact = function(value, maxLen) {
+        var cap = Number(maxLen || 240);
+        var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+        if (!text) return '';
+        if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
+        return text;
+      };
       for (var i = history.length - 1; i >= 0; i--) {
         var row = history[i];
         if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
-        var text = String(row.text == null ? '' : row.text).replace(/\s+/g, ' ').trim();
+        var text = compact(row.text, 240);
         if (!text) continue;
         if (/^\[runtime-task\]/i.test(text)) continue;
         if (/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(text)) continue;
+        if (/the user wants exactly 3 actionable next user prompts/i.test(text)) continue;
+        if (String(text || '').toLowerCase() === 'heartbeat_ok') continue;
+        if (out.history.length < 8) {
+          out.history.unshift({
+            role: compact(row.role || '', 16).toLowerCase() || (row.user ? 'user' : row.assistant ? 'agent' : 'agent'),
+            text: text
+          });
+        }
         if (!out.lastUser && row.role === 'user') {
           out.lastUser = text;
           continue;
@@ -1307,7 +1405,15 @@ function chatPage() {
         }
         if (out.lastUser && out.lastAgent) break;
       }
-      out.signature = String(out.lastUser || '') + '|' + String(out.lastAgent || '');
+      out.signature = compact(
+        out.history
+          .map(function(entry) {
+            return compact(entry.role || 'agent', 20) + ':' + compact(entry.text || '', 180);
+          })
+          .join(' || ') ||
+          (String(out.lastUser || '') + '|' + String(out.lastAgent || '')),
+        1200
+      );
       return out;
     },
 
@@ -1530,6 +1636,14 @@ function chatPage() {
         if (context.lastUser) payload.last_user_message = String(context.lastUser).trim();
         if (context.lastAgent) payload.last_agent_message = String(context.lastAgent).trim();
         if (context.signature) payload.recent_context = String(context.signature).trim();
+        if (Array.isArray(context.history) && context.history.length) {
+          payload.recent_history = context.history
+            .map(function(entry) {
+              return String(entry && entry.role ? entry.role : 'agent') + ': ' + String(entry && entry.text ? entry.text : '');
+            })
+            .join(' || ')
+            .trim();
+        }
         var activeModel = String(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '').trim();
         if (activeModel) payload.current_model = activeModel;
         var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
@@ -6779,12 +6893,22 @@ function chatPage() {
     stripModelPrefix: function(text) {
       if (!text) return text;
       var out = String(text);
-      for (var i = 0; i < 4; i++) {
-        var next = out
-          .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
-          .replace(/^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai)(?:\*\*)?\s*:\s*/i, '');
-        if (next === out) break;
-        out = next;
+      for (var i = 0; i < 6; i++) {
+        var prior = out;
+        out = out.replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '');
+        // Strip leaked transcript wrappers like "User: ... Agent: <answer>".
+        var transcriptLead = out.match(
+          /^\s*(?:[-*]\s*)?(?:\*\*)?(?:user|human|you)(?:\*\*)?\s*:\s*[\s\S]{0,1200}?(?:\*\*)?(?:agent|assistant|model|ai|jarvis)(?:\*\*)?\s*:\s*/i
+        );
+        if (transcriptLead && transcriptLead[0]) {
+          out = out.slice(transcriptLead[0].length);
+          continue;
+        }
+        out = out.replace(
+          /^\s*(?:[-*]\s*)?(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis|user|human|you)(?:\*\*)?\s*:\s*/i,
+          ''
+        );
+        if (out === prior) break;
       }
       return out;
     },
