@@ -1541,13 +1541,23 @@ function chatPage() {
       this.scheduleConversationPersist();
 
       if (!this.sending) {
-        this._sendPayload(text, files, images, { steer_injected: true });
+        this.appendUserChatMessage(text, images, { deferPersist: true });
+        this.scheduleConversationPersist();
+        this._sendPayload(text, files, images, {
+          steer_injected: true,
+          from_queue: true,
+          queue_id: id
+        });
         return;
       }
 
       var wsPayload = { type: 'message', content: text, steer: true, priority: 'steer' };
       if (files.length) wsPayload.attachments = files;
-      if (InfringAPI.wsSend(wsPayload)) return;
+      if (InfringAPI.wsSend(wsPayload)) {
+        this.appendUserChatMessage(text, images, { deferPersist: true });
+        this.scheduleConversationPersist();
+        return;
+      }
 
       if (this.currentAgent && this.currentAgent.id) {
         try {
@@ -1557,6 +1567,8 @@ function chatPage() {
             steer: true,
             priority: 'steer',
           });
+          this.appendUserChatMessage(text, images, { deferPersist: true });
+          this.scheduleConversationPersist();
           return;
         } catch(_) {}
       }
@@ -2241,6 +2253,7 @@ function chatPage() {
           notice_type: noticeType,
           notice_icon: noticeIcon,
           terminal: isTerminal,
+          terminal_source: m && m.terminal_source ? String(m.terminal_source).toLowerCase() : (isTerminal ? 'user' : ''),
           cwd: m && m.cwd ? String(m.cwd) : '',
           agent_id: m && m.agent_id ? String(m.agent_id) : '',
           agent_name: m && m.agent_name ? String(m.agent_name) : '',
@@ -4763,6 +4776,7 @@ function chatPage() {
             meta: termMeta,
             tools: [],
             ts: Date.now(),
+            terminal_source: data && data.terminal_source ? String(data.terminal_source).toLowerCase() : 'user',
             cwd: termCwd
           });
           this.sending = false;
@@ -4782,6 +4796,7 @@ function chatPage() {
             meta: '',
             tools: [],
             ts: Date.now(),
+            terminal_source: data && data.terminal_source ? String(data.terminal_source).toLowerCase() : 'user',
             cwd: this.terminalPromptPath
           });
           this.sending = false;
@@ -4903,9 +4918,48 @@ function chatPage() {
     },
 
     messageRoleClass: function(msg) {
-      if (msg && msg.terminal) return 'terminal';
+      if (msg && msg.terminal) {
+        return this.terminalMessageSource(msg) === 'user' ? 'terminal terminal-user' : 'terminal terminal-agent';
+      }
       if (!msg || !msg.role) return 'agent';
       return String(msg.role);
+    },
+
+    terminalMessageSource: function(msg) {
+      if (!msg || !msg.terminal) return 'agent';
+      var source = String(msg.terminal_source || '').trim().toLowerCase();
+      if (source === 'user' || source === 'agent' || source === 'system') return source;
+      return 'agent';
+    },
+
+    terminalToolboxSideClass: function(msg) {
+      return this.terminalMessageSource(msg) === 'user' ? 'terminal-toolbox-right' : 'terminal-toolbox-left';
+    },
+
+    terminalMessageCollapsed: function(msg, idx, rows) {
+      if (!msg || !msg.terminal || msg.thinking) return false;
+      var list = Array.isArray(rows) ? rows : this.messages;
+      if (!Array.isArray(list) || idx < 0 || idx >= list.length) return false;
+      for (var i = idx + 1; i < list.length; i++) {
+        var row = list[i];
+        if (!row || row.is_notice || row.terminal || row.thinking) continue;
+        var hasText = typeof row.text === 'string' && row.text.trim().length > 0;
+        var hasTools = Array.isArray(row.tools) && row.tools.length > 0;
+        var hasArtifact = !!(row.file_output || row.folder_output);
+        if (hasText || hasTools || hasArtifact) return true;
+      }
+      return false;
+    },
+
+    terminalToolboxPreview: function(msg) {
+      if (!msg || !msg.terminal) return '';
+      var text = String(msg.text || '').trim();
+      if (!text) return 'Command completed';
+      var first = text.split('\n')[0] || '';
+      var compact = first.replace(/\s+/g, ' ').trim();
+      if (!compact) return 'Command completed';
+      if (compact.length > 108) return compact.slice(0, 105) + '...';
+      return compact;
     },
 
     thinkingDisplayText: function(msg) {
@@ -6018,6 +6072,26 @@ function chatPage() {
       }).catch(function() {});
     },
 
+    appendUserChatMessage: function(finalText, msgImages, options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var text = String(finalText == null ? '' : finalText);
+      var images = Array.isArray(msgImages) ? msgImages : [];
+      if (!String(text || '').trim() && !images.length) return;
+      this.messages.push({
+        id: ++msgId,
+        role: 'user',
+        text: text,
+        meta: '',
+        tools: [],
+        images: images,
+        ts: Number.isFinite(Number(opts.ts)) ? Number(opts.ts) : Date.now()
+      });
+      this.scrollToBottom();
+      localStorage.setItem('of-first-msg', 'true');
+      this.promptSuggestions = [];
+      if (!opts.deferPersist) this.scheduleConversationPersist();
+    },
+
     // Process queued messages after current response completes
     _processQueue: function() {
       if (!this.messageQueue.length || this.sending || this._inflightFailoverInProgress) return;
@@ -6026,7 +6100,20 @@ function chatPage() {
         this._sendTerminalPayload(next.command);
         return;
       }
-      this._sendPayload(next.text, next.files, next.images);
+      var nextText = String(next && next.text ? next.text : '');
+      var nextFiles = Array.isArray(next && next.files) ? next.files : [];
+      var nextImages = Array.isArray(next && next.images) ? next.images : [];
+      if (!nextText.trim() && !nextFiles.length) {
+        var self = this;
+        this.$nextTick(function() { self._processQueue(); });
+        return;
+      }
+      this.appendUserChatMessage(nextText, nextImages, { deferPersist: true });
+      this.scheduleConversationPersist();
+      this._sendPayload(nextText, nextFiles, nextImages, {
+        from_queue: true,
+        queue_id: next && next.queue_id ? String(next.queue_id) : ''
+      });
     },
 
     _terminalPromptLine: function(cwd, command) {
@@ -6042,6 +6129,7 @@ function chatPage() {
       var now = Date.now();
       var ts = Number.isFinite(Number(payload.ts)) ? Number(payload.ts) : now;
       var role = payload.role ? String(payload.role) : 'terminal';
+      var terminalSource = payload.terminal_source ? String(payload.terminal_source).toLowerCase() : '';
       var cwd = payload.cwd ? String(payload.cwd) : this.terminalPromptPath;
       var meta = payload.meta == null ? '' : String(payload.meta);
       var tools = Array.isArray(payload.tools) ? payload.tools : [];
@@ -6057,6 +6145,7 @@ function chatPage() {
           last.cwd = cwd;
           this.terminalCwd = cwd;
         }
+        if (terminalSource) last.terminal_source = terminalSource;
         last.ts = ts;
         if (!Array.isArray(last.tools)) last.tools = [];
         if (tools.length) last.tools = last.tools.concat(tools);
@@ -6071,6 +6160,7 @@ function chatPage() {
         tools: tools,
         ts: ts,
         terminal: true,
+        terminal_source: terminalSource || 'user',
         cwd: cwd
       };
       this.messages.push(msg);
@@ -6173,13 +6263,6 @@ function chatPage() {
       // Collect image references for inline rendering
       var msgImages = uploadedFiles.filter(function(f) { return f.content_type && f.content_type.startsWith('image/'); });
 
-      // Always show user message immediately
-      this.messages.push({ id: ++msgId, role: 'user', text: finalText, meta: '', tools: [], images: msgImages, ts: Date.now() });
-      this.scrollToBottom();
-      localStorage.setItem('of-first-msg', 'true');
-      this.promptSuggestions = [];
-      this.scheduleConversationPersist();
-
       // If already streaming, queue this message
       if (this.sending) {
         this._reconcileSendingState();
@@ -6193,9 +6276,12 @@ function chatPage() {
           files: uploadedFiles,
           images: msgImages
         });
+        this.scheduleConversationPersist();
         return;
       }
 
+      this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });
+      this.scheduleConversationPersist();
       this._sendPayload(finalText, uploadedFiles, msgImages);
     },
 
@@ -6209,6 +6295,7 @@ function chatPage() {
         meta: this.terminalPromptPath,
         tools: [],
         ts: Date.now(),
+        terminal_source: 'user',
         cwd: this.terminalPromptPath
       });
       this.recomputeContextEstimate();
