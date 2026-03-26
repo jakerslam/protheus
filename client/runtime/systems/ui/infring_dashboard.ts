@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const http = require('node:http');
+const https = require('node:https');
 const { spawnSync, spawn } = require('node:child_process');
 const ts = require('typescript');
 const { WebSocketServer } = require('ws');
@@ -45,6 +46,8 @@ const TEST_AGENT_MODEL_PATH = path.resolve(STATE_DIR, 'test_agent_model.json');
 const PROVIDER_REGISTRY_PATH = path.resolve(STATE_DIR, 'provider_registry.json');
 const PROVIDER_BOOTSTRAP_STATE_PATH = path.resolve(STATE_DIR, 'provider_bootstrap_state.json');
 const CUSTOM_MODELS_PATH = path.resolve(STATE_DIR, 'custom_models.json');
+const RELEASE_CHECK_STATE_PATH = path.resolve(STATE_DIR, 'release_check_state.json');
+const SYSTEM_UPDATE_LOG_PATH = path.resolve(STATE_DIR, 'system_update.log');
 const CHANNEL_REGISTRY_PATH = path.resolve(STATE_DIR, 'channel_registry.json');
 const CHANNEL_QR_STATE_PATH = path.resolve(STATE_DIR, 'channel_qr_sessions.json');
 const APPROVALS_STATE_PATH = path.resolve(STATE_DIR, 'approvals.json');
@@ -67,6 +70,15 @@ const CHAT_TREE_MAX_ENTRIES = 5000;
 const LOCAL_ASSETS_DIR = path.resolve(ROOT, 'client/runtime/local/assets');
 const AVATAR_ASSETS_DIR = path.resolve(LOCAL_ASSETS_DIR, 'avatars');
 const UPLOAD_ASSETS_DIR = path.resolve(LOCAL_ASSETS_DIR, 'uploads');
+const SKILLS_PACKAGES_DIR = path.resolve(ROOT, 'client/runtime/systems/skills/packages');
+const SKILLS_TRASH_DIR = path.resolve(STATE_DIR, 'skills_trash');
+const SKILLS_PLANE_REGISTRY_PATH = path.resolve(ROOT, 'core/local/state/ops/skills_plane/registry.json');
+const SKILL_SOURCE_META_FILE = '.infring_source.json';
+const CLAWHUB_API_BASE_URL = 'https://clawhub.ai/api/v1';
+const CLAWHUB_HTTP_TIMEOUT_SEC = 12;
+const CLAWHUB_CACHE_TTL_MS = 120_000;
+const CLAWHUB_INSTALL_SOURCE_CANDIDATES = ['SKILL.md', 'skill.toml', 'package.json', 'README.md'];
+const CLAWHUB_SOURCE_FILE_MAX_BYTES = 2 * 1024 * 1024;
 const AGENT_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AGENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024;
 const DEFAULT_HOST = '127.0.0.1';
@@ -309,6 +321,11 @@ const COLLAB_ROLE_FALLBACKS = {
 const CLI_MODE_SAFE = 'safe';
 const CLI_MODE_FULL_INFRING = 'full_infring';
 const DEFAULT_CLI_MODE = CLI_MODE_FULL_INFRING;
+const GITHUB_LATEST_RELEASE_URL = 'https://api.github.com/repos/protheuslabs/InfRing/releases/latest';
+const RELEASE_CHECK_TIMEOUT_MS = 6500;
+const RELEASE_CHECK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const RELEASE_CHECK_BOOT_DELAY_MS = 2000;
+const SYSTEM_UPDATE_SETTLE_MS = 90 * 1000;
 const APP_VERSION = (() => {
   try {
     const pkg = require(path.resolve(ROOT, 'package.json'));
@@ -428,95 +445,100 @@ function cleanText(value, maxLen = 120) {
     .slice(0, maxLen);
 }
 
+function runRustGitAuthority(action, params = {}, options = {}) {
+  const verb = cleanText(action || '', 80).toLowerCase();
+  if (!verb) return { ok: false, error: 'git_action_required' };
+  const args = ['dashboard-ui', 'git-authority', '--pretty=0', `--git-action=${verb}`];
+  const entries = params && typeof params === 'object' ? Object.entries(params) : [];
+  for (const [rawKey, rawValue] of entries) {
+    if (rawValue == null) continue;
+    const key = cleanText(rawKey || '', 64).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    if (!key) continue;
+    const value = String(rawValue)
+      .replace(/\r?\n/g, ' ')
+      .trim();
+    if (!value) continue;
+    args.push(`--${key}=${value}`);
+  }
+  try {
+    const proc = spawnSync('protheus-ops', args, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PROTHEUS_ROOT: ROOT },
+      timeout: parsePositiveInt(options.timeout_ms, 20000, 1000, 120000),
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    if (!proc || proc.status !== 0) {
+      return {
+        ok: false,
+        error: cleanText((proc && (proc.stderr || proc.stdout)) || `rust_git_authority_failed:${proc ? proc.status : 'unknown'}`, 260),
+      };
+    }
+    const payload = parseJsonLoose(String(proc.stdout || ''));
+    if (payload && typeof payload === 'object') return payload;
+    return { ok: false, error: 'rust_git_authority_invalid_json' };
+  } catch (error) {
+    return {
+      ok: false,
+      error: cleanText(error && error.message ? error.message : 'rust_git_authority_spawn_failed', 260),
+    };
+  }
+}
+
 function currentGitBranch() {
   const now = Date.now();
   if (gitBranchCache.value && (now - gitBranchCache.fetched_at) < GIT_BRANCH_CACHE_MS) {
     return gitBranchCache.value;
   }
-  try {
-    const proc = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 1500,
-      maxBuffer: 64 * 1024,
-    });
-    if (proc && proc.status === 0) {
-      const raw = String(proc.stdout || '').trim();
-      const value = cleanText(raw || 'main', 80) || 'main';
-      gitBranchCache = { value, fetched_at: now };
-      return value;
-    }
-  } catch {}
+  const out = runRustGitAuthority('current-branch', {
+    fallback_branch: gitBranchCache.value || 'main',
+  });
+  const resolved = normalizeGitBranchName(out && out.branch ? out.branch : '', gitBranchCache.value || 'main') || 'main';
+  if (out && out.ok && resolved) {
+    gitBranchCache = { value: resolved, fetched_at: now };
+    return resolved;
+  }
   const fallback = gitBranchCache.value || 'main';
   gitBranchCache = { value: fallback, fetched_at: now };
   return fallback;
 }
 
 function gitMainBranch() {
-  try {
-    const proc = spawnSync('git', ['show-ref', '--verify', '--quiet', 'refs/heads/main'], {
-      cwd: ROOT,
-      stdio: ['ignore', 'ignore', 'ignore'],
-      timeout: 1500,
-    });
-    if (proc && proc.status === 0) return 'main';
-  } catch {}
-  return currentGitBranch();
+  const out = runRustGitAuthority('main-branch', {
+    fallback_branch: currentGitBranch(),
+  });
+  return normalizeGitBranchName(out && out.branch ? out.branch : '', currentGitBranch()) || currentGitBranch();
 }
 
 function gitBranchExists(branchName) {
   const branch = normalizeGitBranchName(branchName, '');
   if (!branch) return false;
-  try {
-    const proc = spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], {
-      cwd: ROOT,
-      stdio: ['ignore', 'ignore', 'ignore'],
-      timeout: 1500,
-    });
-    return !!(proc && proc.status === 0);
-  } catch {
-    return false;
-  }
+  const out = runRustGitAuthority('branch-exists', { branch });
+  return !!(out && out.ok && out.exists);
 }
 
 function listLocalGitBranches(limit = 240) {
   const cap = parsePositiveInt(limit, 240, 8, 2000);
-  let rows = [];
-  try {
-    const proc = spawnSync(
-      'git',
-      ['for-each-ref', '--sort=-committerdate', '--format=%(refname:short)', 'refs/heads'],
-      {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 2500,
-        maxBuffer: 512 * 1024,
-      }
-    );
-    if (proc && proc.status === 0) {
-      rows = String(proc.stdout || '')
-        .split('\n')
-        .map((line) => normalizeGitBranchName(line, ''))
-        .filter(Boolean);
-    }
-  } catch {}
-  const main = gitMainBranch();
+  const authority = runRustGitAuthority('list-branches', { limit: cap, fallback_branch: gitMainBranch() });
+  const rows = Array.isArray(authority && authority.branches)
+    ? authority.branches.map((line) => normalizeGitBranchName(line, '')).filter(Boolean)
+    : [];
+  const main = normalizeGitBranchName(authority && authority.main_branch ? authority.main_branch : '', gitMainBranch()) || gitMainBranch();
   const seen = new Set();
-  const out = [];
+  const merged = [];
   if (main) {
     seen.add(main);
-    out.push(main);
+    merged.push(main);
   }
   for (let idx = 0; idx < rows.length; idx += 1) {
     const branch = rows[idx];
     if (!branch || seen.has(branch)) continue;
     seen.add(branch);
-    out.push(branch);
-    if (out.length >= cap) break;
+    merged.push(branch);
+    if (merged.length >= cap) break;
   }
-  return out;
+  return merged;
 }
 
 function normalizeGitTreeKind(value, fallback = AGENT_GIT_TREE_KIND_ISOLATED) {
@@ -580,26 +602,15 @@ function gitWorkspaceLooksReady(workspaceDir = '', options = {}) {
       }
     }
   }
-  try {
-    const probe = spawnSync('git', ['-C', resolved, 'rev-parse', '--is-inside-work-tree'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 1500,
-    });
-    const ready = !!(probe && probe.status === 0);
-    gitWorkspaceReadyCache.set(resolved, {
-      ready,
-      ts_ms: nowMs,
-    });
-    return ready;
-  } catch {
-    gitWorkspaceReadyCache.set(resolved, {
-      ready: false,
-      ts_ms: nowMs,
-    });
-    return false;
-  }
+  const probe = runRustGitAuthority('workspace-ready', {
+    workspace: resolved,
+  });
+  const ready = !!(probe && probe.ok && probe.ready);
+  gitWorkspaceReadyCache.set(resolved, {
+    ready,
+    ts_ms: nowMs,
+  });
+  return ready;
 }
 
 function ensureGitWorkspaceReady(agentId, branchName, workspaceDir) {
@@ -608,88 +619,28 @@ function ensureGitWorkspaceReady(agentId, branchName, workspaceDir) {
   if (!branch || !isAgentGitWorkspacePath(workspace)) {
     return { ok: false, error: 'invalid_git_tree_binding', branch, workspace_dir: workspace };
   }
-  if (gitWorkspaceLooksReady(workspace)) {
-    return { ok: true, created: false, branch, workspace_dir: workspace };
-  }
-  ensureDir(path.dirname(workspace));
-  if (workspacePathOrNull(workspace, { must_exist: true, directory: true }) && !gitWorkspaceLooksReady(workspace)) {
-    try {
-      fs.rmSync(workspace, { recursive: true, force: true });
-    } catch {}
-  }
-  let branchExists = false;
-  try {
-    const branchProbe = spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], {
-      cwd: ROOT,
-      stdio: ['ignore', 'ignore', 'ignore'],
-      timeout: 2000,
-    });
-    branchExists = !!(branchProbe && branchProbe.status === 0);
-  } catch {}
-  const worktreeArgs = branchExists
-    ? ['worktree', 'add', '--force', workspace, branch]
-    : ['worktree', 'add', '--force', '-b', branch, workspace, 'HEAD'];
-  let proc = null;
-  try {
-    proc = spawnSync('git', worktreeArgs, {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 20000,
-      maxBuffer: 2 * 1024 * 1024,
-    });
-  } catch (error) {
-    return {
-      ok: false,
-      error: cleanText(error && error.message ? error.message : 'git_worktree_add_failed', 240),
-      branch,
-      workspace_dir: workspace,
-    };
-  }
-  if (!proc || proc.status !== 0) {
-    try {
-      spawnSync('git', ['worktree', 'prune', '--expire=now'], {
-        cwd: ROOT,
-        stdio: ['ignore', 'ignore', 'ignore'],
-        timeout: 3000,
-      });
-    } catch {}
-    try {
-      proc = spawnSync('git', worktreeArgs, {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 20000,
-        maxBuffer: 2 * 1024 * 1024,
-      });
-    } catch (error) {
-      return {
-        ok: false,
-        error: cleanText(error && error.message ? error.message : 'git_worktree_add_retry_failed', 240),
-        branch,
-        workspace_dir: workspace,
-      };
-    }
-  }
-  if (!proc || proc.status !== 0 || !gitWorkspaceLooksReady(workspace, { refresh: true })) {
+  const out = runRustGitAuthority('ensure-workspace-ready', {
+    agent_id: cleanText(agentId || '', 140),
+    branch,
+    workspace,
+  });
+  if (!(out && out.ok)) {
     gitWorkspaceReadyCache.delete(workspace);
     return {
       ok: false,
-      error: cleanText(
-        (proc && (proc.stderr || proc.stdout)) || `git_worktree_add_failed:${proc ? proc.status : 'unknown'}`,
-        280
-      ),
+      error: cleanText(out && out.error ? out.error : 'git_worktree_add_failed', 280),
       branch,
       workspace_dir: workspace,
     };
   }
+  const created = !!out.created;
   gitWorkspaceReadyCache.set(workspace, {
     ready: true,
     ts_ms: Date.now(),
   });
   return {
     ok: true,
-    created: true,
+    created,
     branch,
     workspace_dir: workspace,
   };
@@ -707,31 +658,11 @@ function removeGitWorkspaceForAgent(agentId) {
   if (!workspace || !isAgentGitWorkspacePath(workspace)) {
     return { ok: true, removed: false, reason: 'no_isolated_workspace' };
   }
-  let removed = false;
-  try {
-    const proc = spawnSync('git', ['worktree', 'remove', '--force', workspace], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 12000,
-      maxBuffer: 1024 * 1024,
-    });
-    removed = !!(proc && proc.status === 0);
-  } catch {}
-  if (!removed) {
-    try {
-      fs.rmSync(workspace, { recursive: true, force: true });
-      removed = true;
-    } catch {}
-  }
+  const out = runRustGitAuthority('remove-workspace', {
+    workspace,
+  });
+  const removed = !!(out && out.ok && out.removed);
   gitWorkspaceReadyCache.delete(workspace);
-  try {
-    spawnSync('git', ['worktree', 'prune', '--expire=now'], {
-      cwd: ROOT,
-      stdio: ['ignore', 'ignore', 'ignore'],
-      timeout: 2500,
-    });
-  } catch {}
   return {
     ok: true,
     removed,
@@ -821,53 +752,32 @@ function deleteGitBranchIfSafeForAgent(agentId, profile = null, archivedMeta = n
     };
   }
   if (gitBranchReferencedByOtherAgents(branch, id)) {
-    return {
-      ok: true,
-      attempted: false,
-      removed: false,
-      reason: 'branch_in_use',
+    const out = runRustGitAuthority('delete-branch', {
       branch,
-    };
-  }
-  if (!gitBranchExists(branch)) {
-    return {
-      ok: true,
-      attempted: false,
-      removed: false,
-      reason: 'branch_missing',
-      branch,
-    };
-  }
-
-  let proc = null;
-  try {
-    proc = spawnSync('git', ['branch', '-D', branch], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 12000,
-      maxBuffer: 1024 * 1024,
+      main_branch: gitMainBranch(),
+      branch_in_use: 1,
     });
-  } catch (error) {
     return {
-      ok: false,
-      attempted: true,
-      removed: false,
-      reason: 'git_branch_delete_failed',
+      ok: !!(out && out.ok),
+      attempted: !!(out && out.attempted),
+      removed: !!(out && out.removed),
+      reason: cleanText(out && out.reason ? out.reason : 'branch_in_use', 80) || 'branch_in_use',
       branch,
-      detail: cleanText(error && error.message ? error.message : 'git_branch_delete_failed', 240),
+      detail: cleanText(out && out.detail ? out.detail : '', 240),
     };
   }
-  const removed = !!(proc && proc.status === 0);
-  return {
-    ok: removed,
-    attempted: true,
-    removed,
-    reason: removed ? 'deleted' : 'git_branch_delete_failed',
+  const out = runRustGitAuthority('delete-branch', {
     branch,
-    detail: removed
-      ? ''
-      : cleanText((proc && (proc.stderr || proc.stdout)) || `git_branch_delete_failed:${proc ? proc.status : 'unknown'}`, 240),
+    main_branch: gitMainBranch(),
+    branch_in_use: 0,
+  });
+  return {
+    ok: !!(out && out.ok),
+    attempted: !!(out && out.attempted),
+    removed: !!(out && out.removed),
+    reason: cleanText(out && out.reason ? out.reason : 'git_branch_delete_failed', 80) || 'git_branch_delete_failed',
+    branch,
+    detail: cleanText(out && out.detail ? out.detail : out && out.error ? out.error : '', 240),
   };
 }
 
@@ -1473,6 +1383,106 @@ function parseJsonLoose(raw) {
   return null;
 }
 
+function normalizeSemverLabel(value) {
+  return cleanText(value || '', 120).replace(/^v/i, '');
+}
+
+function parseSemverComparable(value) {
+  const normalized = normalizeSemverLabel(value);
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!match) return null;
+  return {
+    major: parseNonNegativeInt(match[1], 0, 1_000_000),
+    minor: parseNonNegativeInt(match[2], 0, 1_000_000),
+    patch: parseNonNegativeInt(match[3], 0, 1_000_000),
+    prerelease: cleanText(match[4] || '', 80),
+  };
+}
+
+function compareSemverStrings(left, right) {
+  const a = parseSemverComparable(left);
+  const b = parseSemverComparable(right);
+  if (!a || !b) return null;
+  if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+  if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+  if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+  if (!a.prerelease && b.prerelease) return 1;
+  if (a.prerelease && !b.prerelease) return -1;
+  if (a.prerelease !== b.prerelease) {
+    return a.prerelease.localeCompare(b.prerelease, undefined, { numeric: true, sensitivity: 'base' });
+  }
+  return 0;
+}
+
+function normalizeReleaseCheckState(value) {
+  const root = value && typeof value === 'object' ? value : {};
+  return {
+    ok: root.ok !== false,
+    checked_at: cleanText(root.checked_at || '', 80),
+    current_version: cleanText(root.current_version || APP_VERSION, 120) || APP_VERSION,
+    latest_version: cleanText(root.latest_version || '', 120),
+    latest_name: cleanText(root.latest_name || '', 200),
+    latest_url: cleanText(root.latest_url || '', 500),
+    latest_published_at: cleanText(root.latest_published_at || '', 80),
+    update_available: root.update_available === true,
+    compare_result: cleanText(root.compare_result || '', 20),
+    error: cleanText(root.error || '', 260),
+    update_requested_at: cleanText(root.update_requested_at || '', 80),
+  };
+}
+
+function fetchGithubLatestRelease(timeoutMs = RELEASE_CHECK_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      GITHUB_LATEST_RELEASE_URL,
+      {
+        method: 'GET',
+        headers: {
+          accept: 'application/vnd.github+json',
+          'user-agent': `infring-dashboard/${APP_VERSION}`,
+        },
+      },
+      (res) => {
+        let raw = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          raw += String(chunk || '');
+        });
+        res.on('end', () => {
+          const statusCode = parsePositiveInt(res && res.statusCode != null ? res.statusCode : 0, 0, 0, 999);
+          if (statusCode < 200 || statusCode >= 300) {
+            reject(new Error(`github_release_http_${statusCode || 'unknown'}`));
+            return;
+          }
+          const payload = parseJsonLoose(raw);
+          if (!payload || typeof payload !== 'object') {
+            reject(new Error('github_release_invalid_json'));
+            return;
+          }
+          const tagName = cleanText(payload.tag_name || payload.name || '', 120);
+          if (!tagName) {
+            reject(new Error('github_release_tag_missing'));
+            return;
+          }
+          resolve({
+            tag_name: tagName,
+            name: cleanText(payload.name || tagName, 200) || tagName,
+            html_url: cleanText(payload.html_url || '', 500),
+            published_at: cleanText(payload.published_at || payload.created_at || '', 80),
+          });
+        });
+      }
+    );
+    req.on('error', (error) => {
+      reject(error || new Error('github_release_request_failed'));
+    });
+    req.setTimeout(parsePositiveInt(timeoutMs, RELEASE_CHECK_TIMEOUT_MS, 1000, 30000), () => {
+      req.destroy(new Error('github_release_timeout'));
+    });
+    req.end();
+  });
+}
+
 function repairDirectiveJsonCandidate(raw) {
   let text = String(raw || '').trim();
   if (!text) return text;
@@ -1600,6 +1610,7 @@ function runLane(argv, options = {}) {
 
 const snapshotLaneCache = new Map();
 const promptSuggestionCache = new Map();
+const clawhubRequestCache = new Map();
 const RUST_RUNTIME_SYNC_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 let rustRuntimeSyncUnsupportedUntilMs = 0;
 
@@ -1841,15 +1852,9 @@ function shellQuote(value) {
   return `'${String(value == null ? '' : value).replace(/'/g, `'\"'\"'`)}'`;
 }
 
-function resolveTerminalCwd(requestedCwd, agentId = '') {
+function resolveTerminalCwd(requestedCwd, _agentId = '') {
   const raw = String(requestedCwd == null ? '' : requestedCwd).replace(/\u0000/g, '').trim();
   if (!raw) {
-    const id = cleanText(agentId || '', 140);
-    if (id) {
-      const tree = agentGitTreeView(id, agentProfileFor(id));
-      const fallbackWorkspace = workspacePathOrNull(tree.workspace_dir, { must_exist: true, directory: true });
-      if (fallbackWorkspace) return fallbackWorkspace;
-    }
     return ROOT;
   }
   const candidate = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(ROOT, raw);
@@ -1960,6 +1965,127 @@ function isLowValueSuggestion(row) {
   return false;
 }
 
+function suggestionTokenSet(value) {
+  const raw = cleanText(value == null ? '' : String(value), 220).toLowerCase();
+  if (!raw) return new Set();
+  const stop = new Set([
+    'can',
+    'could',
+    'would',
+    'should',
+    'what',
+    'why',
+    'how',
+    'when',
+    'where',
+    'who',
+    'the',
+    'this',
+    'that',
+    'with',
+    'from',
+    'into',
+    'your',
+    'you',
+    'and',
+    'for',
+    'then',
+    'now',
+    'again',
+    'please',
+  ]);
+  const tokens = raw
+    .replace(/[^a-z0-9_:-]+/g, ' ')
+    .split(/\s+/)
+    .filter((row) => row && row.length >= 3 && !stop.has(row));
+  return new Set(tokens);
+}
+
+function suggestionTokenSimilarity(a, b) {
+  const left = suggestionTokenSet(a);
+  const right = suggestionTokenSet(b);
+  if (!left.size && !right.size) return 1;
+  if (!left.size || !right.size) return 0;
+  let overlap = 0;
+  for (const token of left) {
+    if (right.has(token)) overlap += 1;
+  }
+  const union = new Set([...left, ...right]).size || 1;
+  return overlap / union;
+}
+
+function isNearDuplicateSuggestion(a, b) {
+  const left = cleanText(a == null ? '' : String(a), 220).toLowerCase();
+  const right = cleanText(b == null ? '' : String(b), 220).toLowerCase();
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.includes(right) || right.includes(left)) return true;
+  const sim = suggestionTokenSimilarity(left, right);
+  return sim >= 0.72;
+}
+
+function suggestionContextKeywords(value) {
+  return cleanText(value == null ? '' : String(value), 600)
+    .toLowerCase()
+    .split(/[^a-z0-9_:-]+/g)
+    .filter(
+      (row) =>
+        row &&
+        row.length >= 4 &&
+        !['this', 'that', 'with', 'from', 'into', 'your', 'have', 'will', 'when', 'where', 'what'].includes(row)
+    )
+    .slice(0, 10);
+}
+
+function isGenericSuggestionText(value) {
+  const text = cleanText(value == null ? '' : String(value), 220).toLowerCase();
+  if (!text) return true;
+  return (
+    text.includes('continue this and keep the same direction') ||
+    text.includes('best next move from here') ||
+    text.includes('summarize progress in three concrete bullets') ||
+    text.includes('show the first command to run now') ||
+    text.includes('turn that into a concrete checklist') ||
+    text.includes('take the next step on current task')
+  );
+}
+
+function applySuggestionQualityGates(rows, options = {}) {
+  const source = Array.isArray(rows) ? rows : [];
+  const contextText = cleanText(options && options.context_text ? options.context_text : '', 700);
+  const disallowTexts = Array.isArray(options && options.disallow_texts) ? options.disallow_texts : [];
+  const contextKeywords = suggestionContextKeywords(contextText);
+  const out = [];
+  for (const candidate of source) {
+    const normalized = normalizeSuggestionToUserVoice(candidate);
+    if (!normalized) continue;
+    if (isLowValueSuggestion(normalized)) continue;
+    const parrotsUser = disallowTexts.some((sample) => {
+      const cleanSample = normalizeSuggestionToUserVoice(sample);
+      if (!cleanSample) return false;
+      return isNearDuplicateSuggestion(normalized, cleanSample);
+    });
+    if (parrotsUser) continue;
+    const generic = isGenericSuggestionText(normalized);
+    if (generic && contextKeywords.length) {
+      const lower = normalized.toLowerCase();
+      const hasContextOverlap = contextKeywords.some((word) => lower.includes(word));
+      if (!hasContextOverlap) continue;
+    }
+    let duplicate = false;
+    for (const prior of out) {
+      if (isNearDuplicateSuggestion(normalized, prior)) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (duplicate) continue;
+    out.push(normalized);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 function parseSuggestionCandidates(raw) {
   const text = String(raw || '').trim();
   if (!text) return [];
@@ -2024,7 +2150,7 @@ function parseSuggestionCandidates(raw) {
     seen.add(key);
     unique.push(row);
   }
-  return unique.slice(0, 4);
+  return unique.slice(0, 8);
 }
 
 function isSuggestionNoiseText(value) {
@@ -2059,6 +2185,7 @@ function recentSuggestionContext(recentMessages = []) {
   let lastUser = '';
   let lastAssistant = '';
   const history = [];
+  const recentUserMessages = [];
   const rows = Array.isArray(recentMessages) ? recentMessages.slice() : [];
   for (let idx = rows.length - 1; idx >= 0; idx -= 1) {
     const row = rows[idx] || {};
@@ -2076,20 +2203,26 @@ function recentSuggestionContext(recentMessages = []) {
     }
     if (!lastUser && (role === 'user' || row.user)) {
       lastUser = text;
+      if (recentUserMessages.length < 8) recentUserMessages.unshift(text);
       continue;
+    }
+    if ((role === 'user' || row.user) && recentUserMessages.length < 8) {
+      recentUserMessages.unshift(text);
     }
     if (!lastAssistant && (role === 'agent' || role === 'assistant' || row.assistant)) {
       lastAssistant = text;
       continue;
     }
-    if (lastUser && lastAssistant) break;
+    if (lastUser && lastAssistant && history.length >= 8) break;
   }
+  const scopedHistory = history.length > 8 ? history.slice(-8) : history;
   return {
     last_user: lastUser,
     last_assistant: lastAssistant,
-    history,
+    history: scopedHistory,
+    recent_user_messages: recentUserMessages.slice(-8),
     signature: cleanText(
-      history.map((entry) => `${cleanText(entry.role || 'agent', 20)}:${cleanText(entry.text || '', 180)}`).join(' || ') ||
+      scopedHistory.map((entry) => `${cleanText(entry.role || 'agent', 20)}:${cleanText(entry.text || '', 180)}`).join(' || ') ||
         `${lastUser}|${lastAssistant}`,
       1200
     ),
@@ -2163,7 +2296,7 @@ function heuristicPromptSuggestions(agent, snapshot, recentMessages = [], hint =
       seen.add(key);
       return true;
     })
-    .slice(0, 4);
+    .slice(0, 8);
 }
 
 function generatePromptSuggestions(agentId, snapshot, payload = {}) {
@@ -2179,18 +2312,21 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
       role: 'assistant',
       model_name: configuredOllamaModel(snapshot),
     };
-  const recentMessages = Array.isArray(session && session.messages) ? session.messages.slice(-8) : [];
+  const recentMessages = Array.isArray(session && session.messages) ? session.messages.slice(-24) : [];
   const convo = recentSuggestionContext(recentMessages);
-  const clientLastUser = cleanText(payload && payload.last_user_message ? payload.last_user_message : '', 220);
-  const clientLastAgent = cleanText(payload && payload.last_agent_message ? payload.last_agent_message : '', 220);
-  const clientRecentContext = cleanText(payload && payload.recent_context ? payload.recent_context : '', 400);
+  const recentUserMessages = Array.isArray(convo && convo.recent_user_messages) ? convo.recent_user_messages : [];
+  if (!recentUserMessages.length) {
+    return {
+      ok: false,
+      suggestions: [],
+      source: 'empty_conversation',
+      model: '',
+    };
+  }
   const clientModel = cleanText(payload && payload.current_model ? payload.current_model : '', 160);
   const cacheSignature = cleanText(
     [
       userHint,
-      clientLastUser,
-      clientLastAgent,
-      clientRecentContext,
       clientModel,
       convo.signature,
     ]
@@ -2209,14 +2345,14 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     ) {
       return {
         ok: true,
-        suggestions: cached.suggestions.slice(0, 4).map((row) => normalizeSuggestionToUserVoice(row)).filter(Boolean),
+        suggestions: cached.suggestions.slice(0, 3).map((row) => normalizeSuggestionToUserVoice(row)).filter(Boolean),
         source: cleanText(cached.source || 'cache', 40) || 'cache',
         model: cleanText(cached.model || '', 120),
       };
     }
   }
   const prompt = [
-    'Generate 3 or 4 short follow-up prompts as a JSON array of strings.',
+    'Generate exactly 3 short follow-up prompts as a JSON array of strings.',
     'Each suggestion must be a natural user utterance.',
     'Keep each suggestion at 12 words or fewer.',
     'Do not include numbering, markdown, explanations, or extra keys.',
@@ -2227,10 +2363,9 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     `Agent name: ${cleanText(agent && agent.name ? agent.name : cleanAgentId, 120)}`,
     `Agent role: ${cleanText(agent && agent.role ? agent.role : 'assistant', 80)}`,
     clientModel ? `Client-selected model: ${clientModel}` : '',
-    clientLastUser || convo.last_user ? `Recent user prompt hint: ${clientLastUser || convo.last_user}` : '',
-    clientLastAgent || convo.last_assistant ? `Recent assistant response hint: ${clientLastAgent || convo.last_assistant}` : '',
-    clientRecentContext ? `Additional context: ${clientRecentContext}` : '',
-    `Conversation history (oldest to newest, max 8): ${cleanText(
+    convo.last_user ? `Recent user prompt hint: ${convo.last_user}` : '',
+    convo.last_assistant ? `Recent assistant response hint: ${convo.last_assistant}` : '',
+    `Conversation history (oldest to newest, use last 5-8 when available): ${cleanText(
       (convo.history || [])
         .map((entry) => `${cleanText(entry && entry.role ? entry.role : 'agent', 20)}: ${cleanText(entry && entry.text ? entry.text : '', 220)}`)
         .filter(Boolean)
@@ -2263,22 +2398,32 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
 
   let suggestions = [];
   let source = llmRequested ? 'fallback' : 'heuristic_fast';
+  const contextText = cleanText(
+    [userHint, convo.last_user, convo.last_assistant]
+      .filter(Boolean)
+      .join(' | '),
+    700
+  );
   if (llm && llm.ok) {
     suggestions = parseSuggestionCandidates(llm.output || '');
+    suggestions = applySuggestionQualityGates(suggestions, {
+      context_text: contextText,
+      disallow_texts: recentUserMessages,
+    });
     if (suggestions.length) source = 'llm';
   }
   if (!suggestions.length) {
-    suggestions = heuristicPromptSuggestions(agent, snapshot, recentMessages, userHint);
-  }
-  while (suggestions.length < 3) {
-    const fallbackRows = heuristicPromptSuggestions(agent, snapshot, recentMessages, userHint);
-    const fallback = fallbackRows[suggestions.length] || '';
-    if (!fallback) break;
-    suggestions.push(fallback);
+    suggestions = applySuggestionQualityGates(
+      heuristicPromptSuggestions(agent, snapshot, recentMessages, userHint),
+      {
+        context_text: contextText,
+        disallow_texts: recentUserMessages,
+      }
+    );
   }
   const result = {
     ok: suggestions.length > 0,
-    suggestions: suggestions.slice(0, 4),
+    suggestions: suggestions.slice(0, 3),
     source,
     model: llm && llm.ok ? cleanText(llm.model || normalizedRequestedModel || '', 120) : '',
   };
@@ -2290,7 +2435,7 @@ function generatePromptSuggestions(agentId, snapshot, payload = {}) {
     promptSuggestionCache.set(cleanAgentId, {
       ts: Date.now(),
       signature: cacheSignature,
-      suggestions: result.suggestions.slice(0, 4),
+      suggestions: result.suggestions.slice(0, 3),
       source: result.source,
       model: result.model,
     });
@@ -2792,22 +2937,11 @@ async function runTerminalCommand(rawCommand, requestedCwd, agentId = 'dashboard
 }
 
 function collectTrackedFiles() {
-  try {
-    const proc = spawnSync('git', ['ls-files'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: 'pipe',
-      timeout: 10000,
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    if (!proc || proc.status !== 0) return [];
-    return String(proc.stdout || '')
-      .split('\n')
-      .map((row) => row.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+  const out = runRustGitAuthority('list-tracked-files', {}, { timeout_ms: 15000 });
+  if (!(out && out.ok && Array.isArray(out.files))) return [];
+  return out.files
+    .map((row) => cleanText(row || '', 1024))
+    .filter(Boolean);
 }
 
 function isEffectiveLocPath(filePath) {
@@ -4050,6 +4184,40 @@ function normalizeModelRating(value, fallback = 3) {
   return Math.max(1, Math.min(5, parsed));
 }
 
+function inferModelParamCountBillions(modelName = '') {
+  const normalized = cleanText(modelName || '', 180).toLowerCase();
+  if (!normalized) return 0;
+  const compound = normalized.match(/([0-9]+(?:\.[0-9]+)?)x([0-9]+(?:\.[0-9]+)?)b/i);
+  if (compound && compound[1] && compound[2]) {
+    const left = Number(compound[1]);
+    const right = Number(compound[2]);
+    if (Number.isFinite(left) && Number.isFinite(right) && left > 0 && right > 0) {
+      return Math.max(0, Math.min(2000, left * right));
+    }
+  }
+  const billions = normalized.match(/(?:^|[^a-z0-9])([0-9]+(?:\.[0-9]+)?)b(?:[^a-z0-9]|$)/i);
+  if (billions && billions[1]) {
+    const parsed = Number(billions[1]);
+    if (Number.isFinite(parsed) && parsed > 0) return Math.max(0, Math.min(2000, parsed));
+  }
+  const millions = normalized.match(/(?:^|[^a-z0-9])([0-9]{3,6})m(?:[^a-z0-9]|$)/i);
+  if (millions && millions[1]) {
+    const parsed = Number(millions[1]);
+    if (Number.isFinite(parsed) && parsed > 0) return Math.max(0, Math.min(2000, parsed / 1000));
+  }
+  if (/\b(mega|large|xl|xxl|opus|reasoner|gpt-5|o3|sonnet-4)\b/i.test(normalized)) return 70;
+  if (/\b(mini|small|tiny|nano|flash|instant)\b/i.test(normalized)) return 7;
+  return 0;
+}
+
+function normalizeParamCountBillions(value, fallback = 0) {
+  const raw = Number(value);
+  const base = Number(fallback);
+  const resolved = Number.isFinite(raw) ? raw : (Number.isFinite(base) ? base : 0);
+  if (!Number.isFinite(resolved) || resolved <= 0) return 0;
+  return Math.max(0.05, Math.min(2000, Math.round(resolved * 100) / 100));
+}
+
 function normalizeModelDeploymentKind(value = '', fallback = 'cloud') {
   const normalized = cleanText(value || '', 20).toLowerCase();
   if (normalized === 'local' || normalized === 'api' || normalized === 'cloud') return normalized;
@@ -4066,6 +4234,10 @@ function normalizeProviderModelProfiles(value = {}) {
     out[modelId] = {
       power_rating: normalizeModelRating(row.power_rating, 3),
       cost_rating: normalizeModelRating(row.cost_rating, 3),
+      param_count_billion: normalizeParamCountBillions(
+        row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(modelId),
+        0
+      ),
       deployment_kind: normalizeModelDeploymentKind(row.deployment_kind, 'cloud'),
       local_download_path: cleanText(row.local_download_path || '', 640),
       download_available: row.download_available === true,
@@ -4091,9 +4263,13 @@ function modelLooksLocallyDownloadable(providerId = '', modelId = '') {
 }
 
 function inferModelPowerRating(providerId = '', modelId = '') {
+  const paramsB = inferModelParamCountBillions(modelId);
   const id = cleanText(modelId || '', 180).toLowerCase();
   const provider = cleanText(providerId || '', 80).toLowerCase();
   if (!id) return 3;
+  if (paramsB >= 120) return 5;
+  if (paramsB >= 45) return 4;
+  if (paramsB > 0 && paramsB <= 7) return 2;
   if (/\b(opus|gpt-5|o3|r1|reasoner|sonnet-4|70b|72b|90b|120b|405b)\b/i.test(id)) return 5;
   if (/\b(claude|gpt-4|gemini-2\.5-pro|pro|34b|32b|27b|24b)\b/i.test(id)) return 4;
   if (/\b(mini|flash|instant|small|8b|7b|6b|3b|2b|1b)\b/i.test(id)) return 2;
@@ -4102,9 +4278,12 @@ function inferModelPowerRating(providerId = '', modelId = '') {
 }
 
 function inferModelCostRating(providerId = '', modelId = '') {
+  const paramsB = inferModelParamCountBillions(modelId);
   const id = cleanText(modelId || '', 180).toLowerCase();
   const provider = cleanText(providerId || '', 80).toLowerCase();
   if (!id) return 3;
+  if ((provider === 'ollama' || provider === 'llama.cpp') && paramsB > 0 && paramsB <= 8) return 1;
+  if ((provider === 'ollama' || provider === 'llama.cpp') && paramsB >= 70) return 4;
   if (provider === 'ollama' || provider === 'llama.cpp') return 1;
   if (/\b(opus|gpt-5|o3|reasoner|pro|70b|72b|90b|120b|405b)\b/i.test(id)) return 5;
   if (/\b(sonnet|gpt-4|gemini-2\.5-pro|34b|32b|27b|24b)\b/i.test(id)) return 4;
@@ -4124,6 +4303,7 @@ function deriveProviderModelProfile(providerId = '', modelId = '', providerRow =
   const provider = cleanText(providerId || '', 80).toLowerCase();
   const model = cleanText(modelId || '', 180);
   const deploymentKind = inferModelDeploymentKind(provider, providerRow);
+  const paramsB = normalizeParamCountBillions(inferModelParamCountBillions(model), 0);
   const downloadable = modelLooksLocallyDownloadable(provider, model);
   const localRoot = path.resolve(ROOT, 'core', 'local', 'models');
   const localPath = downloadable
@@ -4132,6 +4312,7 @@ function deriveProviderModelProfile(providerId = '', modelId = '', providerRow =
   return {
     power_rating: inferModelPowerRating(provider, model),
     cost_rating: inferModelCostRating(provider, model),
+    param_count_billion: paramsB,
     deployment_kind: deploymentKind,
     local_download_path: cleanText(localPath, 640),
     download_available: downloadable,
@@ -4175,6 +4356,86 @@ function applyProviderModelProfiles(providerId = '', providerRow = null) {
       model_profiles: nextProfiles,
     },
   };
+}
+
+function modelPowerScore(row = {}) {
+  const provider = cleanText(row.provider || '', 80).toLowerCase();
+  const id = cleanText(row.display_name || row.id || '', 180).toLowerCase();
+  const paramsB = normalizeParamCountBillions(
+    row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(id),
+    0
+  );
+  const contextWindow = parsePositiveInt(row.context_window != null ? row.context_window : 0, 0, 0, 8_000_000);
+  const contextBonus = contextWindow > 0 ? Math.log10(Math.max(1, contextWindow)) * 0.45 : 0;
+  let score = paramsB > 0 ? Math.log2(1 + paramsB) * 2.4 : 3.0;
+  score += contextBonus;
+  if (/\b(gpt-5|o3|opus|reasoner|sonnet-4)\b/i.test(id)) score += 1.2;
+  if (/\b(mini|small|tiny|flash|instant|lite|nano)\b/i.test(id)) score -= 1.0;
+  if (provider === 'auto') score += 0.4;
+  if (provider === 'ollama' || provider === 'llama.cpp') score -= 0.2;
+  return Number.isFinite(score) ? Math.max(0.1, score) : 1;
+}
+
+function modelCostScore(row = {}) {
+  const provider = cleanText(row.provider || '', 80).toLowerCase();
+  const id = cleanText(row.display_name || row.id || '', 180).toLowerCase();
+  const paramsB = normalizeParamCountBillions(
+    row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(id),
+    0
+  );
+  const localModel = row.is_local === true || provider === 'ollama' || provider === 'llama.cpp';
+  let score = paramsB > 0 ? Math.log2(1 + paramsB) * (localModel ? 1.6 : 1.2) : 1.8;
+  if (!localModel) score += 1.8;
+  if (/\b(opus|gpt-5|o3|reasoner|pro|sonnet-4)\b/i.test(id)) score += 1.5;
+  if (/\b(mini|small|tiny|flash|instant|lite|nano)\b/i.test(id)) score -= 1.0;
+  if (provider === 'openrouter' || provider === 'together' || provider === 'fireworks') score += 0.3;
+  if (provider === 'auto') score += 0.2;
+  return Number.isFinite(score) ? Math.max(0.1, score) : 1;
+}
+
+function scoreToRating(score, min, max) {
+  const resolvedScore = Number(score);
+  const resolvedMin = Number(min);
+  const resolvedMax = Number(max);
+  if (!Number.isFinite(resolvedScore)) return 3;
+  if (!Number.isFinite(resolvedMin) || !Number.isFinite(resolvedMax) || resolvedMax <= resolvedMin) return 3;
+  const ratio = (resolvedScore - resolvedMin) / (resolvedMax - resolvedMin);
+  const clipped = Math.max(0, Math.min(1, ratio));
+  return Math.max(1, Math.min(5, Math.round(clipped * 4) + 1));
+}
+
+function applyModelRatingNormalization(rows = []) {
+  const input = Array.isArray(rows) ? rows : [];
+  if (input.length <= 0) return input;
+  const powerScores = input.map((row) => modelPowerScore(row));
+  const costScores = input.map((row) => modelCostScore(row));
+  const powerMin = Math.min(...powerScores);
+  const powerMax = Math.max(...powerScores);
+  const costMin = Math.min(...costScores);
+  const costMax = Math.max(...costScores);
+  const powerMinIdx = powerScores.indexOf(powerMin);
+  const powerMaxIdx = powerScores.indexOf(powerMax);
+  const costMinIdx = costScores.indexOf(costMin);
+  const costMaxIdx = costScores.indexOf(costMax);
+
+  for (let i = 0; i < input.length; i += 1) {
+    const row = input[i] && typeof input[i] === 'object' ? input[i] : {};
+    row.param_count_billion = normalizeParamCountBillions(
+      row.param_count_billion != null ? row.param_count_billion : inferModelParamCountBillions(row.display_name || row.id || ''),
+      0
+    );
+    row.power_rating = scoreToRating(powerScores[i], powerMin, powerMax);
+    row.cost_rating = scoreToRating(costScores[i], costMin, costMax);
+    input[i] = row;
+  }
+
+  if (input.length > 1) {
+    if (powerMinIdx >= 0 && input[powerMinIdx]) input[powerMinIdx].power_rating = 1;
+    if (powerMaxIdx >= 0 && input[powerMaxIdx]) input[powerMaxIdx].power_rating = 5;
+    if (costMinIdx >= 0 && input[costMinIdx]) input[costMinIdx].cost_rating = 1;
+    if (costMaxIdx >= 0 && input[costMaxIdx]) input[costMaxIdx].cost_rating = 5;
+  }
+  return input;
 }
 
 function modelPullCandidates(modelId = '', providerId = '') {
@@ -5372,6 +5633,7 @@ function buildDashboardModels(snapshot) {
     is_local: false,
     power_rating: 3,
     cost_rating: 3,
+    param_count_billion: 0,
     local_download_path: '',
     download_available: false,
   });
@@ -5401,6 +5663,10 @@ function buildDashboardModels(snapshot) {
       is_local: true,
       power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
       cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 1, 1),
+      param_count_billion: normalizeParamCountBillions(
+        profile && profile.param_count_billion != null ? profile.param_count_billion : inferModelParamCountBillions(id),
+        0
+      ),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
       download_available: !!(profile && profile.download_available === true),
     });
@@ -5437,6 +5703,10 @@ function buildDashboardModels(snapshot) {
       is_local: local,
       power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
       cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 3, 3),
+      param_count_billion: normalizeParamCountBillions(
+        profile && profile.param_count_billion != null ? profile.param_count_billion : inferModelParamCountBillions(cleanModel),
+        0
+      ),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
       download_available: !!(profile && profile.download_available === true),
     });
@@ -5475,7 +5745,7 @@ function buildDashboardModels(snapshot) {
       tier: 'Custom',
     });
   }
-  return rows;
+  return applyModelRatingNormalization(rows);
 }
 
 function modelOverrideFromState(state) {
@@ -10925,8 +11195,37 @@ function runAgentMessage(agentId, input, snapshot, options = {}) {
     force: false,
     preferred_master_id: requestedAgentId || '',
   });
-  const knownAgents = compatAgentsFromSnapshot(snapshot);
+  let knownAgents = compatAgentsFromSnapshot(snapshot);
   let agent = knownAgents.find((row) => row.id === requestedAgentId);
+  if (!agent && requestedAgentId && !isAgentArchived(requestedAgentId)) {
+    const profile = agentProfileFor(requestedAgentId);
+    if (profile) {
+      const profileRole = cleanText(profile.role || 'analyst', 60) || 'analyst';
+      const keepMain = isMainTreeBoundAgent(requestedAgentId, null);
+      optimisticCollabUpsertAgent(snapshot, requestedAgentId, profileRole);
+      ensureAgentGitTreeProfile(requestedAgentId, {
+        force_master: keepMain,
+        force_isolated: !keepMain,
+        ensure_workspace_ready: !keepMain,
+      });
+      ensureAgentGitTreeAssignments(snapshot, {
+        force: true,
+        preferred_master_id: keepMain ? requestedAgentId : '',
+        ensure_workspace_agent_id: keepMain ? '' : requestedAgentId,
+      });
+      knownAgents = compatAgentsFromSnapshot(snapshot);
+      agent = knownAgents.find((row) => row.id === requestedAgentId) || {
+        id: requestedAgentId,
+        name: cleanText(profile.name || requestedAgentId, 100) || requestedAgentId,
+        state: 'running',
+        status: 'active',
+        role: profileRole,
+        provider: configuredProvider(snapshot),
+        model_name: configuredOllamaModel(snapshot),
+        has_prompt_context: true,
+      };
+    }
+  }
   if (!agent && allowFallback) {
     const fallbackId = requestedAgentId || (knownAgents[0] && knownAgents[0].id) || 'chat-ui-default-agent';
     agent = knownAgents[0] || {
@@ -13413,7 +13712,271 @@ function providersFromSnapshot(snapshot) {
   return rows;
 }
 
-function skillsFromSnapshot(snapshot) {
+function unwrapLanePayload(result) {
+  if (!result || typeof result !== 'object') return null;
+  const payload = result.payload && typeof result.payload === 'object' ? result.payload : null;
+  if (!payload) return null;
+  if (payload.payload && typeof payload.payload === 'object') return payload.payload;
+  if (payload.latest && typeof payload.latest === 'object') return payload.latest;
+  return payload;
+}
+
+function sanitizeSkillSlug(value = '') {
+  const raw = cleanText(value || '', 160)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return raw.slice(0, 120);
+}
+
+function slugifySkillName(value = '') {
+  const normalized = sanitizeSkillSlug(value);
+  return normalized || `skill-${Date.now().toString(36)}`;
+}
+
+function skillDirForSlug(slug = '') {
+  const safeSlug = sanitizeSkillSlug(slug);
+  if (!safeSlug) return '';
+  const resolved = path.resolve(SKILLS_PACKAGES_DIR, safeSlug);
+  if (!resolved.startsWith(SKILLS_PACKAGES_DIR)) return '';
+  return resolved;
+}
+
+function skillSourceMetaPath(skillDir = '') {
+  const dir = cleanText(skillDir || '', 800);
+  if (!dir) return '';
+  return path.resolve(dir, SKILL_SOURCE_META_FILE);
+}
+
+function readSkillSourceMetadata(skillDir = '') {
+  const metaPath = skillSourceMetaPath(skillDir);
+  if (!metaPath || !fileExists(metaPath)) return null;
+  const raw = readJson(metaPath, null);
+  if (!raw || typeof raw !== 'object') return null;
+  const sourceType = cleanText(raw.type || '', 40).toLowerCase();
+  const type = sourceType || 'local';
+  return {
+    type,
+    slug: cleanText(raw.slug || '', 160),
+    origin: cleanText(raw.origin || '', 320),
+    installed_at: cleanText(raw.installed_at || '', 80),
+    version: cleanText(raw.version || '', 60),
+    display_name: cleanText(raw.display_name || '', 160),
+  };
+}
+
+function writeSkillSourceMetadata(skillDir = '', meta = {}) {
+  const targetDir = cleanText(skillDir || '', 800);
+  if (!targetDir) return;
+  ensureDir(targetDir);
+  const payload = {
+    type: cleanText(meta && meta.type ? meta.type : 'local', 40).toLowerCase() || 'local',
+    slug: cleanText(meta && meta.slug ? meta.slug : '', 160),
+    version: cleanText(meta && meta.version ? meta.version : '', 60),
+    display_name: cleanText(meta && meta.display_name ? meta.display_name : '', 160),
+    origin: cleanText(meta && meta.origin ? meta.origin : '', 320),
+    installed_at: cleanText(meta && meta.installed_at ? meta.installed_at : nowIso(), 80) || nowIso(),
+  };
+  writeJson(skillSourceMetaPath(targetDir), payload);
+}
+
+function readSkillDescription(skillDir = '') {
+  const yamlPath = path.resolve(skillDir, 'skill.yaml');
+  if (fileExists(yamlPath)) {
+    try {
+      const text = String(fs.readFileSync(yamlPath, 'utf8') || '');
+      const line = text
+        .split('\n')
+        .find((row) => /^\s*description\s*:/i.test(String(row || '')));
+      if (line) {
+        const value = cleanText(line.split(':').slice(1).join(':').trim().replace(/^['"]|['"]$/g, ''), 280);
+        if (value) return value;
+      }
+    } catch {}
+  }
+  const skillMdPath = path.resolve(skillDir, 'SKILL.md');
+  if (fileExists(skillMdPath)) {
+    try {
+      const text = String(fs.readFileSync(skillMdPath, 'utf8') || '');
+      const lines = text
+        .split('\n')
+        .map((row) => cleanText(row, 320))
+        .filter(Boolean)
+        .filter((row) => !row.startsWith('#'))
+        .slice(0, 4);
+      if (lines.length > 0) return cleanText(lines.join(' '), 280);
+    } catch {}
+  }
+  return '';
+}
+
+function runtimeFromEntrypoint(entrypoint = '') {
+  const value = cleanText(entrypoint || '', 240).toLowerCase();
+  if (!value) return 'prompt_only';
+  if (value.endsWith('.py')) return 'python';
+  if (value.endsWith('.js') || value.endsWith('.ts')) return 'node';
+  if (value.endsWith('.sh')) return 'shell';
+  return 'prompt_only';
+}
+
+function cachedClawHubGet(cacheKey = '', nowMs = Date.now()) {
+  const key = cleanText(cacheKey || '', 300);
+  if (!key) return null;
+  const cached = clawhubRequestCache.get(key);
+  if (!cached || typeof cached !== 'object') return null;
+  const tsMs = parseNonNegativeInt(cached.ts_ms, 0, 9_999_999_999_999);
+  if (!tsMs || (nowMs - tsMs) > CLAWHUB_CACHE_TTL_MS) return null;
+  return cached.value || null;
+}
+
+function cachedClawHubSet(cacheKey = '', value = null) {
+  const key = cleanText(cacheKey || '', 300);
+  if (!key) return;
+  clawhubRequestCache.set(key, {
+    ts_ms: Date.now(),
+    value,
+  });
+}
+
+function clawhubHttpRequest(apiPath = '', options = {}) {
+  const normalizedPath = String(apiPath || '').startsWith('/') ? String(apiPath || '') : `/${String(apiPath || '')}`;
+  const method = cleanText(options && options.method ? options.method : 'GET', 12).toUpperCase() || 'GET';
+  const cacheable = method === 'GET' && options && options.cache !== false;
+  const parseJson = options && options.parse_json === false ? false : true;
+  const cacheKey = cacheable ? `${method}:${normalizedPath}:${parseJson ? 'json' : 'text'}` : '';
+  const cached = cacheable ? cachedClawHubGet(cacheKey) : null;
+  if (cached) {
+    return {
+      ...cached,
+      from_cache: true,
+    };
+  }
+
+  const url = `${CLAWHUB_API_BASE_URL}${normalizedPath}`;
+  const timeoutSec = Math.max(
+    2,
+    Math.min(
+      60,
+      parsePositiveInt(options && options.timeout_sec != null ? options.timeout_sec : CLAWHUB_HTTP_TIMEOUT_SEC, CLAWHUB_HTTP_TIMEOUT_SEC, 2, 60)
+    )
+  );
+  const args = ['-sS', '-L', '--max-time', String(timeoutSec), '-H', 'Accept: application/json'];
+  if (method !== 'GET') {
+    args.push('-X', method);
+  }
+  if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+    args.push('-H', 'Content-Type: application/json');
+    const rawBody = options && options.body != null ? options.body : {};
+    args.push('--data-binary', JSON.stringify(rawBody));
+  }
+  args.push('-w', '\n%{http_code}', url);
+
+  const out = spawnSync('curl', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: Math.max(1500, timeoutSec * 1000 + 1200),
+    maxBuffer: 4 * 1024 * 1024,
+  });
+
+  const stdout = typeof out.stdout === 'string' ? out.stdout : '';
+  const stderr = cleanText(typeof out.stderr === 'string' ? out.stderr : '', 400);
+  let responseText = stdout;
+  let httpStatus = 0;
+  const statusMatch = stdout.match(/\n(\d{3})\s*$/);
+  if (statusMatch) {
+    httpStatus = parsePositiveInt(statusMatch[1], 0, 0, 999);
+    responseText = stdout.slice(0, statusMatch.index);
+  } else if (out.status === 0) {
+    httpStatus = 200;
+  }
+  const payload = parseJson ? parseJsonLoose(responseText) : null;
+  const ok = out.status === 0 && httpStatus >= 200 && httpStatus < 300;
+  const result = {
+    ok,
+    http_status: httpStatus,
+    payload: payload && typeof payload === 'object' ? payload : null,
+    text: parseJson ? '' : String(responseText || ''),
+    error:
+      cleanText(
+        stderr ||
+          (payload && payload.error ? payload.error : '') ||
+          (ok ? '' : `clawhub_request_failed:${httpStatus || out.status || 0}`),
+        320
+      ) || (ok ? '' : `clawhub_request_failed:${httpStatus || out.status || 0}`),
+    from_cache: false,
+  };
+  if (cacheable && ok) {
+    cachedClawHubSet(cacheKey, result);
+  }
+  return result;
+}
+
+function skillInstalledSetFromDisk() {
+  const installed = new Set();
+  if (!fileExists(SKILLS_PACKAGES_DIR)) return installed;
+  try {
+    const entries = fs.readdirSync(SKILLS_PACKAGES_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry || !entry.isDirectory()) continue;
+      const slug = sanitizeSkillSlug(entry.name);
+      if (!slug) continue;
+      const full = skillDirForSlug(slug);
+      if (!full) continue;
+      if (fileExists(path.resolve(full, 'skill.yaml')) || fileExists(path.resolve(full, 'SKILL.md'))) {
+        installed.add(slug);
+      }
+    }
+  } catch {}
+  return installed;
+}
+
+function runtimeSkillsForApi(snapshot) {
+  const lane = runLaneCached('api.skills.list', ['skills-plane', 'list', '--strict=1'], {
+    timeout_ms: Math.max(1200, LANE_ACTION_TIMEOUT_MS),
+    ttl_ms: 5000,
+    fail_ttl_ms: 1500,
+  });
+  const lanePayload = unwrapLanePayload(lane);
+  if (lanePayload && lanePayload.ok !== false && Array.isArray(lanePayload.skills)) {
+    const rows = lanePayload.skills
+      .map((row) => {
+        const name = cleanText(row && row.id ? row.id : '', 120);
+        if (!name) return null;
+        const skillPath = cleanText(row && row.path ? row.path : skillDirForSlug(name), 800);
+        const sourceMeta = skillPath ? readSkillSourceMetadata(skillPath) : null;
+        const description =
+          readSkillDescription(skillPath) ||
+          cleanText(
+            sourceMeta && sourceMeta.type === 'clawhub'
+              ? 'Installed from ClawHub marketplace.'
+              : 'Installed skill package.',
+            280
+          ) ||
+          'Installed skill package.';
+        return {
+          name,
+          description,
+          version: cleanText(row && row.version ? row.version : sourceMeta && sourceMeta.version ? sourceMeta.version : 'v1', 60) || 'v1',
+          author: sourceMeta && sourceMeta.type === 'clawhub' ? 'clawhub-community' : 'infring',
+          runtime: runtimeFromEntrypoint(row && row.entrypoint ? row.entrypoint : ''),
+          tools_count: parseNonNegativeInt(row && row.trigger_count != null ? row.trigger_count : 0, 0, 100000),
+          tags: sourceMeta && sourceMeta.type === 'clawhub' ? ['clawhub'] : ['local'],
+          enabled: true,
+          source:
+            sourceMeta && sourceMeta.type === 'clawhub'
+              ? {
+                  type: 'clawhub',
+                  slug: cleanText(sourceMeta.slug || name, 160),
+                }
+              : { type: 'local' },
+          has_prompt_context: fileExists(path.resolve(skillPath || '', 'SKILL.md')),
+        };
+      })
+      .filter(Boolean);
+    if (rows.length > 0) return rows;
+  }
   const hotspots =
     snapshot &&
     snapshot.skills &&
@@ -13421,21 +13984,100 @@ function skillsFromSnapshot(snapshot) {
     Array.isArray(snapshot.skills.metrics.run_hotspots)
       ? snapshot.skills.metrics.run_hotspots
       : [];
-  if (!hotspots.length) {
-    return [];
-  }
+  if (!hotspots.length) return [];
   return hotspots.map((row, idx) => ({
     name: cleanText(row && row.skill ? row.skill : `skill-${idx + 1}`, 120) || `skill-${idx + 1}`,
     description: 'Observed from skills-plane run history.',
     version: 'n/a',
     author: 'infring',
-    runtime: 'typescript',
-    tools_count: 0,
+    runtime: 'prompt_only',
+    tools_count: parseNonNegativeInt(row && row.runs != null ? row.runs : 0, 0, 1000000),
     tags: ['runtime-observed'],
     enabled: true,
     source: { type: 'bundled' },
     has_prompt_context: false,
   }));
+}
+
+function mcpServersForApi() {
+  const configured = [];
+  const connected = [];
+
+  const exposureRegistry = readJson(path.resolve(ROOT, 'core/local/state/ops/mcp_plane/exposure_registry.json'), null);
+  const entries =
+    exposureRegistry &&
+    exposureRegistry.entries &&
+    typeof exposureRegistry.entries === 'object'
+      ? exposureRegistry.entries
+      : {};
+  for (const [id, row] of Object.entries(entries)) {
+    const item = row && typeof row === 'object' ? row : {};
+    const tools = Array.isArray(item.tools)
+      ? item.tools.map((tool) => ({
+          name: cleanText(tool, 120),
+          description: '',
+        })).filter((tool) => tool.name)
+      : [];
+    const record = {
+      name: cleanText(item.agent || id, 160) || id,
+      id: cleanText(id, 160),
+      endpoint: cleanText(item.endpoint || '', 320),
+      connected: true,
+      status: 'connected',
+      tools,
+      tools_count: tools.length,
+      created_at: cleanText(item.created_at || '', 80),
+    };
+    connected.push(record);
+  }
+
+  const lane = runLaneCached('api.mcp.interop', ['mcp-plane', 'interop-status', '--strict=1'], {
+    timeout_ms: Math.max(1200, LANE_ACTION_TIMEOUT_MS),
+    ttl_ms: 10000,
+    fail_ttl_ms: 3000,
+  });
+  const lanePayload = unwrapLanePayload(lane);
+  if (lanePayload && lanePayload.ok !== false) {
+    configured.push({
+      name: 'mcp-plane',
+      transport: { type: 'lane' },
+      timeout_secs: 0,
+      env: {},
+      status: cleanText(lanePayload.type || 'ready', 80) || 'ready',
+    });
+  }
+
+  const servers = [];
+  for (const row of connected) {
+    servers.push({
+      name: row.name,
+      endpoint: row.endpoint || '',
+      status: 'connected',
+      tools_count: parseNonNegativeInt(row.tools_count != null ? row.tools_count : 0, 0, 1000000),
+    });
+  }
+  for (const row of configured) {
+    servers.push({
+      name: row.name,
+      endpoint: '',
+      status: 'configured',
+      tools_count: 0,
+    });
+  }
+
+  return {
+    configured,
+    connected,
+    servers,
+    configuredServers: configured,
+    connectedServers: connected,
+    total_configured: configured.length,
+    total_connected: connected.length,
+  };
+}
+
+function skillsFromSnapshot(snapshot) {
+  return runtimeSkillsForApi(snapshot);
 }
 
 function auditEntriesFromSnapshot(snapshot, limit = 200) {
@@ -13612,10 +14254,10 @@ function compatApiPayload(pathname, reqUrl, snapshot) {
     return presentEyesCatalogForApi(readEyesCatalogState());
   }
   if (pathname === '/api/skills') {
-    return { ok: true, skills: skillsFromSnapshot(snapshot) };
+    return { ok: true, skills: runtimeSkillsForApi(snapshot) };
   }
   if (pathname === '/api/mcp/servers') {
-    return { ok: true, servers: [] };
+    return mcpServersForApi();
   }
   if (pathname === '/api/audit/recent') {
     return { ok: true, entries: audit.entries, tip_hash: audit.tip_hash };
@@ -17203,6 +17845,128 @@ function runServe(flags) {
   let lastFullSnapshotBuildAtMs = Date.now();
   let lastSnapshotRefreshRequestAtMs = 0;
   let lastClientActivityAtMs = Date.now();
+  let releaseCheckState = normalizeReleaseCheckState(readJson(RELEASE_CHECK_STATE_PATH, {}));
+  let releaseCheckInFlight = null;
+  let systemUpdateInFlight = false;
+  let systemUpdateStartedAt = '';
+
+  const persistReleaseCheckState = () => {
+    try {
+      writeJson(RELEASE_CHECK_STATE_PATH, normalizeReleaseCheckState(releaseCheckState));
+    } catch {}
+  };
+
+  const checkLatestRelease = async (force = false) => {
+    const checkedAtMs = coerceTsMs(releaseCheckState && releaseCheckState.checked_at ? releaseCheckState.checked_at : 0, 0);
+    const nowMs = Date.now();
+    const cacheFresh =
+      !force &&
+      checkedAtMs > 0 &&
+      (nowMs - checkedAtMs) < RELEASE_CHECK_CACHE_TTL_MS &&
+      !!cleanText(releaseCheckState && releaseCheckState.latest_version ? releaseCheckState.latest_version : '', 120);
+    if (cacheFresh) {
+      return { ...releaseCheckState, cache_hit: true };
+    }
+    if (releaseCheckInFlight) {
+      return releaseCheckInFlight;
+    }
+    releaseCheckInFlight = (async () => {
+      try {
+        const latest = await fetchGithubLatestRelease(RELEASE_CHECK_TIMEOUT_MS);
+        const latestVersion = cleanText(latest && latest.tag_name ? latest.tag_name : '', 120);
+        const compare = compareSemverStrings(latestVersion, APP_VERSION);
+        const updateAvailable =
+          compare == null
+            ? normalizeSemverLabel(latestVersion) !== normalizeSemverLabel(APP_VERSION)
+            : compare > 0;
+        releaseCheckState = normalizeReleaseCheckState({
+          ok: true,
+          checked_at: nowIso(),
+          current_version: APP_VERSION,
+          latest_version: latestVersion,
+          latest_name: cleanText(latest && latest.name ? latest.name : latestVersion, 200) || latestVersion,
+          latest_url: cleanText(latest && latest.html_url ? latest.html_url : '', 500),
+          latest_published_at: cleanText(latest && latest.published_at ? latest.published_at : '', 80),
+          update_available: updateAvailable,
+          compare_result: compare == null ? 'unknown' : compare > 0 ? 'newer' : compare < 0 ? 'older' : 'equal',
+          error: '',
+          update_requested_at: cleanText(
+            releaseCheckState && releaseCheckState.update_requested_at ? releaseCheckState.update_requested_at : '',
+            80
+          ),
+        });
+      } catch (error) {
+        releaseCheckState = normalizeReleaseCheckState({
+          ...(releaseCheckState && typeof releaseCheckState === 'object' ? releaseCheckState : {}),
+          ok: false,
+          checked_at: nowIso(),
+          current_version: APP_VERSION,
+          error: cleanText(error && error.message ? error.message : 'release_check_failed', 260),
+        });
+      }
+      persistReleaseCheckState();
+      return { ...releaseCheckState, cache_hit: false };
+    })().finally(() => {
+      releaseCheckInFlight = null;
+    });
+    return releaseCheckInFlight;
+  };
+
+  const triggerSystemUpdate = () => {
+    if (systemUpdateInFlight) {
+      return {
+        ok: false,
+        error: 'system_update_in_progress',
+        started_at: systemUpdateStartedAt,
+      };
+    }
+    systemUpdateInFlight = true;
+    systemUpdateStartedAt = nowIso();
+    releaseCheckState = normalizeReleaseCheckState({
+      ...(releaseCheckState && typeof releaseCheckState === 'object' ? releaseCheckState : {}),
+      update_requested_at: systemUpdateStartedAt,
+    });
+    persistReleaseCheckState();
+    const command = [
+      `echo "[infring update] started ${systemUpdateStartedAt}" >> ${shellQuote(SYSTEM_UPDATE_LOG_PATH)}`,
+      'if command -v infring >/dev/null 2>&1; then infring update >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH) + ' 2>&1 || true; fi',
+      'if command -v protheus >/dev/null 2>&1; then protheus update >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH) + ' 2>&1 || true; fi',
+      'if [ -x ' + shellQuote(path.resolve(ROOT, 'install.sh')) + ' ]; then bash ' + shellQuote(path.resolve(ROOT, 'install.sh')) + ' --repair >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH) + ' 2>&1 || true; fi',
+      'if command -v infring >/dev/null 2>&1; then infring gateway restart >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH) + ' 2>&1 || true; fi',
+      'if command -v protheus >/dev/null 2>&1; then protheus gateway restart >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH) + ' 2>&1 || true; fi',
+      'echo "[infring update] finished $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ' + shellQuote(SYSTEM_UPDATE_LOG_PATH),
+    ].join('; ');
+    try {
+      const child = spawn('/bin/bash', ['-lc', command], {
+        cwd: ROOT,
+        env: { ...process.env, PROTHEUS_ROOT: ROOT },
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      const settleTimer = setTimeout(() => {
+        systemUpdateInFlight = false;
+        systemUpdateStartedAt = '';
+      }, SYSTEM_UPDATE_SETTLE_MS);
+      if (settleTimer && typeof settleTimer.unref === 'function') {
+        settleTimer.unref();
+      }
+      return {
+        ok: true,
+        status: 'started',
+        started_at: systemUpdateStartedAt,
+        message: 'Update started. Gateway/dashboard will restart if update succeeds.',
+      };
+    } catch (error) {
+      systemUpdateInFlight = false;
+      const err = cleanText(error && error.message ? error.message : 'system_update_spawn_failed', 260);
+      return {
+        ok: false,
+        error: 'system_update_spawn_failed',
+        message: err,
+      };
+    }
+  };
 
   const refreshSnapshot = (contractEnforcement = null, options = {}) => {
     const startedMs = Date.now();
@@ -18261,35 +19025,553 @@ function runServe(flags) {
         return;
       }
       if (req.method === 'GET' && pathname.startsWith('/api/clawhub/search')) {
-        sendJson(res, 200, { ok: true, items: [], next_cursor: '', total: 0 });
+        const query = cleanText(reqUrl.searchParams.get('q') || '', 240);
+        const limit = parsePositiveInt(reqUrl.searchParams.get('limit') || 20, 20, 1, 50);
+        if (!query) {
+          sendJson(res, 200, { ok: true, items: [], next_cursor: null, total: 0 });
+          return;
+        }
+        const installed = skillInstalledSetFromDisk();
+        const clawhub = clawhubHttpRequest(`/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+          parse_json: true,
+          cache: true,
+        });
+        const rows =
+          clawhub && clawhub.payload && Array.isArray(clawhub.payload.results)
+            ? clawhub.payload.results
+            : clawhub && clawhub.payload && Array.isArray(clawhub.payload.items)
+              ? clawhub.payload.items
+              : [];
+        const items = rows
+          .map((entry) => {
+            const slug = sanitizeSkillSlug(entry && entry.slug ? entry.slug : '');
+            if (!slug) return null;
+            return {
+              slug,
+              name: cleanText(
+                entry && (entry.displayName || entry.display_name || entry.name)
+                  ? entry.displayName || entry.display_name || entry.name
+                  : slug,
+                200
+              ) || slug,
+              description: cleanText(
+                entry && (entry.summary || entry.description) ? entry.summary || entry.description : '',
+                500
+              ),
+              version: cleanText(entry && entry.version ? entry.version : '', 60),
+              score: Number.isFinite(Number(entry && entry.score)) ? Number(entry.score) : 0,
+              updated_at: entry && entry.updatedAt != null ? entry.updatedAt : entry && entry.updated_at != null ? entry.updated_at : 0,
+              installed: installed.has(slug),
+            };
+          })
+          .filter(Boolean);
+        const statusCode = clawhub && clawhub.http_status === 429 ? 429 : 200;
+        sendJson(res, statusCode, {
+          ok: clawhub && clawhub.ok !== false,
+          items,
+          next_cursor: null,
+          total: items.length,
+          error: clawhub && clawhub.ok === false ? cleanText(clawhub.error || 'clawhub_search_failed', 280) : '',
+        });
         return;
       }
       if (req.method === 'GET' && pathname.startsWith('/api/clawhub/browse')) {
-        sendJson(res, 200, { ok: true, items: [], next_cursor: '', total: 0 });
+        const sortRaw = cleanText(reqUrl.searchParams.get('sort') || 'trending', 40).toLowerCase();
+        const sort = ['trending', 'downloads', 'stars', 'updated', 'rating'].includes(sortRaw)
+          ? sortRaw
+          : 'trending';
+        const limit = parsePositiveInt(reqUrl.searchParams.get('limit') || 20, 20, 1, 50);
+        const cursor = cleanText(reqUrl.searchParams.get('cursor') || '', 280);
+        const installed = skillInstalledSetFromDisk();
+        const apiPath = cursor
+          ? `/skills?limit=${limit}&sort=${encodeURIComponent(sort)}&cursor=${encodeURIComponent(cursor)}`
+          : `/skills?limit=${limit}&sort=${encodeURIComponent(sort)}`;
+        const clawhub = clawhubHttpRequest(apiPath, { parse_json: true, cache: true });
+        const rows =
+          clawhub && clawhub.payload && Array.isArray(clawhub.payload.items)
+            ? clawhub.payload.items
+            : [];
+        const items = rows
+          .map((entry) => {
+            const slug = sanitizeSkillSlug(entry && entry.slug ? entry.slug : '');
+            if (!slug) return null;
+            const latestVersion =
+              cleanText(
+                entry &&
+                  entry.latestVersion &&
+                  typeof entry.latestVersion === 'object' &&
+                  entry.latestVersion.version
+                  ? entry.latestVersion.version
+                  : entry &&
+                    entry.latest_version &&
+                    typeof entry.latest_version === 'object' &&
+                    entry.latest_version.version
+                    ? entry.latest_version.version
+                    : '',
+                60
+              ) || '';
+            const tags = entry && entry.tags && typeof entry.tags === 'object' ? entry.tags : {};
+            const version =
+              latestVersion ||
+              cleanText(tags.latest || tags.stable || entry.version || '', 60);
+            const stats = entry && entry.stats && typeof entry.stats === 'object' ? entry.stats : {};
+            return {
+              slug,
+              name: cleanText(
+                entry && (entry.displayName || entry.display_name || entry.name)
+                  ? entry.displayName || entry.display_name || entry.name
+                  : slug,
+                200
+              ) || slug,
+              description: cleanText(
+                entry && (entry.summary || entry.description) ? entry.summary || entry.description : '',
+                500
+              ),
+              version,
+              downloads: parseNonNegativeInt(
+                stats && stats.downloads != null
+                  ? stats.downloads
+                  : entry && entry.downloads != null
+                    ? entry.downloads
+                    : 0,
+                0,
+                1000000000
+              ),
+              stars: parseNonNegativeInt(
+                stats && stats.stars != null
+                  ? stats.stars
+                  : entry && entry.stars != null
+                    ? entry.stars
+                    : 0,
+                0,
+                1000000000
+              ),
+              updated_at: entry && entry.updatedAt != null ? entry.updatedAt : entry && entry.updated_at != null ? entry.updated_at : 0,
+              installed: installed.has(slug),
+            };
+          })
+          .filter(Boolean);
+        const nextCursor = cleanText(
+          clawhub && clawhub.payload && (clawhub.payload.nextCursor || clawhub.payload.next_cursor)
+            ? clawhub.payload.nextCursor || clawhub.payload.next_cursor
+            : '',
+          320
+        );
+        const statusCode = clawhub && clawhub.http_status === 429 ? 429 : 200;
+        sendJson(res, statusCode, {
+          ok: clawhub && clawhub.ok !== false,
+          items,
+          next_cursor: nextCursor || null,
+          total: items.length,
+          error: clawhub && clawhub.ok === false ? cleanText(clawhub.error || 'clawhub_browse_failed', 280) : '',
+        });
         return;
       }
       if (req.method === 'GET' && pathname.startsWith('/api/clawhub/skill/')) {
-        const slug = cleanText(safeDecodePathToken(pathname.split('/').slice(3).join('/')), 160);
+        const parts = pathname.split('/').filter(Boolean);
+        const slug = sanitizeSkillSlug(safeDecodePathToken(parts[3] || ''));
+        const isCodeRequest = cleanText(parts[4] || '', 20).toLowerCase() === 'code';
+        if (!slug) {
+          sendJson(res, 400, { ok: false, error: 'skill_slug_required' });
+          return;
+        }
+        if (isCodeRequest) {
+          let codeText = '';
+          let filename = '';
+          for (const candidate of CLAWHUB_INSTALL_SOURCE_CANDIDATES) {
+            const fileRes = clawhubHttpRequest(
+              `/skills/${encodeURIComponent(slug)}/file?path=${encodeURIComponent(candidate)}`,
+              { parse_json: false, cache: true, timeout_sec: CLAWHUB_HTTP_TIMEOUT_SEC }
+            );
+            if (!fileRes.ok || !fileRes.text) continue;
+            const trimmed = String(fileRes.text || '').slice(0, CLAWHUB_SOURCE_FILE_MAX_BYTES);
+            if (!trimmed.trim()) continue;
+            codeText = trimmed;
+            filename = candidate;
+            break;
+          }
+          if (!codeText) {
+            sendJson(res, 404, { ok: false, error: 'clawhub_skill_source_not_found', slug });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            slug,
+            filename,
+            code: codeText,
+          });
+          return;
+        }
+        const detail = clawhubHttpRequest(`/skills/${encodeURIComponent(slug)}`, {
+          parse_json: true,
+          cache: true,
+        });
+        if (!detail.ok || !detail.payload || typeof detail.payload !== 'object') {
+          const statusCode = detail.http_status === 429 ? 429 : 404;
+          sendJson(res, statusCode, {
+            ok: false,
+            error: cleanText(detail.error || 'clawhub_skill_not_found', 280) || 'clawhub_skill_not_found',
+            slug,
+          });
+          return;
+        }
+        const payload = detail.payload;
+        const skill = payload.skill && typeof payload.skill === 'object' ? payload.skill : payload;
+        const latestVersion =
+          payload.latestVersion && typeof payload.latestVersion === 'object'
+            ? payload.latestVersion
+            : payload.latest_version && typeof payload.latest_version === 'object'
+              ? payload.latest_version
+              : {};
+        const owner = payload.owner && typeof payload.owner === 'object' ? payload.owner : {};
+        const stats = skill && skill.stats && typeof skill.stats === 'object' ? skill.stats : {};
+        const tags = skill && skill.tags && typeof skill.tags === 'object' ? skill.tags : {};
+        const tagMap = {};
+        if (Array.isArray(skill && skill.tags)) {
+          for (const tag of skill.tags.slice(0, 24)) {
+            const key = cleanText(tag, 80);
+            if (key) tagMap[key] = 'yes';
+          }
+        } else {
+          for (const [key, value] of Object.entries(tags || {})) {
+            const safeKey = cleanText(key, 80);
+            if (!safeKey) continue;
+            tagMap[safeKey] = cleanText(value, 120) || 'yes';
+          }
+        }
+        const version =
+          cleanText(
+            latestVersion && latestVersion.version ? latestVersion.version : tags.latest || tags.stable || '',
+            60
+          ) || '';
+        const installed = skillInstalledSetFromDisk().has(slug);
         sendJson(res, 200, {
           ok: true,
           slug,
-          title: slug || 'skill',
-          summary: 'Skill metadata unavailable in local fallback mode.',
-          readme: '',
-          code: '',
+          name: cleanText(
+            skill && (skill.displayName || skill.display_name || skill.name)
+              ? skill.displayName || skill.display_name || skill.name
+              : slug,
+            200
+          ) || slug,
+          description: cleanText(skill && (skill.summary || skill.description) ? skill.summary || skill.description : '', 800),
+          version,
+          downloads: parseNonNegativeInt(stats && stats.downloads != null ? stats.downloads : 0, 0, 1000000000),
+          stars: parseNonNegativeInt(stats && stats.stars != null ? stats.stars : 0, 0, 1000000000),
+          author: cleanText(owner && owner.handle ? owner.handle : '', 120),
+          author_name: cleanText(owner && owner.displayName ? owner.displayName : owner && owner.display_name ? owner.display_name : '', 160),
+          author_image: cleanText(owner && owner.image ? owner.image : '', 400),
+          tags: tagMap,
+          updated_at: skill && skill.updatedAt != null ? skill.updatedAt : skill && skill.updated_at != null ? skill.updated_at : 0,
+          created_at: skill && skill.createdAt != null ? skill.createdAt : skill && skill.created_at != null ? skill.created_at : 0,
+          installed,
         });
         return;
       }
       if (req.method === 'POST' && pathname === '/api/clawhub/install') {
-        sendJson(res, 200, { ok: true, installed: true });
+        const payload = await bodyJson(req);
+        const slug = sanitizeSkillSlug(payload && payload.slug ? payload.slug : '');
+        if (!slug) {
+          sendJson(res, 400, { ok: false, error: 'clawhub_slug_required' });
+          return;
+        }
+        const targetDir = skillDirForSlug(slug);
+        if (!targetDir) {
+          sendJson(res, 400, { ok: false, error: 'invalid_skill_slug' });
+          return;
+        }
+        if (fileExists(targetDir)) {
+          sendJson(res, 409, { ok: false, error: `Skill '${slug}' is already installed`, status: 'already_installed' });
+          return;
+        }
+        const detail = clawhubHttpRequest(`/skills/${encodeURIComponent(slug)}`, {
+          parse_json: true,
+          cache: true,
+        });
+        let displayName = slug;
+        let description = '';
+        let version = 'v1';
+        if (detail.ok && detail.payload && typeof detail.payload === 'object') {
+          const detailPayload = detail.payload;
+          const detailSkill =
+            detailPayload.skill && typeof detailPayload.skill === 'object' ? detailPayload.skill : detailPayload;
+          const latestVersion =
+            detailPayload.latestVersion && typeof detailPayload.latestVersion === 'object'
+              ? detailPayload.latestVersion
+              : detailPayload.latest_version && typeof detailPayload.latest_version === 'object'
+                ? detailPayload.latest_version
+                : {};
+          const tags = detailSkill && detailSkill.tags && typeof detailSkill.tags === 'object' ? detailSkill.tags : {};
+          displayName = cleanText(
+            detailSkill && (detailSkill.displayName || detailSkill.display_name || detailSkill.name)
+              ? detailSkill.displayName || detailSkill.display_name || detailSkill.name
+              : slug,
+            200
+          ) || slug;
+          description = cleanText(
+            detailSkill && (detailSkill.summary || detailSkill.description)
+              ? detailSkill.summary || detailSkill.description
+              : '',
+            500
+          );
+          version =
+            cleanText(
+              latestVersion && latestVersion.version ? latestVersion.version : tags.latest || tags.stable || 'v1',
+              60
+            ) || 'v1';
+        }
+        let sourceCode = '';
+        let sourceFilename = '';
+        for (const candidate of CLAWHUB_INSTALL_SOURCE_CANDIDATES) {
+          const fileRes = clawhubHttpRequest(
+            `/skills/${encodeURIComponent(slug)}/file?path=${encodeURIComponent(candidate)}`,
+            { parse_json: false, cache: false, timeout_sec: CLAWHUB_HTTP_TIMEOUT_SEC }
+          );
+          if (!fileRes.ok || !fileRes.text) continue;
+          const trimmed = String(fileRes.text || '').slice(0, CLAWHUB_SOURCE_FILE_MAX_BYTES);
+          if (!trimmed.trim()) continue;
+          sourceCode = trimmed;
+          sourceFilename = candidate;
+          break;
+        }
+        if (!sourceCode) {
+          sourceFilename = 'SKILL.md';
+          sourceCode = `# ${displayName}\n\n${description || 'Installed from ClawHub.'}\n`;
+        }
+        ensureDir(targetDir);
+        ensureDir(path.resolve(targetDir, 'scripts'));
+        ensureDir(path.resolve(targetDir, 'tests'));
+        ensureDir(path.resolve(targetDir, 'assets'));
+        const skillMdBody =
+          sourceFilename.toLowerCase() === 'skill.md'
+            ? sourceCode
+            : `# ${displayName}\n\n${description || 'Installed from ClawHub marketplace.'}\n\n## Imported Source (${sourceFilename})\n\n\`\`\`\n${sourceCode.slice(0, CLAWHUB_SOURCE_FILE_MAX_BYTES)}\n\`\`\`\n`;
+        writeFileAtomic(path.resolve(targetDir, 'SKILL.md'), `${skillMdBody.trimEnd()}\n`);
+        if (sourceFilename.toLowerCase() !== 'skill.md') {
+          writeFileAtomic(path.resolve(targetDir, sourceFilename), sourceCode);
+        }
+        const yamlBody = [
+          `name: ${slug}`,
+          `version: ${version || 'v1'}`,
+          `description: ${cleanText(description || `Imported from ClawHub (${slug})`, 280) || `Imported from ClawHub (${slug})`}`,
+          'triggers:',
+          `  - mention:${slug}`,
+          'entrypoint: scripts/run.sh',
+        ].join('\n');
+        writeFileAtomic(path.resolve(targetDir, 'skill.yaml'), `${yamlBody}\n`);
+        writeFileAtomic(
+          path.resolve(targetDir, 'scripts/run.sh'),
+          '#!/usr/bin/env bash\nset -euo pipefail\necho "clawhub skill scaffold placeholder"\n'
+        );
+        writeFileAtomic(
+          path.resolve(targetDir, 'tests/smoke.sh'),
+          '#!/usr/bin/env bash\nset -euo pipefail\nbash "$(dirname "$0")/../scripts/run.sh" >/dev/null\n'
+        );
+        writeFileAtomic(path.resolve(targetDir, 'assets/.keep'), '');
+        try {
+          fs.chmodSync(path.resolve(targetDir, 'scripts/run.sh'), 0o755);
+          fs.chmodSync(path.resolve(targetDir, 'tests/smoke.sh'), 0o755);
+        } catch {}
+        writeSkillSourceMetadata(targetDir, {
+          type: 'clawhub',
+          slug,
+          version,
+          display_name: displayName,
+          origin: `${CLAWHUB_API_BASE_URL}/skills/${slug}`,
+        });
+        const relativeSkillPath = path.relative(ROOT, targetDir) || targetDir;
+        const installLane = runLane(
+          ['skills-plane', 'install', `--skill-path=${relativeSkillPath}`, '--strict=1'],
+          { timeout_ms: Math.max(2000, LANE_ACTION_TIMEOUT_MS) }
+        );
+        const installPayload = unwrapLanePayload(installLane);
+        if (!installLane.ok || !installPayload || installPayload.ok === false) {
+          const failedInstallPath = path.resolve(SKILLS_TRASH_DIR, `${slug}-install-failed-${Date.now().toString(36)}`);
+          try {
+            ensureDir(SKILLS_TRASH_DIR);
+            fs.renameSync(targetDir, failedInstallPath);
+          } catch {}
+          sendJson(res, 502, {
+            ok: false,
+            error: cleanText(
+              installPayload && installPayload.error ? installPayload.error : installLane.stderr || 'skills_plane_install_failed',
+              280
+            ) || 'skills_plane_install_failed',
+            slug,
+          });
+          return;
+        }
+        requestSnapshotRefresh(false);
+        sendJson(res, 200, {
+          ok: true,
+          status: 'installed',
+          name: displayName,
+          version,
+          slug,
+          is_prompt_only: true,
+          warnings: [],
+          tool_translations: [],
+          source_filename: sourceFilename,
+        });
         return;
       }
       if (req.method === 'POST' && pathname === '/api/skills/create') {
-        sendJson(res, 200, { ok: true, created: true });
+        const payload = await bodyJson(req);
+        const requestedName = cleanText(payload && payload.name ? payload.name : '', 120);
+        if (!requestedName) {
+          sendJson(res, 400, { ok: false, error: 'skill_name_required' });
+          return;
+        }
+        const skillId = slugifySkillName(requestedName);
+        const existingDir = skillDirForSlug(skillId);
+        if (existingDir && fileExists(existingDir)) {
+          sendJson(res, 409, { ok: false, error: `Skill '${skillId}' already exists` });
+          return;
+        }
+        const createLane = runLane(
+          ['skills-plane', 'create', `--name=${requestedName}`, '--strict=1'],
+          { timeout_ms: Math.max(2200, LANE_ACTION_TIMEOUT_MS) }
+        );
+        const createPayload = unwrapLanePayload(createLane);
+        if (!createLane.ok || !createPayload || createPayload.ok === false) {
+          sendJson(res, 400, {
+            ok: false,
+            error: cleanText(
+              createPayload && createPayload.error ? createPayload.error : createLane.stderr || 'skills_plane_create_failed',
+              280
+            ) || 'skills_plane_create_failed',
+          });
+          return;
+        }
+        const skillRoot = cleanText(
+          createPayload &&
+            createPayload.skill &&
+            typeof createPayload.skill === 'object' &&
+            createPayload.skill.root
+            ? createPayload.skill.root
+            : skillDirForSlug(skillId),
+          800
+        );
+        if (skillRoot) {
+          const description = cleanText(payload && payload.description ? payload.description : '', 280);
+          const promptContext = cleanText(payload && payload.prompt_context ? payload.prompt_context : '', 6000);
+          if (description || promptContext) {
+            const promptLines = [];
+            promptLines.push(`# ${requestedName}`);
+            if (description) promptLines.push('', description);
+            if (promptContext) {
+              promptLines.push('', '## Prompt Context', '', promptContext);
+            }
+            writeFileAtomic(path.resolve(skillRoot, 'SKILL.md'), `${promptLines.join('\n').trimEnd()}\n`);
+            if (description) {
+              const yamlPath = path.resolve(skillRoot, 'skill.yaml');
+              let yamlText = readText(yamlPath, '');
+              if (yamlText) {
+                if (/^\s*description\s*:/m.test(yamlText)) {
+                  yamlText = yamlText.replace(/^\s*description\s*:.*$/m, `description: ${description}`);
+                } else {
+                  yamlText = `${yamlText.trimEnd()}\ndescription: ${description}\n`;
+                }
+                writeFileAtomic(yamlPath, yamlText.endsWith('\n') ? yamlText : `${yamlText}\n`);
+              }
+            }
+          }
+          writeSkillSourceMetadata(skillRoot, {
+            type: 'local',
+            slug: skillId,
+            version: cleanText(
+              createPayload &&
+                createPayload.skill &&
+                typeof createPayload.skill === 'object' &&
+                createPayload.skill.version
+                ? createPayload.skill.version
+                : 'v1',
+              60
+            ) || 'v1',
+            display_name: requestedName,
+            origin: 'dashboard.create_skill',
+          });
+          const relativeSkillPath = path.relative(ROOT, skillRoot) || skillRoot;
+          const installLane = runLane(
+            ['skills-plane', 'install', `--skill-path=${relativeSkillPath}`, '--strict=1'],
+            { timeout_ms: Math.max(2200, LANE_ACTION_TIMEOUT_MS) }
+          );
+          const installPayload = unwrapLanePayload(installLane);
+          if (!installLane.ok || !installPayload || installPayload.ok === false) {
+            sendJson(res, 502, {
+              ok: false,
+              error: cleanText(
+                installPayload && installPayload.error ? installPayload.error : installLane.stderr || 'skills_plane_install_failed',
+                280
+              ) || 'skills_plane_install_failed',
+            });
+            return;
+          }
+        }
+        requestSnapshotRefresh(false);
+        sendJson(res, 200, {
+          ok: true,
+          status: 'created',
+          name: requestedName,
+          id: skillId,
+        });
         return;
       }
       if (req.method === 'POST' && pathname === '/api/skills/uninstall') {
-        sendJson(res, 200, { ok: true, removed: true });
+        const payload = await bodyJson(req);
+        const requestedName = cleanText(payload && payload.name ? payload.name : '', 120);
+        const skillId = slugifySkillName(requestedName);
+        if (!requestedName) {
+          sendJson(res, 400, { ok: false, error: 'skill_name_required' });
+          return;
+        }
+        const listed = runLaneCached('api.skills.list.uninstall', ['skills-plane', 'list', '--strict=1'], {
+          timeout_ms: Math.max(1200, LANE_ACTION_TIMEOUT_MS),
+          ttl_ms: 2500,
+          fail_ttl_ms: 1000,
+        });
+        const listedPayload = unwrapLanePayload(listed);
+        const listRows = listedPayload && Array.isArray(listedPayload.skills) ? listedPayload.skills : [];
+        const row =
+          listRows.find((entry) => sanitizeSkillSlug(entry && entry.id ? entry.id : '') === skillId) || null;
+        const targetDir = cleanText(
+          row && row.path ? row.path : skillDirForSlug(skillId),
+          800
+        );
+        if (!targetDir || !fileExists(targetDir)) {
+          sendJson(res, 404, { ok: false, error: `Skill '${requestedName}' not found` });
+          return;
+        }
+        ensureDir(SKILLS_TRASH_DIR);
+        const trashedPath = path.resolve(
+          SKILLS_TRASH_DIR,
+          `${skillId}-${Date.now().toString(36)}`
+        );
+        try {
+          fs.renameSync(targetDir, trashedPath);
+        } catch (error) {
+          sendJson(res, 500, {
+            ok: false,
+            error: cleanText(error && error.message ? error.message : 'skill_uninstall_failed', 280) || 'skill_uninstall_failed',
+          });
+          return;
+        }
+        const registry = readJson(SKILLS_PLANE_REGISTRY_PATH, null);
+        if (registry && typeof registry === 'object' && registry.installed && typeof registry.installed === 'object') {
+          if (Object.prototype.hasOwnProperty.call(registry.installed, skillId)) {
+            delete registry.installed[skillId];
+            writeJson(SKILLS_PLANE_REGISTRY_PATH, registry);
+          }
+        }
+        runLane(['skills-plane', 'list', '--strict=1'], { timeout_ms: Math.max(1200, LANE_ACTION_TIMEOUT_MS) });
+        requestSnapshotRefresh(false);
+        sendJson(res, 200, {
+          ok: true,
+          status: 'uninstalled',
+          name: requestedName,
+          id: skillId,
+          trashed_path: trashedPath,
+        });
         return;
       }
       if (req.method === 'GET' && pathname === '/api/migrate/detect') {
@@ -18779,6 +20061,44 @@ function runServe(flags) {
             sendJson(res, 200, inactiveAgentRecord(agentId, latestSnapshot, archivedMeta));
             return;
           }
+          const profile = agentProfileFor(agentId);
+          if (profile && typeof profile === 'object' && !isAgentArchived(agentId)) {
+            const modelState = effectiveAgentModel(agentId, latestSnapshot);
+            const synthetic = {
+              id: agentId,
+              name: cleanText(profile.name || agentId, 100) || agentId,
+              role: cleanText(profile.role || 'analyst', 60) || 'analyst',
+              state: 'running',
+              status: 'active',
+              provider: cleanText(
+                modelState && modelState.provider ? modelState.provider : configuredProvider(latestSnapshot),
+                80
+              ) || configuredProvider(latestSnapshot),
+              model_name: cleanText(
+                modelState && modelState.selected ? modelState.selected : configuredOllamaModel(latestSnapshot),
+                120
+              ) || configuredOllamaModel(latestSnapshot),
+              runtime_model: cleanText(
+                modelState && modelState.runtime_model ? modelState.runtime_model : configuredOllamaModel(latestSnapshot),
+                120
+              ) || configuredOllamaModel(latestSnapshot),
+              context_window: parsePositiveInt(
+                modelState && modelState.context_window,
+                DEFAULT_CONTEXT_WINDOW_TOKENS,
+                1024,
+                8_000_000
+              ),
+              identity: normalizeAgentIdentity(
+                profile.identity && typeof profile.identity === 'object' ? profile.identity : {},
+                {}
+              ),
+              avatar_url: cleanText(profile.avatar_url || '', 512),
+              system_prompt: cleanText(profile.system_prompt || '', 4000),
+              has_prompt_context: true,
+            };
+            sendJson(res, 200, synthetic);
+            return;
+          }
           const agent = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId);
           if (!agent) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
@@ -18792,8 +20112,8 @@ function runServe(flags) {
           parts[3] === 'suggestions'
         ) {
           const payload = req.method === 'POST' ? await bodyJson(req) : {};
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -18808,8 +20128,8 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'avatar') {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -18861,8 +20181,8 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'upload') {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -18905,8 +20225,8 @@ function runServe(flags) {
         }
         if (req.method === 'POST' && parts[3] === 'file' && parts[4] === 'read') {
           const payload = await bodyJson(req);
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -18931,8 +20251,8 @@ function runServe(flags) {
         }
         if (req.method === 'POST' && parts[3] === 'folder' && parts[4] === 'export') {
           const payload = await bodyJson(req);
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -18974,7 +20294,7 @@ function runServe(flags) {
             return;
           }
           try {
-          const known = agentKnownInRuntime(agentId);
+          const known = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true }).ok;
           const alreadyArchived = isAgentArchived(agentId);
           if (!known && !alreadyArchived) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
@@ -19011,8 +20331,8 @@ function runServe(flags) {
             return;
           }
           try {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19045,8 +20365,8 @@ function runServe(flags) {
             return;
           }
           try {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19164,8 +20484,8 @@ function runServe(flags) {
         }
         if (req.method === 'POST' && parts[3] === 'terminal') {
           const payload = await bodyJson(req);
-          const known = agentKnownInRuntime(agentId);
-          if (!known) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19289,8 +20609,8 @@ function runServe(flags) {
         }
         if (req.method === 'PUT' && parts[3] === 'model') {
           const payload = await bodyJson(req);
-          const agent = compatAgentsFromSnapshot(latestSnapshot).find((row) => row.id === agentId);
-          if (!agent) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19316,8 +20636,8 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'GET' && parts[3] === 'git-trees') {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19359,8 +20679,8 @@ function runServe(flags) {
         }
         if (req.method === 'POST' && parts[3] === 'git-tree' && parts[4] === 'switch') {
           const payload = await bodyJson(req);
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19586,8 +20906,8 @@ function runServe(flags) {
           return;
         }
         if (req.method === 'POST' && parts[3] === 'stop') {
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19648,8 +20968,8 @@ function runServe(flags) {
           (parts[3] === 'identity' || parts[3] === 'config')
         ) {
           const payload = await bodyJson(req);
-          const known = agentKnownInRuntime(agentId);
-          if (!known && !isAgentArchived(agentId)) {
+          const presence = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true });
+          if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
             return;
           }
@@ -19980,6 +21300,21 @@ function runServe(flags) {
         });
         return;
       }
+      if (req.method === 'GET' && pathname === '/api/system/release-check') {
+        const force = reqUrl.searchParams.get('force') === '1';
+        const payload = await checkLatestRelease(force);
+        sendJson(res, 200, {
+          ok: true,
+          ...payload,
+          update_in_progress: systemUpdateInFlight,
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/system/update') {
+        const payload = triggerSystemUpdate();
+        sendJson(res, payload.ok ? 202 : 409, payload);
+        return;
+      }
       if (req.method === 'GET') {
         const compatPayload = compatApiPayload(pathname, reqUrl, latestSnapshot);
         if (compatPayload) {
@@ -20132,6 +21467,7 @@ function runServe(flags) {
     if (!id) return false;
     const fromSnapshot = compatAgentsFromSnapshot(latestSnapshot, { includeArchived: true }).some((row) => row.id === id);
     if (fromSnapshot) return true;
+    if (!isAgentArchived(id) && agentProfileFor(id)) return true;
     const team = cleanText(flags.team || DEFAULT_TEAM, 40) || DEFAULT_TEAM;
     const lane = runLaneCached(
       `agent_presence.${team}.${id}`,
@@ -20151,6 +21487,63 @@ function runServe(flags) {
         ? lane.payload.dashboard.agents
         : [];
     return runtimeAgents.some((row) => cleanText(row && row.shadow ? row.shadow : '', 140) === id);
+  };
+
+  const resolveAgentPresence = (agentId, options = {}) => {
+    const id = cleanText(agentId || '', 140);
+    if (!id) return { ok: false, error: 'agent_id_required', id: '' };
+    const allowArchived = options && options.allow_archived === true;
+    const acceptProfile = !(options && options.accept_profile === false);
+    const archived = isAgentArchived(id);
+    const known = agentKnownInRuntime(id);
+    if (known) {
+      if (archived && !allowArchived) {
+        return { ok: false, error: 'agent_inactive', id, archived: true };
+      }
+      return {
+        ok: true,
+        id,
+        archived,
+        runtime_known: true,
+        profile_only: false,
+        profile: agentProfileFor(id),
+      };
+    }
+    if (archived) {
+      if (allowArchived) {
+        return { ok: true, id, archived: true, runtime_known: false, profile_only: false, profile: null };
+      }
+      return { ok: false, error: 'agent_inactive', id, archived: true };
+    }
+    const profile = agentProfileFor(id);
+    if (!profile || typeof profile !== 'object') {
+      return { ok: false, error: 'agent_not_found', id, archived: false };
+    }
+    const role = cleanText(profile.role || 'analyst', 60) || 'analyst';
+    const keepMain = isMainTreeBoundAgent(id, null);
+    optimisticCollabUpsertAgent(latestSnapshot, id, role);
+    ensureAgentGitTreeProfile(id, {
+      force_master: keepMain,
+      force_isolated: !keepMain,
+      ensure_workspace_ready: !keepMain,
+    });
+    ensureAgentGitTreeAssignments(latestSnapshot, {
+      force: true,
+      preferred_master_id: keepMain ? id : '',
+      ensure_workspace_agent_id: keepMain ? '' : id,
+    });
+    const knownAfter = agentKnownInRuntime(id);
+    if (knownAfter || acceptProfile) {
+      return {
+        ok: true,
+        id,
+        archived: false,
+        runtime_known: knownAfter,
+        profile_only: !knownAfter,
+        profile,
+      };
+    }
+    return { ok: false, error: 'agent_not_found', id, archived: false };
   };
 
   const closeAgentSockets = (agentId, reason = 'agent_inactive') => {
@@ -21048,6 +22441,12 @@ function runServe(flags) {
     }, startupCompactDelayMs);
     if (startupCompactTimer && typeof startupCompactTimer.unref === 'function') {
       startupCompactTimer.unref();
+    }
+    const startupReleaseCheckTimer = setTimeout(() => {
+      checkLatestRelease(false).catch(() => {});
+    }, RELEASE_CHECK_BOOT_DELAY_MS);
+    if (startupReleaseCheckTimer && typeof startupReleaseCheckTimer.unref === 'function') {
+      startupReleaseCheckTimer.unref();
     }
   });
 
