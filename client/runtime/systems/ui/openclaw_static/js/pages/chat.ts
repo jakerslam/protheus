@@ -2170,7 +2170,8 @@ function chatPage() {
       var dx = x - Number(this._pointerTrailLastX || x);
       var dy = y - Number(this._pointerTrailLastY || y);
       var dist = Math.sqrt(dx * dx + dy * dy);
-      var spacing = 0.26;
+      // Denser sampling for a smoother neon trail.
+      var spacing = 0.13;
       var steps = Math.max(1, Math.min(52, Math.ceil(dist / spacing)));
       for (var i = 1; i <= steps; i++) {
         var t0 = (i - 1) / steps;
