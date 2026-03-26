@@ -57,7 +57,7 @@
           </template>
           <template x-for="agent in chatSidebarAgents" :key="'agent-chat-' + agent.id">
             <button class="chat-sidebar-item" :class="{ active: $store.app.activeAgentId === agent.id, 'expiring-pulse': shouldPulseExpiringAgent(agent) }" @click="selectAgentChatFromSidebar(agent)">
-              <span class="chat-sidebar-item-avatar-wrap">
+              <span class="chat-sidebar-item-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent) }">
                 <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                 <div class="chat-sidebar-item-avatar">
                   <img
@@ -123,7 +123,7 @@
                 :aria-current="page === 'chat' && $store.app.activeAgentId === agent.id ? 'page' : false"
               >
                 <span class="nav-icon nav-agent-icon">
-                  <span class="nav-agent-avatar-wrap">
+                  <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent) }">
                     <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                     <span class="nav-agent-avatar">
                       <img
@@ -797,7 +797,7 @@
           <div class="chat-thread-topline">
             <div class="chat-thread-profile-center">
               <div class="chat-thread-profile" @click="toggleAgentDrawer()" role="button" tabindex="0" title="Agent details" @keydown.enter.prevent="toggleAgentDrawer()" @keydown.space.prevent="toggleAgentDrawer()">
-                <div class="chat-thread-profile-avatar">
+                <div class="chat-thread-profile-avatar" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(currentAgent) }">
                   <img
                     x-show="currentAgent && currentAgent.avatar_url"
                     :src="currentAgent && currentAgent.avatar_url ? currentAgent.avatar_url : ''"
@@ -998,6 +998,7 @@
         </aside>
 
         <div class="messages" id="messages" @scroll.passive="handleMessagesScroll($event)" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="handleDrop($event); dragOver = false" @mousemove="handleMessagesPointerMove($event)" @mousedown="handleMessagesPointerDown($event)" @mouseleave="clearPointerFx($event)">
+          <div class="chat-grid-overlay" aria-hidden="true"></div>
           <template x-if="!currentAgent && !($store.app.agentsLoading || !$store.app.agentsHydrated)">
             <div class="empty-state">
               <h4>No agent selected</h4>
@@ -1284,12 +1285,11 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
           </button>
         </div>
-        <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-        </button>
-
         <div class="input-area" x-show="currentAgent" :class="{ 'terminal-mode': terminalMode }">
           <div class="chat-input-lane">
+            <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
             <template x-if="!terminalMode && attachments && attachments.length">
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                 <template x-for="(att, aidx) in attachments" :key="aidx">
@@ -1305,7 +1305,30 @@
               </div>
             </template>
             <div class="composer-stack">
-              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles">
+              <div class="prompt-queue-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length > 0">
+                <div class="prompt-queue-header">
+                  <span>Prompt Queue</span>
+                  <span class="prompt-queue-count" x-text="promptQueueItems.length"></span>
+                </div>
+                <div class="prompt-queue-list">
+                  <template x-for="item in promptQueueItems" :key="'prompt-queue-' + item.queue_id">
+                    <div
+                      class="prompt-queue-item"
+                      draggable="true"
+                      @dragstart="onPromptQueueDragStart(item.queue_id, $event)"
+                      @dragover.prevent
+                      @drop="onPromptQueueDrop(item.queue_id, $event)"
+                      @dragend="onPromptQueueDragEnd()"
+                    >
+                      <span class="prompt-queue-drag" title="Drag to reorder">⋮⋮</span>
+                      <button class="prompt-queue-text" type="button" @click="inputText = item.text" :title="item.text" x-text="queuePromptPreview(item)"></button>
+                      <button class="prompt-queue-steer" type="button" @click="steerPromptQueueItem(item.queue_id)">Steer</button>
+                      <button class="prompt-queue-remove" type="button" @click="removePromptQueueItem(item.queue_id)" aria-label="Remove queued prompt">×</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
                   <button
                     class="prompt-suggestion-chip"
@@ -1387,9 +1410,9 @@
                       </div>
                       <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border-subtle)">
                         <input
-                          type="password"
+                          type="text"
                           x-model="modelApiKeyInput"
-                          placeholder="Add API key (auto-discover models)"
+                          placeholder="Add API key or local model path"
                           style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;padding:6px 8px;font-family:var(--font-mono)"
                           @keydown.enter.prevent="discoverModelsFromApiKey()"
                         >
@@ -1412,22 +1435,18 @@
                             <div class="model-switcher-group-header" x-text="group.provider"></div>
                             <template x-for="(m, mi) in group.models" :key="m.id">
                               <div class="model-switcher-item" :class="{'active': isSwitcherModelActive(m), 'hovered': filteredSwitcherModels.indexOf(m) === modelSwitcherIdx}" @click="switchModel(m)" @mouseenter="modelSwitcherIdx = filteredSwitcherModels.indexOf(m)">
-                                <div style="flex:1;min-width:0">
-                                  <div style="display:flex;align-items:center;gap:6px">
-                                    <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
-                                    <span class="model-switcher-tier" :class="'tier-' + (m.tier || 'balanced').toLowerCase()" x-text="m.tier || 'Balanced'"></span>
-                                    <span style="margin-left:auto;display:inline-flex;align-items:center;opacity:0.7" :title="modelDeploymentLabel(m)">
-                                      <svg x-show="modelDeploymentKind(m) === 'cloud'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
-                                      <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
-                                    </span>
+                                  <div style="flex:1;min-width:0">
+                                    <div style="display:flex;align-items:center;gap:6px">
+                                      <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
+                                      <span style="margin-left:auto;display:inline-flex;align-items:center;opacity:0.7" :title="modelDeploymentLabel(m)">
+                                        <svg x-show="modelDeploymentKind(m) === 'cloud'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
+                                        <svg x-show="modelDeploymentKind(m) === 'api'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><rect x="5" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1.2"/></svg>
+                                        <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+                                        <span class="text-xs text-dim" style="margin-left:6px;letter-spacing:0.2px" :title="'Power: ' + (m.power_rating || 3) + '/5'" x-text="modelPowerIcons(m)"></span>
+                                        <span class="text-xs text-dim" style="margin-left:4px;letter-spacing:0.2px" :title="'Cost: ' + (m.cost_rating || 3) + '/5'" x-text="modelCostIcons(m)"></span>
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-                                    <span class="text-xs text-dim" x-text="m.id" style="font-family:var(--font-mono)"></span>
-                                    <span class="text-xs text-dim" x-show="m.context_window" x-text="m.context_window >= 1000000 ? (m.context_window/1000000).toFixed(1)+'M' : Math.round(m.context_window/1000)+'K'"></span>
-                                    <svg x-show="m.supports_vision" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:0.5" title="Vision"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    <svg x-show="m.supports_tools" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:0.5" title="Tools"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                                  </div>
-                                </div>
                                 <svg x-show="isSwitcherModelActive(m)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                               </div>
                             </template>
@@ -1830,13 +1849,12 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
               </button>
             </div>
-            <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-            </button>
-
             <!-- Input area -->
             <div class="input-area" x-show="currentAgent" style="position:relative" :class="{ 'terminal-mode': terminalMode }">
               <div class="chat-input-lane">
+              <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
               <!-- Attachment previews -->
               <div x-show="!terminalMode && attachments.length > 0" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 0 8px 0">
                 <template x-for="(att, aidx) in attachments" :key="aidx">
@@ -1869,7 +1887,30 @@
                 </template>
               </div>
               <div class="composer-stack">
-                <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles">
+                <div class="prompt-queue-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length > 0">
+                  <div class="prompt-queue-header">
+                    <span>Prompt Queue</span>
+                    <span class="prompt-queue-count" x-text="promptQueueItems.length"></span>
+                  </div>
+                  <div class="prompt-queue-list">
+                    <template x-for="item in promptQueueItems" :key="'prompt-queue-inline-' + item.queue_id">
+                      <div
+                        class="prompt-queue-item"
+                        draggable="true"
+                        @dragstart="onPromptQueueDragStart(item.queue_id, $event)"
+                        @dragover.prevent
+                        @drop="onPromptQueueDrop(item.queue_id, $event)"
+                        @dragend="onPromptQueueDragEnd()"
+                      >
+                        <span class="prompt-queue-drag" title="Drag to reorder">⋮⋮</span>
+                        <button class="prompt-queue-text" type="button" @click="inputText = item.text" :title="item.text" x-text="queuePromptPreview(item)"></button>
+                        <button class="prompt-queue-steer" type="button" @click="steerPromptQueueItem(item.queue_id)">Steer</button>
+                        <button class="prompt-queue-remove" type="button" @click="removePromptQueueItem(item.queue_id)" aria-label="Remove queued prompt">×</button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
                   <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-inline-' + sidx + '-' + suggestion">
                     <button class="prompt-suggestion-chip" type="button" @click="applyPromptSuggestion(suggestion)" :title="suggestion">
                       <span x-text="suggestion"></span>
@@ -1939,9 +1980,9 @@
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border-subtle)">
                           <input
-                            type="password"
+                            type="text"
                             x-model="modelApiKeyInput"
-                            placeholder="Add API key (auto-discover models)"
+                            placeholder="Add API key or local model path"
                             style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;padding:6px 8px;font-family:var(--font-mono)"
                             @keydown.enter.prevent="discoverModelsFromApiKey()"
                           >
@@ -1967,17 +2008,13 @@
                                   <div style="flex:1;min-width:0">
                                     <div style="display:flex;align-items:center;gap:6px">
                                       <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
-                                      <span class="model-switcher-tier" :class="'tier-' + (m.tier || 'balanced').toLowerCase()" x-text="m.tier || 'Balanced'"></span>
                                       <span style="margin-left:auto;display:inline-flex;align-items:center;opacity:0.7" :title="modelDeploymentLabel(m)">
                                         <svg x-show="modelDeploymentKind(m) === 'cloud'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
+                                        <svg x-show="modelDeploymentKind(m) === 'api'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><rect x="5" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1.2"/></svg>
                                         <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+                                        <span class="text-xs text-dim" style="margin-left:6px;letter-spacing:0.2px" :title="'Power: ' + (m.power_rating || 3) + '/5'" x-text="modelPowerIcons(m)"></span>
+                                        <span class="text-xs text-dim" style="margin-left:4px;letter-spacing:0.2px" :title="'Cost: ' + (m.cost_rating || 3) + '/5'" x-text="modelCostIcons(m)"></span>
                                       </span>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-                                      <span class="text-xs text-dim" x-text="m.id" style="font-family:var(--font-mono)"></span>
-                                      <span class="text-xs text-dim" x-show="m.context_window" x-text="m.context_window >= 1000000 ? (m.context_window/1000000).toFixed(1)+'M' : Math.round(m.context_window/1000)+'K'"></span>
-                                      <svg x-show="m.supports_vision" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:0.5" title="Vision"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                      <svg x-show="m.supports_tools" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:0.5" title="Tools"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                                     </div>
                                   </div>
                                   <svg x-show="isSwitcherModelActive(m)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
