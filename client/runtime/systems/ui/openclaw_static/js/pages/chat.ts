@@ -9,6 +9,8 @@ function chatPage() {
     inputText: '',
     sending: false,
     messageQueue: [],    // Queue for messages sent while streaming
+    promptQueueDragId: '',
+    _promptQueueSeq: 0,
     thinkingMode: 'off', // 'off' | 'on' | 'stream'
     _wsAgent: null,
     showAttachMenu: false,
@@ -86,6 +88,8 @@ function chatPage() {
     _pendingAutoModelSwitchBaseline: '',
     _pendingWsRequest: null,
     _pendingWsRecovering: false,
+    _inflightPayload: null,
+    _inflightFailoverInProgress: false,
     _sendWatchdogTimer: null,
     modelNoticeCache: {},
     modelNoticeCacheKey: 'of-chat-model-notices-v1',
@@ -632,6 +636,9 @@ function chatPage() {
         tier: 'Active',
         context_window: Number(agent.context_window || 0) || null,
         is_local: provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp',
+        deployment: (provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp') ? 'local' : (provider.toLowerCase() === 'cloud' ? 'cloud' : 'api'),
+        power_rating: 3,
+        cost_rating: provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp' ? 1 : 3,
       };
     },
 
@@ -670,15 +677,33 @@ function chatPage() {
     modelDeploymentKind: function(model) {
       var row = model || {};
       var deployment = String(row.deployment || '').trim().toLowerCase();
-      if (deployment === 'local' || deployment === 'cloud') return deployment;
+      if (deployment === 'local' || deployment === 'cloud' || deployment === 'api') return deployment;
       if (row.is_local === true) return 'local';
       var provider = String(row.provider || '').trim().toLowerCase();
       if (provider === 'ollama' || provider === 'llama.cpp') return 'local';
-      return 'cloud';
+      if (provider === 'cloud') return 'cloud';
+      return 'api';
     },
 
     modelDeploymentLabel: function(model) {
-      return this.modelDeploymentKind(model) === 'local' ? 'Local model' : 'Cloud/API model';
+      var kind = this.modelDeploymentKind(model);
+      if (kind === 'local') return 'Local model';
+      if (kind === 'api') return 'API model';
+      return 'Cloud model';
+    },
+
+    modelPowerIcons: function(model) {
+      var level = Number(model && model.power_rating != null ? model.power_rating : 3);
+      if (!Number.isFinite(level)) level = 3;
+      level = Math.max(1, Math.min(5, Math.round(level)));
+      return '🔥'.repeat(level);
+    },
+
+    modelCostIcons: function(model) {
+      var level = Number(model && model.cost_rating != null ? model.cost_rating : 3);
+      if (!Number.isFinite(level)) level = 3;
+      level = Math.max(1, Math.min(5, Math.round(level)));
+      return '$'.repeat(level);
     },
 
     pickDefaultAgent(agents) {
@@ -1226,6 +1251,171 @@ function chatPage() {
       return out;
     },
 
+    nextPromptQueueId() {
+      this._promptQueueSeq = Number(this._promptQueueSeq || 0) + 1;
+      return 'pq-' + String(Date.now()) + '-' + String(this._promptQueueSeq);
+    },
+
+    get promptQueueItems() {
+      var queue = Array.isArray(this.messageQueue) ? this.messageQueue : [];
+      var out = [];
+      for (var i = 0; i < queue.length; i++) {
+        var row = queue[i];
+        if (!row || row.terminal) continue;
+        if (!row.queue_id) row.queue_id = this.nextPromptQueueId();
+        if (!row.queue_kind) row.queue_kind = 'prompt';
+        out.push({
+          queue_id: String(row.queue_id),
+          queue_index: i,
+          text: String(row.text || '').trim(),
+          files: Array.isArray(row.files) ? row.files : [],
+          images: Array.isArray(row.images) ? row.images : [],
+          queued_at: Number(row.queued_at || 0) || Date.now()
+        });
+      }
+      return out;
+    },
+
+    get hasPromptQueue() {
+      return Array.isArray(this.promptQueueItems) && this.promptQueueItems.length > 0;
+    },
+
+    queuePromptPreview(item) {
+      var text = String(item && item.text ? item.text : '').replace(/\s+/g, ' ').trim();
+      if (!text) return '(queued prompt)';
+      return text.length > 140 ? text.substring(0, 137) + '...' : text;
+    },
+
+    removePromptQueueItem(queueId) {
+      var id = String(queueId || '').trim();
+      if (!id) return;
+      var rows = Array.isArray(this.messageQueue) ? this.messageQueue : [];
+      var idx = rows.findIndex(function(row) {
+        return !!(row && String(row.queue_id || '').trim() === id);
+      });
+      if (idx < 0) return;
+      rows.splice(idx, 1);
+      this.messageQueue = rows.slice();
+      if (!this.hasPromptQueue && !this.sending && this.currentAgent) {
+        this.refreshPromptSuggestions(false, 'queue-cleared');
+      }
+      this.scheduleConversationPersist();
+    },
+
+    movePromptQueueItem(sourceId, targetId) {
+      var src = String(sourceId || '').trim();
+      var dst = String(targetId || '').trim();
+      if (!src || !dst || src === dst) return;
+      var rows = Array.isArray(this.messageQueue) ? this.messageQueue.slice() : [];
+      var srcIdx = rows.findIndex(function(row) { return !!(row && String(row.queue_id || '').trim() === src); });
+      var dstIdx = rows.findIndex(function(row) { return !!(row && String(row.queue_id || '').trim() === dst); });
+      if (srcIdx < 0 || dstIdx < 0) return;
+      var moving = rows[srcIdx];
+      rows.splice(srcIdx, 1);
+      if (dstIdx > srcIdx) dstIdx -= 1;
+      rows.splice(dstIdx, 0, moving);
+      this.messageQueue = rows;
+      this.scheduleConversationPersist();
+    },
+
+    onPromptQueueDragStart(queueId, event) {
+      var id = String(queueId || '').trim();
+      if (!id) return;
+      this.promptQueueDragId = id;
+      if (event && event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        try { event.dataTransfer.setData('text/plain', id); } catch(_) {}
+      }
+    },
+
+    onPromptQueueDrop(targetId, event) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      var sourceId = String(this.promptQueueDragId || '').trim();
+      if (!sourceId && event && event.dataTransfer) {
+        try {
+          sourceId = String(event.dataTransfer.getData('text/plain') || '').trim();
+        } catch(_) {}
+      }
+      var destinationId = String(targetId || '').trim();
+      if (sourceId && destinationId) {
+        this.movePromptQueueItem(sourceId, destinationId);
+      }
+      this.promptQueueDragId = '';
+    },
+
+    onPromptQueueDragEnd() {
+      this.promptQueueDragId = '';
+    },
+
+    async steerPromptQueueItem(queueId) {
+      var id = String(queueId || '').trim();
+      if (!id) return;
+      var rows = Array.isArray(this.messageQueue) ? this.messageQueue : [];
+      var idx = rows.findIndex(function(row) {
+        return !!(row && String(row.queue_id || '').trim() === id);
+      });
+      if (idx < 0) return;
+      var item = rows[idx];
+      rows.splice(idx, 1);
+      this.messageQueue = rows.slice();
+      var text = String(item && item.text ? item.text : '').trim();
+      var files = Array.isArray(item && item.files) ? item.files : [];
+      var images = Array.isArray(item && item.images) ? item.images : [];
+      if (!text) return;
+      this.messages.push({
+        id: ++msgId,
+        role: 'system',
+        text: 'Steer injected into active workflow.',
+        meta: '',
+        tools: [],
+        system_origin: 'prompt_queue:steer',
+        ts: Date.now(),
+      });
+      this.scrollToBottom();
+      this.scheduleConversationPersist();
+
+      if (!this.sending) {
+        this._sendPayload(text, files, images, { steer_injected: true });
+        return;
+      }
+
+      var wsPayload = { type: 'message', content: text, steer: true, priority: 'steer' };
+      if (files.length) wsPayload.attachments = files;
+      if (InfringAPI.wsSend(wsPayload)) return;
+
+      if (this.currentAgent && this.currentAgent.id) {
+        try {
+          await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/message', {
+            message: text,
+            attachments: files,
+            steer: true,
+            priority: 'steer',
+          });
+          return;
+        } catch(_) {}
+      }
+
+      this.messageQueue.unshift({
+        queue_id: id,
+        queue_kind: 'prompt',
+        text: text,
+        files: files,
+        images: images,
+        queued_at: Number(item && item.queued_at ? item.queued_at : Date.now()),
+      });
+      this.messages.push({
+        id: ++msgId,
+        role: 'system',
+        text: 'Steer injection failed; prompt returned to queue.',
+        meta: '',
+        tools: [],
+        system_origin: 'prompt_queue:steer',
+        ts: Date.now(),
+      });
+      this.scrollToBottom();
+      this.scheduleConversationPersist();
+    },
+
     clearPromptSuggestions() {
       this.promptSuggestions = [];
       this.suggestionsLoading = false;
@@ -1251,6 +1441,11 @@ function chatPage() {
       }
       if (this.terminalMode || this.showFreshArchetypeTiles) {
         this.promptSuggestions = [];
+        return;
+      }
+      if (this.hasPromptQueue) {
+        this.promptSuggestions = [];
+        this.suggestionsLoading = false;
         return;
       }
       var now = Date.now();
@@ -1373,9 +1568,34 @@ function chatPage() {
 
     pointerFxThemeMode() {
       try {
-        return document && document.body && document.body.dataset && document.body.dataset.theme === 'dark'
-          ? 'dark'
-          : 'light';
+        var bodyTheme = '';
+        var rootTheme = '';
+        if (document && document.body && document.body.dataset) {
+          bodyTheme = String(document.body.dataset.theme || '').toLowerCase().trim();
+        }
+        if (document && document.documentElement) {
+          rootTheme = String(
+            (document.documentElement.dataset && document.documentElement.dataset.theme) ||
+            document.documentElement.getAttribute('data-theme') ||
+            ''
+          ).toLowerCase().trim();
+        }
+        var resolved = bodyTheme || rootTheme;
+        if (!resolved) {
+          try {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+          } catch(_) {
+            resolved = 'light';
+          }
+        }
+        if (document && document.body && document.body.dataset) {
+          if (!bodyTheme || bodyTheme !== resolved) {
+            document.body.dataset.theme = resolved;
+          }
+        }
+        return resolved === 'dark' ? 'dark' : 'light';
       } catch(_) {
         return 'light';
       }
@@ -2207,18 +2427,28 @@ function chatPage() {
 
     discoverModelsFromApiKey: function() {
       var self = this;
-      var key = String(this.modelApiKeyInput || '').trim();
-      if (!key) {
-        InfringToast.error('Enter an API key first');
+      var entry = String(this.modelApiKeyInput || '').trim();
+      if (!entry) {
+        InfringToast.error('Enter an API key or local model path first');
         return;
       }
       this.modelApiKeySaving = true;
       this.modelApiKeyStatus = 'Detecting...';
-      InfringAPI.post('/api/models/discover', { api_key: key }).then(function(resp) {
+      InfringAPI.post('/api/models/discover', {
+        input: entry,
+        api_key: entry
+      }).then(function(resp) {
         var provider = String((resp && resp.provider) || '').trim();
+        var inputKind = String((resp && resp.input_kind) || '').trim().toLowerCase();
         var count = Number((resp && resp.model_count) || ((resp && resp.models && resp.models.length) || 0));
         self.modelApiKeyInput = '';
-        self.modelApiKeyStatus = provider ? ('Added ' + provider + ' (' + count + ' models)') : 'API key saved';
+        if (inputKind === 'local_path') {
+          self.modelApiKeyStatus = provider
+            ? ('Indexed local path to ' + provider + ' (' + count + ' models)')
+            : ('Indexed local path (' + count + ' models)');
+        } else {
+          self.modelApiKeyStatus = provider ? ('Added ' + provider + ' (' + count + ' models)') : 'API key saved';
+        }
         self._modelCache = null;
         self._modelCacheTime = 0;
         return InfringAPI.get('/api/models');
@@ -2437,6 +2667,229 @@ function chatPage() {
       });
     },
 
+    ensureFailoverModelCache: function() {
+      var now = Date.now();
+      if (this._modelCache && (now - Number(this._modelCacheTime || 0)) < 180000) {
+        return Promise.resolve(this._modelCache);
+      }
+      var self = this;
+      return InfringAPI.get('/api/models')
+        .then(function(data) {
+          var models = Array.isArray(data && data.models) ? data.models : [];
+          var available = models.filter(function(m) { return !!(m && m.available); });
+          self._modelCache = available;
+          self._modelCacheTime = Date.now();
+          self.modelPickerList = available;
+          return available;
+        })
+        .catch(function() {
+          return Array.isArray(self._modelCache) ? self._modelCache : [];
+        });
+    },
+
+    normalizeFailoverCandidateId: function(entry) {
+      if (!entry) return '';
+      if (typeof entry === 'string') return String(entry || '').trim();
+      if (typeof entry !== 'object') return '';
+      var model = String(entry.id || entry.model || entry.model_name || '').trim();
+      var provider = String(entry.provider || entry.model_provider || '').trim();
+      if (!model) return '';
+      if (provider && model.indexOf('/') < 0) return provider + '/' + model;
+      return model;
+    },
+
+    modelIdVariantSet: function(values) {
+      var set = {};
+      var add = function(value) {
+        var raw = String(value || '').trim();
+        if (!raw) return;
+        var lower = raw.toLowerCase();
+        set[lower] = true;
+        if (raw.indexOf('/') >= 0) {
+          var tail = String(raw.split('/').slice(-1)[0] || '').toLowerCase();
+          if (tail) set[tail] = true;
+        }
+      };
+      if (Array.isArray(values)) {
+        for (var i = 0; i < values.length; i++) add(values[i]);
+      } else {
+        add(values);
+      }
+      return set;
+    },
+
+    extractRecoverableBackendFailure: function(text) {
+      var raw = String(text || '').trim();
+      if (!raw) return null;
+      var lower = raw.toLowerCase();
+      var markers = [
+        "couldn't reach a chat model backend",
+        'could not reach a chat model backend',
+        'hosted_model_provider_sync_failed',
+        'provider-sync',
+        'switch-provider',
+        'lane_timeout_1500ms',
+        'start ollama',
+        'configure app-plane',
+        'model backend unavailable',
+        'no chat model backend',
+        'app_plane_chat_ui'
+      ];
+      var matched = false;
+      for (var i = 0; i < markers.length; i++) {
+        if (lower.indexOf(markers[i]) >= 0) {
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) return null;
+      var summary = raw.replace(/\s+/g, ' ').trim();
+      if (summary.length > 220) summary = summary.slice(0, 217) + '...';
+      return { raw: raw, summary: summary };
+    },
+
+    collectFailoverModelCandidates: async function() {
+      var self = this;
+      var activeSet = this.modelIdVariantSet(this.activeModelCandidateIds());
+      var out = [];
+      var seen = {};
+      var push = function(id) {
+        var modelId = String(id || '').trim();
+        if (!modelId || modelId.toLowerCase() === 'auto') return;
+        var variants = self.modelIdVariantSet(modelId);
+        var keys = Object.keys(variants);
+        for (var i = 0; i < keys.length; i++) {
+          if (activeSet[keys[i]]) return;
+        }
+        var normalized = modelId.toLowerCase();
+        if (seen[normalized]) return;
+        seen[normalized] = true;
+        out.push(modelId);
+      };
+
+      var agent = this.currentAgent || {};
+      var fallbacks = Array.isArray(agent.fallback_models)
+        ? agent.fallback_models
+        : (this.agentDrawer && Array.isArray(this.agentDrawer._fallbacks) ? this.agentDrawer._fallbacks : []);
+      for (var f = 0; f < fallbacks.length; f++) {
+        push(this.normalizeFailoverCandidateId(fallbacks[f]));
+      }
+
+      var models = await this.ensureFailoverModelCache();
+      var sorted = (Array.isArray(models) ? models.slice() : []).filter(function(row) {
+        return !!(row && row.id);
+      });
+      sorted.sort(function(a, b) {
+        var aId = String((a && a.id) || '').trim();
+        var bId = String((b && b.id) || '').trim();
+        var aUsage = self.modelUsageTs(aId);
+        var bUsage = self.modelUsageTs(bId);
+        if (bUsage !== aUsage) return bUsage - aUsage;
+        var aProvider = String((a && a.provider) || '').toLowerCase();
+        var bProvider = String((b && b.provider) || '').toLowerCase();
+        if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
+        return aId.toLowerCase().localeCompare(bId.toLowerCase());
+      });
+      for (var m = 0; m < sorted.length; m++) {
+        push(this.normalizeFailoverCandidateId(sorted[m]));
+      }
+      return out;
+    },
+
+    attemptAutomaticFailoverRecovery: async function(source, rawFailure, options) {
+      var failure = this.extractRecoverableBackendFailure(rawFailure);
+      if (!failure) return false;
+      if (this._inflightFailoverInProgress) return false;
+      if (!this.currentAgent || !this.currentAgent.id) return false;
+      var agentId = String(this.currentAgent.id || '').trim();
+      if (!agentId) return false;
+      var payload = this._inflightPayload;
+      if (!payload || String(payload.agent_id || '') !== agentId) return false;
+      if (payload.failover_attempted) return false;
+
+      var opts = options && typeof options === 'object' ? options : {};
+      this._inflightFailoverInProgress = true;
+      payload.failover_attempted = true;
+      payload.failover_reason = failure.summary;
+      payload.failover_source = String(source || 'runtime');
+
+      try {
+        var candidates = await this.collectFailoverModelCandidates();
+        if (!candidates.length) return false;
+        var targetModel = String(candidates[0] || '').trim();
+        if (!targetModel) return false;
+
+        if (opts.remove_last_agent_failure) {
+          var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (last && last.role === 'agent') {
+            var lastText = String(last.text || '').trim();
+            if (this.extractRecoverableBackendFailure(lastText)) {
+              this.messages.pop();
+            }
+          }
+        }
+
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text:
+            'Model backend failed (' +
+            failure.summary +
+            '). Switching to ' +
+            targetModel +
+            ' and retrying the last request automatically.',
+          meta: '',
+          tools: [],
+          system_origin: 'model:auto-recover',
+          ts: Date.now()
+        });
+        this.scrollToBottom();
+        this.scheduleConversationPersist();
+
+        var previousModel = String(
+          (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || 'unknown'
+        ).trim() || 'unknown';
+        var previousProvider = String(
+          (this.currentAgent && this.currentAgent.model_provider) || ''
+        ).trim();
+        await this.switchAgentModelWithGuards({ id: targetModel }, {
+          agent_id: agentId,
+          previous_model: previousModel,
+          previous_provider: previousProvider
+        });
+
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this.tokenCount = 0;
+        this._clearTypingTimeout();
+        this._clearPendingWsRequest(agentId);
+        this.setAgentLiveActivity(agentId, 'idle');
+        await this._sendPayload(
+          payload.final_text,
+          Array.isArray(payload.uploaded_files) ? payload.uploaded_files : [],
+          Array.isArray(payload.msg_images) ? payload.msg_images : [],
+          { retry_from_failover: true }
+        );
+        return true;
+      } catch (error) {
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text:
+            'Automatic model recovery failed: ' +
+            String(error && error.message ? error.message : error),
+          meta: '',
+          tools: [],
+          system_origin: 'model:auto-recover:error',
+          ts: Date.now()
+        });
+        this.scheduleConversationPersist();
+        return false;
+      } finally {
+        this._inflightFailoverInProgress = false;
+      }
+    },
+
     // Fetch dynamic slash commands from server
     fetchCommands: function() {
       var self = this;
@@ -2495,6 +2948,7 @@ function chatPage() {
         self.sending = false;
         self._responseStartedAt = 0;
         self.tokenCount = 0;
+        self._inflightPayload = null;
         self._clearPendingWsRequest();
         self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
         self.scheduleConversationPersist();
@@ -3531,6 +3985,7 @@ function chatPage() {
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
+      this._inflightPayload = null;
       this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
 
       if (!opts.silentNotice && noticeKey !== this._lastInactiveNoticeKey) {
@@ -3956,22 +4411,38 @@ function chatPage() {
             this.messages.push(finalMessage);
           }
           this.markAgentMessageComplete(finalMessage);
+          var wsFailure = this.extractRecoverableBackendFailure(finalText);
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
           this.scrollToBottom();
-          var self3 = this;
-          this.$nextTick(function() {
-            var el = document.getElementById('msg-input'); if (el) el.focus();
-            self3._processQueue();
-          });
           this.requestContextTelemetry(false);
           this.maybeAddAutoModelSwitchNotice(wsAutoSwitchPrevious, wsRoute);
           this._pendingAutoModelSwitchBaseline = '';
           if (artifactDirectives && artifactDirectives.length) {
             this.resolveArtifactDirectives(artifactDirectives);
           }
-          this.refreshPromptSuggestions(true, 'post-response');
+          var self3 = this;
+          if (wsFailure) {
+            this.attemptAutomaticFailoverRecovery('ws_response', finalText, {
+              remove_last_agent_failure: true
+            }).then(function(recovered) {
+              if (recovered) return;
+              self3._inflightPayload = null;
+              self3.refreshPromptSuggestions(true, 'post-response-failed-recover');
+              self3.$nextTick(function() {
+                var el = document.getElementById('msg-input'); if (el) el.focus();
+                self3._processQueue();
+              });
+            });
+          } else {
+            this._inflightPayload = null;
+            this.refreshPromptSuggestions(true, 'post-response');
+            this.$nextTick(function() {
+              var el = document.getElementById('msg-input'); if (el) el.focus();
+              self3._processQueue();
+            });
+          }
           break;
 
         case 'silent_complete':
@@ -3980,6 +4451,7 @@ function chatPage() {
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
           this._clearStreamingTypewriters();
+          this._inflightPayload = null;
           this._pendingAutoModelSwitchBaseline = '';
           var silentEnvelope = this.collectStreamedAssistantEnvelope();
           var silentThought = String(silentEnvelope.thought || '').trim();
@@ -4034,17 +4506,31 @@ function chatPage() {
             break;
           }
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-          this.messages.push({ id: ++msgId, role: 'system', text: errorText, meta: '', tools: [], system_origin: 'runtime:error', ts: Date.now() });
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
-          this.scrollToBottom();
           var self2 = this;
-          this.$nextTick(function() {
-            var el = document.getElementById('msg-input'); if (el) el.focus();
-            self2._processQueue();
+          this.attemptAutomaticFailoverRecovery('ws_error', rawError, {
+            remove_last_agent_failure: false
+          }).then(function(recovered) {
+            if (recovered) return;
+            self2.messages.push({
+              id: ++msgId,
+              role: 'system',
+              text: errorText,
+              meta: '',
+              tools: [],
+              system_origin: 'runtime:error',
+              ts: Date.now()
+            });
+            self2._inflightPayload = null;
+            self2.scrollToBottom();
+            self2.$nextTick(function() {
+              var el = document.getElementById('msg-input'); if (el) el.focus();
+              self2._processQueue();
+            });
+            self2.refreshPromptSuggestions(true, 'post-error');
           });
-          this.refreshPromptSuggestions(true, 'post-error');
           break;
 
         case 'agent_archived':
@@ -5360,7 +5846,7 @@ function chatPage() {
 
     // Process queued messages after current response completes
     _processQueue: function() {
-      if (!this.messageQueue.length || this.sending) return;
+      if (!this.messageQueue.length || this.sending || this._inflightFailoverInProgress) return;
       var next = this.messageQueue.shift();
       if (next && next.terminal) {
         this._sendTerminalPayload(next.command);
@@ -5436,7 +5922,13 @@ function chatPage() {
         this._reconcileSendingState();
       }
       if (this.sending) {
-        this.messageQueue.push({ terminal: true, command: command });
+        this.messageQueue.push({
+          queue_id: this.nextPromptQueueId(),
+          queue_kind: 'terminal',
+          queued_at: Date.now(),
+          terminal: true,
+          command: command
+        });
         return;
       }
 
@@ -5518,7 +6010,14 @@ function chatPage() {
         this._reconcileSendingState();
       }
       if (this.sending) {
-        this.messageQueue.push({ text: finalText, files: uploadedFiles, images: msgImages });
+        this.messageQueue.push({
+          queue_id: this.nextPromptQueueId(),
+          queue_kind: 'prompt',
+          queued_at: Date.now(),
+          text: finalText,
+          files: uploadedFiles,
+          images: msgImages
+        });
         return;
       }
 
@@ -5574,10 +6073,32 @@ function chatPage() {
       }
     },
 
-    async _sendPayload(finalText, uploadedFiles, msgImages) {
+    async _sendPayload(finalText, uploadedFiles, msgImages, options) {
+      var opts = options && typeof options === 'object' ? options : {};
       this.sending = true;
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
       var targetAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+      var safeFiles = Array.isArray(uploadedFiles) ? uploadedFiles.slice() : [];
+      var safeImages = Array.isArray(msgImages) ? msgImages.slice() : [];
+      if (
+        !opts.retry_from_failover ||
+        !this._inflightPayload ||
+        String(this._inflightPayload.agent_id || '') !== targetAgentId
+      ) {
+        this._inflightPayload = {
+          agent_id: targetAgentId,
+          final_text: String(finalText || ''),
+          uploaded_files: safeFiles,
+          msg_images: safeImages,
+          failover_attempted: !!opts.retry_from_failover,
+          created_at: Date.now()
+        };
+      } else {
+        this._inflightPayload.final_text = String(finalText || '');
+        this._inflightPayload.uploaded_files = safeFiles;
+        this._inflightPayload.msg_images = safeImages;
+        this._inflightPayload.retry_started_at = Date.now();
+      }
       this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();
       var preflightRoute = await this.fetchAutoRoutePreflight(finalText, uploadedFiles);
       var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
@@ -5621,6 +6142,7 @@ function chatPage() {
       this.scrollToBottom();
       this.scheduleConversationPersist();
       var httpStartedAt = Date.now();
+      var handedOffToRecovery = false;
 
       try {
         var httpBody = { message: finalText };
@@ -5663,6 +6185,23 @@ function chatPage() {
         if (!String(httpText || '').trim()) {
           httpText = this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }
+        var httpFailure = this.extractRecoverableBackendFailure(httpText);
+        if (httpFailure) {
+          this._clearPendingWsRequest(targetAgentId);
+          this._pendingAutoModelSwitchBaseline = '';
+          this.sending = false;
+          this._responseStartedAt = 0;
+          this.tokenCount = 0;
+          this._clearTypingTimeout();
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          handedOffToRecovery = await this.attemptAutomaticFailoverRecovery('http_response', httpText, {
+            remove_last_agent_failure: false
+          });
+          if (handedOffToRecovery) {
+            this.scheduleConversationPersist();
+            return;
+          }
+        }
         this.messages.push({
           id: ++msgId,
           role: 'agent',
@@ -5675,17 +6214,42 @@ function chatPage() {
         this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);
         this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
+        this._inflightPayload = null;
         if (httpArtifactDirectives && httpArtifactDirectives.length) {
           this.resolveArtifactDirectives(httpArtifactDirectives);
         }
         this.scheduleConversationPersist();
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++msgId, role: 'system', text: 'Error: ' + e.message, meta: '', tools: [], system_origin: 'http:error', ts: Date.now() });
-        this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);
-        this.scheduleConversationPersist();
+        this._pendingAutoModelSwitchBaseline = '';
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this.tokenCount = 0;
+        this._clearTypingTimeout();
+        this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+        handedOffToRecovery = await this.attemptAutomaticFailoverRecovery(
+          'http_error',
+          e && e.message ? e.message : e,
+          { remove_last_agent_failure: false }
+        );
+        if (!handedOffToRecovery) {
+          this.messages.push({
+            id: ++msgId,
+            role: 'system',
+            text: 'Error: ' + e.message,
+            meta: '',
+            tools: [],
+            system_origin: 'http:error',
+            ts: Date.now()
+          });
+          this._inflightPayload = null;
+          this.scheduleConversationPersist();
+        } else {
+          return;
+        }
       }
+      if (handedOffToRecovery) return;
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
       this._responseStartedAt = 0;
       this.sending = false;
