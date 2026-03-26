@@ -3979,6 +3979,68 @@ function applyProviderModelProfiles(providerId = '', providerRow = null) {
   };
 }
 
+function modelPullCandidates(modelId = '', providerId = '') {
+  const out = [];
+  const push = (value) => {
+    const cleaned = cleanText(value || '', 180).trim();
+    if (!cleaned) return;
+    if (out.includes(cleaned)) return;
+    out.push(cleaned);
+  };
+  const model = cleanText(modelId || '', 180).trim();
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  if (!model) return out;
+  push(model);
+  const split = model.split('/').filter(Boolean);
+  if (split.length > 1) {
+    push(split[split.length - 1]);
+    push(split.slice(-2).join('/'));
+  }
+  if (model.includes(':')) {
+    push(model.replace(/:(cloud|api|local)$/i, ''));
+  }
+  if (provider === 'ollama' && split.length > 0) {
+    push(split[split.length - 1]);
+  }
+  return out.slice(0, 6);
+}
+
+function safeModelDownloadTarget(providerId = '', modelId = '', requestedPath = '') {
+  const modelsRoot = path.resolve(ROOT, 'core', 'local', 'models');
+  const providerToken = sanitizeModelProfileToken(providerId || '') || 'provider';
+  const modelToken = sanitizeModelProfileToken(modelId || '') || 'model';
+  const fallback = path.resolve(modelsRoot, providerToken, modelToken);
+  const requested = cleanText(requestedPath || '', 1024);
+  if (!requested) return fallback;
+  const resolved = path.resolve(requested);
+  if (isPathInsideRoot(resolved, modelsRoot)) return resolved;
+  return fallback;
+}
+
+function resolveDownloadableModelRow(modelRows = [], providerId = '', modelRef = '') {
+  const provider = cleanText(providerId || '', 80).toLowerCase();
+  const model = cleanText(modelRef || '', 180);
+  const modelLower = model.toLowerCase();
+  if (!Array.isArray(modelRows) || !model) return null;
+  for (const row of modelRows) {
+    if (!row || typeof row !== 'object') continue;
+    const rowProvider = cleanText(row.provider || '', 80).toLowerCase();
+    if (provider && rowProvider && rowProvider !== provider) continue;
+    const rowId = cleanText(row.id || '', 180);
+    const rowDisplay = cleanText(row.display_name || '', 180);
+    const candidates = [
+      rowId,
+      rowDisplay,
+      rowProvider && rowDisplay ? `${rowProvider}/${rowDisplay}` : '',
+      rowProvider && rowId ? `${rowProvider}/${rowId}` : '',
+    ]
+      .map((value) => cleanText(value || '', 180).toLowerCase())
+      .filter(Boolean);
+    if (candidates.includes(modelLower)) return row;
+  }
+  return null;
+}
+
 function normalizeProviderRecord(providerId, value = {}) {
   const normalizedId = cleanText(providerId || value.id || '', 80).toLowerCase();
   const def = providerDefaultById(normalizedId);
@@ -4789,6 +4851,7 @@ function buildDashboardModels(snapshot) {
     power_rating: 3,
     cost_rating: 3,
     local_download_path: '',
+    download_available: false,
   });
 
   const configured = configuredOllamaModel(snapshot);
@@ -4817,6 +4880,7 @@ function buildDashboardModels(snapshot) {
       power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
       cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 1, 1),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
+      download_available: !!(profile && profile.download_available === true),
     });
   }
 
@@ -4852,6 +4916,7 @@ function buildDashboardModels(snapshot) {
       power_rating: normalizeModelRating(profile && profile.power_rating != null ? profile.power_rating : 3, 3),
       cost_rating: normalizeModelRating(profile && profile.cost_rating != null ? profile.cost_rating : 3, 3),
       local_download_path: cleanText(profile && profile.local_download_path ? profile.local_download_path : '', 640),
+      download_available: !!(profile && profile.download_available === true),
     });
   };
 
@@ -16983,6 +17048,109 @@ function runServe(flags) {
           models: detected.length ? detected : catalogModels,
           model_count: (detected.length ? detected : catalogModels).length,
           message: `API key stored for ${inferredProvider}.`,
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/models/download') {
+        const payload = await bodyJson(req);
+        const providerId = cleanText(
+          payload && (payload.provider || payload.provider_id) ? payload.provider || payload.provider_id : '',
+          80
+        ).toLowerCase();
+        const modelRef = cleanText(
+          payload && (payload.model || payload.model_id || payload.id) ? payload.model || payload.model_id || payload.id : '',
+          180
+        );
+        const modelRows = buildDashboardModels(latestSnapshot);
+        const resolvedRow = resolveDownloadableModelRow(modelRows, providerId, modelRef);
+        if (!resolvedRow) {
+          sendJson(res, 404, { ok: false, error: 'model_not_found', provider: providerId, model: modelRef });
+          return;
+        }
+        const modelProvider = cleanText(resolvedRow.provider || providerId || '', 80).toLowerCase();
+        const modelName = cleanText(
+          resolvedRow.display_name || resolvedRow.id || modelRef,
+          180
+        );
+        const available = resolvedRow.download_available === true || !!cleanText(resolvedRow.local_download_path || '', 640);
+        if (!available) {
+          sendJson(res, 400, {
+            ok: false,
+            error: 'model_download_not_available',
+            provider: modelProvider,
+            model: modelName,
+          });
+          return;
+        }
+
+        const targetDir = safeModelDownloadTarget(
+          modelProvider,
+          modelName,
+          cleanText(resolvedRow.local_download_path || '', 1024)
+        );
+        ensureDir(path.dirname(targetDir));
+        ensureDir(targetDir);
+
+        let method = 'manifest_only';
+        let pulledModel = '';
+        const pullErrors = [];
+        const pullCandidates = modelPullCandidates(modelName, modelProvider);
+        if (commandExists(OLLAMA_BIN) && pullCandidates.length > 0) {
+          for (const candidate of pullCandidates) {
+            const pulled = spawnSync(OLLAMA_BIN, ['pull', candidate], {
+              cwd: ROOT,
+              encoding: 'utf8',
+              stdio: 'pipe',
+              timeout: 20 * 60 * 1000,
+              maxBuffer: 10 * 1024 * 1024,
+            });
+            if (pulled && pulled.status === 0) {
+              method = 'ollama_pull';
+              pulledModel = candidate;
+              break;
+            }
+            pullErrors.push(cleanText(pulled && pulled.stderr ? pulled.stderr : 'pull_failed', 320));
+          }
+        }
+
+        const hintsPath = path.resolve(targetDir, 'DOWNLOAD_HINTS.md');
+        if (method !== 'ollama_pull') {
+          const lines = [
+            '# Model Download Hints',
+            '',
+            `- provider: ${modelProvider}`,
+            `- model: ${modelName}`,
+            '',
+            'Try one of these commands locally:',
+            ...pullCandidates.map((candidate) => `- \`ollama pull ${candidate}\``),
+          ];
+          writeFileAtomic(hintsPath, `${lines.join('\n')}\n`);
+        }
+
+        const manifestPath = path.resolve(targetDir, 'manifest.json');
+        writeJson(manifestPath, {
+          type: 'infring_model_download_manifest',
+          provider: modelProvider,
+          model: modelName,
+          requested_model_ref: modelRef,
+          method,
+          pulled_model: pulledModel,
+          pull_candidates: pullCandidates,
+          pull_errors: pullErrors.slice(0, 4),
+          target_dir: targetDir,
+          created_at: nowIso(),
+        });
+
+        sendJson(res, 200, {
+          ok: true,
+          provider: modelProvider,
+          model: modelName,
+          method,
+          pulled_model: pulledModel,
+          download_path: targetDir,
+          manifest_path: manifestPath,
+          hints_path: method === 'ollama_pull' ? '' : hintsPath,
+          staged_only: method !== 'ollama_pull',
         });
         return;
       }
