@@ -61,6 +61,7 @@ function chatPage() {
     modelApiKeyInput: '',
     modelApiKeySaving: false,
     modelApiKeyStatus: '',
+    modelDownloadBusy: {},
     modelSwitching: false,
     _modelCache: null,
     _modelCacheTime: 0,
@@ -639,6 +640,8 @@ function chatPage() {
         deployment: (provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp') ? 'local' : (provider.toLowerCase() === 'cloud' ? 'cloud' : 'api'),
         power_rating: 3,
         cost_rating: provider.toLowerCase() === 'ollama' || provider.toLowerCase() === 'llama.cpp' ? 1 : 3,
+        local_download_path: '',
+        download_available: false,
       };
     },
 
@@ -704,6 +707,63 @@ function chatPage() {
       if (!Number.isFinite(level)) level = 3;
       level = Math.max(1, Math.min(5, Math.round(level)));
       return '$'.repeat(level);
+    },
+
+    modelDownloadKey: function(model) {
+      var row = model || {};
+      var provider = String(row.provider || '').trim().toLowerCase();
+      var id = String(row.id || row.display_name || '').trim().toLowerCase();
+      return provider + '::' + id;
+    },
+
+    isModelDownloadable: function(model) {
+      var row = model || {};
+      return !!(row && (row.download_available === true || String(row.local_download_path || '').trim()));
+    },
+
+    isModelDownloadBusy: function(model) {
+      var key = this.modelDownloadKey(model);
+      return !!(key && this.modelDownloadBusy && this.modelDownloadBusy[key] === true);
+    },
+
+    downloadModelToLocal: function(model) {
+      var self = this;
+      var row = model || {};
+      if (!self.isModelDownloadable(row)) {
+        InfringToast.error('No local download path is available for this model');
+        return;
+      }
+      var key = self.modelDownloadKey(row);
+      if (!key) return;
+      if (!self.modelDownloadBusy) self.modelDownloadBusy = {};
+      if (self.modelDownloadBusy[key]) return;
+      self.modelDownloadBusy[key] = true;
+      var modelRef = String(row.id || row.display_name || '').trim();
+      var provider = String(row.provider || '').trim();
+      InfringAPI.post('/api/models/download', {
+        model: modelRef,
+        provider: provider
+      }).then(function(resp) {
+        var method = String((resp && resp.method) || '').trim();
+        var localPath = String((resp && resp.download_path) || '').trim();
+        if (method === 'ollama_pull') {
+          InfringToast.success('Model downloaded locally: ' + localPath);
+        } else {
+          InfringToast.success('Local download path prepared: ' + localPath);
+        }
+        self._modelCache = null;
+        self._modelCacheTime = 0;
+        return InfringAPI.get('/api/models');
+      }).then(function(data) {
+        var models = (data && data.models) || [];
+        self._modelCache = models.filter(function(m) { return m.available; });
+        self._modelCacheTime = Date.now();
+        self.modelPickerList = self._modelCache;
+      }).catch(function(e) {
+        InfringToast.error('Model download failed: ' + (e && e.message ? e.message : e));
+      }).finally(function() {
+        self.modelDownloadBusy[key] = false;
+      });
     },
 
     pickDefaultAgent(agents) {

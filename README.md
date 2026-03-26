@@ -129,6 +129,9 @@ One-command rich runtime boot (auto-opens dashboard):
 infring gateway
 ```
 
+`gateway` is part of the full control surface (`--minimal`/default or `--full`).  
+Pure profiles (`--pure`, `--tiny-max`) use the Rust-only command set and do not expose `gateway`.
+
 Stop runtime + dashboard:
 
 ```bash

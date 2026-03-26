@@ -3766,6 +3766,31 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.model-download-inline-btn {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text-dim);
+  border-radius: 999px;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.model-download-inline-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.model-download-inline-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
 .model-switcher-tier {
   display: inline-block;
   padding: 1px 5px;

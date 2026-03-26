@@ -157,6 +157,13 @@ function assertChatEnhancementFeatures() {
   assertContains(htmlSource, 'class="prompt-suggestions-row"', 'prompt suggestion row missing');
   assertContains(htmlSource, 'class="prompt-suggestion-chip"', 'prompt suggestion chip missing');
 
+  // Local model download flow in model switcher
+  assertContains(chatSource, 'downloadModelToLocal: function(model)', 'model download action handler missing');
+  assertContains(chatSource, "InfringAPI.post('/api/models/download'", 'model download API call missing');
+  assertContains(chatSource, 'isModelDownloadable: function(model)', 'model download availability helper missing');
+  assertContains(htmlSource, 'class="model-download-inline-btn"', 'model download button missing in model switcher');
+  assertContains(laneSource, "req.method === 'POST' && pathname === '/api/models/download'", 'model download backend endpoint missing');
+
   // Pointer effects: neon trail in dark mode + ripple in light mode
   assertContains(chatSource, 'handleMessagesPointerMove(event)', 'pointer move handler missing');
   assertContains(chatSource, 'handleMessagesPointerDown(event)', 'pointer down handler missing');

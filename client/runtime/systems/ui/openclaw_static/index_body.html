@@ -1444,6 +1444,17 @@
                                         <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
                                         <span class="text-xs text-dim" style="margin-left:6px;letter-spacing:0.2px" :title="'Power: ' + (m.power_rating || 3) + '/5'" x-text="modelPowerIcons(m)"></span>
                                         <span class="text-xs text-dim" style="margin-left:4px;letter-spacing:0.2px" :title="'Cost: ' + (m.cost_rating || 3) + '/5'" x-text="modelCostIcons(m)"></span>
+                                        <button
+                                          x-show="isModelDownloadable(m)"
+                                          type="button"
+                                          class="model-download-inline-btn"
+                                          :disabled="isModelDownloadBusy(m)"
+                                          @click.stop="downloadModelToLocal(m)"
+                                          :title="'Download to local: ' + (m.local_download_path || '')"
+                                        >
+                                          <svg x-show="!isModelDownloadBusy(m)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg>
+                                          <span x-show="isModelDownloadBusy(m)" class="spinner" style="width:9px;height:9px;border-width:2px"></span>
+                                        </button>
                                       </span>
                                     </div>
                                   </div>
@@ -2014,6 +2025,17 @@
                                         <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
                                         <span class="text-xs text-dim" style="margin-left:6px;letter-spacing:0.2px" :title="'Power: ' + (m.power_rating || 3) + '/5'" x-text="modelPowerIcons(m)"></span>
                                         <span class="text-xs text-dim" style="margin-left:4px;letter-spacing:0.2px" :title="'Cost: ' + (m.cost_rating || 3) + '/5'" x-text="modelCostIcons(m)"></span>
+                                        <button
+                                          x-show="isModelDownloadable(m)"
+                                          type="button"
+                                          class="model-download-inline-btn"
+                                          :disabled="isModelDownloadBusy(m)"
+                                          @click.stop="downloadModelToLocal(m)"
+                                          :title="'Download to local: ' + (m.local_download_path || '')"
+                                        >
+                                          <svg x-show="!isModelDownloadBusy(m)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg>
+                                          <span x-show="isModelDownloadBusy(m)" class="spinner" style="width:9px;height:9px;border-width:2px"></span>
+                                        </button>
                                       </span>
                                     </div>
                                   </div>
