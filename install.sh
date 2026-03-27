@@ -966,9 +966,9 @@ infring_gateway_health_ok() {
   host="$1"
   port="$2"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+    curl --connect-timeout 2 --max-time 35 -fsS "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
   elif command -v wget >/dev/null 2>&1; then
-    wget -q -O - "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+    wget --timeout=35 -q -O - "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
   fi
   return 1
 }
@@ -1176,11 +1176,7 @@ if [ "${1:-}" = "gateway" ]; then
     gateway_action="start"
   fi
 
-  if infring_gateway_launchd_mode_enabled && { [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; }; then
-    gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" --dashboard-autoboot=0 2>&1)"
-  else
-    gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
-  fi
+  gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
   gateway_status=$?
   if [ "$gateway_status" -ne 0 ]; then
     if [ -n "$gateway_output" ]; then
@@ -1204,8 +1200,9 @@ if [ "${1:-}" = "gateway" ]; then
   dashboard_open="1"
   dashboard_host="127.0.0.1"
   dashboard_port="4173"
-  dashboard_watchdog_enabled="${INFRING_DASHBOARD_WATCHDOG:-1}"
+  dashboard_watchdog_enabled="${INFRING_DASHBOARD_WATCHDOG:-0}"
   dashboard_watchdog_interval="${INFRING_DASHBOARD_WATCHDOG_INTERVAL:-5}"
+  legacy_supervisor_mode="${INFRING_GATEWAY_LEGACY_SUPERVISOR:-0}"
   case "$dashboard_watchdog_interval" in
     ''|*[!0-9]*)
       dashboard_watchdog_interval=5
@@ -1239,16 +1236,21 @@ if [ "${1:-}" = "gateway" ]; then
   dashboard_url="${INFRING_DASHBOARD_URL:-http://${dashboard_host}:${dashboard_port}/dashboard#chat}"
 
   if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
-    if [ "$gateway_action" = "restart" ]; then
+    if [ "$legacy_supervisor_mode" != "1" ]; then
+      # Default mode: Rust core is sole authority for dashboard lifecycle/watchdog.
+      infring_gateway_watchdog_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
+      infring_gateway_watchdog_pid_clear "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
+      infring_gateway_launchd_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
+      infring_gateway_pid_sanitize "$dashboard_host" "$dashboard_port"
+    elif [ "$gateway_action" = "restart" ]; then
       infring_gateway_watchdog_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
       infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     fi
-    infring_gateway_pid_sanitize "$dashboard_host" "$dashboard_port"
     dashboard_ready="0"
-    if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 12; then
+    if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 20; then
       dashboard_ready="1"
     else
-      if [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ] && [ "${PROTHEUS_DASHBOARD_FALLBACK:-1}" != "0" ]; then
+      if [ "$legacy_supervisor_mode" = "1" ] && [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ] && [ "${PROTHEUS_DASHBOARD_FALLBACK:-1}" != "0" ]; then
         infring_gateway_start_dashboard_fallback "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
       fi
       if [ "$dashboard_ready" != "1" ]; then
@@ -1258,7 +1260,11 @@ if [ "${1:-}" = "gateway" ]; then
             wait_max=90
             ;;
         esac
-        if infring_gateway_wait_dashboard_adaptive "$dashboard_host" "$dashboard_port" "$wait_max" 1; then
+        adaptive_fallback=0
+        if [ "$legacy_supervisor_mode" = "1" ]; then
+          adaptive_fallback=1
+        fi
+        if infring_gateway_wait_dashboard_adaptive "$dashboard_host" "$dashboard_port" "$wait_max" "$adaptive_fallback"; then
           dashboard_ready="1"
         fi
       fi
@@ -1273,7 +1279,7 @@ if [ "${1:-}" = "gateway" ]; then
     if [ "$dashboard_ready" != "1" ]; then
       echo "[infring gateway] warning: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
     fi
-    if [ "$dashboard_watchdog_enabled" != "0" ]; then
+    if [ "$legacy_supervisor_mode" = "1" ] && [ "$dashboard_watchdog_enabled" != "0" ]; then
       infring_gateway_watchdog_start "$dashboard_host" "$dashboard_port" "$dashboard_watchdog_interval" >/dev/null 2>&1 || true
     fi
     if [ "$gateway_action" = "restart" ]; then
@@ -1291,7 +1297,11 @@ if [ "${1:-}" = "gateway" ]; then
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   elif [ "$gateway_action" = "status" ]; then
     echo "[infring gateway] runtime status received"
-    if infring_gateway_health_ok "$dashboard_host" "$dashboard_port"; then
+    dashboard_status_healthy="0"
+    if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 3; then
+      dashboard_status_healthy="1"
+    fi
+    if [ "$dashboard_status_healthy" = "1" ]; then
       echo "[infring gateway] dashboard healthy: http://${dashboard_host}:${dashboard_port}/healthz"
     else
       echo "[infring gateway] dashboard down: http://${dashboard_host}:${dashboard_port}/healthz"
@@ -1299,10 +1309,16 @@ if [ "${1:-}" = "gateway" ]; then
     if infring_gateway_pid_running "$dashboard_host" "$dashboard_port"; then
       echo "[infring gateway] dashboard pid: $(infring_gateway_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true)"
     fi
-    if infring_gateway_watchdog_pid_running "$dashboard_host" "$dashboard_port"; then
-      echo "[infring gateway] dashboard watchdog pid: $(infring_gateway_watchdog_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true)"
+    core_watchdog_pid=""
+    if [ -n "$root_path" ] && [ -f "$root_path/local/state/ops/daemon_control/dashboard_watchdog.pid" ]; then
+      core_watchdog_pid="$(sed -n '1p' "$root_path/local/state/ops/daemon_control/dashboard_watchdog.pid" | tr -cd '0-9')"
     fi
-    if infring_gateway_launchd_mode_enabled; then
+    if [ -n "$core_watchdog_pid" ] && kill -0 "$core_watchdog_pid" >/dev/null 2>&1; then
+      echo "[infring gateway] dashboard watchdog pid: $core_watchdog_pid (core)"
+    elif infring_gateway_watchdog_pid_running "$dashboard_host" "$dashboard_port"; then
+      echo "[infring gateway] dashboard watchdog pid: $(infring_gateway_watchdog_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true) (legacy)"
+    fi
+    if [ "$legacy_supervisor_mode" = "1" ] && infring_gateway_launchd_mode_enabled; then
       if infring_gateway_launchd_loaded "$dashboard_host" "$dashboard_port"; then
         echo "[infring gateway] dashboard supervisor: launchd ($(infring_gateway_launchd_label "$dashboard_host" "$dashboard_port"))"
       else
