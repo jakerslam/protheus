@@ -14,6 +14,8 @@
     "ops:roi100:run": "node tests/tooling/scripts/ci/roi100_moves_runner.mjs",
     "ops:roi100:runtime-top": "cargo run -q -p protheus-ops-core --bin protheus-ops -- runtime-systems roi-sweep --limit=100 --apply=1 --strict=1 && cargo run -q -p protheus-ops-core --bin protheus-ops -- backlog-queue-executor run --all=1 --max=100 --with-tests=1",
     "ops:module-cohesion:audit": "node tests/tooling/scripts/ci/module_cohesion_policy_audit.mjs --strict=1",
+    "ops:rust-core-file-size:gate": "node tests/tooling/scripts/ci/rust_core_file_size_gate.mjs --strict=1",
+    "ops:file-size:gate": "node tests/tooling/scripts/ci/repo_file_size_gate.mjs --strict=1",
     "ops:simplicity:audit": "node tests/tooling/scripts/ci/simplicity_drift_audit.mjs --strict=1",
     "ops:legacy-alias:guard": "node tests/tooling/scripts/ci/legacy_alias_guard.mjs --strict=1",
     "ops:churn:guard": "node tests/tooling/scripts/ci/churn_guard.mjs --strict=1",
@@ -1768,6 +1770,7 @@
     "protheus-top": "./client/cli/bin/protheus-top"
   },
   "devDependencies": {
+    "@vitest/coverage-istanbul": "^2.1.9",
     "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.9.3",
     "vitest": "^2.1.8",

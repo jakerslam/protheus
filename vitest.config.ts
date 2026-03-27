@@ -5,7 +5,8 @@ export default defineConfig({
     include: ['tests/vitest/**/*.test.ts'],
     environment: 'node',
     coverage: {
-      provider: 'v8',
+      // v8 remapping currently crashes on conduit-client.ts; use stable istanbul instrumentation.
+      provider: 'istanbul',
       enabled: false,
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: 'coverage/ts',
