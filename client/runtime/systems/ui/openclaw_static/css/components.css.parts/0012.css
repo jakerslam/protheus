@@ -38,7 +38,7 @@
 }
 
 .stat-card {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
@@ -49,6 +49,7 @@
 }
 
 .stat-card:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--border-light);
@@ -198,6 +199,16 @@
 .topbar-refresh-icon {
   transition: transform 0.2s var(--ease-smooth);
   transform-origin: 50% 50%;
+}
+
+.topbar-refresh-icon.spinning {
+  animation: topbar-refresh-spin-cw 0.8s linear infinite;
+  transition: none;
+}
+
+@keyframes topbar-refresh-spin-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .topbar-icon-btn.hover-tooltip {
@@ -397,4 +408,3 @@
 .notif-item-dot.type-error { background: var(--error); }
 .notif-item-dot.type-warn { background: var(--warning); }
 .notif-item-dot.type-info { background: var(--info); }
-

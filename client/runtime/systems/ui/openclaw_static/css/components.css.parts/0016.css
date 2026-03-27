@@ -69,7 +69,11 @@
 
 /* ── Provider cards ── */
 .provider-card {
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.provider-card:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 .provider-card.configured { border-left: 3px solid var(--success); }
 .provider-card.not-configured { border-left: 3px solid var(--warning); }
@@ -397,4 +401,3 @@
   background: var(--border);
   z-index: 1;
 }
-
