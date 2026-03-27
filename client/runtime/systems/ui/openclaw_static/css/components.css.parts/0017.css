@@ -10,7 +10,7 @@
 }
 
 .wizard-card {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 24px;
@@ -120,7 +120,13 @@
 }
 
 /* ── Approval Badge & Page Styles ── */
-.approval-card { border-left: 3px solid var(--warning); }
+.approval-card {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-left: 3px solid var(--warning);
+}
+.approval-card:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
 .approval-card.approved { border-left-color: var(--success); }
 .approval-card.rejected { border-left-color: var(--error); }
 .approval-card.expired { border-left-color: var(--text-muted); opacity: 0.7; }

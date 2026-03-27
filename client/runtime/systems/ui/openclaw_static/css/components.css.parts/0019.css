@@ -98,7 +98,7 @@
   width: 240px;
   min-width: 240px;
   padding: 12px;
-  background: var(--card-bg);
+  background: color-mix(in srgb, var(--card-bg) 82%, transparent);
   border-left: 1px solid var(--border);
   overflow-y: auto;
   flex-shrink: 0;
@@ -198,11 +198,14 @@
   .trader-kpi-row { grid-template-columns: repeat(2, 1fr); }
 }
 .trader-kpi-card {
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
   text-align: center;
+}
+.trader-kpi-card:hover {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
 }
 .trader-kpi-label {
   font-size: 0.7rem;
@@ -229,11 +232,14 @@
   .trader-chart-row { flex-direction: column; }
 }
 .trader-chart-panel {
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px 16px;
   min-width: 0;
+}
+.trader-chart-panel:hover {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
 }
 .trader-chart-title {
   font-size: 0.75rem;
@@ -354,4 +360,3 @@
 }
 .trade-buy { background: rgba(34, 197, 94, 0.15); color: var(--success); }
 .trade-sell { background: rgba(239, 68, 68, 0.15); color: var(--error); }
-

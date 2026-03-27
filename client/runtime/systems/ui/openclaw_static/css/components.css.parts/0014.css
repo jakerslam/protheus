@@ -353,14 +353,15 @@ body[data-theme='dark'] .agent-activity-spinner {
 }
 
 .security-card {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .security-card:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
   border-color: var(--border-light);
 }
 
@@ -396,5 +397,5 @@ body[data-theme='dark'] .agent-activity-spinner {
 }
 
 .security-card-mini {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
