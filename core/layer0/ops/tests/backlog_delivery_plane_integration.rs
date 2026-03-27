@@ -99,6 +99,12 @@ fn all_ids() -> Vec<&'static str> {
 #[test]
 fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
     let root = temp_root("all");
+    let prior_receipt_stdout = std::env::var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT").ok();
+    // This integration test executes many lanes and persists receipts to disk; suppress
+    // stdout receipt dumping so CI logs stay bounded and execution remains stable.
+    unsafe {
+        std::env::set_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT", "1");
+    }
     seed_skill_graph_fixture(&root);
 
     for id in all_ids() {
@@ -139,5 +145,13 @@ fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
         }
     }
 
+    match prior_receipt_stdout {
+        Some(value) => unsafe {
+            std::env::set_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT", value);
+        },
+        None => unsafe {
+            std::env::remove_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT");
+        },
+    }
     let _ = fs::remove_dir_all(root);
 }
