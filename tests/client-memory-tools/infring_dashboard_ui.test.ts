@@ -458,6 +458,56 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     laneSource,
+    'function compatApiPayload(pathname, reqUrl, snapshot)',
+    'compat API payload router must remain wired for runtime-aligned responses'
+  );
+  assertContains(
+    laneSource,
+    'function runtimeSyncSummary(snapshot)',
+    'runtime sync summary helper must remain available for chat/runtime payloads'
+  );
+  assertContains(
+    laneSource,
+    'function isPlaceholderResponse(value)',
+    'placeholder response guard must remain available to block transcript placeholders'
+  );
+  assertContains(
+    laneSource,
+    "if (action === 'app.chat') {",
+    'dashboard action lane must keep the app.chat branch'
+  );
+  assertContains(
+    laneSource,
+    "runAgentMessage(requestedAgentId, input, latestSnapshot, { allowFallback: true });",
+    'runtime chat action must preserve fallback dispatch to avoid stale agent dead-ends'
+  );
+  assertContains(
+    laneSource,
+    "type: 'infring_dashboard_runtime_chat'",
+    'runtime chat payload type marker missing'
+  );
+  assertContains(
+    laneSource,
+    'runtime_sync: turn.runtime_sync || null,',
+    'runtime chat response must include runtime_sync passthrough'
+  );
+  assertContains(
+    laneSource,
+    'Never output placeholders such as <text response to user> or <answer>.',
+    'runtime chat prompt contract must explicitly ban placeholder output'
+  );
+  assertContains(
+    laneSource,
+    'Historical memory files are in ${PRIMARY_MEMORY_DIR}/YYYY-MM-DD.md',
+    'runtime chat prompt contract must preserve historical-memory guidance'
+  );
+  assertContains(
+    laneSource,
+    'Runtime awareness:',
+    'runtime chat prompt contract must preserve runtime-awareness guidance'
+  );
+  assertContains(
+    laneSource,
     "rejectedReason === 'telemetry_mismatch'",
     'strict fallback path must recover telemetry mismatch with conversational response'
   );
