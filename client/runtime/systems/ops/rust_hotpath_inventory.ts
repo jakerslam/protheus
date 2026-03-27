@@ -46,7 +46,7 @@ function appendJsonl(filePath, value) {
 }
 
 function gitTrackedFiles() {
-  const proc = spawnSync('git', ['ls-files', '*.ts', '*.rs'], {
+  const proc = spawnSync('git', ['ls-files', '*.ts', '*.tsx', '*.js', '*.jsx', '*.rs'], {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -67,6 +67,7 @@ function countLines(text) {
 
 function statSourceLineCounts(files) {
   let trackedTsLines = 0;
+  let trackedJsLines = 0;
   let trackedRsLines = 0;
   const records = [];
   for (const relPath of files) {
@@ -74,7 +75,8 @@ function statSourceLineCounts(files) {
     if (!fs.existsSync(absPath)) continue;
     const text = fs.readFileSync(absPath, 'utf8');
     const lines = countLines(text);
-    if (relPath.endsWith('.ts')) trackedTsLines += lines;
+    if (relPath.endsWith('.ts') || relPath.endsWith('.tsx')) trackedTsLines += lines;
+    if (relPath.endsWith('.js') || relPath.endsWith('.jsx')) trackedJsLines += lines;
     if (relPath.endsWith('.rs')) trackedRsLines += lines;
     records.push({
       path: relPath,
@@ -83,7 +85,7 @@ function statSourceLineCounts(files) {
       text,
     });
   }
-  return { trackedTsLines, trackedRsLines, records };
+  return { trackedTsLines, trackedJsLines, trackedRsLines, records };
 }
 
 function relRuntimePath(relPath) {
@@ -114,8 +116,8 @@ function fileBuckets(records, limit) {
     .slice(0, limit);
 }
 
-function rustMilestones(trackedRsLines, trackedTsLines, milestones) {
-  const total = trackedRsLines + trackedTsLines;
+function rustMilestones(trackedRsLines, trackedNonRustCodeLines, milestones) {
+  const total = trackedRsLines + trackedNonRustCodeLines;
   return milestones.map((targetPct) => {
     const pct = Number(targetPct);
     const needed = Math.max(0, Math.ceil((pct / 100) * total - trackedRsLines));
@@ -194,34 +196,42 @@ function buildInventory(argv = []) {
   const policyPath = path.resolve(ROOT, parseFlag(argv, 'policy', DEFAULT_POLICY));
   const policy = readJson(policyPath);
   const trackedFiles = gitTrackedFiles();
-  const { trackedTsLines, trackedRsLines, records } = statSourceLineCounts(trackedFiles);
+  const { trackedTsLines, trackedJsLines, trackedRsLines, records } = statSourceLineCounts(trackedFiles);
+  const trackedNonRustCodeLines = trackedTsLines + trackedJsLines;
   const runtimeRecords = records.filter((record) => inScanRoots(record.path, policy.scan.roots || []));
   const topDirectories = directoryBuckets(
-    runtimeRecords.filter((record) => record.ext === '.ts'),
+    runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx' || record.ext === '.js' || record.ext === '.jsx'),
     Number(policy.report.top_directories || 15)
   );
   const topFiles = fileBuckets(
-    runtimeRecords.filter((record) => record.ext === '.ts'),
+    runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx' || record.ext === '.js' || record.ext === '.jsx'),
     Number(policy.report.top_files || 30)
   );
   const bridgeWrapperCount = runtimeRecords.filter(isThinBridge).length;
+  const rustPercentCodeScope = Number(((trackedRsLines / Math.max(1, trackedRsLines + trackedNonRustCodeLines)) * 100).toFixed(2));
+  const rustPercentTsScope = Number(((trackedRsLines / Math.max(1, trackedRsLines + trackedTsLines)) * 100).toFixed(2));
   const payload = {
     ok: true,
     type: 'rust_hotpath_inventory',
     ts: nowIso(),
     policy_path: path.relative(ROOT, policyPath),
     tracked_ts_lines: trackedTsLines,
+    tracked_js_lines: trackedJsLines,
     tracked_rs_lines: trackedRsLines,
-    rust_percent: Number(((trackedRsLines / Math.max(1, trackedRsLines + trackedTsLines)) * 100).toFixed(2)),
+    tracked_non_rust_code_lines: trackedNonRustCodeLines,
+    rust_percent: rustPercentCodeScope,
+    rust_percent_ts_scope: rustPercentTsScope,
+    rust_percent_code_scope: rustPercentCodeScope,
     runtime_scope: {
       roots: policy.scan.roots || [],
-      ts_files: runtimeRecords.filter((record) => record.ext === '.ts').length,
+      ts_files: runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx').length,
+      js_files: runtimeRecords.filter((record) => record.ext === '.js' || record.ext === '.jsx').length,
       rs_files: runtimeRecords.filter((record) => record.ext === '.rs').length,
       bridge_wrappers_excluded_from_queue: bridgeWrapperCount,
     },
     top_directories: topDirectories,
     top_files: topFiles,
-    milestones: rustMilestones(trackedRsLines, trackedTsLines, policy.report.milestones || []),
+    milestones: rustMilestones(trackedRsLines, trackedNonRustCodeLines, policy.report.milestones || []),
   };
   return { payload, policy };
 }
