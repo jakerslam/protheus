@@ -1,0 +1,47 @@
+{
+  "eyes": [
+    {
+      "allowed_domains": [
+        "local.workspace"
+      ],
+      "budgets": {
+        "max_bytes": 65536,
+        "max_items": 6,
+        "max_requests": 1,
+        "max_rows": 96,
+        "max_seconds": 8
+      },
+      "cadence_hours": 1,
+      "created_ts": "2026-03-26T20:50:43.021Z",
+      "error_rate": 0,
+      "id": "conversation_eye",
+      "name": "Conversation Eye",
+      "parser_type": "conversation_eye",
+      "score_ema": 50,
+      "status": "active",
+      "topics": [
+        "conversation",
+        "decision",
+        "insight",
+        "directive",
+        "t1"
+      ],
+      "uid": "e3e3555191924eb95d5c9f1b",
+      "updated_ts": "2026-03-26T20:52:31.747Z"
+    }
+  ],
+  "global_limits": {
+    "global_max_bytes_per_day": 5242880,
+    "global_max_requests_per_day": 50,
+    "max_concurrent_runs": 3
+  },
+  "scoring": {
+    "cadence_max_hours": 168,
+    "cadence_min_hours": 1,
+    "ema_alpha": 0.3,
+    "score_threshold_dormant": 20,
+    "score_threshold_high": 70,
+    "score_threshold_low": 30
+  },
+  "version": "1.0"
+}

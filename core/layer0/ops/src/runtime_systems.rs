@@ -5,6 +5,10 @@ use crate::runtime_system_contracts::{
     actionable_profiles, looks_like_contract_id, profile_for, RuntimeSystemContractProfile,
 };
 use crate::{client_state_root, deterministic_receipt_hash, now_iso};
+use llm_runtime::{
+    choose_best_model, normalize_model_scores, ModelMetadata, ModelRuntimeKind, ModelSpecialty,
+    RoutingRequest, WorkloadClass,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1663,8 +1667,13 @@ fn family_contract_requirements(family: &str) -> FamilyContractRequirements {
                 "external_dependency_detached",
                 "operator_state_capture_enabled",
                 "local_runtime_paths_enforced",
+                "source_controlled_mirror_enabled",
+                "llm_runtime_registry_enabled",
             ],
-            min_values: &[("source_files_required_min", 1.0)],
+            min_values: &[
+                ("source_files_required_min", 1.0),
+                ("llm_registry_models_min", 1.0),
+            ],
             max_values: &[("max_assimilation_copy_mb", 1024.0)],
         },
         _ => FamilyContractRequirements {
@@ -3073,6 +3082,163 @@ fn openclaw_seed_to_model_artifacts(seed_manifest: &Value) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+fn parse_model_parameter_billions(model_name: &str) -> Option<f32> {
+    let lower = model_name.to_lowercase();
+    let bytes = lower.as_bytes();
+    for i in 0..bytes.len() {
+        if bytes[i] != b'b' {
+            continue;
+        }
+        if i == 0 {
+            continue;
+        }
+        let mut start = i;
+        while start > 0 {
+            let c = bytes[start - 1] as char;
+            if c.is_ascii_digit() || c == '.' {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        if start < i {
+            let raw = &lower[start..i];
+            if let Ok(value) = raw.parse::<f32>() {
+                if value.is_finite() && value > 0.0 {
+                    return Some(value);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn openclaw_seed_to_llm_models(seed_manifest: &Value) -> Vec<ModelMetadata> {
+    let mut models = Vec::<ModelMetadata>::new();
+    let Some(rows) = seed_manifest.get("artifacts").and_then(Value::as_array) else {
+        return models;
+    };
+
+    for row in rows {
+        let id = row.get("id").and_then(Value::as_str).unwrap_or("").trim();
+        let provider = row
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .trim();
+        let model = row
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim();
+        if id.is_empty() || model.is_empty() {
+            continue;
+        }
+        let provider_lower = provider.to_lowercase();
+        let model_lower = model.to_lowercase();
+        let runtime_kind = if provider_lower.contains("ollama")
+            || provider_lower.contains("local")
+            || provider_lower.contains("lmstudio")
+        {
+            ModelRuntimeKind::LocalApi
+        } else {
+            ModelRuntimeKind::CloudApi
+        };
+
+        let mut entry = ModelMetadata::new(id, provider, model, runtime_kind);
+        entry.parameter_billions = parse_model_parameter_billions(model);
+        entry.context_tokens = row
+            .get("context_tokens")
+            .and_then(Value::as_u64)
+            .map(|v| v as u32)
+            .or(Some(
+                if matches!(runtime_kind, ModelRuntimeKind::CloudApi) {
+                    128_000
+                } else {
+                    32_768
+                },
+            ));
+        if matches!(runtime_kind, ModelRuntimeKind::CloudApi) {
+            entry.pricing_input_per_1m_usd = row
+                .get("pricing_input_per_1m_usd")
+                .and_then(Value::as_f64)
+                .map(|v| v as f32)
+                .or(Some(entry.parameter_billions.unwrap_or(7.0).max(1.0) * 0.2));
+            entry.pricing_output_per_1m_usd = row
+                .get("pricing_output_per_1m_usd")
+                .and_then(Value::as_f64)
+                .map(|v| v as f32)
+                .or(Some(
+                    entry.parameter_billions.unwrap_or(7.0).max(1.0) * 0.35,
+                ));
+        } else {
+            entry.hardware_vram_gb = row
+                .get("hardware_vram_gb")
+                .and_then(Value::as_f64)
+                .map(|v| v as f32)
+                .or(Some(
+                    (entry.parameter_billions.unwrap_or(4.0).max(1.0) * 1.15).round(),
+                ));
+        }
+
+        let mut specialties = vec![ModelSpecialty::General];
+        if model_lower.contains("coder") || model_lower.contains("code") {
+            specialties.push(ModelSpecialty::Coding);
+        }
+        if model_lower.contains("reason") || model_lower.contains("think") {
+            specialties.push(ModelSpecialty::Reasoning);
+        }
+        if entry.context_tokens.unwrap_or(0) >= 64_000 {
+            specialties.push(ModelSpecialty::LongContext);
+        }
+        if model_lower.contains("mini")
+            || model_lower.contains("small")
+            || model_lower.contains("4b")
+            || model_lower.contains("3b")
+        {
+            specialties.push(ModelSpecialty::FastResponse);
+        }
+        entry.specialties = specialties;
+        models.push(entry);
+    }
+
+    models
+}
+
+fn llm_model_to_json(model: &ModelMetadata) -> Value {
+    let runtime_kind = match model.runtime_kind {
+        ModelRuntimeKind::CloudApi => "cloud_api",
+        ModelRuntimeKind::LocalApi => "local_api",
+        ModelRuntimeKind::LocalPath => "local_path",
+    };
+    let specialties = model
+        .specialties
+        .iter()
+        .map(|item| match item {
+            ModelSpecialty::General => "general",
+            ModelSpecialty::Coding => "coding",
+            ModelSpecialty::Reasoning => "reasoning",
+            ModelSpecialty::LongContext => "long_context",
+            ModelSpecialty::FastResponse => "fast_response",
+        })
+        .map(|v| Value::String(v.to_string()))
+        .collect::<Vec<_>>();
+    json!({
+        "id": model.id,
+        "provider": model.provider,
+        "name": model.name,
+        "runtime_kind": runtime_kind,
+        "context_tokens": model.context_tokens,
+        "parameter_billions": model.parameter_billions,
+        "pricing_input_per_1m_usd": model.pricing_input_per_1m_usd,
+        "pricing_output_per_1m_usd": model.pricing_output_per_1m_usd,
+        "hardware_vram_gb": model.hardware_vram_gb,
+        "specialties": specialties,
+        "power_score_1_to_5": model.power_score_1_to_5,
+        "cost_score_1_to_5": model.cost_score_1_to_5
+    })
+}
+
 fn execute_openclaw_detachment_contract(
     root: &Path,
     profile: RuntimeSystemContractProfile,
@@ -3085,6 +3251,7 @@ fn execute_openclaw_detachment_contract(
     let source_nursery = source_root.join("nursery");
     let assimilation_root = root.join("local/state/assimilations/openclaw");
     let nursery_root = root.join("local/state/nursery");
+    let source_control_root = root.join("config/openclaw_assimilation");
 
     if strict && !source_root.exists() {
         return Err(format!(
@@ -3094,6 +3261,7 @@ fn execute_openclaw_detachment_contract(
     }
 
     let mut copied_rows = Vec::<Value>::new();
+    let mut source_control_copied_rows = Vec::<Value>::new();
     let copy_plan = vec![
         (
             source_root.join("openclaw.json"),
@@ -3144,6 +3312,22 @@ fn execute_openclaw_detachment_contract(
             assimilation_root.join("identity/device-auth.json"),
         ),
         (
+            source_root.join("agents/main/agent/state.json"),
+            assimilation_root.join("agents/main/agent/state.json"),
+        ),
+        (
+            source_root.join("agents/main/agent/models.json"),
+            assimilation_root.join("agents/main/agent/models.json"),
+        ),
+        (
+            source_root.join("agents/main/agent/routing-policy.json"),
+            assimilation_root.join("agents/main/agent/routing-policy.json"),
+        ),
+        (
+            source_root.join("agents/main/sessions/sessions.json"),
+            assimilation_root.join("agents/main/sessions/sessions.json"),
+        ),
+        (
             source_nursery.join("containment/permissions.json"),
             nursery_root.join("containment/permissions.json"),
         ),
@@ -3163,6 +3347,34 @@ fn execute_openclaw_detachment_contract(
         }
     }
 
+    let source_control_copy_plan = vec![
+        (
+            source_root.join("cron/jobs.json"),
+            source_control_root.join("cron/jobs.json"),
+        ),
+        (
+            source_nursery.join("containment/permissions.json"),
+            source_control_root.join("nursery/containment/permissions.json"),
+        ),
+        (
+            source_nursery.join("containment/policy-gates.json"),
+            source_control_root.join("nursery/containment/policy-gates.json"),
+        ),
+        (
+            source_nursery.join("manifests/seed_manifest.json"),
+            source_control_root.join("nursery/manifests/seed_manifest.json"),
+        ),
+        (
+            source_root.join("agents/main/sessions/sessions.json"),
+            source_control_root.join("agents/main/sessions/sessions.json"),
+        ),
+    ];
+    for (source, destination) in source_control_copy_plan {
+        if let Some(row) = copy_file_if_present(root, &source, &destination, apply)? {
+            source_control_copied_rows.push(row);
+        }
+    }
+
     let tree_copy_plan = vec![
         (
             source_root.join("cron/runs"),
@@ -3178,6 +3390,10 @@ fn execute_openclaw_detachment_contract(
             nursery_root.join("quarantine"),
         ),
         (source_nursery.join("seeds"), nursery_root.join("seeds")),
+        (
+            source_root.join("agents/main/sessions"),
+            assimilation_root.join("agents/main/sessions"),
+        ),
     ];
     for (source_tree, destination_tree) in tree_copy_plan {
         let rows = copy_tree_files_if_present(root, &source_tree, &destination_tree, apply)?;
@@ -3193,6 +3409,9 @@ fn execute_openclaw_detachment_contract(
     let policy_path = root.join("client/runtime/config/nursery_policy.json");
     let mut specialist_count = 0usize;
     let mut training_plan_rel = String::new();
+    let mut llm_registry_rel = String::new();
+    let mut llm_model_count = 0usize;
+    let mut recommended_local_model = String::new();
 
     let permissions = read_json_if_exists(&permissions_path)
         .or_else(|| read_json_if_exists(&source_nursery.join("containment/permissions.json")))
@@ -3287,8 +3506,50 @@ fn execute_openclaw_detachment_contract(
         }
     }
 
+    if profile.id == "V6-OPENCLAW-DETACH-001.4" {
+        let mut llm_models = openclaw_seed_to_llm_models(&seed_manifest);
+        if strict && llm_models.is_empty() {
+            return Err("openclaw_detach_missing_llm_seed_models".to_string());
+        }
+        normalize_model_scores(&mut llm_models);
+        llm_model_count = llm_models.len();
+        let recommended_local = choose_best_model(
+            &llm_models,
+            &RoutingRequest {
+                workload: WorkloadClass::Coding,
+                min_context_tokens: 8_192,
+                max_cost_score_1_to_5: 5,
+                local_only: true,
+            },
+        );
+        if let Some(best_local) = recommended_local {
+            recommended_local_model = best_local.name;
+        }
+        let registry = json!({
+            "version": "1.0",
+            "ts": now_iso(),
+            "source": lane_utils::rel_path(root, &source_root),
+            "models": llm_models.iter().map(llm_model_to_json).collect::<Vec<_>>(),
+            "recommended_local_model": if recommended_local_model.is_empty() { Value::Null } else { Value::String(recommended_local_model.clone()) }
+        });
+        let llm_registry_path = root.join("local/state/llm_runtime/model_registry.json");
+        let source_registry_path = source_control_root.join("llm/model_registry.json");
+        llm_registry_rel = lane_utils::rel_path(root, &llm_registry_path);
+        if apply {
+            lane_utils::write_json(&llm_registry_path, &registry)?;
+            lane_utils::write_json(&source_registry_path, &registry)?;
+        }
+    }
+
     if strict && copied_rows.is_empty() {
         return Err("openclaw_assimilation_no_artifacts_copied".to_string());
+    }
+    if strict
+        && profile.id == "V6-OPENCLAW-DETACH-001.3"
+        && source_control_copied_rows.is_empty()
+        && !source_control_root.join("cron/jobs.json").exists()
+    {
+        return Err("openclaw_detach_source_control_mirror_empty".to_string());
     }
 
     let copied_bytes = copied_rows
@@ -3304,9 +3565,15 @@ fn execute_openclaw_detachment_contract(
         "copied_bytes": copied_bytes,
         "copied_mb": copied_mb,
         "copied": copied_rows,
+        "source_control_copied_count": source_control_copied_rows.len(),
+        "source_control_copied": source_control_copied_rows,
+        "source_control_root": lane_utils::rel_path(root, &source_control_root),
         "policy_synced": policy_synced,
         "specialist_count": specialist_count,
         "training_plan_path": training_plan_rel,
+        "llm_registry_path": llm_registry_rel,
+        "llm_model_count": llm_model_count,
+        "recommended_local_model": if recommended_local_model.is_empty() { Value::Null } else { Value::String(recommended_local_model.clone()) },
         "state_path": state_rel,
         "assimilation_root": lane_utils::rel_path(root, &assimilation_root),
         "nursery_root": lane_utils::rel_path(root, &nursery_root),
@@ -3323,6 +3590,10 @@ fn execute_openclaw_detachment_contract(
 
     let claim = if profile.id == "V6-OPENCLAW-DETACH-001.2" {
         "openclaw_nursery_seed_training_is_materialized_locally_with_specialist_plan_and_receipts"
+    } else if profile.id == "V6-OPENCLAW-DETACH-001.3" {
+        "openclaw_cron_and_nursery_contracts_are_mirrored_into_source_controlled_infring_paths"
+    } else if profile.id == "V6-OPENCLAW-DETACH-001.4" {
+        "llm_runtime_registry_is_bootstrapped_from_assimilated_seed_models_with_deterministic_power_cost_ranking"
     } else {
         "openclaw_operator_state_and_nursery_artifacts_are_assimilated_into_infring_owned_paths_with_detachment_controls"
     };
@@ -3342,6 +3613,7 @@ fn execute_openclaw_detachment_contract(
             state_rel,
             lane_utils::rel_path(root, &assimilation_root),
             lane_utils::rel_path(root, &nursery_root),
+            lane_utils::rel_path(root, &source_control_root),
         ],
     })
 }
@@ -3905,7 +4177,10 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
             "external_dependency_detached": true,
             "operator_state_capture_enabled": true,
             "local_runtime_paths_enforced": true,
+            "source_controlled_mirror_enabled": true,
+            "llm_runtime_registry_enabled": true,
             "source_files_required_min": 1,
+            "llm_registry_models_min": 1,
             "max_assimilation_copy_mb": 1024,
             "source_root": ".."
         }),
@@ -4906,11 +5181,15 @@ mod tests {
         fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
         fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
         fs::create_dir_all(source.join("cron")).expect("mkdir cron");
+        fs::create_dir_all(source.join("agents/main/sessions")).expect("mkdir agent sessions");
+        fs::create_dir_all(source.join("agents/main/sessions")).expect("mkdir agent sessions");
         fs::create_dir_all(source.join("cron/runs")).expect("mkdir cron runs");
         fs::create_dir_all(source.join("subagents")).expect("mkdir subagents");
         fs::create_dir_all(source.join("memory")).expect("mkdir memory");
         fs::create_dir_all(source.join("local/state/sensory/eyes")).expect("mkdir eyes");
         fs::create_dir_all(source.join("client/local/memory")).expect("mkdir client local memory");
+        fs::create_dir_all(source.join("agents/main/agent")).expect("mkdir agent main");
+        fs::create_dir_all(source.join("agents/main/sessions")).expect("mkdir agent sessions");
         fs::write(source.join("openclaw.json"), "{\"ok\":true}").expect("write openclaw.json");
         fs::write(source.join("cron/jobs.json"), "{\"jobs\":[]}").expect("write jobs");
         fs::write(
@@ -4921,6 +5200,25 @@ mod tests {
         fs::write(source.join("subagents/runs.json"), "{\"runs\":[]}")
             .expect("write subagent runs");
         fs::write(source.join("memory/main.sqlite"), "sqlite-bytes").expect("write memory sqlite");
+        fs::write(source.join("agents/main/agent/state.json"), "{\"status\":\"ready\"}")
+            .expect("write agent state");
+        fs::write(source.join("agents/main/agent/models.json"), "{\"provider\":\"ollama\"}")
+            .expect("write agent models");
+        fs::write(
+            source.join("agents/main/agent/routing-policy.json"),
+            "{\"default\":\"local\"}",
+        )
+        .expect("write agent routing policy");
+        fs::write(
+            source.join("agents/main/sessions/sessions.json"),
+            "{\"active_session\":\"abc\",\"sessions\":[\"abc\"]}",
+        )
+        .expect("write sessions index");
+        fs::write(
+            source.join("agents/main/sessions/abc.jsonl"),
+            "{\"ts\":\"2026-03-24T00:00:00Z\",\"role\":\"user\",\"content\":\"hi\"}\n",
+        )
+        .expect("write session transcript");
         fs::write(
             source.join("local/state/sensory/eyes/collector_rate_state.json"),
             "{\"rates\":[]}",
@@ -4990,6 +5288,30 @@ mod tests {
                 .exists(),
             "expected memory sqlite to be assimilated"
         );
+        assert!(
+            root.path()
+                .join("local/state/assimilations/openclaw/agents/main/sessions/sessions.json")
+                .exists(),
+            "expected agent sessions index to be assimilated"
+        );
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/agents/main/sessions/sessions.json")
+                .exists(),
+            "expected source-controlled sessions index mirror to be written"
+        );
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/cron/jobs.json")
+                .exists(),
+            "expected source-controlled cron mirror to be written"
+        );
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/nursery/manifests/seed_manifest.json")
+                .exists(),
+            "expected source-controlled nursery mirror to be written"
+        );
         let policy = lane_utils::read_json(&policy_path).expect("read synced policy");
         assert_eq!(
             policy.get("root_dir").and_then(Value::as_str),
@@ -5047,5 +5369,136 @@ mod tests {
             specialists.len() >= 2,
             "expected specialists from seed manifest"
         );
+    }
+
+    #[test]
+    fn openclaw_detach_source_control_mirror_contract_writes_expected_files() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let source = root.path().join("legacy_openclaw_home");
+        fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
+        fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
+        fs::create_dir_all(source.join("cron")).expect("mkdir cron");
+        fs::create_dir_all(source.join("agents/main/sessions")).expect("mkdir agent sessions");
+        fs::write(
+            source.join("cron/jobs.json"),
+            "{\"jobs\":[{\"id\":\"heartbeat\"}]}",
+        )
+        .expect("write jobs");
+        fs::write(
+            source.join("nursery/containment/permissions.json"),
+            "{\"max_train_minutes\":35}",
+        )
+        .expect("write permissions");
+        fs::write(
+            source.join("nursery/containment/policy-gates.json"),
+            "{\"execution_mode\":\"sandboxed\"}",
+        )
+        .expect("write gates");
+        fs::write(
+            source.join("nursery/manifests/seed_manifest.json"),
+            "{\"artifacts\":[{\"id\":\"seed\",\"provider\":\"ollama\",\"model\":\"qwen2.5:7b\"}]}",
+        )
+        .expect("write seed manifest");
+        fs::write(
+            source.join("agents/main/sessions/sessions.json"),
+            "{\"active_session\":\"alpha\"}",
+        )
+        .expect("write sessions index");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/nursery_policy.json");
+        fs::create_dir_all(policy_path.parent().expect("policy parent")).expect("mkdir policy");
+        fs::write(&policy_path, "{\"version\":\"1.0\",\"containment\":{}}").expect("write policy");
+
+        let payload = json!({ "source_root": source.display().to_string(), "max_assimilation_copy_mb": 2048 });
+        let out = run_payload(
+            root.path(),
+            "V6-OPENCLAW-DETACH-001.3",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=1".to_string(),
+                format!("--payload-json={}", payload),
+            ],
+        )
+        .expect("detach source mirror should succeed");
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/cron/jobs.json")
+                .exists(),
+            "expected source-controlled cron jobs mirror"
+        );
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/nursery/containment/permissions.json")
+                .exists(),
+            "expected source-controlled nursery containment mirror"
+        );
+        assert!(
+            root.path()
+                .join("config/openclaw_assimilation/agents/main/sessions/sessions.json")
+                .exists(),
+            "expected source-controlled agent session index mirror"
+        );
+    }
+
+    #[test]
+    fn openclaw_detach_llm_registry_materializes_ranked_models() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let source = root.path().join("legacy_openclaw_home");
+        fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
+        fs::write(
+            source.join("nursery/manifests/seed_manifest.json"),
+            "{\"artifacts\":[{\"id\":\"tiny\",\"provider\":\"ollama\",\"model\":\"qwen2.5-coder:3b\"},{\"id\":\"big\",\"provider\":\"openai\",\"model\":\"gpt-5.4-128k\"}]}",
+        )
+        .expect("write seed manifest");
+        fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
+        fs::write(
+            source.join("nursery/containment/permissions.json"),
+            "{\"max_train_minutes\":30}",
+        )
+        .expect("write permissions");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/nursery_policy.json");
+        fs::create_dir_all(policy_path.parent().expect("policy parent")).expect("mkdir policy");
+        fs::write(&policy_path, "{\"version\":\"1.0\",\"containment\":{}}").expect("write policy");
+
+        let payload = json!({ "source_root": source.display().to_string(), "max_assimilation_copy_mb": 2048 });
+        let out = run_payload(
+            root.path(),
+            "V6-OPENCLAW-DETACH-001.4",
+            "run",
+            &[
+                "--strict=1".to_string(),
+                "--apply=1".to_string(),
+                format!("--payload-json={}", payload),
+            ],
+        )
+        .expect("detach llm registry should succeed");
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let registry_path = root
+            .path()
+            .join("local/state/llm_runtime/model_registry.json");
+        assert!(registry_path.exists(), "expected llm runtime registry");
+        let registry = lane_utils::read_json(&registry_path).expect("read llm registry");
+        let models = registry
+            .get("models")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            models.len() >= 2,
+            "expected llm model registry rows from seed manifest"
+        );
+        let power_values = models
+            .iter()
+            .filter_map(|row| row.get("power_score_1_to_5").and_then(Value::as_u64))
+            .collect::<Vec<_>>();
+        assert!(power_values.contains(&1));
+        assert!(power_values.contains(&5));
     }
 }

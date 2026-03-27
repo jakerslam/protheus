@@ -76,7 +76,54 @@ function getFlag(name) {
 }
 
 function readUtf8(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const partsDir = `${filePath}.parts`;
+  if (fs.existsSync(partsDir) && fs.statSync(partsDir).isDirectory()) {
+    const partFiles = fs
+      .readdirSync(partsDir, { withFileTypes: true })
+      .filter((entry) => entry && entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => path.extname(name).toLowerCase() === ext)
+      .sort((a, b) => a.localeCompare(b, 'en'))
+      .map((name) => fs.readFileSync(path.join(partsDir, name), 'utf8'));
+    if (partFiles.length > 0) return partFiles.join('\n');
+  }
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function assertDashboardFileSizeCaps() {
+  const uiRoot = path.resolve(ROOT, 'client/runtime/systems/ui');
+  const sourceExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.css', '.html']);
+  const violations = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!sourceExts.has(ext)) continue;
+      const vendorToken = `${path.sep}vendor${path.sep}`;
+      if (fullPath.includes(vendorToken) || path.basename(path.dirname(fullPath)) === 'vendor') continue;
+      const lines = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/).length;
+      if (lines <= 500) continue;
+      const header = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/).slice(0, 8).join('\n');
+      if (/FILE_SIZE_EXCEPTION:\s*reason=.+owner=.+expires=\d{4}-\d{2}-\d{2}/.test(header)) continue;
+      violations.push({
+        file: path.relative(ROOT, fullPath),
+        lines,
+      });
+    }
+  };
+  walk(uiRoot);
+  assert.strictEqual(
+    violations.length,
+    0,
+    `dashboard source files must stay <=500 LoC unless FILE_SIZE_EXCEPTION is declared: ${JSON.stringify(violations.slice(0, 12))}`
+  );
 }
 
 function walkUiJsFiles(dir, out = []) {
@@ -145,6 +192,14 @@ function assertChatEnhancementFeatures() {
   );
   assertContains(htmlSource, 'class="chat-init-panel"', 'fresh-init panel markup missing');
   assertContains(htmlSource, 'Initialize Agent', 'fresh-init panel title missing');
+  assertContains(htmlSource, 'Advanced setup', 'fresh-init advanced setup toggle missing');
+  assertContains(htmlSource, 'chat-init-model-grid', 'fresh-init LLM suggestion grid missing');
+  assertContains(htmlSource, 'Vibe', 'fresh-init vibe section missing');
+  assertContains(chatSource, 'refreshFreshInitModelSuggestions: async function(templateDef)', 'fresh-init role-based LLM ranking helper missing');
+  assertContains(chatSource, 'scoreFreshInitModelForRole: function(model, roleKey)', 'fresh-init model scoring function missing');
+  assertContains(chatSource, 'freshInitModelSelection = ranked.length ? this.normalizeFreshInitModelRef(ranked[0]) : \'\';', 'fresh-init should auto-select top-ranked model by default');
+  assertContains(cssSource, '.chat-init-advanced-toggle', 'fresh-init advanced toggle styles missing');
+  assertContains(cssSource, '.chat-init-model-meta', 'fresh-init model metadata row styles missing');
 
   // Prompt suggestion chips above composer
   assertContains(chatSource, 'refreshPromptSuggestions', 'prompt suggestion refresh flow missing');
@@ -373,8 +428,23 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     laneSource,
+    'Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 1800)',
+    'strict sidebar runtime authority timeout floor should avoid transient empty roster flaps'
+  );
+  assertContains(
+    laneSource,
     '!strictRuntimeAuthority &&',
     'runtime authority roster path must not fall back to stale cached sidebar agent rows'
+  );
+  assertContains(
+    laneSource,
+    "type: 'agent_purged'",
+    'DELETE /api/agents/:id must return idempotent purge response for stale agent IDs'
+  );
+  assertContains(
+    laneSource,
+    'zombie_purged: true',
+    'stale-agent delete path must mark zombie_purged telemetry for observability'
   );
   assertContains(
     laneSource,
@@ -399,6 +469,26 @@ function assertInterfaceSafetyGuards() {
     appSource,
     "if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');",
     'new-agent flow must fail closed when app store is unavailable instead of throwing property-access crashes'
+  );
+  assertContains(
+    appSource,
+    "if (msg.indexOf('agent_not_found') >= 0) {",
+    'sidebar archive flow must gracefully handle stale agent_not_found responses'
+  );
+  assertContains(
+    appSource,
+    "statusAgentCountHint > 0 || connectionState === 'connecting' || connectionState === 'reconnecting'",
+    'strict roster refresh should preserve prior agents while runtime still reports active agents'
+  );
+  assertContains(
+    appSource,
+    'strict_roster_transient_empty',
+    'strict roster transient-empty hold marker missing'
+  );
+  assertContains(
+    appSource,
+    'Removed stale agent "',
+    'sidebar archive flow must surface stale-agent purge feedback'
   );
   assertContains(
     appSource,
@@ -542,6 +632,7 @@ function assertLifecycleAndPlatformSrsEvidence() {
 }
 
 function runSnapshotAssertions() {
+  assertDashboardFileSizeCaps();
   assertThinClientAuthorityBoundary();
   assertChatSyntaxGuards();
   assertChatEnhancementFeatures();

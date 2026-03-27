@@ -713,9 +713,219 @@ infring_gateway_pid_clear() {
   rm -f "$pid_file" >/dev/null 2>&1 || true
 }
 
+infring_gateway_watchdog_pidfile() {
+  host_safe="$(printf '%s' "${1:-127.0.0.1}" | tr -c 'A-Za-z0-9._-' '_')"
+  port_safe="$(printf '%s' "${2:-4173}" | tr -c '0-9' '_')"
+  printf '%s\n' "${TMPDIR:-/tmp}/infring-dashboard-watchdog-${host_safe}-${port_safe}.pid"
+}
+
+infring_gateway_watchdog_pid_read() {
+  pid_file="$(infring_gateway_watchdog_pidfile "$1" "$2")"
+  [ -f "$pid_file" ] || return 1
+  pid="$(sed -n '1p' "$pid_file" | tr -cd '0-9')"
+  [ -n "$pid" ] || return 1
+  printf '%s\n' "$pid"
+}
+
+infring_gateway_watchdog_pid_running() {
+  pid="$(infring_gateway_watchdog_pid_read "$1" "$2" 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" >/dev/null 2>&1
+}
+
+infring_gateway_watchdog_pid_clear() {
+  pid_file="$(infring_gateway_watchdog_pidfile "$1" "$2")"
+  rm -f "$pid_file" >/dev/null 2>&1 || true
+}
+
+infring_gateway_launchd_mode_enabled() {
+  case "$(uname -s 2>/dev/null || printf '')" in
+    Darwin) ;;
+    *) return 1 ;;
+  esac
+  [ "${INFRING_DASHBOARD_LAUNCHD:-1}" != "0" ] || return 1
+  command -v launchctl >/dev/null 2>&1 || return 1
+  return 0
+}
+
+infring_gateway_launchd_domain() {
+  uid="$(id -u 2>/dev/null || true)"
+  [ -n "$uid" ] || return 1
+  for candidate in "gui/${uid}" "user/${uid}"; do
+    if launchctl print "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  printf '%s\n' "user/${uid}"
+}
+
+infring_gateway_launchd_label() {
+  printf '%s\n' "com.protheuslabs.infring.dashboard.shelltest2"
+}
+
+infring_gateway_launchd_plist() {
+  label="$(infring_gateway_launchd_label "$1" "$2")"
+  printf '%s\n' "$HOME/Library/LaunchAgents/${label}.plist"
+}
+
+infring_gateway_launchd_loaded() {
+  domain="$(infring_gateway_launchd_domain 2>/dev/null || true)"
+  label="$(infring_gateway_launchd_label "$1" "$2")"
+  [ -n "$domain" ] || return 1
+  launchctl print "${domain}/${label}" >/dev/null 2>&1
+}
+
+infring_gateway_xml_escape() {
+  printf '%s' "${1:-}" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+infring_gateway_launchd_write_plist() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  root="${3:-}"
+  [ -n "$root" ] || return 1
+  label="$(infring_gateway_launchd_label "$host" "$port")"
+  plist="$(infring_gateway_launchd_plist "$host" "$port")"
+  launch_dir="$(dirname "$plist")"
+  mkdir -p "$launch_dir" >/dev/null 2>&1 || return 1
+  node_bin="$(command -v node 2>/dev/null || true)"
+  [ -n "$node_bin" ] || return 1
+  label_xml="$(infring_gateway_xml_escape "$label")"
+  launch_cmd="cd $root && exec $node_bin client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ui/infring_dashboard.ts serve --host=$host --port=$port"
+  launch_cmd_xml="$(infring_gateway_xml_escape "$launch_cmd")"
+  cat > "$plist" <<__INFRING_PLIST__
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${label_xml}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-lc</string>
+    <string>${launch_cmd_xml}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/infring-dashboard-serve.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/infring-dashboard-serve.log</string>
+</dict>
+</plist>
+__INFRING_PLIST__
+  return 0
+}
+
+infring_gateway_launchd_start() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  root="${3:-}"
+  infring_gateway_launchd_mode_enabled || return 1
+  [ -n "$root" ] || return 1
+  infring_gateway_launchd_write_plist "$host" "$port" "$root" || return 1
+  domain="$(infring_gateway_launchd_domain 2>/dev/null || true)"
+  label="$(infring_gateway_launchd_label "$host" "$port")"
+  plist="$(infring_gateway_launchd_plist "$host" "$port")"
+  [ -n "$domain" ] || return 1
+  launchctl bootout "${domain}/${label}" >/dev/null 2>&1 || launchctl bootout "$domain" "$plist" >/dev/null 2>&1 || true
+  launchctl bootstrap "$domain" "$plist" >/dev/null 2>&1 || return 1
+  launchctl enable "${domain}/${label}" >/dev/null 2>&1 || true
+  launchctl kickstart -k "${domain}/${label}" >/dev/null 2>&1 || true
+  return 0
+}
+
+infring_gateway_launchd_stop() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  infring_gateway_launchd_mode_enabled || return 0
+  domain="$(infring_gateway_launchd_domain 2>/dev/null || true)"
+  label="$(infring_gateway_launchd_label "$host" "$port")"
+  plist="$(infring_gateway_launchd_plist "$host" "$port")"
+  if [ -n "$domain" ]; then
+    launchctl disable "${domain}/${label}" >/dev/null 2>&1 || true
+    launchctl bootout "${domain}/${label}" >/dev/null 2>&1 || launchctl bootout "$domain" "$plist" >/dev/null 2>&1 || true
+  fi
+  rm -f "$plist" >/dev/null 2>&1 || true
+  return 0
+}
+
+infring_gateway_watchdog_stop() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  pid="$(infring_gateway_watchdog_pid_read "$host" "$port" 2>/dev/null || true)"
+  if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
+    kill "$pid" >/dev/null 2>&1 || true
+    i=0
+    while [ "$i" -lt 6 ]; do
+      if ! kill -0 "$pid" >/dev/null 2>&1; then
+        break
+      fi
+      i=$((i + 1))
+      sleep 1
+    done
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  fi
+  infring_gateway_watchdog_pid_clear "$host" "$port"
+}
+
+infring_gateway_dashboard_match() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  printf '%s\n' "client/runtime/systems/ui/infring_dashboard.ts serve --host=${host} --port=${port}"
+}
+
+infring_gateway_dashboard_process_running() {
+  match="$(infring_gateway_dashboard_match "$1" "$2")"
+  if command -v pgrep >/dev/null 2>&1; then
+    pgrep -f "$match" >/dev/null 2>&1 && return 0
+  else
+    ps ax -o command= 2>/dev/null | awk -v m="$match" 'index($0,m)>0 {found=1} END {exit(found?0:1)}'
+    return $?
+  fi
+  return 1
+}
+
+infring_gateway_pid_matches_dashboard() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  pid="$(infring_gateway_pid_read "$host" "$port" 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  [ -n "$cmd" ] || return 1
+  match="$(infring_gateway_dashboard_match "$host" "$port")"
+  case "$cmd" in
+    *"$match"*) return 0 ;;
+  esac
+  return 1
+}
+
+infring_gateway_pid_sanitize() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  if ! infring_gateway_pid_running "$host" "$port"; then
+    infring_gateway_pid_clear "$host" "$port"
+    return 0
+  fi
+  if ! infring_gateway_pid_matches_dashboard "$host" "$port"; then
+    infring_gateway_pid_clear "$host" "$port"
+    return 0
+  fi
+  return 0
+}
+
 infring_gateway_stop_dashboard_managed() {
   host="${1:-127.0.0.1}"
   port="${2:-4173}"
+  if infring_gateway_launchd_mode_enabled; then
+    infring_gateway_launchd_stop "$host" "$port" >/dev/null 2>&1 || true
+  fi
   pid="$(infring_gateway_pid_read "$host" "$port" 2>/dev/null || true)"
   if [ -n "$pid" ]; then
     if kill -0 "$pid" >/dev/null 2>&1; then
@@ -733,7 +943,7 @@ infring_gateway_stop_dashboard_managed() {
       fi
     fi
   fi
-  match="client/runtime/systems/ui/infring_dashboard.ts serve --host=${host} --port=${port}"
+  match="$(infring_gateway_dashboard_match "$host" "$port")"
   if command -v pkill >/dev/null 2>&1; then
     pkill -f "$match" >/dev/null 2>&1 || true
     sleep 1
@@ -778,10 +988,109 @@ infring_gateway_wait_dashboard() {
   return 1
 }
 
+infring_gateway_wait_dashboard_adaptive() {
+  host="$1"
+  port="$2"
+  timeout_s="${3:-90}"
+  enforce_fallback="${4:-1}"
+  i=0
+  while [ "$i" -lt "$timeout_s" ]; do
+    if infring_gateway_health_ok "$host" "$port"; then
+      return 0
+    fi
+    if [ "$enforce_fallback" = "1" ]; then
+      infring_gateway_pid_sanitize "$host" "$port"
+      if ! infring_gateway_dashboard_process_running "$host" "$port"; then
+        infring_gateway_start_dashboard_fallback "$host" "$port" >/dev/null 2>&1 || true
+      fi
+    fi
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
+}
+
+infring_gateway_watchdog_loop() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  interval_s="${3:-5}"
+  case "$interval_s" in
+    ''|*[!0-9]*)
+      interval_s=5
+      ;;
+  esac
+  if [ "$interval_s" -lt 2 ]; then
+    interval_s=2
+  fi
+  if [ "$interval_s" -gt 60 ]; then
+    interval_s=60
+  fi
+  trap 'exit 0' INT TERM
+  while true; do
+    infring_gateway_pid_sanitize "$host" "$port"
+    if ! infring_gateway_health_ok "$host" "$port"; then
+      if ! infring_gateway_dashboard_process_running "$host" "$port"; then
+        infring_gateway_start_dashboard_fallback "$host" "$port" >/dev/null 2>&1 || true
+      fi
+      infring_gateway_wait_dashboard "$host" "$port" 8 >/dev/null 2>&1 || true
+    fi
+    sleep "$interval_s"
+  done
+}
+
+infring_gateway_spawn_detached_logged() {
+  log_file="$1"
+  shift || true
+  [ -n "$log_file" ] || return 1
+  [ "$#" -gt 0 ] || return 1
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$@" </dev/null >>"$log_file" 2>&1 &
+  elif command -v nohup >/dev/null 2>&1; then
+    nohup "$@" </dev/null >>"$log_file" 2>&1 &
+  else
+    "$@" </dev/null >>"$log_file" 2>&1 &
+  fi
+  printf '%s\n' "$!"
+  return 0
+}
+
+infring_gateway_watchdog_start() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  interval_s="${3:-5}"
+  case "$interval_s" in
+    ''|*[!0-9]*)
+      interval_s=5
+      ;;
+  esac
+  if [ "$interval_s" -lt 2 ]; then
+    interval_s=2
+  fi
+  if [ "$interval_s" -gt 60 ]; then
+    interval_s=60
+  fi
+  if infring_gateway_launchd_mode_enabled && infring_gateway_launchd_loaded "$host" "$port"; then
+    return 0
+  fi
+  if infring_gateway_watchdog_pid_running "$host" "$port"; then
+    return 0
+  fi
+  infring_gateway_watchdog_pid_clear "$host" "$port"
+  watchdog_pid="$(infring_gateway_spawn_detached_logged /tmp/infring-dashboard-watchdog.log "$0" "__dashboard-watchdog" "--host=${host}" "--port=${port}" "--interval=${interval_s}" 2>/dev/null || true)"
+  if [ -n "$watchdog_pid" ]; then
+    printf '%s\n' "$watchdog_pid" > "$(infring_gateway_watchdog_pidfile "$host" "$port")"
+  fi
+  return 0
+}
+
 infring_gateway_start_dashboard_fallback() {
   host="$1"
   port="$2"
-  if infring_gateway_pid_running "$host" "$port"; then
+  infring_gateway_pid_sanitize "$host" "$port"
+  if infring_gateway_health_ok "$host" "$port"; then
+    return 0
+  fi
+  if infring_gateway_dashboard_process_running "$host" "$port"; then
     return 0
   fi
   root=""
@@ -793,20 +1102,53 @@ infring_gateway_start_dashboard_fallback() {
     fi
   done
   [ -n "$root" ] || return 1
+  if infring_gateway_launchd_mode_enabled; then
+    if infring_gateway_launchd_start "$host" "$port" "$root" >/dev/null 2>&1; then
+      match="$(infring_gateway_dashboard_match "$host" "$port")"
+      if command -v pgrep >/dev/null 2>&1; then
+        child_pid="$(pgrep -f "$match" | head -n 1 || true)"
+        if [ -n "$child_pid" ]; then
+          printf '%s\n' "$child_pid" > "$(infring_gateway_pidfile "$host" "$port")"
+        fi
+      fi
+      return 0
+    fi
+  fi
   command -v node >/dev/null 2>&1 || return 1
   (
     cd "$root" 2>/dev/null || exit 1
-    nohup node client/runtime/lib/ts_entrypoint.ts \
+    child_pid="$(infring_gateway_spawn_detached_logged /tmp/infring-dashboard-serve.log node client/runtime/lib/ts_entrypoint.ts \
       client/runtime/systems/ui/infring_dashboard.ts \
       serve "--host=${host}" "--port=${port}" \
-      >/tmp/infring-dashboard-serve.log 2>&1 &
-    child_pid="$!"
+      2>/dev/null || true)"
     if [ -n "$child_pid" ]; then
       printf '%s\n' "$child_pid" > "$(infring_gateway_pidfile "$host" "$port")"
     fi
   ) >/dev/null 2>&1 || return 1
   return 0
 }
+
+if [ "${1:-}" = "__dashboard-watchdog" ]; then
+  shift || true
+  watchdog_host="127.0.0.1"
+  watchdog_port="4173"
+  watchdog_interval="5"
+  for token in "$@"; do
+    case "$token" in
+      --host=*)
+        watchdog_host="${token#*=}"
+        ;;
+      --port=*)
+        watchdog_port="${token#*=}"
+        ;;
+      --interval=*)
+        watchdog_interval="${token#*=}"
+        ;;
+    esac
+  done
+  infring_gateway_watchdog_loop "$watchdog_host" "$watchdog_port" "$watchdog_interval"
+  exit 0
+fi
 
 if [ "${1:-}" = "gateway" ]; then
   shift || true
@@ -834,7 +1176,11 @@ if [ "${1:-}" = "gateway" ]; then
     gateway_action="start"
   fi
 
-  gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
+  if infring_gateway_launchd_mode_enabled && { [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; }; then
+    gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" --dashboard-autoboot=0 2>&1)"
+  else
+    gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
+  fi
   gateway_status=$?
   if [ "$gateway_status" -ne 0 ]; then
     if [ -n "$gateway_output" ]; then
@@ -858,6 +1204,19 @@ if [ "${1:-}" = "gateway" ]; then
   dashboard_open="1"
   dashboard_host="127.0.0.1"
   dashboard_port="4173"
+  dashboard_watchdog_enabled="${INFRING_DASHBOARD_WATCHDOG:-1}"
+  dashboard_watchdog_interval="${INFRING_DASHBOARD_WATCHDOG_INTERVAL:-5}"
+  case "$dashboard_watchdog_interval" in
+    ''|*[!0-9]*)
+      dashboard_watchdog_interval=5
+      ;;
+  esac
+  if [ "$dashboard_watchdog_interval" -lt 2 ]; then
+    dashboard_watchdog_interval=2
+  fi
+  if [ "$dashboard_watchdog_interval" -gt 60 ]; then
+    dashboard_watchdog_interval=60
+  fi
   if [ "${INFRING_NO_BROWSER:-0}" = "1" ] || [ "${PROTHEUS_NO_BROWSER:-0}" = "1" ]; then
     dashboard_open="0"
   fi
@@ -881,25 +1240,25 @@ if [ "${1:-}" = "gateway" ]; then
 
   if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
     if [ "$gateway_action" = "restart" ]; then
+      infring_gateway_watchdog_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
       infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     fi
-    if ! infring_gateway_pid_running "$dashboard_host" "$dashboard_port"; then
-      infring_gateway_pid_clear "$dashboard_host" "$dashboard_port"
-    fi
+    infring_gateway_pid_sanitize "$dashboard_host" "$dashboard_port"
     dashboard_ready="0"
     if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 12; then
       dashboard_ready="1"
     else
       if [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ] && [ "${PROTHEUS_DASHBOARD_FALLBACK:-1}" != "0" ]; then
-        if infring_gateway_start_dashboard_fallback "$dashboard_host" "$dashboard_port"; then
-          if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 20; then
-            dashboard_ready="1"
-          fi
-        fi
+        infring_gateway_start_dashboard_fallback "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
       fi
       if [ "$dashboard_ready" != "1" ]; then
-        sleep 1
-        if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 8; then
+        wait_max="${INFRING_DASHBOARD_WAIT_MAX:-90}"
+        case "$wait_max" in
+          ''|*[!0-9]*)
+            wait_max=90
+            ;;
+        esac
+        if infring_gateway_wait_dashboard_adaptive "$dashboard_host" "$dashboard_port" "$wait_max" 1; then
           dashboard_ready="1"
         fi
       fi
@@ -914,6 +1273,9 @@ if [ "${1:-}" = "gateway" ]; then
     if [ "$dashboard_ready" != "1" ]; then
       echo "[infring gateway] warning: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
     fi
+    if [ "$dashboard_watchdog_enabled" != "0" ]; then
+      infring_gateway_watchdog_start "$dashboard_host" "$dashboard_port" "$dashboard_watchdog_interval" >/dev/null 2>&1 || true
+    fi
     if [ "$gateway_action" = "restart" ]; then
       echo "[infring gateway] runtime restarted"
     else
@@ -923,6 +1285,7 @@ if [ "${1:-}" = "gateway" ]; then
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   elif [ "$gateway_action" = "stop" ]; then
+    infring_gateway_watchdog_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     echo "[infring gateway] runtime stopped"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
@@ -935,6 +1298,16 @@ if [ "${1:-}" = "gateway" ]; then
     fi
     if infring_gateway_pid_running "$dashboard_host" "$dashboard_port"; then
       echo "[infring gateway] dashboard pid: $(infring_gateway_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true)"
+    fi
+    if infring_gateway_watchdog_pid_running "$dashboard_host" "$dashboard_port"; then
+      echo "[infring gateway] dashboard watchdog pid: $(infring_gateway_watchdog_pid_read "$dashboard_host" "$dashboard_port" 2>/dev/null || true)"
+    fi
+    if infring_gateway_launchd_mode_enabled; then
+      if infring_gateway_launchd_loaded "$dashboard_host" "$dashboard_port"; then
+        echo "[infring gateway] dashboard supervisor: launchd ($(infring_gateway_launchd_label "$dashboard_host" "$dashboard_port"))"
+      else
+        echo "[infring gateway] dashboard supervisor: launchd (not loaded)"
+      fi
     fi
     echo "[infring gateway] dashboard: $dashboard_url"
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
