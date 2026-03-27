@@ -112,11 +112,13 @@
     "local/state/",
     "planes/",
     "proofs/",
+    "xtask/",
     "core/layer1/memory_runtime/adaptive/",
     "node_modules/"
   ],
   "ignore_path_prefixes": [
     "client/runtime/local/",
+    "client/cognition/habits/scripts/",
     "core/layer1/memory_runtime/adaptive/",
     "client/pure-workspace/"
   ],
