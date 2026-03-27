@@ -39,7 +39,7 @@
 .stat-card-lg {
   padding: 24px 28px;
   min-width: 140px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -56,7 +56,11 @@
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
-.stat-card-lg:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.stat-card-lg:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
 .stat-card-lg:hover::after { opacity: 1; }
 .stat-card-lg .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
 .stat-card-lg .stat-label { font-size: 11px; margin-top: 2px; font-weight: 500; }
@@ -380,12 +384,24 @@
 
 /* ── Info Cards (explainer pattern) ── */
 .info-card {
-  background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface) 82%, transparent) 0%,
+    color-mix(in srgb, var(--surface2) 82%, transparent) 100%
+  );
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   margin-bottom: 16px;
+}
+
+.info-card:hover {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface) 88%, transparent) 0%,
+    color-mix(in srgb, var(--surface2) 88%, transparent) 100%
+  );
 }
 
 .info-card h4 {
