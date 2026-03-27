@@ -126,7 +126,7 @@ pub(super) fn print_usage() {
     );
     println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops dashboard-ui <serve|snapshot|status|runtime-sync> [--host=<ip>] [--port=<n>] [--team=<id>] [--refresh-ms=<n>]");
-    println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics> [flags]");
+    println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|watchdog> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
     println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
     println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");
