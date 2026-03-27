@@ -1,0 +1,16 @@
+{
+  "schema_version": "repo_file_size_policy_v1",
+  "scope": [
+    "core/**",
+    "client/**"
+  ],
+  "tests_exempt": true,
+  "caps": {
+    "ui_source": 500,
+    "other_ts_js": 1200,
+    "core_rust": 500,
+    "other_rust": 1000
+  },
+  "generated_at": "2026-03-27T02:13:14.058Z",
+  "exceptions": []
+}

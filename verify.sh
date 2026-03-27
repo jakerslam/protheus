@@ -145,6 +145,8 @@ run_protheus_ops_defer() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:flaky:quarantine:audit
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:test-priority:audit
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:strategic-contracts:audit
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:rust-core-file-size:gate
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:file-size:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node tests/tooling/scripts/ci/client_import_integrity_audit.mjs --strict=1 --out="$CLIENT_IMPORT_INTEGRITY_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node tests/tooling/scripts/ci/client_scope_inventory.mjs --out="$CLIENT_SCOPE_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node tests/tooling/scripts/ci/client_surface_disposition.mjs --out="$CLIENT_SURFACE_OUT"

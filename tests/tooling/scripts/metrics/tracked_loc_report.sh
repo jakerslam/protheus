@@ -51,21 +51,22 @@ if [[ -n "$BASE_REF" ]] && ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1;
   exit 2
 fi
 
-count_ext_lines() {
+count_lines_pathspecs() {
   local ref="$1"
-  local ext="$2"
+  shift
   # git grep exits non-zero when there are no matches; treat as zero-line case.
   local raw
-  raw="$( (git grep -I -n '^' "$ref" -- "*.${ext}" || true) | wc -l | awk '{print $1}')"
+  raw="$( (git grep -I -n '^' "$ref" -- "$@" || true) | wc -l | awk '{print $1}')"
   echo "$raw"
 }
 
 compute_counts() {
   local ref="$1"
   local rs ts js total rust_share
-  rs="$(count_ext_lines "$ref" "rs")"
-  ts="$(count_ext_lines "$ref" "ts")"
-  js="$(count_ext_lines "$ref" "js")"
+  # Include split Rust implementation segments (.rs.inc) in Rust authority share.
+  rs="$(count_lines_pathspecs "$ref" "*.rs" "*.rs.inc")"
+  ts="$(count_lines_pathspecs "$ref" "*.ts")"
+  js="$(count_lines_pathspecs "$ref" "*.js")"
   total=$((rs + ts + js))
   if [[ "$total" -gt 0 ]]; then
     rust_share="$(awk -v a="$rs" -v b="$total" 'BEGIN { printf "%.3f", (a*100.0)/b }')"

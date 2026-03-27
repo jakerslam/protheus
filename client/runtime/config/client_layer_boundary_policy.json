@@ -37,6 +37,7 @@
     "client/runtime/systems/conduit/conduit-client.ts",
     "client/runtime/systems/ops/local_runtime_partitioner.ts",
     "client/runtime/systems/ops/run_protheus_ops.ts",
+    "client/runtime/systems/ops/run_protheus_ops.js",
     "client/runtime/systems/ops/protheus_command_list.ts",
     "client/runtime/systems/ops/protheus_control_plane.ts",
     "client/runtime/systems/ops/protheus_debug_diagnostics.ts",
