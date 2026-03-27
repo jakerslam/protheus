@@ -239,11 +239,20 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V6-DASHBOARD-008.2",
     "V6-DASHBOARD-008.3",
     "V6-DASHBOARD-008.4",
+    "V6-DASHBOARD-009.1",
+    "V6-DASHBOARD-009.2",
     "V6-COLLAB-002.1",
     "V6-COLLAB-002.2",
     "V6-COLLAB-002.3",
     "V6-OPENCLAW-DETACH-001.1",
     "V6-OPENCLAW-DETACH-001.2",
+    "V6-OPENCLAW-DETACH-001.3",
+    "V6-OPENCLAW-DETACH-001.4",
+    "V6-OPENFANG-GAP-001.1",
+    "V6-OPENFANG-GAP-001.2",
+    "V6-OPENFANG-GAP-001.3",
+    "V6-OPENFANG-GAP-001.4",
+    "V6-OPENFANG-GAP-001.5",
     "V6-ECONOMY-003.1",
     "V6-ECONOMY-003.2",
     "V6-ECONOMY-003.3",
@@ -549,10 +558,7 @@ const MEMORY_BANK_IDS: &[&str] = &[
     "V8-MEMORY-BANK-002.8",
 ];
 
-const F100_IDS: &[&str] = &[
-    "V7-F100-002.3",
-    "V7-F100-002.7",
-];
+const F100_IDS: &[&str] = &["V7-F100-002.3", "V7-F100-002.7"];
 
 const V5_HOLD_IDS: &[&str] = &[
     "V5-HOLD-001",
@@ -677,8 +683,12 @@ const V6_WORKFLOW_029_IDS: &[&str] = &[
     "V6-WORKFLOW-029.5",
 ];
 
-const V6_OPENCLAW_DETACH_001_IDS: &[&str] =
-    &["V6-OPENCLAW-DETACH-001.1", "V6-OPENCLAW-DETACH-001.2"];
+const V6_OPENCLAW_DETACH_001_IDS: &[&str] = &[
+    "V6-OPENCLAW-DETACH-001.1",
+    "V6-OPENCLAW-DETACH-001.2",
+    "V6-OPENCLAW-DETACH-001.3",
+    "V6-OPENCLAW-DETACH-001.4",
+];
 
 const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
     RuntimeSystemContractFamily {
@@ -884,6 +894,18 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
         return Some((
             "automation_mission_stack",
             "dashboard_auto_router_selection_preflight_and_receipted_model_routing",
+        ));
+    }
+    if id.starts_with("V6-DASHBOARD-009.") {
+        return Some((
+            "automation_mission_stack",
+            "chat_source_run_grouping_boot_retry_and_error_status_artifacts",
+        ));
+    }
+    if id.starts_with("V6-OPENFANG-GAP-001.") {
+        return Some((
+            "openfang_assimilation_stack",
+            "llm_runtime_http_ws_channels_security_and_hands_assimilation_parity",
         ));
     }
     if id.starts_with("V6-APP-023.") {
@@ -1188,6 +1210,7 @@ mod tests {
         assert!(profile_for("V6-DASHBOARD-007.8").is_some());
         assert!(profile_for("V6-DASHBOARD-008.4").is_some());
         assert!(profile_for("V6-OPENCLAW-DETACH-001.2").is_some());
+        assert!(profile_for("V6-OPENCLAW-DETACH-001.4").is_some());
         assert!(profile_for("V8-SWARM-012.10").is_some());
         assert!(profile_for("V9-TINYMAX-021.2").is_some());
         assert!(profile_for("X-UNKNOWN-404.1").is_none());

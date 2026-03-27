@@ -92,7 +92,7 @@ Completion requires all of the following:
 ## File Size Governance Rules (Mandatory)
 - Treat oversized files as reliability and velocity risk. Split before they become monoliths.
 - Line caps apply to **tracked source files**:
-  - `client/runtime/systems/ui/**` `*.ts|*.tsx|*.js|*.jsx`: hard cap **800** lines.
+  - `client/runtime/systems/ui/**` `*.ts|*.tsx|*.js|*.jsx|*.css|*.html`: hard cap **500** lines.
   - other `*.ts|*.tsx|*.js|*.jsx`: hard cap **1200** lines.
   - `*.rs`: hard cap **1000** lines.
 - New source files must start at or below **500** lines.

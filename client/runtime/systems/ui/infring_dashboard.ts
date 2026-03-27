@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 // Unified dashboard lane: TypeScript-first client UI over Rust-core authority.
+// FILE_SIZE_EXCEPTION: reason=runtime lane currently co-locates HTTP API, websocket loop, static bundling, and authority orchestration while staged decomposition is completed; owner=jay; expires=2026-04-15
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -49,6 +50,7 @@ const PROVIDER_BOOTSTRAP_STATE_PATH = path.resolve(STATE_DIR, 'provider_bootstra
 const CUSTOM_MODELS_PATH = path.resolve(STATE_DIR, 'custom_models.json');
 const RELEASE_CHECK_STATE_PATH = path.resolve(STATE_DIR, 'release_check_state.json');
 const SYSTEM_UPDATE_LOG_PATH = path.resolve(STATE_DIR, 'system_update.log');
+const DASHBOARD_LIFECYCLE_LOG_PATH = path.resolve(STATE_DIR, 'dashboard_lifecycle.log');
 const CHANNEL_REGISTRY_PATH = path.resolve(STATE_DIR, 'channel_registry.json');
 const CHANNEL_QR_STATE_PATH = path.resolve(STATE_DIR, 'channel_qr_sessions.json');
 const APPROVALS_STATE_PATH = path.resolve(STATE_DIR, 'approvals.json');
@@ -434,6 +436,7 @@ const MAIN_TREE_INFRING_CLI_PREFIXES = ['infring', 'protheus'];
 const CONTRACT_SUBAGENT_TARGET_MAX = 4096;
 const CONTRACT_SUBAGENT_IDS_MAX = 1024;
 let ACTIVE_CLI_MODE = DEFAULT_CLI_MODE;
+let DASHBOARD_FATAL_HANDLERS_INSTALLED = false;
 const GIT_BRANCH_CACHE_MS = 120_000;
 const GIT_WORKSPACE_READY_CACHE_MS = 8_000;
 let gitBranchCache = {
@@ -451,6 +454,21 @@ function cleanText(value, maxLen = 120) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLen);
+}
+
+function appendDashboardLifecycle(event, payload = {}) {
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+  } catch {}
+  try {
+    const entry = {
+      ts: nowIso(),
+      event: cleanText(event || 'lifecycle', 80) || 'lifecycle',
+      pid: process && process.pid ? Number(process.pid) : 0,
+      payload: payload && typeof payload === 'object' ? payload : { value: cleanText(payload, 200) },
+    };
+    fs.appendFileSync(DASHBOARD_LIFECYCLE_LOG_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
+  } catch {}
 }
 
 function runRustGitAuthority(action, params = {}, options = {}) {
@@ -1069,6 +1087,42 @@ function readText(filePath, fallback = '') {
   }
 }
 
+function listSegmentPartFiles(basePath) {
+  const partsDir = `${basePath}.parts`;
+  try {
+    if (!fs.existsSync(partsDir)) return [];
+    const stat = fs.statSync(partsDir);
+    if (!stat || !stat.isDirectory()) return [];
+    const expectedExt = path.extname(basePath).toLowerCase();
+    const rows = fs
+      .readdirSync(partsDir, { withFileTypes: true })
+      .filter((entry) => entry && entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => {
+        if (!name || name.startsWith('.')) return false;
+        if (expectedExt && path.extname(name).toLowerCase() !== expectedExt) return false;
+        return true;
+      })
+      .sort((a, b) => a.localeCompare(b, 'en'));
+    return rows.map((name) => path.resolve(partsDir, name));
+  } catch {
+    return [];
+  }
+}
+
+function readSegmentedText(basePath, fallback = '') {
+  const partFiles = listSegmentPartFiles(basePath);
+  if (partFiles.length) {
+    const chunks = [];
+    for (const filePath of partFiles) {
+      const text = readText(filePath, '');
+      if (text) chunks.push(text);
+    }
+    if (chunks.length) return chunks.join('\n');
+  }
+  return readText(basePath, fallback);
+}
+
 function fileExists(filePath) {
   try {
     return fs.existsSync(filePath);
@@ -1078,9 +1132,11 @@ function fileExists(filePath) {
 }
 
 function hasPrimaryDashboardUi() {
+  const headPath = path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_head.html');
+  const bodyPath = path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_body.html');
   return (
-    fileExists(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_head.html')) &&
-    fileExists(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_body.html'))
+    (fileExists(headPath) || listSegmentPartFiles(headPath).length > 0) &&
+    (fileExists(bodyPath) || listSegmentPartFiles(bodyPath).length > 0)
   );
 }
 
@@ -1111,19 +1167,20 @@ function transpileForkTypeScript(source, fileName) {
 
 function readForkScript(basePathNoExt) {
   const tsPath = path.resolve(INFRING_PRIMARY_STATIC_DIR, `${basePathNoExt}.ts`);
-  if (!fileExists(tsPath)) return '';
-  const source = readText(tsPath, '');
+  const partFiles = listSegmentPartFiles(tsPath);
+  if (!fileExists(tsPath) && partFiles.length === 0) return '';
+  const source = readSegmentedText(tsPath, '');
   if (!source) return '';
   return transpileForkTypeScript(source, tsPath);
 }
 
 function buildPrimaryDashboardHtml() {
-  const head = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_head.html'), '');
-  const body = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_body.html'), '');
+  const head = readSegmentedText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_head.html'), '');
+  const body = readSegmentedText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'index_body.html'), '');
   if (!head || !body) return '';
-  const cssTheme = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/theme.css'), '');
-  const cssLayout = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/layout.css'), '');
-  const cssComponents = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/components.css'), '');
+  const cssTheme = readSegmentedText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/theme.css'), '');
+  const cssLayout = readSegmentedText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/layout.css'), '');
+  const cssComponents = readSegmentedText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'css/components.css'), '');
   const cssGithubDark = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'vendor/github-dark.min.css'), '');
   const vendorMarked = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'vendor/marked.min.ts'), '');
   const vendorHighlight = readText(path.resolve(INFRING_PRIMARY_STATIC_DIR, 'vendor/highlight.min.ts'), '');
@@ -1320,20 +1377,25 @@ function readPrimaryDashboardAsset(pathname) {
       INFRING_PRIMARY_STATIC_DIR,
       relative.replace(/\.js$/i, '.ts')
     );
-    if (tsPath.startsWith(INFRING_PRIMARY_STATIC_DIR) && fileExists(tsPath)) {
+    if (
+      tsPath.startsWith(INFRING_PRIMARY_STATIC_DIR) &&
+      (fileExists(tsPath) || listSegmentPartFiles(tsPath).length > 0)
+    ) {
+      const source = readSegmentedText(tsPath, '');
+      if (!source) return null;
       return {
-        body: transpileForkTypeScript(readText(tsPath, ''), tsPath),
+        body: transpileForkTypeScript(source, tsPath),
         contentType: 'text/javascript; charset=utf-8',
       };
     }
     return null;
   }
 
-  if (!fileExists(resolved)) return null;
+  if (!fileExists(resolved) && listSegmentPartFiles(resolved).length === 0) return null;
   const contentType = contentTypeForFile(resolved);
   if (TEXT_EXTENSIONS.has(ext)) {
     return {
-      body: rebrandDashboardText(readText(resolved, '')),
+      body: rebrandDashboardText(readSegmentedText(resolved, '')),
       contentType,
     };
   }
@@ -9003,6 +9065,8 @@ function normalizeAgentContractsState(state) {
     );
     const spawnedAt = new Date(spawnedAtMs).toISOString();
     const explicitExpiresAt = cleanText(contract.expires_at || '', 80);
+    const normalizedCondition = normalizeTerminationCondition(contract.termination_condition);
+    const resolvedExpiresAt = explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : '');
     const requiredSubagents = parseContractSubagentTarget(
       contract.required_subagents != null
         ? contract.required_subagents
@@ -9026,10 +9090,18 @@ function normalizeAgentContractsState(state) {
       agent_id: agentId,
       mission: cleanText(contract.mission || `Assist with assigned mission for ${agentId}.`, 320),
       owner: cleanText(contract.owner || 'dashboard_session', 120),
-      termination_condition: normalizeTerminationCondition(contract.termination_condition),
+      termination_condition: normalizedCondition,
       expiry_seconds: expirySeconds,
       spawned_at: spawnedAt,
-      expires_at: explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : ''),
+      expires_at: resolvedExpiresAt,
+      auto_terminate_allowed:
+        contract.auto_terminate_allowed === false
+          ? false
+          : defaultContractAutoTerminateAllowed({
+              termination_condition: normalizedCondition,
+              expiry_seconds: expirySeconds,
+              expires_at: resolvedExpiresAt,
+            }),
       revoked_at: cleanText(contract.revoked_at || '', 80),
       completed_at: cleanText(contract.completed_at || '', 80),
       completion_source: cleanText(contract.completion_source || '', 120),
@@ -9181,6 +9253,37 @@ function terminationConditionMatches(condition, target) {
   return normalized === 'task_or_timeout' && (target === 'task_complete' || target === 'timeout');
 }
 
+function defaultContractAutoTerminateAllowed(contractLike = {}) {
+  const source = contractLike && typeof contractLike === 'object' ? contractLike : {};
+  if (!terminationConditionMatches(source.termination_condition, 'timeout')) return false;
+  const expirySeconds =
+    source.expiry_seconds == null
+      ? null
+      : parsePositiveInt(
+          source.expiry_seconds,
+          AGENT_CONTRACT_DEFAULT_EXPIRY_SECONDS,
+          1,
+          AGENT_CONTRACT_MAX_EXPIRY_SECONDS
+        );
+  if (expirySeconds != null) return true;
+  const expiresAtMs = coerceTsMs(source.expires_at || 0, 0);
+  return expiresAtMs > 0;
+}
+
+function contractIdleAutoTerminateAllowed(contract, agentId = '', activeRow = null, nowMs = Date.now()) {
+  const row = contract && typeof contract === 'object' ? contract : null;
+  if (!row) return false;
+  if (cleanText(row.status || 'active', 24).toLowerCase() !== 'active') return false;
+  if (row.auto_terminate_allowed === false) return false;
+  if (!defaultContractAutoTerminateAllowed(row)) return false;
+  if (isMainTreeBoundAgent(agentId, activeRow)) return false;
+  if (row.conversation_hold === true) {
+    const holdDeadlineMs = coerceTsMs(row.conversation_hold_deadline || 0, 0);
+    if (!holdDeadlineMs || holdDeadlineMs > nowMs) return false;
+  }
+  return true;
+}
+
 function missionCompleteSignal(text) {
   const body = String(text || '').toLowerCase();
   if (!body.trim()) return false;
@@ -9307,6 +9410,35 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     contractInput.expires_at || payload.expires_at || options.expires_at || '',
     80
   );
+  const resolvedExpiresAt = explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : '');
+  const requestedAutoTerminate =
+    contractInput.auto_terminate_allowed !== undefined
+      ? contractInput.auto_terminate_allowed
+      : payload.auto_terminate_allowed;
+  const autoTerminateAllowed =
+    requestedAutoTerminate === false
+      ? false
+      : defaultContractAutoTerminateAllowed({
+          termination_condition: condition,
+          expiry_seconds: expirySeconds,
+          expires_at: resolvedExpiresAt,
+        });
+  const conversationHold = !!(contractInput.conversation_hold === true || payload.conversation_hold === true);
+  const holdStartedInput =
+    contractInput.conversation_hold_started_at ||
+    payload.conversation_hold_started_at ||
+    now;
+  const holdStartedMs = coerceTsMs(holdStartedInput, Date.now());
+  const holdDeadlineInput = cleanText(
+    contractInput.conversation_hold_deadline || payload.conversation_hold_deadline || '',
+    80
+  );
+  const holdDeadlineMs = conversationHold
+    ? coerceTsMs(
+        holdDeadlineInput || (holdStartedMs + AGENT_CONTRACT_CHAT_HOLD_MAX_MS),
+        holdStartedMs + AGENT_CONTRACT_CHAT_HOLD_MAX_MS
+      )
+    : 0;
   const requiredSubagents = contractSubagentTargetFromPayload(payload, contractInput);
   const seededSubagentIds = normalizeContractSubagentIds(
     contractInput.spawned_subagent_ids != null
@@ -9333,8 +9465,9 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     owner,
     termination_condition: condition,
     expiry_seconds: expirySeconds,
+    auto_terminate_allowed: autoTerminateAllowed,
     spawned_at: spawnedAtIso,
-    expires_at: explicitExpiresAt || (expirySeconds ? new Date(spawnedAtMs + (expirySeconds * 1000)).toISOString() : ''),
+    expires_at: resolvedExpiresAt,
     revoked_at: '',
     completed_at: '',
     completion_source: '',
@@ -9353,9 +9486,9 @@ function deriveAgentContract(agentId, spawnPayload = {}, options = {}) {
     spawned_subagents: seededSubagentCount,
     spawned_subagent_ids: seededSubagentIds.slice(0, CONTRACT_SUBAGENT_IDS_MAX),
     subagent_progress_updated_at: seededSubagentCount > 0 ? now : '',
-    conversation_hold: false,
-    conversation_hold_started_at: '',
-    conversation_hold_deadline: '',
+    conversation_hold: conversationHold,
+    conversation_hold_started_at: conversationHold ? new Date(holdStartedMs).toISOString() : '',
+    conversation_hold_deadline: conversationHold ? new Date(holdDeadlineMs).toISOString() : '',
     message_times_ms: [],
     security_flags: {},
     updated_at: now,
@@ -9793,9 +9926,7 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
         parseNonNegativeInt(sessionUpdatedMs, 0, 1000000000000),
         parseNonNegativeInt(messageActivityMs, 0, 1000000000000)
       );
-      const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : Number.MAX_SAFE_INTEGER;
-      const holdDeadlineMs = coerceTsMs(contract.conversation_hold_deadline || 0, 0);
-      const holdActive = !!(contract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
+      const idleForMs = activityMs > 0 ? Math.max(0, nowMs - activityMs) : 0;
       const requiredSubagents = parseContractSubagentTarget(contract.required_subagents, 0);
       const spawnedSubagents = Math.max(
         parseContractSubagentTarget(contract.spawned_subagents, 0),
@@ -9803,7 +9934,7 @@ function contractEnforcementAuthorityFromRust(snapshot, state, activeRows, nowMs
       );
       return {
         agent_id: id,
-        auto_terminate_allowed: !isMainTreeBoundAgent(id, activeRow) && !holdActive,
+        auto_terminate_allowed: contractIdleAutoTerminateAllowed(contract, id, activeRow, nowMs),
         status: cleanText(contract.status || 'active', 24) || 'active',
         termination_condition: cleanText(contract.termination_condition || 'task_or_timeout', 40) || 'task_or_timeout',
         revoked_at: cleanText(contract.revoked_at || '', 80),
@@ -9913,6 +10044,10 @@ function contractSummary(contract, nowMs = Date.now()) {
     mission: cleanText(contract.mission || '', 320),
     owner: cleanText(contract.owner || '', 120),
     termination_condition: cleanText(contract.termination_condition || '', 40),
+    auto_terminate_allowed:
+      contract.auto_terminate_allowed === false
+        ? false
+        : defaultContractAutoTerminateAllowed(contract),
     status: formatContractStatus(contract, nowMs),
     expires_at: cleanText(contract.expires_at || '', 80),
     expiry_seconds:
@@ -10005,7 +10140,8 @@ function enforceAgentContracts(snapshot, options = {}) {
     if (!existing || existing.status !== 'active') continue;
     const activatedAtMs = coerceTsMs(activatedAt, 0);
     const spawnedAtMs = coerceTsMs(existing.spawned_at, 0);
-    const shouldAlignSpawn = activatedAtMs > 0 && (spawnedAtMs <= 0 || activatedAtMs < (spawnedAtMs - 1000));
+    // Never rewind spawned_at to an older runtime activation timestamp, or agents can instantly expire.
+    const shouldAlignSpawn = activatedAtMs > 0 && (spawnedAtMs <= 0 || activatedAtMs > (spawnedAtMs + 1000));
     if (!shouldAlignSpawn) continue;
     existing.spawned_at = new Date(activatedAtMs).toISOString();
     const expirySeconds =
@@ -10179,20 +10315,23 @@ function enforceAgentContracts(snapshot, options = {}) {
         const id = cleanText(row && row.agent_id ? row.agent_id : '', 140);
         if (!id) return null;
         const heldContract = latestState && latestState.contracts ? latestState.contracts[id] : null;
+        const activeRow = activeRowById.get(id) || null;
         const holdDeadlineMs = coerceTsMs(heldContract && heldContract.conversation_hold_deadline ? heldContract.conversation_hold_deadline : 0, 0);
         const holdActive = !!(heldContract && heldContract.conversation_hold === true && (!holdDeadlineMs || holdDeadlineMs > nowMs));
+        const autoTerminateAllowed = contractIdleAutoTerminateAllowed(heldContract, id, activeRow, nowMs);
         return {
           id,
           idleForMs: parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000),
           activity_ms: Math.max(0, nowMs - parseNonNegativeInt(row && row.idle_for_ms, 0, 1000000000000)),
           holdActive,
+          autoTerminateAllowed,
           role: cleanText(
             activeRowById.get(id) && activeRowById.get(id).role ? activeRowById.get(id).role : '',
             80
           ),
         };
       })
-      .filter((row) => !!row && !row.holdActive);
+      .filter((row) => !!row && !row.holdActive && row.autoTerminateAllowed);
   }
   const rustIdle = rustContractAuthority && rustContractAuthority.ok && rustContractAuthority.contract_enforcement
     ? rustContractAuthority.contract_enforcement
@@ -10211,6 +10350,10 @@ function enforceAgentContracts(snapshot, options = {}) {
   if (idleSweepReady) {
     agentTerminationSweepState.last_idle_run_ms = nowMs;
     for (const candidate of idleCandidates.slice(0, boundedIdleBatchSize)) {
+      const liveContract = contractForAgent(candidate.id);
+      if (!contractIdleAutoTerminateAllowed(liveContract, candidate.id, activeRowById.get(candidate.id) || null, nowMs)) {
+        continue;
+      }
       const terminated = terminateAgentForContract(candidate.id, snapshot, 'idle_cap_exceeded', {
         source: 'agent_contract_idle_cap',
         terminated_by: 'idle_cap_enforcer',
@@ -15691,7 +15834,7 @@ function resolveKnownAgentId(agentId, snapshot, options = {}) {
   }
   if (fallbackPrimary) {
     const fallbackId = preferredAgentId(snapshot, { includeArchived: false });
-    if (fallbackId) return fallbackId;
+    return fallbackId || '';
   }
   return requested;
 }
@@ -18585,7 +18728,7 @@ function executeRuntimeSwarmRecommendation(snapshot) {
 }
 
 function transpileClientTs() {
-  const source = readText(CLIENT_TS_PATH, '');
+  const source = readSegmentedText(CLIENT_TS_PATH, '');
   if (!source) {
     throw new Error(`missing_client_source:${path.relative(ROOT, CLIENT_TS_PATH)}`);
   }
@@ -18680,6 +18823,11 @@ function bodyBuffer(req, maxBytes = 1_500_000) {
 
 function runServe(flags) {
   ACTIVE_CLI_MODE = normalizeCliMode(flags && flags.cliMode ? flags.cliMode : ACTIVE_CLI_MODE);
+  appendDashboardLifecycle('serve_start', {
+    host: cleanText(flags && flags.host ? flags.host : DEFAULT_HOST, 120) || DEFAULT_HOST,
+    port: parsePositiveInt(flags && flags.port ? flags.port : DEFAULT_PORT, DEFAULT_PORT, 1, 65535),
+    cli_mode: ACTIVE_CLI_MODE,
+  });
   const forkUiEnabled = hasPrimaryDashboardUi();
   ensureDailyMemoryFile(todayDateIso());
   bootstrapSnapshotHistoryState({ fast: true });
@@ -20765,7 +20913,9 @@ function runServe(flags) {
             agents = authoritativeAgentsFromRuntime(latestSnapshot, team, {
               includeArchived: false,
               strict: strictRuntimeAuthority,
-              timeout_ms: lowLatencyListMode ? 650 : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
+              timeout_ms: lowLatencyListMode
+                ? Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 1800)
+                : Math.max(RUNTIME_AUTHORITY_LANE_TIMEOUT_MS, 2500),
               ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 900) : Math.max(RUNTIME_AUTHORITY_CACHE_TTL_MS, 1200),
               fail_ttl_ms: lowLatencyListMode ? Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 1200) : Math.max(RUNTIME_AUTHORITY_CACHE_FAIL_TTL_MS, 800),
             });
@@ -20776,7 +20926,7 @@ function runServe(flags) {
         if ((!Array.isArray(agents) || agents.length === 0) && !strictRuntimeAuthority) {
           agents = compatAgentsFromSnapshot(latestSnapshot);
         }
-        if (!Array.isArray(agents) || agents.length === 0) {
+        if ((!Array.isArray(agents) || agents.length === 0) && !strictRuntimeAuthority) {
           agents = profileBackedAgentsFromState(latestSnapshot, {
             includeArchived: false,
             limit: 500,
@@ -20791,6 +20941,27 @@ function runServe(flags) {
           agents = lastKnownSidebarAgents.slice(0, 500).map((row) => ({
             ...(row && typeof row === 'object' ? row : {}),
           }));
+        }
+        if (!strictRuntimeAuthority) {
+          const profileRows = profileBackedAgentsFromState(latestSnapshot, {
+            includeArchived: false,
+            limit: 500,
+          });
+          if (Array.isArray(profileRows) && profileRows.length > 0) {
+            const mergedById = new Map();
+            const runtimeRows = Array.isArray(agents) ? agents : [];
+            for (const row of runtimeRows) {
+              const id = cleanText(row && row.id ? row.id : '', 140);
+              if (!id) continue;
+              mergedById.set(id, row);
+            }
+            for (const row of profileRows) {
+              const id = cleanText(row && row.id ? row.id : '', 140);
+              if (!id || mergedById.has(id)) continue;
+              mergedById.set(id, row);
+            }
+            agents = Array.from(mergedById.values());
+          }
         }
         if (runtimeAuthorityRequested && Array.isArray(agents) && agents.length > 0) {
           for (let idx = 0; idx < agents.length; idx += 1) {
@@ -21299,7 +21470,21 @@ function runServe(flags) {
           const known = resolveAgentPresence(agentId, { allow_archived: true, accept_profile: true }).ok;
           const alreadyArchived = isAgentArchived(agentId);
           if (!known && !alreadyArchived) {
-            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            // Idempotent purge path: stale/zombie ids should be removable instead of hard-failing.
+            closeTerminalSession(agentId, 'agent_missing_purge');
+            closeAgentSockets(agentId, 'agent_missing_purge');
+            const purge = permanentlyDeleteArchivedAgentRecord(agentId);
+            requestSnapshotRefresh(false);
+            sendJson(res, 200, {
+              ok: true,
+              id: agentId,
+              state: 'inactive',
+              archived: false,
+              contract_terminated: false,
+              type: 'agent_purged',
+              zombie_purged: true,
+              purge,
+            });
             return;
           }
           const termination = terminateAgentForContract(agentId, latestSnapshot, 'chat_archive', {
@@ -21550,8 +21735,12 @@ function runServe(flags) {
           const messageAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
             fallback_primary: true,
             includeArchived: false,
-          }) || agentId;
-          const turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
+          });
+          let turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
+          if (!turn.ok && turn.error === 'agent_not_found') {
+            // Hard fallback guard: stale IDs should not trap chat in perpetual 404 loops.
+            turn = runAgentMessage('', input, latestSnapshot, { allowFallback: true });
+          }
           if (!turn.ok && turn.error === 'agent_not_found') {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: messageAgentId });
             return;
@@ -21618,7 +21807,11 @@ function runServe(flags) {
           const modelAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
             fallback_primary: true,
             includeArchived: false,
-          }) || agentId;
+          });
+          if (!modelAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
           const presence = resolveAgentPresence(modelAgentId, { allow_archived: true, accept_profile: true });
           if (!presence.ok) {
             sendJson(res, 404, { ok: false, error: 'agent_not_found', id: modelAgentId });
@@ -21789,17 +21982,21 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
           ensureAgentGitTreeAssignments(latestSnapshot, {
             force: false,
-            preferred_master_id: sessionAgentId || agentId,
+            preferred_master_id: sessionAgentId,
           });
-          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
+          const state = loadAgentSession(sessionAgentId, latestSnapshot);
           const session = activeSession(state);
-          const profile = ensureAgentGitTreeProfile(sessionAgentId || agentId, { force_master: false, ensure_workspace_ready: false });
-          const gitTree = agentGitTreeView(sessionAgentId || agentId, profile);
+          const profile = ensureAgentGitTreeProfile(sessionAgentId, { force_master: false, ensure_workspace_ready: false });
+          const gitTree = agentGitTreeView(sessionAgentId, profile);
           sendJson(res, 200, {
             ok: true,
-            id: sessionAgentId || agentId,
+            id: sessionAgentId,
             session_id: session.session_id,
             messages: Array.isArray(session.messages) ? session.messages : [],
             git_tree_kind: gitTree.git_tree_kind,
@@ -21816,12 +22013,16 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
-          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const state = loadAgentSession(sessionAgentId, latestSnapshot);
           const session = activeSession(state);
           session.messages = [];
           session.updated_at = nowIso();
-          saveAgentSession(sessionAgentId || agentId, state);
-          sendJson(res, 200, { ok: true, id: sessionAgentId || agentId, message: 'Session reset' });
+          saveAgentSession(sessionAgentId, state);
+          sendJson(res, 200, { ok: true, id: sessionAgentId, message: 'Session reset' });
           return;
         }
         if (req.method === 'POST' && parts[3] === 'session' && parts[4] === 'compact') {
@@ -21829,8 +22030,12 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
           const payload = await bodyJson(req);
-          const result = compactAgentConversation(sessionAgentId || agentId, latestSnapshot, {
+          const result = compactAgentConversation(sessionAgentId, latestSnapshot, {
             target_context_window: parsePositiveInt(
               payload && payload.target_context_window != null ? payload.target_context_window : 0,
               0,
@@ -21854,7 +22059,7 @@ function runServe(flags) {
           });
           sendJson(res, 200, {
             ok: true,
-            id: sessionAgentId || agentId,
+            id: sessionAgentId,
             message: result.compacted ? 'Session compacted' : 'Session already within target',
             compacted: !!result.compacted,
             before_message_count: result.before_message_count,
@@ -21872,10 +22077,14 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
-          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const state = loadAgentSession(sessionAgentId, latestSnapshot);
           sendJson(res, 200, {
             ok: true,
-            id: sessionAgentId || agentId,
+            id: sessionAgentId,
             sessions: sessionList(state),
             active_session_id: state.active_session_id,
           });
@@ -21886,8 +22095,12 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
           const payload = await bodyJson(req);
-          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
+          const state = loadAgentSession(sessionAgentId, latestSnapshot);
           const sessionId = `session_${Date.now().toString(36)}`;
           const label =
             cleanText(payload && payload.label ? payload.label : '', 80) ||
@@ -21900,10 +22113,10 @@ function runServe(flags) {
             messages: [],
           });
           state.active_session_id = sessionId;
-          saveAgentSession(sessionAgentId || agentId, state);
+          saveAgentSession(sessionAgentId, state);
           sendJson(res, 200, {
             ok: true,
-            id: sessionAgentId || agentId,
+            id: sessionAgentId,
             created: sessionId,
             sessions: sessionList(state),
             active_session_id: state.active_session_id,
@@ -21921,18 +22134,22 @@ function runServe(flags) {
             fallback_primary: true,
             includeArchived: false,
           });
-          const state = loadAgentSession(sessionAgentId || agentId, latestSnapshot);
+          if (!sessionAgentId) {
+            sendJson(res, 404, { ok: false, error: 'agent_not_found', id: agentId });
+            return;
+          }
+          const state = loadAgentSession(sessionAgentId, latestSnapshot);
           const exists = state.sessions.some((session) => session.session_id === targetSessionId);
           if (!exists) {
             sendJson(res, 404, { ok: false, error: 'session_not_found', session_id: targetSessionId });
             return;
           }
           state.active_session_id = targetSessionId;
-          saveAgentSession(sessionAgentId || agentId, state);
+          saveAgentSession(sessionAgentId, state);
           const session = activeSession(state);
           sendJson(res, 200, {
             ok: true,
-            id: sessionAgentId || agentId,
+            id: sessionAgentId,
             session_id: targetSessionId,
             messages: Array.isArray(session.messages) ? session.messages : [],
             sessions: sessionList(state),
@@ -22083,6 +22300,7 @@ function runServe(flags) {
               'termination_condition',
               'expiry_seconds',
               'indefinite',
+              'auto_terminate_allowed',
               'expires_at',
               'spawned_at',
             ];
@@ -22154,6 +22372,10 @@ function runServe(flags) {
                   mergedContract.indefinite = false;
                 }
               }
+              const autoTerminateInput = readContractField('auto_terminate_allowed');
+              if (autoTerminateInput !== undefined) {
+                mergedContract.auto_terminate_allowed = autoTerminateInput !== false;
+              }
               const expiresAtInput = readContractField('expires_at');
               if (expiresAtInput !== undefined) {
                 mergedContract.expires_at = cleanText(expiresAtInput, 80);
@@ -22161,6 +22383,9 @@ function runServe(flags) {
               const spawnedAtInput = readContractField('spawned_at');
               if (spawnedAtInput !== undefined) {
                 mergedContract.spawned_at = cleanText(spawnedAtInput, 80);
+              }
+              if (mergedContract.auto_terminate_allowed !== false) {
+                mergedContract.auto_terminate_allowed = defaultContractAutoTerminateAllowed(mergedContract);
               }
               const contractPayload = { contract: mergedContract };
               const updatedContract = upsertAgentContract(agentId, contractPayload, {
@@ -23287,8 +23512,12 @@ function runServe(flags) {
       const messageAgentId = resolveKnownAgentId(agentId, latestSnapshot, {
         fallback_primary: true,
         includeArchived: false,
-      }) || agentId;
-      const turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
+      });
+      let turn = runAgentMessage(messageAgentId, input, latestSnapshot, { allowFallback: true });
+      if (!turn.ok && turn.error === 'agent_not_found') {
+        // WebSocket hard fallback to avoid sticky "Agent not found" loops after stale-id reconnects.
+        turn = runAgentMessage('', input, latestSnapshot, { allowFallback: true });
+      }
       if (!turn.ok && turn.error === 'message_required') {
         sendWs(socket, { type: 'error', content: 'Message required.' });
         return;
@@ -23379,7 +23608,16 @@ function runServe(flags) {
     }
     const agentMatch = reqUrl.pathname.match(/^\/api\/agents\/([^/]+)\/ws$/);
     if (agentMatch && agentMatch[1]) {
-      const agentId = cleanText(decodeURIComponent(agentMatch[1]), 140);
+      const requestedAgentId = cleanText(decodeURIComponent(agentMatch[1]), 140);
+      if (!requestedAgentId) {
+        socket.destroy();
+        return;
+      }
+      const agentId =
+        resolveKnownAgentId(requestedAgentId, latestSnapshot, {
+          fallback_primary: true,
+          includeArchived: false,
+        }) || requestedAgentId;
       if (!agentId) {
         socket.destroy();
         return;
@@ -23389,7 +23627,7 @@ function runServe(flags) {
         return;
       }
       agentWss.handleUpgrade(req, socket, head, (ws) => {
-        agentWss.emit('connection', ws, req, { agentId });
+        agentWss.emit('connection', ws, req, { agentId, requestedAgentId });
       });
       return;
     }
@@ -23505,9 +23743,16 @@ function runServe(flags) {
   }
 
   let shutdownInvoked = false;
-  function shutdown() {
+  let shutdownReason = '';
+  function shutdown(reason = 'manual_shutdown') {
     if (shutdownInvoked) return;
     shutdownInvoked = true;
+    shutdownReason = cleanText(reason || 'manual_shutdown', 140) || 'manual_shutdown';
+    appendDashboardLifecycle('serve_shutdown', {
+      reason: shutdownReason,
+      host: cleanText(flags && flags.host ? flags.host : DEFAULT_HOST, 120) || DEFAULT_HOST,
+      port: parsePositiveInt(flags && flags.port ? flags.port : DEFAULT_PORT, DEFAULT_PORT, 1, 65535),
+    });
     clearInterval(interval);
     clearInterval(contractInterval);
     clearInterval(compactInterval);
@@ -23548,7 +23793,11 @@ function runServe(flags) {
     };
     writeJson(path.resolve(STATE_DIR, 'server_status.json'), status);
     process.stderr.write(`infring_dashboard_server_error:${code || 'unknown'}:${message}\n`);
-    shutdown();
+    appendDashboardLifecycle('server_error', {
+      code,
+      message,
+    });
+    shutdown(`server_error:${code || 'unknown'}`);
     if (!Number.isFinite(process.exitCode) || process.exitCode === 0) process.exitCode = 1;
   });
 
@@ -23601,8 +23850,33 @@ function runServe(flags) {
     }
   });
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  if (!DASHBOARD_FATAL_HANDLERS_INSTALLED) {
+    DASHBOARD_FATAL_HANDLERS_INSTALLED = true;
+    process.on('SIGINT', () => shutdown('signal_sigint'));
+    process.on('SIGTERM', () => shutdown('signal_sigterm'));
+    process.on('SIGHUP', () => {
+      // Ignore terminal/session hangups so gateway-launched dashboard stays alive.
+      appendDashboardLifecycle('signal_sighup_ignored', {});
+    });
+    process.on('uncaughtException', (error) => {
+      appendDashboardLifecycle('uncaught_exception', {
+        message: cleanText(error && error.message ? error.message : String(error), 260),
+      });
+      shutdown('uncaught_exception');
+      if (!Number.isFinite(process.exitCode) || process.exitCode === 0) process.exitCode = 1;
+    });
+    process.on('unhandledRejection', (reason) => {
+      appendDashboardLifecycle('unhandled_rejection', {
+        message: cleanText(reason && reason.message ? reason.message : String(reason), 260),
+      });
+    });
+    process.on('exit', (code) => {
+      appendDashboardLifecycle('process_exit', {
+        code: Number.isFinite(Number(code)) ? Number(code) : 0,
+        reason: shutdownReason || 'exit',
+      });
+    });
+  }
   return null;
 }
 

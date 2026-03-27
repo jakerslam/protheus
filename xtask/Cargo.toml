@@ -1,0 +1,11 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+license = "SEE LICENSE IN LICENSE"
+publish = false
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+nursery_runtime = { path = "../core/layer1/nursery_runtime" }

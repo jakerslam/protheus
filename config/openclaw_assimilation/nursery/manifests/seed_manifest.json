@@ -1,0 +1,32 @@
+{
+  "schema_id": "nursery_seed_manifest",
+  "ts": "2026-03-04T20:33:28.525Z",
+  "policy_path": "config/nursery_policy.json",
+  "policy_version": "1.0",
+  "nursery_root": "/Users/jay/.openclaw/nursery",
+  "policy_hash": "13fafa2a2c7c5507638418f5515c111791752a903581b20b6dd151e4ec1d1531",
+  "artifacts": [
+    {
+      "id": "tinyllama_seed",
+      "provider": "ollama",
+      "model": "tinyllama:1.1b-chat-v1-q4_K_M",
+      "required": true,
+      "present": true,
+      "pull_attempted": false,
+      "pull_ok": null,
+      "reason": "already_present",
+      "manifest_path": null
+    },
+    {
+      "id": "red_team_seed",
+      "provider": "ollama",
+      "model": "qwen2.5:3b-instruct-q4_K_M",
+      "required": false,
+      "present": true,
+      "pull_attempted": false,
+      "pull_ok": null,
+      "reason": "already_present",
+      "manifest_path": null
+    }
+  ]
+}
