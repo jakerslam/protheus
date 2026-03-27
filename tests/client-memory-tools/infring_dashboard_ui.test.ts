@@ -9,6 +9,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TARGET = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
+const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.js');
 const CLIENT_TSX_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_dashboard_client.tsx'
@@ -19,15 +20,15 @@ const CLIENT_CSS_PATH = path.resolve(
 );
 const CHAT_PAGE_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/pages/chat.ts'
+  'client/runtime/systems/ui/openclaw_static/js/pages/chat.js'
 );
 const APP_STATIC_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/app.ts'
+  'client/runtime/systems/ui/openclaw_static/js/app.js'
 );
 const API_STATIC_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/api.ts'
+  'client/runtime/systems/ui/openclaw_static/js/api.js'
 );
 const STATIC_UI_JS_ROOT = path.resolve(
   ROOT,
@@ -77,16 +78,23 @@ function getFlag(name) {
 
 function readUtf8(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  const partsDir = `${filePath}.parts`;
-  if (fs.existsSync(partsDir) && fs.statSync(partsDir).isDirectory()) {
-    const partFiles = fs
-      .readdirSync(partsDir, { withFileTypes: true })
-      .filter((entry) => entry && entry.isFile())
-      .map((entry) => entry.name)
-      .filter((name) => path.extname(name).toLowerCase() === ext)
-      .sort((a, b) => a.localeCompare(b, 'en'))
-      .map((name) => fs.readFileSync(path.join(partsDir, name), 'utf8'));
-    if (partFiles.length > 0) return partFiles.join('\n');
+  const partDirs = [`${filePath}.parts`];
+  if (ext === '.js') {
+    partDirs.push(filePath.replace(/\.js$/i, '.ts') + '.parts');
+  } else if (ext === '.ts') {
+    partDirs.push(filePath.replace(/\.ts$/i, '.js') + '.parts');
+  }
+  for (const partsDir of partDirs) {
+    if (fs.existsSync(partsDir) && fs.statSync(partsDir).isDirectory()) {
+      const partFiles = fs
+        .readdirSync(partsDir, { withFileTypes: true })
+        .filter((entry) => entry && entry.isFile())
+        .map((entry) => entry.name)
+        .filter((name) => path.extname(name).toLowerCase() === ext)
+        .sort((a, b) => a.localeCompare(b, 'en'))
+        .map((name) => fs.readFileSync(path.join(partsDir, name), 'utf8'));
+      if (partFiles.length > 0) return partFiles.join('\n');
+    }
   }
   return fs.readFileSync(filePath, 'utf8');
 }
@@ -172,7 +180,7 @@ function assertChatSyntaxGuards() {
     'invalid async object-property syntax in chat page can break dashboard script boot'
   );
   assert.ok(
-    /resolveArtifactDirectives\s*:\s*async\s+function/.test(chatSource),
+    /resolveArtifactDirectives\s*:\s*async\s+function(?:\s+\w+)?\s*\(/.test(chatSource),
     'resolveArtifactDirectives must be declared as async function property'
   );
 }
@@ -182,7 +190,7 @@ function assertChatEnhancementFeatures() {
   const apiSource = readUtf8(API_STATIC_TS_PATH);
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
   const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/css/components.css'));
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
 
   // Fresh agent init flow ("Who am I?" + init panel)
   assertContains(chatSource, "text: 'Who am I?'", 'fresh-init "Who am I?" seed message missing');
@@ -316,7 +324,7 @@ function assertChatEnhancementFeatures() {
 }
 
 function assertMemoryApiWired() {
-  var laneSource = readUtf8(TARGET);
+  var laneSource = readUtf8(TARGET_SOURCE);
   assertContains(
     laneSource,
     "pathname.startsWith('/api/memory/agents/')",
@@ -335,10 +343,10 @@ function assertMemoryApiWired() {
 }
 
 function assertEyesPageWired() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
   const appSource = readUtf8(APP_STATIC_TS_PATH);
-  const eyesPagePath = path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/eyes.ts');
+  const eyesPagePath = path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/eyes.js');
 
   assert.ok(fs.existsSync(eyesPagePath), 'eyes page module missing');
   assertContains(laneSource, "'eyes',", 'dashboard static bundle should include eyes page script');
@@ -352,7 +360,7 @@ function assertEyesPageWired() {
 }
 
 function assertAgentGitTreeAuthority() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
   assertContains(
     laneSource,
@@ -404,7 +412,7 @@ function assertAgentGitTreeAuthority() {
 function assertInterfaceSafetyGuards() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
   const clientSource = readUtf8(CLIENT_TSX_PATH);
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
 
   assertContains(
     appSource,
@@ -607,9 +615,9 @@ function assertInterfaceSafetyGuards() {
 }
 
 function assertLifecycleAndPlatformSrsEvidence() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   const agentsSource = readUtf8(
-    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/agents.ts')
+    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/agents.js')
   );
   const htmlSource = readUtf8(
     path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html')
@@ -803,7 +811,7 @@ function assertContract0063() {
 function assertContract0064() {
   const source = readUtf8(CLIENT_TSX_PATH);
   const css = readUtf8(CLIENT_CSS_PATH);
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   assertContains(
     source,
     "aria-label=\"Toggle light or dark mode\"",
@@ -837,7 +845,7 @@ function assertContract0064() {
 }
 
 function assertContract008() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
   assertContains(
     laneSource,
@@ -927,7 +935,7 @@ function assertContract008() {
 }
 
 function assertContract009() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   assertContains(
     laneSource,
     "assistant_role: 'Agent'",
@@ -951,7 +959,7 @@ function assertContract009() {
 }
 
 function assertContract007() {
-  const laneSource = readUtf8(TARGET);
+  const laneSource = readUtf8(TARGET_SOURCE);
   assertContains(
     laneSource,
     '--system-id=V6-DASHBOARD-007.1',
