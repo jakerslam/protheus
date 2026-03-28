@@ -9,7 +9,8 @@ mod dashboard_agent_state_sessions;
 mod dashboard_agent_state_controls;
 
 pub use dashboard_agent_state_registry::{
-    archive_agent, archived_agent_ids, enforce_expired_contracts, merge_profiles_into_collab,
+    archive_agent, archived_agent_ids, delete_all_terminated, delete_terminated,
+    enforce_expired_contracts, merge_profiles_into_collab, revive_agent, terminated_entries,
     unarchive_agent, upsert_contract, upsert_profile,
 };
 pub use dashboard_agent_state_controls::{

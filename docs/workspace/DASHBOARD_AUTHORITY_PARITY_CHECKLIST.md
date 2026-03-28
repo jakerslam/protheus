@@ -60,6 +60,11 @@ Status legend:
     - lifecycle patch on previously-terminated contract auto-reactivates status
     - clears stale termination markers
     - resets creation timestamp to avoid immediate re-termination loops
+  - Rust terminated-lifecycle compatibility endpoints:
+    - `GET /api/agents/terminated`
+    - `POST /api/agents/:id/revive`
+    - `DELETE /api/agents/terminated/:id`
+    - `DELETE /api/agents/terminated?all=1`
 - Gap: full legacy lifecycle edge-cases (revival + advanced idle/quarantine policies) remain.
 
 5. Agent session persistence and per-agent memory KV

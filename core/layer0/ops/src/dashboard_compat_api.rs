@@ -65,6 +65,27 @@ fn state_path(root: &Path, rel: &str) -> PathBuf {
     root.join(rel)
 }
 
+fn query_value(path: &str, key: &str) -> Option<String> {
+    let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
+    for pair in query.split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+        if clean_text(k, 80).eq_ignore_ascii_case(key) {
+            let decoded = urlencoding::decode(v)
+                .ok()
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let value = clean_text(&decoded, 160);
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
 fn extract_app_settings(snapshot: &Value) -> (String, String) {
     let provider = clean_text(
         snapshot
@@ -257,6 +278,54 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
     {
         return Some(response);
     }
+
+    if method == "GET" && path_only == "/api/agents/terminated" {
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_agent_state::terminated_entries(root),
+        });
+    }
+    if method == "POST"
+        && path_only.starts_with("/api/agents/")
+        && path_only.ends_with("/revive")
+    {
+        let agent_id = path_only
+            .trim_start_matches("/api/agents/")
+            .trim_end_matches("/revive")
+            .trim_matches('/');
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let role = request
+            .get("role")
+            .and_then(Value::as_str)
+            .unwrap_or("analyst");
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_agent_state::revive_agent(root, agent_id, role),
+        });
+    }
+    if method == "DELETE" && path_only == "/api/agents/terminated" {
+        if query_value(path, "all")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+        {
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_agent_state::delete_all_terminated(root),
+            });
+        }
+    }
+    if method == "DELETE" && path_only.starts_with("/api/agents/terminated/") {
+        let agent_id = path_only.trim_start_matches("/api/agents/terminated/").trim();
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_agent_state::delete_terminated(
+                root,
+                agent_id,
+                query_value(path, "contract_id").as_deref(),
+            ),
+        });
+    }
+
     let usage = usage_from_snapshot(snapshot);
     let runtime = runtime_sync_summary(snapshot);
     let alerts_count = parse_non_negative_i64(snapshot.pointer("/health/alerts/count"), 0);
@@ -559,6 +628,90 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(url.starts_with("data:image/svg+xml;base64,"));
+    }
+
+    #[test]
+    fn terminated_agent_endpoints_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-a",
+            &json!({
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root.path());
+
+        let listed = handle(
+            root.path(),
+            "GET",
+            "/api/agents/terminated",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("terminated list");
+        let rows = listed
+            .payload
+            .get("entries")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+
+        let revived = handle(
+            root.path(),
+            "POST",
+            "/api/agents/agent-a/revive",
+            br#"{"role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("revive");
+        assert_eq!(revived.payload.get("ok").and_then(Value::as_bool), Some(true));
+
+        let after_revive = handle(
+            root.path(),
+            "GET",
+            "/api/agents/terminated",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("terminated list after revive");
+        let rows_after = after_revive
+            .payload
+            .get("entries")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows_after.is_empty());
+
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-a",
+            &json!({
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root.path());
+        let deleted = handle(
+            root.path(),
+            "DELETE",
+            "/api/agents/terminated/agent-a",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("delete terminated");
+        assert!(
+            deleted
+                .payload
+                .get("removed_history_entries")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
     }
 
     #[test]
