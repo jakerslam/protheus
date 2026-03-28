@@ -1,24 +1,47 @@
 /**
  * adaptive/sensory/eyes/collectors/moltbook_hot.ts
  *
- * Deterministic Moltbook hot feed collector.
- * - Uses skill API wrapper for schema safety
- * - Emits normalized items for external_eyes
- * - No LLM usage
+ * Thin wrapper over Rust-authoritative moltbook-hot collector kernel.
+ * Client side keeps only secret-handle issuance + bridge wiring.
  */
 
-const crypto = require('crypto');
-const { moltbook_getHotPosts } = require('../../../../../../runtime/lib/moltbook_api.ts');
+const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.js');
 const { issueSecretHandle, loadSecretById } = require('../../../../../../runtime/lib/secret_broker.ts');
-const { classifyCollectorError, makeCollectorError } = require('./collector_errors.ts');
+const { makeCollectorError } = require('./collector_errors.ts');
 const { loadCollectorCache, saveCollectorCache } = require('./cache_store.ts');
 
-function sha16(s) {
-  return crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
+process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+
+const moltbookHotBridge = createOpsLaneBridge(
+  __dirname,
+  'moltbook_hot_collector',
+  'moltbook-hot-collector-kernel',
+  { preferLocalCore: true }
+);
+
+function cleanText(v, max = 240) {
+  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function nowIso() {
-  return new Date().toISOString();
+function invokeKernel(command, payload = {}, requireOk = true) {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+  const out = moltbookHotBridge.run([command, `--payload-base64=${encoded}`]);
+  const status = Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
+  if (status !== 0) {
+    const detail = cleanText(
+      (out && out.stderr) || (out && out.stdout) || (out && out.payload && out.payload.error) || '',
+      220
+    );
+    throw makeCollectorError('collector_error', detail || `moltbook_hot_collector_kernel_${command}_failed`);
+  }
+  const payloadOut = out && out.payload && out.payload.payload && typeof out.payload.payload === 'object'
+    ? out.payload.payload
+    : null;
+  if (!payloadOut || (requireOk && payloadOut.ok !== true)) {
+    throw makeCollectorError('collector_error', `moltbook_hot_collector_kernel_${command}_invalid_payload`);
+  }
+  return payloadOut;
 }
 
 function issueMoltbookApiHandle() {
@@ -32,102 +55,44 @@ function issueMoltbookApiHandle() {
   return res && res.ok ? String(res.handle || '') : '';
 }
 
-function normalizePosts(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.posts)) return payload.posts;
-  if (payload && payload.data && Array.isArray(payload.data.posts)) return payload.data.posts;
-  return [];
-}
-
-function extractPostId(p) {
-  if (!p || typeof p !== 'object') return null;
-  if (typeof p.id === 'string') return p.id;
-  if (typeof p.post_id === 'string') return p.post_id;
-  return null;
-}
-
-function extractUrl(p) {
-  if (!p || typeof p !== 'object') return '';
-  if (typeof p.url === 'string' && p.url.trim()) return p.url.trim();
-  const id = extractPostId(p);
-  return id ? `https://www.moltbook.com/p/${id}` : '';
-}
-
-function text(v) {
-  return String(v == null ? '' : v).trim();
-}
-
 function preflightMoltbookHot(eyeConfig, budgets) {
-  const checks = [];
-  const failures = [];
-
   const secret = loadSecretById('moltbook_api_key');
-  if (!secret || secret.ok !== true) {
-    failures.push({ code: 'auth_missing', message: 'missing_moltbook_api_key' });
-  } else {
-    checks.push({ name: 'api_key_handle_issued', ok: true });
-  }
-
-  const maxItems = Number(budgets && budgets.max_items);
-  if (!Number.isFinite(maxItems) || maxItems <= 0) {
-    failures.push({ code: 'invalid_budget', message: 'budgets.max_items must be > 0' });
-  } else {
-    checks.push({ name: 'max_items_valid', ok: true, value: maxItems });
-  }
-
-  const allowlist = Array.isArray(eyeConfig && eyeConfig.allowed_domains) ? eyeConfig.allowed_domains : [];
-  const host = 'www.moltbook.com';
-  const allowed = allowlist.some(d => host === d || host.endsWith(`.${d}`));
-  if (!allowed) {
-    failures.push({ code: 'domain_not_allowlisted', message: `collector host not allowlisted: ${host}` });
-  } else {
-    checks.push({ name: 'allowlisted_host', ok: true, host });
-  }
-
-  return {
-    ok: failures.length === 0,
-    parser_type: 'moltbook_hot',
-    checks,
-    failures
-  };
+  return invokeKernel('preflight', {
+    secret_present: secret && secret.ok === true,
+    max_items: Number(budgets && budgets.max_items || 0),
+    allowed_domains: Array.isArray(eyeConfig && eyeConfig.allowed_domains) ? eyeConfig.allowed_domains : [],
+    host: 'www.moltbook.com',
+  }, false);
 }
 
 async function collectMoltbookHot(eyeConfig, budgets) {
   const started = Date.now();
   const pf = preflightMoltbookHot(eyeConfig, budgets);
   if (!pf.ok) {
-    const first = pf.failures[0] || {};
+    const first = (Array.isArray(pf.failures) ? pf.failures[0] : null) || {};
     throw makeCollectorError(
       String(first.code || 'collector_preflight_failed'),
       `moltbook_hot_preflight_failed (${String(first.message || 'unknown').slice(0, 160)})`,
-      { failures: pf.failures.slice(0, 8) }
+      { failures: Array.isArray(pf.failures) ? pf.failures.slice(0, 8) : [] }
     );
   }
 
   const maxItems = Math.max(1, Math.min(Number(budgets && budgets.max_items || 20), 50));
-  let payload;
-  try {
-    const apiKeyHandle = issueMoltbookApiHandle();
-    payload = await moltbook_getHotPosts(maxItems, {
-      apiKeyHandle,
-      scope: 'sensory.collector.moltbook_hot',
-      caller: 'adaptive/sensory/eyes/collectors/moltbook_hot'
-    });
-  } catch (err) {
-    const c = classifyCollectorError(err);
-    const fallbackCodes = new Set([
-      'dns_unreachable',
-      'connection_refused',
-      'connection_reset',
-      'timeout',
-      'tls_error',
-      'network_error',
-      'http_5xx',
-      'rate_limited',
-      'env_blocked'
-    ]);
-    if (fallbackCodes.has(String(c.code || ''))) {
-      const cached = loadCollectorCache(eyeConfig && eyeConfig.id || 'moltbook_feed');
+  const cacheId = eyeConfig && eyeConfig.id || 'moltbook_feed';
+  const apiKeyHandle = issueMoltbookApiHandle();
+
+  const mapped = invokeKernel('run', {
+    secret_present: true,
+    host: 'www.moltbook.com',
+    allowed_domains: Array.isArray(eyeConfig && eyeConfig.allowed_domains) ? eyeConfig.allowed_domains : [],
+    max_items: maxItems,
+    api_key_handle: apiKeyHandle || null,
+    timeout_ms: Math.max(2000, Math.min(Number(process.env.MOLTBOOK_HTTP_TIMEOUT_MS || 12000) || 12000, 30000)),
+    topics: Array.isArray(eyeConfig && eyeConfig.topics) ? eyeConfig.topics : [],
+  });
+  if (mapped && mapped.success === false) {
+    if (mapped.fallback_allowed === true) {
+      const cached = loadCollectorCache(cacheId);
       if (cached && Array.isArray(cached.items) && cached.items.length) {
         return {
           success: true,
@@ -140,39 +105,21 @@ async function collectMoltbookHot(eyeConfig, budgets) {
       }
     }
     throw makeCollectorError(
-      c.code,
-      `moltbook_hot_fetch_failed (${c.message})`,
-      { http_status: c.http_status }
+      String(mapped.error_code || 'collector_error'),
+      `moltbook_hot_fetch_failed (${String(mapped.error_code || 'collector_error')})`
     );
   }
-  const posts = normalizePosts(payload).slice(0, maxItems);
+  const items = Array.isArray(mapped && mapped.items) ? mapped.items : [];
 
-  const items = [];
-  for (const p of posts) {
-    const title = text(p && p.title);
-    const url = extractUrl(p);
-    if (!title || !url) continue;
-    const id = extractPostId(p) || sha16(url);
-    items.push({
-      collected_at: nowIso(),
-      id: String(id),
-      url,
-      title: title.slice(0, 200),
-      topics: Array.isArray(eyeConfig && eyeConfig.topics) ? eyeConfig.topics.slice(0, 5) : [],
-      bytes: Math.min(1024, title.length + url.length + 64)
-    });
-  }
-
-  const durationMs = Date.now() - started;
   if (items.length > 0) {
-    saveCollectorCache(eyeConfig && eyeConfig.id || 'moltbook_feed', items);
+    saveCollectorCache(cacheId, items);
   }
   return {
     success: true,
     items,
-    duration_ms: durationMs,
-    requests: 1,
-    bytes: items.reduce((s, i) => s + Number(i.bytes || 0), 0)
+    duration_ms: Number(mapped && mapped.duration_ms || (Date.now() - started)),
+    requests: Number(mapped && mapped.requests || 0),
+    bytes: Number(mapped && mapped.bytes || items.reduce((s, i) => s + Number((i && i.bytes) || 0), 0))
   };
 }
 

@@ -1,263 +1,79 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
-const { ROOT } = require('./run_protheus_ops.js');
+// Layer ownership: core/layer0/ops (authoritative)
+// Thin TypeScript wrapper only.
 
-const DEFAULT_POLICY = path.join(ROOT, 'client', 'runtime', 'config', 'rust_hotpath_inventory_policy.json');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-function nowIso() {
-  return new Date().toISOString();
-}
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const bridge = createOpsLaneBridge(__dirname, 'rust_hotpath_inventory', 'rust-hotpath-inventory-kernel');
 
-function parseFlag(argv, key, fallback = null) {
-  const prefix = `--${key}=`;
-  for (const arg of argv || []) {
-    const raw = String(arg || '').trim();
-    if (raw.startsWith(prefix)) return raw.slice(prefix.length);
-    if (raw === `--${key}`) return '1';
-  }
-  return fallback;
-}
-
-function parseBool(argv, key, fallback = false) {
-  const raw = parseFlag(argv, key, null);
-  if (raw == null) return fallback;
-  const normalized = String(raw).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return fallback;
-}
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function writeJson(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-function appendJsonl(filePath, value) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`);
-}
-
-function gitTrackedFiles() {
-  const proc = spawnSync('git', ['ls-files', '*.ts', '*.tsx', '*.js', '*.jsx', '*.rs'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  if (proc.status !== 0) {
-    throw new Error(`git_ls_files_failed:${String(proc.stderr || proc.stdout || '').trim()}`);
-  }
-  return String(proc.stdout || '')
+function parseLastJson(stdout) {
+  const lines = String(stdout || '')
+    .trim()
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
-}
-
-function countLines(text) {
-  if (!text) return 0;
-  return String(text).split('\n').length;
-}
-
-function statSourceLineCounts(files) {
-  let trackedTsLines = 0;
-  let trackedJsLines = 0;
-  let trackedRsLines = 0;
-  const records = [];
-  for (const relPath of files) {
-    const absPath = path.join(ROOT, relPath);
-    if (!fs.existsSync(absPath)) continue;
-    const text = fs.readFileSync(absPath, 'utf8');
-    const lines = countLines(text);
-    if (relPath.endsWith('.ts') || relPath.endsWith('.tsx')) trackedTsLines += lines;
-    if (relPath.endsWith('.js') || relPath.endsWith('.jsx')) trackedJsLines += lines;
-    if (relPath.endsWith('.rs')) trackedRsLines += lines;
-    records.push({
-      path: relPath,
-      lines,
-      ext: path.extname(relPath).toLowerCase(),
-      text,
-    });
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
   }
-  return { trackedTsLines, trackedJsLines, trackedRsLines, records };
+  return null;
 }
 
-function relRuntimePath(relPath) {
-  return relPath.startsWith('client/runtime/') ? relPath.slice('client/runtime/'.length) : relPath;
+function normalizePayload(out) {
+  const payload = out && out.payload && typeof out.payload === 'object'
+    ? out.payload
+    : null;
+  if (payload) return payload;
+  const parsed = out && typeof out.stdout === 'string' ? parseLastJson(out.stdout) : null;
+  if (parsed) return parsed;
+  const stderr = out && typeof out.stderr === 'string' ? out.stderr.trim() : '';
+  return {
+    ok: false,
+    type: 'rust_hotpath_inventory',
+    error: stderr || 'rust_hotpath_inventory_kernel_bridge_failed'
+  };
 }
 
-function inScanRoots(relPath, roots) {
-  const runtimePath = relRuntimePath(relPath);
-  return roots.some((root) => runtimePath === root || runtimePath.startsWith(`${root}/`));
-}
-
-function directoryBuckets(records, limit) {
-  const buckets = new Map();
-  for (const record of records) {
-    const relDir = path.posix.dirname(record.path);
-    buckets.set(relDir, (buckets.get(relDir) || 0) + record.lines);
-  }
-  return [...buckets.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, limit)
-    .map(([dir, lines]) => ({ path: dir, lines }));
-}
-
-function fileBuckets(records, limit) {
-  return records
-    .map((record) => ({ path: record.path, lines: record.lines }))
-    .sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path))
-    .slice(0, limit);
-}
-
-function rustMilestones(trackedRsLines, trackedNonRustCodeLines, milestones) {
-  const total = trackedRsLines + trackedNonRustCodeLines;
-  return milestones.map((targetPct) => {
-    const pct = Number(targetPct);
-    const needed = Math.max(0, Math.ceil((pct / 100) * total - trackedRsLines));
-    return {
-      target_percent: pct,
-      additional_rs_lines_needed: needed,
-    };
-  });
-}
-
-function isThinBridge(record) {
-  if (record.ext !== '.ts') return false;
-  const text = record.text;
-  const normalized = String(text || '');
-  return (
-    /^\s*module\.exports\s*=\s*require\(['"][.]{1,2}\/.+\.ts['"]\);?\s*$/m.test(normalized) ||
-    normalized.includes('createOpsLaneBridge') ||
-    normalized.includes('createManifestLaneBridge') ||
-    normalized.includes("runProtheusOps(args") ||
-    normalized.includes("runProtheusOps(['") ||
-    normalized.includes("require('./run_protheus_ops.js')") ||
-    normalized.includes('Thin TypeScript wrapper only') ||
-    normalized.includes('Thin runtime wrapper:') ||
-    normalized.includes('thin CLI bridge') ||
-    normalized.includes('compatibility shim only') ||
-    normalized.includes('Layer ownership: core/layer0/ops') && (
-      normalized.includes('runProtheusOps(') ||
-      normalized.includes('createOpsLaneBridge(')
-    )
-  );
-}
-
-function hasAuthorityMarker(record) {
-  const normalized = String((record && record.text) || '');
-  return /Layer ownership:\s*core\/.+\(authoritative\)/.test(normalized);
-}
-
-function isExtensionSurface(record) {
-  const relPath = String((record && record.path) || '');
-  const normalized = String((record && record.text) || '');
-  return (
-    relPath.startsWith('apps/') ||
-    relPath.startsWith('packages/') ||
-    relPath.startsWith('client/cognition/') ||
-    relPath.startsWith('client/cli/bin/') ||
-    relPath.startsWith('client/runtime/platform/') ||
-    relPath.startsWith('adapters/importers/') ||
-    relPath.startsWith('adapters/cognition/collectors/') ||
-    relPath.includes('/skills/') ||
-    relPath.startsWith('client/runtime/patches/') ||
-    relPath.startsWith('client/runtime/systems/extensions/') ||
-    relPath.startsWith('client/runtime/systems/marketplace/') ||
-    relPath.endsWith('_demo.ts') ||
-    relPath.includes('/demo/') ||
-    normalized.includes('thin demo shell only') ||
-    normalized.includes('optional REPL/demo ergonomics') ||
-    relPath.endsWith('.d.ts') ||
-    relPath.endsWith('.config.ts') ||
-    relPath === 'vitest.config.ts'
-  );
-}
-
-function isCognitionOrchestrationThinSurface(record) {
-  const relPath = String((record && record.path) || '');
-  const normalized = String((record && record.text) || '');
-  if (!relPath.startsWith('client/cognition/orchestration/')) return false;
-  if (hasAuthorityMarker(record)) return false;
-  return (
-    normalized.includes("require" + "('./core_bridge.ts')") ||
-    normalized.includes('invokeOrchestration(') ||
-    normalized.includes('runTaskGroupCli(')
-  );
+function runKernel(command, args = []) {
+  const passArgs = [
+    String(command || '').trim(),
+    ...(Array.isArray(args) ? args : []).map((token) => String(token || '').trim()),
+  ].filter(Boolean);
+  return bridge.run(passArgs);
 }
 
 function buildInventory(argv = []) {
-  const policyPath = path.resolve(ROOT, parseFlag(argv, 'policy', DEFAULT_POLICY));
-  const policy = readJson(policyPath);
-  const trackedFiles = gitTrackedFiles();
-  const { trackedTsLines, trackedJsLines, trackedRsLines, records } = statSourceLineCounts(trackedFiles);
-  const trackedNonRustCodeLines = trackedTsLines + trackedJsLines;
-  const runtimeRecords = records.filter((record) => inScanRoots(record.path, policy.scan.roots || []));
-  const topDirectories = directoryBuckets(
-    runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx' || record.ext === '.js' || record.ext === '.jsx'),
-    Number(policy.report.top_directories || 15)
-  );
-  const topFiles = fileBuckets(
-    runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx' || record.ext === '.js' || record.ext === '.jsx'),
-    Number(policy.report.top_files || 30)
-  );
-  const bridgeWrapperCount = runtimeRecords.filter(isThinBridge).length;
-  const rustPercentCodeScope = Number(((trackedRsLines / Math.max(1, trackedRsLines + trackedNonRustCodeLines)) * 100).toFixed(2));
-  const rustPercentTsScope = Number(((trackedRsLines / Math.max(1, trackedRsLines + trackedTsLines)) * 100).toFixed(2));
-  const payload = {
-    ok: true,
-    type: 'rust_hotpath_inventory',
-    ts: nowIso(),
-    policy_path: path.relative(ROOT, policyPath),
-    tracked_ts_lines: trackedTsLines,
-    tracked_js_lines: trackedJsLines,
-    tracked_rs_lines: trackedRsLines,
-    tracked_non_rust_code_lines: trackedNonRustCodeLines,
-    rust_percent: rustPercentCodeScope,
-    rust_percent_ts_scope: rustPercentTsScope,
-    rust_percent_code_scope: rustPercentCodeScope,
-    runtime_scope: {
-      roots: policy.scan.roots || [],
-      ts_files: runtimeRecords.filter((record) => record.ext === '.ts' || record.ext === '.tsx').length,
-      js_files: runtimeRecords.filter((record) => record.ext === '.js' || record.ext === '.jsx').length,
-      rs_files: runtimeRecords.filter((record) => record.ext === '.rs').length,
-      bridge_wrappers_excluded_from_queue: bridgeWrapperCount,
-    },
-    top_directories: topDirectories,
-    top_files: topFiles,
-    milestones: rustMilestones(trackedRsLines, trackedNonRustCodeLines, policy.report.milestones || []),
-  };
-  return { payload, policy };
+  const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+  return normalizePayload(runKernel('inventory', args));
 }
 
 function run(argv = process.argv.slice(2)) {
-  const command = String(argv[0] || 'status').trim().toLowerCase();
-  const rest = argv.slice(1);
-  const { payload, policy } = buildInventory(rest);
-  const latestPath = path.join(ROOT, policy.paths.latest_path);
-  const historyPath = path.join(ROOT, policy.paths.history_path);
-  if (command === 'status') {
-    if (fs.existsSync(latestPath)) {
-      process.stdout.write(`${fs.readFileSync(latestPath, 'utf8').trim()}\n`);
-      return 0;
-    }
-    process.stdout.write(`${JSON.stringify(payload)}\n`);
-    return 0;
-  }
-  if (command !== 'run') {
-    process.stderr.write('Usage: node client/runtime/systems/ops/rust_hotpath_inventory.ts <run|status> [--policy=<path>]\n');
+  const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+  const first = args[0] || '';
+  const command = first && !first.startsWith('--') ? first.toLowerCase() : 'status';
+  if (command !== 'run' && command !== 'status' && command !== 'inventory') {
+    process.stderr.write('Usage: node client/runtime/systems/ops/rust_hotpath_inventory.ts <run|status|inventory> [--policy=<path>]\n');
     return 2;
   }
-  writeJson(latestPath, payload);
-  appendJsonl(historyPath, payload);
-  process.stdout.write(`${JSON.stringify(payload)}\n`);
-  return 0;
+  const rest = first && !first.startsWith('--') ? args.slice(1) : args;
+
+  const out = runKernel(command, rest);
+  if (out && typeof out.stdout === 'string' && out.stdout.trim()) {
+    process.stdout.write(out.stdout.endsWith('\n') ? out.stdout : `${out.stdout}\n`);
+  } else {
+    const payload = normalizePayload(out);
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  }
+  if (out && typeof out.stderr === 'string' && out.stderr.trim()) {
+    process.stderr.write(out.stderr.endsWith('\n') ? out.stderr : `${out.stderr}\n`);
+  }
+  const status = out && Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
+  return status;
 }
 
 if (require.main === module) {
@@ -266,9 +82,5 @@ if (require.main === module) {
 
 module.exports = {
   buildInventory,
-  isCognitionOrchestrationThinSurface,
-  hasAuthorityMarker,
-  isExtensionSurface,
-  isThinBridge,
   run,
 };

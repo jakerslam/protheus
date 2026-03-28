@@ -1,268 +1,116 @@
 /**
  * adaptive/sensory/eyes/collectors/stock_market.ts
  *
- * Stock market eye - tracks major indices and market movers.
- * - Fetches major indices: S&P 500, NASDAQ, Dow Jones
- * - Tracks trending/volatile stocks
- * - Emits items with: collected_at, id, symbol, name, price, change, volume, signal_type
- * - NO LLM usage, uses Yahoo Finance HTML scraping or Finnhub API if available
+ * Thin wrapper over Rust-authoritative stock-market collector kernel.
+ * All fetch, cadence, fallback, and mapping authority resides in Rust.
  */
 
-const crypto = require("crypto");
-const { classifyCollectorError, httpStatusToCode, makeCollectorError } = require("./collector_errors.ts");
-const { loadCollectorCache, saveCollectorCache } = require("./cache_store.ts");
-const { egressFetchText, EgressGatewayError } = require("../../../../../../lib/egress_gateway.ts");
+const fs = require('fs');
+const path = require('path');
+const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.js');
+const { makeCollectorError } = require('./collector_errors.ts');
 
-function sha16(s) {
-  return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
+function resolveWorkspaceRoot(startDir = __dirname) {
+  let dir = path.resolve(startDir);
+  while (true) {
+    const marker = path.join(dir, 'core', 'layer0', 'ops', 'Cargo.toml');
+    if (fs.existsSync(marker)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(startDir, '../../../../../../..');
+}
+
+const WORKSPACE_ROOT = resolveWorkspaceRoot();
+const EYES_STATE_DIR = process.env.EYES_STATE_DIR
+  ? path.resolve(process.env.EYES_STATE_DIR)
+  : path.join(WORKSPACE_ROOT, 'local', 'state', 'sensory', 'eyes');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+
+const stockMarketBridge = createOpsLaneBridge(
+  __dirname,
+  'stock_market_collector',
+  'stock-market-collector-kernel',
+  { preferLocalCore: true }
+);
+
+function cleanText(v, max = 240) {
+  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function clampInt(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function nowIso() {
   return new Date().toISOString();
 }
 
-function fetchJson(url, timeoutMs = 15000) {
-  return (async () => {
-    try {
-      const host = new URL(url).hostname;
-      const res = await egressFetchText(url, {
-        method: "GET",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-          "Accept": "application/json,text/html,*/*",
-          "Accept-Language": "en-US,en;q=0.9",
-        }
-      }, {
-        scope: "sensory.collector.stock_market",
-        caller: "adaptive/sensory/eyes/collectors/stock_market",
-        runtime_allowlist: [host],
-        timeout_ms: timeoutMs,
-        meta: { collector: "stock_market" }
-      });
-      if (res.status >= 400) {
-        throw makeCollectorError(
-          httpStatusToCode(res.status),
-          `HTTP ${res.status} for ${url}`,
-          { http_status: Number(res.status), url }
-        );
-      }
-      const text = String(res.text || "");
-      try {
-        return { json: JSON.parse(text), bytes: Buffer.byteLength(text, "utf8") };
-      } catch {
-        return { text, bytes: Buffer.byteLength(text, "utf8"), isJson: false };
-      }
-    } catch (err) {
-      if (err instanceof EgressGatewayError) {
-        throw makeCollectorError(
-          "env_blocked",
-          `egress_denied:${String(err.details && err.details.code || "policy")} for ${url}`.slice(0, 220),
-          { url }
-        );
-      }
-      const c = classifyCollectorError(err);
-      throw makeCollectorError(
-        c.code,
-        `${c.message} for ${url}`.slice(0, 200),
-        { http_status: c.http_status, url }
-      );
-    }
-  })();
+function invokeStockKernel(command, payload = {}, requireOk = true) {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+  const out = stockMarketBridge.run([command, `--payload-base64=${encoded}`]);
+  const status = Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
+  if (status !== 0) {
+    const detail = cleanText(
+      (out && out.stderr) || (out && out.stdout) || (out && out.payload && out.payload.error) || '',
+      220
+    );
+    throw makeCollectorError('collector_error', detail || `stock_market_collector_kernel_${command}_failed`);
+  }
+  const payloadOut = out && out.payload && out.payload.payload && typeof out.payload.payload === 'object'
+    ? out.payload.payload
+    : null;
+  if (!payloadOut || (requireOk && payloadOut.ok !== true)) {
+    throw makeCollectorError('collector_error', `stock_market_collector_kernel_${command}_invalid_payload`);
+  }
+  return payloadOut;
 }
 
-/**
- * Extract market data from Yahoo Finance-like HTML
- * Looks for quote data in script tags or meta tags
- */
+async function run({ maxItems = 20, minHours = 1, force = false, timeoutMs = 15000 } = {}) {
+  return invokeStockKernel('run', {
+    eyes_state_dir: EYES_STATE_DIR,
+    force: force === true,
+    min_hours: Number.isFinite(Number(minHours)) ? Number(minHours) : 1,
+    max_items: clampInt(maxItems, 1, 200, 20),
+    timeout_ms: clampInt(timeoutMs, 1000, 120000, 15000),
+  });
+}
+
 function extractQuotesFromHtml(html) {
-  const quotes = [];
-  
-  // Try to find JSON data in script tags (common pattern in finance sites)
-  const scriptMatch = html.match(/root\.App\.main\s*=\s*(\{.*?\});/s) || 
-                      html.match(/window\._initialState\s*=\s*(\{.*?\});/s) ||
-                      html.match(/"marketSummaryAndSparkResponse":(\{.*?\}),"/s);
-  
-  if (scriptMatch) {
-    try {
-      const data = JSON.parse(scriptMatch[1]);
-      // Extract from Yahoo's structure
-      const result = data.marketSummaryAndSparkResponse?.result || 
-                     data.context?.dispatcher?.stores?.QuoteSummaryStore ||
-                     [];
-      
-      for (const item of Array.isArray(result) ? result : []) {
-        if (item.symbol && item.regularMarketPrice) {
-          quotes.push({
-            symbol: item.symbol,
-            shortName: item.shortName || item.symbol,
-            price: item.regularMarketPrice,
-            change: item.regularMarketChange,
-            changePercent: item.regularMarketChangePercent,
-            volume: item.regularMarketVolume,
-          });
-        }
-      }
-    } catch (e) {
-      // JSON parse failed, continue with regex fallback
-    }
-  }
-  
-  return quotes;
+  const out = invokeStockKernel('extract-quotes', { html: String(html || '') });
+  return Array.isArray(out && out.quotes) ? out.quotes : [];
 }
 
-/**
- * Build fallback indices data if scraping fails
- */
-function buildFallbackIndices() {
-  const indices = [
-    { symbol: "^GSPC", name: "S&P 500", signal_type: "index" },
-    { symbol: "^IXIC", name: "NASDAQ Composite", signal_type: "index" },
-    { symbol: "^DJI", name: "Dow Jones Industrial Average", signal_type: "index" },
-    { symbol: "^RUT", name: "Russell 2000", signal_type: "index" },
-    { symbol: "^VIX", name: "CBOE Volatility Index", signal_type: "volatility" },
-  ];
-  
-  return indices.map(idx => ({
-    ...idx,
-    id: sha16(`stock-${idx.symbol}-${nowIso().slice(0, 10)}`),
-    collected_at: nowIso(),
-    url: `https://finance.yahoo.com/quote/${idx.symbol}`,
-    source: "stock_market",
-    signal: true,
-  }));
+function buildFallbackIndices(options = {}) {
+  const out = invokeStockKernel('fallback-indices', {
+    max_items: clampInt(options.maxItems, 1, 200, 20),
+    seen_ids: Array.isArray(options.seenIds) ? options.seenIds : [],
+    date: cleanText(options.date, 32) || nowIso().slice(0, 10),
+  });
+  return Array.isArray(out && out.items) ? out.items : [];
 }
 
-/**
- * Run the stock market collector
- */
-async function run(options = {}) {
-  const cache = loadCollectorCache("stock_market") || { last_run: null, seen_ids: [] };
-  const maxItems = options.maxItems || 20;
-  const minHours = options.minHours ?? 1;
-  
-  // Check cadence
-  const now = Date.now();
-  const lastRun = cache.last_run ? new Date(cache.last_run).getTime() : 0;
-  const hoursSince = (now - lastRun) / (1000 * 60 * 60);
-  
-  if (hoursSince < minHours && !options.force) {
-    return {
-      ok: true,
-      eye: "stock_market",
-      skipped: true,
-      reason: "cadence",
-      hours_since_last: Number(hoursSince.toFixed(2)),
-      min_hours: minHours,
-    };
-  }
-  
-  const items = [];
-  let error = null;
-  let bytes = 0;
-  
-  try {
-    // Try Yahoo Finance for market summary
-    const yahooUrl = "https://finance.yahoo.com/markets/";
-    const { text, bytes: yb } = await fetchJson(yahooUrl);
-    bytes += yb;
-    
-    const quotes = extractQuotesFromHtml(text);
-    
-    if (quotes.length > 0) {
-      for (const q of quotes.slice(0, maxItems)) {
-        const id = sha16(`stock-${q.symbol}-${nowIso().slice(0, 10)}-${q.price}`);
-        
-        // Skip if seen
-        if (cache.seen_ids?.includes(id)) continue;
-        
-        items.push({
-          id,
-          collected_at: nowIso(),
-          url: `https://finance.yahoo.com/quote/${q.symbol}`,
-          title: `${q.shortName || q.symbol}: $${q.price?.toFixed(2)} (${q.change > 0 ? '+' : ''}${q.change?.toFixed(2)}, ${q.changePercent?.toFixed(2)}%)`,
-          description: `Volume: ${q.volume?.toLocaleString() || 'N/A'}. Market data for ${q.symbol}.`,
-          symbol: q.symbol,
-          price: q.price,
-          change: q.change,
-          change_percent: q.changePercent,
-          volume: q.volume,
-          signal_type: q.symbol.startsWith("^") ? "index" : "equity",
-          signal: Math.abs(q.changePercent) > 2 || q.volume > 10000000, // High volatility or volume = signal
-          source: "stock_market",
-          tags: ["finance", "market", q.change > 0 ? "gainer" : q.change < 0 ? "loser" : "unchanged"],
-        topics: ["finance", "market"],
-        bytes: 0,
-        });
-      }
-    }
-    
-    // Fallback: emit indices even if scraping failed
-    if (items.length === 0) {
-      const fallback = buildFallbackIndices();
-      for (const item of fallback) {
-        if (!cache.seen_ids?.includes(item.id)) {
-          items.push({
-            ...item,
-            title: `${item.name} - Market Index`,
-            description: `Major market index tracking. Monitor for significant moves.`,
-            tags: ["finance", "index", "market"],
-            topics: ["finance", "market"],
-            bytes: 0,
-          });
-        }
-      }
-    }
-    
-    // Update cache
-    cache.last_run = nowIso();
-    cache.seen_ids = [...(cache.seen_ids || []).slice(-500), ...items.map(i => i.id)];
-    saveCollectorCache("stock_market", cache);
-    
-    return {
-      ok: true,
-      success: true,
-      eye: "stock_market",
-      items,
-      bytes,
-      duration_ms: Date.now() - (cache.last_run ? new Date(cache.last_run).getTime() : Date.now()),
-      requests: 1,
-      cadence_hours: minHours,
-      sample: items[0]?.symbol || null,
-    };
-    
-  } catch (err) {
-    // Return fallback indices on error
-    const fallback = buildFallbackIndices();
-    return {
-      ok: true,
-      success: true,
-      eye: "stock_market",
-      items: fallback,
-      bytes,
-      duration_ms: 0,
-      requests: 1,
-      cadence_hours: minHours,
-      degraded: true,
-      error: err.code || err.message,
-      sample: fallback[0]?.symbol,
-    };
-  }
-}
-
-// CLI
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const maxItems = Number(args.find(a => a.startsWith("--max="))?.split("=")[1] || 20);
-  const minHours = Number(args.find(a => a.startsWith("--min-hours="))?.split("=")[1] || 1);
-  const force = args.includes("--force");
-  
-  run({ maxItems, minHours, force }).then(r => {
-    console.log(JSON.stringify(r));
-    process.exit(r.ok ? 0 : 1);
-  }).catch(e => {
-    console.error(JSON.stringify({ ok: false, error: e.message }));
-    process.exit(1);
-  });
+  const maxItems = Number(args.find((a) => a.startsWith('--max='))?.split('=')[1] || 20);
+  const minHours = Number(args.find((a) => a.startsWith('--min-hours='))?.split('=')[1] || 1);
+  const timeoutMs = Number(args.find((a) => a.startsWith('--timeout-ms='))?.split('=')[1] || 15000);
+  const force = args.includes('--force');
+
+  run({ maxItems, minHours, force, timeoutMs })
+    .then((r) => {
+      console.log(JSON.stringify(r));
+      process.exit(r && r.ok ? 0 : 1);
+    })
+    .catch((e) => {
+      console.error(JSON.stringify({ ok: false, error: e && e.message ? e.message : 'collector_error' }));
+      process.exit(1);
+    });
 }
 
 module.exports = { run, extractQuotesFromHtml, buildFallbackIndices };
