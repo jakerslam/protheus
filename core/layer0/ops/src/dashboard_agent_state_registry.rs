@@ -310,7 +310,30 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
         for (key, value) in obj {
             if matches!(
                 key.as_str(),
-                "role" | "name" | "emoji" | "avatar_url" | "state" | "description" | "lifespan"
+                "role"
+                    | "name"
+                    | "emoji"
+                    | "avatar_url"
+                    | "state"
+                    | "description"
+                    | "lifespan"
+                    | "identity"
+                    | "color"
+                    | "archetype"
+                    | "vibe"
+                    | "model_override"
+                    | "runtime_model"
+                    | "fallback_models"
+                    | "system_prompt"
+                    | "context_window"
+                    | "context_window_tokens"
+                    | "git_branch"
+                    | "git_tree_kind"
+                    | "workspace_dir"
+                    | "workspace_rel"
+                    | "git_tree_ready"
+                    | "git_tree_error"
+                    | "is_master_agent"
             ) {
                 current[key] = value.clone();
             }
