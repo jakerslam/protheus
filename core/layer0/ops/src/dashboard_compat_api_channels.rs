@@ -72,66 +72,7 @@ fn now_ms() -> i64 {
 }
 
 fn channel_defaults() -> Vec<Value> {
-    vec![
-        json!({
-            "name": "whatsapp",
-            "icon": "💬",
-            "display_name": "WhatsApp",
-            "description": "Connect WhatsApp for direct messaging and notifications.",
-            "quick_setup": "Use QR login for WhatsApp Web or configure Business API credentials.",
-            "category": "messaging",
-            "difficulty": "Medium",
-            "setup_time": "2-5 min",
-            "setup_type": "qr",
-            "has_token": false,
-            "configured": false,
-            "fields": [
-                {"key": "business_token", "label": "Business API Token", "type": "secret", "advanced": true, "placeholder": "EAAG..."},
-                {"key": "phone_number_id", "label": "Phone Number ID", "type": "text", "advanced": true, "placeholder": "123456789"}
-            ],
-            "setup_steps": ["Open WhatsApp on your phone", "Scan QR code in this modal", "Confirm linked status"],
-            "config_template": "WHATSAPP_BUSINESS_TOKEN=...\\nWHATSAPP_PHONE_NUMBER_ID=..."
-        }),
-        json!({
-            "name": "discord",
-            "icon": "🎮",
-            "display_name": "Discord",
-            "description": "Route agent messages into Discord channels.",
-            "quick_setup": "Create a bot token and select a target server/channel.",
-            "category": "messaging",
-            "difficulty": "Easy",
-            "setup_time": "2 min",
-            "setup_type": "form",
-            "has_token": false,
-            "configured": false,
-            "fields": [
-                {"key": "bot_token", "label": "Bot Token", "type": "secret", "advanced": false, "placeholder": "MTIz..."},
-                {"key": "channel_id", "label": "Channel ID", "type": "text", "advanced": false, "placeholder": "123456789012345678"}
-            ],
-            "setup_steps": ["Create Discord bot", "Invite bot to server", "Paste token and channel id"],
-            "config_template": "DISCORD_BOT_TOKEN=...\\nDISCORD_CHANNEL_ID=..."
-        }),
-        json!({
-            "name": "slack",
-            "icon": "💼",
-            "display_name": "Slack",
-            "description": "Send updates to Slack channels and threads.",
-            "quick_setup": "Use a bot token + app-level token for socket mode.",
-            "category": "enterprise",
-            "difficulty": "Medium",
-            "setup_time": "3-8 min",
-            "setup_type": "form",
-            "has_token": false,
-            "configured": false,
-            "fields": [
-                {"key": "bot_token", "label": "Bot Token", "type": "secret", "advanced": false, "placeholder": "xoxb-..."},
-                {"key": "app_token", "label": "App Token", "type": "secret", "advanced": true, "placeholder": "xapp-..."},
-                {"key": "default_channel", "label": "Default Channel", "type": "text", "advanced": false, "placeholder": "#ops"}
-            ],
-            "setup_steps": ["Create Slack app", "Enable bot scopes", "Paste tokens and channel"],
-            "config_template": "SLACK_BOT_TOKEN=...\\nSLACK_APP_TOKEN=...\\nSLACK_DEFAULT_CHANNEL=#ops"
-        }),
-    ]
+    crate::dashboard_channel_catalog::catalog()
 }
 
 fn load_channel_registry(root: &Path) -> Value {
