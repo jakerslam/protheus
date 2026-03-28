@@ -2270,9 +2270,8 @@ mod tests {
     };
     use super::{
         conduit_message_contract_count, process_command, run_stdio_once,
-        validate_conduit_contract_budget, ConduitPolicy, ConduitSecurityContext,
-        CommandHandler, EchoCommandHandler, KernelLaneCommandHandler, PolicyGate,
-        RegistryPolicyGate, RustEvent,
+        validate_conduit_contract_budget, CommandHandler, ConduitPolicy, ConduitSecurityContext,
+        EchoCommandHandler, KernelLaneCommandHandler, PolicyGate, RegistryPolicyGate, RustEvent,
         MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
     };
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
@@ -2375,23 +2374,22 @@ mod tests {
     #[test]
     fn conduit_policy_defaults_and_envelope_constructor_cover_contract_paths() {
         let serialized = serde_json::to_value(ConduitPolicy::default()).expect("policy value");
-        let mut obj = serialized
-            .as_object()
-            .cloned()
-            .expect("policy object");
+        let mut obj = serialized.as_object().cloned().expect("policy object");
         obj.remove("bridge_message_budget_max");
         let restored: ConduitPolicy =
             serde_json::from_value(Value::Object(obj)).expect("deserialize policy with defaults");
         assert_eq!(
-            restored.bridge_message_budget_max,
-            MAX_CONDUIT_MESSAGE_TYPES,
+            restored.bridge_message_budget_max, MAX_CONDUIT_MESSAGE_TYPES,
             "bridge message budget should use contract default when omitted"
         );
 
         let policy = test_policy();
         let signed = signed_envelope(&policy, TsCommand::GetSystemStatus);
-        let constructed =
-            CommandEnvelope::new("req-new", TsCommand::GetSystemStatus, signed.security.clone());
+        let constructed = CommandEnvelope::new(
+            "req-new",
+            TsCommand::GetSystemStatus,
+            signed.security.clone(),
+        );
         assert_eq!(constructed.schema_id, super::CONDUIT_SCHEMA_ID);
         assert_eq!(constructed.schema_version, super::CONDUIT_SCHEMA_VERSION);
         assert_eq!(constructed.request_id, "req-new");
@@ -2966,13 +2964,14 @@ mod tests {
                 } => {
                     assert_eq!(status, expected_status);
                     assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
-                    assert_eq!(detail.get("type").and_then(Value::as_str), Some(expected_status));
-                    assert!(
-                        violation_reason
-                            .as_deref()
-                            .unwrap_or_default()
-                            .contains("bridge_spawn_failed")
+                    assert_eq!(
+                        detail.get("type").and_then(Value::as_str),
+                        Some(expected_status)
                     );
+                    assert!(violation_reason
+                        .as_deref()
+                        .unwrap_or_default()
+                        .contains("bridge_spawn_failed"));
                 }
                 other => panic!("expected system feedback event, got {other:?}"),
             }
@@ -3289,7 +3288,10 @@ mod tests {
         );
         let mut handler = EchoCommandHandler;
         let response = process_command(&command, &gate, &mut security, &mut handler);
-        assert!(response.validation.ok, "command should validate before runtime write");
+        assert!(
+            response.validation.ok,
+            "command should validate before runtime write"
+        );
         match response.event {
             RustEvent::SystemFeedback {
                 status,
