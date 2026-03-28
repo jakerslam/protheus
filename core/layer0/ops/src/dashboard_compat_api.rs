@@ -19,6 +19,8 @@ const EYES_CATALOG_STATE_PATHS: [&str; 3] = [
 
 #[path = "dashboard_compat_api_channels.rs"]
 mod dashboard_compat_api_channels;
+#[path = "dashboard_skills_marketplace.rs"]
+mod dashboard_skills_marketplace;
 
 #[derive(Debug, Clone)]
 pub struct CompatApiResponse {
@@ -251,6 +253,10 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
     if let Some(response) = dashboard_compat_api_channels::handle(root, method, path_only, body) {
         return Some(response);
     }
+    if let Some(response) = dashboard_skills_marketplace::handle(root, method, path, snapshot, body)
+    {
+        return Some(response);
+    }
     let usage = usage_from_snapshot(snapshot);
     let runtime = runtime_sync_summary(snapshot);
     let alerts_count = parse_non_negative_i64(snapshot.pointer("/health/alerts/count"), 0);
@@ -289,8 +295,6 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
                 crate::dashboard_model_catalog::route_decision_payload(root, snapshot, &json!({})),
             "/api/channels" => dashboard_compat_api_channels::channels_payload(root),
             "/api/eyes" => read_eyes_payload(root),
-            "/api/skills" => json!({"ok": true, "skills": snapshot.get("skills").cloned().unwrap_or_else(|| json!({}))}),
-            "/api/mcp/servers" => json!({"ok": true, "servers": snapshot.pointer("/skills/upstream/mcp_servers").cloned().unwrap_or_else(|| json!([]))}),
             "/api/audit/recent" => {
                 let entries = recent_audit_entries(root, snapshot);
                 let tip_hash = crate::deterministic_receipt_hash(&json!({"entries": entries}));
@@ -438,6 +442,32 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn channels_endpoint_returns_catalog_defaults() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = handle(
+            root.path(),
+            "GET",
+            "/api/channels",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("channels");
+        let rows = out
+            .payload
+            .get("channels")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows.len() >= 40);
+        assert!(rows.iter().any(|row| {
+            row.get("name")
+                .and_then(Value::as_str)
+                .map(|v| v == "whatsapp")
+                .unwrap_or(false)
+        }));
     }
 
     #[test]
