@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-// Thin TS entrypoint wrapper; authoritative dashboard runtime lives in JS.
+// Thin TS entrypoint wrapper; authoritative dashboard runtime lives in Rust core.
 const dashboard = require('./infring_dashboard.js');
 module.exports = dashboard;
 
