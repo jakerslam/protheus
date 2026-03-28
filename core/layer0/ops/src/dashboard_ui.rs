@@ -77,6 +77,7 @@ struct FileRow {
 struct HttpRequest {
     method: String,
     path: String,
+    headers: Vec<(String, String)>,
     body: Vec<u8>,
 }
 
@@ -2281,16 +2282,22 @@ fn parse_request(mut stream: &TcpStream) -> Result<HttpRequest, String> {
         .ok_or_else(|| "request_method_missing".to_string())?;
     let path = parts
         .next()
-        .map(|v| v.split('?').next().unwrap_or("/").to_string())
+        .map(|v| v.to_string())
         .ok_or_else(|| "request_path_missing".to_string())?;
 
     let mut content_length = 0usize;
+    let mut headers = Vec::<(String, String)>::new();
     for line in lines {
         let Some((k, v)) = line.split_once(':') else {
             continue;
         };
-        if k.trim().eq_ignore_ascii_case("content-length") {
-            content_length = v.trim().parse::<usize>().unwrap_or(0);
+        let key = k.trim().to_string();
+        let value = v.trim().to_string();
+        if !key.is_empty() {
+            headers.push((key.clone(), value.clone()));
+        }
+        if key.eq_ignore_ascii_case("content-length") {
+            content_length = value.parse::<usize>().unwrap_or(0);
         }
     }
     if content_length > MAX_REQUEST_BYTES {
@@ -2312,7 +2319,12 @@ fn parse_request(mut stream: &TcpStream) -> Result<HttpRequest, String> {
     }
     body.truncate(content_length);
 
-    Ok(HttpRequest { method, path, body })
+    Ok(HttpRequest {
+        method,
+        path,
+        headers,
+        body,
+    })
 }
 
 fn status_reason(status: u16) -> &'static str {
@@ -2959,8 +2971,20 @@ fn handle_request(
             .ok()
             .map(|v| v.clone())
             .unwrap_or_else(|| build_snapshot(root, flags));
+        let header_refs = req
+            .headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect::<Vec<_>>();
         if let Some(response) =
-            dashboard_compat_api::handle(root, &req.method, &req.path, &req.body, &snapshot)
+            dashboard_compat_api::handle_with_headers(
+                root,
+                &req.method,
+                &req.path,
+                &req.body,
+                &header_refs,
+                &snapshot,
+            )
         {
             let body =
                 serde_json::to_string_pretty(&response.payload).unwrap_or_else(|_| "{}".to_string());
