@@ -4,7 +4,10 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::process::Command;
+use std::time::Instant;
+use walkdir::WalkDir;
 
 const PROVIDER_REGISTRY_REL: &str = "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
 const APPROVALS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/approvals.json";
@@ -90,6 +93,34 @@ fn query_value(path: &str, key: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn header_value(headers: &[(&str, &str)], key: &str) -> Option<String> {
+    for (name, value) in headers {
+        if clean_text(name, 120).eq_ignore_ascii_case(key) {
+            let cleaned = clean_text(value, 2000);
+            if !cleaned.is_empty() {
+                return Some(cleaned);
+            }
+        }
+    }
+    None
+}
+
+fn normalize_lexical(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => out.push(prefix.as_os_str()),
+            Component::RootDir => out.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let _ = out.pop();
+            }
+            Component::Normal(part) => out.push(part),
+        }
+    }
+    out
 }
 
 fn extract_app_settings(snapshot: &Value) -> (String, String) {
@@ -1082,6 +1113,56 @@ fn decode_path_segment(raw: &str) -> String {
     clean_text(&decoded, 300)
 }
 
+fn workspace_base_for_agent(root: &Path, row: Option<&Value>) -> PathBuf {
+    let raw = clean_text(
+        row.and_then(|v| v.get("workspace_dir").and_then(Value::as_str))
+            .unwrap_or(""),
+        4000,
+    );
+    let base = if raw.is_empty() {
+        root.to_path_buf()
+    } else {
+        let as_path = PathBuf::from(raw);
+        if as_path.is_absolute() {
+            as_path
+        } else {
+            root.join(as_path)
+        }
+    };
+    normalize_lexical(&base)
+}
+
+fn resolve_workspace_path(base: &Path, requested_path: &str) -> Option<PathBuf> {
+    let cleaned = requested_path.trim();
+    if cleaned.is_empty() {
+        return None;
+    }
+    let requested = PathBuf::from(cleaned);
+    let candidate = if requested.is_absolute() {
+        requested
+    } else {
+        base.join(requested)
+    };
+    let base_norm = normalize_lexical(base);
+    let candidate_norm = normalize_lexical(&candidate);
+    if !candidate_norm.starts_with(&base_norm) {
+        return None;
+    }
+    Some(candidate_norm)
+}
+
+fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
+    if bytes.len() <= max_bytes {
+        return (String::from_utf8_lossy(bytes).to_string(), false);
+    }
+    let mut end = max_bytes;
+    while end > 0 && !std::str::from_utf8(&bytes[..end]).is_ok() {
+        end -= 1;
+    }
+    let slice = if end == 0 { &bytes[..max_bytes] } else { &bytes[..end] };
+    (String::from_utf8_lossy(slice).to_string(), true)
+}
+
 fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> Value {
     let roster = build_agent_roster(root, snapshot, true);
     let mut counts = HashMap::<String, i64>::new();
@@ -1134,7 +1215,14 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
     })
 }
 
-pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Value) -> Option<CompatApiResponse> {
+pub fn handle_with_headers(
+    root: &Path,
+    method: &str,
+    path: &str,
+    body: &[u8],
+    headers: &[(&str, &str)],
+    snapshot: &Value,
+) -> Option<CompatApiResponse> {
     let path_only = path.split('?').next().unwrap_or(path);
     if let Some(payload) = crate::dashboard_terminal_broker::handle_http(root, method, path_only, body) {
         return Some(CompatApiResponse { status: 200, payload });
@@ -1662,6 +1750,256 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
             });
         }
 
+        if method == "POST" && segments.len() == 2 && segments[0] == "file" && segments[1] == "read" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let requested_path = clean_text(
+                request
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .or_else(|| request.get("file_path").and_then(Value::as_str))
+                    .unwrap_or(""),
+                4000,
+            );
+            if requested_path.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "path_required"}),
+                });
+            }
+            let workspace_base = workspace_base_for_agent(root, existing.as_ref());
+            let target = resolve_workspace_path(&workspace_base, &requested_path);
+            let Some(target_path) = target else {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "path_outside_workspace", "path": requested_path}),
+                });
+            };
+            if !target_path.is_file() {
+                return Some(CompatApiResponse {
+                    status: 404,
+                    payload: json!({
+                        "ok": false,
+                        "error": "file_not_found",
+                        "file": {"ok": false, "path": target_path.to_string_lossy().to_string()}
+                    }),
+                });
+            }
+            let bytes = fs::read(&target_path).unwrap_or_default();
+            let (content, truncated) = truncate_utf8_lossy(&bytes, 256 * 1024);
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "file": {
+                        "ok": true,
+                        "path": target_path.to_string_lossy().to_string(),
+                        "content": content,
+                        "truncated": truncated,
+                        "bytes": bytes.len()
+                    }
+                }),
+            });
+        }
+
+        if method == "POST" && segments.len() == 2 && segments[0] == "folder" && segments[1] == "export" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let requested_path = clean_text(
+                request
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .or_else(|| request.get("folder").and_then(Value::as_str))
+                    .unwrap_or(""),
+                4000,
+            );
+            if requested_path.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "path_required"}),
+                });
+            }
+            let workspace_base = workspace_base_for_agent(root, existing.as_ref());
+            let target = resolve_workspace_path(&workspace_base, &requested_path);
+            let Some(target_path) = target else {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "path_outside_workspace", "path": requested_path}),
+                });
+            };
+            if !target_path.is_dir() {
+                return Some(CompatApiResponse {
+                    status: 404,
+                    payload: json!({
+                        "ok": false,
+                        "error": "folder_not_found",
+                        "folder": {"ok": false, "path": target_path.to_string_lossy().to_string()}
+                    }),
+                });
+            }
+            let mut lines = Vec::<String>::new();
+            let mut entries = 0usize;
+            let mut truncated = false;
+            for entry in WalkDir::new(&target_path).follow_links(false) {
+                let Ok(row) = entry else {
+                    continue;
+                };
+                let path = row.path();
+                if path == target_path {
+                    continue;
+                }
+                entries += 1;
+                if lines.len() >= 400 {
+                    truncated = true;
+                    continue;
+                }
+                let rel = path.strip_prefix(&target_path).unwrap_or(path);
+                let rel_text = rel.to_string_lossy().replace('\\', "/");
+                if rel_text.is_empty() {
+                    continue;
+                }
+                let marker = if row.file_type().is_dir() { "[d]" } else { "-" };
+                lines.push(format!("{marker} {rel_text}"));
+            }
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "folder": {
+                        "ok": true,
+                        "path": target_path.to_string_lossy().to_string(),
+                        "tree": lines.join("\n"),
+                        "entries": entries,
+                        "truncated": truncated
+                    },
+                    "archive": {
+                        "ok": true,
+                        "download_url": "",
+                        "file_name": "",
+                        "bytes": 0
+                    }
+                }),
+            });
+        }
+
+        if method == "POST" && segments.len() == 1 && segments[0] == "terminal" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let command = clean_text(
+                request
+                    .get("command")
+                    .and_then(Value::as_str)
+                    .or_else(|| request.get("cmd").and_then(Value::as_str))
+                    .unwrap_or(""),
+                16_000,
+            );
+            if command.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "command_required"}),
+                });
+            }
+            let workspace_base = workspace_base_for_agent(root, existing.as_ref());
+            let requested_cwd = clean_text(request.get("cwd").and_then(Value::as_str).unwrap_or(""), 4000);
+            let cwd = if requested_cwd.is_empty() {
+                workspace_base.clone()
+            } else {
+                resolve_workspace_path(&workspace_base, &requested_cwd).unwrap_or(workspace_base.clone())
+            };
+            let started = Instant::now();
+            let output = if cfg!(windows) {
+                Command::new("cmd")
+                    .args(["/C", &command])
+                    .current_dir(&cwd)
+                    .output()
+            } else {
+                Command::new("sh")
+                    .args(["-lc", &command])
+                    .current_dir(&cwd)
+                    .output()
+            };
+            match output {
+                Ok(out) => {
+                    let (stdout, stdout_truncated) = truncate_utf8_lossy(&out.stdout, 128 * 1024);
+                    let (stderr, stderr_truncated) = truncate_utf8_lossy(&out.stderr, 128 * 1024);
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload: json!({
+                            "ok": true,
+                            "stdout": stdout,
+                            "stderr": stderr,
+                            "stdout_truncated": stdout_truncated,
+                            "stderr_truncated": stderr_truncated,
+                            "exit_code": out.status.code().unwrap_or(1),
+                            "duration_ms": started.elapsed().as_millis() as i64,
+                            "cwd": cwd.to_string_lossy().to_string()
+                        }),
+                    });
+                }
+                Err(err) => {
+                    return Some(CompatApiResponse {
+                        status: 500,
+                        payload: json!({
+                            "ok": false,
+                            "error": "terminal_exec_failed",
+                            "message": clean_text(&err.to_string(), 500),
+                            "exit_code": 1,
+                            "duration_ms": started.elapsed().as_millis() as i64,
+                            "cwd": cwd.to_string_lossy().to_string()
+                        }),
+                    });
+                }
+            }
+        }
+
+        if method == "POST" && segments.len() == 1 && segments[0] == "upload" {
+            let file_name = clean_text(
+                header_value(headers, "X-Filename")
+                    .as_deref()
+                    .unwrap_or("upload.bin"),
+                240,
+            );
+            let content_type = clean_text(
+                header_value(headers, "Content-Type")
+                    .as_deref()
+                    .unwrap_or("application/octet-stream"),
+                120,
+            );
+            let workspace_base = workspace_base_for_agent(root, existing.as_ref());
+            let uploads_dir = workspace_base.join(".infring").join("uploads");
+            let _ = fs::create_dir_all(&uploads_dir);
+            let file_id = format!(
+                "upload-{}",
+                crate::deterministic_receipt_hash(&json!({
+                    "agent_id": agent_id,
+                    "filename": file_name,
+                    "bytes": body.len(),
+                    "ts": crate::now_iso()
+                }))
+                .chars()
+                .take(16)
+                .collect::<String>()
+            );
+            let ext = Path::new(&file_name)
+                .extension()
+                .and_then(|v| v.to_str())
+                .map(|v| clean_text(v, 16))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "bin".to_string());
+            let stored_name = format!("{file_id}.{ext}");
+            let stored_path = uploads_dir.join(&stored_name);
+            let _ = fs::write(&stored_path, body);
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "file_id": file_id,
+                    "filename": file_name,
+                    "content_type": content_type,
+                    "bytes": body.len(),
+                    "stored_path": stored_path.to_string_lossy().to_string(),
+                    "uploaded_at": crate::now_iso()
+                }),
+            });
+        }
+
         if method == "GET" && segments.len() == 1 && segments[0] == "files" {
             let dir = agent_files_dir(root, &agent_id);
             let mut rows = Vec::<Value>::new();
@@ -1809,8 +2147,6 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
         }
 
         if method == "POST" && segments.len() == 1 && segments[0] == "avatar" {
-            let mime = clean_text(path, 1); // placeholder to avoid empty mime warnings below
-            let _ = mime;
             let content_type = clean_text(
                 query_value(path, "content_type")
                     .as_deref()
@@ -1989,6 +2325,16 @@ pub fn handle(root: &Path, method: &str, path: &str, body: &[u8], snapshot: &Val
     None
 }
 
+pub fn handle(
+    root: &Path,
+    method: &str,
+    path: &str,
+    body: &[u8],
+    snapshot: &Value,
+) -> Option<CompatApiResponse> {
+    handle_with_headers(root, method, path, body, &[], snapshot)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2138,6 +2484,277 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(url.starts_with("data:image/svg+xml;base64,"));
+    }
+
+    #[test]
+    fn agents_routes_create_message_config_and_git_tree_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Jarvis","role":"director","provider":"ollama","model":"qwen:4b"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        assert_eq!(created.status, 200);
+        assert_eq!(created.payload.get("ok").and_then(Value::as_bool), Some(true));
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let listed = handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true}))
+            .expect("list agents");
+        let rows = listed.payload.as_array().cloned().unwrap_or_default();
+        assert!(rows.iter().any(|row| {
+            clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) == agent_id
+        }));
+
+        let details = handle(
+            root.path(),
+            "GET",
+            &format!("/api/agents/{agent_id}"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("agent details");
+        assert_eq!(details.status, 200);
+        assert_eq!(details.payload.get("name").and_then(Value::as_str), Some("Jarvis"));
+
+        let message = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"hello there"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("agent message");
+        assert_eq!(message.status, 200);
+        assert_eq!(message.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(
+            message
+                .payload
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("hello there")
+        );
+
+        let new_session = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/sessions"),
+            br#"{"label":"Ops"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create session");
+        let sid = clean_text(
+            new_session
+                .payload
+                .get("active_session_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!sid.is_empty());
+        let switched = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/sessions/{sid}/switch"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("switch session");
+        assert_eq!(switched.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            switched
+                .payload
+                .get("active_session_id")
+                .and_then(Value::as_str),
+            Some(sid.as_str())
+        );
+
+        let configured = handle(
+            root.path(),
+            "PATCH",
+            &format!("/api/agents/{agent_id}/config"),
+            br#"{
+              "mode":"focus",
+              "git_branch":"feature/jarvis",
+              "identity":{"emoji":"robot","color":"00ff00","archetype":"director","vibe":"direct"}
+            }"#,
+            &json!({"ok": true}),
+        )
+        .expect("config");
+        assert_eq!(configured.payload.get("ok").and_then(Value::as_bool), Some(true));
+
+        let model = handle(
+            root.path(),
+            "PUT",
+            &format!("/api/agents/{agent_id}/model"),
+            br#"{"model":"openai/gpt-5"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("set model");
+        assert_eq!(model.payload.get("provider").and_then(Value::as_str), Some("openai"));
+        assert_eq!(model.payload.get("model").and_then(Value::as_str), Some("gpt-5"));
+
+        let after_model = handle(
+            root.path(),
+            "GET",
+            &format!("/api/agents/{agent_id}"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("agent after model");
+        assert_eq!(
+            after_model.payload.get("model_provider").and_then(Value::as_str),
+            Some("openai")
+        );
+        assert_eq!(
+            after_model.payload.get("model_name").and_then(Value::as_str),
+            Some("gpt-5")
+        );
+        assert_eq!(
+            after_model.payload.pointer("/identity/vibe").and_then(Value::as_str),
+            Some("direct")
+        );
+
+        let trees = handle(
+            root.path(),
+            "GET",
+            &format!("/api/agents/{agent_id}/git-trees"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("git trees");
+        let options = trees
+            .payload
+            .get("options")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(options.iter().any(|row| {
+            row.get("branch")
+                .and_then(Value::as_str)
+                .map(|v| v == "main")
+                .unwrap_or(false)
+        }));
+        let switched_tree = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/git-tree/switch"),
+            br#"{"branch":"feature/jarvis"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("git tree switch");
+        assert_eq!(
+            switched_tree
+                .payload
+                .pointer("/current/git_branch")
+                .and_then(Value::as_str),
+            Some("feature/jarvis")
+        );
+    }
+
+    #[test]
+    fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let notes_dir = root.path().join("notes");
+        let _ = fs::create_dir_all(&notes_dir);
+        let _ = fs::write(notes_dir.join("plan.txt"), "ship it");
+
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let file_read = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read");
+        assert_eq!(
+            file_read.payload.pointer("/file/ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            file_read
+                .payload
+                .pointer("/file/content")
+                .and_then(Value::as_str),
+            Some("ship it")
+        );
+
+        let folder_export = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export");
+        assert_eq!(
+            folder_export
+                .payload
+                .pointer("/folder/ok")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            folder_export
+                .payload
+                .pointer("/folder/tree")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("plan.txt")
+        );
+
+        let terminal = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"printf 'ok'","cwd":"notes"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("terminal");
+        assert_eq!(terminal.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(terminal.payload.get("stdout").and_then(Value::as_str), Some("ok"));
+
+        let upload = handle_with_headers(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/upload"),
+            b"voice",
+            &[("X-Filename", "voice.webm"), ("Content-Type", "audio/webm")],
+            &json!({"ok": true}),
+        )
+        .expect("upload");
+        assert_eq!(upload.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(!clean_text(upload.payload.get("file_id").and_then(Value::as_str).unwrap_or(""), 180).is_empty());
+        assert_eq!(upload.payload.get("filename").and_then(Value::as_str), Some("voice.webm"));
     }
 
     #[test]

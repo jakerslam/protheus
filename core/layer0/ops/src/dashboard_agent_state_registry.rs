@@ -322,6 +322,8 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "archetype"
                     | "vibe"
                     | "model_override"
+                    | "model_provider"
+                    | "model_name"
                     | "runtime_model"
                     | "fallback_models"
                     | "system_prompt"
@@ -334,6 +336,7 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "git_tree_ready"
                     | "git_tree_error"
                     | "is_master_agent"
+                    | "mode"
             ) {
                 current[key] = value.clone();
             }
