@@ -83,6 +83,7 @@ pub mod crawl_spider;
 pub mod crewai_bridge;
 pub mod daemon_control;
 pub mod dashboard_agent_state;
+pub mod dashboard_channel_catalog;
 pub mod dashboard_compat_api;
 pub mod dashboard_model_catalog;
 pub mod dashboard_release_update;

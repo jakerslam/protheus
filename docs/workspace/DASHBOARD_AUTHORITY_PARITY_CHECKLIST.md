@@ -138,6 +138,7 @@ Status legend:
 - Status: `PARTIAL`
 - Legacy family: channel registry + QR state readers/writers.
 - Migrated:
+  - Rust channel catalog authority in `core/layer0/ops/src/dashboard_channel_catalog.rs` with 40+ channel definitions.
   - Rust `/api/channels` compatibility endpoint.
   - Rust channel configure/test/delete handlers:
     - `POST /api/channels/:name/configure`
@@ -155,9 +156,23 @@ Status legend:
 - Gap: endpoint-level parity verification against all historical consumers still pending.
 
 12. Skills marketplace/ClawHub integration glue
-- Status: `PENDING`
+- Status: `PARTIAL`
 - Legacy family: cache/http wrappers + skills install metadata management.
-- Required Rust target: skills marketplace authority lane in core.
+- Migrated:
+  - Rust skills marketplace module: `core/layer0/ops/src/dashboard_skills_marketplace.rs`.
+  - Rust compatibility endpoints:
+    - `GET /api/skills`
+    - `POST /api/skills/create`
+    - `POST /api/skills/uninstall`
+    - `GET /api/mcp/servers`
+    - `GET /api/clawhub/browse`
+    - `GET /api/clawhub/search`
+    - `GET /api/clawhub/skill/:slug`
+    - `GET /api/clawhub/skill/:slug/code`
+    - `POST /api/clawhub/install`
+  - Persisted local dashboard skills state under:
+    - `client/runtime/local/state/ui/infring_dashboard/skills_registry.json`
+- Gap: remote ClawHub live API parity and skills-plane install/uninstall execution bridging remain.
 
 ## Immediate Migration Queue (next batches)
 
