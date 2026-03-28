@@ -302,6 +302,162 @@
     "client/runtime/systems/ui/openclaw_static/vendor/marked.min.js": {
       "bucket": "keep_public_client",
       "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/app.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/app.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/app.ts.parts/0003.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/app.ts.parts/0004.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts/0003.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0003.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0004.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0005.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0006.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0007.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0008.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0009.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0010.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0011.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0012.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0013.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0014.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0015.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0016.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0017.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0018.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0019.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0020.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0021.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts/0022.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts/0003.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/settings.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/settings.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/wizard.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/wizard.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/workflow-builder.ts.parts/0001.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/js/pages/workflow-builder.ts.parts/0002.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/openclaw_static/sw.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
     }
   }
 }
