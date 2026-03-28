@@ -6,19 +6,24 @@ use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
+use crate::dashboard_agent_state;
+use crate::dashboard_compat_api;
+use crate::dashboard_model_catalog;
+use crate::dashboard_terminal_broker;
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 4173;
 const DEFAULT_TEAM: &str = "ops";
 const DEFAULT_REFRESH_MS: u64 = 2000;
 const MAX_REQUEST_BYTES: usize = 2_000_000;
+const LOG_TAIL_MAX_READ_BYTES: usize = 256 * 1024;
 const STATE_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard";
 const ACTION_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/actions";
 const SNAPSHOT_LATEST_REL: &str =
@@ -29,6 +34,10 @@ const ACTION_LATEST_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/latest.json";
 const ACTION_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
+#[cfg(test)]
+const AGENT_PROFILES_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
+#[cfg(test)]
+const ARCHIVED_AGENTS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
 const RUNTIME_SYNC_MAX_BLOCKS: usize = 40;
 const RUNTIME_SYNC_WARN_DEPTH: i64 = 50;
 const RUNTIME_SYNC_BATCH_DEPTH: i64 = 75;
@@ -732,6 +741,16 @@ fn parse_json_loose(raw: &str) -> Option<Value> {
     None
 }
 
+fn read_json_file(path: &Path) -> Option<Value> {
+    let body = fs::read_to_string(path).ok()?;
+    parse_json_loose(&body)
+}
+
+fn read_cached_snapshot_component(root: &Path, key: &str) -> Option<Value> {
+    let snapshot = read_json_file(&root.join(SNAPSHOT_LATEST_REL))?;
+    snapshot.get(key).cloned()
+}
+
 fn run_lane(root: &Path, domain: &str, args: &[String]) -> LaneResult {
     let exe = match env::current_exe() {
         Ok(path) => path,
@@ -855,7 +874,33 @@ fn file_rows(
 }
 
 fn read_tail_lines(path: &Path, max_lines: usize) -> Vec<String> {
-    let raw = fs::read_to_string(path).unwrap_or_default();
+    let mut file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return Vec::new(),
+    };
+
+    let len = file.metadata().ok().map(|meta| meta.len()).unwrap_or(0);
+    if len == 0 {
+        return Vec::new();
+    }
+
+    let take = len.min(LOG_TAIL_MAX_READ_BYTES as u64);
+    if len > take {
+        let _ = file.seek(SeekFrom::End(-(take as i64)));
+    }
+
+    let mut buf = Vec::<u8>::with_capacity(take as usize);
+    if file.read_to_end(&mut buf).is_err() {
+        return Vec::new();
+    }
+
+    let mut raw = String::from_utf8_lossy(&buf).to_string();
+    if len > take {
+        if let Some((_, rest)) = raw.split_once('\n') {
+            raw = rest.to_string();
+        }
+    }
+
     raw.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
@@ -1351,44 +1396,63 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     } else {
         clean_text(&flags.team, 80)
     };
-    let health = run_lane(root, "health-status", &["dashboard".to_string()]);
-    let app = run_lane(
-        root,
-        "app-plane",
-        &["history".to_string(), "--app=chat-ui".to_string()],
-    );
-    let collab = run_lane(
-        root,
-        "collab-plane",
-        &["dashboard".to_string(), format!("--team={team}")],
-    );
-    let skills = run_lane(root, "skills-plane", &["dashboard".to_string()]);
+    let contract_enforcement = dashboard_agent_state::enforce_expired_contracts(root);
+    let app_payload = read_json_file(&root.join("core/local/state/ops/app_plane/latest.json"))
+        .or_else(|| read_cached_snapshot_component(root, "app"))
+        .unwrap_or_else(|| json!({}));
 
-    let health_payload = health.payload.unwrap_or_else(|| json!({}));
-    let app_payload = app.payload.unwrap_or_else(|| json!({}));
-    let collab_payload = collab.payload.unwrap_or_else(|| json!({}));
-    let skills_payload = skills.payload.unwrap_or_else(|| json!({}));
+    let mut collab_payload = read_json_file(
+        &root.join(format!("core/local/state/ops/collab_plane/dashboard/{team}.json")),
+    )
+    .map(|dashboard| {
+        json!({
+            "ok": true,
+            "type": "collab_plane_dashboard",
+            "dashboard": dashboard
+        })
+    })
+    .or_else(|| read_cached_snapshot_component(root, "collab"))
+    .unwrap_or_else(|| json!({}));
+    dashboard_agent_state::merge_profiles_into_collab(root, &mut collab_payload, &team);
+
+    let skills_payload = read_json_file(&root.join("core/local/state/ops/skills_plane/latest.json"))
+        .or_else(|| read_cached_snapshot_component(root, "skills"))
+        .unwrap_or_else(|| json!({}));
+
+    let health_payload = read_cached_snapshot_component(root, "health").unwrap_or_else(|| {
+        json!({
+            "ok": true,
+            "type": "health_status_dashboard_cache_fallback",
+            "checks": {},
+            "alerts": {},
+            "dashboard_metrics": {}
+        })
+    });
 
     let mut out = json!({
-        "ok": health.ok && app.ok && collab.ok && skills.ok,
+        "ok": true,
         "type": "infring_dashboard_snapshot",
         "ts": now_iso(),
         "metadata": {
             "root": root.to_string_lossy().to_string(),
             "team": team,
             "refresh_ms": flags.refresh_ms,
-            "authority": "rust_core_lanes",
-            "lanes": {
-                "health": health.argv.join(" "),
-                "app": app.argv.join(" "),
-                "collab": collab.argv.join(" "),
-                "skills": skills.argv.join(" ")
+            "authority": "rust_core_cached_runtime_state",
+            "sources": {
+                "app": "core/local/state/ops/app_plane/latest.json",
+                "collab": format!("core/local/state/ops/collab_plane/dashboard/{team}.json"),
+                "skills": "core/local/state/ops/skills_plane/latest.json",
+                "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health"
             }
         },
         "health": health_payload,
         "app": app_payload,
         "collab": collab_payload,
         "skills": skills_payload,
+        "agents": {
+            "session_summaries": dashboard_agent_state::session_summaries(root, 200),
+            "contract_enforcement": contract_enforcement
+        },
         "memory": {
             "entries": collect_memory_artifacts(root)
         },
@@ -1527,7 +1591,14 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     })),
                 };
             }
-            run_lane(
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "chat-ui-default-agent".to_string());
+            let lane = run_lane(
                 root,
                 "app-plane",
                 &[
@@ -1535,7 +1606,29 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     "--app=chat-ui".to_string(),
                     format!("--input={input}"),
                 ],
-            )
+            );
+            if lane.ok {
+                let assistant_text = lane
+                    .payload
+                    .as_ref()
+                    .and_then(|row| row.get("response").and_then(Value::as_str))
+                    .or_else(|| {
+                        lane.payload
+                            .as_ref()
+                            .and_then(|row| row.get("output").and_then(Value::as_str))
+                    })
+                    .or_else(|| {
+                        lane.payload.as_ref().and_then(|row| {
+                            row.get("turns")
+                                .and_then(Value::as_array)
+                                .and_then(|turns| turns.last())
+                                .and_then(|turn| turn.get("assistant").and_then(Value::as_str))
+                        })
+                    })
+                    .unwrap_or("");
+                let _ = dashboard_agent_state::append_turn(root, &agent_id, &input, assistant_text);
+            }
+            lane
         }
         "collab.launchRole" => {
             let team = payload
@@ -1614,6 +1707,503 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             )
         }
         "dashboard.benchmark" => run_lane(root, "health-status", &["dashboard".to_string()]),
+        "dashboard.models.catalog" => {
+            let runtime_flags = Flags {
+                mode: "snapshot".to_string(),
+                host: DEFAULT_HOST.to_string(),
+                port: DEFAULT_PORT,
+                team: DEFAULT_TEAM.to_string(),
+                refresh_ms: DEFAULT_REFRESH_MS,
+                pretty: false,
+            };
+            let snapshot = build_snapshot(root, &runtime_flags);
+            let result = dashboard_model_catalog::catalog_payload(root, &snapshot);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: 0,
+                argv: vec!["dashboard.models.catalog".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.model.routeDecision" => {
+            let runtime_flags = Flags {
+                mode: "snapshot".to_string(),
+                host: DEFAULT_HOST.to_string(),
+                port: DEFAULT_PORT,
+                team: DEFAULT_TEAM.to_string(),
+                refresh_ms: DEFAULT_REFRESH_MS,
+                pretty: false,
+            };
+            let snapshot = build_snapshot(root, &runtime_flags);
+            let result = dashboard_model_catalog::route_decision_payload(root, &snapshot, payload);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: 0,
+                argv: vec!["dashboard.model.routeDecision".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.terminal.session.create" => {
+            let result = dashboard_terminal_broker::create_session(root, payload);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.terminal.session.create".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.terminal.exec" => {
+            let result = dashboard_terminal_broker::exec_command(root, payload);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: result
+                    .get("exit_code")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                        0
+                    } else {
+                        2
+                    }) as i32,
+                argv: vec!["dashboard.terminal.exec".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.terminal.session.close" => {
+            let session_id = payload
+                .get("session_id")
+                .or_else(|| payload.get("sessionId"))
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_terminal_broker::close_session(root, &session_id);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.terminal.session.close".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.update.check" => {
+            let result = crate::dashboard_release_update::check_update(root);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.update.check".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.update.apply" => {
+            let result = crate::dashboard_release_update::apply_update(root);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.update.apply".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.runtime.executeSwarmRecommendation"
+        | "dashboard.runtime.applyTelemetryRemediations" => {
+            let team = payload
+                .get("team")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 60))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| DEFAULT_TEAM.to_string());
+            let action_key = if normalized == "dashboard.runtime.applyTelemetryRemediations" {
+                "apply_telemetry_remediations"
+            } else {
+                "execute_swarm_recommendation"
+            };
+            let runtime_flags = Flags {
+                mode: "runtime-sync".to_string(),
+                host: DEFAULT_HOST.to_string(),
+                port: DEFAULT_PORT,
+                team: team.clone(),
+                refresh_ms: DEFAULT_REFRESH_MS,
+                pretty: false,
+            };
+            let runtime = build_runtime_sync(root, &runtime_flags);
+            let summary = runtime
+                .get("summary")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            let queue_depth = i64_from_value(summary.get("queue_depth"), 0);
+            let target_conduit_signals = i64_from_value(summary.get("target_conduit_signals"), 4);
+            let conduit_scale_required = summary
+                .get("conduit_scale_required")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let mut launch_receipt = Value::Null;
+            if queue_depth >= RUNTIME_SYNC_DRAIN_TRIGGER_DEPTH {
+                let shadow = format!("{team}-drain-{}", Utc::now().timestamp_millis());
+                let launch = run_lane(
+                    root,
+                    "collab-plane",
+                    &[
+                        "launch-role".to_string(),
+                        format!("--team={team}"),
+                        "--role=analyst".to_string(),
+                        format!("--shadow={shadow}"),
+                    ],
+                );
+                launch_receipt = launch.payload.unwrap_or_else(|| {
+                    json!({
+                        "ok": launch.ok,
+                        "status": launch.status,
+                        "argv": launch.argv
+                    })
+                });
+            }
+            LaneResult {
+                ok: true,
+                status: 0,
+                argv: vec![
+                    normalized.clone(),
+                    format!("--team={team}"),
+                ],
+                payload: Some(json!({
+                    "ok": true,
+                    "type": "infring_dashboard_runtime_action",
+                    "action": action_key,
+                    "ts": now_iso(),
+                    "team": team,
+                    "queue_depth": queue_depth,
+                    "target_conduit_signals": target_conduit_signals,
+                    "conduit_scale_required": conduit_scale_required,
+                    "launch_receipt": launch_receipt
+                })),
+            }
+        }
+        "dashboard.agent.upsertProfile" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::upsert_profile(root, &agent_id, payload);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.upsertProfile".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.archive" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let reason = payload
+                .get("reason")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::archive_agent(root, &agent_id, &reason);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.archive".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.unarchive" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::unarchive_agent(root, &agent_id);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.unarchive".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.upsertContract" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::upsert_contract(root, &agent_id, payload);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.upsertContract".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.enforceContracts" => {
+            let result = dashboard_agent_state::enforce_expired_contracts(root);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: 0,
+                argv: vec!["dashboard.agent.enforceContracts".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.session.get" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::load_session(root, &agent_id);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.session.get".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.session.create" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let label = payload
+                .get("label")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 80))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::create_session(root, &agent_id, &label);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.session.create".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.session.switch" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let session_id = payload
+                .get("session_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("sessionId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::switch_session(root, &agent_id, &session_id);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.session.switch".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.session.delete" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let session_id = payload
+                .get("session_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("sessionId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::delete_session(root, &agent_id, &session_id);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.session.delete".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.session.appendTurn" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let user_text = payload
+                .get("user")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("input").and_then(Value::as_str))
+                .map(|v| clean_text(v, 2000))
+                .unwrap_or_default();
+            let assistant_text = payload
+                .get("assistant")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("response").and_then(Value::as_str))
+                .map(|v| clean_text(v, 4000))
+                .unwrap_or_default();
+            let result =
+                dashboard_agent_state::append_turn(root, &agent_id, &user_text, &assistant_text);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.session.appendTurn".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.memoryKv.set" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let key = payload
+                .get("key")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let value = payload.get("value").cloned().unwrap_or(Value::Null);
+            let result = dashboard_agent_state::memory_kv_set(root, &agent_id, &key, &value);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.memoryKv.set".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.memoryKv.get" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let key = payload
+                .get("key")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::memory_kv_get(root, &agent_id, &key);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.memoryKv.get".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.memoryKv.delete" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let key = payload
+                .get("key")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 120))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::memory_kv_delete(root, &agent_id, &key);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.memoryKv.delete".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.agent.suggestions" => {
+            let agent_id = payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("agentId").and_then(Value::as_str))
+                .map(|v| clean_text(v, 140))
+                .unwrap_or_default();
+            let user_hint = payload
+                .get("user_hint")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("hint").and_then(Value::as_str))
+                .map(|v| clean_text(v, 220))
+                .unwrap_or_default();
+            let result = dashboard_agent_state::suggestions(root, &agent_id, &user_hint);
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.agent.suggestions".to_string()],
+                payload: Some(result),
+            }
+        }
         _ => LaneResult {
             ok: false,
             status: 2,
@@ -2363,6 +2953,26 @@ fn handle_request(
         );
     }
 
+    if req.path.starts_with("/api/") {
+        let snapshot = latest_snapshot
+            .lock()
+            .ok()
+            .map(|v| v.clone())
+            .unwrap_or_else(|| build_snapshot(root, flags));
+        if let Some(response) =
+            dashboard_compat_api::handle(root, &req.method, &req.path, &req.body, &snapshot)
+        {
+            let body =
+                serde_json::to_string_pretty(&response.payload).unwrap_or_else(|_| "{}".to_string());
+            return write_response(
+                stream,
+                response.status,
+                "application/json; charset=utf-8",
+                body.as_bytes(),
+            );
+        }
+    }
+
     let out = json!({
         "ok": false,
         "type": "infring_dashboard_not_found",
@@ -2484,6 +3094,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn parse_flags_defaults() {
@@ -2524,5 +3135,269 @@ mod tests {
         assert_eq!(recommended_conduit_signals(5, 0.10, 1, 0), 4);
         assert!(recommended_conduit_signals(80, 0.70, 4, 120) >= 12);
         assert_eq!(recommended_conduit_signals(120, 0.95, 2, 0), 16);
+    }
+
+    #[test]
+    fn merge_profile_agents_adds_profile_rows_and_excludes_archived() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let profiles_path = root.path().join(AGENT_PROFILES_REL);
+        let archived_path = root.path().join(ARCHIVED_AGENTS_REL);
+        if let Some(parent) = profiles_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir profiles");
+        }
+        fs::write(
+            &profiles_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "infring_dashboard_agent_profiles",
+                "agents": {
+                    "runtime-a": { "role": "analyst", "updated_at": "2026-03-28T00:00:00Z" },
+                    "profile-b": { "role": "orchestrator", "updated_at": "2026-03-28T01:00:00Z" },
+                    "archived-c": { "role": "analyst", "updated_at": "2026-03-28T02:00:00Z" }
+                }
+            }))
+            .expect("json profiles"),
+        )
+        .expect("write profiles");
+        fs::write(
+            &archived_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "infring_dashboard_archived_agents",
+                "agents": {
+                    "archived-c": { "reason": "timeout" }
+                }
+            }))
+            .expect("json archived"),
+        )
+        .expect("write archived");
+
+        let mut collab = json!({
+            "ok": true,
+            "type": "collab_plane_dashboard",
+            "dashboard": {
+                "team": "ops",
+                "agents": [
+                    { "shadow": "runtime-a", "role": "analyst", "status": "running" }
+                ],
+                "tasks": [],
+                "handoff_history": []
+            }
+        });
+        dashboard_agent_state::merge_profiles_into_collab(root.path(), &mut collab, "ops");
+        let rows = collab
+            .get("dashboard")
+            .and_then(|v| v.get("agents"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let ids = rows
+            .iter()
+            .filter_map(|row| row.get("shadow").and_then(Value::as_str))
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+        assert!(ids.contains("runtime-a"));
+        assert!(ids.contains("profile-b"));
+        assert!(!ids.contains("archived-c"));
+    }
+
+    #[test]
+    fn runtime_apply_telemetry_remediations_action_is_rust_handled() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.runtime.applyTelemetryRemediations",
+            &json!({ "team": "ops" }),
+        );
+        assert!(lane.ok);
+        assert_eq!(lane.status, 0);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("infring_dashboard_runtime_action")
+        );
+        assert_eq!(
+            payload.get("action").and_then(Value::as_str),
+            Some("apply_telemetry_remediations")
+        );
+    }
+
+    #[test]
+    fn dashboard_agent_actions_round_trip_through_rust_authority() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let model_catalog = run_action(root.path(), "dashboard.models.catalog", &json!({}));
+        assert!(model_catalog.ok);
+        let route_decision = run_action(
+            root.path(),
+            "dashboard.model.routeDecision",
+            &json!({"task_type":"general","offline_required":false}),
+        );
+        assert!(route_decision.ok);
+        let terminal_create = run_action(
+            root.path(),
+            "dashboard.terminal.session.create",
+            &json!({"id":"term-test"}),
+        );
+        assert!(terminal_create.ok);
+        let terminal_exec = run_action(
+            root.path(),
+            "dashboard.terminal.exec",
+            &json!({"session_id":"term-test","command":"printf 'ok'"}),
+        );
+        assert!(terminal_exec.ok);
+        assert_eq!(
+            terminal_exec
+                .payload
+                .clone()
+                .unwrap_or_else(|| json!({}))
+                .get("stdout")
+                .and_then(Value::as_str),
+            Some("ok")
+        );
+        let terminal_close = run_action(
+            root.path(),
+            "dashboard.terminal.session.close",
+            &json!({"session_id":"term-test"}),
+        );
+        assert!(terminal_close.ok);
+        let upsert_profile = run_action(
+            root.path(),
+            "dashboard.agent.upsertProfile",
+            &json!({
+                "agent_id": "agent-a",
+                "role": "analyst",
+                "name": "Agent A"
+            }),
+        );
+        assert!(upsert_profile.ok);
+
+        let append_turn = run_action(
+            root.path(),
+            "dashboard.agent.session.appendTurn",
+            &json!({
+                "agent_id": "agent-a",
+                "user": "Can you reduce queue depth before spikes?",
+                "assistant": "Yes, running mitigation now."
+            }),
+        );
+        assert!(append_turn.ok);
+
+        let create_session = run_action(
+            root.path(),
+            "dashboard.agent.session.create",
+            &json!({
+                "agent_id": "agent-a",
+                "label": "Deep Work"
+            }),
+        );
+        assert!(create_session.ok);
+        let active_session = create_session
+            .payload
+            .clone()
+            .unwrap_or_else(|| json!({}))
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        assert!(!active_session.is_empty());
+
+        let switch_session = run_action(
+            root.path(),
+            "dashboard.agent.session.switch",
+            &json!({
+                "agent_id": "agent-a",
+                "session_id": active_session
+            }),
+        );
+        assert!(switch_session.ok);
+
+        let set_memory = run_action(
+            root.path(),
+            "dashboard.agent.memoryKv.set",
+            &json!({
+                "agent_id": "agent-a",
+                "key": "focus.topic",
+                "value": "reliability"
+            }),
+        );
+        assert!(set_memory.ok);
+
+        let get_memory = run_action(
+            root.path(),
+            "dashboard.agent.memoryKv.get",
+            &json!({
+                "agent_id": "agent-a",
+                "key": "focus.topic"
+            }),
+        );
+        assert!(get_memory.ok);
+        assert_eq!(
+            get_memory
+                .payload
+                .clone()
+                .unwrap_or_else(|| json!({}))
+                .get("value")
+                .and_then(Value::as_str),
+            Some("reliability")
+        );
+
+        let delete_memory = run_action(
+            root.path(),
+            "dashboard.agent.memoryKv.delete",
+            &json!({
+                "agent_id": "agent-a",
+                "key": "focus.topic"
+            }),
+        );
+        assert!(delete_memory.ok);
+
+        let suggestions = run_action(
+            root.path(),
+            "dashboard.agent.suggestions",
+            &json!({
+                "agent_id": "agent-a",
+                "hint": "\"Can you reduce queue depth before spikes?\""
+            }),
+        );
+        assert!(suggestions.ok);
+        let suggestion_rows = suggestions
+            .payload
+            .clone()
+            .unwrap_or_else(|| json!({}))
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(suggestion_rows.len() <= 3);
+        for row in suggestion_rows {
+            let text = row.as_str().unwrap_or("");
+            assert!(!text.contains('"'));
+            assert!(!text.contains('\''));
+        }
+
+        let upsert_contract = run_action(
+            root.path(),
+            "dashboard.agent.upsertContract",
+            &json!({
+                "agent_id": "agent-a",
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        assert!(upsert_contract.ok);
+        let enforce_contracts = run_action(
+            root.path(),
+            "dashboard.agent.enforceContracts",
+            &json!({}),
+        );
+        assert!(enforce_contracts.ok);
+        let terminated_rows = enforce_contracts
+            .payload
+            .clone()
+            .unwrap_or_else(|| json!({}))
+            .get("terminated")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!terminated_rows.is_empty());
     }
 }
