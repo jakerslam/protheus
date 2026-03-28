@@ -56,6 +56,10 @@ Status legend:
     - `dashboard.agent.upsertContract`
     - `dashboard.agent.enforceContracts`
   - Snapshot-time enforcement hook via `dashboard_agent_state::enforce_expired_contracts`.
+  - Contract reactivation guard in `upsert_contract`:
+    - lifecycle patch on previously-terminated contract auto-reactivates status
+    - clears stale termination markers
+    - resets creation timestamp to avoid immediate re-termination loops
 - Gap: full legacy lifecycle edge-cases (revival + advanced idle/quarantine policies) remain.
 
 5. Agent session persistence and per-agent memory KV
