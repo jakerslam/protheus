@@ -8,6 +8,10 @@ Primary authority: `core/layer0/ops/src/dashboard_ui.rs`
 
 This document is the canonical UI behavior contract for the InfRing dashboard so first-load UX and advanced controls do not regress during compaction, migration, or visual redesign.
 
+Related migration-era supplements:
+- `docs/workspace/INFRING_DASHBOARD_UI_SRS_SUPPLEMENT.md`
+- `docs/workspace/CLIENT_RUNTIME_SRS_SUPPLEMENT.md`
+
 ## Scope
 
 - Applies to default dashboard launch paths:

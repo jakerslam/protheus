@@ -1,6 +1,6 @@
 # TODO (Maintenance + Policy + SRS Execution Order)
 
-Updated: 2026-03-20 08:47 America/Denver
+Updated: 2026-03-27 17:36 America/Denver
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -21,6 +21,80 @@ Updated: 2026-03-20 08:47 America/Denver
 - `srs_full_regression`: `fail=0`, `warn=0`, `pass=2197`
 - `srs_top200_regression`: `fail=0`, `warn=0`, `pass=200`
 - `verify.sh`: `PASS`
+
+## Client -> Core Authority Migration Queue (Largest-First)
+- Snapshot command (non-vendor, non-minified, grouped by `.parts` unit):
+- `rg --files client | rg -v 'node_modules|\\.min\\.|vendor/' | rg '\\.(ts|tsx|js|jsx)$' | ... | sort -nr`
+- Migration contract for each queue item:
+- 1) move authority to `core/**` first
+- 2) keep client as thin wrapper/transport/UI only
+- 3) preserve behavior + receipts
+- 4) rebuild + targeted regression after each item
+- 5) no churn carryover between items
+
+| Rank | LOC | Unit | Class | Migration target |
+|---|---:|---|---|---|
+| 1 | 21874 | `client/runtime/systems/ui/infring_dashboard.js` | UI monolith | Decompose + remove authority from UI into Rust dashboard kernels |
+| 2 | 8668 | `client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts` | UI behavior surface | Move chat decision logic to core chat/dashboard lanes |
+| 3 | 1618 | `client/runtime/systems/ui/openclaw_static/js/app.ts.parts` | UI shell surface | Keep view wiring only; route all mutations to core |
+| 4 | 1061 | `client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts` | UI+agent orchestration surface | Move lifecycle authority to Rust agent/session kernel |
+| 5 | 955 | `client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts` | UI+automation surface | Move hands orchestration authority to core hands domain |
+| 6 | 933 | `client/runtime/systems/ui/infring_dashboard_client.tsx.parts` | UI client shell | Restrict to rendering + events only |
+| 7 | 729 | `client/runtime/systems/ui/openclaw_static/js/pages/settings.ts.parts` | UI settings surface | Move settings validation/default policy authority to core |
+| 8 | 684 | `client/cognition/shared/adaptive/sensory/eyes/collectors/collector_runtime.ts` | Runtime authority | Move collector scheduling/policy/state mutation to core |
+| 9 | 635 | `client/runtime/systems/ui/openclaw_static/js/pages/workflow-builder.ts.parts` | UI workflow surface | Move workflow compile/validate authority to core |
+| 10 | 582 | `client/runtime/systems/tools/assimilate.ts` | Tooling authority | Move target resolution/policy gating to Rust assimilation kernel |
+| 11 | 581 | `client/runtime/systems/ui/openclaw_static/js/pages/wizard.ts.parts` | UI init surface | Move init policy + defaults to core |
+| 12 | 513 | `client/cognition/shared/adaptive/sensory/eyes/collectors/github_repo.ts` | Collector authority | Move fetch policy/scoring/state writes to core |
+| 13 | 452 | `client/runtime/lib/rust_lane_bridge.js` | Bridge runtime | Keep bridge transport only; move fallback policy to core |
+| 14 | 393 | `client/runtime/systems/ui/openclaw_static/js/pages/scheduler.js` | UI scheduler | Move schedule semantics + mutations to core scheduler kernel |
+| 15 | 372 | `client/runtime/systems/autonomy/swarm_repl_demo.ts` | Swarm authority | Move orchestration logic to core swarm runtime |
+| 16 | 361 | `client/runtime/systems/conduit/conduit-client.ts` | Conduit authority | Move routing/decision logic to core conduit domain |
+| 17 | 356 | `client/cognition/shared/adaptive/sensory/eyes/collectors/conversation_eye.ts` | Collector authority | Move capture rules/state mutation to core |
+| 18 | 333 | `client/runtime/systems/ui/openclaw_static/js/pages/skills.js` | UI+skills surface | Move skill install/permission authority to core |
+| 19 | 318 | `client/runtime/systems/autonomy/swarm_sessions_bridge.ts` | Session authority | Move session-state authority to core session kernel |
+| 20 | 313 | `client/runtime/systems/ui/openclaw_static/js/api.js` | Client API shim | Keep transport only; route all policy to core |
+| 21 | 310 | `client/runtime/patches/websocket-client-patch.ts` | Reliability logic | Move reconnect/stream authority to Rust server/session lanes |
+| 22 | 309 | `client/runtime/systems/ui/openclaw_static/js/pages/channels.js` | Channel UI surface | Move channel lifecycle/auth authority to core channels |
+| 23 | 302 | `client/cognition/shared/adaptive/sensory/eyes/collectors/upwork_gigs.ts` | Collector authority | Move fetch/policy state writes to core |
+| 24 | 292 | `client/runtime/systems/ui/openclaw_static/js/pages/overview.js` | UI overview | Keep read-only rendering; no authority |
+| 25 | 289 | `client/runtime/systems/ui/openclaw_static/js/pages/usage.js` | UI usage | Keep read-only rendering; no authority |
+| 26 | 284 | `client/cognition/shared/adaptive/sensory/eyes/collectors/bird_x.ts` | Collector authority | Move fetch/policy state writes to core |
+| 27 | 274 | `client/runtime/systems/ops/rust_hotpath_inventory.ts` | Ops authority | Migrate inventory policy/evaluation logic to Rust |
+| 28 | 268 | `client/cognition/shared/adaptive/sensory/eyes/collectors/stock_market.ts` | Collector authority | Move fetch/policy state writes to core |
+| 29 | 268 | `client/cognition/orchestration/scratchpad.ts` | Orchestration authority | Keep thin wrapper; ensure full authority in core |
+| 30 | 267 | `client/runtime/lib/queued_backlog_runtime.js` | Backlog authority | Move all queue mutation logic to Rust kernel |
+| 31 | 266 | `client/runtime/systems/memory/policy_validator.ts` | Memory guard | Continue reducing to strict thin wrapper |
+| 32 | 265 | `client/runtime/lib/test_compactor_benchmark.ts` | Test/runtime helper | Keep test tooling only; no production authority |
+| 33 | 263 | `client/runtime/systems/ui/openclaw_static/js/pages/logs.js` | UI logs | Keep read-only rendering |
+| 34 | 262 | `client/cognition/shared/adaptive/sensory/eyes/collectors/moltstack_discover.ts` | Collector authority | Move fetch/policy state writes to core |
+| 35 | 258 | `client/runtime/patches/websocket-server-patch.ts` | Runtime reliability | Migrate server-side authority into Rust host |
+| 36 | 251 | `client/runtime/systems/ops/top50_roi_sweep.ts` | Ops authority | Migrate scoring/ranking authority to Rust ops domain |
+| 37 | 245 | `client/cognition/shared/adaptive/sensory/eyes/collectors/local_state_digest.ts` | Collector authority | Move digesting/scoring to core |
+| 38 | 240 | `client/runtime/systems/autonomy/swarm_orchestration_runtime.ts` | Swarm authority | Migrate orchestration decisions to core |
+| 39 | 226 | `client/runtime/lib/backlog_lane_cli.ts` | CLI authority | Keep as CLI wrapper only |
+| 40 | 222 | `client/cognition/orchestration/taskgroup.ts` | Orchestration authority | Keep thin wrapper; core owns state/mutations |
+
+### Queue status
+- `Q01` done: `security_layer_inventory_gate` moved to Rust core kernel.
+- `Q02` done: `rust_hotpath_inventory.ts` authority moved to Rust core kernel (`rust-hotpath-inventory-kernel`) with thin TS wrapper compatibility.
+- `Q03` done: `top50_roi_sweep.ts` authority moved to Rust core kernel (`top50-roi-sweep-kernel`) with thin TS wrapper compatibility.
+- `Q04` done: `assimilate.ts` authority moved to Rust core kernel (`assimilate-kernel`) with thin TS CLI wrapper compatibility.
+- `Q05` in progress: `conduit-client.ts` cryptographic signing + capability token + command envelope construction + stdio timeout transport policy resolution authority moved to Rust core kernel (`conduit-client-security-kernel` commands: `build-security`, `build-envelope`, `resolve-security-config`, `resolve-transport-policy`); client keeps raw socket/stdio transport mechanics only.
+- `Q06` in progress: `collector_runtime.ts` cadence/finalize state authority moved into `collector-runtime-kernel` (`prepare-run`, `finalize-run`), retry policy authority moved into Rust (`mark-failure` now derives retryability from canonical error code), and runtime control/default normalization authority moved into Rust (`resolve-controls`); client runtime keeps transport/extractor bridge only.
+- `Q07` in progress: `local_state_digest.ts` collector scoring/preflight/state-signal authority moved to Rust core kernel (`local-state-digest-kernel`); client module reduced to thin bridge wrapper.
+- `Q08` in progress: `github_repo.ts` auth-mode resolution + run-parameter normalization/mode selection + cadence/cache policy + PR risk scoring + item shaping moved to Rust core kernel (`github-repo-collector-kernel` commands include `resolve-run-params`); client module reduced to transport-only wrapper for GitHub HTTP fetch.
+- `Q09` in progress: `stock_market.ts` run orchestration/cadence/fetch-plan/finalize fallback-cache authority moved into Rust (`stock-market-collector-kernel` commands: `prepare-run`, `build-fetch-plan`, `finalize-run`); client module now executes kernel-defined plan + egress transport only.
+- `Q10` in progress: `upwork_gigs.ts` run orchestration/cadence/fetch-plan/finalize fallback-cache authority moved into Rust (`upwork-gigs-collector-kernel` commands: `prepare-run`, `build-fetch-plan`, `finalize-run`); client module now executes kernel-defined plan + egress transport only.
+- `Q11` in progress: `moltstack_discover.ts` preflight + fetch-plan + fetch-error fallback policy + post mapping/finalize authority moved to Rust core kernel (`moltstack-discover-collector-kernel` commands: `preflight`, `build-fetch-plan`, `classify-fetch-error`, `finalize-run`); client module reduced to egress transport + cache bridge wrapper.
+- `Q12` in progress: `bird_x.ts` run orchestration/cadence/meta/cache/fallback authority is now owned by Rust (`bird-x-collector-kernel` commands: `prepare-run`, `map-results`, `finalize-run`) with helper module support; client module reduced to Bird CLI transport/retry wrapper only.
+- `Q13` in progress: `conversation_eye.ts` node-quota/index/item/write batching authority moved to Rust core kernel (`conversation-eye-collector-kernel` commands: `process-nodes`, `append-memory-rows`); client module now focuses on callback orchestration inputs (`synthesizeEnvelope` + `processMemoryFiled`) and transport only.
+- `Q14` in progress: `collector_runtime.ts` legacy file mutation helper exports (`ensureDir`, `readJson`, `writeJson`, `appendJsonl`) removed from client surface; runtime authority remains constrained to transport/retry wrappers with Rust kernels owning policy/state.
+- `Q15` in progress: `github_repo.ts` endpoint selection/fetch planning authority moved to Rust core kernel (`build-repo-activity-fetch-plan`, `build-pr-review-fetch-plan`); client module now executes kernel-defined request plans as transport-only fetch wrapper.
+
+### SRS supplements (pre-regression hardening before deep migration)
+- Runtime supplement: `docs/workspace/CLIENT_RUNTIME_SRS_SUPPLEMENT.md`
+- Dashboard/UI supplement: `docs/workspace/INFRING_DASHBOARD_UI_SRS_SUPPLEMENT.md`
 
 ## Canonical actionable inventory mapping
 - Full per-item mapping (remaining work only): `local/workspace/reports/SRS_ACTIONABLE_MAP_CURRENT.md`

@@ -159,6 +159,76 @@ fn main() {
             let exit = protheus_ops_core::approval_gate_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "conduit-client-security-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::conduit_client_security_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "collector-runtime-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::collector_runtime_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "collector-state-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::collector_state_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "collector-content-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::collector_content_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "stock-market-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::stock_market_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "moltbook-hot-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::moltbook_hot_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "moltstack-discover-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::moltstack_discover_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "bird-x-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::bird_x_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "upwork-gigs-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::upwork_gigs_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "github-repo-collector-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::github_repo_collector_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "assimilate-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::assimilate_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "security-layer-inventory-gate-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::security_layer_inventory_gate_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "rust-hotpath-inventory-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::rust_hotpath_inventory_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "top50-roi-sweep-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::top50_roi_sweep_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "secret-broker-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::secret_broker_kernel::run(&cwd, &rest);
@@ -312,6 +382,11 @@ fn main() {
         "local-runtime-partitioner" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "local-state-digest-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::local_state_digest_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "strategy-store-kernel" => {
@@ -636,6 +711,16 @@ fn main() {
                 protheus_ops_core_v1::command_center_session::run
             );
         }
+        "command-list-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::command_list_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "coverage-badge-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::coverage_badge_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "organ-atrophy-controller" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::organ_atrophy_controller::run(&cwd, &rest);
@@ -806,6 +891,11 @@ fn main() {
             let exit = protheus_ops_core::protheusctl::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "protheusd-launcher-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::protheusd_launcher_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "rag" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::rag_cli::run(&cwd, &rest);
@@ -905,6 +995,13 @@ fn main() {
                 &cwd,
                 &args,
                 protheus_ops_core::conversation_eye_synthesizer_kernel::run
+            );
+        }
+        "conversation-eye-collector-kernel" => {
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::conversation_eye_collector_kernel::run
             );
         }
         "trainability-matrix-kernel" => {

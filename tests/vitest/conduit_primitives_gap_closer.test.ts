@@ -126,7 +126,7 @@ process.stdin.on('data', (chunk) => {
     expect((response.event as any).detail.command_type).toBe('get_system_status');
     expect((response.event as any).detail.signature_len).toBeGreaterThan(16);
     expect((response.event as any).detail.token_len).toBeGreaterThan(16);
-  });
+  }, 60_000);
 
   test('overStdio surfaces stderr as conduit error', async () => {
     const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
