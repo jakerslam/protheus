@@ -1,6 +1,6 @@
-import crypto from 'node:crypto';
 import net from 'node:net';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 export const CONDUIT_SCHEMA_ID = 'protheus_conduit';
 export const CONDUIT_SCHEMA_VERSION = '1.0';
@@ -129,6 +129,68 @@ type StdioTransportOptions = {
   timeoutMs?: number;
 };
 
+process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const conduitSecurityBridge = createOpsLaneBridge(
+  __dirname,
+  'conduit_client_security',
+  'conduit-client-security-kernel',
+);
+
+function parseLastJson(stdout: string): Record<string, unknown> | null {
+  const lines = String(stdout || '')
+    .trim()
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try {
+      return JSON.parse(lines[i]) as Record<string, unknown>;
+    } catch {}
+  }
+  return null;
+}
+
+function runConduitSecurityKernel(command: string, payload: Record<string, unknown>): Record<string, unknown> {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+  const out = conduitSecurityBridge.run([command, `--payload-base64=${encoded}`]);
+  const parsed =
+    out && out.payload && typeof out.payload === 'object'
+      ? (out.payload as Record<string, unknown>)
+      : parseLastJson(String((out && out.stdout) || ''));
+  const status = out && Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
+  if (!parsed || status !== 0 || parsed.ok !== true) {
+    throw new Error(`conduit_security_kernel_${command}_failed:${status}`);
+  }
+  return parsed.payload && typeof parsed.payload === 'object'
+    ? (parsed.payload as Record<string, unknown>)
+    : parsed;
+}
+
+function resolveSecurityConfigViaKernel(
+  override?: Partial<ConduitClientSecurityConfig>,
+): ConduitClientSecurityConfig {
+  return runConduitSecurityKernel('resolve-security-config', { override }) as ConduitClientSecurityConfig;
+}
+
+function resolveTransportPolicyViaKernel(timeoutMs?: number): { stdio_timeout_ms: number } {
+  const payload: Record<string, unknown> = {};
+  if (Number.isFinite(Number(timeoutMs)) && Number(timeoutMs) > 0) {
+    payload.timeout_ms = Math.floor(Number(timeoutMs));
+  }
+  return runConduitSecurityKernel('resolve-transport-policy', payload) as { stdio_timeout_ms: number };
+}
+
+function buildEnvelopeViaKernel(
+  request_id: string,
+  ts_ms: number,
+  command: TsCommand,
+  security: ConduitClientSecurityConfig,
+): CommandEnvelope {
+  const payload = { request_id, ts_ms, command, security };
+  return runConduitSecurityKernel('build-envelope', payload) as CommandEnvelope;
+}
+
 class UnixSocketTransport implements Transport {
   constructor(private readonly socketPath: string) {}
 
@@ -167,38 +229,37 @@ class StdioTransport implements Transport {
 
   constructor(command: string, args: string[] = [], cwd?: string, options: StdioTransportOptions = {}) {
     this.proc = spawn(command, args, { cwd, stdio: 'pipe' });
-    const override = Number(options.timeoutMs);
-    const configured = Number(
-      Number.isFinite(override) && override > 0
-        ? override
-        : process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
-      || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS
-      || 30000
-    );
+    // Prevent uncaught EPIPE events when child processes exit before accepting stdin writes.
+    this.proc.stdin.on('error', () => {});
+    const policy = resolveTransportPolicyViaKernel(options.timeoutMs);
+    const configured = Number(policy && policy.stdio_timeout_ms);
     this.timeoutMs = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 30000;
   }
 
   async sendLine(line: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let out = '';
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn();
+      };
       const onData = (chunk: string | Buffer) => {
         out += chunk.toString();
         if (out.includes('\n')) {
-          cleanup();
-          resolve(out.trim());
+          settle(() => resolve(out.trim()));
         }
       };
       const onErr = (chunk: string | Buffer) => {
-        cleanup();
-        reject(new Error(`conduit_stdio_error:${chunk.toString().trim()}`));
+        settle(() => reject(new Error(`conduit_stdio_error:${chunk.toString().trim()}`)));
       };
       const onExit = (code: number | null) => {
-        cleanup();
-        reject(new Error(`conduit_stdio_exit:${code ?? 'unknown'}`));
+        settle(() => reject(new Error(`conduit_stdio_exit:${code ?? 'unknown'}`)));
       };
       const timer = setTimeout(() => {
-        cleanup();
-        reject(new Error(`conduit_stdio_timeout:${this.timeoutMs}`));
+        settle(() => reject(new Error(`conduit_stdio_timeout:${this.timeoutMs}`)));
       }, this.timeoutMs);
       const cleanup = () => {
         clearTimeout(timer);
@@ -210,7 +271,20 @@ class StdioTransport implements Transport {
       this.proc.stdout.on('data', onData);
       this.proc.stderr.on('data', onErr);
       this.proc.once('exit', onExit);
-      this.proc.stdin.write(line.endsWith('\n') ? line : `${line}\n`);
+      if (this.proc.exitCode !== null || this.proc.stdin.destroyed || !this.proc.stdin.writable) {
+        settle(() => reject(new Error(`conduit_stdio_exit:${this.proc.exitCode ?? 'unknown'}`)));
+        return;
+      }
+      try {
+        this.proc.stdin.write(line.endsWith('\n') ? line : `${line}\n`, (error?: Error | null) => {
+          if (error) {
+            settle(() => reject(new Error(`conduit_stdio_exit:${error.message}`)));
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        settle(() => reject(new Error(`conduit_stdio_exit:${message}`)));
+      }
     });
   }
 
@@ -244,16 +318,7 @@ export class ConduitClient {
   async send(command: TsCommand, requestId?: string): Promise<ResponseEnvelope> {
     const ts_ms = Date.now();
     const request_id = requestId ?? `ts-${ts_ms}`;
-    const security = this.buildSecurity(request_id, ts_ms, command);
-
-    const envelope: CommandEnvelope = {
-      schema_id: CONDUIT_SCHEMA_ID,
-      schema_version: CONDUIT_SCHEMA_VERSION,
-      request_id,
-      ts_ms,
-      command,
-      security,
-    };
+    const envelope = buildEnvelopeViaKernel(request_id, ts_ms, command, this.security);
 
     const line = JSON.stringify(envelope);
     const raw = await this.transport.sendLine(line);
@@ -263,99 +328,10 @@ export class ConduitClient {
   async close(): Promise<void> {
     await this.transport.close();
   }
-
-  private buildSecurity(request_id: string, ts_ms: number, command: TsCommand): CommandSecurityMetadata {
-    const issued_at_ms = Date.now();
-    const capability = REQUIRED_SCOPES[command.type] ?? 'system.read';
-    const tokenPayload = {
-      token_id: `tok-${request_id}-${issued_at_ms}`,
-      subject: this.security.client_id,
-      capabilities: [capability],
-      issued_at_ms,
-      expires_at_ms: issued_at_ms + this.security.token_ttl_ms,
-    };
-
-    const tokenSignature = signValue(this.security.token_key_id, this.security.token_secret, tokenPayload);
-    const capability_token: CapabilityToken = {
-      ...tokenPayload,
-      signature: tokenSignature,
-    };
-
-    const nonce = `nonce-${request_id}-${issued_at_ms}`;
-    const signingPayload = {
-      schema_id: CONDUIT_SCHEMA_ID,
-      schema_version: CONDUIT_SCHEMA_VERSION,
-      request_id,
-      ts_ms,
-      command,
-      security: {
-        client_id: this.security.client_id,
-        key_id: this.security.signing_key_id,
-        nonce,
-        capability_token,
-      },
-    };
-
-    const signature = signValue(this.security.signing_key_id, this.security.signing_secret, signingPayload);
-
-    return {
-      client_id: this.security.client_id,
-      key_id: this.security.signing_key_id,
-      nonce,
-      signature,
-      capability_token,
-    };
-  }
 }
-
-const REQUIRED_SCOPES: Record<TsCommand['type'], string> = {
-  start_agent: 'agent.lifecycle',
-  stop_agent: 'agent.lifecycle',
-  query_receipt_chain: 'receipt.read',
-  list_active_agents: 'system.read',
-  get_system_status: 'system.read',
-  apply_policy_update: 'policy.update',
-  install_extension: 'extension.install',
-};
 
 function resolveSecurityConfig(
   override?: Partial<ConduitClientSecurityConfig>,
 ): ConduitClientSecurityConfig {
-  return {
-    client_id: override?.client_id ?? process.env.CONDUIT_CLIENT_ID ?? 'ts-surface',
-    signing_key_id:
-      override?.signing_key_id ?? process.env.CONDUIT_SIGNING_KEY_ID ?? 'conduit-msg-k1',
-    signing_secret:
-      override?.signing_secret ?? process.env.CONDUIT_SIGNING_SECRET ?? 'conduit-dev-signing-secret',
-    token_key_id: override?.token_key_id ?? process.env.CONDUIT_TOKEN_KEY_ID ?? 'conduit-token-k1',
-    token_secret: override?.token_secret ?? process.env.CONDUIT_TOKEN_SECRET ?? 'conduit-dev-token-secret',
-    token_ttl_ms: override?.token_ttl_ms ?? Number(process.env.CONDUIT_TOKEN_TTL_MS ?? 300000),
-  };
-}
-
-function signValue(keyId: string, secret: string, value: unknown): string {
-  const canonical = canonicalJson(value);
-  return crypto.createHash('sha256').update(`${keyId}:${secret}:${canonical}`).digest('hex');
-}
-
-function canonicalJson(value: unknown): string {
-  const normalized = normalizeValue(value);
-  return JSON.stringify(normalized);
-}
-
-function normalizeValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((row) => normalizeValue(row));
-  }
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-    const out: Record<string, unknown> = {};
-    for (const [key, row] of entries) {
-      out[key] = normalizeValue(row);
-    }
-    return out;
-  }
-  return value;
+  return resolveSecurityConfigViaKernel(override);
 }

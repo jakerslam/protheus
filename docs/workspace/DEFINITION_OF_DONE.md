@@ -25,6 +25,8 @@ An item may be marked `done` only if all checks are true:
 5. No conflict with unchecked TODO state for the same ID.
 6. Repository churn is reconciled for the touched scope: no unresolved delete+untracked move pairs (`npm run -s ops:churn:guard`).
 7. Touched source files comply with `docs/workspace/codex_enforcer.md` file-size caps, or include a valid time-bounded exception per policy.
+8. Touched source files comply with the language allowlist in `docs/workspace/codex_enforcer.md` (no authored JavaScript).
+9. Any new authority introduced by the change is implemented in `core/**` (client stays thin wrapper/UX only).
 
 ## Prohibited
 

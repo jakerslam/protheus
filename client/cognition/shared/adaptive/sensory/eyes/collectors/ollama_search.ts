@@ -1,6 +1,6 @@
 'use strict';
 
-const { runJsonCollector, cleanText } = require('./collector_runtime.ts');
+const { runJsonCollector } = require('./collector_runtime.ts');
 
 function parseArgs(argv = []) {
   const out = { force: false };
@@ -13,40 +13,6 @@ function parseArgs(argv = []) {
   return out;
 }
 
-function formatSizeBytes(bytes) {
-  const n = Number(bytes || 0);
-  if (!Number.isFinite(n) || n <= 0) return 'n/a';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let v = n;
-  let idx = 0;
-  while (v >= 1024 && idx < units.length - 1) {
-    v /= 1024;
-    idx += 1;
-  }
-  return `${v.toFixed(v >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`;
-}
-
-function extractOllamaModels(payload) {
-  const rows = Array.isArray(payload && payload.models) ? payload.models : [];
-  return rows.map((model) => {
-    const name = cleanText(model && (model.name || model.model), 200);
-    const url = name ? `https://ollama.com/library/${encodeURIComponent(String(name).split(':')[0])}` : '';
-    const modified = cleanText(model && model.modified_at, 120);
-    const size = Number(model && model.size);
-    return {
-      title: name,
-      url,
-      description: `Model ${name} (${formatSizeBytes(size)}) updated ${modified || 'unknown'}`,
-      signal: /(coder|reasoning|instruct|vision|multimodal|agent)/i.test(name),
-      signal_type: 'model_release',
-      topics: ['ai', 'llm', 'local_models', 'agents', 'edge_ai'],
-      tags: ['ollama', formatSizeBytes(size)],
-      published_at: modified,
-      bytes: Math.max(96, name.length + 48)
-    };
-  }).filter((row) => row.title && row.url);
-}
-
 async function run(options = {}) {
   const opts = options && typeof options === 'object' ? options : {};
   return runJsonCollector({
@@ -57,7 +23,6 @@ async function run(options = {}) {
     maxItems: Number(opts.maxItems || opts.max_items || 15),
     minHours: Number(opts.minHours || opts.min_hours || 8),
     force: opts.force === true,
-    extractor: extractOllamaModels,
     topics: Array.isArray(opts.topics) ? opts.topics : ['ai', 'llm', 'local_models', 'agents', 'edge_ai'],
     attempts: Number(opts.attempts || 3)
   });
@@ -93,6 +58,5 @@ if (require.main === module) {
 module.exports = {
   run,
   collectOllamaSearchNewest,
-  preflightOllamaSearch,
-  extractOllamaModels
+  preflightOllamaSearch
 };

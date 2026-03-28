@@ -25,6 +25,11 @@ For every incoming user prompt:
 - Authorized modification scope includes `core/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
+- No new authority may be introduced in `client/**`:
+  - Client code is wrapper/UX/integration only.
+  - Any new decision logic, policy logic, state mutation authority, or security-critical logic must land in `core/**`.
+  - If a task would place new authority in client, stop with:
+    - `BLOCKED — new authority in client is prohibited; move implementation to core`
 - Do not mark any item `done` unless acceptance criteria are proven by:
   - behavior tests,
   - integration tests,
@@ -63,6 +68,16 @@ Completion requires all of the following:
 - Keep user-flex surfaces (`habits`, `reflexes`, `eyes` user-specific paths) non-Rust by default unless explicitly approved.
 - Treat these TCB prefixes as Rust-authoritative migration targets: `client/runtime/systems/security/`, `client/runtime/systems/ops/`, `client/runtime/systems/memory/`, `client/runtime/systems/sensory/`, `client/runtime/systems/autonomy/`, `client/runtime/systems/assimilation/`.
 - Keep these surface prefixes TypeScript-first unless explicitly overridden: `client/runtime/systems/ui/`, `client/runtime/systems/marketplace/`, `client/runtime/systems/extensions/`.
+
+## Language Allowlist Rules (Mandatory)
+- Approved implementation languages are:
+  - Rust (`.rs`) for authority/runtime/core logic.
+  - TypeScript (`.ts`, `.tsx`) for client wrappers, UX surfaces, and dev/test tooling where Rust is not the execution host.
+- JavaScript is prohibited for authored code:
+  - Do not add or modify `.js`, `.jsx`, `.mjs`, or `.cjs` implementation files.
+  - The only permitted JavaScript changes are deletion/migration of existing legacy JS to Rust/TypeScript.
+- If a task requires introducing or editing authored JavaScript, stop with:
+  - `BLOCKED — JavaScript is excluded by language policy (migrate to Rust/TypeScript instead)`
 
 ## Behavior-Preserving Migration Rules
 - Preserve existing behavior unless a breaking change is explicitly requested.

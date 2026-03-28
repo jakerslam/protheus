@@ -4,6 +4,20 @@ pub(super) fn print_usage() {
     println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
     println!("  protheus-ops benchmark-autonomy-gate <run|status> [--strict=1|0]");
     println!("  protheus-ops approval-gate-kernel <status|queue|approve|deny|was-approved|parse-command|parse-yaml|replace> [flags]");
+    println!("  protheus-ops conduit-client-security-kernel <build-security|resolve-security-config> --payload-base64=<base64_json>");
+    println!("  protheus-ops collector-runtime-kernel <classify-error|resolve-controls|begin-collection|prepare-run|finalize-run|prepare-attempt|mark-success|mark-failure> --payload-base64=<base64_json>");
+    println!("  protheus-ops collector-state-kernel <meta-load|meta-save|cadence-check|cache-load|cache-save> --payload-base64=<base64_json>");
+    println!("  protheus-ops collector-content-kernel <extract-entries|extract-json-rows|map-feed-items|map-json-items> --payload-base64=<base64_json>");
+    println!("  protheus-ops stock-market-collector-kernel <prepare-run|build-fetch-plan|finalize-run|extract-quotes|map-quotes|fallback-indices|collect> --payload-base64=<base64_json>");
+    println!("  protheus-ops moltbook-hot-collector-kernel <preflight|classify-fetch-error|map-posts|collect> --payload-base64=<base64_json>");
+    println!("  protheus-ops moltstack-discover-collector-kernel <preflight|build-fetch-plan|classify-fetch-error|finalize-run|map-posts|collect> --payload-base64=<base64_json>");
+    println!("  protheus-ops bird-x-collector-kernel <preflight|prepare-run|map-results|finalize-run|collect> --payload-base64=<base64_json>");
+    println!("  protheus-ops upwork-gigs-collector-kernel <run|prepare-run|build-fetch-plan|finalize-run|parse-rss|map-gigs|fallback-gigs|collect> --payload-base64=<base64_json>");
+    println!("  protheus-ops github-repo-collector-kernel <run|resolve-run-params|resolve-auth|prepare-repo-activity|build-repo-activity-fetch-plan|finalize-repo-activity|collect-repo-activity|build-pr-review-fetch-plan|build-pr-review|collect-pr-review|file-risk-flags> --payload-base64=<base64_json>");
+    println!("  protheus-ops assimilate-kernel <target> [--json=1] [--showcase=1] [--duration-ms=<n>] [--scaffold-payload=1] [--target=<name>] [--core-domain=<domain>] [--core-args-base64=<base64_json_array>]");
+    println!("  protheus-ops security-layer-inventory-gate-kernel <run|status> [--strict=1|0] [--write=1|0]");
+    println!("  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]");
+    println!("  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]");
     println!("  protheus-ops passport-iteration-chain-kernel <record|status> [--payload-base64=<base64_json>]");
     println!("  protheus-ops egress-gateway-kernel <load-policy|load-state|authorize> [--payload-base64=<base64_json>]");
     println!("  protheus-ops adaptive-layer-store-kernel <paths|is-within-root|resolve-path|read-json|ensure-json|set-json|delete-path> [--payload-base64=<base64_json>]");
@@ -29,6 +43,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops action-envelope-kernel <create|classify|auto-classify|requires-approval|detect-irreversible|generate-id> [--payload-base64=<base64_json>]");
     println!("  protheus-ops action-receipts-kernel <now-iso|append-jsonl|with-receipt-contract|write-contract-receipt> [--payload-base64=<base64_json>]");
     println!("  protheus-ops conversation-eye-synthesizer-kernel <synthesize-envelope> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops conversation-eye-collector-kernel <begin-collection|preflight|load-source-rows|normalize-topics|load-index|apply-node|process-nodes|append-memory-row|append-memory-rows|save-index> [--payload-base64=<base64_json>]");
     println!("  protheus-ops trainability-matrix-kernel <default-policy|normalize-policy|load-policy|evaluate> [--payload-base64=<base64_json>]");
     println!("  protheus-ops dynamic-burn-budget-signal-kernel <normalize-pressure|pressure-rank|cost-pressure|load-signal> [--payload-base64=<base64_json>]");
     println!("  protheus-ops policy-runtime-kernel <deep-merge|resolve-policy-path|load-policy-runtime|resolve-policy-value-path> [--payload-base64=<base64_json>]");
@@ -65,6 +80,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops mutation-provenance-kernel <load-policy|normalize-meta|enforce|record-audit> [--payload-base64=<base64_json>]");
     println!("  protheus-ops ops-domain-conduit-runner-kernel <parse-argv|build-pass-args|build-run-options|prepare-run> [--payload-base64=<base64_json>]");
     println!("  protheus-ops local-runtime-partitioner <status|init|reset> [--workspace-root=<path>] [--confirm=RESET_LOCAL]");
+    println!("  protheus-ops local-state-digest-kernel <preflight|collect> [--payload-base64=<base64_json>]");
     println!("  protheus-ops strategy-store-kernel <paths|default-state|default-draft|normalize-mode|normalize-execution-mode|normalize-profile|validate-profile|normalize-queue-item|recommend-mode|read-state|ensure-state|set-state|upsert-profile|intake-signal|materialize-from-queue|touch-profile-usage|evaluate-gc-candidates|gc-profiles> [--payload-base64=<base64_json>]");
     println!("  protheus-ops habit-store-kernel <default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops reflex-store-kernel <default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
@@ -128,6 +144,8 @@ pub(super) fn print_usage() {
     println!("  protheus-ops dashboard-ui <serve|snapshot|status|runtime-sync> [--host=<ip>] [--port=<n>] [--team=<id>] [--refresh-ms=<n>]");
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|watchdog> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
+    println!("  protheus-ops command-list-kernel [--mode=<list|help>] [--json]");
+    println!("  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--out-json=<path>] [--out-badge=<path>]");
     println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
     println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");
     println!("  protheus-ops offsite-backup <sync|restore-drill|status|diagnose|list> [flags]");
@@ -166,6 +184,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops dopamine-ambient <closeout|status|evaluate> [flags]");
     println!("  protheus-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");
     println!("  protheus-ops protheusctl <command> [flags]");
+    println!("  protheus-ops protheusd-launcher-kernel gate [--payload-base64=<base64_json>]");
     println!("  protheus-ops rag <status|start|ingest|search|chat|merge-vault|memory> [flags]");
     println!("  protheus-ops personas-cli <command> [flags]");
     println!(
