@@ -365,8 +365,16 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
         .get(&id)
         .cloned()
         .unwrap_or_else(|| default_contract(&id));
+    let mut saw_status_patch = false;
+    let mut saw_lifecycle_patch = false;
     if let Some(obj) = patch.as_object() {
         for (key, value) in obj {
+            if matches!(
+                key.as_str(),
+                "mission" | "owner" | "termination_condition" | "expires_at" | "expiry_seconds"
+            ) {
+                saw_lifecycle_patch = true;
+            }
             if matches!(
                 key.as_str(),
                 "mission"
@@ -379,12 +387,36 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
             ) {
                 contract[key] = value.clone();
             }
+            if key == "status" {
+                saw_status_patch = true;
+            }
             if key == "expiry_seconds" {
                 contract["expiry_seconds"] = Value::from(parse_expiry_seconds(Some(value)));
             }
             if key == "auto_terminate_allowed" {
+                saw_lifecycle_patch = true;
                 contract["auto_terminate_allowed"] = Value::Bool(value.as_bool().unwrap_or(true));
             }
+        }
+    }
+    let existing_status = contract
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("active");
+    if !saw_status_patch && saw_lifecycle_patch && existing_status == "terminated" {
+        contract["status"] = Value::String("active".to_string());
+        contract["created_at"] = Value::String(now_iso());
+        contract["updated_at"] = Value::String(now_iso());
+        if !patch
+            .as_object()
+            .map(|obj| obj.contains_key("expires_at"))
+            .unwrap_or(false)
+        {
+            contract["expires_at"] = Value::String(String::new());
+        }
+        if let Some(obj) = contract.as_object_mut() {
+            obj.remove("terminated_at");
+            obj.remove("termination_reason");
         }
     }
     if contract.get("expiry_seconds").is_none() {
@@ -488,5 +520,59 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(!terminated.is_empty());
+    }
+
+    #[test]
+    fn upsert_lifecycle_reactivates_terminated_contract() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = upsert_contract(
+            root.path(),
+            "agent-revive",
+            &json!({
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        let terminated = enforce_expired_contracts(root.path());
+        assert!(
+            !terminated
+                .get("terminated")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .is_empty()
+        );
+
+        let reupsert = upsert_contract(
+            root.path(),
+            "agent-revive",
+            &json!({
+                "mission": "restart",
+                "expiry_seconds": 3600,
+                "auto_terminate_allowed": true
+            }),
+        );
+        assert_eq!(
+            reupsert
+                .get("contract")
+                .and_then(|v| v.get("status"))
+                .and_then(Value::as_str),
+            Some("active")
+        );
+        assert!(
+            reupsert
+                .get("contract")
+                .and_then(Value::as_object)
+                .map(|obj| !obj.contains_key("terminated_at"))
+                .unwrap_or(false)
+        );
+        let after = enforce_expired_contracts(root.path());
+        let rows = after
+            .get("terminated")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows.is_empty());
     }
 }
