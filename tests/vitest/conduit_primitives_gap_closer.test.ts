@@ -33,6 +33,9 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('infringd')).toBe(true);
     expect(source.includes('--repair')).toBe(true);
     expect(source.includes("'protheusd' is deprecated")).toBe(true);
+    expect(source.includes('persist_path_for_shell')).toBe(true);
+    expect(source.includes('PATH persisted in')).toBe(true);
+    expect(source.includes('activate now: .')).toBe(true);
   });
 
   test('install.ps1 exists and provisions Windows wrappers', () => {
