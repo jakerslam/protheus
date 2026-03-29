@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Value};
 use std::cmp::Ordering;
+#[cfg(test)]
 use std::fs;
 use std::path::Path;
 
+#[cfg(test)]
 const PROVIDER_REGISTRY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
 
@@ -26,12 +28,6 @@ fn parse_bool(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(Value::as_bool).unwrap_or(fallback)
 }
 
-fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-}
-
 #[cfg(test)]
 fn write_json(path: &Path, value: &Value) {
     if let Some(parent) = path.parent() {
@@ -46,15 +42,23 @@ fn write_json(path: &Path, value: &Value) {
 struct ModelRow {
     provider: String,
     model: String,
+    display_name: String,
     specialty: String,
     specialty_tags: Vec<String>,
     is_local: bool,
+    supports_chat: bool,
     needs_key: bool,
     auth_status: String,
+    reachable: bool,
     power_signal: i64,
     cost_signal: i64,
     param_count_billion: i64,
     context_size: i64,
+    deployment_kind: String,
+    local_download_path: String,
+    download_available: bool,
+    max_output_tokens: i64,
+    tier: String,
 }
 
 fn scale_to_five(value: i64, min: i64, max: i64) -> i64 {
@@ -66,20 +70,14 @@ fn scale_to_five(value: i64, min: i64, max: i64) -> i64 {
 }
 
 fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
-    let registry = read_json(&root.join(PROVIDER_REGISTRY_REL)).unwrap_or_else(|| json!({}));
-    let providers = registry
-        .get("providers")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
     let mut rows = Vec::<ModelRow>::new();
-
-    for provider_row in providers.values() {
+    for provider_row in crate::dashboard_provider_runtime::provider_rows(root, snapshot) {
         let provider = clean_text(provider_row.get("id").and_then(Value::as_str).unwrap_or(""), 80);
         if provider.is_empty() {
             continue;
         }
         let is_provider_local = parse_bool(provider_row.get("is_local"), false);
+        let supports_chat = parse_bool(provider_row.get("supports_chat"), false);
         let needs_key = parse_bool(provider_row.get("needs_key"), false);
         let auth_status = clean_text(
             provider_row
@@ -88,6 +86,7 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
                 .unwrap_or("unknown"),
             40,
         );
+        let reachable = parse_bool(provider_row.get("reachable"), false);
 
         let profiles = provider_row
             .get("model_profiles")
@@ -138,12 +137,15 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
                     .get("local_download_path")
                     .and_then(Value::as_str)
                     .unwrap_or(""),
-                240,
+                400,
             );
-            let is_local = is_provider_local
-                || deployment_kind.contains("local")
+            let download_available = parse_bool(profile.get("download_available"), false)
+                || !local_download_path.is_empty()
                 || deployment_kind.contains("ollama")
-                || !local_download_path.is_empty();
+                || deployment_kind.contains("local");
+            let max_output_tokens = parse_i64(profile.get("max_output_tokens"), 0).max(0);
+            let is_local =
+                is_provider_local || deployment_kind.contains("local") || deployment_kind.contains("ollama");
             let power_signal = parse_i64(profile.get("power_rating"), 0).max(0).max(
                 if param_count_billion > 0 {
                     ((param_count_billion as f64).log10() * 2.0).round() as i64
@@ -156,18 +158,40 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
             } else {
                 0
             });
+            let tier = clean_text(
+                profile
+                    .get("tier")
+                    .or_else(|| profile.get("specialty"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("general"),
+                40,
+            );
             rows.push(ModelRow {
                 provider: provider.clone(),
                 model,
+                display_name: clean_text(
+                    profile
+                        .get("display_name")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    160,
+                ),
                 specialty,
                 specialty_tags,
                 is_local,
+                supports_chat,
                 needs_key,
                 auth_status: auth_status.clone(),
+                reachable,
                 power_signal,
                 cost_signal,
                 param_count_billion,
                 context_size,
+                deployment_kind,
+                local_download_path,
+                download_available,
+                max_output_tokens,
+                tier,
             });
         }
     }
@@ -191,15 +215,23 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
             rows.push(ModelRow {
                 provider,
                 model,
+                display_name: String::new(),
                 specialty: "general".to_string(),
                 specialty_tags: vec!["general".to_string()],
                 is_local: false,
+                supports_chat: false,
                 needs_key: false,
                 auth_status: "unknown".to_string(),
+                reachable: false,
                 power_signal: 3,
                 cost_signal: 3,
                 param_count_billion: 0,
                 context_size: 0,
+                deployment_kind: "api".to_string(),
+                local_download_path: String::new(),
+                download_available: false,
+                max_output_tokens: 0,
+                tier: "general".to_string(),
             });
         }
     }
@@ -218,20 +250,51 @@ pub fn catalog_payload(root: &Path, snapshot: &Value) -> Value {
     let mut models = rows
         .into_iter()
         .map(|row| {
+            let power_rating = scale_to_five(row.power_signal, power_min, power_max);
+            let cost_rating = scale_to_five(row.cost_signal, cost_min, cost_max);
+            let context_rating = scale_to_five(row.context_size, context_min, context_max);
+            let available = row.supports_chat
+                && if row.is_local {
+                    row.reachable
+                } else {
+                    !row.needs_key
+                        || row.reachable
+                        || crate::dashboard_provider_runtime::auth_status_configured(&row.auth_status)
+                };
+            let display_name = if row.display_name.is_empty() {
+                row.model.clone()
+            } else {
+                row.display_name.clone()
+            };
             json!({
-                "id": format!("{}:{}", row.provider, row.model),
+                "id": format!("{}/{}", row.provider, row.model),
                 "provider": row.provider,
                 "model": row.model,
+                "model_name": row.model,
+                "runtime_model": row.model,
+                "display_name": display_name,
                 "is_local": row.is_local,
+                "supports_chat": row.supports_chat,
+                "available": available,
+                "reachable": row.reachable,
                 "specialty": row.specialty,
                 "specialty_tags": row.specialty_tags,
+                "tier": row.tier,
                 "params_billion": row.param_count_billion,
                 "context_size": row.context_size,
-                "power_scale": scale_to_five(row.power_signal, power_min, power_max),
-                "cost_scale": scale_to_five(row.cost_signal, cost_min, cost_max),
-                "context_scale": scale_to_five(row.context_size, context_min, context_max),
+                "context_window": row.context_size,
+                "context_window_tokens": row.context_size,
+                "power_scale": power_rating,
+                "power_rating": power_rating,
+                "cost_scale": cost_rating,
+                "cost_rating": cost_rating,
+                "context_scale": context_rating,
                 "needs_key": row.needs_key,
-                "auth_status": row.auth_status
+                "auth_status": row.auth_status,
+                "deployment_kind": row.deployment_kind,
+                "local_download_path": row.local_download_path,
+                "download_available": row.download_available,
+                "max_output_tokens": row.max_output_tokens
             })
         })
         .collect::<Vec<_>>();
@@ -245,6 +308,66 @@ pub fn catalog_payload(root: &Path, snapshot: &Value) -> Value {
             )
     });
     json!({"ok": true, "models": models})
+}
+
+pub fn model_ref_available(root: &Path, snapshot: &Value, provider_id: &str, model_name: &str) -> bool {
+    let provider = clean_text(provider_id, 80).to_ascii_lowercase();
+    let model = clean_text(model_name, 240);
+    if provider.is_empty() || model.is_empty() {
+        return false;
+    }
+    catalog_payload(root, snapshot)
+        .get("models")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter().any(|row| {
+                clean_text(row.get("provider").and_then(Value::as_str).unwrap_or(""), 80)
+                    .eq_ignore_ascii_case(&provider)
+                    && clean_text(row.get("model").and_then(Value::as_str).unwrap_or(""), 240)
+                        == model
+                    && parse_bool(row.get("available"), false)
+            })
+        })
+        .unwrap_or(false)
+}
+
+pub fn resolve_model_selection(
+    root: &Path,
+    snapshot: &Value,
+    preferred_provider: &str,
+    preferred_model: &str,
+    request: &Value,
+) -> (String, String, Option<Value>) {
+    let provider = clean_text(preferred_provider, 80);
+    let model = clean_text(preferred_model, 240);
+    let needs_route = provider.is_empty()
+        || provider.eq_ignore_ascii_case("auto")
+        || model.is_empty()
+        || model.eq_ignore_ascii_case("auto")
+        || !model_ref_available(root, snapshot, &provider, &model);
+    if !needs_route {
+        return (provider, model, None);
+    }
+
+    let route = route_decision_payload(root, snapshot, request);
+    let routed_provider = clean_text(
+        route.pointer("/route/provider")
+            .or_else(|| route.pointer("/selected/provider"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let routed_model = clean_text(
+        route.pointer("/route/model")
+            .or_else(|| route.pointer("/selected/model"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    );
+    if routed_provider.is_empty() || routed_model.is_empty() {
+        return (provider, model, None);
+    }
+    (routed_provider, routed_model, Some(route))
 }
 
 pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
@@ -298,10 +421,30 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
 
     let selected = rows.first().cloned().unwrap_or_else(|| json!({}));
     let top = rows.into_iter().take(5).collect::<Vec<_>>();
+    let route = json!({
+        "provider": selected.get("provider").cloned().unwrap_or_else(|| json!("")),
+        "model": selected.get("model").cloned().unwrap_or_else(|| json!("")),
+        "model_id": selected.get("id").cloned().unwrap_or_else(|| json!("")),
+        "selected_provider": selected.get("provider").cloned().unwrap_or_else(|| json!("")),
+        "selected_model": selected.get("model").cloned().unwrap_or_else(|| json!("")),
+        "selected_model_id": selected.get("id").cloned().unwrap_or_else(|| json!("")),
+        "context_window": selected
+            .get("context_window")
+            .cloned()
+            .unwrap_or_else(|| json!(0)),
+        "context_window_tokens": selected
+            .get("context_window_tokens")
+            .cloned()
+            .unwrap_or_else(|| json!(0))
+    });
     json!({
         "ok": true,
         "type": "dashboard_model_route_decision",
         "selected": selected,
+        "route": route,
+        "selected_provider": selected.get("provider").cloned().unwrap_or_else(|| json!("")),
+        "selected_model": selected.get("model").cloned().unwrap_or_else(|| json!("")),
+        "selected_model_id": selected.get("id").cloned().unwrap_or_else(|| json!("")),
         "candidates": top,
         "input": {
             "prefer_local": prefer_local,
@@ -319,6 +462,9 @@ fn route_score(
     task_type: &str,
     budget_mode: &str,
 ) -> f64 {
+    if !parse_bool(row.get("available"), true) {
+        return -1000.0;
+    }
     let power = parse_i64(row.get("power_scale"), 3) as f64;
     let cost = parse_i64(row.get("cost_scale"), 3) as f64;
     let context = parse_i64(row.get("context_scale"), 3) as f64;
@@ -343,7 +489,7 @@ fn route_score(
     if prefer_local {
         score += if is_local { 4.0 } else { -4.0 };
     }
-    if needs_key && auth_status != "set" && auth_status != "ok" {
+    if needs_key && !crate::dashboard_provider_runtime::auth_status_configured(&auth_status) {
         score -= 1.5;
     }
     score
@@ -387,13 +533,20 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert_eq!(rows.len(), 2);
+        assert!(rows.len() >= 2);
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str) == Some("openai/gpt-5")
+        }));
         assert!(rows
             .iter()
             .all(|row| parse_i64(row.get("power_scale"), 0) >= 1 && parse_i64(row.get("power_scale"), 0) <= 5));
         assert!(rows.iter().any(|row| {
             row.get("provider").and_then(Value::as_str) == Some("ollama")
                 && row.get("is_local").and_then(Value::as_bool) == Some(true)
+        }));
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str) == Some("ollama/qwen2.5-coder:7b")
+                && row.get("available").and_then(Value::as_bool) == Some(true)
         }));
     }
 
@@ -437,5 +590,48 @@ mod tests {
                 .and_then(Value::as_str),
             Some("ollama")
         );
+    }
+
+    #[test]
+    fn hosted_download_stub_stays_unavailable_without_chat_backend() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_json(
+            &root.path().join(PROVIDER_REGISTRY_REL),
+            &json!({
+                "providers": {
+                    "cohere": {
+                        "id": "cohere",
+                        "display_name": "Cohere",
+                        "is_local": false,
+                        "needs_key": true,
+                        "auth_status": "not_set",
+                        "reachable": false,
+                        "model_profiles": {
+                            "command-r": {
+                                "power_rating": 3,
+                                "cost_rating": 3,
+                                "deployment_kind": "api",
+                                "local_download_path": "/tmp/cohere/command-r",
+                                "download_available": true
+                            }
+                        }
+                    }
+                }
+            }),
+        );
+        let catalog = catalog_payload(root.path(), &json!({"ok": true}));
+        let row = catalog
+            .get("models")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("id").and_then(Value::as_str) == Some("cohere/command-r")
+                })
+            })
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("is_local").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("supports_chat").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("available").and_then(Value::as_bool), Some(false));
     }
 }

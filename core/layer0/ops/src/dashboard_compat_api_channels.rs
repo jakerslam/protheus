@@ -57,10 +57,7 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
 }
 
 fn parse_non_negative_i64(value: Option<&Value>, fallback: i64) -> i64 {
-    value
-        .and_then(Value::as_i64)
-        .unwrap_or(fallback)
-        .max(0)
+    value.and_then(Value::as_i64).unwrap_or(fallback).max(0)
 }
 
 fn now_ms() -> i64 {
@@ -122,13 +119,21 @@ fn channel_rows(state: &Value) -> Vec<Value> {
         .map(|obj| obj.values().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
     rows.sort_by(|a, b| {
-        clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 80)
-            .cmp(&clean_text(b.get("name").and_then(Value::as_str).unwrap_or(""), 80))
+        clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 80).cmp(&clean_text(
+            b.get("name").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
     });
     rows.into_iter()
         .map(|mut row| {
-            let configured = row.get("configured").and_then(Value::as_bool).unwrap_or(false);
-            let has_token = row.get("has_token").and_then(Value::as_bool).unwrap_or(false);
+            let configured = row
+                .get("configured")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let has_token = row
+                .get("has_token")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             row["connected"] = Value::Bool(configured && has_token);
             row
         })
@@ -172,8 +177,8 @@ fn apply_channel_config(channel: &mut Value, fields: &Map<String, Value>) {
     channel["config"] = Value::Object(saved.clone());
     if let Some(fields_rows) = channel.get_mut("fields").and_then(Value::as_array_mut) {
         for row in fields_rows.iter_mut() {
-            let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 80)
-                .to_lowercase();
+            let key =
+                clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 80).to_lowercase();
             if key.is_empty() {
                 continue;
             }
@@ -317,7 +322,10 @@ fn whatsapp_qr_status(root: &Path) -> CompatApiResponse {
     if age_ms > 5 * 60 * 1000 {
         row["expired"] = Value::Bool(true);
     }
-    let connected = row.get("connected").and_then(Value::as_bool).unwrap_or(false);
+    let connected = row
+        .get("connected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let expired = row.get("expired").and_then(Value::as_bool).unwrap_or(false);
     save_qr_state(root, qr);
     CompatApiResponse {
@@ -336,7 +344,12 @@ pub fn channels_payload(root: &Path) -> Value {
     json!({"ok": true, "channels": channel_rows(&state)})
 }
 
-pub fn handle(root: &Path, method: &str, path_only: &str, body: &[u8]) -> Option<CompatApiResponse> {
+pub fn handle(
+    root: &Path,
+    method: &str,
+    path_only: &str,
+    body: &[u8],
+) -> Option<CompatApiResponse> {
     if method == "GET" {
         return match path_only {
             "/api/channels" => Some(CompatApiResponse {

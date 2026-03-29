@@ -123,7 +123,9 @@ fn default_tags() -> Vec<Value> {
 
 fn normalize_skill_row(mut row: Value, fallback_name: &str, source: Value) -> Value {
     let name = clean_text(
-        row.get("name").and_then(Value::as_str).unwrap_or(fallback_name),
+        row.get("name")
+            .and_then(Value::as_str)
+            .unwrap_or(fallback_name),
         120,
     );
     row["name"] = Value::String(name.clone());
@@ -138,7 +140,9 @@ fn normalize_skill_row(mut row: Value, fallback_name: &str, source: Value) -> Va
         40,
     ));
     row["author"] = Value::String(clean_text(
-        row.get("author").and_then(Value::as_str).unwrap_or("Unknown"),
+        row.get("author")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown"),
         120,
     ));
     row["runtime"] = Value::String(clean_text(
@@ -162,7 +166,8 @@ fn normalize_skill_row(mut row: Value, fallback_name: &str, source: Value) -> Va
 }
 
 fn installed_from_core(root: &Path) -> Vec<Value> {
-    let registry = read_json(&state_path(root, CORE_SKILLS_REGISTRY_REL)).unwrap_or_else(|| json!({}));
+    let registry =
+        read_json(&state_path(root, CORE_SKILLS_REGISTRY_REL)).unwrap_or_else(|| json!({}));
     let installed = registry
         .get("installed")
         .and_then(Value::as_object)
@@ -179,8 +184,10 @@ fn installed_from_core(root: &Path) -> Vec<Value> {
         })
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| {
-        clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 120)
-            .cmp(&clean_text(b.get("name").and_then(Value::as_str).unwrap_or(""), 120))
+        clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 120).cmp(&clean_text(
+            b.get("name").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ))
     });
     rows
 }
@@ -241,7 +248,11 @@ fn paginate(mut rows: Vec<Value>, query: &Map<String, Value>) -> Value {
     if cursor >= rows.len() {
         rows.clear();
     } else {
-        rows = rows.into_iter().skip(cursor).take(limit).collect::<Vec<_>>();
+        rows = rows
+            .into_iter()
+            .skip(cursor)
+            .take(limit)
+            .collect::<Vec<_>>();
     }
     let next = cursor.saturating_add(limit);
     json!({
@@ -261,13 +272,41 @@ fn mcp_servers_payload(snapshot: &Value) -> Value {
         .cloned()
         .unwrap_or_else(|| json!([]));
     if raw.get("configured").is_some() && raw.get("connected").is_some() {
-        return raw;
+        let configured = raw
+            .get("configured")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let connected = raw
+            .get("connected")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut servers = connected.clone();
+        servers.extend(configured.clone());
+        let total_configured = raw
+            .get("total_configured")
+            .and_then(Value::as_u64)
+            .unwrap_or(configured.len() as u64);
+        let total_connected = raw
+            .get("total_connected")
+            .and_then(Value::as_u64)
+            .unwrap_or(connected.len() as u64);
+        return json!({
+            "configured": configured,
+            "connected": connected,
+            "servers": servers,
+            "total_configured": total_configured,
+            "total_connected": total_connected
+        });
     }
     let rows = raw.as_array().cloned().unwrap_or_default();
     let connected = rows
         .iter()
         .filter(|row| {
-            row.get("connected").and_then(Value::as_bool).unwrap_or(false)
+            row.get("connected")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
                 || row
                     .get("status")
                     .and_then(Value::as_str)
@@ -279,7 +318,9 @@ fn mcp_servers_payload(snapshot: &Value) -> Value {
     let configured = rows
         .iter()
         .filter(|row| {
-            !row.get("connected").and_then(Value::as_bool).unwrap_or(false)
+            !row.get("connected")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
                 && !row
                     .get("status")
                     .and_then(Value::as_str)
@@ -291,6 +332,7 @@ fn mcp_servers_payload(snapshot: &Value) -> Value {
     json!({
         "configured": configured,
         "connected": connected,
+        "servers": rows,
         "total_configured": configured.len(),
         "total_connected": connected.len()
     })
@@ -310,11 +352,14 @@ fn browse_payload(path: &str) -> Value {
     rows.sort_by(|a, b| match sort.as_str() {
         "downloads" => parse_u64(b.get("downloads"), 0).cmp(&parse_u64(a.get("downloads"), 0)),
         "stars" => parse_u64(b.get("stars"), 0).cmp(&parse_u64(a.get("stars"), 0)),
-        "updated" => clean_text(b.get("updated_at").and_then(Value::as_str).unwrap_or(""), 40)
-            .cmp(&clean_text(
-                a.get("updated_at").and_then(Value::as_str).unwrap_or(""),
-                40,
-            )),
+        "updated" => clean_text(
+            b.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .cmp(&clean_text(
+            a.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )),
         _ => {
             let score_a = parse_u64(a.get("downloads"), 0) + (parse_u64(a.get("stars"), 0) * 4);
             let score_b = parse_u64(b.get("downloads"), 0) + (parse_u64(b.get("stars"), 0) * 4);
@@ -356,10 +401,9 @@ fn search_payload(path: &str) -> Value {
 fn detail_payload(root: &Path, slug: &str) -> CompatApiResponse {
     let normalized = normalize_name(slug);
     let rows = marketplace_catalog();
-    let Some(mut detail) = rows
-        .into_iter()
-        .find(|row| normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == normalized)
-    else {
+    let Some(mut detail) = rows.into_iter().find(|row| {
+        normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == normalized
+    }) else {
         return CompatApiResponse {
             status: 404,
             payload: json!({"ok": false, "error": "skill_not_found"}),
@@ -384,10 +428,9 @@ fn detail_payload(root: &Path, slug: &str) -> CompatApiResponse {
 fn detail_code_payload(slug: &str) -> CompatApiResponse {
     let normalized = normalize_name(slug);
     let rows = marketplace_catalog();
-    let Some(detail) = rows
-        .into_iter()
-        .find(|row| normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == normalized)
-    else {
+    let Some(detail) = rows.into_iter().find(|row| {
+        normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == normalized
+    }) else {
         return CompatApiResponse {
             status: 404,
             payload: json!({"ok": false, "error": "skill_not_found"}),
@@ -428,9 +471,10 @@ fn install_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
             payload: json!({"ok": false, "error": "slug_required"}),
         };
     }
-    let Some(skill) = marketplace_catalog().into_iter().find(|row| {
-        normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == slug
-    }) else {
+    let Some(skill) = marketplace_catalog()
+        .into_iter()
+        .find(|row| normalize_name(row.get("slug").and_then(Value::as_str).unwrap_or("")) == slug)
+    else {
         return CompatApiResponse {
             status: 404,
             payload: json!({"ok": false, "error": "skill_not_found"}),
@@ -590,8 +634,14 @@ mod tests {
     #[test]
     fn browse_and_search_are_paginated() {
         let root = tempfile::tempdir().expect("tempdir");
-        let browse = handle(root.path(), "GET", "/api/clawhub/browse?sort=downloads&limit=5", &json!({}), &[])
-            .expect("browse");
+        let browse = handle(
+            root.path(),
+            "GET",
+            "/api/clawhub/browse?sort=downloads&limit=5",
+            &json!({}),
+            &[],
+        )
+        .expect("browse");
         let rows = browse
             .payload
             .get("items")
@@ -599,8 +649,14 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert_eq!(rows.len(), 5);
-        let search = handle(root.path(), "GET", "/api/clawhub/search?q=router&limit=10", &json!({}), &[])
-            .expect("search");
+        let search = handle(
+            root.path(),
+            "GET",
+            "/api/clawhub/search?q=router&limit=10",
+            &json!({}),
+            &[],
+        )
+        .expect("search");
         let search_rows = search
             .payload
             .get("items")
@@ -682,6 +738,13 @@ mod tests {
         assert_eq!(
             out.payload.get("total_configured").and_then(Value::as_u64),
             Some(1)
+        );
+        assert_eq!(
+            out.payload
+                .get("servers")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
         );
     }
 }

@@ -9487,13 +9487,10 @@ Notes:
   - Layer `2`: live aggregation, replay, and dashboard-state orchestration
   - `client`/`app`: dashboard UI and command surfaces only, non-authoritative
 - Implementation update (2026-03-20):
-  - Rust-core dashboard host lane is authoritative at `core/layer0/ops/src/dashboard_ui.rs` (`protheus-ops dashboard-ui <serve|snapshot|status>`), and default CLI launch routes to core host (`infring dashboard`, `infring status --dashboard`); legacy Node host remains explicit opt-in via `--node-ui`.
+  - Rust-core dashboard authority remains API-only at `core/layer0/ops/src/dashboard_ui.rs` (`protheus-ops dashboard-ui <serve|snapshot|status>`), while the default CLI launch routes the browser UI through `client/runtime/systems/ui/infring_dashboard.ts`.
   - Daemon startup path now supports dashboard auto-boot/open flags (`infringd start|restart --dashboard-autoboot=1|0 --dashboard-open=1|0 --dashboard-host=<ip> --dashboard-port=<n>`), with deterministic start/status/stop receipts and health probe contract (`/healthz`).
-  - Chat-first shell is now the default first-load mode: advanced controls hidden by default, top-left light/dark switch, chat composer at primary focus, and quick actions (`New Agent`, `New Swarm`, `Assimilate Codex`, `Run Benchmark`, `Open Controls`, `Swarm Tab`).
-  - Advanced controls are accessible via side pane tabs (`Swarm`, `Audit`, `Ops`, `Settings`) with first-class `Swarm / Agent Management` surface and deterministic UI action receipts for pane/tab interactions.
-  - Keyboard affordance contract is active (`Enter` send, `Esc` close controls, `Cmd/Ctrl+K` focus chat) with persisted UI state keys (`infring_dashboard_*`) for theme/drawer/tab.
+  - The browser shell is the unified OpenClaw-derived dashboard: top bar, left rail, multi-page control surfaces, chat/session controls, approvals, workflows, analytics, logs, scheduler, and settings wired to Rust-backed APIs.
   - Compatibility hardening remains mandatory: dashboard must keep operating through local inline shell + lane-backed snapshot/action APIs even when external ESM/CDN loading paths fail.
-  - Canonical UI behavior and regression smoke profile is defined in `docs/workspace/INFRING_DASHBOARD_UI_SPEC.md`.
 
 Objective: deliver a unified control-plane dashboard that combines agent/scope visibility, live graphing, memory exploration, marketplace operations, logs/receipts, channel monitoring, and APM in one receipt-first surface.
 
@@ -9510,32 +9507,6 @@ Objective: deliver a unified control-plane dashboard that combines agent/scope v
 | V6-DASHBOARD-001.9 | done | Settings + Governance Control Contract | Safety and operator trust degrade unless global and per-agent controls are explicit, scoped, and auditable. | Add global/per-agent/per-channel settings editors (model, budgets, permissions, memory scope, safety toggles) with strict policy gating and deterministic config-change receipts. | 9 | 0/1/2/client/app |
 | V6-DASHBOARD-001.10 | done | Performance + Reliability Envelope Contract | Dashboard value collapses if UX latency, startup, mobile usability, and offline behavior are inconsistent. | Enforce non-functional targets for load/update latency, WebSocket-first realtime updates, offline cache behavior, mobile responsiveness, and fail-closed conduit-only execution paths. | 10 | 0/1/2/client/app |
 
-## Simplified First-Load Dashboard Extension Intake (Docs `1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k` + `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-20)
-
-Source references:
-- https://docs.google.com/document/d/1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k/edit?usp=sharing
-- https://docs.google.com/document/d/1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU/edit?usp=sharing
-
-Notes:
-- Normalization: adds a focused UX extension family `V6-DASHBOARD-006.*` for first-load cognitive simplicity while preserving full advanced controls in the existing dashboard authority model.
-- Primitive-first constraint: no new authority plane is introduced; all mutating UI actions remain conduit-routed and receipt-backed through existing lane dispatch paths.
-- Relationship to existing contracts:
-  - complements (does not replace) `V6-DASHBOARD-001.*` broad surface contracts,
-  - strengthens first-load usability and discoverability expectations for non-operator users,
-  - keeps advanced controls accessible in one-click collapsible pane with deterministic action receipts.
-
-Objective: default dashboard boot to a clean Infring-style chat interface, with all advanced control surfaces hidden in a collapsible side pane by default.
-
-| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
-| --- | --- | --- | --- | --- | --- | --- |
-| V6-DASHBOARD-006.1 | in_progress | Default Boot State: Minimal Chat UI | First impressions degrade when operators are dropped into dense control surfaces instead of familiar chat-first interaction. | First load shows full-width chat surface with top bar, top-left light/dark switch, mode/status hint, message stream, input composer, typing/status affordances, and no advanced pane visible by default. | 10 | 1/2/client/app |
-| V6-DASHBOARD-006.2 | in_progress | Collapsible Side Pane for Advanced Controls | Power features must stay available without overwhelming first-time users. | Side pane is hidden by default, opens/closes via top-bar control with slide behavior, keeps `Chat` + `Swarm / Agent Management` first, and exposes simple accordion panes (`Chat`, `Swarm / Agent Management`, `Runtime Health`, `Receipts & Audit`, `Logs`, `Settings`) with persisted drawer + pane state in local storage. | 10 | 1/2/client/app |
-| V6-DASHBOARD-006.3 | in_progress | Non-Overwhelming Onboarding + Quick Actions | Users need clear immediate affordances to start using the system without reading internal docs. | First-load guidance and chat placeholder are visible, with quick actions from chat view for `New Agent`, `New Swarm`, `Assimilate Codex`, `Run Benchmark`, `Open Controls`, and `Swarm Tab`. | 9 | 1/2/client/app |
-| V6-DASHBOARD-006.4 | in_progress | Simple Visual Polish + Performance Envelope | Minimal interfaces still fail if they are janky, inaccessible, or visually noisy. | Chat-first mode remains responsive/mobile-safe with reduced-motion friendly transitions, standard light/dark palettes (no premium/neon dependency), keyboard affordances (`Enter`, `Esc`, `Cmd/Ctrl+K`), fallback-safe rendering, and deterministic receipt trails for core UI interactions (`dashboard.ui.toggleControls`, `dashboard.ui.toggleSection`, `dashboard.ui.switchControlsTab`). | 9 | 1/2/client/app |
-
-Regression-proof note:
-- Any dashboard UX/control-plane behavior change that affects first-load experience, controls drawer semantics, quick actions, or keyboard flows must update `docs/workspace/INFRING_DASHBOARD_UI_SPEC.md` in the same change.
-
 ## Dashboard Runtime Resilience Extension Intake (Ops-Analyst Feedback, 2026-03-22)
 
 Source references:
@@ -9545,7 +9516,7 @@ Notes:
 - Normalization: adds focused runtime resilience family `V6-DASHBOARD-007.*` for queue, conduit, and cockpit root-control hardening.
 - Primitive-first constraint: preserves conduit-routed authority and deterministic receipt flow while adding ingress/backpressure, deferred-queue, and swarm-drain automation controls.
 - Relationship to existing contracts:
-  - extends `V6-DASHBOARD-001.*` and `V6-DASHBOARD-006.*` runtime supervision surfaces,
+  - extends `V6-DASHBOARD-001.*` runtime supervision surfaces,
   - reinforces `V6-SWARM-*`, `V6-COCKPIT-*`, and `V6-OPS-001.*` under sustained queue pressure,
   - adds deterministic policy metadata for dashboard-chat runtime decisions.
 
@@ -9593,7 +9564,7 @@ Source references:
 Notes:
 - Primitive-first normalization: no new authority plane; only rendering semantics + startup resilience wrappers around existing Rust-core lanes.
 - Relationship to existing contracts:
-  - extends dashboard UX surfaces in `V6-DASHBOARD-006.*`,
+  - extends dashboard UX surfaces in `V6-DASHBOARD-001.*`,
   - complements runtime resilience in `V6-DASHBOARD-007.*`,
   - preserves thin-client constraint by keeping runtime authority in lane-backed endpoints.
 

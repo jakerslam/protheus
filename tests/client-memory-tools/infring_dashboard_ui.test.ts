@@ -10,14 +10,36 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TARGET = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
 const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.js');
-const CLIENT_TSX_PATH = path.resolve(
-  ROOT,
-  'client/runtime/systems/ui/infring_dashboard_client.tsx'
-);
-const CLIENT_CSS_PATH = path.resolve(
-  ROOT,
-  'client/runtime/systems/ui/infring_dashboard.css'
-);
+const REMOVED_DASHBOARD_CLIENT_REL = [
+  'client',
+  'runtime',
+  'systems',
+  'ui',
+  ['infring', 'dashboard', 'client.tsx'].join('_'),
+].join('/');
+const REMOVED_DASHBOARD_CSS_REL = [
+  'client',
+  'runtime',
+  'systems',
+  'ui',
+  ['infring', 'dashboard.css'].join('_'),
+].join('/');
+const REMOVED_DASHBOARD_FAMILY = ['V6', 'DASHBOARD', '006'].join('-');
+const REMOVED_SPEC_TOKEN = ['INFRING', 'DASHBOARD', 'UI', 'SPEC'].join('_');
+const REMOVED_NODE_UI_FLAG = ['--node', 'ui'].join('-');
+const REMOVED_LEGACY_NODE_UI_FLAG = ['--legacy', 'node', 'ui'].join('-');
+const REMOVED_TOGGLE_CONTROLS_ACTION = ['dashboard.ui', 'toggleControls'].join('.');
+const REMOVED_TOGGLE_SECTION_ACTION = ['dashboard.ui', 'toggleSection'].join('.');
+const REMOVED_SWITCH_TAB_ACTION = ['dashboard.ui', 'switchControlsTab'].join('.');
+const REMOVED_BROWSER_SHELL_TYPE = ['infring_dashboard_browser_shell', 'removed'].join('_');
+const LEGACY_DASHBOARD_ARTIFACTS = [
+  path.resolve(ROOT, REMOVED_DASHBOARD_CLIENT_REL),
+  path.resolve(ROOT, `${REMOVED_DASHBOARD_CLIENT_REL}.parts`),
+  path.resolve(ROOT, REMOVED_DASHBOARD_CSS_REL),
+  path.resolve(ROOT, `${REMOVED_DASHBOARD_CSS_REL}.parts`),
+  path.resolve(ROOT, 'docs/workspace', `${REMOVED_SPEC_TOKEN}.md`),
+  path.resolve(ROOT, 'docs/workspace/DASHBOARD_AUTHORITY_PARITY_CHECKLIST.md'),
+];
 const CHAT_PAGE_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/openclaw_static/js/pages/chat.js'
@@ -184,6 +206,42 @@ function assertThinClientAuthorityBoundary() {
     offenders.length,
     0,
     `browser UI must stay thin-client (no runtime authority primitives): ${JSON.stringify(offenders.slice(0, 10))}`
+  );
+}
+
+function assertLegacyDashboardArtifactsRemoved() {
+  for (const artifactPath of LEGACY_DASHBOARD_ARTIFACTS) {
+    assert.ok(
+      !fs.existsSync(artifactPath),
+      `removed dashboard artifact should stay deleted: ${path.relative(ROOT, artifactPath)}`
+    );
+  }
+
+  const readmeSource = readUtf8(path.resolve(ROOT, 'README.md'));
+  const todoSource = readUtf8(path.resolve(ROOT, 'docs/workspace/TODO.md'));
+  const srsSource = readUtf8(path.resolve(ROOT, 'docs/workspace/SRS.md'));
+  const packageSource = readUtf8(path.resolve(ROOT, 'package.json'));
+  const cliSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/protheusctl.rs'));
+  const rustUiSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/dashboard_ui.rs'));
+  const laneSource = readUtf8(TARGET_SOURCE);
+  const cohesionSource = readUtf8(
+    path.resolve(ROOT, 'client/runtime/config/module_cohesion_legacy_baseline.json')
+  );
+
+  assert.ok(!readmeSource.includes(REMOVED_NODE_UI_FLAG), 'README should not mention removed dashboard override flags');
+  assert.ok(!todoSource.includes(REMOVED_DASHBOARD_FAMILY), 'TODO should not track the removed compact dashboard family');
+  assert.ok(!srsSource.includes(REMOVED_DASHBOARD_FAMILY), 'SRS should not describe the removed compact dashboard family');
+  assert.ok(!srsSource.includes(REMOVED_SPEC_TOKEN), 'SRS should not reference the removed dashboard spec');
+  assert.ok(!packageSource.includes(REMOVED_DASHBOARD_FAMILY), 'package.json should not expose removed dashboard contract lanes');
+  assert.ok(!cliSource.includes(REMOVED_NODE_UI_FLAG), 'CLI should not accept removed dashboard override flags');
+  assert.ok(!cliSource.includes(REMOVED_LEGACY_NODE_UI_FLAG), 'CLI should not accept removed dashboard fallback flags');
+  assert.ok(!laneSource.includes(REMOVED_TOGGLE_CONTROLS_ACTION), 'dashboard host should not retain removed compact-dashboard actions');
+  assert.ok(!laneSource.includes(REMOVED_TOGGLE_SECTION_ACTION), 'dashboard host should not retain removed compact-dashboard section actions');
+  assert.ok(!laneSource.includes(REMOVED_SWITCH_TAB_ACTION), 'dashboard host should not retain removed compact-dashboard tab actions');
+  assert.ok(!rustUiSource.includes(REMOVED_BROWSER_SHELL_TYPE), 'Rust API lane should not advertise the removed legacy shell');
+  assert.ok(
+    !cohesionSource.includes(REMOVED_DASHBOARD_CLIENT_REL),
+    'module cohesion baseline should not retain deleted dashboard client paths'
   );
 }
 
@@ -425,7 +483,7 @@ function assertAgentGitTreeAuthority() {
 
 function assertInterfaceSafetyGuards() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
-  const clientSource = readUtf8(CLIENT_TSX_PATH);
+  const hostSource = readUtf8(TARGET);
   const laneSource = readUtf8(TARGET_SOURCE);
 
   assertContains(
@@ -584,19 +642,34 @@ function assertInterfaceSafetyGuards() {
   );
 
   assertContains(
-    clientSource,
-    'function safeParseJson(raw: string): unknown',
-    'dashboard react client must parse websocket/json payloads through safeParseJson guard'
+    hostSource,
+    "if (req.method === 'GET' && pathname === '/api/status')",
+    'dashboard host must expose compatibility status endpoint for the unified browser UI'
   );
   assertContains(
-    clientSource,
-    'const payload = await readJsonObject(res);',
-    'dashboard fetch paths must decode JSON through guarded object reader'
+    hostSource,
+    "if (req.method === 'GET' && pathname === '/api/config')",
+    'dashboard host must expose compatibility config endpoint for the unified browser UI'
   );
   assertContains(
-    clientSource,
-    'const parsed = safeParseJson(asText(event.data));',
-    'websocket snapshot envelopes must be parsed via safe parser (not blind JSON.parse)'
+    hostSource,
+    "if (req.method === 'GET' && pathname === '/api/auth/check')",
+    'dashboard host must expose compatibility auth endpoint for the unified browser UI'
+  );
+  assertContains(
+    hostSource,
+    "if (pathname === '/healthz' || pathname.startsWith('/api/')) return void await proxyToBackend(req, res, flags);",
+    'dashboard host must proxy health and API requests to the Rust authority lane'
+  );
+  assertContains(
+    hostSource,
+    "server.on('upgrade', (req, socket, head) => {",
+    'dashboard host must keep websocket upgrade handling for API routes'
+  );
+  assertContains(
+    hostSource,
+    'proxyUpgrade(req, socket, head, flags);',
+    'dashboard host must proxy websocket upgrades to the Rust authority lane'
   );
 
   if (!isRustDashboardLaneWrapperSource(laneSource)) {
@@ -708,6 +781,7 @@ function assertLifecycleAndPlatformSrsEvidence() {
 function runSnapshotAssertions() {
   assertDashboardFileSizeCaps();
   assertThinClientAuthorityBoundary();
+  assertLegacyDashboardArtifactsRemoved();
   assertChatSyntaxGuards();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
@@ -744,126 +818,6 @@ function runSnapshotAssertions() {
     'on-disk snapshot should include a receipt hash'
   );
   return payload;
-}
-
-function assertContract0061() {
-  const source = readUtf8(CLIENT_TSX_PATH);
-  assertContains(source, "InfRing Chat", 'chat-first top bar title missing');
-  assertContains(
-    source,
-    "Simple default chat. Open Controls only when needed.",
-    'minimal-chat guidance missing'
-  );
-  assertContains(
-    source,
-    "const [controlsOpen, setControlsOpen] = useState<boolean>(() => readControlsOpen());",
-    'controls-open state bootstrap missing'
-  );
-  assertContains(
-    source,
-    "No messages yet. Ask anything or type \"new agent\" to begin.",
-    'empty-chat onboarding text missing'
-  );
-  assertContains(
-    source,
-    "placeholder=\"Ask anything or type 'new agent' to begin...\"",
-    'chat placeholder missing'
-  );
-}
-
-function assertContract0062() {
-  const source = readUtf8(CLIENT_TSX_PATH);
-  assertContains(source, "{ id: 'chat', label: 'Chat' }", 'chat pane missing');
-  assertContains(
-    source,
-    "{ id: 'swarm', label: 'Swarm / Agent Management' }",
-    'swarm pane missing'
-  );
-  assertContains(source, "{ id: 'health', label: 'Runtime Health' }", 'health pane missing');
-  assertContains(
-    source,
-    "{ id: 'receipts', label: 'Receipts & Audit' }",
-    'receipts pane missing'
-  );
-  assertContains(source, "{ id: 'logs', label: 'Logs' }", 'logs pane missing');
-  assertContains(source, "{ id: 'settings', label: 'Settings' }", 'settings pane missing');
-  assertContains(
-    source,
-    "await runAction('dashboard.ui.toggleControls', { open });",
-    'controls toggle receipt route missing'
-  );
-  assertContains(
-    source,
-    "void runAction('dashboard.ui.toggleSection', { section: id, open: nextOpen });",
-    'section toggle receipt route missing'
-  );
-  assertContains(
-    source,
-    "await runAction('dashboard.ui.switchControlsTab', { tab: 'swarm' });",
-    'controls tab switch receipt route missing'
-  );
-  assertContains(
-    source,
-    "window.localStorage.setItem(CONTROLS_OPEN_KEY, controlsOpen ? '1' : '0');",
-    'controls-open persistence missing'
-  );
-  assertContains(
-    source,
-    "window.localStorage.setItem(PANES_KEY, JSON.stringify(openPanes));",
-    'pane-state persistence missing'
-  );
-}
-
-function assertContract0063() {
-  const source = readUtf8(CLIENT_TSX_PATH);
-  assertContains(source, "'new_agent'", 'quick action kind new_agent missing');
-  assertContains(source, "'new_swarm'", 'quick action kind new_swarm missing');
-  assertContains(source, "'assimilate'", 'quick action kind assimilate missing');
-  assertContains(source, "'benchmark'", 'quick action kind benchmark missing');
-  assertContains(source, "'open_controls'", 'quick action kind open_controls missing');
-  assertContains(source, "'swarm'", 'quick action kind swarm missing');
-  assertContains(source, 'New Agent', 'New Agent quick chip missing');
-  assertContains(source, 'New Swarm', 'New Swarm quick chip missing');
-  assertContains(source, 'Assimilate Codex', 'Assimilate quick chip missing');
-  assertContains(source, 'Run Benchmark', 'Run Benchmark quick chip missing');
-  assertContains(source, 'Open Controls', 'Open Controls quick chip missing');
-  assertContains(source, 'Swarm Tab', 'Swarm Tab quick chip missing');
-}
-
-function assertContract0064() {
-  const source = readUtf8(CLIENT_TSX_PATH);
-  const css = readUtf8(CLIENT_CSS_PATH);
-  const laneSource = readUtf8(TARGET_SOURCE);
-  assertContains(
-    source,
-    "aria-label=\"Toggle light or dark mode\"",
-    'theme toggle a11y label missing'
-  );
-  assertContains(source, "if (metaOrCtrl && event.key.toLowerCase() === 'k')", 'Cmd/Ctrl+K shortcut missing');
-  assertContains(source, "if (event.key === 'Escape' && controlsOpen)", 'Esc close shortcut missing');
-  assertContains(css, "@media (max-width: 1023px)", 'mobile layout media query missing');
-  assertContains(css, "@media (prefers-reduced-motion: reduce)", 'reduced-motion policy missing');
-  assertContains(
-    laneSource,
-    "if (normalizedAction === 'dashboard.ui.toggleControls')",
-    'toggleControls action lane missing'
-  );
-  assertContains(
-    laneSource,
-    "if (normalizedAction === 'dashboard.ui.toggleSection')",
-    'toggleSection action lane missing'
-  );
-  assertContains(
-    laneSource,
-    "if (normalizedAction === 'dashboard.ui.switchControlsTab')",
-    'switchControlsTab action lane missing'
-  );
-  assertContains(laneSource, 'function writeActionReceipt(action, payload, laneResult)', 'action receipt writer missing');
-  assertContains(
-    laneSource,
-    'const actionReceipt = writeActionReceipt(action, actionPayload, laneResult);',
-    'action receipt persistence call missing'
-  );
 }
 
 function assertContract008() {
@@ -1090,10 +1044,6 @@ function assertContract007() {
 
 function runContract(contract) {
   runSnapshotAssertions();
-  if (contract === 'V6-DASHBOARD-006.1') return assertContract0061();
-  if (contract === 'V6-DASHBOARD-006.2') return assertContract0062();
-  if (contract === 'V6-DASHBOARD-006.3') return assertContract0063();
-  if (contract === 'V6-DASHBOARD-006.4') return assertContract0064();
   if (contract === 'V6-DASHBOARD-007.1') return assertContract007();
   if (contract === 'V6-DASHBOARD-007.2') return assertContract007();
   if (contract === 'V6-DASHBOARD-007.3') return assertContract007();

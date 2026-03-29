@@ -253,6 +253,34 @@ fn split_stream_chunks(message: &str) -> Vec<String> {
     chunks
 }
 
+fn chat_ui_history_messages(session: &Value) -> Vec<Value> {
+    session
+        .get("turns")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|turn| {
+            let mut rows = Vec::<Value>::new();
+            let user = clean(
+                turn.get("user").and_then(Value::as_str).unwrap_or(""),
+                16_000,
+            );
+            if !user.is_empty() {
+                rows.push(json!({"role": "user", "text": user}));
+            }
+            let assistant = clean(
+                turn.get("assistant").and_then(Value::as_str).unwrap_or(""),
+                16_000,
+            );
+            if !assistant.is_empty() {
+                rows.push(json!({"role": "assistant", "text": assistant}));
+            }
+            rows
+        })
+        .collect::<Vec<_>>()
+}
+
 fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &str) -> Value {
     let _contract = load_json_or(
         root,
@@ -447,7 +475,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         json!({
             "version": "v1",
             "kind": "chat_ui_contract",
-            "providers": ["openai", "anthropic", "grok", "bedrock", "minimax"],
+            "providers": ["openai", "anthropic", "google", "gemini", "groq", "deepseek", "openrouter", "xai", "ollama", "claude-code"],
             "default_provider": "openai",
             "default_model": "gpt-5"
         }),
@@ -649,15 +677,64 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             "errors": ["chat_ui_message_required"]
         });
     }
-    let assistant = format!("[{provider}/{model}] {}", message);
+    let mut selected_provider = provider.clone();
+    let mut selected_model = model.clone();
+    let (resolved_provider, resolved_model, _) =
+        crate::dashboard_model_catalog::resolve_model_selection(
+            root,
+            &json!({
+                "app": {
+                    "settings": {
+                        "provider": settings.get("provider").cloned().unwrap_or_else(|| json!(provider.clone())),
+                        "model": settings.get("model").cloned().unwrap_or_else(|| json!(model.clone()))
+                    }
+                }
+            }),
+            &selected_provider,
+            &selected_model,
+            &json!({
+                "task_type": "general",
+                "message": message,
+                "token_count": ((message.len() as i64) / 4).max(1)
+            }),
+        );
+    selected_provider = resolved_provider;
+    selected_model = resolved_model;
+    let history_messages = chat_ui_history_messages(&session);
+    let invoke = crate::dashboard_provider_runtime::invoke_chat(
+        root,
+        &selected_provider,
+        &selected_model,
+        "",
+        &history_messages,
+        &message,
+    );
+    let response = match invoke {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "app_plane_chat_ui",
+                "action": "run",
+                "provider": selected_provider,
+                "model": selected_model,
+                "errors": [clean(err, 240)]
+            });
+        }
+    };
+    let assistant = clean(
+        response.get("response").and_then(Value::as_str).unwrap_or(""),
+        16_000,
+    );
     let turn = json!({
         "turn_id": format!(
             "turn_{}",
-            &sha256_hex_str(&format!("{}:{}:{}:{}", session_id, provider, model, crate::now_iso()))[..10]
+            &sha256_hex_str(&format!("{}:{}:{}:{}", session_id, selected_provider, selected_model, crate::now_iso()))[..10]
         ),
         "ts": crate::now_iso(),
-        "provider": provider,
-        "model": model,
+        "provider": selected_provider,
+        "model": selected_model,
         "user": message,
         "assistant": assistant
     });
@@ -682,6 +759,14 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         "action": "run",
         "session_id": session_id,
         "turn": turn,
+        "provider": response.get("provider").cloned().unwrap_or_else(|| json!(provider)),
+        "model": response.get("model").cloned().unwrap_or_else(|| json!(model)),
+        "runtime_model": response.get("runtime_model").cloned().unwrap_or_else(|| json!(selected_model)),
+        "input_tokens": response.get("input_tokens").cloned().unwrap_or_else(|| json!(0)),
+        "output_tokens": response.get("output_tokens").cloned().unwrap_or_else(|| json!(0)),
+        "cost_usd": response.get("cost_usd").cloned().unwrap_or_else(|| json!(0.0)),
+        "context_window": response.get("context_window").cloned().unwrap_or_else(|| json!(0)),
+        "tools": response.get("tools").cloned().unwrap_or_else(|| json!([])),
         "artifact": {
             "path": path.display().to_string(),
             "sha256": sha256_hex_str(&session.to_string())
