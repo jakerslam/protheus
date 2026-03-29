@@ -1,14 +1,15 @@
 #!/usr/bin/env tsx
-// Thin dashboard UI host: serves the OpenClaw-fork browser UI over the Rust API lane.
+// Thin dashboard UI host: serves the Svelte dashboard over the Rust API lane.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
-const { ROOT, resolveBinary, runProtheusOps } = require('../ops/run_protheus_ops.js');
+const { ROOT, resolveBinary, runProtheusOps } = require('../ops/run_protheus_ops.ts');
 
 const DASHBOARD_DIR = __dirname;
-const STATIC_DIR = path.resolve(DASHBOARD_DIR, 'openclaw_static');
+const SVELTE_DIR = path.resolve(DASHBOARD_DIR, 'svelte_dashboard');
+const SVELTE_DIST_DIR = path.resolve(SVELTE_DIR, 'dist');
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
@@ -18,7 +19,6 @@ const DEFAULT_REFRESH_MS = 2000;
 const DEFAULT_BACKEND_READY_TIMEOUT_MS = 120000;
 const BACKEND_PORT_OFFSET = 1000;
 const HOP_BY_HOP = new Set(['connection', 'host', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']);
-const PAGE_SCRIPTS = ['overview', 'chat', 'agents', 'workflows', 'workflow-builder', 'channels', 'eyes', 'skills', 'hands', 'scheduler', 'settings', 'usage', 'sessions', 'logs', 'wizard', 'approvals', 'comms', 'runtime'];
 const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -90,77 +90,50 @@ function parseFlags(argv = []) {
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
 function fileExists(filePath) { try { return fs.existsSync(filePath); } catch { return false; } }
-function readText(filePath, fallback = '') { try { return fs.readFileSync(filePath, 'utf8'); } catch { return fallback; } }
-function listSegmentPartFiles(basePath) {
-  const ext = path.extname(basePath).toLowerCase();
-  const partDirs = [`${basePath}.parts`];
-  if (ext === '.js') partDirs.push(basePath.replace(/\.js$/i, '.ts') + '.parts');
-  if (ext === '.ts') partDirs.push(basePath.replace(/\.ts$/i, '.js') + '.parts');
-  for (const partsDir of partDirs) {
-    try {
-      if (!fs.statSync(partsDir).isDirectory()) continue;
-      const rows = fs.readdirSync(partsDir, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === ext)
-        .map((entry) => path.resolve(partsDir, entry.name))
-        .sort((a, b) => a.localeCompare(b, 'en'));
-      if (rows.length) return rows;
-    } catch {}
+function hasSvelteDashboardUi() {
+  const indexPath = path.resolve(SVELTE_DIST_DIR, 'index.html');
+  return fileExists(indexPath);
+}
+function ensureSvelteDashboardUiAvailable() {
+  if (hasSvelteDashboardUi()) return;
+  const build = spawnSync('npm', ['run', '-s', 'dashboard:svelte:build'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 180000,
+    env: { ...process.env, PROTHEUS_ROOT: ROOT },
+  });
+  if (build.stdout) process.stdout.write(build.stdout);
+  if (build.stderr) process.stderr.write(build.stderr);
+  if (build.status !== 0) {
+    const message = cleanText(build.stderr || build.stdout || `exit_${build.status}`, 220);
+    throw new Error(`svelte_dashboard_build_failed:${message}`);
   }
-  return [];
-}
-function readSegmentedText(basePath, fallback = '') {
-  const partFiles = listSegmentPartFiles(basePath);
-  if (partFiles.length) {
-    const joined = partFiles.map((filePath) => readText(filePath, '')).filter(Boolean).join('\n');
-    if (joined.trim()) return joined;
-  }
-  return readText(basePath, fallback);
-}
-function hasPrimaryDashboardUi() {
-  const headPath = path.resolve(STATIC_DIR, 'index_head.html');
-  const bodyPath = path.resolve(STATIC_DIR, 'index_body.html');
-  return (fileExists(headPath) || listSegmentPartFiles(headPath).length > 0) && (fileExists(bodyPath) || listSegmentPartFiles(bodyPath).length > 0);
-}
-function rebrandDashboardText(text) {
-  return String(text || '')
-    .replace(/\bOpenFang\b/g, 'Infring').replace(/\bOPENFANG\b/g, 'INFRING').replace(/\bopenfang\b/g, 'infring')
-    .replace(/\bOpenClaw\b/g, 'Infring').replace(/\bOPENCLAW\b/g, 'INFRING').replace(/\bopenclaw\b/g, 'infring');
-}
-function readForkScript(basePathNoExt) {
-  const jsPath = path.resolve(STATIC_DIR, `${basePathNoExt}.js`);
-  if (fileExists(jsPath) || listSegmentPartFiles(jsPath).length > 0) return readSegmentedText(jsPath, '');
-  const tsPath = path.resolve(STATIC_DIR, `${basePathNoExt}.ts`);
-  return fileExists(tsPath) || listSegmentPartFiles(tsPath).length > 0 ? readSegmentedText(tsPath, '') : '';
-}
-function buildPrimaryDashboardHtml() {
-  const head = readSegmentedText(path.resolve(STATIC_DIR, 'index_head.html'), '');
-  const body = readSegmentedText(path.resolve(STATIC_DIR, 'index_body.html'), '');
-  if (!head || !body) return '';
-  const css = [
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/theme.css'), ''),
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/layout.css'), ''),
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/components.css'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/github-dark.min.css'), ''),
-  ].join('\n');
-  const scripts = [
-    readText(path.resolve(STATIC_DIR, 'vendor/marked.min.js'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/highlight.min.js'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/chart.umd.min.js'), ''),
-    readForkScript('js/api'),
-    readForkScript('js/app'),
-    PAGE_SCRIPTS.map((name) => readForkScript(`js/pages/${name}`)).filter(Boolean).join('\n'),
-  ].filter(Boolean).join('\n');
-  const alpine = readText(path.resolve(STATIC_DIR, 'vendor/alpine.min.js'), '');
-  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', scripts, '</script>', '<script>', alpine, '</script>', '</body></html>'].join('\n'));
+  if (!hasSvelteDashboardUi()) throw new Error('svelte_dashboard_ui_missing_after_build');
 }
 function contentTypeForFile(filePath) { return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream'; }
-function readPrimaryDashboardAsset(pathname) {
-  const requestPath = pathname === '/' || pathname === '/dashboard' ? '/index_body.html' : pathname;
-  const resolved = path.resolve(STATIC_DIR, requestPath.replace(/^\/+/, ''));
+function readSvelteDashboardAsset(pathname) {
+  let requestPath = pathname;
+  if (pathname === '/' || pathname === '/dashboard' || pathname.startsWith('/dashboard/')) requestPath = '/index.html';
+  else if (pathname === '/svelte' || pathname === '/svelte/') requestPath = '/index.html';
+  else if (pathname.startsWith('/svelte/')) requestPath = pathname.slice('/svelte'.length);
+  else return null;
+  const normalized = requestPath.startsWith('/') ? requestPath : `/${requestPath}`;
+  let resolved = path.resolve(SVELTE_DIST_DIR, normalized.replace(/^\/+/, ''));
+  if (!resolved.startsWith(SVELTE_DIST_DIR)) return null;
+  if (!fileExists(resolved)) return null;
+  try {
+    if (fs.statSync(resolved).isDirectory()) {
+      resolved = path.resolve(resolved, 'index.html');
+      if (!resolved.startsWith(SVELTE_DIST_DIR) || !fileExists(resolved)) return null;
+    }
+  } catch {
+    return null;
+  }
   const ext = path.extname(resolved).toLowerCase();
-  if (!resolved.startsWith(STATIC_DIR)) return null;
-  if (!fileExists(resolved) && listSegmentPartFiles(resolved).length === 0) return null;
-  if (['.js', '.css', '.html', '.json', '.md', '.txt'].includes(ext)) return { body: rebrandDashboardText(readSegmentedText(resolved, '')), contentType: contentTypeForFile(resolved) };
+  if (['.js', '.css', '.html', '.json', '.txt', '.map'].includes(ext)) {
+    return { body: fs.readFileSync(resolved, 'utf8'), contentType: contentTypeForFile(resolved) };
+  }
   return { body: fs.readFileSync(resolved), contentType: contentTypeForFile(resolved) };
 }
 function backendBase(flags) { return `http://${flags.apiHost}:${flags.apiPort}`; }
@@ -319,9 +292,7 @@ async function buildCompatConfig(flags) {
   };
 }
 async function runServe(flags) {
-  if (!hasPrimaryDashboardUi()) throw new Error('primary_dashboard_ui_missing');
-  let dashboardHtml = buildPrimaryDashboardHtml();
-  if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
+  ensureSvelteDashboardUiAvailable();
   const backend = await ensureBackend(flags);
   const status = {
     ok: true,
@@ -332,7 +303,8 @@ async function runServe(flags) {
     port: flags.port,
     refresh_ms: flags.refreshMs,
     team: flags.team,
-    authority: 'openclaw_static_ui_over_rust_core_api',
+    authority: 'svelte_ui_over_rust_core_api',
+    ui_mode: 'svelte',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
     status_path: path.relative(ROOT, STATUS_PATH),
@@ -341,9 +313,10 @@ async function runServe(flags) {
     const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
     try {
       if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
-        dashboardHtml = buildPrimaryDashboardHtml() || dashboardHtml;
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        res.end(dashboardHtml);
+        const svelteAsset = readSvelteDashboardAsset(pathname);
+        if (!svelteAsset) throw new Error('svelte_dashboard_index_missing');
+        res.writeHead(200, { 'content-type': svelteAsset.contentType, 'cache-control': 'no-store' });
+        res.end(svelteAsset.body);
         return;
       }
       if (req.method === 'GET' && pathname === '/api/status') return void sendJson(res, 200, await buildCompatStatus(flags));
@@ -354,10 +327,10 @@ async function runServe(flags) {
       }
       if (req.method === 'GET' && pathname === '/api/auth/check') return void sendJson(res, 200, { ok: true, mode: 'none', authenticated: true, user: 'operator' });
       if (req.method === 'GET') {
-        const asset = readPrimaryDashboardAsset(pathname);
-        if (asset) {
-          res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });
-          res.end(asset.body);
+        const svelteAsset = readSvelteDashboardAsset(pathname);
+        if (svelteAsset) {
+          res.writeHead(200, { 'content-type': svelteAsset.contentType, 'cache-control': 'no-store' });
+          res.end(svelteAsset.body);
           return;
         }
       }

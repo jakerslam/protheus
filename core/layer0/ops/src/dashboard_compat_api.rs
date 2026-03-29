@@ -36,6 +36,8 @@ const EYES_CATALOG_STATE_PATHS: [&str; 3] = [
 
 #[path = "dashboard_compat_api_channels.rs"]
 mod dashboard_compat_api_channels;
+#[path = "dashboard_compat_api_comms.rs"]
+mod dashboard_compat_api_comms;
 #[path = "dashboard_skills_marketplace.rs"]
 mod dashboard_skills_marketplace;
 
@@ -1789,6 +1791,69 @@ fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
     (String::from_utf8_lossy(slice).to_string(), true)
 }
 
+fn message_token_cost(row: &Value) -> i64 {
+    estimate_tokens(&message_text(row))
+}
+
+fn total_message_tokens(rows: &[Value]) -> i64 {
+    rows.iter().map(message_token_cost).sum::<i64>().max(0)
+}
+
+fn trim_context_pool(messages: &[Value], limit_tokens: i64) -> Vec<Value> {
+    let cap = limit_tokens.max(2_048);
+    let mut out = messages.to_vec();
+    let mut total = total_message_tokens(&out);
+    while out.len() > 1 && total > cap {
+        let removed = message_token_cost(&out[0]);
+        out.remove(0);
+        total = (total - removed).max(0);
+    }
+    out
+}
+
+fn select_active_context_window(messages: &[Value], target_tokens: i64, min_recent: usize) -> Vec<Value> {
+    let cap = target_tokens.max(1_024);
+    let floor = min_recent.clamp(1, 128);
+    let mut out = messages.to_vec();
+    let mut total = total_message_tokens(&out);
+    while out.len() > floor && total > cap {
+        let removed = message_token_cost(&out[0]);
+        out.remove(0);
+        total = (total - removed).max(0);
+    }
+    out
+}
+
+fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
+        for row in rows.iter_mut() {
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            if sid != active_id {
+                continue;
+            }
+            row["messages"] = Value::Array(messages.to_vec());
+            row["updated_at"] = Value::String(crate::now_iso());
+            break;
+        }
+    }
+}
+
+fn data_url_from_bytes(bytes: &[u8], content_type: &str) -> String {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    format!("data:{};base64,{}", clean_text(content_type, 120), STANDARD.encode(bytes))
+}
+
 fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> Value {
     let roster = build_agent_roster(root, snapshot, true);
     let mut counts = HashMap::<String, i64>::new();
@@ -1909,6 +1974,9 @@ pub fn handle_with_headers(
     }
     if let Some(response) = dashboard_skills_marketplace::handle(root, method, path, snapshot, body)
     {
+        return Some(response);
+    }
+    if let Some(response) = dashboard_compat_api_comms::handle(root, method, path, path_only, body, snapshot) {
         return Some(response);
     }
 
@@ -2557,8 +2625,47 @@ pub fn handle_with_headers(
                     &requested_model,
                     &route_request,
                 );
-            let state = load_session_state(root, &agent_id);
+            let mut state = load_session_state(root, &agent_id);
             let messages = session_messages(&state);
+            let context_pool_limit_tokens = request
+                .get("context_pool_limit_tokens")
+                .and_then(Value::as_i64)
+                .unwrap_or(1_000_000)
+                .clamp(32_000, 2_000_000);
+            let pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
+            if pooled_messages.len() != messages.len() {
+                set_active_session_messages(&mut state, &pooled_messages);
+                save_session_state(root, &agent_id, &state);
+            }
+            let row_context_window = row
+                .get("context_window_tokens")
+                .or_else(|| row.get("context_window"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let fallback_window = if row_context_window > 0 {
+                row_context_window
+            } else {
+                128_000
+            };
+            let active_context_target_tokens = request
+                .get("active_context_target_tokens")
+                .or_else(|| request.get("target_context_window"))
+                .and_then(Value::as_i64)
+                .unwrap_or_else(|| ((fallback_window as f64) * 0.68).round() as i64)
+                .clamp(4_096, 512_000);
+            let active_context_min_recent = request
+                .get("active_context_min_recent_messages")
+                .or_else(|| request.get("min_recent_messages"))
+                .and_then(Value::as_u64)
+                .unwrap_or(16)
+                .clamp(4, 128) as usize;
+            let active_messages = select_active_context_window(
+                &pooled_messages,
+                active_context_target_tokens,
+                active_context_min_recent,
+            );
+            let context_pool_tokens = total_message_tokens(&pooled_messages);
+            let context_active_tokens = total_message_tokens(&active_messages);
             let system_prompt = clean_text(
                 row.get("system_prompt").and_then(Value::as_str).unwrap_or(""),
                 12_000,
@@ -2568,7 +2675,7 @@ pub fn handle_with_headers(
                 &provider,
                 &model,
                 &system_prompt,
-                &messages,
+                &active_messages,
                 &message,
             ) {
                 Ok(result) => {
@@ -2609,6 +2716,15 @@ pub fn handle_with_headers(
                     payload["provider"] = json!(provider);
                     payload["model"] = json!(model);
                     payload["iterations"] = json!(1);
+                    payload["context_pool"] = json!({
+                        "pool_limit_tokens": context_pool_limit_tokens,
+                        "pool_tokens": context_pool_tokens,
+                        "pool_messages": pooled_messages.len(),
+                        "active_target_tokens": active_context_target_tokens,
+                        "active_tokens": context_active_tokens,
+                        "active_messages": active_messages.len(),
+                        "min_recent_messages": active_context_min_recent
+                    });
                     if let Some(route) = auto_route {
                         payload["auto_route"] = route
                             .get("route")
@@ -2870,7 +2986,31 @@ pub fn handle_with_headers(
                 });
             }
             let bytes = fs::read(&target_path).unwrap_or_default();
-            let (content, truncated) = truncate_utf8_lossy(&bytes, 256 * 1024);
+            let full = request.get("full").and_then(Value::as_bool).unwrap_or(false);
+            let max_bytes = if full {
+                bytes.len().max(1)
+            } else {
+                request
+                    .get("max_bytes")
+                    .and_then(Value::as_u64)
+                    .unwrap_or((256 * 1024) as u64)
+                    .clamp((4 * 1024) as u64, (8 * 1024 * 1024) as u64)
+                    as usize
+            };
+            let (content, truncated) = truncate_utf8_lossy(&bytes, max_bytes);
+            let content_type = "text/plain; charset=utf-8";
+            let download_url = if bytes.len() <= (2 * 1024 * 1024) {
+                data_url_from_bytes(&bytes, content_type)
+            } else {
+                String::new()
+            };
+            let file_name = clean_text(
+                target_path
+                    .file_name()
+                    .and_then(|v| v.to_str())
+                    .unwrap_or("download.txt"),
+                180,
+            );
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
@@ -2880,7 +3020,12 @@ pub fn handle_with_headers(
                         "path": target_path.to_string_lossy().to_string(),
                         "content": content,
                         "truncated": truncated,
-                        "bytes": bytes.len()
+                        "bytes": bytes.len(),
+                        "max_bytes": max_bytes,
+                        "full": full,
+                        "download_url": download_url,
+                        "file_name": file_name,
+                        "content_type": content_type
                     }
                 }),
             });
@@ -2924,10 +3069,31 @@ pub fn handle_with_headers(
                     }),
                 });
             }
+            let full = request.get("full").and_then(Value::as_bool).unwrap_or(false);
+            let max_entries = if full {
+                1_000_000usize
+            } else {
+                request
+                    .get("max_entries")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(20_000)
+                    .clamp(100, 100_000) as usize
+            };
             let mut lines = Vec::<String>::new();
+            let root_name = clean_text(
+                target_path
+                    .file_name()
+                    .and_then(|v| v.to_str())
+                    .unwrap_or("folder"),
+                180,
+            );
+            lines.push(format!("[d] {root_name}"));
             let mut entries = 0usize;
             let mut truncated = false;
-            for entry in WalkDir::new(&target_path).follow_links(false) {
+            for entry in WalkDir::new(&target_path)
+                .follow_links(false)
+                .sort_by_file_name()
+            {
                 let Ok(row) = entry else {
                     continue;
                 };
@@ -2936,18 +3102,35 @@ pub fn handle_with_headers(
                     continue;
                 }
                 entries += 1;
-                if lines.len() >= 400 {
+                if entries > max_entries {
                     truncated = true;
                     continue;
                 }
                 let rel = path.strip_prefix(&target_path).unwrap_or(path);
-                let rel_text = rel.to_string_lossy().replace('\\', "/");
-                if rel_text.is_empty() {
+                let rel_name = clean_text(
+                    rel.file_name().and_then(|v| v.to_str()).unwrap_or(""),
+                    240,
+                );
+                if rel_name.is_empty() {
                     continue;
                 }
+                let depth = rel.components().count().saturating_sub(1).min(32);
+                let indent = "  ".repeat(depth + 1);
                 let marker = if row.file_type().is_dir() { "[d]" } else { "-" };
-                lines.push(format!("{marker} {rel_text}"));
+                lines.push(format!("{indent}{marker} {rel_name}"));
             }
+            let tree = lines.join("\n");
+            let archive_name = if root_name.is_empty() {
+                "folder-tree.txt".to_string()
+            } else {
+                format!("{root_name}-tree.txt")
+            };
+            let tree_bytes = tree.as_bytes().len();
+            let download_url = if tree_bytes > 0 && tree_bytes <= (2 * 1024 * 1024) {
+                data_url_from_bytes(tree.as_bytes(), "text/plain; charset=utf-8")
+            } else {
+                String::new()
+            };
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
@@ -2955,15 +3138,17 @@ pub fn handle_with_headers(
                     "folder": {
                         "ok": true,
                         "path": target_path.to_string_lossy().to_string(),
-                        "tree": lines.join("\n"),
+                        "tree": tree,
                         "entries": entries,
-                        "truncated": truncated
+                        "truncated": truncated,
+                        "full": full,
+                        "max_entries": max_entries
                     },
                     "archive": {
                         "ok": true,
-                        "download_url": "",
-                        "file_name": "",
-                        "bytes": 0
+                        "download_url": download_url,
+                        "file_name": archive_name,
+                        "bytes": tree_bytes
                     }
                 }),
             });
@@ -3907,6 +4092,8 @@ mod tests {
         let notes_dir = root.path().join("notes");
         let _ = fs::create_dir_all(&notes_dir);
         let _ = fs::write(notes_dir.join("plan.txt"), "ship it");
+        let _ = fs::create_dir_all(notes_dir.join("sub"));
+        let _ = fs::write(notes_dir.join("sub").join("extra.txt"), "plus one");
 
         let created = handle(
             root.path(),
@@ -3948,6 +4135,44 @@ mod tests {
                 .and_then(Value::as_str),
             Some("ship it")
         );
+        let file_read_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read limited");
+        assert_eq!(
+            file_read_limited
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let file_read_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read full");
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/content")
+                .and_then(Value::as_str),
+            Some("ship it")
+        );
 
         let folder_export = handle(
             root.path(),
@@ -3970,6 +4195,50 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .contains("plan.txt"));
+        assert!(folder_export
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("extra.txt"));
+
+        let folder_export_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export limited");
+        assert_eq!(
+            folder_export_limited
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let folder_export_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export full");
+        assert_eq!(
+            folder_export_full
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(folder_export_full
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("extra.txt"));
 
         let terminal = handle(
             root.path(),
@@ -4013,6 +4282,97 @@ mod tests {
         assert_eq!(
             upload.payload.get("filename").and_then(Value::as_str),
             Some("voice.webm")
+        );
+    }
+
+    #[test]
+    fn full_mode_overrides_file_and_folder_limits() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let notes_dir = root.path().join("notes");
+        let _ = fs::create_dir_all(notes_dir.join("sub"));
+        let _ = fs::write(notes_dir.join("plan.txt"), "ship it");
+        let _ = fs::write(notes_dir.join("sub").join("extra.txt"), "plus one");
+
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let file_read_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read limited");
+        assert_eq!(
+            file_read_limited
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let file_read_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read full");
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let folder_export_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export limited");
+        assert_eq!(
+            folder_export_limited
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let folder_export_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export full");
+        assert_eq!(
+            folder_export_full
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
         );
     }
 

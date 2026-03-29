@@ -28,3 +28,5 @@ Single-entry operator index for deployment, security, incident response, and mai
 - MCU proof sprint: [RUNBOOK-005-mcu-proof-sprint.md](./RUNBOOK-005-mcu-proof-sprint.md)
 - Pure/tiny capability restore: [RUNBOOK-007-pure-tiny-capability-restore.md](./RUNBOOK-007-pure-tiny-capability-restore.md)
 - SSL certificate renewal: [RUNBOOK-008-ssl-certificate-renewal.md](./RUNBOOK-008-ssl-certificate-renewal.md)
+- API rate limiting: [RUNBOOK-011-api-rate-limiting-troubleshooting.md](./RUNBOOK-011-api-rate-limiting-troubleshooting.md)
+- Monitoring and alerting: [RUNBOOK-012-monitoring-alerting-setup.md](./RUNBOOK-012-monitoring-alerting-setup.md)
