@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
-const { runOpsDomainCommand } = require('./spine_conduit_bridge.ts');
+// Thin runner wrapper: authority lives in core/layer0/ops::ops_domain_conduit_runner_kernel.
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
-const bridge = createOpsLaneBridge(__dirname, 'ops_domain_conduit_runner', 'ops-domain-conduit-runner-kernel');
+
+const bridge = createOpsLaneBridge(
+  __dirname,
+  'ops_domain_conduit_runner',
+  'ops-domain-conduit-runner-kernel',
+  { preferLocalCore: true }
+);
 
 function cleanText(v, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
-}
-
-function toBool(v, fallback = false) {
-  const raw = cleanText(v, 32).toLowerCase();
-  if (!raw) return fallback;
-  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
-  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
-  return fallback;
 }
 
 function encodeBase64(value) {
@@ -78,38 +77,22 @@ function buildRunOptions(parsedArgs) {
 }
 
 async function run(argv = process.argv.slice(2)) {
-  const prepared = invoke('prepare-run', {
+  const payload = invoke('run', {
     argv: Array.isArray(argv) ? argv.map((value) => String(value)) : []
   });
-  if (!prepared || !prepared.ok || !cleanText(prepared.domain || '', 120)) {
-    return {
-      status: 2,
-      payload: {
-        ok: false,
-        type: 'ops_domain_conduit_bridge_error',
-        reason: 'missing_domain',
-        routed_via: 'conduit'
-      }
+  const status = Number.isFinite(Number(payload && payload.status)) ? Number(payload.status) : 1;
+  const body = payload && payload.payload && typeof payload.payload === 'object'
+    ? payload.payload
+    : {
+      ok: false,
+      type: 'ops_domain_conduit_bridge_error',
+      reason: 'missing_result',
+      routed_via: 'core_local'
     };
-  }
-
-  const result = await runOpsDomainCommand(
-    cleanText(prepared.domain, 120),
-    Array.isArray(prepared.args) ? prepared.args.map((value) => String(value)) : [],
-    prepared.options && typeof prepared.options === 'object'
-      ? prepared.options
-      : buildRunOptions(parseArgs(argv))
-  );
   return {
-    status: Number.isFinite(result && result.status) ? Number(result.status) : 1,
-    payload: result && result.payload
-      ? result.payload
-      : (result || {
-        ok: false,
-        type: 'ops_domain_conduit_bridge_error',
-        reason: 'missing_result'
-      }),
-    result
+    status,
+    payload: body,
+    result: payload
   };
 }
 
@@ -121,7 +104,7 @@ async function main() {
       ok: false,
       type: 'ops_domain_conduit_bridge_error',
       reason: 'missing_result',
-      routed_via: 'conduit'
+      routed_via: 'core_local'
     };
   process.stdout.write(`${JSON.stringify(payload)}\n`);
   process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
@@ -133,7 +116,7 @@ if (require.main === module) {
       ok: false,
       type: 'ops_domain_conduit_bridge_error',
       reason: cleanText(err && err.message ? err.message : err, 220),
-      routed_via: 'conduit'
+      routed_via: 'core_local'
     };
     process.stdout.write(`${JSON.stringify(out)}\n`);
     process.exit(1);
@@ -142,7 +125,6 @@ if (require.main === module) {
 
 module.exports = {
   cleanText,
-  toBool,
   parseArgs,
   buildPassArgs,
   buildRunOptions,

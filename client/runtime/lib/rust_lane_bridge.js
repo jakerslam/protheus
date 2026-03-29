@@ -38,6 +38,9 @@ function parseJsonPayload(stdout) {
     }
     return null;
 }
+function encodeBase64(value) {
+    return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
 function normalizeStatus(v) {
     return Number.isFinite(Number(v)) ? Number(v) : 1;
 }
@@ -87,10 +90,6 @@ function binaryFreshEnough(root, binPath) {
         return true;
     return binMtime >= srcMtime;
 }
-function localFallbackEnabled() {
-    const raw = String(process.env.PROTHEUS_OPS_LOCAL_FALLBACK || '1').trim().toLowerCase();
-    return !(raw === '0' || raw === 'false' || raw === 'no' || raw === 'off');
-}
 function deferOnHostStallEnabled() {
     const raw = String(process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();
     return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
@@ -109,38 +108,6 @@ function defaultEnv() {
         ...process.env,
         PROTHEUS_NODE_BINARY: process.execPath || 'node'
     };
-}
-function shouldFallbackToLocalCore(status, payload, stderr, domain = '') {
-    if (status === 0)
-        return false;
-    const normalizedDomain = String(domain || '').trim().toLowerCase();
-    const failClosed = payload && typeof payload === 'object' && payload.fail_closed === true;
-    if (failClosed) {
-        // New native core domains can fail closed at the conduit layer before the
-        // transport manifest catches up. Falling back to the local core binary keeps
-        // authority in Rust while avoiding stale bridge manifests.
-        return true;
-    }
-    if (normalizedDomain === 'legacy-retired-lane' && failClosed) {
-        // Legacy-retired lanes are authoritative in core and must fail over to
-        // direct core execution when conduit returns bare fail_closed receipts.
-        return true;
-    }
-    const reason = String((payload && payload.reason)
-        || (payload && payload.error)
-        || stderr
-        || '').toLowerCase();
-    if (!reason)
-        return false;
-    return (reason.includes('conduit_')
-        || reason.includes('unknown_command')
-        || reason.includes('unknown_domain')
-        || reason.includes('startup_probe')
-        || reason.includes('timeout')
-        || reason.includes('etimedout')
-        || reason.includes('timed out')
-        || reason.includes('bridge_wait_failed')
-        || reason.includes('runtime_gate'));
 }
 function resolveProtheusOpsCommand(root, domain) {
     const preferCargo = String(process.env.PROTHEUS_OPS_PREFER_CARGO || '0').trim() === '1';
@@ -302,63 +269,47 @@ function runBridge(config, args = [], cliMode = false) {
                 lane: config.lane
             };
         }
-        const runnerCandidates = [
-            path.join(root, 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.ts'),
-            path.join(root, 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.js'),
-            path.join(root, 'client', 'lib', 'ops_domain_conduit_runner.ts'),
-            path.join(root, 'client', 'lib', 'ops_domain_conduit_runner.js'),
-            path.join(root, 'lib', 'ops_domain_conduit_runner.ts'),
-            path.join(root, 'lib', 'ops_domain_conduit_runner.js')
-        ];
-        const runner = runnerCandidates.find((candidate) => fs.existsSync(candidate));
-        if (!runner) {
+        const kernelPayload = encodeBase64(JSON.stringify({
+            argv: ['--domain', config.domain].concat(passArgs)
+        }));
+        const kernelRun = runLocalOpsDomain(
+            root,
+            'ops-domain-conduit-runner-kernel',
+            ['run', `--payload-base64=${kernelPayload}`],
+            cliMode,
+            config.inheritStdio
+        );
+        const nested = kernelRun
+            && kernelRun.payload
+            && typeof kernelRun.payload === 'object'
+            && kernelRun.payload.payload
+            && typeof kernelRun.payload.payload === 'object'
+            ? kernelRun.payload.payload
+            : null;
+        if (!nested) {
             return {
-                ok: false,
-                status: 1,
-                stdout: '',
-                stderr: 'ops_domain_conduit_runner_missing',
-                payload: {
-                    ok: false,
-                    type: 'ops_domain_conduit_bridge_error',
-                    reason: 'ops_domain_conduit_runner_missing',
-                    searched: runnerCandidates
-                },
+                ...kernelRun,
                 lane: config.lane,
-                rust_command: null,
-                rust_args: [],
                 routed_via: 'conduit'
             };
         }
-        const commandArgs = [runner, '--domain', config.domain].concat(passArgs);
-        const timeoutMs = parseTimeoutMs('PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS', 12000);
-        const run = spawnSync(process.execPath, commandArgs, {
-            cwd: root,
-            encoding: 'utf8',
-            env: defaultEnv(),
-            stdio: cliMode && config.inheritStdio ? 'inherit' : undefined,
-            timeout: timeoutMs,
-            maxBuffer: 1024 * 1024 * 4
-        });
-        const status = run.error ? 1 : normalizeStatus(run.status);
-        const stdout = run.stdout || '';
-        const stderr = `${run.stderr || ''}${run.error ? `\n${String(run.error && run.error.message ? run.error.message : run.error)}` : ''}`;
-        const payload = cliMode && config.inheritStdio ? null : parseJsonPayload(stdout);
-        if (shouldFallbackToLocalCore(status, payload, stderr, config.domain) && localFallbackEnabled()) {
-            const local = runLocalOpsDomain(root, config.domain, passArgs, cliMode, config.inheritStdio);
-            return {
-                ...local,
-                lane: config.lane
+        const nestedStatus = Number.isFinite(Number(nested.status))
+            ? Number(nested.status)
+            : normalizeStatus(kernelRun.status);
+        const nestedPayload = nested.payload && typeof nested.payload === 'object'
+            ? nested.payload
+            : {
+                ok: nestedStatus === 0,
+                type: nestedStatus === 0 ? 'ops_domain_conduit_bridge_result' : 'ops_domain_conduit_bridge_error',
+                reason: nestedStatus === 0 ? 'ok' : 'missing_result_payload',
+                routed_via: 'core_local'
             };
-        }
         return {
-            ok: status === 0,
-            status,
-            stdout,
-            stderr,
-            payload,
+            ...kernelRun,
+            ok: nestedStatus === 0 && nestedPayload.ok !== false,
+            status: nestedStatus,
+            payload: nestedPayload,
             lane: config.lane,
-            rust_command: process.execPath,
-            rust_args: commandArgs,
             routed_via: 'conduit'
         };
     }

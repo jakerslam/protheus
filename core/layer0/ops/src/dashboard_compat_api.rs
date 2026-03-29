@@ -9,17 +9,25 @@ use std::process::Command;
 use std::time::Instant;
 use walkdir::WalkDir;
 
-const PROVIDER_REGISTRY_REL: &str = "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
+#[cfg(test)]
+const PROVIDER_REGISTRY_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
 const APPROVALS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/approvals.json";
 const WORKFLOWS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/workflows.json";
 const CRON_JOBS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/cron_jobs.json";
 const TRIGGERS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/triggers.json";
-const AGENT_PROFILES_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
-const AGENT_CONTRACTS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_contracts.json";
-const AGENT_SESSIONS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
+const AGENT_PROFILES_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
+const AGENT_CONTRACTS_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_contracts.json";
+const AGENT_SESSIONS_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
 const AGENT_FILES_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_files";
 const AGENT_TOOLS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_tools";
-const ACTION_HISTORY_REL: &str = "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
+const ACTION_HISTORY_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
+const APP_PLANE_STATE_ENV: &str = "APP_PLANE_STATE_ROOT";
+const APP_PLANE_SCOPE: &str = "app_plane";
 const EYES_CATALOG_STATE_PATHS: [&str; 3] = [
     "client/runtime/local/state/ui/infring_dashboard/eyes_catalog.json",
     "client/runtime/local/state/eyes/catalog.json",
@@ -64,10 +72,7 @@ fn write_json(path: &Path, value: &Value) {
 }
 
 fn parse_non_negative_i64(value: Option<&Value>, fallback: i64) -> i64 {
-    value
-        .and_then(Value::as_i64)
-        .unwrap_or(fallback)
-        .max(0)
+    value.and_then(Value::as_i64).unwrap_or(fallback).max(0)
 }
 
 fn state_path(root: &Path, rel: &str) -> PathBuf {
@@ -123,7 +128,38 @@ fn normalize_lexical(path: &Path) -> PathBuf {
     out
 }
 
-fn extract_app_settings(snapshot: &Value) -> (String, String) {
+fn app_plane_state_root(root: &Path) -> PathBuf {
+    crate::v8_kernel::scoped_state_root(root, APP_PLANE_STATE_ENV, APP_PLANE_SCOPE)
+}
+
+fn app_plane_settings_path(root: &Path) -> PathBuf {
+    app_plane_state_root(root).join("chat_ui").join("settings.json")
+}
+
+fn extract_app_settings(root: &Path, snapshot: &Value) -> (String, String) {
+    if let Some(settings) = read_json_loose(&app_plane_settings_path(root)) {
+        let provider = clean_text(
+            settings
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or("auto"),
+            80,
+        );
+        let model = clean_text(
+            settings.get("model").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        if !provider.is_empty() || !model.is_empty() {
+            return (
+                if provider.is_empty() {
+                    "auto".to_string()
+                } else {
+                    provider
+                },
+                model,
+            );
+        }
+    }
     let provider = clean_text(
         snapshot
             .pointer("/app/settings/provider")
@@ -139,6 +175,37 @@ fn extract_app_settings(snapshot: &Value) -> (String, String) {
         120,
     );
     (provider, model)
+}
+
+fn effective_app_settings(root: &Path, snapshot: &Value) -> (String, String) {
+    let (provider, model) = extract_app_settings(root, snapshot);
+    let (resolved_provider, resolved_model, _) =
+        crate::dashboard_model_catalog::resolve_model_selection(
+            root,
+            snapshot,
+            &provider,
+            &model,
+            &json!({"task_type":"general","budget_mode":"balanced"}),
+        );
+    if resolved_provider.is_empty() || resolved_model.is_empty() {
+        (provider, model)
+    } else {
+        (resolved_provider, resolved_model)
+    }
+}
+
+fn save_app_settings(root: &Path, provider: &str, model: &str) -> Value {
+    let path = app_plane_settings_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let payload = json!({
+        "provider": clean_text(provider, 80),
+        "model": clean_text(model, 120),
+        "updated_at": crate::now_iso()
+    });
+    write_json_pretty(&path, &payload);
+    payload
 }
 
 fn runtime_sync_summary(snapshot: &Value) -> Value {
@@ -159,76 +226,313 @@ fn runtime_sync_summary(snapshot: &Value) -> Value {
     })
 }
 
-fn usage_from_snapshot(snapshot: &Value) -> Value {
-    let turn_count = parse_non_negative_i64(snapshot.pointer("/app/turn_count"), 0);
-    let (provider, model) = extract_app_settings(snapshot);
-    let model_rows = if model.is_empty() {
-        Vec::new()
-    } else {
-        vec![json!({
-            "provider": provider,
-            "model": model,
-            "requests": turn_count,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cost_usd": 0.0
-        })]
-    };
-    let today = crate::now_iso().chars().take(10).collect::<String>();
-    let daily = vec![json!({
-        "date": today,
-        "requests": turn_count,
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cost_usd": 0.0
-    })];
-    json!({
-        "agents": {
-            "active": snapshot
-                .pointer("/collab/dashboard/agents")
+fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
+    let (provider, model) = extract_app_settings(root, snapshot);
+    let roster = build_agent_roster(root, snapshot, false);
+    let mut agent_rows = Vec::<Value>::new();
+    let mut total_input_tokens = 0_i64;
+    let mut total_output_tokens = 0_i64;
+    let mut total_tool_calls = 0_i64;
+    let mut total_cost_usd = 0.0_f64;
+    let mut total_call_count = 0_i64;
+    let mut earliest_event_date = String::new();
+    let mut by_model = HashMap::<String, (String, String, i64, i64, i64, f64)>::new();
+    let mut daily = HashMap::<String, (i64, i64, i64, f64)>::new();
+
+    for row in roster {
+        let agent_id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+        if agent_id.is_empty() {
+            continue;
+        }
+        let state = load_session_state(root, &agent_id);
+        let sessions = state
+            .get("sessions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut input_tokens = 0_i64;
+        let mut output_tokens = 0_i64;
+        let mut call_count = 0_i64;
+        for session in sessions {
+            let messages = session
+                .get("messages")
                 .and_then(Value::as_array)
-                .map(|rows| rows.len() as i64)
-                .unwrap_or(0),
-            "archived": 0
-        },
+                .cloned()
+                .unwrap_or_default();
+            for message in messages {
+                let role = clean_text(
+                    message.get("role").and_then(Value::as_str).unwrap_or(""),
+                    40,
+                )
+                .to_ascii_lowercase();
+                let text = message_text(&message);
+                if text.is_empty() {
+                    continue;
+                }
+                let tokens = estimate_tokens(&text);
+                if role == "assistant" || role == "agent" {
+                    output_tokens += tokens;
+                    call_count += 1;
+                } else {
+                    input_tokens += tokens;
+                }
+                let timestamp = message_timestamp_iso(&message);
+                let date = timestamp.chars().take(10).collect::<String>();
+                if !date.is_empty() {
+                    let entry = daily.entry(date.clone()).or_insert((0, 0, 0, 0.0));
+                    entry.0 += if role == "assistant" || role == "agent" {
+                        1
+                    } else {
+                        0
+                    };
+                    entry.1 += if role == "assistant" || role == "agent" {
+                        0
+                    } else {
+                        tokens
+                    };
+                    entry.2 += if role == "assistant" || role == "agent" {
+                        tokens
+                    } else {
+                        0
+                    };
+                    if earliest_event_date.is_empty() || date < earliest_event_date {
+                        earliest_event_date = date;
+                    }
+                }
+            }
+        }
+        let tool_calls = 0_i64;
+        let cost_usd = 0.0_f64;
+        let total_tokens = input_tokens + output_tokens;
+        let model_provider = clean_text(
+            row.get("model_provider")
+                .and_then(Value::as_str)
+                .unwrap_or("auto"),
+            80,
+        );
+        let model_name = clean_text(
+            row.get("model_name").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        let model_key = if model_name.is_empty() {
+            format!("{model_provider}/auto")
+        } else {
+            format!("{model_provider}/{model_name}")
+        };
+        let entry = by_model.entry(model_key.clone()).or_insert((
+            model_provider.clone(),
+            model_name.clone(),
+            0,
+            0,
+            0,
+            0.0,
+        ));
+        entry.2 += input_tokens;
+        entry.3 += output_tokens;
+        entry.4 += call_count;
+        entry.5 += cost_usd;
+
+        total_input_tokens += input_tokens;
+        total_output_tokens += output_tokens;
+        total_tool_calls += tool_calls;
+        total_cost_usd += cost_usd;
+        total_call_count += call_count;
+        agent_rows.push(json!({
+            "agent_id": agent_id,
+            "id": row.get("id").cloned().unwrap_or_else(|| json!("")),
+            "name": row.get("name").cloned().unwrap_or_else(|| json!("Agent")),
+            "role": row.get("role").cloned().unwrap_or_else(|| json!("analyst")),
+            "state": row.get("state").cloned().unwrap_or_else(|| json!("Idle")),
+            "model_provider": model_provider,
+            "model_name": model_name,
+            "total_input_tokens": input_tokens,
+            "total_output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "tool_calls": tool_calls,
+            "cost_usd": cost_usd,
+            "daily_cost_usd": 0.0,
+            "hourly_limit": 0.0,
+            "daily_limit": 0.0,
+            "monthly_limit": 0.0,
+            "max_llm_tokens_per_hour": 0,
+            "call_count": call_count,
+            "updated_at": row.get("updated_at").cloned().unwrap_or_else(|| json!(""))
+        }));
+    }
+
+    agent_rows.sort_by_key(|row| {
+        std::cmp::Reverse(clean_text(
+            row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
+    });
+
+    let mut model_rows = by_model
+        .into_iter()
+        .map(
+            |(
+                key,
+                (provider_id, model_name, input_tokens, output_tokens, call_count, cost_usd),
+            )| {
+                json!({
+                    "provider": provider_id,
+                    "model": if model_name.is_empty() { key } else { model_name },
+                    "total_input_tokens": input_tokens,
+                    "total_output_tokens": output_tokens,
+                    "total_cost_usd": cost_usd,
+                    "call_count": call_count
+                })
+            },
+        )
+        .collect::<Vec<_>>();
+    model_rows.sort_by(|a, b| {
+        clean_text(b.get("model").and_then(Value::as_str).unwrap_or(""), 160).cmp(&clean_text(
+            a.get("model").and_then(Value::as_str).unwrap_or(""),
+            160,
+        ))
+    });
+
+    let today = crate::now_iso().chars().take(10).collect::<String>();
+    let mut daily_rows = daily
+        .into_iter()
+        .map(
+            |(date, (requests, input_tokens, output_tokens, cost_usd))| {
+                json!({
+                    "date": date,
+                    "requests": requests,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost_usd": cost_usd
+                })
+            },
+        )
+        .collect::<Vec<_>>();
+    if daily_rows.is_empty() {
+        daily_rows.push(json!({
+            "date": today,
+            "requests": total_call_count,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "cost_usd": total_cost_usd
+        }));
+        if earliest_event_date.is_empty() && !agent_rows.is_empty() {
+            earliest_event_date = today.clone();
+        }
+    }
+    daily_rows.sort_by(|a, b| {
+        clean_text(a.get("date").and_then(Value::as_str).unwrap_or(""), 20).cmp(&clean_text(
+            b.get("date").and_then(Value::as_str).unwrap_or(""),
+            20,
+        ))
+    });
+    let today_cost_usd = daily_rows
+        .iter()
+        .find(|row| clean_text(row.get("date").and_then(Value::as_str).unwrap_or(""), 20) == today)
+        .and_then(|row| row.get("cost_usd").and_then(Value::as_f64))
+        .unwrap_or(0.0);
+
+    json!({
+        "agents": agent_rows,
         "summary": {
-            "requests": turn_count,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "total_cost_usd": 0.0,
+            "requests": total_call_count,
+            "call_count": total_call_count,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "total_cost_usd": total_cost_usd,
+            "total_tool_calls": total_tool_calls,
             "active_provider": provider,
             "active_model": model
         },
         "models": model_rows,
-        "daily": daily
+        "daily": daily_rows,
+        "today_cost_usd": today_cost_usd,
+        "first_event_date": earliest_event_date
     })
 }
 
 fn providers_payload(root: &Path, snapshot: &Value) -> Value {
-    let mut rows = Vec::<Value>::new();
-    if let Some(registry) = read_json(&state_path(root, PROVIDER_REGISTRY_REL)) {
-        if let Some(obj) = registry.get("providers").and_then(Value::as_object) {
-            for row in obj.values() {
-                rows.push(row.clone());
-            }
+    crate::dashboard_provider_runtime::providers_payload(root, snapshot)
+}
+
+fn config_payload(root: &Path, snapshot: &Value) -> Value {
+    let (provider, model) = effective_app_settings(root, snapshot);
+    let llm_ready = crate::dashboard_model_catalog::catalog_payload(root, snapshot)
+        .get("models")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().any(|row| row.get("available").and_then(Value::as_bool) == Some(true)))
+        .unwrap_or(false);
+    json!({
+        "ok": true,
+        "api_key": if llm_ready { "set" } else { "not set" },
+        "api_key_set": llm_ready,
+        "llm_ready": llm_ready,
+        "provider": provider,
+        "model": model,
+        "cli_mode": "ops",
+        "workspace_dir": root.to_string_lossy().to_string(),
+        "log_level": clean_text(
+            &std::env::var("RUST_LOG")
+                .or_else(|_| std::env::var("LOG_LEVEL"))
+                .unwrap_or_else(|_| "info".to_string()),
+            32,
+        )
+    })
+}
+
+fn config_schema_payload() -> Value {
+    json!({
+        "ok": true,
+        "sections": {
+            "runtime": {"root_level": true},
+            "llm": {"root_level": false}
         }
+    })
+}
+
+fn set_config_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
+    let path = clean_text(request.get("path").and_then(Value::as_str).unwrap_or(""), 120)
+        .to_ascii_lowercase();
+    let string_value = clean_text(
+        request
+            .get("value")
+            .and_then(|value| {
+                value
+                    .as_str()
+                    .map(|row| row.to_string())
+                    .or_else(|| if value.is_null() { None } else { Some(value.to_string()) })
+            })
+            .unwrap_or_default()
+            .trim_matches('"'),
+        4000,
+    );
+    if path.is_empty() {
+        return json!({"ok": false, "error": "config_path_required"});
     }
-    if rows.is_empty() {
-        let (provider, model) = extract_app_settings(snapshot);
-        rows.push(json!({
-            "id": if provider.is_empty() { "auto" } else { provider.as_str() },
-            "display_name": "Runtime Provider",
-            "is_local": provider == "ollama" || provider == "local",
-            "needs_key": provider != "ollama" && provider != "local",
-            "auth_status": "unknown",
-            "detected_models": if model.is_empty() { vec![] } else { vec![model] }
-        }));
+    let field = path.rsplit('.').next().unwrap_or(path.as_str());
+    let (current_provider, current_model) = extract_app_settings(root, snapshot);
+    match field {
+        "provider" => {
+            let provider = if string_value.is_empty() {
+                "auto".to_string()
+            } else {
+                string_value
+            };
+            let saved = save_app_settings(root, &provider, &current_model);
+            json!({"ok": true, "path": path, "value": provider, "settings": saved})
+        }
+        "model" => {
+            let saved = save_app_settings(root, &current_provider, &string_value);
+            json!({"ok": true, "path": path, "value": string_value, "settings": saved})
+        }
+        "api_key" => crate::dashboard_provider_runtime::save_provider_key(
+            root,
+            &current_provider,
+            &string_value,
+        ),
+        _ => json!({"ok": true, "path": path, "value": request.get("value").cloned().unwrap_or(Value::Null)}),
     }
-    rows.sort_by(|a, b| {
-        clean_text(a.get("id").and_then(Value::as_str).unwrap_or(""), 80)
-            .cmp(&clean_text(b.get("id").and_then(Value::as_str).unwrap_or(""), 80))
-    });
-    json!({"ok": true, "providers": rows})
 }
 
 fn approvals_payload(root: &Path) -> Value {
@@ -273,15 +577,13 @@ fn extract_profiles(root: &Path) -> Vec<Value> {
     let mut rows = state
         .get("agents")
         .and_then(Value::as_object)
-        .map(|obj| {
-            obj.values()
-                .map(|v| v.clone())
-                .collect::<Vec<Value>>()
-        })
+        .map(|obj| obj.values().map(|v| v.clone()).collect::<Vec<Value>>())
         .unwrap_or_default();
     rows.sort_by(|a, b| {
-        clean_text(a.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120)
-            .cmp(&clean_text(b.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120))
+        clean_text(a.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120).cmp(&clean_text(
+            b.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ))
     });
     rows
 }
@@ -350,6 +652,66 @@ fn parse_rfc3339_utc(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .ok()
         .map(|value| value.with_timezone(&Utc))
+}
+
+fn latest_timestamp(values: &[String]) -> String {
+    let mut best = String::new();
+    for value in values {
+        if value.is_empty() {
+            continue;
+        }
+        if best.is_empty() || value > &best {
+            best = value.clone();
+        }
+    }
+    best
+}
+
+fn message_text(row: &Value) -> String {
+    if let Some(text) = row.get("text").and_then(Value::as_str) {
+        return clean_text(text, 4000);
+    }
+    if let Some(text) = row.get("content").and_then(Value::as_str) {
+        return clean_text(text, 4000);
+    }
+    if let Some(text) = row.as_str() {
+        return clean_text(text, 4000);
+    }
+    String::new()
+}
+
+fn message_timestamp_iso(row: &Value) -> String {
+    if let Some(ts) = row.get("ts").and_then(Value::as_str) {
+        return clean_text(ts, 80);
+    }
+    if let Some(ts_ms) = row.get("ts").and_then(Value::as_i64) {
+        if let Some(parsed) = DateTime::<Utc>::from_timestamp_millis(ts_ms) {
+            return parsed.to_rfc3339();
+        }
+    }
+    clean_text(
+        row.get("created_at").and_then(Value::as_str).unwrap_or(""),
+        80,
+    )
+}
+
+fn humanize_agent_name(agent_id: &str) -> String {
+    let cleaned = clean_agent_id(agent_id).replace('-', " ").replace('_', " ");
+    let mut words = Vec::<String>::new();
+    for word in cleaned.split_whitespace() {
+        let mut chars = word.chars();
+        if let Some(first) = chars.next() {
+            let mut built = String::new();
+            built.push(first.to_ascii_uppercase());
+            built.push_str(chars.as_str());
+            words.push(built);
+        }
+    }
+    if words.is_empty() {
+        "Agent".to_string()
+    } else {
+        words.join(" ")
+    }
 }
 
 fn profiles_map(root: &Path) -> Map<String, Value> {
@@ -430,7 +792,11 @@ fn normalize_session_state(agent_id: &str, mut state: Value) -> Value {
             "messages": []
         })]);
     }
-    if !state.get("memory_kv").map(Value::is_object).unwrap_or(false) {
+    if !state
+        .get("memory_kv")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         state["memory_kv"] = json!({});
     }
     state
@@ -475,7 +841,9 @@ fn active_session_row(state: &Value) -> Value {
     }) {
         return found.clone();
     }
-    rows.first().cloned().unwrap_or_else(|| json!({"messages": []}))
+    rows.first()
+        .cloned()
+        .unwrap_or_else(|| json!({"messages": []}))
 }
 
 fn session_messages(state: &Value) -> Vec<Value> {
@@ -501,12 +869,18 @@ fn session_rows_payload(state: &Value) -> Vec<Value> {
         .unwrap_or_default()
         .into_iter()
         .map(|row| {
-            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
-            let label = clean_text(row.get("label").and_then(Value::as_str).unwrap_or("Session"), 80);
-            let updated_at = clean_text(
-                row.get("updated_at")
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            let label = clean_text(
+                row.get("label")
                     .and_then(Value::as_str)
-                    .unwrap_or(""),
+                    .unwrap_or("Session"),
+                80,
+            );
+            let updated_at = clean_text(
+                row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
                 80,
             );
             let message_count = row
@@ -526,7 +900,11 @@ fn session_rows_payload(state: &Value) -> Vec<Value> {
         .collect::<Vec<_>>()
 }
 
-fn split_model_ref(model_ref: &str, fallback_provider: &str, fallback_model: &str) -> (String, String) {
+fn split_model_ref(
+    model_ref: &str,
+    fallback_provider: &str,
+    fallback_model: &str,
+) -> (String, String) {
     let cleaned = clean_text(model_ref, 200);
     if cleaned.contains('/') {
         let mut parts = cleaned.splitn(2, '/');
@@ -600,7 +978,11 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
     let hash = crate::deterministic_receipt_hash(&hash_seed);
     let mut base = format!("agent-{}", hash.chars().take(12).collect::<String>());
     if !hint.is_empty() && hint.len() <= 18 {
-        base = format!("agent-{}-{}", hint, hash.chars().take(5).collect::<String>());
+        base = format!(
+            "agent-{}-{}",
+            hint,
+            hash.chars().take(5).collect::<String>()
+        );
     }
     let mut candidate = clean_agent_id(&base);
     if candidate.is_empty() {
@@ -615,7 +997,13 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
             return next;
         }
     }
-    format!("agent-{}", crate::deterministic_receipt_hash(&json!({"fallback": crate::now_iso()})).chars().take(14).collect::<String>())
+    format!(
+        "agent-{}",
+        crate::deterministic_receipt_hash(&json!({"fallback": crate::now_iso()}))
+            .chars()
+            .take(14)
+            .collect::<String>()
+    )
 }
 
 fn contract_with_runtime_fields(contract: &Value) -> Value {
@@ -625,7 +1013,9 @@ fn contract_with_runtime_fields(contract: &Value) -> Value {
         json!({})
     };
     let status = clean_text(
-        out.get("status").and_then(Value::as_str).unwrap_or("active"),
+        out.get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("active"),
         40,
     );
     let now = Utc::now();
@@ -677,6 +1067,56 @@ fn collab_agents_map(snapshot: &Value) -> HashMap<String, Value> {
     out
 }
 
+fn collab_runtime_active(row: Option<&Value>) -> bool {
+    row.and_then(|value| value.get("status").and_then(Value::as_str))
+        .map(|status| {
+            status.eq_ignore_ascii_case("active") || status.eq_ignore_ascii_case("running")
+        })
+        .unwrap_or(false)
+}
+
+fn session_summary_map(root: &Path, snapshot: &Value) -> HashMap<String, Value> {
+    let mut out = HashMap::<String, Value>::new();
+    let snapshot_rows = snapshot
+        .pointer("/agents/session_summaries/rows")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in snapshot_rows {
+        let agent_id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+        if agent_id.is_empty() {
+            continue;
+        }
+        out.insert(agent_id, row);
+    }
+    let state_rows = crate::dashboard_agent_state::session_summaries(root, 500)
+        .get("rows")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in state_rows {
+        let agent_id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+        if agent_id.is_empty() {
+            continue;
+        }
+        out.insert(agent_id, row);
+    }
+    out
+}
+
+fn session_summary_rows(root: &Path, snapshot: &Value) -> Vec<Value> {
+    let mut rows = session_summary_map(root, snapshot)
+        .into_values()
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|row| {
+        std::cmp::Reverse(clean_text(
+            row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
+    });
+    rows
+}
+
 fn first_string(value: Option<&Value>, key: &str) -> String {
     clean_text(
         value
@@ -691,7 +1131,8 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
     let profiles = profiles_map(root);
     let contracts = contracts_map(root);
     let collab = collab_agents_map(snapshot);
-    let (default_provider, default_model) = extract_app_settings(snapshot);
+    let session_summaries = session_summary_map(root, snapshot);
+    let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let mut all_ids = HashSet::<String>::new();
     for key in profiles.keys() {
         let id = clean_agent_id(key);
@@ -711,31 +1152,58 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             all_ids.insert(id);
         }
     }
+    for key in session_summaries.keys() {
+        let id = clean_agent_id(key);
+        if !id.is_empty() {
+            all_ids.insert(id);
+        }
+    }
     let mut rows = Vec::<Value>::new();
     for agent_id in all_ids {
         if archived.contains(&agent_id) {
             continue;
         }
-        let profile = profiles.get(&agent_id).cloned().unwrap_or_else(|| json!({}));
-        let contract_raw = contracts.get(&agent_id).cloned().unwrap_or_else(|| json!({}));
-        let contract = contract_with_runtime_fields(&contract_raw);
-        let contract_status = clean_text(
-            contract.get("status").and_then(Value::as_str).unwrap_or("active"),
+        let profile = profiles
+            .get(&agent_id)
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let contract_raw = contracts
+            .get(&agent_id)
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let collab_row = collab.get(&agent_id);
+        let session_summary = session_summaries.get(&agent_id);
+        let runtime_active = collab_runtime_active(collab_row);
+        let mut contract = contract_with_runtime_fields(&contract_raw);
+        let mut contract_status = clean_text(
+            contract
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("active"),
             40,
         )
         .to_ascii_lowercase();
+        if runtime_active && contract_status == "terminated" {
+            contract["status"] = json!("active");
+            contract_status = "active".to_string();
+        }
         if !include_terminated && contract_status == "terminated" {
             continue;
         }
-        let collab_row = collab.get(&agent_id);
-        let profile_name = clean_text(profile.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+        let profile_name = clean_text(
+            profile.get("name").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
         let name = if profile_name.is_empty() {
-            agent_id.clone()
+            humanize_agent_name(&agent_id)
         } else {
             profile_name
         };
         let role = {
-            let from_profile = clean_text(profile.get("role").and_then(Value::as_str).unwrap_or(""), 60);
+            let from_profile = clean_text(
+                profile.get("role").and_then(Value::as_str).unwrap_or(""),
+                60,
+            );
             if !from_profile.is_empty() {
                 from_profile
             } else {
@@ -747,12 +1215,27 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                 }
             }
         };
+        let session_updated_at = clean_text(
+            session_summary
+                .and_then(|row| row.get("updated_at").and_then(Value::as_str))
+                .unwrap_or(""),
+            80,
+        );
+        let session_message_count = session_summary
+            .and_then(|row| row.get("message_count").and_then(Value::as_i64))
+            .unwrap_or(0);
         let state = if contract_status == "terminated" {
             "Terminated".to_string()
+        } else if runtime_active {
+            "Running".to_string()
         } else {
             let raw = first_string(collab_row, "status");
             if raw.is_empty() {
-                "Running".to_string()
+                if session_message_count > 0 || !session_updated_at.is_empty() {
+                    "Idle".to_string()
+                } else {
+                    "Running".to_string()
+                }
             } else if raw.eq_ignore_ascii_case("active") || raw.eq_ignore_ascii_case("running") {
                 "Running".to_string()
             } else if raw.eq_ignore_ascii_case("idle") {
@@ -762,8 +1245,15 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             }
         };
 
-        let identity = if profile.get("identity").map(Value::is_object).unwrap_or(false) {
-            profile.get("identity").cloned().unwrap_or_else(|| json!({}))
+        let identity = if profile
+            .get("identity")
+            .map(Value::is_object)
+            .unwrap_or(false)
+        {
+            profile
+                .get("identity")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
         } else {
             json!({
                 "emoji": profile.get("emoji").cloned().unwrap_or_else(|| json!("🧑‍💻")),
@@ -779,11 +1269,12 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                 .unwrap_or(""),
             160,
         );
-        let model_ref = if !model_override.is_empty() && !model_override.eq_ignore_ascii_case("auto") {
-            model_override
-        } else {
-            default_model.clone()
-        };
+        let model_ref =
+            if !model_override.is_empty() && !model_override.eq_ignore_ascii_case("auto") {
+                model_override
+            } else {
+                default_model.clone()
+            };
         let (model_provider, model_name) =
             split_model_ref(&model_ref, &default_provider, &default_model);
         let runtime_model = clean_text(
@@ -834,18 +1325,35 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                 .get("created_at")
                 .and_then(Value::as_str)
                 .or_else(|| contract.get("created_at").and_then(Value::as_str))
+                .or_else(|| {
+                    session_summary.and_then(|row| row.get("updated_at").and_then(Value::as_str))
+                })
                 .unwrap_or(""),
             80,
         );
-        let updated_at = clean_text(
-            profile
-                .get("updated_at")
-                .and_then(Value::as_str)
-                .or_else(|| contract.get("updated_at").and_then(Value::as_str))
-                .or_else(|| collab_row.and_then(|v| v.get("activated_at").and_then(Value::as_str)))
-                .unwrap_or(""),
-            80,
-        );
+        let updated_at = latest_timestamp(&[
+            clean_text(
+                profile
+                    .get("updated_at")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            ),
+            clean_text(
+                contract
+                    .get("updated_at")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            ),
+            clean_text(
+                collab_row
+                    .and_then(|v| v.get("activated_at").and_then(Value::as_str))
+                    .unwrap_or(""),
+                80,
+            ),
+            session_updated_at.clone(),
+        ]);
         rows.push(json!({
             "id": agent_id,
             "agent_id": agent_id,
@@ -864,13 +1372,17 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             "git_branch": git_branch,
             "branch": git_branch,
             "git_tree_kind": git_tree_kind,
-            "workspace_dir": profile.get("workspace_dir").cloned().unwrap_or(Value::Null),
+            "workspace_dir": profile
+                .get("workspace_dir")
+                .cloned()
+                .unwrap_or_else(|| json!(root.to_string_lossy().to_string())),
             "workspace_rel": profile.get("workspace_rel").cloned().unwrap_or(Value::Null),
             "git_tree_ready": profile.get("git_tree_ready").cloned().unwrap_or_else(|| json!(true)),
             "git_tree_error": profile.get("git_tree_error").cloned().unwrap_or_else(|| json!("")),
             "is_master_agent": is_master,
             "created_at": created_at,
             "updated_at": updated_at,
+            "message_count": session_message_count,
             "contract": contract.clone(),
             "contract_expires_at": contract.get("expires_at").cloned().unwrap_or(Value::Null),
             "contract_remaining_ms": contract_remaining_ms.map(Value::from).unwrap_or(Value::Null),
@@ -893,9 +1405,7 @@ fn agent_row_by_id(root: &Path, snapshot: &Value, agent_id: &str) -> Option<Valu
     }
     build_agent_roster(root, snapshot, true)
         .into_iter()
-        .find(|row| {
-            clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or("")) == id
-        })
+        .find(|row| clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or("")) == id)
 }
 
 fn update_profile_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
@@ -951,7 +1461,10 @@ fn reset_active_session(root: &Path, agent_id: &str) -> Value {
     );
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
-            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
             if sid == active_id {
                 row["messages"] = Value::Array(Vec::new());
                 row["updated_at"] = Value::String(crate::now_iso());
@@ -1008,7 +1521,10 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
     let mut after_messages = 0usize;
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
-            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
             if sid != active_id {
                 continue;
             }
@@ -1105,6 +1621,29 @@ fn parse_agent_route(path_only: &str) -> Option<(String, Vec<String>)> {
     Some((agent_id, parts))
 }
 
+fn parse_provider_route(path_only: &str) -> Option<(String, Vec<String>)> {
+    let prefix = "/api/providers/";
+    if !path_only.starts_with(prefix) {
+        return None;
+    }
+    let tail = path_only.trim_start_matches(prefix).trim_matches('/');
+    if tail.is_empty() {
+        return None;
+    }
+    let mut parts = tail
+        .split('/')
+        .map(|value| clean_text(value, 180))
+        .collect::<Vec<_>>();
+    if parts.is_empty() {
+        return None;
+    }
+    let provider_id = decode_path_segment(&parts.remove(0));
+    if provider_id.is_empty() {
+        return None;
+    }
+    Some((provider_id, parts))
+}
+
 fn decode_path_segment(raw: &str) -> String {
     let decoded = urlencoding::decode(raw)
         .ok()
@@ -1159,7 +1698,11 @@ fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
     while end > 0 && !std::str::from_utf8(&bytes[..end]).is_ok() {
         end -= 1;
     }
-    let slice = if end == 0 { &bytes[..max_bytes] } else { &bytes[..end] };
+    let slice = if end == 0 {
+        &bytes[..max_bytes]
+    } else {
+        &bytes[..end]
+    };
     (String::from_utf8_lossy(slice).to_string(), true)
 }
 
@@ -1168,22 +1711,58 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
     let mut counts = HashMap::<String, i64>::new();
     let mut current = Value::Null;
     for row in &roster {
-        let branch = clean_text(row.get("git_branch").and_then(Value::as_str).unwrap_or(""), 180);
+        let branch = clean_text(
+            row.get("git_branch").and_then(Value::as_str).unwrap_or(""),
+            180,
+        );
         if branch.is_empty() {
             continue;
         }
         *counts.entry(branch.clone()).or_insert(0) += 1;
-        if clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or("")) == clean_agent_id(agent_id) {
+        if clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""))
+            == clean_agent_id(agent_id)
+        {
             current = row.clone();
         }
     }
-    let mut branches = counts.keys().cloned().collect::<Vec<_>>();
-    if !branches.iter().any(|row| row == "main") {
-        branches.push("main".to_string());
-        counts.insert("main".to_string(), 0);
+    let current_branch = clean_text(
+        current
+            .get("git_branch")
+            .and_then(Value::as_str)
+            .unwrap_or("main"),
+        180,
+    );
+    let current_workspace = clean_text(
+        current
+            .get("workspace_dir")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        4000,
+    );
+    let current_workspace_dir = if current_workspace.is_empty() {
+        root.to_path_buf()
+    } else {
+        PathBuf::from(&current_workspace)
+    };
+    let current_workspace_rel = current
+        .get("workspace_rel")
+        .cloned()
+        .unwrap_or_else(|| json!(crate::dashboard_git_runtime::workspace_rel(root, &current_workspace_dir)));
+    let (main_branch, mut branches) =
+        crate::dashboard_git_runtime::list_git_branches(root, 200, &current_branch);
+    if branches.is_empty() {
+        branches.push(if main_branch.is_empty() {
+            "main".to_string()
+        } else {
+            main_branch.clone()
+        });
+    }
+    for branch in counts.keys() {
+        if !branches.iter().any(|row| row == branch) {
+            branches.push(branch.clone());
+        }
     }
     branches.sort();
-    let current_branch = clean_text(current.get("git_branch").and_then(Value::as_str).unwrap_or("main"), 180);
     let options = branches
         .iter()
         .map(|branch| {
@@ -1192,12 +1771,22 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
             } else {
                 "isolated"
             };
+            let workspace = if branch == "main" || branch == "master" {
+                root.to_path_buf()
+            } else {
+                crate::dashboard_git_runtime::workspace_for_agent_branch(root, agent_id, branch)
+            };
+            let ready = crate::dashboard_git_runtime::git_workspace_ready(root, &workspace);
             json!({
                 "branch": branch,
                 "current": *branch == current_branch,
                 "main": *branch == "main" || *branch == "master",
                 "kind": kind,
-                "in_use_by_agents": counts.get(branch).copied().unwrap_or(0)
+                "in_use_by_agents": counts.get(branch).copied().unwrap_or(0),
+                "workspace_dir": workspace.to_string_lossy().to_string(),
+                "workspace_rel": crate::dashboard_git_runtime::workspace_rel(root, &workspace),
+                "git_tree_ready": if kind == "master" { true } else { ready },
+                "git_tree_error": if kind == "master" || ready { "" } else { "git_worktree_missing" }
             })
         })
         .collect::<Vec<_>>();
@@ -1206,10 +1795,10 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
         "current": {
             "git_branch": if current_branch.is_empty() { "main" } else { &current_branch },
             "git_tree_kind": if current_branch == "main" || current_branch == "master" { "master" } else { "isolated" },
-            "workspace_dir": current.get("workspace_dir").cloned().unwrap_or(Value::Null),
-            "workspace_rel": current.get("workspace_rel").cloned().unwrap_or(Value::Null),
-            "git_tree_ready": true,
-            "git_tree_error": ""
+            "workspace_dir": if current_workspace.is_empty() { root.to_string_lossy().to_string() } else { current_workspace },
+            "workspace_rel": current_workspace_rel,
+            "git_tree_ready": current.get("git_tree_ready").cloned().unwrap_or_else(|| json!(true)),
+            "git_tree_error": current.get("git_tree_error").cloned().unwrap_or_else(|| json!(""))
         },
         "options": options
     })
@@ -1224,8 +1813,13 @@ pub fn handle_with_headers(
     snapshot: &Value,
 ) -> Option<CompatApiResponse> {
     let path_only = path.split('?').next().unwrap_or(path);
-    if let Some(payload) = crate::dashboard_terminal_broker::handle_http(root, method, path_only, body) {
-        return Some(CompatApiResponse { status: 200, payload });
+    if let Some(payload) =
+        crate::dashboard_terminal_broker::handle_http(root, method, path_only, body)
+    {
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
     }
     if let Some(response) = dashboard_compat_api_channels::handle(root, method, path_only, body) {
         return Some(response);
@@ -1235,16 +1829,144 @@ pub fn handle_with_headers(
         return Some(response);
     }
 
+    if let Some((provider_id, segments)) = parse_provider_route(path_only) {
+        if method == "POST" && segments.len() == 1 && segments[0] == "key" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let key = clean_text(request.get("key").and_then(Value::as_str).unwrap_or(""), 4096);
+            let payload = crate::dashboard_provider_runtime::save_provider_key(root, &provider_id, &key);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if method == "DELETE" && segments.len() == 1 && segments[0] == "key" {
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_provider_runtime::remove_provider_key(root, &provider_id),
+            });
+        }
+        if method == "POST" && segments.len() == 1 && segments[0] == "test" {
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_provider_runtime::test_provider(root, &provider_id),
+            });
+        }
+        if method == "PUT" && segments.len() == 1 && segments[0] == "url" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let base_url = clean_text(
+                request
+                    .get("base_url")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                400,
+            );
+            let payload =
+                crate::dashboard_provider_runtime::set_provider_url(root, &provider_id, &base_url);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+    }
+
+    if method == "POST" && path_only == "/api/models/discover" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let input = clean_text(
+            request
+                .get("input")
+                .and_then(Value::as_str)
+                .or_else(|| request.get("api_key").and_then(Value::as_str))
+                .unwrap_or(""),
+            4096,
+        );
+        let payload = crate::dashboard_provider_runtime::discover_models(root, &input);
+        return Some(CompatApiResponse {
+            status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                200
+            } else {
+                400
+            },
+            payload,
+        });
+    }
+    if method == "POST" && path_only == "/api/models/download" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let provider = clean_text(request.get("provider").and_then(Value::as_str).unwrap_or(""), 80);
+        let model = clean_text(request.get("model").and_then(Value::as_str).unwrap_or(""), 240);
+        let payload = crate::dashboard_provider_runtime::download_model(root, &provider, &model);
+        return Some(CompatApiResponse {
+            status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                200
+            } else {
+                400
+            },
+            payload,
+        });
+    }
+    if method == "POST" && path_only == "/api/models/custom" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let provider = clean_text(
+            request
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or("openrouter"),
+            80,
+        );
+        let model = clean_text(
+            request
+                .get("id")
+                .or_else(|| request.get("model"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        let context_window = request
+            .get("context_window")
+            .and_then(Value::as_i64)
+            .unwrap_or(128_000);
+        let max_output_tokens = request
+            .get("max_output_tokens")
+            .and_then(Value::as_i64)
+            .unwrap_or(8192);
+        let payload = crate::dashboard_provider_runtime::add_custom_model(
+            root,
+            &provider,
+            &model,
+            context_window,
+            max_output_tokens,
+        );
+        return Some(CompatApiResponse {
+            status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                200
+            } else {
+                400
+            },
+            payload,
+        });
+    }
+    if method == "DELETE" && path_only.starts_with("/api/models/custom/") {
+        let model_ref = decode_path_segment(path_only.trim_start_matches("/api/models/custom/"));
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_provider_runtime::delete_custom_model(root, &model_ref),
+        });
+    }
+
     if method == "GET" && path_only == "/api/agents/terminated" {
         return Some(CompatApiResponse {
             status: 200,
             payload: crate::dashboard_agent_state::terminated_entries(root),
         });
     }
-    if method == "POST"
-        && path_only.starts_with("/api/agents/")
-        && path_only.ends_with("/revive")
-    {
+    if method == "POST" && path_only.starts_with("/api/agents/") && path_only.ends_with("/revive") {
         let agent_id = path_only
             .trim_start_matches("/api/agents/")
             .trim_end_matches("/revive")
@@ -1271,7 +1993,9 @@ pub fn handle_with_headers(
         }
     }
     if method == "DELETE" && path_only.starts_with("/api/agents/terminated/") {
-        let agent_id = path_only.trim_start_matches("/api/agents/terminated/").trim();
+        let agent_id = path_only
+            .trim_start_matches("/api/agents/terminated/")
+            .trim();
         return Some(CompatApiResponse {
             status: 200,
             payload: crate::dashboard_agent_state::delete_terminated(
@@ -1329,7 +2053,7 @@ pub fn handle_with_headers(
             requested_name
         };
         let agent_id = make_agent_id(root, &name);
-        let (default_provider, default_model) = extract_app_settings(snapshot);
+        let (default_provider, default_model) = effective_app_settings(root, snapshot);
         let model_provider = clean_text(
             request
                 .get("provider")
@@ -1351,8 +2075,15 @@ pub fn handle_with_headers(
         } else {
             format!("{model_provider}/{model_name}")
         };
-        let identity = if request.get("identity").map(Value::is_object).unwrap_or(false) {
-            request.get("identity").cloned().unwrap_or_else(|| json!({}))
+        let identity = if request
+            .get("identity")
+            .map(Value::is_object)
+            .unwrap_or(false)
+        {
+            request
+                .get("identity")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
         } else {
             json!({
                 "emoji": request.get("emoji").cloned().unwrap_or_else(|| json!("🧑‍💻")),
@@ -1382,7 +2113,10 @@ pub fn handle_with_headers(
             "is_master_agent": true
         });
         let _ = update_profile_patch(root, &agent_id, &profile_patch);
-        let contract_obj = request.get("contract").cloned().unwrap_or_else(|| json!({}));
+        let contract_obj = request
+            .get("contract")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
         let expiry_seconds = contract_obj
             .get("expiry_seconds")
             .and_then(Value::as_i64)
@@ -1514,14 +2248,22 @@ pub fn handle_with_headers(
             });
         }
 
-        if method == "POST" && segments.len() == 2 && segments[0] == "session" && segments[1] == "reset" {
+        if method == "POST"
+            && segments.len() == 2
+            && segments[0] == "session"
+            && segments[1] == "reset"
+        {
             return Some(CompatApiResponse {
                 status: 200,
                 payload: reset_active_session(root, &agent_id),
             });
         }
 
-        if method == "POST" && segments.len() == 2 && segments[0] == "session" && segments[1] == "compact" {
+        if method == "POST"
+            && segments.len() == 2
+            && segments[0] == "session"
+            && segments[1] == "compact"
+        {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             return Some(CompatApiResponse {
                 status: 200,
@@ -1544,7 +2286,13 @@ pub fn handle_with_headers(
 
         if method == "POST" && segments.len() == 1 && segments[0] == "sessions" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let label = clean_text(request.get("label").and_then(Value::as_str).unwrap_or("Session"), 80);
+            let label = clean_text(
+                request
+                    .get("label")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Session"),
+                80,
+            );
             return Some(CompatApiResponse {
                 status: 200,
                 payload: crate::dashboard_agent_state::create_session(root, &agent_id, &label),
@@ -1580,7 +2328,10 @@ pub fn handle_with_headers(
 
         if method == "POST" && segments.len() == 1 && segments[0] == "message" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let message = clean_text(request.get("message").and_then(Value::as_str).unwrap_or(""), 8_000);
+            let message = clean_text(
+                request.get("message").and_then(Value::as_str).unwrap_or(""),
+                8_000,
+            );
             if message.is_empty() {
                 return Some(CompatApiResponse {
                     status: 400,
@@ -1588,26 +2339,119 @@ pub fn handle_with_headers(
                 });
             }
             let row = agent_row_by_id(root, snapshot, &agent_id).unwrap_or_else(|| json!({}));
-            let provider = clean_text(row.get("model_provider").and_then(Value::as_str).unwrap_or("auto"), 80);
-            let model = clean_text(row.get("model_name").and_then(Value::as_str).unwrap_or("model"), 120);
-            let response_text = format!("[{provider}/{model}] {message}");
-            append_turn_message(root, &agent_id, &message, &response_text);
-            return Some(CompatApiResponse {
-                status: 200,
-                payload: json!({
-                    "ok": true,
-                    "agent_id": agent_id,
-                    "response": response_text,
-                    "provider": provider,
-                    "model": model,
-                    "runtime_model": model,
-                    "input_tokens": estimate_tokens(&message),
-                    "output_tokens": estimate_tokens(&message),
-                    "cost_usd": 0.0,
-                    "iterations": 1,
-                    "tools": []
-                }),
+            let requested_provider = clean_text(
+                row.get("model_provider").and_then(Value::as_str).unwrap_or("auto"),
+                80,
+            );
+            let requested_model = clean_text(
+                row.get("model_name").and_then(Value::as_str).unwrap_or(""),
+                240,
+            );
+            let route_request = json!({
+                "agent_id": agent_id,
+                "message": message,
+                "task_type": row.get("role").cloned().unwrap_or_else(|| json!("general")),
+                "token_count": estimate_tokens(&message),
+                "has_vision": request
+                    .get("attachments")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.iter().any(|row| {
+                        clean_text(
+                            row.get("content_type")
+                                .or_else(|| row.get("mime_type"))
+                                .and_then(Value::as_str)
+                                .unwrap_or(""),
+                            120,
+                        )
+                        .to_ascii_lowercase()
+                        .starts_with("image/")
+                    }))
+                    .unwrap_or(false)
             });
+            let (provider, model, auto_route) =
+                crate::dashboard_model_catalog::resolve_model_selection(
+                    root,
+                    snapshot,
+                    &requested_provider,
+                    &requested_model,
+                    &route_request,
+                );
+            let state = load_session_state(root, &agent_id);
+            let messages = session_messages(&state);
+            let system_prompt = clean_text(
+                row.get("system_prompt").and_then(Value::as_str).unwrap_or(""),
+                12_000,
+            );
+            match crate::dashboard_provider_runtime::invoke_chat(
+                root,
+                &provider,
+                &model,
+                &system_prompt,
+                &messages,
+                &message,
+            ) {
+                Ok(result) => {
+                    let response_text = clean_text(
+                        result.get("response").and_then(Value::as_str).unwrap_or(""),
+                        32_000,
+                    );
+                    append_turn_message(root, &agent_id, &message, &response_text);
+                    let runtime_model = clean_text(
+                        result
+                            .get("runtime_model")
+                            .and_then(Value::as_str)
+                            .unwrap_or(&model),
+                        240,
+                    );
+                    let mut runtime_patch = json!({
+                        "runtime_model": runtime_model,
+                        "context_window": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
+                        "context_window_tokens": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
+                        "updated_at": crate::now_iso()
+                    });
+                    if auto_route.is_some() {
+                        runtime_patch["runtime_provider"] = json!(provider.clone());
+                        if !requested_provider.eq_ignore_ascii_case("auto")
+                            && !requested_model.is_empty()
+                            && !requested_model.eq_ignore_ascii_case("auto")
+                        {
+                            runtime_patch["model_provider"] = json!(provider.clone());
+                            runtime_patch["model_name"] = json!(model.clone());
+                            runtime_patch["model_override"] =
+                                json!(format!("{provider}/{model}"));
+                        }
+                    }
+                    let _ = update_profile_patch(root, &agent_id, &runtime_patch);
+                    let mut payload = result.clone();
+                    payload["ok"] = json!(true);
+                    payload["agent_id"] = json!(agent_id);
+                    payload["provider"] = json!(provider);
+                    payload["model"] = json!(model);
+                    payload["iterations"] = json!(1);
+                    if let Some(route) = auto_route {
+                        payload["auto_route"] = route
+                            .get("route")
+                            .cloned()
+                            .unwrap_or_else(|| route.clone());
+                    }
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload,
+                    });
+                }
+                Err(err) => {
+                    return Some(CompatApiResponse {
+                        status: 502,
+                        payload: json!({
+                            "ok": false,
+                            "agent_id": agent_id,
+                            "error": clean_text(&err, 280),
+                            "provider": provider,
+                            "model": model
+                        }),
+                    });
+                }
+            }
         }
 
         if method == "POST" && segments.len() == 1 && segments[0] == "suggestions" {
@@ -1633,14 +2477,20 @@ pub fn handle_with_headers(
                 patch = json!({});
             }
             if !patch.get("identity").map(Value::is_object).unwrap_or(false) {
-                let emoji = clean_text(patch.get("emoji").and_then(Value::as_str).unwrap_or(""), 16);
-                let color = clean_text(patch.get("color").and_then(Value::as_str).unwrap_or(""), 32);
+                let emoji =
+                    clean_text(patch.get("emoji").and_then(Value::as_str).unwrap_or(""), 16);
+                let color =
+                    clean_text(patch.get("color").and_then(Value::as_str).unwrap_or(""), 32);
                 let archetype = clean_text(
                     patch.get("archetype").and_then(Value::as_str).unwrap_or(""),
                     80,
                 );
                 let vibe = clean_text(patch.get("vibe").and_then(Value::as_str).unwrap_or(""), 80);
-                if !emoji.is_empty() || !color.is_empty() || !archetype.is_empty() || !vibe.is_empty() {
+                if !emoji.is_empty()
+                    || !color.is_empty()
+                    || !archetype.is_empty()
+                    || !vibe.is_empty()
+                {
                     patch["identity"] = json!({
                         "emoji": emoji,
                         "color": color,
@@ -1662,7 +2512,8 @@ pub fn handle_with_headers(
             {
                 let _ = upsert_contract_patch(root, &agent_id, &patch);
             }
-            let row = agent_row_by_id(root, snapshot, &agent_id).unwrap_or_else(|| json!({"id": agent_id}));
+            let row = agent_row_by_id(root, snapshot, &agent_id)
+                .unwrap_or_else(|| json!({"id": agent_id}));
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({"ok": true, "agent_id": agent_id, "agent": row}),
@@ -1671,14 +2522,17 @@ pub fn handle_with_headers(
 
         if method == "PUT" && segments.len() == 1 && segments[0] == "model" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let requested = clean_text(request.get("model").and_then(Value::as_str).unwrap_or(""), 200);
+            let requested = clean_text(
+                request.get("model").and_then(Value::as_str).unwrap_or(""),
+                200,
+            );
             if requested.is_empty() {
                 return Some(CompatApiResponse {
                     status: 400,
                     payload: json!({"ok": false, "error": "model_required"}),
                 });
             }
-            let (default_provider, default_model) = extract_app_settings(snapshot);
+            let (default_provider, default_model) = effective_app_settings(root, snapshot);
             let (provider, model) = split_model_ref(&requested, &default_provider, &default_model);
             let _ = update_profile_patch(
                 root,
@@ -1704,8 +2558,15 @@ pub fn handle_with_headers(
 
         if method == "PUT" && segments.len() == 1 && segments[0] == "mode" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let mode = clean_text(request.get("mode").and_then(Value::as_str).unwrap_or(""), 40);
-            let _ = update_profile_patch(root, &agent_id, &json!({"mode": mode, "updated_at": crate::now_iso()}));
+            let mode = clean_text(
+                request.get("mode").and_then(Value::as_str).unwrap_or(""),
+                40,
+            );
+            let _ = update_profile_patch(
+                root,
+                &agent_id,
+                &json!({"mode": mode, "updated_at": crate::now_iso()}),
+            );
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({"ok": true, "agent_id": agent_id, "mode": mode}),
@@ -1719,38 +2580,81 @@ pub fn handle_with_headers(
             });
         }
 
-        if method == "POST" && segments.len() == 2 && segments[0] == "git-tree" && segments[1] == "switch" {
+        if method == "POST"
+            && segments.len() == 2
+            && segments[0] == "git-tree"
+            && segments[1] == "switch"
+        {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let branch = clean_text(request.get("branch").and_then(Value::as_str).unwrap_or(""), 180);
+            let branch = clean_text(
+                request.get("branch").and_then(Value::as_str).unwrap_or(""),
+                180,
+            );
             if branch.is_empty() {
                 return Some(CompatApiResponse {
                     status: 400,
                     payload: json!({"ok": false, "error": "branch_required"}),
                 });
             }
-            let kind = if branch == "main" || branch == "master" {
-                "master"
-            } else {
-                "isolated"
-            };
+            let require_new = request
+                .get("require_new")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let result = crate::dashboard_git_runtime::switch_agent_worktree(
+                root,
+                &agent_id,
+                &branch,
+                require_new,
+            );
+            let kind = clean_text(
+                result.get("kind").and_then(Value::as_str).unwrap_or("isolated"),
+                40,
+            );
+            let default_workspace_dir = root.to_string_lossy().to_string();
+            let workspace_dir = clean_text(
+                result
+                    .get("workspace_dir")
+                    .and_then(Value::as_str)
+                    .unwrap_or(default_workspace_dir.as_str()),
+                4000,
+            );
+            let workspace_rel = clean_text(
+                result
+                    .get("workspace_rel")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                4000,
+            );
+            let ready = result.get("ready").and_then(Value::as_bool).unwrap_or(false);
+            let error = clean_text(
+                result.get("error").and_then(Value::as_str).unwrap_or(""),
+                280,
+            );
             let _ = update_profile_patch(
                 root,
                 &agent_id,
                 &json!({
-                    "git_branch": branch,
+                    "git_branch": clean_text(result.get("branch").and_then(Value::as_str).unwrap_or(&branch), 180),
                     "git_tree_kind": kind,
-                    "git_tree_ready": true,
-                    "git_tree_error": "",
+                    "workspace_dir": workspace_dir,
+                    "workspace_rel": workspace_rel,
+                    "git_tree_ready": ready,
+                    "git_tree_error": error,
                     "updated_at": crate::now_iso()
                 }),
             );
             return Some(CompatApiResponse {
-                status: 200,
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
                 payload: git_tree_payload_for_agent(root, snapshot, &agent_id),
             });
         }
 
-        if method == "POST" && segments.len() == 2 && segments[0] == "file" && segments[1] == "read" {
+        if method == "POST" && segments.len() == 2 && segments[0] == "file" && segments[1] == "read"
+        {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             let requested_path = clean_text(
                 request
@@ -1801,7 +2705,11 @@ pub fn handle_with_headers(
             });
         }
 
-        if method == "POST" && segments.len() == 2 && segments[0] == "folder" && segments[1] == "export" {
+        if method == "POST"
+            && segments.len() == 2
+            && segments[0] == "folder"
+            && segments[1] == "export"
+        {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             let requested_path = clean_text(
                 request
@@ -1897,11 +2805,15 @@ pub fn handle_with_headers(
                 });
             }
             let workspace_base = workspace_base_for_agent(root, existing.as_ref());
-            let requested_cwd = clean_text(request.get("cwd").and_then(Value::as_str).unwrap_or(""), 4000);
+            let requested_cwd = clean_text(
+                request.get("cwd").and_then(Value::as_str).unwrap_or(""),
+                4000,
+            );
             let cwd = if requested_cwd.is_empty() {
                 workspace_base.clone()
             } else {
-                resolve_workspace_path(&workspace_base, &requested_cwd).unwrap_or(workspace_base.clone())
+                resolve_workspace_path(&workspace_base, &requested_cwd)
+                    .unwrap_or(workspace_base.clone())
             };
             let started = Instant::now();
             let output = if cfg!(windows) {
@@ -2018,11 +2930,15 @@ pub fn handle_with_headers(
                     if !path.is_file() {
                         continue;
                     }
-                    let name = clean_text(path.file_name().and_then(|v| v.to_str()).unwrap_or(""), 180);
+                    let name =
+                        clean_text(path.file_name().and_then(|v| v.to_str()).unwrap_or(""), 180);
                     if name.is_empty() {
                         continue;
                     }
-                    if rows.iter().any(|row| row.get("name").and_then(Value::as_str) == Some(name.as_str())) {
+                    if rows
+                        .iter()
+                        .any(|row| row.get("name").and_then(Value::as_str) == Some(name.as_str()))
+                    {
                         continue;
                     }
                     rows.push(json!({
@@ -2033,8 +2949,9 @@ pub fn handle_with_headers(
                 }
             }
             rows.sort_by(|a, b| {
-                clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 180)
-                    .cmp(&clean_text(b.get("name").and_then(Value::as_str).unwrap_or(""), 180))
+                clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 180).cmp(
+                    &clean_text(b.get("name").and_then(Value::as_str).unwrap_or(""), 180),
+                )
             });
             return Some(CompatApiResponse {
                 status: 200,
@@ -2042,10 +2959,7 @@ pub fn handle_with_headers(
             });
         }
 
-        if (method == "GET" || method == "PUT")
-            && segments.len() >= 2
-            && segments[0] == "files"
-        {
+        if (method == "GET" || method == "PUT") && segments.len() >= 2 && segments[0] == "files" {
             let file_name = decode_path_segment(&segments[1..].join("/"));
             if file_name.is_empty() || file_name.contains("..") {
                 return Some(CompatApiResponse {
@@ -2084,9 +2998,8 @@ pub fn handle_with_headers(
         }
 
         if method == "GET" && segments.len() == 1 && segments[0] == "tools" {
-            let payload = read_json_loose(&agent_tools_path(root, &agent_id)).unwrap_or_else(|| {
-                json!({"tool_allowlist": [], "tool_blocklist": []})
-            });
+            let payload = read_json_loose(&agent_tools_path(root, &agent_id))
+                .unwrap_or_else(|| json!({"tool_allowlist": [], "tool_blocklist": []}));
             return Some(CompatApiResponse {
                 status: 200,
                 payload,
@@ -2109,7 +3022,13 @@ pub fn handle_with_headers(
         if method == "POST" && segments.len() == 1 && segments[0] == "clone" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             let source = existing.unwrap_or_else(|| json!({}));
-            let source_name = clean_text(source.get("name").and_then(Value::as_str).unwrap_or("agent"), 120);
+            let source_name = clean_text(
+                source
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("agent"),
+                120,
+            );
             let new_name = clean_text(
                 request
                     .get("new_name")
@@ -2148,9 +3067,7 @@ pub fn handle_with_headers(
 
         if method == "POST" && segments.len() == 1 && segments[0] == "avatar" {
             let content_type = clean_text(
-                query_value(path, "content_type")
-                    .as_deref()
-                    .unwrap_or(""),
+                query_value(path, "content_type").as_deref().unwrap_or(""),
                 120,
             );
             let inferred = if content_type.is_empty() {
@@ -2172,16 +3089,17 @@ pub fn handle_with_headers(
         }
     }
 
-    let usage = usage_from_snapshot(snapshot);
+    let usage = usage_from_state(root, snapshot);
     let runtime = runtime_sync_summary(snapshot);
     let alerts_count = parse_non_negative_i64(snapshot.pointer("/health/alerts/count"), 0);
-    let status = if snapshot.get("ok").and_then(Value::as_bool).unwrap_or(false) && alerts_count == 0 {
-        "healthy"
-    } else if snapshot.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        "degraded"
-    } else {
-        "critical"
-    };
+    let status =
+        if snapshot.get("ok").and_then(Value::as_bool).unwrap_or(false) && alerts_count == 0 {
+            "healthy"
+        } else if snapshot.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            "degraded"
+        } else {
+            "critical"
+        };
 
     if method == "GET" {
         let payload = match path_only {
@@ -2195,10 +3113,23 @@ pub fn handle_with_headers(
                 "receipt_hash": snapshot.get("receipt_hash").cloned().unwrap_or(Value::Null),
                 "ts": crate::now_iso()
             }),
-            "/api/usage" => json!({"ok": true, "agents": usage["agents"].clone(), "summary": usage["summary"].clone(), "by_model": usage["models"].clone(), "daily": usage["daily"].clone()}),
-            "/api/usage/summary" => json!({"ok": true, "summary": usage["summary"].clone()}),
+            "/api/usage" => {
+                json!({"ok": true, "agents": usage["agents"].clone(), "summary": usage["summary"].clone(), "by_model": usage["models"].clone(), "daily": usage["daily"].clone()})
+            }
+            "/api/usage/summary" => {
+                let mut summary = usage["summary"].clone();
+                summary["ok"] = json!(true);
+                summary
+            }
             "/api/usage/by-model" => json!({"ok": true, "models": usage["models"].clone()}),
-            "/api/usage/daily" => json!({"ok": true, "days": usage["daily"].clone()}),
+            "/api/usage/daily" => json!({
+                "ok": true,
+                "days": usage["daily"].clone(),
+                "today_cost_usd": usage["today_cost_usd"].clone(),
+                "first_event_date": usage["first_event_date"].clone()
+            }),
+            "/api/config" => config_payload(root, snapshot),
+            "/api/config/schema" => config_schema_payload(),
             "/api/providers" => providers_payload(root, snapshot),
             "/api/models" => crate::dashboard_model_catalog::catalog_payload(root, snapshot),
             "/api/models/recommended" => crate::dashboard_model_catalog::route_decision_payload(
@@ -2206,8 +3137,14 @@ pub fn handle_with_headers(
                 snapshot,
                 &json!({"task_type":"general","budget_mode":"balanced"}),
             ),
-            "/api/route/decision" =>
-                crate::dashboard_model_catalog::route_decision_payload(root, snapshot, &json!({})),
+            "/api/route/auto" => crate::dashboard_model_catalog::route_decision_payload(
+                root,
+                snapshot,
+                &json!({"task_type":"general","budget_mode":"balanced"}),
+            ),
+            "/api/route/decision" => {
+                crate::dashboard_model_catalog::route_decision_payload(root, snapshot, &json!({}))
+            }
             "/api/channels" => dashboard_compat_api_channels::channels_payload(root),
             "/api/eyes" => read_eyes_payload(root),
             "/api/audit/recent" => {
@@ -2224,10 +3161,20 @@ pub fn handle_with_headers(
                 let version = read_json(&root.join("package.json"))
                     .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
                     .unwrap_or_else(|| "0.1.0".to_string());
-                json!({"ok": true, "version": version, "rust_authority": "rust_core_lanes"})
+                json!({
+                    "ok": true,
+                    "version": version,
+                    "rust_authority": "rust_core_lanes",
+                    "platform": std::env::consts::OS,
+                    "arch": std::env::consts::ARCH
+                })
             }
-            "/api/network/status" => json!({"ok": true, "enabled": true, "connected_peers": 0, "total_peers": 0, "runtime_sync": runtime}),
-            "/api/peers" => json!({"ok": true, "peers": [], "connected": 0, "total": 0, "runtime_sync": runtime}),
+            "/api/network/status" => {
+                json!({"ok": true, "enabled": true, "connected_peers": 0, "total_peers": 0, "runtime_sync": runtime})
+            }
+            "/api/peers" => {
+                json!({"ok": true, "peers": [], "connected": 0, "total": 0, "runtime_sync": runtime})
+            }
             "/api/security" => json!({
                 "ok": true,
                 "mode": "strict",
@@ -2269,7 +3216,9 @@ pub fn handle_with_headers(
             }),
             "/api/a2a/agents" => json!({"ok": true, "agents": []}),
             "/api/approvals" => approvals_payload(root),
-            "/api/sessions" => json!({"ok": true, "sessions": snapshot.pointer("/agents/session_summaries/rows").cloned().unwrap_or_else(|| json!([]))}),
+            "/api/sessions" => {
+                json!({"ok": true, "sessions": session_summary_rows(root, snapshot)})
+            }
             "/api/workflows" => rows_from_array_store(root, WORKFLOWS_REL, "workflows"),
             "/api/cron/jobs" => rows_from_array_store(root, CRON_JOBS_REL, "jobs"),
             "/api/triggers" => rows_from_array_store(root, TRIGGERS_REL, "triggers"),
@@ -2296,7 +3245,10 @@ pub fn handle_with_headers(
             }),
             _ => return None,
         };
-        return Some(CompatApiResponse { status: 200, payload });
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
     }
 
     if method == "POST" {
@@ -2304,6 +3256,27 @@ pub fn handle_with_headers(
             return Some(CompatApiResponse {
                 status: 200,
                 payload: crate::dashboard_release_update::apply_update(root),
+            });
+        }
+        if path_only == "/api/config/set" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = set_config_payload(root, snapshot, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/route/auto" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_model_catalog::route_decision_payload(
+                    root, snapshot, &request,
+                ),
             });
         }
         if path_only == "/api/route/decision" {
@@ -2339,6 +3312,40 @@ pub fn handle(
 mod tests {
     use super::*;
 
+    fn init_git_repo(root: &Path) {
+        let status = Command::new("git")
+            .args(["init", "-b", "main"])
+            .current_dir(root)
+            .status()
+            .expect("git init");
+        assert!(status.success());
+        let status = Command::new("git")
+            .args(["config", "user.email", "codex@example.com"])
+            .current_dir(root)
+            .status()
+            .expect("git config email");
+        assert!(status.success());
+        let status = Command::new("git")
+            .args(["config", "user.name", "Codex"])
+            .current_dir(root)
+            .status()
+            .expect("git config name");
+        assert!(status.success());
+        let _ = fs::write(root.join("README.md"), "dashboard test repo\n");
+        let status = Command::new("git")
+            .args(["add", "README.md"])
+            .current_dir(root)
+            .status()
+            .expect("git add");
+        assert!(status.success());
+        let status = Command::new("git")
+            .args(["commit", "-m", "init"])
+            .current_dir(root)
+            .status()
+            .expect("git commit");
+        assert!(status.success());
+    }
+
     #[test]
     fn providers_endpoint_uses_registry_rows() {
         let root = tempfile::tempdir().expect("tempdir");
@@ -2366,7 +3373,13 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert_eq!(rows.len(), 2);
+        assert!(rows.len() >= 2);
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str) == Some("openai")
+        }));
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str) == Some("ollama")
+        }));
     }
 
     #[test]
@@ -2489,6 +3502,7 @@ mod tests {
     #[test]
     fn agents_routes_create_message_config_and_git_tree_round_trip() {
         let root = tempfile::tempdir().expect("tempdir");
+        init_git_repo(root.path());
         let created = handle(
             root.path(),
             "POST",
@@ -2498,7 +3512,10 @@ mod tests {
         )
         .expect("create agent");
         assert_eq!(created.status, 200);
-        assert_eq!(created.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            created.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
         let agent_id = clean_text(
             created
                 .payload
@@ -2525,7 +3542,10 @@ mod tests {
         )
         .expect("agent details");
         assert_eq!(details.status, 200);
-        assert_eq!(details.payload.get("name").and_then(Value::as_str), Some("Jarvis"));
+        assert_eq!(
+            details.payload.get("name").and_then(Value::as_str),
+            Some("Jarvis")
+        );
 
         let message = handle(
             root.path(),
@@ -2536,15 +3556,16 @@ mod tests {
         )
         .expect("agent message");
         assert_eq!(message.status, 200);
-        assert_eq!(message.payload.get("ok").and_then(Value::as_bool), Some(true));
-        assert!(
-            message
-                .payload
-                .get("response")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("hello there")
+        assert_eq!(
+            message.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
         );
+        assert!(message
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("hello there"));
 
         let new_session = handle(
             root.path(),
@@ -2571,7 +3592,10 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("switch session");
-        assert_eq!(switched.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            switched.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
         assert_eq!(
             switched
                 .payload
@@ -2592,7 +3616,10 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("config");
-        assert_eq!(configured.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            configured.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
 
         let model = handle(
             root.path(),
@@ -2602,8 +3629,14 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("set model");
-        assert_eq!(model.payload.get("provider").and_then(Value::as_str), Some("openai"));
-        assert_eq!(model.payload.get("model").and_then(Value::as_str), Some("gpt-5"));
+        assert_eq!(
+            model.payload.get("provider").and_then(Value::as_str),
+            Some("openai")
+        );
+        assert_eq!(
+            model.payload.get("model").and_then(Value::as_str),
+            Some("gpt-5")
+        );
 
         let after_model = handle(
             root.path(),
@@ -2614,15 +3647,24 @@ mod tests {
         )
         .expect("agent after model");
         assert_eq!(
-            after_model.payload.get("model_provider").and_then(Value::as_str),
+            after_model
+                .payload
+                .get("model_provider")
+                .and_then(Value::as_str),
             Some("openai")
         );
         assert_eq!(
-            after_model.payload.get("model_name").and_then(Value::as_str),
+            after_model
+                .payload
+                .get("model_name")
+                .and_then(Value::as_str),
             Some("gpt-5")
         );
         assert_eq!(
-            after_model.payload.pointer("/identity/vibe").and_then(Value::as_str),
+            after_model
+                .payload
+                .pointer("/identity/vibe")
+                .and_then(Value::as_str),
             Some("direct")
         );
 
@@ -2697,7 +3739,10 @@ mod tests {
         )
         .expect("file read");
         assert_eq!(
-            file_read.payload.pointer("/file/ok").and_then(Value::as_bool),
+            file_read
+                .payload
+                .pointer("/file/ok")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -2723,14 +3768,12 @@ mod tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
-        assert!(
-            folder_export
-                .payload
-                .pointer("/folder/tree")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("plan.txt")
-        );
+        assert!(folder_export
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("plan.txt"));
 
         let terminal = handle(
             root.path(),
@@ -2740,8 +3783,14 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("terminal");
-        assert_eq!(terminal.payload.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(terminal.payload.get("stdout").and_then(Value::as_str), Some("ok"));
+        assert_eq!(
+            terminal.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            terminal.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
 
         let upload = handle_with_headers(
             root.path(),
@@ -2752,9 +3801,23 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("upload");
-        assert_eq!(upload.payload.get("ok").and_then(Value::as_bool), Some(true));
-        assert!(!clean_text(upload.payload.get("file_id").and_then(Value::as_str).unwrap_or(""), 180).is_empty());
-        assert_eq!(upload.payload.get("filename").and_then(Value::as_str), Some("voice.webm"));
+        assert_eq!(
+            upload.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!clean_text(
+            upload
+                .payload
+                .get("file_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180
+        )
+        .is_empty());
+        assert_eq!(
+            upload.payload.get("filename").and_then(Value::as_str),
+            Some("voice.webm")
+        );
     }
 
     #[test]
@@ -2795,7 +3858,10 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("revive");
-        assert_eq!(revived.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            revived.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
 
         let after_revive = handle(
             root.path(),
@@ -2852,7 +3918,10 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("create");
-        assert_eq!(created.payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            created.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
         let listed = handle(
             root.path(),
             "GET",
@@ -2877,6 +3946,151 @@ mod tests {
             &json!({"ok": true}),
         )
         .expect("exec");
-        assert_eq!(ran.payload.get("stdout").and_then(Value::as_str), Some("ok"));
+        assert_eq!(
+            ran.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
+    }
+
+    #[test]
+    fn session_backed_agents_drive_roster_sessions_and_usage() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::append_turn(
+            root.path(),
+            "chat-ui-default-agent",
+            "hello there",
+            "hi back",
+        );
+
+        let listed = handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true}))
+            .expect("list agents");
+        let rows = listed.payload.as_array().cloned().unwrap_or_default();
+        assert!(rows.iter().any(|row| {
+            row.get("id")
+                .and_then(Value::as_str)
+                .map(|value| value == "chat-ui-default-agent")
+                .unwrap_or(false)
+        }));
+
+        let session = handle(
+            root.path(),
+            "GET",
+            "/api/agents/chat-ui-default-agent/session",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("session");
+        assert_eq!(
+            session.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            session
+                .payload
+                .get("messages")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
+        );
+
+        let summaries = handle(
+            root.path(),
+            "GET",
+            "/api/sessions",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("session summaries");
+        assert!(summaries
+            .payload
+            .get("sessions")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("agent_id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "chat-ui-default-agent")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false));
+
+        let usage =
+            handle(root.path(), "GET", "/api/usage", &[], &json!({"ok": true})).expect("usage");
+        assert!(usage
+            .payload
+            .get("agents")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("agent_id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "chat-ui-default-agent")
+                        .unwrap_or(false)
+                        && row.get("total_tokens").and_then(Value::as_i64).unwrap_or(0) > 0
+                })
+            })
+            .unwrap_or(false));
+
+        let summary = handle(
+            root.path(),
+            "GET",
+            "/api/usage/summary",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("usage summary");
+        assert_eq!(
+            summary.payload.get("call_count").and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn active_collab_agent_is_not_hidden_by_stale_terminated_contract() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_profile(
+            root.path(),
+            "agent-live",
+            &json!({"name":"Jarvis","role":"analyst","updated_at":"2026-03-28T00:00:00Z"}),
+        );
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-live",
+            &json!({
+                "status": "terminated",
+                "created_at": "2026-03-28T00:00:00Z",
+                "updated_at": "2026-03-28T00:00:00Z"
+            }),
+        );
+        let snapshot = json!({
+            "ok": true,
+            "collab": {
+                "dashboard": {
+                    "agents": [
+                        {
+                            "shadow": "agent-live",
+                            "status": "active",
+                            "role": "analyst",
+                            "activated_at": "2026-03-29T00:00:00Z"
+                        }
+                    ]
+                }
+            }
+        });
+
+        let listed = handle(root.path(), "GET", "/api/agents", &[], &snapshot).expect("agents");
+        assert!(listed
+            .payload
+            .as_array()
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "agent-live")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false));
     }
 }

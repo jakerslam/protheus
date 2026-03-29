@@ -460,11 +460,10 @@ Run `infring list` (or `infring --help`) for a categorized command index.
 - Internal operator commands:
   - `infring gateway` -> one-command runtime boot + rich dashboard auto-open
   - `infring gateway stop` -> stop runtime + dashboard
-  - `infring start` -> start daemon control + auto-boot dashboard (chat-first) on localhost
+  - `infring start` -> start daemon control + auto-boot dashboard on localhost
   - `infring dashboard` -> launch unified web dashboard (localhost)
   - `infring status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)
-  - `infring status --dashboard` -> launch dashboard web surface from Rust core host
-  - `infring status --dashboard --node-ui` -> force legacy Node dashboard host
+  - `infring status --dashboard` -> launch the unified dashboard web surface
   - `infring debug` -> parity/security diagnostics + recent log summary
   - `infring shadow <list|arise|pause|review|status>` -> direct shadow-army operations
   - `infring diagram ...` -> Mermaid diagram generator

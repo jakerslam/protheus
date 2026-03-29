@@ -39,7 +39,6 @@ Updated: 2026-03-27 17:36 America/Denver
 | 3 | 1618 | `client/runtime/systems/ui/openclaw_static/js/app.ts.parts` | UI shell surface | Keep view wiring only; route all mutations to core |
 | 4 | 1061 | `client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts` | UI+agent orchestration surface | Move lifecycle authority to Rust agent/session kernel |
 | 5 | 955 | `client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts` | UI+automation surface | Move hands orchestration authority to core hands domain |
-| 6 | 933 | `client/runtime/systems/ui/infring_dashboard_client.tsx.parts` | UI client shell | Restrict to rendering + events only |
 | 7 | 729 | `client/runtime/systems/ui/openclaw_static/js/pages/settings.ts.parts` | UI settings surface | Move settings validation/default policy authority to core |
 | 8 | 684 | `client/cognition/shared/adaptive/sensory/eyes/collectors/collector_runtime.ts` | Runtime authority | Move collector scheduling/policy/state mutation to core |
 | 9 | 635 | `client/runtime/systems/ui/openclaw_static/js/pages/workflow-builder.ts.parts` | UI workflow surface | Move workflow compile/validate authority to core |
@@ -394,17 +393,17 @@ Updated: 2026-03-27 17:36 America/Denver
   - Net wrapper source reduction: ~14.98 KB; targeted wrapper regression tests passing.
   - Stabilized post-compaction benchmark resample captured (`docs/client/reports/benchmark_matrix_resample_post_compaction_2026-03-20.json`); final sign-off still pending due shared baseline drift on throughput/install.
 
-31. `P1-DASHBOARD-WASM-001` Migrate dashboard runtime to Rust/WASM no-Node serving path after React/Tailwind parity freeze. `STATUS: IN_PROGRESS`
+31. `P1-DASHBOARD-WASM-001` Migrate dashboard runtime to Rust/WASM no-alternate-shell serving path after browser-host parity freeze. `STATUS: IN_PROGRESS`
 - Context:
-- Rust-core host cutover is now live for default launch (`infring dashboard`, `infring status --dashboard`, `infringd start` autoboot), while legacy Node path remains explicit opt-in (`--node-ui`) for fallback compatibility.
-- Remaining work is WASM packaging + parity hardening so no Node-hosted fallback is required in normal operator flows.
+- Unified dashboard launch now serves the OpenClaw browser host by default (`infring dashboard`, `infring status --dashboard`, `infringd start` autoboot) with the Rust lane restricted to API authority only.
+- Remaining work is parity hardening + packaging so the unified host stays stable in normal operator flows without any second browser surface.
 - Linked SRS:
 - `V6-DASHBOARD-001.1` through `V6-DASHBOARD-001.10` (runtime host hardening follow-through).
 - Exit criteria:
-- Define Rust authority lane that serves static dashboard assets and WebSocket stream without Node runtime dependency.
-- Port UI client to WASM-compatible build target and remove Node requirement from operator launch path.
+- Keep the Rust authority lane API-only for health/snapshot/action/WebSocket coverage.
+- Serve the OpenClaw browser UI through the unified dashboard host on the default operator launch path.
 - Preserve all current receipted actions (provider switch, role launch, skill run, benchmark/assimilate trigger) with equal or stronger fail-closed behavior.
-- Publish before/after operator runbook documenting Node-hosted fallback and Rust/WASM primary path.
+- Publish operator runbook documenting the unified host plus Rust API lane, with no second browser surface fallback.
 
 32. `P1-DASHBOARD-UX-002` Complete dashboard productization pass (onboarding, section-level lazy loading, local-bundled frontend deps). `STATUS: QUEUED`
 - Context:
@@ -414,25 +413,6 @@ Updated: 2026-03-27 17:36 America/Denver
 - Add section-level lazy loading/code splitting for heavyweight panels.
 - Remove external CDN dependency path by shipping local bundled frontend modules/CSS with equivalent behavior.
 - Publish before/after interaction latency + scroll-jank evidence in benchmark report.
-
-33. `P0-DASHBOARD-CHATFIRST-006` Lock in simplified first-load chat UI with hidden advanced controls pane (`V6-DASHBOARD-006.*`). `STATUS: IN_PROGRESS`
-- Context:
-- Operators and new users reported first-load overwhelm and low intuitiveness in dense dashboard layouts.
-- Linked SRS:
-- `V6-DASHBOARD-006.1` through `V6-DASHBOARD-006.4`.
-- Exit criteria:
-- First load defaults to clean chat-only surface with no advanced panes visible.
-- Advanced controls are one-click accessible in collapsible side pane and remain collapsed by default.
-- Pane and section UI interactions emit deterministic UI receipts (`dashboard.ui.toggleControls`, `dashboard.ui.toggleSection`).
-- Fallback renderer preserves the same chat-first behavior when React/ESM path is unavailable.
-- Validate via dashboard regression + security/sovereignty checks.
-- Progress (2026-03-20):
-  - Added top-left light/dark switch in dashboard header (persisted to local storage).
-  - Added dedicated side-pane tab model with first-class `Swarm/Agent Management` tab.
-  - Added receipted controls-tab switch action (`dashboard.ui.switchControlsTab`) in dashboard runtime.
-  - Hardened chat-first default state keys (`*_v2`) so first-load remains clean chat mode even after prior UI iterations.
-  - Added keyboard-intuitive UX (`Enter` send, `Esc` close controls, `Cmd/Ctrl+K` focus chat) and quick action chip path to open/route into swarm controls.
-  - Added canonical regression profile doc at `docs/workspace/INFRING_DASHBOARD_UI_SPEC.md` and linked SRS guardrail requiring spec updates on dashboard behavior changes.
 
 ## Executed in this pass
 - Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
