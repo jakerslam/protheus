@@ -133,7 +133,7 @@
             </div>
             <div class="stat-card" @click="location.hash='skills'" style="cursor:pointer">
               <div class="stat-value" style="font-size:18px" x-text="skillCount"></div>
-              <div class="stat-label">Skills</div>
+              <div class="stat-label">Plugins</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" style="font-size:18px" x-text="connectedMcp.length"></div>
@@ -244,8 +244,8 @@
                 New Agent
               </button>
               <button class="btn btn-ghost btn-sm" @click="location.hash='skills'" style="display:flex;align-items:center;gap:4px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
-                Browse Skills
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7V3"/><path d="M17 7V3"/><path d="M5 7h14v4a7 7 0 0 1-14 0z"/><path d="M12 15v6"/><path d="M9 21h6"/></svg>
+                Browse Plugins
               </button>
               <button class="btn btn-ghost btn-sm" @click="location.hash='channels'" style="display:flex;align-items:center;gap:4px">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18"/></svg>
@@ -324,11 +324,11 @@
             </div>
             <div class="quick-action-card" @click="location.hash='skills'">
               <div class="quick-action-icon" style="background:var(--info-subtle)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7V3"/><path d="M17 7V3"/><path d="M5 7h14v4a7 7 0 0 1-14 0z"/><path d="M12 15v6"/><path d="M9 21h6"/></svg>
               </div>
               <div>
-                <div class="quick-action-label">Browse Skills</div>
-                <div class="quick-action-desc">Explore available skills</div>
+                <div class="quick-action-label">Browse Plugins</div>
+                <div class="quick-action-desc">Explore available plugins</div>
               </div>
             </div>
           </div>

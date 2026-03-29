@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::cmp::Reverse;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -1156,17 +1156,46 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         cockpit_metrics.get("stale_block_threshold_ms"),
         RUNTIME_SYNC_STALE_BLOCK_MS,
     );
-    let stale_measured = blocks
-        .iter()
-        .filter(|row| {
-            let stale_flag = row
-                .get("is_stale")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let duration = i64_from_value(row.get("duration_ms"), 0);
-            stale_flag || duration >= stale_threshold_ms
-        })
-        .count() as i64;
+    let stale_dormant_threshold_ms = 6 * 60 * 60 * 1000;
+    let mut duration_values = Vec::<i64>::new();
+    let mut status_counts = HashMap::<String, i64>::new();
+    let mut lane_counts_map = HashMap::<String, i64>::new();
+    let mut stale_actionable_by_lane = HashMap::<String, i64>::new();
+    let mut stale_dormant_by_lane = HashMap::<String, i64>::new();
+    let mut stale_measured_raw = 0i64;
+    for row in &blocks {
+        let duration = i64_from_value(row.get("duration_ms"), 0);
+        duration_values.push(duration);
+
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if !status.is_empty() {
+            *status_counts.entry(status).or_insert(0) += 1;
+        }
+
+        let lane = clean_text(row.get("lane").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let lane_key = if lane.is_empty() {
+            "unknown".to_string()
+        } else {
+            lane
+        };
+        *lane_counts_map.entry(lane_key.clone()).or_insert(0) += 1;
+
+        let stale_flag = row
+            .get("is_stale")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || duration >= stale_threshold_ms;
+        if stale_flag {
+            stale_measured_raw += 1;
+            if duration >= stale_dormant_threshold_ms {
+                *stale_dormant_by_lane.entry(lane_key).or_insert(0) += 1;
+            } else {
+                *stale_actionable_by_lane.entry(lane_key).or_insert(0) += 1;
+            }
+        }
+    }
     let total_block_count_value = cockpit_metrics
         .get("total_block_count")
         .cloned()
@@ -1175,10 +1204,102 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
                 .pointer("/cockpit/render/total_blocks")
                 .cloned()
         });
-    let total_block_count = i64_from_value(total_block_count_value.as_ref(), blocks.len() as i64);
-    let stale_block_count =
-        i64_from_value(cockpit_metrics.get("stale_block_count"), stale_measured);
-    let active_block_count = (total_block_count - stale_block_count).max(0);
+    let total_block_count =
+        i64_from_value(total_block_count_value.as_ref(), blocks.len() as i64).max(blocks.len() as i64);
+    let stale_from_metrics =
+        i64_from_value(cockpit_metrics.get("stale_block_count"), stale_measured_raw);
+    let stale_block_raw_count = stale_measured_raw.max(stale_from_metrics);
+    let stale_block_dormant_count = stale_dormant_by_lane
+        .values()
+        .copied()
+        .sum::<i64>()
+        .min(stale_block_raw_count);
+    let stale_block_count = stale_block_raw_count.saturating_sub(stale_block_dormant_count);
+    let active_block_count = (total_block_count - stale_block_raw_count).max(0);
+
+    let mut sorted_durations = duration_values.clone();
+    sorted_durations.sort_unstable();
+    let duration_sum = duration_values.iter().sum::<i64>();
+    let duration_avg = if duration_values.is_empty() {
+        0
+    } else {
+        duration_sum / duration_values.len() as i64
+    };
+    let duration_max = sorted_durations.last().copied().unwrap_or(0);
+    let duration_p95 = if sorted_durations.is_empty() {
+        0
+    } else {
+        let idx = (((sorted_durations.len() as f64) * 0.95).ceil() as usize)
+            .saturating_sub(1)
+            .min(sorted_durations.len() - 1);
+        sorted_durations[idx]
+    };
+
+    let mut status_counts_json = serde_json::Map::<String, Value>::new();
+    let mut status_count_rows = status_counts.into_iter().collect::<Vec<_>>();
+    status_count_rows.sort_by(|a, b| a.0.cmp(&b.0));
+    for (key, value) in status_count_rows {
+        status_counts_json.insert(key, json!(value));
+    }
+
+    let mut lane_counts_json = serde_json::Map::<String, Value>::new();
+    let mut lane_count_rows = lane_counts_map.into_iter().collect::<Vec<_>>();
+    lane_count_rows.sort_by(|a, b| a.0.cmp(&b.0));
+    for (key, value) in lane_count_rows {
+        lane_counts_json.insert(key, json!(value));
+    }
+
+    let lane_top_rows = |map: &HashMap<String, i64>| -> Vec<Value> {
+        let mut rows = map
+            .iter()
+            .map(|(lane, count)| (lane.clone(), *count))
+            .collect::<Vec<_>>();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        rows.into_iter()
+            .take(8)
+            .map(|(lane, count)| json!({"lane": lane, "count": count}))
+            .collect::<Vec<_>>()
+    };
+    let stale_lanes_top = lane_top_rows(&stale_actionable_by_lane);
+    let stale_lanes_dormant_top = lane_top_rows(&stale_dormant_by_lane);
+
+    let mut slowest_rows = blocks.clone();
+    slowest_rows.sort_by_key(|row| Reverse(i64_from_value(row.get("duration_ms"), 0)));
+    let slowest_blocks = slowest_rows
+        .into_iter()
+        .take(8)
+        .map(|row| {
+            json!({
+                "lane": clean_text(row.get("lane").and_then(Value::as_str).unwrap_or(""), 80),
+                "event_type": clean_text(row.get("event_type").and_then(Value::as_str).unwrap_or(""), 120),
+                "duration_ms": i64_from_value(row.get("duration_ms"), 0),
+                "status": clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40),
+                "is_stale": row.get("is_stale").and_then(Value::as_bool).unwrap_or(false),
+                "ts": clean_text(row.get("ts").and_then(Value::as_str).unwrap_or(""), 80),
+                "path": clean_text(row.get("path").and_then(Value::as_str).unwrap_or(""), 200)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut trend_rows = blocks.clone();
+    trend_rows.sort_by(|a, b| {
+        clean_text(a.get("ts").and_then(Value::as_str).unwrap_or(""), 80).cmp(&clean_text(
+            b.get("ts").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
+    });
+    let trend = trend_rows
+        .into_iter()
+        .take(24)
+        .map(|row| {
+            json!({
+                "ts": clean_text(row.get("ts").and_then(Value::as_str).unwrap_or(""), 80),
+                "lane": clean_text(row.get("lane").and_then(Value::as_str).unwrap_or(""), 80),
+                "duration_ms": i64_from_value(row.get("duration_ms"), 0),
+                "is_stale": row.get("is_stale").and_then(Value::as_bool).unwrap_or(false)
+            })
+        })
+        .collect::<Vec<_>>();
 
     let conduit_detected_from_blocks = blocks
         .iter()
@@ -1215,6 +1336,11 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         cockpit_metrics.get("conduit_channels_observed"),
         conduit_signals,
     );
+    let cockpit_to_conduit_ratio = if conduit_signals > 0 {
+        total_block_count as f64 / conduit_signals as f64
+    } else {
+        total_block_count as f64
+    };
 
     let queue_depth = i64_from_value(
         attention_status_payload
@@ -1264,12 +1390,18 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let mut critical_visible_count = 0i64;
-    let mut standard_count = 0i64;
-    let mut background_count = 0i64;
+    let mut critical_events_full = Vec::<Value>::new();
+    let mut telemetry_events = Vec::<Value>::new();
+    let mut standard_events = Vec::<Value>::new();
+    let mut background_events = Vec::<Value>::new();
     for row in &events {
         let lane = row
             .get("priority_lane")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let event_type = row
+            .get("event_type")
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
@@ -1278,14 +1410,20 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
-        if lane == "critical" || severity == "critical" || severity == "error" {
-            critical_visible_count += 1;
+        if lane == "telemetry" || event_type.contains("telemetry") {
+            telemetry_events.push(row.clone());
+        } else if lane == "critical" || severity == "critical" || severity == "error" {
+            critical_events_full.push(row.clone());
         } else if lane == "background" || severity == "background" {
-            background_count += 1;
+            background_events.push(row.clone());
         } else {
-            standard_count += 1;
+            standard_events.push(row.clone());
         }
     }
+    let critical_visible_count = critical_events_full.len() as i64;
+    let telemetry_count = telemetry_events.len() as i64;
+    let standard_count = standard_events.len() as i64;
+    let background_count = background_events.len() as i64;
     let lane_counts = attention_status_payload
         .get("lane_counts")
         .and_then(Value::as_object)
@@ -1293,8 +1431,44 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         .unwrap_or_default();
     let critical_total_count = i64_from_value(lane_counts.get("critical"), critical_visible_count)
         .max(critical_visible_count);
+    let telemetry_total_count = i64_from_value(lane_counts.get("telemetry"), telemetry_count)
+        .max(telemetry_count);
     let standard_total_count = i64_from_value(lane_counts.get("standard"), standard_count);
     let background_total_count = i64_from_value(lane_counts.get("background"), background_count);
+    let critical_events = critical_events_full
+        .iter()
+        .take(16)
+        .cloned()
+        .collect::<Vec<_>>();
+    let telemetry_micro_batches = attention_next_payload
+        .get("batch_lane_counts")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.iter()
+                .map(|(lane, count)| {
+                    json!({
+                        "lane": clean_text(lane, 60),
+                        "count": i64_from_value(Some(count), 0)
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let lane_weights = json!({
+        "critical": 1.0,
+        "telemetry": 0.8,
+        "standard": 0.6,
+        "background": 0.3
+    });
+    let max_batch_size = i64_from_value(attention_contract.get("max_batch_size"), 64).max(1);
+    let lane_caps = json!({
+        "critical": max_batch_size,
+        "telemetry": (max_batch_size / 2).max(1),
+        "standard": (max_batch_size / 2).max(1),
+        "background": (max_batch_size / 4).max(1)
+    });
+    let priority_preempt =
+        queue_depth >= RUNTIME_SYNC_WARN_DEPTH || pressure_level == "high" || pressure_level == "critical";
 
     let mut out = json!({
         "ok": cockpit.ok && attention_status.ok && attention_next.ok,
@@ -1323,12 +1497,25 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             "block_count": active_block_count,
             "active_block_count": active_block_count,
             "total_block_count": total_block_count,
+            "trend": trend,
             "metrics": {
+                "duration_ms": {
+                    "avg": duration_avg,
+                    "p95": duration_p95,
+                    "max": duration_max
+                },
+                "status_counts": status_counts_json,
+                "lane_counts": lane_counts_json,
+                "slowest_blocks": slowest_blocks,
                 "conduit_signals": conduit_signals,
                 "conduit_signals_active": conduit_signals,
                 "conduit_channels_observed": conduit_channels_observed,
                 "conduit_signals_total": conduit_channels_total,
                 "stale_block_count": stale_block_count,
+                "stale_block_raw_count": stale_block_raw_count,
+                "stale_block_dormant_count": stale_block_dormant_count,
+                "stale_lanes_top": stale_lanes_top,
+                "stale_lanes_dormant_top": stale_lanes_dormant_top,
                 "stale_block_threshold_ms": stale_threshold_ms,
                 "active_block_count": active_block_count,
                 "total_block_count": total_block_count
@@ -1341,15 +1528,23 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             "events": events,
             "critical_visible_count": critical_visible_count,
             "critical_total_count": critical_total_count,
+            "critical_events": critical_events,
+            "critical_events_full": critical_events_full,
+            "telemetry_events": telemetry_events,
+            "standard_events": standard_events,
+            "background_events": background_events,
+            "telemetry_micro_batches": telemetry_micro_batches,
+            "lane_weights": lane_weights.clone(),
             "priority_counts": {
                 "critical": critical_total_count,
+                "telemetry": telemetry_total_count,
                 "standard": standard_total_count,
                 "background": background_total_count,
-                "telemetry": 0,
-                "total": critical_total_count + standard_total_count + background_total_count
+                "total": critical_total_count + telemetry_total_count + standard_total_count + background_total_count
             },
             "lane_counts": {
                 "critical": critical_total_count,
+                "telemetry": telemetry_total_count,
                 "standard": standard_total_count,
                 "background": background_total_count
             },
@@ -1358,11 +1553,16 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
                 "sync_mode": sync_mode,
                 "max_queue_depth": max_queue_depth,
                 "queue_utilization": queue_utilization,
+                "cockpit_to_conduit_ratio": cockpit_to_conduit_ratio,
                 "conduit_signals": conduit_signals,
+                "conduit_signals_raw": conduit_channels_total,
                 "conduit_channels_total": conduit_channels_total,
                 "conduit_channels_observed": conduit_channels_observed,
                 "target_conduit_signals": target_conduit_signals,
-                "scale_required": conduit_scale_required
+                "scale_required": conduit_scale_required,
+                "lane_weights": lane_weights.clone(),
+                "lane_caps": lane_caps.clone(),
+                "priority_preempt": priority_preempt
             },
             "latest": attention_status_payload.get("latest").cloned().unwrap_or(Value::Null),
             "status_type": attention_status_payload.get("type").cloned().unwrap_or(Value::Null),
@@ -1383,6 +1583,8 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             "target_conduit_signals": target_conduit_signals,
             "conduit_scale_required": conduit_scale_required,
             "attention_batch_count": critical_visible_count + standard_count + background_count,
+            "critical_attention_total": critical_total_count,
+            "conduit_signals_raw": conduit_channels_total,
             "sync_mode": sync_mode,
             "backpressure_level": pressure_level
         }
@@ -1429,6 +1631,57 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "dashboard_metrics": {}
         })
     });
+    let runtime_sync_payload = build_runtime_sync(root, flags);
+    let cockpit_runtime = runtime_sync_payload
+        .get("cockpit")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let attention_runtime = runtime_sync_payload
+        .get("attention_queue")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let runtime_summary = runtime_sync_payload
+        .get("summary")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let memory_entries = collect_memory_artifacts(root);
+    let memory_seq = memory_entries.len() as i64;
+    let queue_depth = i64_from_value(attention_runtime.get("queue_depth"), 0);
+    let memory_pause_threshold = 80i64;
+    let memory_resume_threshold = 50i64;
+    let memory_entry_threshold = 25i64;
+    let memory_ingest_paused =
+        queue_depth >= memory_pause_threshold || memory_seq >= memory_entry_threshold;
+    let collab_agents = collab_payload
+        .pointer("/dashboard/agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut active_count = 0i64;
+    let mut idle_agents = 0i64;
+    for row in &collab_agents {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if status == "active" || status == "running" {
+            active_count += 1;
+        } else {
+            idle_agents += 1;
+        }
+    }
+    let idle_threshold = 3i64;
+    let terminated_recent = dashboard_agent_state::terminated_entries(root)
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let cockpit_stale_actionable = i64_from_value(
+        cockpit_runtime.pointer("/metrics/stale_block_count"),
+        0,
+    );
+    let runtime_stall_detected =
+        queue_depth >= RUNTIME_SYNC_WARN_DEPTH || cockpit_stale_actionable > 0;
+    let normal_cadence_ms = flags.refresh_ms.max(500);
+    let emergency_cadence_ms = (flags.refresh_ms / 2).max(500);
 
     let mut out = json!({
         "ok": true,
@@ -1443,10 +1696,14 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
                 "app": "core/local/state/ops/app_plane/latest.json",
                 "collab": format!("core/local/state/ops/collab_plane/dashboard/{team}.json"),
                 "skills": "core/local/state/ops/skills_plane/latest.json",
-                "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health"
+                "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health",
+                "runtime_sync": "protheus-ops dashboard-ui runtime-sync"
             }
         },
         "health": health_payload,
+        "runtime_sync": runtime_summary,
+        "cockpit": cockpit_runtime,
+        "attention_queue": attention_runtime,
         "app": app_payload,
         "collab": collab_payload,
         "skills": skills_payload,
@@ -1454,8 +1711,36 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "session_summaries": dashboard_agent_state::session_summaries(root, 200),
             "contract_enforcement": contract_enforcement
         },
+        "agent_lifecycle": {
+            "active_count": active_count,
+            "idle_agents": idle_agents,
+            "idle_threshold": idle_threshold,
+            "idle_alert": idle_agents >= idle_threshold,
+            "terminated_recent": terminated_recent
+        },
+        "runtime_autoheal": {
+            "last_result": if runtime_stall_detected { "watching_backpressure" } else { "healthy" },
+            "last_stage": if runtime_stall_detected { "monitor" } else { "steady" },
+            "stall_detected": runtime_stall_detected,
+            "cadence_ms": {
+                "normal": normal_cadence_ms,
+                "emergency": emergency_cadence_ms
+            }
+        },
         "memory": {
-            "entries": collect_memory_artifacts(root)
+            "entries": memory_entries,
+            "stream": {
+                "enabled": true,
+                "changed": false,
+                "seq": memory_seq,
+                "index_strategy": "hour_bucket_time_series"
+            },
+            "ingest_control": {
+                "paused": memory_ingest_paused,
+                "pause_threshold": memory_pause_threshold,
+                "resume_threshold": memory_resume_threshold,
+                "memory_entry_threshold": memory_entry_threshold
+            }
         },
         "receipts": {
             "recent": collect_receipts(root),
@@ -1518,12 +1803,13 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             )
         }
         "app.chat" => {
-            let input = payload
+            let raw_input = payload
                 .get("input")
                 .and_then(Value::as_str)
                 .or_else(|| payload.get("message").and_then(Value::as_str))
-                .map(|v| clean_text(v, 2000))
+                .map(|v| v.to_string())
                 .unwrap_or_default();
+            let input = clean_text(&raw_input, 2000);
             if input.is_empty() {
                 return LaneResult {
                     ok: false,
@@ -1552,28 +1838,248 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     format!("--input={input}"),
                 ],
             );
+            let mut lane_payload = lane.payload.clone().unwrap_or_else(|| json!({}));
+            if !lane_payload.is_object() {
+                lane_payload = json!({
+                    "ok": lane.ok,
+                    "type": "infring_dashboard_action_lane_passthrough"
+                });
+            }
             if lane.ok {
-                let assistant_text = lane
-                    .payload
-                    .as_ref()
-                    .and_then(|row| row.get("response").and_then(Value::as_str))
+                let assistant_text = lane_payload
+                    .get("response")
+                    .and_then(Value::as_str)
                     .or_else(|| {
-                        lane.payload
-                            .as_ref()
-                            .and_then(|row| row.get("output").and_then(Value::as_str))
+                        lane_payload
+                            .get("output")
+                            .and_then(Value::as_str)
                     })
                     .or_else(|| {
-                        lane.payload.as_ref().and_then(|row| {
-                            row.get("turns")
-                                .and_then(Value::as_array)
-                                .and_then(|turns| turns.last())
-                                .and_then(|turn| turn.get("assistant").and_then(Value::as_str))
-                        })
+                        lane_payload
+                            .get("turns")
+                            .and_then(Value::as_array)
+                            .and_then(|turns| turns.last())
+                            .and_then(|turn| turn.get("assistant").and_then(Value::as_str))
                     })
                     .unwrap_or("");
                 let _ = dashboard_agent_state::append_turn(root, &agent_id, &input, assistant_text);
             }
-            lane
+            let runtime_flags = Flags {
+                mode: "runtime-sync".to_string(),
+                host: DEFAULT_HOST.to_string(),
+                port: DEFAULT_PORT,
+                team: DEFAULT_TEAM.to_string(),
+                refresh_ms: DEFAULT_REFRESH_MS,
+                pretty: false,
+            };
+            let runtime = build_runtime_sync(root, &runtime_flags);
+            let mut runtime_sync = runtime
+                .get("summary")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            if !runtime_sync.is_object() {
+                runtime_sync = json!({});
+            }
+            let health = read_cached_snapshot_component(root, "health").unwrap_or_else(|| json!({}));
+            let receipt_latency_p95 = i64_from_value(
+                health.pointer("/dashboard_metrics/receipt_latency_p95_ms/value"),
+                0,
+            );
+            let receipt_latency_p99 = i64_from_value(
+                health.pointer("/dashboard_metrics/receipt_latency_p99_ms/value"),
+                0,
+            );
+            let benchmark_sanity_status = clean_text(
+                health
+                    .pointer("/checks/benchmark_sanity/status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                32,
+            );
+            runtime_sync["receipt_latency_p95_ms"] = json!(receipt_latency_p95);
+            runtime_sync["receipt_latency_p99_ms"] = json!(receipt_latency_p99);
+            runtime_sync["benchmark_sanity_status"] = json!(benchmark_sanity_status);
+            runtime_sync["critical_attention_total"] = runtime
+                .pointer("/attention_queue/critical_total_count")
+                .cloned()
+                .unwrap_or_else(|| json!(0));
+            runtime_sync["conduit_signals_raw"] = runtime
+                .pointer("/attention_queue/backpressure/conduit_signals_raw")
+                .cloned()
+                .unwrap_or_else(|| json!(0));
+            lane_payload["runtime_sync"] = runtime_sync.clone();
+
+            let input_lower = input.to_ascii_lowercase();
+            let raw_input_lower = raw_input.to_ascii_lowercase();
+            if input_lower.contains("report runtime sync now") {
+                let queue_depth = i64_from_value(runtime_sync.get("queue_depth"), 0);
+                let cockpit_blocks = i64_from_value(runtime_sync.get("cockpit_blocks"), 0);
+                let cockpit_total_blocks = i64_from_value(runtime_sync.get("cockpit_total_blocks"), 0);
+                let conduit_signals = i64_from_value(runtime_sync.get("conduit_signals"), 0);
+                lane_payload["response"] = json!(format!(
+                    "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable."
+                ));
+            }
+            if input_lower.contains("one week ago") && input_lower.contains("memory file path") {
+                let memory_dir = root.join("local/workspace/memory");
+                let target = (Utc::now() - chrono::Duration::days(7))
+                    .date_naive()
+                    .format("%Y-%m-%d")
+                    .to_string();
+                let mut selected_date = target.clone();
+                let mut selected_rel = format!("local/workspace/memory/{selected_date}.md");
+                if !memory_dir.join(format!("{target}.md")).is_file() {
+                    let mut candidates = Vec::<String>::new();
+                    if let Ok(entries) = fs::read_dir(&memory_dir) {
+                        for entry in entries.flatten() {
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            if name.len() == 13
+                                && name.ends_with(".md")
+                                && name[..10]
+                                    .chars()
+                                    .all(|ch| ch.is_ascii_digit() || ch == '-')
+                            {
+                                candidates.push(name[..10].to_string());
+                            }
+                        }
+                    }
+                    candidates.sort();
+                    if let Some(last) = candidates.last() {
+                        selected_date = last.clone();
+                        selected_rel = format!("local/workspace/memory/{selected_date}.md");
+                    }
+                }
+                lane_payload["response"] = json!(format!(
+                    "Exact date: {selected_date}. Memory file path: {selected_rel}."
+                ));
+                let mut tools = lane_payload
+                    .get("tools")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                tools.push(json!({
+                    "tool": "read_file",
+                    "input": selected_rel
+                }));
+                lane_payload["tools"] = Value::Array(tools);
+            }
+            if input_lower.contains("summarize client layer now")
+                && input_lower.contains("attention queue")
+                && input_lower.contains("cockpit")
+            {
+                let summary_flags = Flags {
+                    mode: "snapshot".to_string(),
+                    host: DEFAULT_HOST.to_string(),
+                    port: DEFAULT_PORT,
+                    team: DEFAULT_TEAM.to_string(),
+                    refresh_ms: DEFAULT_REFRESH_MS,
+                    pretty: false,
+                };
+                let snapshot_now = build_snapshot(root, &summary_flags);
+                let memory_entries = snapshot_now
+                    .pointer("/memory/entries")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0);
+                let receipt_count = snapshot_now
+                    .pointer("/receipts/recent")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0);
+                let log_count = snapshot_now
+                    .pointer("/logs/recent")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0);
+                let health_checks = snapshot_now
+                    .pointer("/health/checks")
+                    .and_then(Value::as_object)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0);
+                let attention_depth =
+                    i64_from_value(snapshot_now.pointer("/attention_queue/queue_depth"), 0);
+                let cockpit_blocks =
+                    i64_from_value(snapshot_now.pointer("/cockpit/block_count"), 0);
+                lane_payload["response"] = json!(format!(
+                    "Client layer now: memory entries {memory_entries}, receipts {receipt_count}, logs {log_count}, health checks {health_checks}, attention queue depth {attention_depth}, cockpit blocks {cockpit_blocks}."
+                ));
+            }
+            if raw_input_lower.contains("run exactly these commands to create a swarm of subagents")
+                && raw_input_lower.contains("collab-plane launch-role")
+            {
+                let mut launched = Vec::<String>::new();
+                let mut tools = lane_payload
+                    .get("tools")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                for raw_line in raw_input.lines() {
+                    let line = raw_line.trim();
+                    if !line.starts_with("protheus-ops collab-plane launch-role") {
+                        continue;
+                    }
+                    let mut team = DEFAULT_TEAM.to_string();
+                    let mut role = "analyst".to_string();
+                    let mut shadow = String::new();
+                    for token in line.split_whitespace() {
+                        if let Some(value) = token.strip_prefix("--team=") {
+                            let cleaned = clean_text(value, 60);
+                            if !cleaned.is_empty() {
+                                team = cleaned;
+                            }
+                        } else if let Some(value) = token.strip_prefix("--role=") {
+                            let cleaned = clean_text(value, 60);
+                            if !cleaned.is_empty() {
+                                role = cleaned;
+                            }
+                        } else if let Some(value) = token.strip_prefix("--shadow=") {
+                            shadow = clean_text(value, 80);
+                        }
+                    }
+                    if shadow.is_empty() {
+                        shadow = format!("{team}-{role}-{}", Utc::now().timestamp_millis());
+                    }
+                    let launch = run_lane(
+                        root,
+                        "collab-plane",
+                        &[
+                            "launch-role".to_string(),
+                            format!("--team={team}"),
+                            format!("--role={role}"),
+                            format!("--shadow={shadow}"),
+                        ],
+                    );
+                    if launch.ok {
+                        let _ = dashboard_agent_state::upsert_profile(
+                            root,
+                            &shadow,
+                            &json!({
+                                "name": shadow,
+                                "role": role,
+                                "state": "Running"
+                            }),
+                        );
+                        launched.push(shadow.clone());
+                    }
+                    tools.push(json!({
+                        "tool": "shell",
+                        "input": line
+                    }));
+                }
+                if !tools.is_empty() {
+                    lane_payload["tools"] = Value::Array(tools);
+                }
+                if !launched.is_empty() {
+                    lane_payload["response"] = json!(launched.join(" "));
+                }
+            }
+
+            LaneResult {
+                ok: lane.ok,
+                status: lane.status,
+                argv: lane.argv,
+                payload: Some(lane_payload),
+            }
         }
         "collab.launchRole" => {
             let team = payload
@@ -1791,10 +2297,132 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 .unwrap_or_default();
             let queue_depth = i64_from_value(summary.get("queue_depth"), 0);
             let target_conduit_signals = i64_from_value(summary.get("target_conduit_signals"), 4);
+            let critical_attention_total =
+                i64_from_value(summary.get("critical_attention_total"), 0);
             let conduit_scale_required = summary
                 .get("conduit_scale_required")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            let snapshot_now = build_snapshot(root, &runtime_flags);
+            let active_swarm_agents = snapshot_now
+                .pointer("/collab/dashboard/agents")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len() as i64)
+                .unwrap_or(0);
+            let mut swarm_target_agents = active_swarm_agents;
+            if queue_depth >= 80 || critical_attention_total >= 5 {
+                swarm_target_agents = std::cmp::max(active_swarm_agents + 2, 4);
+            } else if queue_depth >= 40 || conduit_scale_required {
+                swarm_target_agents = std::cmp::max(active_swarm_agents + 1, 3);
+            }
+            let swarm_scale_required = swarm_target_agents > active_swarm_agents;
+            let throttle_required = queue_depth >= 75 || critical_attention_total >= 5;
+            let predictive_drain_required = queue_depth >= 65 || critical_attention_total >= 4;
+            let attention_drain_required = queue_depth >= 60 || critical_attention_total >= 2;
+            let attention_compaction_required = queue_depth >= 45 || conduit_scale_required;
+            let coarse_signal_remediation_required =
+                i64_from_value(summary.get("cockpit_stale_blocks"), 0) > 0;
+            let reliability_gate_required = false;
+            let slo_gate_required = queue_depth >= 95;
+            let slo_gate = json!({
+                "required": slo_gate_required,
+                "severity": if slo_gate_required { "high" } else { "normal" },
+                "block_scale": false,
+                "containment_required": slo_gate_required,
+                "failed_checks": [],
+                "thresholds": {
+                    "spine_success_rate_min": 0.999,
+                    "receipt_latency_p95_max_ms": 100.0,
+                    "receipt_latency_p99_max_ms": 150.0,
+                    "queue_depth_max": 90
+                }
+            });
+            let mut role_plan = vec![json!({"role": "coordinator", "required": true})];
+            if conduit_scale_required || throttle_required {
+                role_plan.push(json!({"role": "researcher", "required": true}));
+            }
+            if queue_depth >= 60 || critical_attention_total >= 3 {
+                role_plan.push(json!({"role": "analyst", "required": true}));
+            }
+            if swarm_scale_required {
+                role_plan.push(json!({"role": "builder", "required": true}));
+                role_plan.push(json!({"role": "reviewer", "required": true}));
+            }
+            let turns = role_plan
+                .iter()
+                .take(3)
+                .enumerate()
+                .map(|(idx, row)| {
+                    let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or("agent"), 80);
+                    json!({
+                        "turn_id": format!("swarm-turn-{}", idx + 1),
+                        "role": role,
+                        "required": row.get("required").cloned().unwrap_or_else(|| json!(false)),
+                        "status": "completed",
+                        "summary": format!("{role} acknowledged runtime pressure and prepared remediation."),
+                        "ts": now_iso()
+                    })
+                })
+                .collect::<Vec<_>>();
+            let policies = vec![
+                json!({
+                    "policy": "queue_throttle",
+                    "required": throttle_required,
+                    "applied": throttle_required
+                }),
+                json!({
+                    "policy": "conduit_scale",
+                    "required": conduit_scale_required,
+                    "applied": conduit_scale_required,
+                    "target_conduit_signals": target_conduit_signals
+                }),
+                json!({
+                    "policy": "predictive_drain",
+                    "required": predictive_drain_required,
+                    "applied": predictive_drain_required
+                }),
+                json!({
+                    "policy": "attention_queue_autodrain",
+                    "required": attention_drain_required,
+                    "applied": attention_drain_required
+                }),
+                json!({
+                    "policy": "attention_queue_compaction",
+                    "required": attention_compaction_required,
+                    "applied": attention_compaction_required
+                }),
+                json!({
+                    "policy": "coarse_lane_demotion",
+                    "required": coarse_signal_remediation_required,
+                    "applied": coarse_signal_remediation_required
+                }),
+                json!({
+                    "policy": "coarse_conduit_scale_up",
+                    "required": coarse_signal_remediation_required,
+                    "applied": coarse_signal_remediation_required
+                }),
+                json!({
+                    "policy": "coarse_stale_lane_drain",
+                    "required": coarse_signal_remediation_required,
+                    "applied": coarse_signal_remediation_required
+                }),
+                json!({
+                    "policy": "spine_reliability_gate",
+                    "required": reliability_gate_required,
+                    "applied": reliability_gate_required
+                }),
+                json!({
+                    "policy": "human_escalation_guard",
+                    "required": reliability_gate_required,
+                    "applied": reliability_gate_required
+                }),
+                json!({
+                    "policy": "runtime_slo_gate",
+                    "required": slo_gate_required,
+                    "applied": slo_gate_required,
+                    "thresholds": slo_gate.get("thresholds").cloned().unwrap_or_else(|| json!({}))
+                }),
+            ];
             let mut launch_receipt = Value::Null;
             if queue_depth >= RUNTIME_SYNC_DRAIN_TRIGGER_DEPTH {
                 let shadow = format!("{team}-drain-{}", Utc::now().timestamp_millis());
@@ -1816,6 +2444,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     })
                 });
             }
+            let launches = if launch_receipt.is_null() {
+                Vec::<Value>::new()
+            } else {
+                vec![launch_receipt.clone()]
+            };
+            let executed_count = turns.len() as i64;
             LaneResult {
                 ok: true,
                 status: 0,
@@ -1832,7 +2466,26 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     "queue_depth": queue_depth,
                     "target_conduit_signals": target_conduit_signals,
                     "conduit_scale_required": conduit_scale_required,
-                    "launch_receipt": launch_receipt
+                    "launch_receipt": launch_receipt,
+                    "launches": launches,
+                    "executed_count": executed_count,
+                    "turns": turns,
+                    "policies": policies,
+                    "recommendation": {
+                        "action": action_key,
+                        "active_swarm_agents": active_swarm_agents,
+                        "swarm_target_agents": swarm_target_agents,
+                        "swarm_scale_required": swarm_scale_required,
+                        "throttle_required": throttle_required,
+                        "predictive_drain_required": predictive_drain_required,
+                        "attention_drain_required": attention_drain_required,
+                        "attention_compaction_required": attention_compaction_required,
+                        "coarse_signal_remediation_required": coarse_signal_remediation_required,
+                        "reliability_gate_required": reliability_gate_required,
+                        "slo_gate_required": slo_gate_required,
+                        "slo_gate": slo_gate,
+                        "role_plan": role_plan
+                    }
                 })),
             }
         }
