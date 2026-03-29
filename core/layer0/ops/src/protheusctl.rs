@@ -176,8 +176,8 @@ fn print_node_free_command_list(mode: &str) {
         println!("Command list (Node-free fallback):");
     }
     for cmd in [
-        "gateway [start|stop|restart|status] [--dashboard-open=1|0]",
-        "start [--dashboard-autoboot=1|0] [--dashboard-open=1|0]",
+        "gateway [start|stop|restart|status] [--dashboard-open=1|0] [--gateway-persist=1|0]",
+        "start [--dashboard-autoboot=1|0] [--dashboard-open=1|0] [--gateway-persist=1|0]",
         "stop",
         "restart",
         "dashboard",
