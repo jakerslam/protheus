@@ -181,11 +181,16 @@ async function backendHealth(flags, timeoutMs = 5000) {
 }
 function spawnBackend(flags) {
   const laneArgs = ['dashboard-ui', 'serve', `--host=${flags.apiHost}`, `--port=${flags.apiPort}`, `--team=${flags.team}`, `--refresh-ms=${flags.refreshMs}`];
-  const env = { ...process.env, PROTHEUS_ROOT: ROOT };
-  const bin = resolveBinary({ env });
-  const child = bin
-    ? spawn(bin, laneArgs, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
-    : spawn('cargo', ['run', '--quiet', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--', ...laneArgs], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const env = {
+    ...process.env,
+    PROTHEUS_ROOT: ROOT,
+    PROTHEUS_OPS_ALLOW_STALE: process.env.PROTHEUS_OPS_ALLOW_STALE || '1',
+    PROTHEUS_NPM_ALLOW_STALE: process.env.PROTHEUS_NPM_ALLOW_STALE || '1',
+  };
+  const explicitBin = cleanText(env.PROTHEUS_NPM_BINARY || '', 600);
+  const bin = explicitBin || resolveBinary({ env });
+  if (!bin) throw new Error('dashboard_backend_binary_missing');
+  const child = spawn(bin, laneArgs, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
   if (child.stdout) child.stdout.on('data', (chunk) => process.stdout.write(chunk));
   if (child.stderr) child.stderr.on('data', (chunk) => process.stderr.write(chunk));
   return child;

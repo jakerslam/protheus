@@ -656,7 +656,6 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         return out;
     }
-
     let provider = settings
         .get("provider")
         .and_then(Value::as_str)
@@ -700,12 +699,13 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         );
     selected_provider = resolved_provider;
     selected_model = resolved_model;
+    let system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved protheus/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
     let history_messages = chat_ui_history_messages(&session);
     let invoke = crate::dashboard_provider_runtime::invoke_chat(
         root,
         &selected_provider,
         &selected_model,
-        "",
+        &system_prompt,
         &history_messages,
         &message,
     );
@@ -724,7 +724,10 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         }
     };
     let assistant = clean(
-        response.get("response").and_then(Value::as_str).unwrap_or(""),
+        response
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         16_000,
     );
     let turn = json!({

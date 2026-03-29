@@ -121,7 +121,19 @@
   z-index: 0;
   opacity: 0.16;
   transition: none;
-  will-change: opacity, mask-image, -webkit-mask-image;
+  will-change: opacity, mask-image, -webkit-mask-image, translate;
+}
+
+/* Keep grid + neon pointer FX anchored to the visible chat viewport while the
+   message content scrolls underneath. */
+.chat-grid-overlay,
+.chat-pointer-trail-dot,
+.chat-pointer-trail-segment,
+.chat-pointer-ripple,
+.chat-pointer-orb {
+  translate:
+    calc(var(--chat-grid-scroll-x, 0px) * -1)
+    calc(var(--chat-grid-scroll-y, 0px) * -1);
 }
 
 body:not([data-theme='dark']) .chat-grid-overlay {
