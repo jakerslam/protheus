@@ -2,6 +2,7 @@
 // Layer ownership: core/layer2/ops (authoritative)
 
 use crate::deterministic_receipt_hash;
+use crate::gateway_supervisor::{self, GatewaySupervisorConfig, GatewaySupervisorResult};
 use serde_json::{json, Value};
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
@@ -84,16 +85,43 @@ fn parse_u64(raw: Option<&str>, fallback: u64, min: u64, max: u64) -> u64 {
         .clamp(min, max)
 }
 
+fn resolve_node_binary() -> String {
+    if let Ok(explicit) = std::env::var("PROTHEUS_NODE_BINARY") {
+        let trimmed = explicit.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let locator = if cfg!(windows) { "where" } else { "which" };
+    if let Ok(out) = Command::new(locator)
+        .arg("node")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+    {
+        if out.status.success() {
+            let raw = String::from_utf8_lossy(&out.stdout);
+            if let Some(line) = raw.lines().map(str::trim).find(|row| !row.is_empty()) {
+                return line.to_string();
+            }
+        }
+    }
+    "node".to_string()
+}
+
 #[derive(Debug, Clone)]
 struct DashboardLaunchConfig {
     enabled: bool,
     open_browser: bool,
+    persistent_supervisor: bool,
     host: String,
     port: u16,
     team: String,
     refresh_ms: u64,
     ready_timeout_ms: u64,
     watchdog_interval_ms: u64,
+    node_binary: String,
 }
 
 impl DashboardLaunchConfig {
@@ -113,6 +141,13 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
     let open_browser = parse_bool(
         parse_flag(argv, "dashboard-open")
             .or_else(|| std::env::var("PROTHEUS_DASHBOARD_OPEN_ON_START").ok())
+            .as_deref(),
+        start_like,
+    );
+    let persistent_supervisor = parse_bool(
+        parse_flag(argv, "gateway-persist")
+            .or_else(|| parse_flag(argv, "gateway-supervisor"))
+            .or_else(|| std::env::var("PROTHEUS_GATEWAY_PERSIST").ok())
             .as_deref(),
         start_like,
     );
@@ -147,16 +182,63 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
         DASHBOARD_WATCHDOG_INTERVAL_MIN_MS,
         DASHBOARD_WATCHDOG_INTERVAL_MAX_MS,
     );
+    let node_binary = parse_flag(argv, "node-binary")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(resolve_node_binary);
     DashboardLaunchConfig {
         enabled,
         open_browser,
+        persistent_supervisor,
         host,
         port,
         team,
         refresh_ms,
         ready_timeout_ms,
         watchdog_interval_ms,
+        node_binary,
     }
+}
+
+fn gateway_supervisor_config(cfg: &DashboardLaunchConfig) -> GatewaySupervisorConfig {
+    GatewaySupervisorConfig {
+        host: cfg.host.clone(),
+        port: cfg.port,
+        team: cfg.team.clone(),
+        refresh_ms: cfg.refresh_ms,
+        ready_timeout_ms: cfg.ready_timeout_ms,
+        watchdog_interval_ms: cfg.watchdog_interval_ms,
+        node_binary: cfg.node_binary.clone(),
+    }
+}
+
+fn supervisor_executable() -> Result<PathBuf, String> {
+    let current = std::env::current_exe()
+        .map_err(|err| format!("gateway_supervisor_current_exe_failed:{err}"))?;
+    Ok(resolve_dashboard_executable(&current))
+}
+
+fn gateway_supervisor_enable(root: &Path, cfg: &DashboardLaunchConfig) -> GatewaySupervisorResult {
+    let executable = match supervisor_executable() {
+        Ok(path) => path,
+        Err(err) => {
+            return GatewaySupervisorResult {
+                active: false,
+                payload: json!({
+                    "ok": false,
+                    "action": "enable",
+                    "error": err,
+                }),
+            };
+        }
+    };
+    let supervisor_cfg = gateway_supervisor_config(cfg);
+    gateway_supervisor::enable(
+        root,
+        &executable,
+        &supervisor_cfg,
+        &dashboard_watchdog_log_path(root),
+    )
 }
 
 fn dashboard_state_dir(root: &Path) -> std::path::PathBuf {
@@ -336,7 +418,7 @@ fn dashboard_health_ok(host: &str, port: u16) -> bool {
             format!("GET /healthz HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n")
                 .as_bytes(),
         )
-    .is_err()
+        .is_err()
     {
         return false;
     }
@@ -591,7 +673,7 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
         .map_err(|err| format!("dashboard_log_clone_failed:{err}"))?;
     // Canonical dashboard surface: TypeScript pipeline serving the OpenClaw-derived browser UI.
     // Keep a single browser surface wired to the Rust API lane.
-    let child = Command::new("node")
+    let child = Command::new(cfg.node_binary.as_str())
         .arg("client/runtime/lib/ts_entrypoint.ts")
         .arg("client/runtime/systems/ui/infring_dashboard.ts")
         .arg("serve")
@@ -683,11 +765,19 @@ fn spawn_dashboard_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Result<
         .stderr(Stdio::from(log_err))
         .spawn()
         .map_err(|err| format!("dashboard_watchdog_spawn_failed:{err}"))?;
-    let _ = fs::write(dashboard_watchdog_pid_path(root), format!("{}\n", child.id()));
+    let _ = fs::write(
+        dashboard_watchdog_pid_path(root),
+        format!("{}\n", child.id()),
+    );
     Ok(child.id())
 }
 
-fn start_dashboard_with_config(root: &Path, cfg: &DashboardLaunchConfig, allow_browser: bool) -> Value {
+fn start_dashboard_with_config(
+    root: &Path,
+    cfg: &DashboardLaunchConfig,
+    allow_browser: bool,
+    spawn_local_watchdog: bool,
+) -> Value {
     let url = cfg.url();
     if !cfg.enabled {
         return json!({
@@ -751,6 +841,7 @@ fn start_dashboard_with_config(root: &Path, cfg: &DashboardLaunchConfig, allow_b
         "pid": pid,
         "opened_browser": false,
         "url": url,
+        "node_binary": cfg.node_binary,
         "log_path": dashboard_log_path(root).to_string_lossy().to_string(),
         "ready_timeout_ms": cfg.ready_timeout_ms,
         "recovery_attempted": recovery_attempted,
@@ -769,7 +860,7 @@ fn start_dashboard_with_config(root: &Path, cfg: &DashboardLaunchConfig, allow_b
             out["log_tail"] = Value::String(tail);
         }
     }
-    if running {
+    if running && spawn_local_watchdog {
         let watchdog = spawn_dashboard_watchdog(root, cfg);
         out["watchdog"] = match watchdog {
             Ok(pid) => json!({
@@ -791,11 +882,6 @@ fn start_dashboard_with_config(root: &Path, cfg: &DashboardLaunchConfig, allow_b
     out
 }
 
-fn start_dashboard_if_enabled(root: &Path, argv: &[String], command: &str) -> Value {
-    let cfg = parse_dashboard_launch_config(argv, command);
-    start_dashboard_with_config(root, &cfg, true)
-}
-
 fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     let cfg = parse_dashboard_launch_config(argv, "start");
     if !cfg.enabled {
@@ -809,7 +895,10 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
         }));
         return 0;
     }
-    let _ = fs::write(dashboard_watchdog_pid_path(root), format!("{}\n", std::process::id()));
+    let _ = fs::write(
+        dashboard_watchdog_pid_path(root),
+        format!("{}\n", std::process::id()),
+    );
     append_watchdog_log(
         root,
         &json!({
@@ -821,6 +910,7 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
             "port": cfg.port,
             "interval_ms": cfg.watchdog_interval_ms,
             "fail_streak_threshold": DASHBOARD_WATCHDOG_FAIL_STREAK_THRESHOLD,
+            "node_binary": cfg.node_binary,
         }),
     );
     let mut fail_streak = 0usize;
@@ -900,6 +990,40 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     0
 }
 
+fn ensure_gateway_supervisor(
+    root: &Path,
+    cfg: &DashboardLaunchConfig,
+    dashboard: &mut Value,
+) -> Value {
+    if !cfg.persistent_supervisor {
+        let _ = gateway_supervisor::disable(root);
+        return gateway_supervisor::status(root).payload;
+    }
+    let supervisor = gateway_supervisor_enable(root, cfg);
+    let dashboard_running = dashboard
+        .get("running")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if !supervisor.active && dashboard_running {
+        let fallback = spawn_dashboard_watchdog(root, cfg);
+        dashboard["watchdog_fallback"] = match fallback {
+            Ok(pid) => json!({
+                "ok": true,
+                "running": true,
+                "pid": pid,
+                "mode": "local_watchdog_fallback",
+            }),
+            Err(err) => json!({
+                "ok": false,
+                "running": false,
+                "error": err,
+                "mode": "local_watchdog_fallback",
+            }),
+        };
+    }
+    supervisor.payload
+}
+
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|watchdog> [--mode=<value>]");
@@ -910,6 +1034,8 @@ fn usage() {
     println!("    --dashboard-port=<n>       (default: 4173)");
     println!("    --dashboard-ready-timeout-ms=<n> (default: 36000)");
     println!("    --dashboard-watchdog-interval-ms=<n> (default: 2000)");
+    println!("    --node-binary=<path>       (default: auto-detected node path)");
+    println!("    --gateway-persist=1|0      (default: 1 on start/restart)");
 }
 
 pub(crate) fn success_receipt(
@@ -1000,27 +1126,41 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let dashboard = match command.as_str() {
             "start" => {
                 clear_dashboard_stop_latch(root);
-                start_dashboard_if_enabled(root, argv, "start")
+                let cfg = parse_dashboard_launch_config(argv, "start");
+                if cfg.persistent_supervisor {
+                    let _ = stop_dashboard_watchdog(root);
+                }
+                let mut started =
+                    start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
+                started["supervisor"] = ensure_gateway_supervisor(root, &cfg, &mut started);
+                started
             }
             "restart" => {
                 set_dashboard_stop_latch(root);
                 let cfg = parse_dashboard_launch_config(argv, "restart");
+                let supervisor_stopped = gateway_supervisor::disable(root);
                 let watchdog_stopped = stop_dashboard_watchdog(root);
                 let stopped = kill_dashboard_process(root, &cfg);
                 clear_dashboard_stop_latch(root);
-                let started = start_dashboard_if_enabled(root, argv, "restart");
+                let mut started =
+                    start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
+                let supervisor = ensure_gateway_supervisor(root, &cfg, &mut started);
                 json!({
+                    "supervisor_stopped": supervisor_stopped.payload,
                     "watchdog_stopped": watchdog_stopped,
                     "stopped": stopped,
+                    "supervisor": supervisor,
                     "started": started
                 })
             }
             "stop" => {
                 set_dashboard_stop_latch(root);
                 let cfg = parse_dashboard_launch_config(argv, "stop");
+                let supervisor_stopped = gateway_supervisor::disable(root);
                 let watchdog_stopped = stop_dashboard_watchdog(root);
                 let stopped = kill_dashboard_process(root, &cfg);
                 json!({
+                    "supervisor_stopped": supervisor_stopped.payload,
                     "watchdog_stopped": watchdog_stopped,
                     "stopped": stopped
                 })
@@ -1029,11 +1169,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 let cfg = parse_dashboard_launch_config(argv, "start");
                 json!({
                     "enabled": cfg.enabled,
+                    "persistent_supervisor": cfg.persistent_supervisor,
                     "running": dashboard_health_ok(cfg.host.as_str(), cfg.port),
                     "url": cfg.url(),
                     "log_path": dashboard_log_path(root).to_string_lossy().to_string(),
                     "stop_latch_active": dashboard_stop_latch_active(root),
                     "watchdog": dashboard_watchdog_status(root),
+                    "supervisor": gateway_supervisor::status(root).payload,
                 })
             }
             _ => json!({}),
@@ -1100,10 +1242,15 @@ mod tests {
         let cfg = parse_dashboard_launch_config(&[], "start");
         assert!(cfg.enabled);
         assert!(cfg.open_browser);
+        assert!(cfg.persistent_supervisor);
+        assert!(!cfg.node_binary.trim().is_empty());
         assert_eq!(cfg.host, "127.0.0.1");
         assert_eq!(cfg.port, 4173);
         assert_eq!(cfg.ready_timeout_ms, 36_000);
-        assert_eq!(cfg.watchdog_interval_ms, DASHBOARD_WATCHDOG_INTERVAL_DEFAULT_MS);
+        assert_eq!(
+            cfg.watchdog_interval_ms,
+            DASHBOARD_WATCHDOG_INTERVAL_DEFAULT_MS
+        );
     }
 
     #[test]
@@ -1112,6 +1259,7 @@ mod tests {
             &[
                 "--dashboard-autoboot=0".to_string(),
                 "--dashboard-open=0".to_string(),
+                "--gateway-persist=0".to_string(),
                 "--dashboard-host=0.0.0.0".to_string(),
                 "--dashboard-port=4321".to_string(),
                 "--dashboard-ready-timeout-ms=1200".to_string(),
@@ -1121,6 +1269,8 @@ mod tests {
         );
         assert!(!cfg.enabled);
         assert!(!cfg.open_browser);
+        assert!(!cfg.persistent_supervisor);
+        assert!(!cfg.node_binary.trim().is_empty());
         assert_eq!(cfg.host, "0.0.0.0");
         assert_eq!(cfg.port, 4321);
         assert_eq!(cfg.ready_timeout_ms, 1_500);

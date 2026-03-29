@@ -127,6 +127,14 @@ fn core_shortcut_routes_gateway_preserves_start_flags() {
 }
 
 #[test]
+fn core_shortcut_routes_gateway_preserves_persistence_flag() {
+    let route =
+        resolve_core_shortcuts("gateway", &["--gateway-persist=0".to_string()]).expect("route");
+    assert_eq!(route.script_rel, "core://daemon-control");
+    assert_eq!(route.args, vec!["start", "--gateway-persist=0"]);
+}
+
+#[test]
 fn core_shortcut_routes_chat_with_files() {
     let route = resolve_core_shortcuts(
         "chat",
