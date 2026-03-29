@@ -142,6 +142,9 @@ One-command rich runtime boot (auto-opens dashboard):
 infring gateway
 ```
 
+By default this enables persistent gateway supervision (auto-restart on process failure + reboot).
+Use `--gateway-persist=0` if you want a non-persistent one-shot run.
+
 `gateway` is part of the full control surface (`--minimal`/default or `--full`).  
 Pure profiles (`--pure`, `--tiny-max`) use the Rust-only command set and do not expose `gateway`.
 
@@ -458,7 +461,7 @@ Run `infring list` (or `infring --help`) for a categorized command index.
 - `infring demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
 - `infring version` and `infring update` provide version + update channel information.
 - Internal operator commands:
-  - `infring gateway` -> one-command runtime boot + rich dashboard auto-open
+  - `infring gateway` -> one-command runtime boot + rich dashboard auto-open + persistent auto-restart
   - `infring gateway stop` -> stop runtime + dashboard
   - `infring start` -> start daemon control + auto-boot dashboard on localhost
   - `infring dashboard` -> launch unified web dashboard (localhost)

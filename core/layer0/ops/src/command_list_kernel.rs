@@ -12,8 +12,8 @@ struct CommandItem {
 const COMMANDS: &[CommandItem] = &[
     CommandItem { name: "help", desc: "Show CLI help and command list." },
     CommandItem {
-        name: "gateway [start|stop|restart|status]",
-        desc: "One-command runtime gateway (boots rich dashboard by default).",
+        name: "gateway [start|stop|restart|status] [--gateway-persist=1|0]",
+        desc: "One-command runtime gateway (boots rich dashboard + persistent supervisor by default).",
     },
     CommandItem { name: "status", desc: "Show daemon/control-plane status." },
     CommandItem { name: "dashboard", desc: "Launch unified dashboard web UI (localhost)." },
