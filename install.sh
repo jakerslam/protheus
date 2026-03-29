@@ -31,6 +31,8 @@ INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
+PATH_PERSISTED_FILE=""
+PATH_PERSISTED_KIND=""
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -210,6 +212,138 @@ ensure_path_shims() {
     PATH_SHIM_DIR="$shim_dir"
     echo "[infring install] linked commands into PATH dir: $PATH_SHIM_DIR"
   fi
+}
+
+shell_name_guess() {
+  shell_path="${SHELL:-}"
+  if [ -n "$shell_path" ]; then
+    shell_name="$(basename "$shell_path" 2>/dev/null || true)"
+    if [ -n "$shell_name" ]; then
+      printf '%s\n' "$shell_name"
+      return 0
+    fi
+  fi
+  printf '%s\n' "sh"
+}
+
+path_persist_candidates() {
+  shell_name="$1"
+  case "$shell_name" in
+    zsh)
+      printf '%s\n' "$HOME/.zshrc"
+      printf '%s\n' "$HOME/.zprofile"
+      printf '%s\n' "$HOME/.profile"
+      ;;
+    bash)
+      printf '%s\n' "$HOME/.bashrc"
+      printf '%s\n' "$HOME/.bash_profile"
+      printf '%s\n' "$HOME/.profile"
+      ;;
+    fish)
+      printf '%s\n' "$HOME/.config/fish/config.fish"
+      ;;
+    *)
+      printf '%s\n' "$HOME/.profile"
+      ;;
+  esac
+}
+
+select_path_persist_file() {
+  shell_name="$1"
+  candidates="$(path_persist_candidates "$shell_name")"
+  first=""
+  old_ifs="$IFS"
+  IFS='
+'
+  for candidate in $candidates; do
+    [ -n "$candidate" ] || continue
+    if [ -z "$first" ]; then
+      first="$candidate"
+    fi
+    if [ -f "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      IFS="$old_ifs"
+      return 0
+    fi
+  done
+  IFS="$old_ifs"
+  if [ -n "$first" ]; then
+    printf '%s\n' "$first"
+    return 0
+  fi
+  return 1
+}
+
+path_persist_kind_for_file() {
+  file="$1"
+  case "$file" in
+    */config.fish) printf '%s\n' "fish" ;;
+    *) printf '%s\n' "posix" ;;
+  esac
+}
+
+append_path_block_posix() {
+  file="$1"
+  marker_begin="# >>> infring PATH >>>"
+  marker_end="# <<< infring PATH <<<"
+  if [ -f "$file" ] && grep -F "$marker_begin" "$file" >/dev/null 2>&1; then
+    return 0
+  fi
+  dir_name="$(dirname "$file")"
+  mkdir -p "$dir_name"
+  {
+    printf '\n%s\n' "$marker_begin"
+    printf '%s\n' "if [ -d \"$INSTALL_DIR\" ]; then"
+    printf '%s\n' "  case \":\$PATH:\" in"
+    printf '%s\n' "    *\":$INSTALL_DIR:\"*) ;;"
+    printf '%s\n' "    *) export PATH=\"$INSTALL_DIR:\$PATH\" ;;"
+    printf '%s\n' "  esac"
+    printf '%s\n' "fi"
+    printf '%s\n' "$marker_end"
+  } >> "$file"
+}
+
+append_path_block_fish() {
+  file="$1"
+  marker_begin="# >>> infring PATH >>>"
+  marker_end="# <<< infring PATH <<<"
+  if [ -f "$file" ] && grep -F "$marker_begin" "$file" >/dev/null 2>&1; then
+    return 0
+  fi
+  dir_name="$(dirname "$file")"
+  mkdir -p "$dir_name"
+  {
+    printf '\n%s\n' "$marker_begin"
+    printf '%s\n' "if test -d \"$INSTALL_DIR\""
+    printf '%s\n' "  if not contains -- \"$INSTALL_DIR\" \$PATH"
+    printf '%s\n' "    set -gx PATH \"$INSTALL_DIR\" \$PATH"
+    printf '%s\n' "  end"
+    printf '%s\n' "end"
+    printf '%s\n' "$marker_end"
+  } >> "$file"
+}
+
+persist_path_for_shell() {
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*)
+      return 0
+      ;;
+  esac
+  if [ -n "$PATH_SHIM_DIR" ]; then
+    return 0
+  fi
+  shell_name="$(shell_name_guess)"
+  target_file="$(select_path_persist_file "$shell_name" 2>/dev/null || true)"
+  [ -n "$target_file" ] || return 0
+  persist_kind="$(path_persist_kind_for_file "$target_file")"
+  if [ "$persist_kind" = "fish" ]; then
+    append_path_block_fish "$target_file"
+  else
+    append_path_block_posix "$target_file"
+  fi
+  PATH_PERSISTED_FILE="$target_file"
+  PATH_PERSISTED_KIND="$persist_kind"
+  echo "[infring install] PATH persisted in $PATH_PERSISTED_FILE"
 }
 
 repair_install_dir() {
@@ -1482,17 +1616,27 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] stop: infring gateway stop"
 
   ensure_path_shims
-  case ":$PATH:" in
-    *":$INSTALL_DIR:"*)
-      ;;
-    *)
-      if [ -n "$PATH_SHIM_DIR" ]; then
-        echo "[infring install] PATH notice: wrappers installed in $INSTALL_DIR and linked from $PATH_SHIM_DIR"
-      else
-        echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
-      fi
-      ;;
-  esac
+  persist_path_for_shell
+  if command -v infring >/dev/null 2>&1; then
+    echo "[infring install] PATH check: infring command available in current shell"
+  else
+    case ":$PATH:" in
+      *":$INSTALL_DIR:"*)
+        echo "[infring install] PATH check: install dir is on PATH but shell may require command hash refresh"
+        echo "[infring install] activate now: hash -r 2>/dev/null || true"
+        ;;
+      *)
+        if [ -n "$PATH_SHIM_DIR" ]; then
+          echo "[infring install] PATH notice: wrappers installed in $INSTALL_DIR and linked from $PATH_SHIM_DIR"
+        elif [ -n "$PATH_PERSISTED_FILE" ]; then
+          echo "[infring install] activate now: . \"$PATH_PERSISTED_FILE\""
+          echo "[infring install] fallback: export PATH=\"$INSTALL_DIR:\$PATH\""
+        else
+          echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+        fi
+        ;;
+    esac
+  fi
 
   if [ -n "$SOURCE_FALLBACK_TMP" ] && [ -d "$SOURCE_FALLBACK_TMP" ]; then
     rm -rf "$SOURCE_FALLBACK_TMP"
