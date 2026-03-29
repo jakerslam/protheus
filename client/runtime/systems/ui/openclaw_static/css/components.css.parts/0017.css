@@ -1,0 +1,406 @@
+.wizard-progress-line-fill {
+  height: 100%;
+  background: var(--success);
+  transition: width 0.4s ease;
+  border-radius: 1px;
+}
+
+.wizard-step {
+  animation: fadeIn 0.3s ease;
+}
+
+.wizard-card {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+/* Wizard provider selection card */
+.wizard-provider-card {
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.wizard-provider-selected {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent-glow);
+  background: rgba(59,130,246,0.08);
+}
+
+/* Wizard template selection card */
+.wizard-template-card {
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.wizard-template-selected {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent-glow);
+  background: rgba(59,130,246,0.08);
+}
+
+/* Responsive wizard */
+@media (max-width: 600px) {
+  .wizard-progress-label { display: none; }
+  .wizard-progress-step { max-width: 48px; }
+  .wizard-progress-circle { width: 28px; height: 28px; font-size: 11px; }
+  .wizard-progress-line { top: 34px; }
+  .wizard-card { padding: 16px; }
+}
+
+/* ── Page Transition Animation ── */
+@keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page-body { animation: slideIn 0.2s ease; }
+
+/* ── Skeleton Loading Placeholder ── */
+@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 37%, var(--surface2) 63%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── File Attachment Drop Zone ── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.drop-zone.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.drop-zone-text { font-size: 12px; color: var(--text-dim); }
+.file-preview { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+.file-thumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.file-thumb .remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--error);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.file-name {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60px;
+  text-align: center;
+}
+
+/* ── Approval Badge & Page Styles ── */
+.approval-card {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-left: 3px solid var(--warning);
+}
+.approval-card:hover {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.approval-card.approved { border-left-color: var(--success); }
+.approval-card.rejected { border-left-color: var(--error); }
+.approval-card.expired { border-left-color: var(--text-muted); opacity: 0.7; }
+.approval-timer {
+  font-size: 11px;
+  color: var(--warning);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.approval-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ── Agent Identity Styles ── */
+.agent-emoji { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.agent-identity { display: flex; align-items: center; gap: 8px; }
+.agent-color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Message Grouping Styles ── */
+.message.grouped { margin-top: 0; }
+.message.grouped .message-avatar { visibility: hidden; }
+.message.grouped .message-agent-name { display: none; }
+.message.grouped .message-stat-meta { display: none; }
+.message.grouped .message-stat-time { display: inline-block; }
+
+/* ── Inline Image Preview in Messages ── */
+.message-image {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.15s;
+  margin: 8px 0;
+}
+.message-image:hover { transform: scale(1.02); }
+.message-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: border-color 0.15s;
+  margin: 4px 0;
+}
+.message-file-link:hover { border-color: var(--accent); color: var(--text); }
+
+/* ── Setup Checklist Progress Bar ── */
+.progress-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.3s ease; }
+
+/* ── Tool Badge ── */
+.tool-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--surface2); color: var(--text-dim); display: inline-block; margin: 1px; }
+
+/* ── Try-It Mini Chat ── */
+.tryit-messages { max-height: 200px; overflow-y: auto; margin: 12px 0; }
+.tryit-msg { padding: 6px 10px; border-radius: 6px; margin: 4px 0; font-size: 12px; line-height: 1.5; word-break: break-word; }
+.tryit-msg-user { background: var(--accent); color: var(--bg-primary); margin-left: 40px; }
+.tryit-msg-agent { background: var(--surface2); margin-right: 40px; }
+
+/* ── Suggested Message Chips ── */
+.suggest-chip { display: inline-block; padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--text-dim); font-family: var(--font-mono); }
+.suggest-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Setup Checklist Card ── */
+.setup-checklist { margin-bottom: 20px; }
+.setup-checklist-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.setup-checklist-item:last-child { border-bottom: none; }
+.setup-checklist-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; border: 2px solid var(--border); color: var(--text-dim); }
+.setup-checklist-icon.done { background: var(--success); border-color: var(--success); color: #000; }
+
+/* ── Channel Setup Steps Indicator ── */
+.channel-steps { display: flex; align-items: center; gap: 0; margin-bottom: 20px; }
+.channel-step-item { display: flex; align-items: center; gap: 6px; flex: 1; }
+.channel-step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 2px solid var(--border); color: var(--text-dim); flex-shrink: 0; transition: all 0.2s; }
+.channel-step-num.active { border-color: var(--accent); background: var(--accent); color: var(--bg-primary); }
+.channel-step-num.done { border-color: var(--success); background: var(--success); color: #000; }
+.channel-step-label { font-size: 11px; color: var(--text-dim); }
+.channel-step-label.active { color: var(--accent); font-weight: 600; }
+.channel-step-label.done { color: var(--success); }
+.channel-step-line { flex: 1; height: 2px; background: var(--border); margin: 0 8px; }
+.channel-step-line.done { background: var(--success); }
+
+/* ── Chat Tip Bar ── */
+.tip-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 4px 8px; font-size: 11px; color: var(--text-muted); transition: opacity 0.3s; }
+.tip-bar-dismiss { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
+.tip-bar-dismiss:hover { color: var(--text); }
+
+/* ── Wizard Category Filter ── */
+.wizard-category-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.wizard-category-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-dim); transition: all 0.15s; font-family: var(--font-mono); }
+.wizard-category-pill:hover { border-color: var(--accent); color: var(--text); }
+.wizard-category-pill.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
+
+/* ── Capability Preview Panel ── */
+.capability-preview { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-top: 12px; }
+.capability-preview-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+/* ── Ready Panel (Channel step 3) ── */
+.ready-panel { text-align: center; padding: 24px 16px; }
+.ready-panel-icon { font-size: 48px; color: var(--success); margin-bottom: 8px; }
+.ready-panel-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.ready-panel-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+/* ── Wizard Step Indicator ── */
+.wizard-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 8px 0;
+}
+.wizard-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  color: var(--text-dim);
+  background: var(--surface);
+  transition: all 0.2s ease;
+}
+.wizard-dot.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+.wizard-dot.done {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-subtle, rgba(34, 197, 94, 0.1));
+}
+.wizard-dot + .wizard-dot::before {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  left: -12px;
+}
+
+/* ── Emoji Grid ── */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.emoji-grid-item {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.emoji-grid-item:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+  transform: scale(1.1);
+}
+.emoji-grid-item.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+/* ── Personality Pills ── */
+.personality-pill {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.personality-pill:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+.personality-pill.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg-primary);
+  box-shadow: 0 0 12px var(--accent-subtle);
+}
+
+/* ── File List ── */
+.file-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--surface);
+}
+.file-list-item:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+
+/* ── File Editor ── */
+.file-editor {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text);
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.file-editor:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+/* ── Stat Value Semantic Colors ── */
+.stat-value-success { color: var(--success) !important; }
+.stat-value-warning { color: var(--warning) !important; }
+.stat-value-error { color: var(--error) !important; }
+.stat-value-accent { color: var(--accent) !important; }
+
+/* ── Additional Skeleton Variants ── */
+.skeleton-stat { height: 88px; border-radius: var(--radius-lg); background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
+.skeleton-table { height: 200px; border-radius: var(--radius-lg); width: 100%; background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
+.skeleton-row { display: flex; gap: 16px; margin-bottom: 12px; }
+
+/* ── Enhanced Empty State ── */
+.empty-state svg, .empty-state-icon svg { opacity: 0.3; }
+.empty-state-cta { margin-top: 16px; }
+
+/* ── Nav Section Collapsible ── */
+.nav-section-title {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-section-chevron {
+  font-size: 8px;

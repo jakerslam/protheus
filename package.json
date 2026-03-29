@@ -1750,9 +1750,7 @@
     "ops:flaky:quarantine:audit": "node tests/tooling/scripts/ci/flaky_quarantine_audit.mjs --strict=1",
     "ops:test-priority:audit": "node tests/tooling/scripts/ci/test_priority_manifest_audit.mjs --strict=1",
     "ops:strategic-contracts:audit": "node tests/tooling/scripts/ci/strategic_contract_registry_audit.mjs --strict=1",
-    "test:ops:dashboard-stress": "node tests/tooling/scripts/dashboard_stress_smoke.mjs",
-    "dashboard:svelte:build": "vite build --config client/runtime/systems/ui/svelte_dashboard/vite.config.ts",
-    "dashboard:svelte:dev": "vite --config client/runtime/systems/ui/svelte_dashboard/vite.config.ts --host 127.0.0.1 --port 4317"
+    "test:ops:dashboard-stress": "node tests/tooling/scripts/dashboard_stress_smoke.mjs"
   },
   "bin": {
     "infring": "./client/cli/bin/protheus",
@@ -1764,12 +1762,9 @@
     "protheus-top": "./client/cli/bin/protheus-top"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^3.1.2",
     "@vitest/coverage-istanbul": "^2.1.9",
     "@vitest/coverage-v8": "^2.1.8",
-    "svelte": "^4.2.20",
     "typescript": "^5.9.3",
-    "vite": "^5.4.21",
     "vitest": "^2.1.8",
     "ws": "^8.19.0"
   },

@@ -1,0 +1,400 @@
+          <div class="tabs mt-4">
+            <div class="tab" :class="{ active: tab === 'summary' }" @click="tab = 'summary'">Summary</div>
+            <div class="tab" :class="{ active: tab === 'by-model' }" @click="tab = 'by-model'">By Model</div>
+            <div class="tab" :class="{ active: tab === 'by-agent' }" @click="tab = 'by-agent'">By Agent</div>
+            <div class="tab" :class="{ active: tab === 'costs' }" @click="tab = 'costs'">Costs</div>
+          </div>
+          <div x-show="tab === 'summary'">
+            <div class="card mt-4">
+              <div class="card-header">Runtime Telemetry</div>
+              <div class="detail-grid" style="margin-top:8px" x-show="runtimeMetaRows().length">
+                <template x-for="row in runtimeMetaRows()" :key="row.label">
+                  <div class="detail-row">
+                    <span class="detail-label" x-text="row.label"></span>
+                    <span class="detail-value" x-text="row.value"></span>
+                  </div>
+                </template>
+              </div>
+              <div class="empty-state" x-show="!runtimeMetaRows().length"><p>No runtime telemetry available yet.</p></div>
+            </div>
+            <div class="card mt-4">
+              <div class="card-header">Token Breakdown</div>
+              <div class="detail-grid" style="margin-top:8px">
+                <div class="detail-row"><span class="detail-label">Input Tokens</span><span class="detail-value" x-text="formatTokens(summary.total_input_tokens)"></span></div>
+                <div class="detail-row"><span class="detail-label">Output Tokens</span><span class="detail-value" x-text="formatTokens(summary.total_output_tokens)"></span></div>
+                <div class="detail-row"><span class="detail-label">Total Cost</span><span class="detail-value" x-text="formatCost(summary.total_cost_usd)"></span></div>
+                <div class="detail-row"><span class="detail-label">API Calls</span><span class="detail-value" x-text="summary.call_count || 0"></span></div>
+                <div class="detail-row"><span class="detail-label">Tool Calls</span><span class="detail-value" x-text="summary.total_tool_calls || 0"></span></div>
+              </div>
+            </div>
+          </div>
+          <div x-show="tab === 'by-model'">
+            <div class="table-wrap mt-4" x-show="byModel.length">
+              <table>
+                <thead><tr><th>Model</th><th>Calls</th><th>Input Tokens</th><th>Output Tokens</th><th>Cost</th><th style="width:30%">Usage</th></tr></thead>
+                <tbody>
+                  <template x-for="m in byModel" :key="m.model">
+                    <tr>
+                      <td class="font-bold" style="font-size:11px" x-text="m.model"></td>
+                      <td x-text="m.call_count"></td>
+                      <td x-text="formatTokens(m.total_input_tokens)"></td>
+                      <td x-text="formatTokens(m.total_output_tokens)"></td>
+                      <td x-text="formatCost(m.total_cost_usd)"></td>
+                      <td><div style="background:var(--surface2);border-radius:4px;height:16px;overflow:hidden"><div style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s" :style="'width:' + barWidth(m)"></div></div></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="empty-state" x-show="!byModel.length"><p>No model usage data yet.</p></div>
+          </div>
+          <div x-show="tab === 'by-agent'">
+            <div class="table-wrap mt-4" x-show="byAgent.length">
+              <table>
+                <thead><tr><th>Agent</th><th>Total Tokens</th><th>Tool Calls</th></tr></thead>
+                <tbody>
+                  <template x-for="a in byAgent" :key="a.agent_id">
+                    <tr>
+                      <td class="font-bold" x-text="a.name"></td>
+                      <td x-text="a.total_tokens ? a.total_tokens.toLocaleString() : '0'"></td>
+                      <td x-text="a.tool_calls || 0"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="empty-state" x-show="!byAgent.length"><p>No agent usage data yet.</p></div>
+          </div>
+
+          <!-- Costs Tab -->
+          <div x-show="tab === 'costs'">
+
+            <!-- Cost Summary Cards -->
+            <div class="stats-row mt-4">
+              <div class="stat-card">
+                <div class="stat-value" x-text="formatCost(summary.total_cost_usd)"></div>
+                <div class="stat-label">Total Spend</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" x-text="formatCost(todayCost)"></div>
+                <div class="stat-label">Today's Spend</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" x-text="formatCost(projectedMonthlyCost())"></div>
+                <div class="stat-label">Projected Monthly</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" x-text="formatCost(avgCostPerMessage())"></div>
+                <div class="stat-label">Avg Cost / Message</div>
+              </div>
+            </div>
+
+            <!-- Charts Row: Donut + Bar side by side -->
+            <div class="cost-charts-row mt-4">
+
+              <!-- Donut Chart: Cost by Provider -->
+              <div class="card cost-chart-panel">
+                <div class="card-header">Cost by Provider</div>
+                <div x-show="costByProvider().length === 0" class="text-sm text-dim" style="padding:20px;text-align:center">No cost data yet.</div>
+                <div x-show="costByProvider().length > 0" class="donut-chart-wrap">
+                  <div class="donut-chart">
+                    <svg viewBox="0 0 160 160" width="160" height="160">
+                      <template x-for="(seg, idx) in donutSegments()" :key="seg.provider">
+                        <circle
+                          cx="80" cy="80" r="60"
+                          fill="none"
+                          :stroke="seg.color"
+                          stroke-width="24"
+                          :stroke-dasharray="seg.dasharray"
+                          :stroke-dashoffset="seg.dashoffset"
+                          transform="rotate(-90 80 80)"
+                          class="donut-segment"
+                        >
+                          <title x-text="seg.provider + ': ' + seg.percent + '% (' + formatCost(seg.cost) + ')'"></title>
+                        </circle>
+                      </template>
+                      <!-- Center text -->
+                      <text x="80" y="76" text-anchor="middle" fill="var(--text)" style="font-size:14px;font-weight:700;font-family:var(--font-mono)" x-text="formatCost(summary.total_cost_usd)"></text>
+                      <text x="80" y="92" text-anchor="middle" fill="var(--text-muted)" style="font-size:9px;font-family:var(--font-mono)">TOTAL</text>
+                    </svg>
+                  </div>
+                  <div class="donut-legend">
+                    <template x-for="(seg, idx) in donutSegments()" :key="'legend-' + seg.provider">
+                      <div class="donut-legend-item">
+                        <span class="donut-legend-swatch" :style="'background:' + seg.color"></span>
+                        <span class="donut-legend-label" x-text="seg.provider"></span>
+                        <span class="donut-legend-pct" x-text="seg.percent + '%'"></span>
+                        <span class="donut-legend-cost text-dim" x-text="formatCost(seg.cost)"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bar Chart: Daily Cost (last 7 days) -->
+              <div class="card cost-chart-panel">
+                <div class="card-header">Daily Cost (Last 7 Days)</div>
+                <div x-show="barChartData().length === 0" class="text-sm text-dim" style="padding:20px;text-align:center">No daily data yet.</div>
+                <div x-show="barChartData().length > 0" class="bar-chart">
+                  <svg :viewBox="'0 0 ' + (barChartData().length * 50 + 20) + ' 180'" :width="barChartData().length * 50 + 20" height="180">
+                    <!-- Baseline -->
+                    <line x1="10" :x2="barChartData().length * 50 + 10" y1="150" y2="150" stroke="var(--border)" stroke-width="1"/>
+                    <template x-for="(bar, idx) in barChartData()" :key="bar.date">
+                      <g>
+                        <!-- Bar rect -->
+                        <rect
+                          :x="idx * 50 + 18"
+                          :y="150 - bar.barHeight"
+                          width="24"
+                          :height="bar.barHeight"
+                          rx="3"
+                          fill="var(--accent)"
+                          class="cost-bar"
+                          style="opacity:0.85"
+                        >
+                          <title x-text="bar.date + ': ' + formatCost(bar.cost) + ' (' + bar.calls + ' calls)'"></title>
+                        </rect>
+                        <!-- Day label -->
+                        <text
+                          :x="idx * 50 + 30"
+                          y="166"
+                          text-anchor="middle"
+                          fill="var(--text-muted)"
+                          style="font-size:9px;font-family:var(--font-mono)"
+                          x-text="bar.dayName"
+                        ></text>
+                        <!-- Cost label on top -->
+                        <text
+                          :x="idx * 50 + 30"
+                          :y="150 - bar.barHeight - 4"
+                          text-anchor="middle"
+                          fill="var(--text-dim)"
+                          style="font-size:8px;font-family:var(--font-mono)"
+                          x-text="formatCost(bar.cost)"
+                        ></text>
+                      </g>
+                    </template>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cost by Model Table -->
+            <div class="card mt-4">
+              <div class="card-header">Cost by Model</div>
+              <div class="table-wrap" x-show="costByModelSorted().length" style="border:none;margin-top:8px">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Model</th>
+                      <th>Provider</th>
+                      <th>Tier</th>
+                      <th>Input Tokens</th>
+                      <th>Output Tokens</th>
+                      <th>Calls</th>
+                      <th>Cost</th>
+                      <th style="width:20%">Cost Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="m in costByModelSorted()" :key="'cost-' + m.model">
+                      <tr>
+                        <td class="font-bold" style="font-size:11px" x-text="m.model"></td>
+                        <td><span class="badge badge-muted" style="font-size:9px" x-text="_extractProvider(m.model)"></span></td>
+                        <td>
+                          <span class="tier-badge"
+                            :class="'tier-' + modelTier(m.model)"
+                            x-text="modelTier(m.model)"></span>
+                        </td>
+                        <td x-text="formatTokens(m.total_input_tokens)"></td>
+                        <td x-text="formatTokens(m.total_output_tokens)"></td>
+                        <td x-text="m.call_count"></td>
+                        <td class="font-bold" x-text="formatCost(m.total_cost_usd)"></td>
+                        <td>
+                          <div style="background:var(--surface2);border-radius:4px;height:16px;overflow:hidden">
+                            <div style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s" :style="'width:' + costBarWidth(m)"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div x-show="!costByModelSorted().length" class="text-sm text-dim" style="padding:20px;text-align:center">No model cost data yet.</div>
+            </div>
+
+          </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Sessions -->
+    <template x-if="page === 'sessions'">
+      <div x-data="sessionsPage">
+        <div class="page-header">
+          <h2>Sessions</h2>
+          <input class="form-input" style="width:200px" placeholder="Filter by agent..." x-model="searchFilter" x-show="tab === 'sessions'">
+        </div>
+        <div class="tabs">
+          <div class="tab" :class="{ active: tab === 'sessions' }" @click="tab = 'sessions'">Sessions</div>
+          <div class="tab" :class="{ active: tab === 'memory' }" @click="tab = 'memory'">Memory</div>
+        </div>
+        <div class="page-body" x-init="loadSessions()">
+          <!-- Sessions tab -->
+          <div x-show="tab === 'sessions'">
+            <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading sessions...</span></div>
+            <div x-show="!loading && loadError" class="error-state">
+              <span class="error-icon">!</span>
+              <p x-text="loadError"></p>
+              <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
+            </div>
+            <div x-show="!loading && !loadError">
+            <div class="card mb-4" style="border-left:3px solid var(--accent)">
+              <div class="font-bold" style="font-size:13px;margin-bottom:4px">Conversation Sessions</div>
+              <div class="text-sm text-dim" style="line-height:1.6">
+                Each conversation with an agent creates a session. Sessions store the full message history so you can resume conversations later, or review past interactions.
+              </div>
+            </div>
+            <div class="table-wrap" x-show="filteredSessions.length">
+              <table>
+                <thead><tr><th>Session</th><th>Agent</th><th>Messages</th><th>Created</th><th>Actions</th></tr></thead>
+                <tbody>
+                  <template x-for="s in filteredSessions" :key="s.session_id">
+                    <tr>
+                      <td class="text-xs truncate" style="font-family:monospace;max-width:120px" x-text="s.session_id ? s.session_id.substring(0, 8) + '...' : '-'" :title="s.session_id"></td>
+                      <td class="font-bold" x-text="s.agent_name || s.agent_id"></td>
+                      <td x-text="s.message_count"></td>
+                      <td class="text-xs" x-text="s.created_at ? new Date(s.created_at).toLocaleString() : '-'"></td>
+                      <td>
+                        <button class="btn btn-primary btn-sm" @click="openInChat(s)">Chat</button>
+                        <button class="btn btn-danger btn-sm" @click="deleteSession(s.session_id)">Delete</button>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="empty-state" x-show="!filteredSessions.length && !searchFilter">
+              <div class="empty-state-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2-10 5 10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+              </div>
+              <h3>No sessions yet</h3>
+              <p>Sessions are created when you chat with agents. Start a conversation to see session history here.</p>
+              <button class="btn btn-primary" @click="location.hash='agents'">Start Chatting</button>
+            </div>
+            <div class="empty-state" x-show="!filteredSessions.length && searchFilter"><p>No sessions match your filter.</p></div>
+            </div>
+          </div>
+
+          <!-- Memory tab -->
+          <div x-show="tab === 'memory'">
+            <div class="flex justify-between items-center mb-4">
+              <div class="info-card" style="flex:1;margin-bottom:0">
+                <h4>Agent Memory</h4>
+                <p>Each agent has its own key-value memory store. Agents use memory to persist preferences, notes, and context between conversations.</p>
+              </div>
+              <select class="form-select" style="width:200px;margin-left:16px" x-model="memAgentId" @change="loadKv()">
+                <option value="">Select agent...</option>
+                <template x-for="a in $store.app.agents" :key="a.id">
+                  <option :value="a.id" x-text="a.name"></option>
+                </template>
+              </select>
+            </div>
+            <div x-show="memLoading" class="loading-state"><div class="spinner"></div><span>Loading memory...</span></div>
+            <div x-show="!memLoading && memLoadError" class="error-state">
+              <span class="error-icon">!</span>
+              <p x-text="memLoadError"></p>
+              <button class="btn btn-ghost btn-sm" @click="loadKv()">Retry</button>
+            </div>
+            <div x-show="memAgentId && !memLoading && !memLoadError">
+              <div class="flex justify-between items-center mb-4">
+                <span class="text-sm text-dim" x-text="kvPairs.length + ' key(s)'"></span>
+                <button class="btn btn-primary btn-sm" @click="showAdd = true">+ Add Key</button>
+              </div>
+              <div class="table-wrap" x-show="kvPairs.length">
+                <table>
+                  <thead><tr><th>Key</th><th>Value</th><th style="width:140px">Actions</th></tr></thead>
+                  <tbody>
+                    <template x-for="kv in kvPairs" :key="kv.key">
+                      <tr>
+                        <td class="font-bold" style="white-space:nowrap" x-text="kv.key"></td>
+                        <td>
+                          <template x-if="editingKey !== kv.key">
+                            <pre style="font-size:11px;max-width:400px;overflow:auto;white-space:pre-wrap;margin:0;color:var(--text-dim)" x-text="typeof kv.value === 'object' ? JSON.stringify(kv.value, null, 2) : String(kv.value)"></pre>
+                          </template>
+                          <template x-if="editingKey === kv.key">
+                            <div>
+                              <textarea class="form-textarea" x-model="editingValue" style="font-size:11px;min-height:60px;font-family:var(--font-mono)"></textarea>
+                              <div class="flex gap-2 mt-2">
+                                <button class="btn btn-primary btn-sm" @click="saveEdit()">Save</button>
+                                <button class="btn btn-ghost btn-sm" @click="cancelEdit()">Cancel</button>
+                              </div>
+                            </div>
+                          </template>
+                        </td>
+                        <td>
+                          <div class="flex gap-2">
+                            <button class="btn btn-ghost btn-sm" @click="startEdit(kv)" x-show="editingKey !== kv.key">Edit</button>
+                            <button class="btn btn-danger btn-sm" @click="deleteKey(kv.key)" x-show="editingKey !== kv.key">Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="empty-state" x-show="!kvPairs.length">
+                <h4>No keys stored</h4>
+                <p class="hint">This agent has no memory entries yet. Agents create memory entries automatically during conversations, or you can add them manually.</p>
+                <button class="btn btn-primary mt-4" @click="showAdd = true">+ Add First Key</button>
+              </div>
+              <template x-if="showAdd">
+                <div class="modal-overlay" @click.self="showAdd = false" @keydown.escape.window="showAdd = false">
+                  <div class="modal">
+                    <div class="modal-header"><h3>Add Key</h3><button class="modal-close" @click="showAdd = false">&times;</button></div>
+                    <div class="form-group"><label>Key</label><input class="form-input" x-model="newKey" placeholder="my_key"></div>
+                    <div class="form-group"><label>Value (JSON)</label><textarea class="form-textarea" x-model="newValue" placeholder='"hello"'></textarea></div>
+                    <button class="btn btn-primary btn-block" @click="addKey()">Save</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="empty-state" x-show="!memAgentId && !memLoading">
+              <h4>Select an Agent</h4>
+              <p class="hint">Choose an agent from the dropdown above to browse and edit its memory store.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Logs -->
+    <template x-if="page === 'logs'">
+      <div x-data="logsPage">
+        <div class="page-header">
+          <h2>Logs</h2>
+          <div class="flex gap-2 items-center" x-show="tab === 'live'">
+            <!-- Connection status indicator -->
+            <span class="live-indicator" :class="connectionClass">
+              <span class="live-dot"></span>
+              <span x-text="connectionLabel"></span>
+            </span>
+            <select class="form-select" style="width:100px" x-model="levelFilter">
+              <option value="">All</option>
+              <option value="info">INFO</option>
+              <option value="warn">WARN</option>
+              <option value="error">ERROR</option>
+            </select>
+            <input class="form-input" style="width:180px" placeholder="Search..." x-model="textFilter">
+            <button class="btn btn-ghost btn-sm" @click="togglePause()" x-text="streamPaused ? 'Resume' : 'Pause'"></button>
+            <button class="btn btn-ghost btn-sm" @click="clearLogs()">Clear</button>
+            <button class="btn btn-ghost btn-sm" @click="exportLogs()">Export</button>
+            <div class="toggle" :class="{ active: autoRefresh }" @click="autoRefresh = !autoRefresh" title="Auto-scroll"></div>
+            <span class="text-xs text-dim" x-text="autoRefresh ? 'Auto-scroll' : 'Scroll locked'"></span>
+          </div>
+          <div class="flex gap-2 items-center" x-show="tab === 'audit'">
+            <button class="btn btn-ghost btn-sm" @click="verifyChain()">Verify Chain</button>
+            <span class="badge" :class="chainValid === true ? 'badge-running' : chainValid === false ? 'badge-crashed' : ''" x-text="chainValid === true ? 'VALID' : chainValid === false ? 'BROKEN' : ''" x-show="chainValid !== null"></span>
+          </div>
+        </div>

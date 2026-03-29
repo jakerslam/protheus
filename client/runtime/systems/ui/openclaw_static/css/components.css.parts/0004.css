@@ -1,0 +1,400 @@
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: color 0.15s var(--ease-smooth), background 0.15s var(--ease-smooth), border-color 0.15s var(--ease-smooth), opacity 0.15s var(--ease-smooth);
+}
+
+.chat-agent-identity-pencil:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+
+.chat-agent-identity-pencil-avatar {
+  position: static;
+  opacity: 1;
+}
+
+.chat-agent-avatar-actions {
+  position: absolute;
+  left: 60px;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 4;
+}
+
+.chat-agent-identity-pencil-avatar-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.chat-agent-emoji-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 220px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  z-index: 20;
+}
+
+.chat-agent-emoji-search {
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.chat-agent-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.chat-agent-identity-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-thread-profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  box-shadow: var(--shadow-xs);
+  position: relative;
+  isolation: isolate;
+}
+
+.chat-thread-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.chat-thread-profile-avatar span {
+  font-size: 16px;
+  line-height: 1;
+  border-radius: inherit;
+}
+
+.chat-thread-profile-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  text-align: center;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-thread-profile-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.chat-sidebar-item-name-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agent-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-dim) 85%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-dim) 35%, transparent);
+}
+
+.agent-status-dot.status-active {
+  background: #22c55e;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.agent-status-dot.status-idle {
+  background: #f59e0b;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 35%, transparent);
+}
+
+.agent-status-dot.status-offline {
+  background: #ef4444;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #ef4444 35%, transparent);
+}
+
+.agent-status-dot-inline {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+}
+
+.chat-title-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+}
+
+.chat-message-block {
+  position: relative;
+}
+
+.chat-day-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 14px;
+  user-select: none;
+}
+
+.chat-day-divider-line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.chat-day-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.chat-event-info-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: none;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: color-mix(in srgb, var(--accent) 92%, #fff 8%);
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, transparent);
+  background: color-mix(in srgb, var(--accent-subtle) 76%, transparent);
+}
+
+/* Notice rows: neutral gray in light mode, off-white in dark mode. */
+.chat-event-divider .chat-day-divider-label {
+  color: color-mix(in srgb, #6b7280 86%, transparent);
+}
+
+.chat-event-divider .chat-day-divider-line {
+  background: color-mix(in srgb, #6b7280 44%, transparent);
+}
+
+.chat-event-divider .chat-event-info-icon {
+  color: color-mix(in srgb, #6b7280 86%, #fff 14%);
+  border-color: color-mix(in srgb, #6b7280 56%, transparent);
+  background: color-mix(in srgb, #6b7280 12%, transparent);
+}
+
+body[data-theme='dark'] .chat-event-divider .chat-day-divider-label {
+  color: color-mix(in srgb, #f3f4f6 86%, transparent);
+}
+
+body[data-theme='dark'] .chat-event-divider .chat-day-divider-line {
+  background: color-mix(in srgb, #f3f4f6 34%, transparent);
+}
+
+body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
+  color: color-mix(in srgb, #f9fafb 88%, transparent);
+  border-color: color-mix(in srgb, #f3f4f6 42%, transparent);
+  background: color-mix(in srgb, #f9fafb 10%, transparent);
+}
+
+.chat-notice-action-btn {
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, transparent);
+  background: color-mix(in srgb, var(--accent-subtle) 86%, transparent);
+  color: var(--text);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 8px;
+  margin-left: 4px;
+  cursor: pointer;
+  transition: background 0.14s var(--ease-smooth), border-color 0.14s var(--ease-smooth), opacity 0.14s var(--ease-smooth);
+}
+
+.chat-notice-action-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 64%, transparent);
+  background: color-mix(in srgb, var(--accent-subtle) 96%, transparent);
+}
+
+.chat-notice-action-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.message {
+  margin: 0;
+  padding: 10px 0;
+  animation: slideUp 0.25s var(--ease-smooth);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  position: relative;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.message.user {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.message-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.message-avatar img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.agent-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+}
+
+.message-body {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+  position: relative;
+}
+
+.message-agent-name {
+  display: block;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  text-align: left;
+  margin: 0;
+  padding: 0 2px 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-bubble {
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 13.5px;
+  line-height: 1.65;
+  word-break: break-word;
+  position: relative;
+  overflow: visible;
+}
+
+.message.user .message-bubble {
+  --user-border-top: color-mix(in srgb, var(--accent) 34%, transparent);
+  --message-tail-fill-color: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  /* Match effective rendered bottom/right border from unified glass override. */
+  --message-tail-border-color: color-mix(in srgb, #fff 38%, transparent);
+  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-top-color: var(--user-border-top);
+  border-bottom-color: var(--message-tail-border-color);
+  border-right-color: var(--message-tail-border-color);
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-radius: 22px;
+  max-width: min(76ch, 85%);
+  display: inline-block;
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.message.user .message-bubble::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background: var(--message-tail-fill-color);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  z-index: 2;
+}
+
+.message.user .message-bubble::before {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background:
+    linear-gradient(var(--message-tail-border-color), var(--message-tail-border-color)) right top / 1px 100% no-repeat,
+    linear-gradient(
+      to bottom left,
+      transparent calc(50% - 0.5px),
+      var(--message-tail-border-color) calc(50% - 0.5px),
+      var(--message-tail-border-color) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ) 0 0 / 100% 100% no-repeat;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--message-tail-border-color) 44%, transparent)) drop-shadow(0 0 1.5px color-mix(in srgb, var(--message-tail-border-color) 34%, transparent));
+  z-index: 3;
+}
+
+.message.agent .message-bubble {
+  --message-tail-fill-color: color-mix(in srgb, var(--surface2) 90%, transparent);
+  --message-tail-border-color: color-mix(in srgb, var(--border) 92%, transparent);
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 22px;
+  padding: 10px 14px;
+  font-size: 14.5px;
+  line-height: 1.78;
+  width: 100%;

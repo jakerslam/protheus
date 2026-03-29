@@ -1,0 +1,400 @@
+
+                    <!-- QR: Connected! -->
+                    <div x-show="!qr.loading && qr.connected" style="text-align:center;padding:2rem 0">
+                      <div style="font-size:3rem;margin-bottom:0.5rem">&#10003;</div>
+                      <p class="text-sm" style="font-weight:600" x-text="qr.message || 'WhatsApp linked successfully!'"></p>
+                      <p class="text-xs text-dim mt-1">Channel will activate automatically.</p>
+                    </div>
+
+                    <!-- QR: Gateway not available — show setup hint -->
+                    <div x-show="!qr.loading && !qr.available" style="padding:1rem 0">
+                      <div style="background:var(--bg-secondary,#1a1a2e);border-radius:8px;padding:1.25rem;text-align:center">
+                        <div style="font-size:2rem;margin-bottom:0.5rem;opacity:0.5">&#128241;</div>
+                        <p class="text-sm" x-text="qr.message || 'WhatsApp Web gateway not available'"></p>
+                        <p class="text-xs text-dim mt-2" x-show="qr.help" x-text="qr.help"></p>
+                        <p class="text-xs text-dim mt-1" x-show="qr.error" style="color:var(--red,#ef4444)" x-text="qr.error"></p>
+                      </div>
+                      <p class="text-xs text-dim mt-3" style="text-align:center">
+                        Or use the <button class="btn-link" @click="showBusinessApi = true" style="font-size:inherit;text-decoration:underline;cursor:pointer;background:none;border:none;color:var(--accent,#818cf8);padding:0">Business API</button> with a Meta developer account.
+                      </p>
+                    </div>
+
+                    <!-- QR: Switch to Business API link (always visible when gateway is available) -->
+                    <div x-show="!qr.loading && qr.available" class="text-xs text-dim mt-2" style="text-align:center">
+                      Have a Meta Business account? <button class="btn-link" @click="showBusinessApi = true" style="font-size:inherit;text-decoration:underline;cursor:pointer;background:none;border:none;color:var(--accent,#818cf8);padding:0">Use Business API instead</button>
+                    </div>
+
+                    <!-- Action buttons for QR mode -->
+                    <div class="flex gap-2 mt-4" style="flex-wrap:wrap;justify-content:center" x-show="!qr.loading">
+                      <button class="btn btn-ghost" x-show="qr.available && !qr.connected && !qr.expired" @click="startQR()">Refresh QR</button>
+                      <button class="btn btn-ghost" x-show="setupModal.configured" @click="testChannel()"
+                              :disabled="testing[setupModal.name]"
+                              x-text="testing[setupModal.name] ? 'Testing...' : 'Test Connection'">
+                      </button>
+                      <button class="btn btn-ghost" style="color:var(--red,#ef4444)" x-show="setupModal.configured" @click="removeChannel()">Remove</button>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- ═══ STANDARD FORM FLOW (for non-QR channels, or Business API fallback) ═══ -->
+                <template x-if="(!isQrChannel() || showBusinessApi) && !(setupStep === 3 && testPassed && !isQrChannel())">
+                  <div>
+                    <!-- Back to QR link (only for QR channels in Business API mode) -->
+                    <div x-show="isQrChannel() && showBusinessApi" class="mb-3">
+                      <button class="btn btn-ghost btn-sm" @click="showBusinessApi = false" style="font-size:0.8rem">&larr; Back to QR scan</button>
+                      <p class="text-xs text-dim mt-1">Configure via WhatsApp Cloud API (requires a Meta Business developer account).</p>
+                    </div>
+
+                    <!-- Quick setup steps (collapsed, minimal) -->
+                    <details class="mb-4" style="font-size:0.8rem" x-show="!isQrChannel()">
+                      <summary class="text-dim" style="cursor:pointer">How to get credentials</summary>
+                      <ol class="setup-steps" style="margin-top:0.5rem">
+                        <template x-for="(step, i) in setupModal.setup_steps || []" :key="i">
+                          <li class="text-sm" x-text="step"></li>
+                        </template>
+                      </ol>
+                    </details>
+
+                    <!-- Basic fields only (the minimum to get started) -->
+                    <template x-for="f in (isQrChannel() && showBusinessApi) ? advancedFields() : basicFields()" :key="f.key">
+                      <div style="margin-bottom:0.75rem">
+                        <label class="text-sm" style="display:block;margin-bottom:0.25rem" x-text="f.label + (f.required ? ' *' : '')"></label>
+                        <template x-if="f.type === 'secret'">
+                          <input class="form-input" type="password"
+                                 x-model="formValues[f.key]"
+                                 :placeholder="f.has_value ? '••••••• (set — leave blank to keep)' : f.placeholder"
+                                 :required="f.required">
+                        </template>
+                        <template x-if="f.type === 'number'">
+                          <input class="form-input" type="number"
+                                 x-model="formValues[f.key]"
+                                 :placeholder="f.placeholder">
+                        </template>
+                        <template x-if="f.type === 'text' || f.type === 'list'">
+                          <input class="form-input" type="text"
+                                 x-model="formValues[f.key]"
+                                 :placeholder="f.type === 'list' ? f.placeholder + ' (comma-separated)' : f.placeholder">
+                        </template>
+                        <div class="text-xs text-dim" style="margin-top:2px"
+                             x-show="f.env_var && f.has_value"
+                             x-text="f.env_var + ' is set'"></div>
+                      </div>
+                    </template>
+
+                    <!-- Advanced toggle (only for non-QR channels) -->
+                    <template x-if="!isQrChannel() && hasAdvanced()">
+                      <div>
+                        <button class="btn btn-ghost btn-sm mb-2" @click="showAdvanced = !showAdvanced"
+                                x-text="showAdvanced ? 'Hide advanced' : 'Show advanced (' + advancedFields().length + ')'"></button>
+                        <template x-if="showAdvanced">
+                          <div>
+                            <template x-for="f in advancedFields()" :key="f.key">
+                              <div style="margin-bottom:0.75rem">
+                                <label class="text-sm text-dim" style="display:block;margin-bottom:0.25rem" x-text="f.label"></label>
+                                <template x-if="f.type === 'secret'">
+                                  <input class="form-input" type="password"
+                                         x-model="formValues[f.key]"
+                                         :placeholder="f.has_value ? '••••••• (set)' : f.placeholder">
+                                </template>
+                                <template x-if="f.type === 'number'">
+                                  <input class="form-input" type="number"
+                                         x-model="formValues[f.key]"
+                                         :placeholder="f.placeholder">
+                                </template>
+                                <template x-if="f.type === 'text' || f.type === 'list'">
+                                  <input class="form-input" type="text"
+                                         x-model="formValues[f.key]"
+                                         :placeholder="f.type === 'list' ? f.placeholder + ' (comma-separated)' : f.placeholder">
+                                </template>
+                              </div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+
+                    <!-- Action buttons -->
+                    <div class="flex gap-2 mt-4" style="flex-wrap:wrap">
+                      <button class="btn btn-primary" @click="saveChannel()" :disabled="configuring"
+                              x-text="configuring ? 'Saving...' : (setupModal.configured ? 'Update' : 'Save & Test')">
+                      </button>
+                      <button class="btn btn-ghost" x-show="setupModal.configured" @click="testChannel()"
+                              :disabled="testing[setupModal.name]"
+                              x-text="testing[setupModal.name] ? 'Testing...' : 'Test'">
+                      </button>
+                      <button class="btn btn-ghost" style="color:var(--red,#ef4444)" x-show="setupModal.configured" @click="removeChannel()">Remove</button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Eyes -->
+    <template x-if="page === 'eyes'">
+      <div x-data="eyesPage">
+        <div class="page-header">
+          <h2>Eyes <span class="badge badge-muted" x-text="activeCount + '/' + eyes.length + ' active'"></span></h2>
+        </div>
+        <div class="page-body" x-init="loadEyes()">
+          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading eyes...</span></div>
+          <div x-show="!loading && loadError" class="error-state">
+            <span class="error-icon">!</span>
+            <p x-text="loadError"></p>
+            <button class="btn btn-ghost btn-sm" @click="loadEyes()">Retry</button>
+          </div>
+          <div x-show="!loading && !loadError">
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">Add Eye</div>
+            <p class="text-sm text-dim" style="margin:0 0 12px">
+              Syncs directly with the system eyes catalog. Add a URL source, an API key, or both.
+            </p>
+            <div class="grid grid-cols-2" style="gap:10px">
+              <div class="form-group" style="margin:0">
+                <label>Name</label>
+                <input class="form-input" type="text" x-model="form.name" placeholder="My Eye">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select class="form-select" x-model="form.status">
+                  <option value="active">active</option>
+                  <option value="paused">paused</option>
+                  <option value="dormant">dormant</option>
+                  <option value="disabled">disabled</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;grid-column:1 / span 2">
+                <label>Source URL</label>
+                <input class="form-input" type="text" x-model="form.url" placeholder="https://example.com/feed">
+              </div>
+              <div class="form-group" style="margin:0;grid-column:1 / span 2">
+                <label>API Key</label>
+                <input class="form-input" type="password" x-model="form.apiKey" placeholder="Optional API key">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Cadence (hours)</label>
+                <input class="form-input" type="number" min="1" max="168" x-model="form.cadenceHours">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Topics</label>
+                <input class="form-input" type="text" x-model="form.topics" placeholder="ai, agents, infra">
+              </div>
+            </div>
+            <div x-show="formError" class="text-xs" style="color:var(--danger,#ef4444);margin-top:8px" x-text="formError"></div>
+            <div class="text-xs text-dim" style="margin-top:8px">
+              API keys are hashed before being stored in the local catalog.
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button class="btn btn-primary btn-sm" @click="addEye()" :disabled="saving" x-text="saving ? 'Saving...' : 'Add Eye'"></button>
+              <button class="btn btn-ghost btn-sm" @click="resetForm()" :disabled="saving">Reset</button>
+              <button class="btn btn-ghost btn-sm" @click="loadEyes()" :disabled="saving">Refresh</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">System Eyes</div>
+            <table class="table" x-show="eyes.length" style="margin-top:8px">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Cadence</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="eye in eyes" :key="eye.uid || eye.id">
+                  <tr>
+                    <td>
+                      <div class="font-bold" x-text="eye.name"></div>
+                      <div class="text-xs text-dim" x-text="eye.id"></div>
+                    </td>
+                    <td><span class="badge" :class="statusBadge(eye).cls" x-text="statusBadge(eye).text"></span></td>
+                    <td x-text="sourceLabel(eye)"></td>
+                    <td x-text="eye.cadence_hours + 'h'"></td>
+                    <td x-text="formatUpdated(eye.updated_ts)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div x-show="!eyes.length" class="empty-state">
+              <h4>No eyes configured</h4>
+              <p class="hint">Add your first eye using URL or API key above.</p>
+            </div>
+          </div>
+
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Plugins -->
+    <template x-if="page === 'skills'">
+      <div x-data="skillsPage">
+        <div class="page-header"><h2>Plugins</h2></div>
+        <div class="page-body" x-init="loadSkills()">
+          <div class="info-card">
+            <h4>Plugins &amp; Ecosystem</h4>
+            <p>Plugins extend your agents with new capabilities. Infring supports the <strong>OpenClaw/ClawHub</strong> ecosystem (3,000+ community plugins) plus local plugins.</p>
+            <ul>
+              <li><strong>Prompt-only</strong> &mdash; inject context and instructions into the agent's system prompt (most ClawHub plugins)</li>
+              <li><strong>Python / Node.js</strong> &mdash; executable tools that agents can call during conversations</li>
+              <li><strong>MCP Servers</strong> &mdash; external tools via Model Context Protocol (GitHub, filesystem, databases, etc.)</li>
+            </ul>
+          </div>
+          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading plugins...</span></div>
+          <div x-show="!loading && loadError" class="error-state">
+            <span class="error-icon">!</span>
+            <p x-text="loadError"></p>
+            <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
+          </div>
+          <div x-show="!loading && !loadError">
+
+          <!-- Main tabs -->
+          <div class="tabs" role="tablist">
+            <div class="tab" role="tab" :class="{ active: tab === 'installed' }" @click="tab = 'installed'">
+              Installed <span class="badge badge-dim" x-show="skills.length" x-text="skills.length" style="margin-left:4px"></span>
+            </div>
+            <div class="tab" :class="{ active: tab === 'clawhub' }" @click="tab = 'clawhub'; if (!clawhubBrowseResults.length && !clawhubSearch) browseClawHub('trending')">ClawHub</div>
+            <div class="tab" :class="{ active: tab === 'mcp' }" @click="tab = 'mcp'; loadMcpServers()">MCP Servers</div>
+            <div class="tab" :class="{ active: tab === 'create' }" @click="tab = 'create'">Quick Start</div>
+          </div>
+
+          <!-- TAB: Installed Plugins -->
+          <div x-show="tab === 'installed'">
+            <div class="card-grid" x-show="skills.length">
+              <template x-for="skill in skills" :key="skill.name">
+                <div class="card">
+                  <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="card-header" style="margin:0" x-text="skill.name"></div>
+                      <span class="runtime-badge" :class="runtimeBadge(skill.runtime).cls" x-text="runtimeBadge(skill.runtime).text"></span>
+                      <span class="badge" :class="sourceBadge(skill.source).cls" x-text="sourceBadge(skill.source).text" style="font-size:0.65rem"></span>
+                    </div>
+                    <div class="toggle" :class="{ active: skill.enabled }" @click="skill.enabled = !skill.enabled"></div>
+                  </div>
+                  <div class="card-meta" x-text="skill.description"></div>
+                  <div class="flex justify-between items-center mt-2">
+                    <div class="flex gap-2 items-center">
+                      <span class="text-xs text-dim" x-text="skill.tools_count + ' tool(s)'"></span>
+                      <span class="text-xs text-dim" x-show="skill.version" x-text="'v' + skill.version"></span>
+                      <span class="text-xs text-dim" x-show="skill.has_prompt_context">(prompt context)</span>
+                    </div>
+                    <button class="btn btn-danger btn-sm" @click="uninstallSkill(skill.name)">Uninstall</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="empty-state" x-show="!skills.length">
+              <div class="empty-state-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+              </div>
+              <h3>No plugins installed</h3>
+              <p>Plugins add new capabilities to your agents. Browse ClawHub for 3,000+ community plugins or create your own.</p>
+              <div class="flex gap-2">
+                <button class="btn btn-primary" @click="tab = 'clawhub'; if (!clawhubBrowseResults.length) browseClawHub('trending')">Browse ClawHub</button>
+                <button class="btn btn-ghost" @click="tab = 'create'">Quick Start</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: ClawHub (OpenClaw Ecosystem) -->
+          <div x-show="tab === 'clawhub'">
+            <!-- Search bar with live search and clear button -->
+            <div class="search-input mb-4" style="position:relative">
+              <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+              <input placeholder="Search ClawHub plugins... (type to search)" x-model="clawhubSearch" @input="onSearchInput()" @keydown.enter="if(!$event.isComposing && $event.keyCode !== 229) searchClawHub()" @keydown.escape="clearSearch()" x-ref="clawhubSearchInput">
+              <button x-show="clawhubSearch" @click="clearSearch()" class="search-clear-btn" title="Clear search (Esc)">&times;</button>
+            </div>
+
+            <!-- Sort pills (always visible when not searching) -->
+            <div class="filter-pills mb-4" x-show="!clawhubSearch">
+              <span class="filter-pill" :class="{ active: clawhubSort === 'trending' }" @click="browseClawHub('trending')">Trending</span>
+              <span class="filter-pill" :class="{ active: clawhubSort === 'downloads' }" @click="browseClawHub('downloads')">Most Downloaded</span>
+              <span class="filter-pill" :class="{ active: clawhubSort === 'stars' }" @click="browseClawHub('stars')">Most Starred</span>
+              <span class="filter-pill" :class="{ active: clawhubSort === 'updated' }" @click="browseClawHub('updated')">Recently Updated</span>
+            </div>
+
+            <!-- Category quick-search chips (always visible when not searching) -->
+            <div class="mb-4" x-show="!clawhubSearch">
+              <div class="text-xs text-dim mb-2" style="letter-spacing:0.5px">CATEGORIES</div>
+              <div class="flex flex-wrap gap-1">
+                <template x-for="cat in categories" :key="cat.id">
+                  <span class="filter-pill" style="font-size:0.7rem;padding:2px 8px" @click="searchCategory(cat)" x-text="cat.name"></span>
+                </template>
+              </div>
+            </div>
+
+            <!-- Loading spinner -->
+            <div x-show="clawhubLoading" class="loading-state"><div class="spinner"></div><span x-text="clawhubSearch ? 'Searching ClawHub...' : 'Loading plugins...'"></span></div>
+
+            <!-- Error -->
+            <div x-show="clawhubError && !clawhubLoading" class="error-state">
+              <span class="error-icon">!</span>
+              <p x-text="clawhubError"></p>
+              <p class="hint mt-2">ClawHub may be temporarily unavailable. The OpenClaw ecosystem is hosted at clawhub.ai.</p>
+              <button class="btn btn-ghost btn-sm mt-2" @click="clawhubSearch ? searchClawHub() : browseClawHub(clawhubSort)">Retry</button>
+            </div>
+
+            <!-- Search results -->
+            <div x-show="clawhubSearch && clawhubResults.length && !clawhubLoading">
+              <div class="flex justify-between items-center mb-3">
+                <div class="text-sm text-dim" x-text="clawhubResults.length + ' result(s) for &quot;' + clawhubSearch + '&quot;'"></div>
+                <button class="btn btn-ghost btn-sm" @click="clearSearch()">Clear search</button>
+              </div>
+              <div class="card-grid">
+                <template x-for="skill in clawhubResults" :key="skill.slug">
+                  <div class="card card-glow" @click="showSkillDetail(skill.slug)" style="cursor:pointer">
+                    <div class="flex justify-between items-center mb-2">
+                      <div class="card-header" style="margin:0" x-text="skill.name || skill.slug"></div>
+                      <span class="badge badge-info" style="font-size:0.6rem">ClawHub</span>
+                    </div>
+                    <div class="card-meta" x-text="skill.description" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></div>
+                    <div class="flex justify-between items-center mt-3">
+                      <div class="flex gap-3 items-center">
+                        <span class="text-xs text-dim" x-show="skill.version" x-text="'v' + skill.version"></span>
+                      </div>
+                      <button class="btn btn-primary btn-sm" @click.stop="installFromClawHub(skill.slug)" :disabled="installingSlug === skill.slug || skill.installed || isSkillInstalled(skill.slug)" x-text="skill.installed || isSkillInstalled(skill.slug) ? 'Installed' : installingSlug === skill.slug ? 'Installing...' : 'Install'"></button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Browse results (when no search query) -->
+            <div x-show="!clawhubSearch && clawhubBrowseResults.length && !clawhubLoading">
+              <div class="card-grid">
+                <template x-for="skill in clawhubBrowseResults" :key="skill.slug">
+                  <div class="card card-glow" @click="showSkillDetail(skill.slug)" style="cursor:pointer">
+                    <div class="flex justify-between items-center mb-2">
+                      <div class="card-header" style="margin:0" x-text="skill.name || skill.slug"></div>
+                      <span class="badge badge-info" style="font-size:0.6rem">ClawHub</span>
+                    </div>
+                    <div class="card-meta" x-text="skill.description" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></div>
+                    <div class="flex justify-between items-center mt-3">
+                      <div class="flex gap-3 items-center">
+                        <span class="text-xs text-dim" x-show="skill.downloads" x-text="formatDownloads(skill.downloads) + ' downloads'"></span>
+                        <span class="text-xs text-dim" x-show="skill.stars" x-text="skill.stars + ' stars'"></span>
+                        <span class="text-xs text-dim" x-show="skill.version" x-text="'v' + skill.version"></span>
+                      </div>
+                      <button class="btn btn-primary btn-sm" @click.stop="installFromClawHub(skill.slug)" :disabled="installingSlug === skill.slug || skill.installed || isSkillInstalled(skill.slug)" x-text="skill.installed || isSkillInstalled(skill.slug) ? 'Installed' : installingSlug === skill.slug ? 'Installing...' : 'Install'"></button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <!-- Load more button -->
+              <div class="text-center mt-4" x-show="clawhubNextCursor">
+                <button class="btn btn-ghost" @click="loadMoreClawHub()" :disabled="clawhubLoading">Load More</button>
+              </div>
+            </div>
+
+            <!-- Empty search results -->
+            <div class="empty-state" x-show="clawhubSearch && !clawhubResults.length && !clawhubLoading && !clawhubError">
+              <p>No plugins found for "<span x-text="clawhubSearch"></span>"</p>
+              <p class="hint mt-1">Try a different search term or browse by category.</p>
+              <button class="btn btn-ghost btn-sm mt-2" @click="clearSearch()">Back to browse</button>
