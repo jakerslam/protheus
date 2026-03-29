@@ -379,6 +379,11 @@ fn main() {
             let exit = protheus_ops_core::ops_domain_conduit_runner_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "spine-conduit-bridge-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::spine_conduit_bridge_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "local-runtime-partitioner" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::local_runtime_partitioner::run(&cwd, &rest);

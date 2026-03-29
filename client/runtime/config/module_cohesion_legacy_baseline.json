@@ -170,7 +170,6 @@
     "client/runtime/systems/ui/openclaw_static/vendor/highlight.min.js": 1244,
     "client/runtime/systems/ui/openclaw_static/js/pages/agents.js": 1036,
     "client/runtime/systems/ui/openclaw_static/js/pages/hands.js": 954,
-    "client/runtime/systems/ui/infring_dashboard_client.tsx": 932,
     "core/layer2/ops/src/srs_contract_runtime.rs": 912,
     "core/layer0/ops/src/daemon_control.rs": 765,
     "core/layer0/ops/tests/v6_skills_batch10_integration.rs": 756,

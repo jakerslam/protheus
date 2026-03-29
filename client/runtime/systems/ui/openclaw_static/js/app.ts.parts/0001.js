@@ -299,7 +299,7 @@ document.addEventListener('alpine:init', function() {
               store.agentsLastError = fetchError || 'strict_roster_waiting_for_directory';
               return;
             }
-            if (connectedState !== 'connected' || attempts < 3) {
+            if (connectionState !== 'connected' || attempts < 3) {
               store.agentsLoading = true;
               store.agentCount = 0;
               return;

@@ -332,7 +332,7 @@ function wizardPage() {
     },
 
     get popularProviders() {
-      var popular = ['anthropic', 'openai', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['anthropic', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) >= 0;
       }).sort(function(a, b) {
@@ -341,7 +341,7 @@ function wizardPage() {
     },
 
     get otherProviders() {
-      var popular = ['anthropic', 'openai', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['anthropic', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) < 0;
       });
@@ -359,6 +359,7 @@ function wizardPage() {
         anthropic: { url: 'https://console.anthropic.com/settings/keys', text: 'Get your key from the Anthropic Console' },
         openai: { url: 'https://platform.openai.com/api-keys', text: 'Get your key from the OpenAI Platform' },
         gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get your key from Google AI Studio' },
+        google: { url: 'https://aistudio.google.com/apikey', text: 'Get your key from Google AI Studio' },
         groq: { url: 'https://console.groq.com/keys', text: 'Get your key from the Groq Console (free tier available)' },
         deepseek: { url: 'https://platform.deepseek.com/api_keys', text: 'Get your key from the DeepSeek Platform (very affordable)' },
         openrouter: { url: 'https://openrouter.ai/keys', text: 'Get your key from OpenRouter (access 100+ models with one key)' },

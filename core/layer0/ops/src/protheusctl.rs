@@ -155,26 +155,6 @@ fn command_list_mode(args: &[String]) -> String {
         .unwrap_or_else(|| "list".to_string())
 }
 
-fn is_node_dashboard_flag(token: &str) -> bool {
-    matches!(
-        token.trim().to_ascii_lowercase().as_str(),
-        "--node-ui" | "--legacy-node-ui" | "--node-ui=1" | "--legacy-node-ui=1"
-    )
-}
-
-fn split_dashboard_runtime_flags(args: Vec<String>) -> (bool, Vec<String>) {
-    let mut force_node = false;
-    let mut filtered = Vec::<String>::new();
-    for arg in args {
-        if is_node_dashboard_flag(arg.as_str()) {
-            force_node = true;
-            continue;
-        }
-        filtered.push(arg);
-    }
-    (force_node, filtered)
-}
-
 fn strip_status_dashboard_tokens(args: Vec<String>) -> Vec<String> {
     let mut filtered = Vec::<String>::new();
     for arg in args {
@@ -1070,55 +1050,25 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .collect(),
                 forward_stdin: false,
             },
-            "dashboard" => {
-                let (force_node_ui, filtered) = split_dashboard_runtime_flags(rest);
-                if force_node_ui {
-                    Route {
-                        script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
-                            .to_string(),
-                        args: std::iter::once("--web".to_string())
-                            .chain(filtered)
-                            .collect(),
-                        forward_stdin: false,
-                    }
-                } else {
-                    Route {
-                        script_rel: "core://dashboard-ui".to_string(),
-                        args: if filtered.is_empty() {
-                            vec!["serve".to_string()]
-                        } else {
-                            filtered
-                        },
-                        forward_stdin: false,
-                    }
-                }
-            }
+            "dashboard" => Route {
+                script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
+                    .to_string(),
+                args: std::iter::once("--web".to_string()).chain(rest).collect(),
+                forward_stdin: false,
+            },
             "status" => {
                 let use_dashboard = rest
                     .iter()
                     .any(|arg| arg == "--dashboard" || arg == "dashboard");
                 if use_dashboard {
-                    let (force_node_ui, filtered) = split_dashboard_runtime_flags(rest);
-                    if force_node_ui {
-                        Route {
-                            script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
-                                .to_string(),
-                            args: filtered,
-                            forward_stdin: false,
-                        }
-                    } else {
-                        let stripped = strip_status_dashboard_tokens(filtered);
-                        Route {
-                            script_rel: "core://dashboard-ui".to_string(),
-                            args: if stripped.is_empty() {
-                                vec!["serve".to_string()]
-                            } else {
-                                std::iter::once("serve".to_string())
-                                    .chain(stripped)
-                                    .collect()
-                            },
-                            forward_stdin: false,
-                        }
+                    let stripped = strip_status_dashboard_tokens(rest);
+                    Route {
+                        script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
+                            .to_string(),
+                        args: std::iter::once("--web".to_string())
+                            .chain(stripped)
+                            .collect(),
+                        forward_stdin: false,
                     }
                 } else {
                     Route {

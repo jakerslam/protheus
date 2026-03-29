@@ -589,8 +589,8 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
     let log_err = log
         .try_clone()
         .map_err(|err| format!("dashboard_log_clone_failed:{err}"))?;
-    // Canonical dashboard surface: TypeScript pipeline (OpenClaw-fork UI + chat-first controls).
-    // This replaces the legacy Rust fallback dashboard shell to avoid split UI surfaces.
+    // Canonical dashboard surface: TypeScript pipeline serving the OpenClaw-derived browser UI.
+    // Keep a single browser surface wired to the Rust API lane.
     let child = Command::new("node")
         .arg("client/runtime/lib/ts_entrypoint.ts")
         .arg("client/runtime/systems/ui/infring_dashboard.ts")
