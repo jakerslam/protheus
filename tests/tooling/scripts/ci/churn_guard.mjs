@@ -196,16 +196,44 @@ function detectSessionChurnSignals() {
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean);
-    const dashboardHosts = rows.filter(
-      (line) =>
-        /ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(line) ||
-        /protheus-ops dashboard-ui serve/.test(line),
+
+    const parsedRows = rows
+      .map((line) => {
+        const match = line.match(/^(\d+)\s+(\d+)\s+(.+)$/);
+        if (!match) return null;
+        return {
+          pid: Number(match[1]),
+          ppid: Number(match[2]),
+          command: match[3],
+          raw: line,
+        };
+      })
+      .filter(Boolean);
+
+    const tsHosts = new Map(
+      parsedRows
+        .filter((row) => /ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(row.command))
+        .map((row) => [row.pid, row]),
     );
-    if (dashboardHosts.length > 1) {
+    const opsHosts = parsedRows.filter((row) => /protheus-ops dashboard-ui serve/.test(row.command));
+    const dashboardHosts = [...tsHosts.values(), ...opsHosts];
+
+    const hostGroups = new Set();
+    for (const host of dashboardHosts) {
+      if (/protheus-ops dashboard-ui serve/.test(host.command) && tsHosts.has(host.ppid)) {
+        hostGroups.add(`ts:${host.ppid}`);
+      } else if (/ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(host.command)) {
+        hostGroups.add(`ts:${host.pid}`);
+      } else {
+        hostGroups.add(`proc:${host.pid}`);
+      }
+    }
+
+    if (hostGroups.size > 1) {
       issues.push({
         type: 'duplicate_dashboard_hosts',
-        detail: `multiple dashboard host processes detected (${dashboardHosts.length})`,
-        sample: dashboardHosts.slice(0, 4),
+        detail: `multiple dashboard host processes detected (${hostGroups.size})`,
+        sample: dashboardHosts.map((row) => row.raw).slice(0, 4),
       });
     }
   } catch {
