@@ -1,0 +1,400 @@
+              <div class="modal" style="max-width:600px">
+                <div class="modal-header"><h3>Generated TOML</h3><button class="modal-close" @click="showTomlPreview = false">&times;</button></div>
+                <pre class="wf-toml-preview" x-text="tomlOutput"></pre>
+                <button class="btn btn-ghost btn-block mt-2" @click="navigator.clipboard.writeText(tomlOutput); InfringToast.success('Copied!')">Copy to Clipboard</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Save modal -->
+          <template x-if="showSaveModal">
+            <div class="modal-overlay" @click.self="showSaveModal = false" @keydown.escape.window="showSaveModal = false">
+              <div class="modal">
+                <div class="modal-header"><h3>Save Workflow</h3><button class="modal-close" @click="showSaveModal = false">&times;</button></div>
+                <div class="form-group"><label>Name</label><input class="form-input" x-model="workflowName" placeholder="my-workflow"></div>
+                <div class="form-group"><label>Description</label><input class="form-input" x-model="workflowDescription" placeholder="What does this workflow do?"></div>
+                <div class="text-xs text-dim mb-4" x-text="nodes.filter(function(n){return n.type!=='start'&&n.type!=='end'}).length + ' steps, ' + connections.length + ' connections'"></div>
+                <button class="btn btn-primary btn-block" @click="saveWorkflow()">Save</button>
+              </div>
+            </div>
+          </template>
+        </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Page: Scheduler -->
+    <template x-if="page === 'scheduler'">
+      <div x-data="schedulerPage()">
+        <div class="page-header">
+          <h2>Scheduler</h2>
+          <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm" x-show="tab === 'jobs'" @click="showCreateForm = true">+ New Job</button>
+          </div>
+        </div>
+        <div class="tabs" role="tablist">
+          <div class="tab" role="tab" :class="{ active: tab === 'jobs' }" @click="tab = 'jobs'">
+            Scheduled Jobs <span class="badge badge-dim" x-show="jobs.length" x-text="jobCount() + '/' + jobs.length + ' active'" style="margin-left:4px"></span>
+          </div>
+          <div class="tab" role="tab" :class="{ active: tab === 'triggers' }" @click="tab = 'triggers'; if (!triggers.length && !trigLoading) loadTriggers()">
+            Event Triggers <span class="badge badge-dim" x-show="triggers.length" x-text="triggers.length" style="margin-left:4px"></span>
+          </div>
+          <div class="tab" :class="{ active: tab === 'history' }" @click="tab = 'history'; loadHistory()">
+            Run History
+          </div>
+        </div>
+        <div class="page-body" x-init="loadData()">
+
+          <!-- ── TAB: Scheduled Jobs ── -->
+          <div x-show="tab === 'jobs'">
+            <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading scheduled jobs...</span></div>
+            <div x-show="!loading && loadError" class="error-state">
+              <span class="error-icon">!</span>
+              <p x-text="loadError"></p>
+              <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
+            </div>
+            <div x-show="!loading && !loadError">
+              <!-- Explainer -->
+              <div class="card mb-4" style="border-left:3px solid var(--accent)">
+                <div class="font-bold" style="font-size:13px;margin-bottom:4px">Scheduled Jobs</div>
+                <div class="text-sm text-dim" style="line-height:1.6">
+                  Create cron-based scheduled jobs that send messages to agents on a recurring schedule.
+                  Use cron expressions like <code style="color:var(--accent)">*/5 * * * *</code> (every 5 min) or
+                  <code style="color:var(--accent)">0 9 * * 1-5</code> (weekdays at 9am). You can also run any job
+                  manually with the "Run Now" button.
+                </div>
+              </div>
+
+              <!-- Jobs Table -->
+              <div class="table-wrap" x-show="jobs.length">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Schedule</th>
+                      <th>Agent</th>
+                      <th>Status</th>
+                      <th>Last Run</th>
+                      <th>Next Run</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="job in jobs" :key="job.id">
+                      <tr>
+                        <td>
+                          <span class="font-bold" x-text="job.name || job.description || '(unnamed)'"></span>
+                          <div class="text-xs text-dim" x-show="job.message" x-text="(job.message || '').substring(0, 60) + ((job.message || '').length > 60 ? '...' : '')" :title="job.message"></div>
+                        </td>
+                        <td>
+                          <code style="font-size:11px;color:var(--accent)" x-text="job.cron"></code>
+                          <div class="text-xs text-dim" x-text="describeCron(job.cron)"></div>
+                        </td>
+                        <td class="truncate" style="max-width:120px" x-text="agentName(job.agent_id || job.agent)" :title="job.agent_id || job.agent"></td>
+                        <td>
+                          <span class="badge" :class="job.enabled ? 'badge-success' : 'badge-dim'" x-text="job.enabled ? 'Active' : 'Paused'"></span>
+                        </td>
+                        <td class="text-xs" :title="formatTime(job.last_run)" x-text="relativeTime(job.last_run)"></td>
+                        <td class="text-xs" :title="formatTime(job.next_run)" x-text="relativeTime(job.next_run)"></td>
+                        <td>
+                          <div class="flex gap-1">
+                            <button class="btn btn-primary btn-sm" @click="runNow(job)" :disabled="runningJobId === job.id">
+                              <span x-show="runningJobId !== job.id">Run</span>
+                              <span x-show="runningJobId === job.id">...</span>
+                            </button>
+                            <button class="btn btn-ghost btn-sm" @click="toggleJob(job)" x-text="job.enabled ? 'Pause' : 'Enable'"></button>
+                            <button class="btn btn-danger btn-sm" @click="deleteJob(job)">Del</button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Empty State -->
+              <div class="empty-state" x-show="!jobs.length">
+                <h4>No scheduled jobs</h4>
+                <p class="hint">Create a cron job to run agents on a recurring schedule. Jobs are stored persistently and survive restarts.</p>
+                <button class="btn btn-primary mt-4" @click="showCreateForm = true">+ Create Scheduled Job</button>
+              </div>
+            </div>
+
+            <!-- Create Job Modal -->
+            <template x-if="showCreateForm">
+              <div class="modal-overlay" @click.self="showCreateForm = false" @keydown.escape.window="showCreateForm = false">
+                <div class="modal">
+                  <div class="modal-header">
+                    <h3>Create Scheduled Job</h3>
+                    <button class="modal-close" @click="showCreateForm = false">&times;</button>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Job Name</label>
+                    <input class="form-input" x-model="newJob.name" placeholder="daily-report">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Cron Expression</label>
+                    <input class="form-input" x-model="newJob.cron" placeholder="0 9 * * 1-5" style="font-family:monospace">
+                    <div class="text-xs text-dim mt-1" x-show="newJob.cron" x-text="describeCron(newJob.cron)"></div>
+                    <div class="text-xs text-dim mt-1">Format: <code>minute hour day-of-month month day-of-week</code></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Quick Presets</label>
+                    <div class="flex gap-1 flex-wrap">
+                      <template x-for="preset in cronPresets" :key="preset.cron">
+                        <button class="btn btn-sm" :class="newJob.cron === preset.cron ? 'btn-primary' : 'btn-ghost'" @click="applyCronPreset(preset)" x-text="preset.label"></button>
+                      </template>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Target Agent</label>
+                    <select class="form-select" x-model="newJob.agent_id">
+                      <option value="">Any available agent</option>
+                      <template x-for="a in availableAgents" :key="a.id">
+                        <option :value="a.id" x-text="a.name + ' (' + (a.model_provider || 'unknown') + ':' + (a.model_name || 'unknown') + ')'"></option>
+                      </template>
+                    </select>
+                    <div class="text-xs text-dim mt-1" x-show="!availableAgents.length">No agents running. <a href="#agents" style="color:var(--accent)">Spawn one first.</a></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Message to Send</label>
+                    <textarea class="form-textarea" x-model="newJob.message" placeholder="Generate and email the daily status report..." rows="3"></textarea>
+                    <div class="text-xs text-dim mt-1">The message sent to the agent each time this job runs.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="flex items-center gap-2">
+                      <div class="toggle" :class="{ active: newJob.enabled }" @click="newJob.enabled = !newJob.enabled"></div>
+                      <span x-text="newJob.enabled ? 'Enabled (will start running immediately)' : 'Disabled (create paused)'"></span>
+                    </label>
+                  </div>
+
+                  <button class="btn btn-primary btn-block mt-4" @click="createJob()" :disabled="creating">
+                    <span x-show="!creating">Create Schedule</span>
+                    <span x-show="creating">Creating...</span>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ── TAB: Event Triggers ── -->
+          <div x-show="tab === 'triggers'">
+            <div x-show="trigLoading" class="loading-state"><div class="spinner"></div><span>Loading triggers...</span></div>
+            <div x-show="!trigLoading && trigLoadError" class="error-state">
+              <span class="error-icon">!</span>
+              <p x-text="trigLoadError"></p>
+              <button class="btn btn-ghost btn-sm" @click="loadTriggers()">Retry</button>
+            </div>
+            <div x-show="!trigLoading && !trigLoadError">
+              <div class="card mb-4" style="border-left:3px solid var(--accent)">
+                <div class="font-bold" style="font-size:13px;margin-bottom:4px">Event Triggers</div>
+                <div class="text-sm text-dim" style="line-height:1.6">
+                  Event triggers fire agents in response to system events (agent lifecycle, memory updates, custom events).
+                  Create and manage triggers on the <a href="#workflows" style="color:var(--accent)">Workflows</a> page.
+                  This view shows all active triggers for monitoring.
+                </div>
+              </div>
+              <div class="table-wrap" x-show="triggers.length">
+                <table>
+                  <thead><tr><th>Agent</th><th>Pattern</th><th>Prompt</th><th>Fires</th><th>Enabled</th><th>Created</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    <template x-for="t in triggers" :key="t.id">
+                      <tr>
+                        <td class="font-bold truncate" style="max-width:120px" x-text="agentName(t.agent_id)" :title="t.agent_id"></td>
+                        <td><span class="badge badge-created trigger-type" x-text="triggerType(t.pattern)"></span></td>
+                        <td class="truncate text-xs text-dim" style="max-width:180px" x-text="t.prompt_template" :title="t.prompt_template"></td>
+                        <td x-text="t.fire_count + (t.max_fires > 0 ? '/' + t.max_fires : '')"></td>
+                        <td>
+                          <div class="toggle" :class="{ active: t.enabled }" @click="toggleTrigger(t)"></div>
+                        </td>
+                        <td class="text-xs" x-text="new Date(t.created_at).toLocaleDateString()"></td>
+                        <td>
+                          <button class="btn btn-danger btn-sm" @click="deleteTrigger(t)">Delete</button>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="empty-state" x-show="!triggers.length">
+                <h4>No event triggers</h4>
+                <p class="hint">Create event triggers on the <a href="#workflows" style="color:var(--accent)">Workflows page</a> to fire agents in response to system events.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── TAB: Run History ── -->
+          <div x-show="tab === 'history'">
+            <div x-show="historyLoading" class="loading-state"><div class="spinner"></div><span>Loading run history...</span></div>
+            <div x-show="!historyLoading">
+              <div class="card mb-4" style="border-left:3px solid var(--accent)">
+                <div class="font-bold" style="font-size:13px;margin-bottom:4px">Run History</div>
+                <div class="text-sm text-dim" style="line-height:1.6">
+                  Recent executions of scheduled jobs and event trigger fires. History is aggregated from schedule run counts and trigger fire counts.
+                </div>
+              </div>
+              <div class="table-wrap" x-show="history.length">
+                <table>
+                  <thead><tr><th>Time</th><th>Name</th><th>Type</th><th>Status</th><th>Total Runs</th></tr></thead>
+                  <tbody>
+                    <template x-for="(h, idx) in history" :key="idx">
+                      <tr>
+                        <td class="text-xs" style="white-space:nowrap" x-text="formatTime(h.timestamp)"></td>
+                        <td class="font-bold" x-text="h.name"></td>
+                        <td><span class="badge" :class="h.type === 'schedule' ? 'badge-created' : 'badge-dim'" x-text="h.type === 'schedule' ? 'Cron Job' : 'Trigger'"></span></td>
+                        <td><span class="badge badge-success" x-text="h.status"></span></td>
+                        <td x-text="h.run_count"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="empty-state" x-show="!history.length">
+                <h4>No run history yet</h4>
+                <p class="hint">Run history will appear here after scheduled jobs or triggers execute.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Channels -->
+    <template x-if="page === 'channels'">
+      <div x-data="channelsPage">
+        <div class="page-header">
+          <h2>Channels <span class="badge badge-muted" x-text="configuredCount + '/' + allChannels.length + ' configured'"></span></h2>
+        </div>
+        <div class="page-body" x-init="loadChannels()">
+          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading channels...</span></div>
+          <div x-show="!loading && loadError" class="error-state">
+            <span class="error-icon">!</span>
+            <p x-text="loadError"></p>
+            <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
+          </div>
+          <div x-show="!loading && !loadError">
+
+          <!-- Category tabs -->
+          <div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+            <template x-for="cat in categories" :key="cat.key">
+              <button class="btn btn-sm"
+                      :class="categoryFilter === cat.key ? 'btn-primary' : 'btn-ghost'"
+                      @click="categoryFilter = cat.key"
+                      x-text="cat.label + ' (' + categoryCount(cat.key) + ')'">
+              </button>
+            </template>
+          </div>
+
+          <!-- Search bar -->
+          <div class="mb-4">
+            <input class="form-input" type="text" placeholder="Search channels..."
+                   x-model="searchQuery" style="max-width:400px">
+          </div>
+
+          <!-- Channel card grid -->
+          <div class="card-grid">
+            <template x-for="ch in filteredChannels" :key="ch.name">
+              <div class="card" :class="{ 'card-unconfigured': !ch.configured }" style="cursor:pointer" @click="openSetup(ch)">
+                <div class="flex justify-between items-center mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="channel-icon" x-text="ch.icon"></span>
+                    <div class="card-header" style="margin:0" x-text="ch.display_name"></div>
+                  </div>
+                  <span class="badge" :class="statusBadge(ch).cls" x-text="statusBadge(ch).text"></span>
+                </div>
+                <div class="card-meta" x-text="ch.description"></div>
+                <div class="flex justify-between items-center mt-2">
+                  <span class="difficulty-badge" :class="difficultyClass(ch.difficulty)" x-text="ch.difficulty + ' · ' + ch.setup_time"></span>
+                  <button class="btn btn-ghost btn-sm" @click.stop="openSetup(ch)" x-text="ch.configured ? 'Edit' : 'Set up'"></button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div x-show="filteredChannels.length === 0" class="text-dim mt-4" style="text-align:center">
+            <p>No channels match your search.</p>
+          </div>
+
+          </div>
+
+          <!-- Setup modal (Infring-style with QR support + 3-step flow) -->
+          <template x-if="setupModal">
+            <div class="modal-overlay" @click.self="setupModal = null" @keydown.escape.window="setupModal = null">
+              <div class="modal" style="max-width:480px">
+                <div class="modal-header">
+                  <div>
+                    <h3 style="display:flex;align-items:center;gap:0.5rem">
+                      <span class="channel-icon" x-text="setupModal.icon" style="font-size:1rem"></span>
+                      <span x-text="setupModal.display_name"></span>
+                    </h3>
+                    <div class="text-xs text-dim mt-1" x-text="setupModal.quick_setup || setupModal.description"></div>
+                  </div>
+                  <button class="modal-close" @click="setupModal = null">&times;</button>
+                </div>
+
+                <!-- 3-step progress indicator (non-QR channels only) -->
+                <div class="channel-steps" x-show="!isQrChannel()">
+                  <div class="channel-step-item">
+                    <div class="channel-step-num" :class="{ active: setupStep === 1, done: setupStep > 1 }">
+                      <span x-show="setupStep <= 1">1</span><span x-show="setupStep > 1">&#10003;</span>
+                    </div>
+                    <span class="channel-step-label" :class="{ active: setupStep === 1, done: setupStep > 1 }">Configure</span>
+                  </div>
+                  <div class="channel-step-line" :class="{ done: setupStep > 1 }"></div>
+                  <div class="channel-step-item">
+                    <div class="channel-step-num" :class="{ active: setupStep === 2, done: setupStep > 2 }">
+                      <span x-show="setupStep <= 2">2</span><span x-show="setupStep > 2">&#10003;</span>
+                    </div>
+                    <span class="channel-step-label" :class="{ active: setupStep === 2, done: setupStep > 2 }">Verify</span>
+                  </div>
+                  <div class="channel-step-line" :class="{ done: setupStep > 2 }"></div>
+                  <div class="channel-step-item">
+                    <div class="channel-step-num" :class="{ active: setupStep === 3, done: setupStep >= 3 }">
+                      <span x-show="setupStep < 3">3</span><span x-show="setupStep >= 3">&#10003;</span>
+                    </div>
+                    <span class="channel-step-label" :class="{ active: setupStep === 3, done: setupStep >= 3 }">Ready</span>
+                  </div>
+                </div>
+
+                <!-- Ready panel (step 3) for non-QR channels -->
+                <div x-show="!isQrChannel() && setupStep === 3 && testPassed" class="ready-panel">
+                  <div class="ready-panel-icon">&#10003;</div>
+                  <div class="ready-panel-title" x-text="setupModal.display_name + ' is ready!'"></div>
+                  <div class="ready-panel-desc">
+                    Your channel is configured and verified. It will activate automatically.
+                  </div>
+                  <div class="flex gap-2 mt-4" style="justify-content:center">
+                    <button class="btn btn-ghost btn-sm" @click="setupStep = 1">Edit Config</button>
+                    <button class="btn btn-primary btn-sm" @click="setupModal = null">Done</button>
+                  </div>
+                </div>
+
+                <!-- ═══ QR CODE FLOW (WhatsApp Web style) ═══ -->
+                <template x-if="isQrChannel() && !showBusinessApi">
+                  <div>
+                    <!-- QR: Loading -->
+                    <div x-show="qr.loading" style="text-align:center;padding:2rem 0">
+                      <div class="spinner"></div>
+                      <p class="text-sm text-dim mt-2">Connecting to WhatsApp Web gateway...</p>
+                    </div>
+
+                    <!-- QR: Gateway available — show QR code -->
+                    <div x-show="!qr.loading && qr.available && qr.dataUrl && !qr.connected" style="text-align:center">
+                      <div style="background:#fff;display:inline-block;padding:1rem;border-radius:12px;margin:0.5rem 0">
+                        <img :src="qr.dataUrl" alt="WhatsApp QR Code" style="width:256px;height:256px;image-rendering:pixelated">
+                      </div>
+                      <ol style="text-align:left;font-size:0.85rem;margin:1rem 0;padding-left:1.5rem;opacity:0.8">
+                        <template x-for="(step, i) in setupModal.setup_steps || []" :key="i">
+                          <li x-text="step" style="margin-bottom:0.25rem"></li>
+                        </template>
+                      </ol>
+                      <p class="text-xs text-dim" x-text="qr.message"></p>
+                      <button class="btn btn-ghost btn-sm mt-2" x-show="qr.expired" @click="startQR()">Generate New QR</button>
+                    </div>
