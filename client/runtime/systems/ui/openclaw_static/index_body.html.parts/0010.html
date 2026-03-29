@@ -233,21 +233,21 @@
       </div>
     </template>
 
-    <!-- Page: Skills -->
+    <!-- Page: Plugins -->
     <template x-if="page === 'skills'">
       <div x-data="skillsPage">
-        <div class="page-header"><h2>Skills</h2></div>
+        <div class="page-header"><h2>Plugins</h2></div>
         <div class="page-body" x-init="loadSkills()">
           <div class="info-card">
-            <h4>Skills &amp; Ecosystem</h4>
-            <p>Skills extend your agents with new capabilities. Infring supports the <strong>OpenClaw/ClawHub</strong> ecosystem (3,000+ community skills) plus local skills.</p>
+            <h4>Plugins &amp; Ecosystem</h4>
+            <p>Plugins extend your agents with new capabilities. Infring supports the <strong>OpenClaw/ClawHub</strong> ecosystem (3,000+ community plugins) plus local plugins.</p>
             <ul>
-              <li><strong>Prompt-only</strong> &mdash; inject context and instructions into the agent's system prompt (most ClawHub skills)</li>
+              <li><strong>Prompt-only</strong> &mdash; inject context and instructions into the agent's system prompt (most ClawHub plugins)</li>
               <li><strong>Python / Node.js</strong> &mdash; executable tools that agents can call during conversations</li>
               <li><strong>MCP Servers</strong> &mdash; external tools via Model Context Protocol (GitHub, filesystem, databases, etc.)</li>
             </ul>
           </div>
-          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading skills...</span></div>
+          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading plugins...</span></div>
           <div x-show="!loading && loadError" class="error-state">
             <span class="error-icon">!</span>
             <p x-text="loadError"></p>
@@ -265,7 +265,7 @@
             <div class="tab" :class="{ active: tab === 'create' }" @click="tab = 'create'">Quick Start</div>
           </div>
 
-          <!-- TAB: Installed Skills -->
+          <!-- TAB: Installed Plugins -->
           <div x-show="tab === 'installed'">
             <div class="card-grid" x-show="skills.length">
               <template x-for="skill in skills" :key="skill.name">
@@ -294,8 +294,8 @@
               <div class="empty-state-icon">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
               </div>
-              <h3>No skills installed</h3>
-              <p>Skills add new capabilities to your agents. Browse ClawHub for 3,000+ community skills or create your own.</p>
+              <h3>No plugins installed</h3>
+              <p>Plugins add new capabilities to your agents. Browse ClawHub for 3,000+ community plugins or create your own.</p>
               <div class="flex gap-2">
                 <button class="btn btn-primary" @click="tab = 'clawhub'; if (!clawhubBrowseResults.length) browseClawHub('trending')">Browse ClawHub</button>
                 <button class="btn btn-ghost" @click="tab = 'create'">Quick Start</button>
@@ -308,7 +308,7 @@
             <!-- Search bar with live search and clear button -->
             <div class="search-input mb-4" style="position:relative">
               <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-              <input placeholder="Search ClawHub skills... (type to search)" x-model="clawhubSearch" @input="onSearchInput()" @keydown.enter="if(!$event.isComposing && $event.keyCode !== 229) searchClawHub()" @keydown.escape="clearSearch()" x-ref="clawhubSearchInput">
+              <input placeholder="Search ClawHub plugins... (type to search)" x-model="clawhubSearch" @input="onSearchInput()" @keydown.enter="if(!$event.isComposing && $event.keyCode !== 229) searchClawHub()" @keydown.escape="clearSearch()" x-ref="clawhubSearchInput">
               <button x-show="clawhubSearch" @click="clearSearch()" class="search-clear-btn" title="Clear search (Esc)">&times;</button>
             </div>
 
@@ -331,7 +331,7 @@
             </div>
 
             <!-- Loading spinner -->
-            <div x-show="clawhubLoading" class="loading-state"><div class="spinner"></div><span x-text="clawhubSearch ? 'Searching ClawHub...' : 'Loading skills...'"></span></div>
+            <div x-show="clawhubLoading" class="loading-state"><div class="spinner"></div><span x-text="clawhubSearch ? 'Searching ClawHub...' : 'Loading plugins...'"></span></div>
 
             <!-- Error -->
             <div x-show="clawhubError && !clawhubLoading" class="error-state">
@@ -395,6 +395,6 @@
 
             <!-- Empty search results -->
             <div class="empty-state" x-show="clawhubSearch && !clawhubResults.length && !clawhubLoading && !clawhubError">
-              <p>No skills found for "<span x-text="clawhubSearch"></span>"</p>
+              <p>No plugins found for "<span x-text="clawhubSearch"></span>"</p>
               <p class="hint mt-1">Try a different search term or browse by category.</p>
               <button class="btn btn-ghost btn-sm mt-2" @click="clearSearch()">Back to browse</button>

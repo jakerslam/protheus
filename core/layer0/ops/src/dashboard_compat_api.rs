@@ -974,6 +974,10 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
     let hint = clean_text(suggested_name, 80)
         .to_ascii_lowercase()
         .replace(' ', "-");
+    let direct = clean_agent_id(&hint);
+    if !direct.is_empty() && !used.contains(&direct) {
+        return direct;
+    }
     let hash_seed = json!({"hint": hint, "ts": crate::now_iso(), "nonce": Utc::now().timestamp_nanos_opt().unwrap_or_default()});
     let hash = crate::deterministic_receipt_hash(&hash_seed);
     let mut base = format!("agent-{}", hash.chars().take(12).collect::<String>());
@@ -1183,7 +1187,15 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             40,
         )
         .to_ascii_lowercase();
-        if runtime_active && contract_status == "terminated" {
+        let termination_reason = clean_text(
+            contract
+                .get("termination_reason")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        if runtime_active && contract_status == "terminated" && termination_reason.is_empty() {
             contract["status"] = json!("active");
             contract_status = "active".to_string();
         }
@@ -1240,6 +1252,20 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                 "Running".to_string()
             } else if raw.eq_ignore_ascii_case("idle") {
                 "Idle".to_string()
+            } else if raw.eq_ignore_ascii_case("inactive") || raw.eq_ignore_ascii_case("paused") {
+                let profile_state = clean_text(
+                    profile.get("state").and_then(Value::as_str).unwrap_or(""),
+                    40,
+                )
+                .to_ascii_lowercase();
+                if profile_state == "running"
+                    || profile_state == "active"
+                    || contract_status == "active"
+                {
+                    "Idle".to_string()
+                } else {
+                    "Inactive".to_string()
+                }
             } else {
                 raw
             }
@@ -1406,6 +1432,30 @@ fn agent_row_by_id(root: &Path, snapshot: &Value, agent_id: &str) -> Option<Valu
     build_agent_roster(root, snapshot, true)
         .into_iter()
         .find(|row| clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or("")) == id)
+}
+
+fn archived_agent_stub(root: &Path, agent_id: &str) -> Value {
+    let id = clean_agent_id(agent_id);
+    let profile = profiles_map(root)
+        .get(&id)
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let name = clean_text(profile.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+    let role = clean_text(profile.get("role").and_then(Value::as_str).unwrap_or("analyst"), 60);
+    let role_value = if role.is_empty() {
+        "analyst".to_string()
+    } else {
+        role
+    };
+    json!({
+        "ok": true,
+        "id": id,
+        "agent_id": id,
+        "name": if name.is_empty() { humanize_agent_name(agent_id) } else { name },
+        "role": role_value,
+        "state": "inactive",
+        "archived": true
+    })
 }
 
 fn update_profile_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
@@ -1619,6 +1669,39 @@ fn parse_agent_route(path_only: &str) -> Option<(String, Vec<String>)> {
         return None;
     }
     Some((agent_id, parts))
+}
+
+fn resolve_agent_id_alias(root: &Path, requested: &str) -> String {
+    let normalized = clean_agent_id(requested);
+    if normalized.is_empty() {
+        return String::new();
+    }
+    let profiles = profiles_map(root);
+    if profiles.contains_key(&normalized) {
+        return normalized;
+    }
+    let contracts = contracts_map(root);
+    if contracts.contains_key(&normalized) {
+        return normalized;
+    }
+    let requested_name = clean_text(requested, 120).to_ascii_lowercase();
+    if requested_name.is_empty() {
+        return normalized;
+    }
+    for (id, profile) in &profiles {
+        let profile_name = clean_text(
+            profile.get("name").and_then(Value::as_str).unwrap_or(""),
+            120,
+        )
+        .to_ascii_lowercase();
+        if !profile_name.is_empty() && profile_name == requested_name {
+            let resolved = clean_agent_id(id);
+            if !resolved.is_empty() {
+                return resolved;
+            }
+        }
+    }
+    normalized
 }
 
 fn parse_provider_route(path_only: &str) -> Option<(String, Vec<String>)> {
@@ -2007,6 +2090,7 @@ pub fn handle_with_headers(
     }
 
     if method == "GET" && path_only == "/api/agents" {
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root);
         let include_terminated = query_value(path, "include_terminated")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
@@ -2125,7 +2209,7 @@ pub fn handle_with_headers(
         let auto_terminate_allowed = contract_obj
             .get("auto_terminate_allowed")
             .and_then(Value::as_bool)
-            .unwrap_or(false);
+            .unwrap_or(true);
         let contract_patch = json!({
             "agent_id": agent_id,
             "status": "active",
@@ -2167,13 +2251,21 @@ pub fn handle_with_headers(
         });
     }
 
-    if let Some((agent_id, segments)) = parse_agent_route(path_only) {
+    if let Some((requested_agent_id, segments)) = parse_agent_route(path_only) {
+        let agent_id = resolve_agent_id_alias(root, &requested_agent_id);
         let existing = agent_row_by_id(root, snapshot, &agent_id);
+        let is_archived = crate::dashboard_agent_state::archived_agent_ids(root).contains(&agent_id);
         if method == "GET" && segments.is_empty() {
             if let Some(row) = existing {
                 return Some(CompatApiResponse {
                     status: 200,
                     payload: row,
+                });
+            }
+            if is_archived {
+                return Some(CompatApiResponse {
+                    status: 200,
+                    payload: archived_agent_stub(root, &agent_id),
                 });
             }
             return Some(CompatApiResponse {
@@ -2184,6 +2276,19 @@ pub fn handle_with_headers(
 
         if method == "DELETE" && segments.is_empty() {
             if existing.is_none() {
+                if is_archived {
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload: json!({
+                            "ok": true,
+                            "type": "dashboard_agent_archive",
+                            "id": agent_id,
+                            "agent_id": agent_id,
+                            "state": "inactive",
+                            "archived": true
+                        }),
+                    });
+                }
                 return Some(CompatApiResponse {
                     status: 404,
                     payload: json!({"ok": false, "error": "agent_not_found", "agent_id": agent_id}),
@@ -2207,7 +2312,14 @@ pub fn handle_with_headers(
             let _ = crate::dashboard_agent_state::archive_agent(root, &agent_id, "user_archive");
             return Some(CompatApiResponse {
                 status: 200,
-                payload: json!({"ok": true, "type": "dashboard_agent_archive", "agent_id": agent_id}),
+                payload: json!({
+                    "ok": true,
+                    "type": "dashboard_agent_archive",
+                    "id": agent_id,
+                    "agent_id": agent_id,
+                    "state": "inactive",
+                    "archived": true
+                }),
             });
         }
 
@@ -2234,7 +2346,50 @@ pub fn handle_with_headers(
             });
         }
 
+        if method == "POST" && segments.len() == 1 && segments[0] == "start" {
+            if existing.is_none() {
+                return Some(CompatApiResponse {
+                    status: 404,
+                    payload: json!({"ok": false, "error": "agent_not_found", "agent_id": agent_id}),
+                });
+            }
+            let _ = update_profile_patch(
+                root,
+                &agent_id,
+                &json!({
+                    "state": "Running",
+                    "updated_at": crate::now_iso()
+                }),
+            );
+            let _ = upsert_contract_patch(
+                root,
+                &agent_id,
+                &json!({
+                    "status": "active",
+                    "termination_reason": "",
+                    "terminated_at": "",
+                    "updated_at": crate::now_iso()
+                }),
+            );
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: json!({"ok": true, "type": "dashboard_agent_start", "agent_id": agent_id}),
+            });
+        }
+
         if existing.is_none() {
+            if is_archived && method == "POST" && segments.len() == 1 && segments[0] == "message" {
+                return Some(CompatApiResponse {
+                    status: 409,
+                    payload: json!({
+                        "ok": false,
+                        "error": "agent_inactive",
+                        "agent_id": agent_id,
+                        "state": "inactive",
+                        "archived": true
+                    }),
+                });
+            }
             return Some(CompatApiResponse {
                 status: 404,
                 payload: json!({"ok": false, "error": "agent_not_found", "agent_id": agent_id}),
@@ -2336,6 +2491,32 @@ pub fn handle_with_headers(
                 return Some(CompatApiResponse {
                     status: 400,
                     payload: json!({"ok": false, "error": "message_required"}),
+                });
+            }
+            let lowered = message.to_ascii_lowercase();
+            let contains_any = |terms: &[&str]| terms.iter().any(|term| lowered.contains(term));
+            let contract_violation = (contains_any(&["ignore", "bypass", "disable", "override"])
+                && contains_any(&["contract", "safety", "policy", "receipt"]))
+                || contains_any(&["exfiltrate", "steal", "dump secrets", "leak", "secrets"]);
+            if contract_violation {
+                let _ = upsert_contract_patch(
+                    root,
+                    &agent_id,
+                    &json!({
+                        "status": "terminated",
+                        "termination_reason": "contract_violation",
+                        "terminated_at": crate::now_iso(),
+                        "updated_at": crate::now_iso()
+                    }),
+                );
+                return Some(CompatApiResponse {
+                    status: 409,
+                    payload: json!({
+                        "ok": false,
+                        "error": "agent_contract_terminated",
+                        "agent_id": agent_id,
+                        "termination_reason": "contract_violation"
+                    }),
                 });
             }
             let row = agent_row_by_id(root, snapshot, &agent_id).unwrap_or_else(|| json!({}));
@@ -2831,6 +3012,21 @@ pub fn handle_with_headers(
                 Ok(out) => {
                     let (stdout, stdout_truncated) = truncate_utf8_lossy(&out.stdout, 128 * 1024);
                     let (stderr, stderr_truncated) = truncate_utf8_lossy(&out.stderr, 128 * 1024);
+                    let mut effective_cwd = cwd.clone();
+                    if let Some(last_line) = stdout
+                        .lines()
+                        .rev()
+                        .map(str::trim)
+                        .find(|line| !line.is_empty())
+                    {
+                        if last_line.starts_with('/') {
+                            let parsed = normalize_lexical(&PathBuf::from(last_line));
+                            if parsed.is_dir() && (parsed == workspace_base || parsed.starts_with(&workspace_base))
+                            {
+                                effective_cwd = parsed;
+                            }
+                        }
+                    }
                     return Some(CompatApiResponse {
                         status: 200,
                         payload: json!({
@@ -2841,7 +3037,7 @@ pub fn handle_with_headers(
                             "stderr_truncated": stderr_truncated,
                             "exit_code": out.status.code().unwrap_or(1),
                             "duration_ms": started.elapsed().as_millis() as i64,
-                            "cwd": cwd.to_string_lossy().to_string()
+                            "cwd": effective_cwd.to_string_lossy().to_string()
                         }),
                     });
                 }
