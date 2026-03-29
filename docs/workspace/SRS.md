@@ -13529,3 +13529,8 @@ Notes:
 | V6-OPENFANG-GAP-001.3 | queued | Channel Bridge Expansion Pack | OpenFang channel coverage is materially broader; missing adapters limit production use and migration parity. | Ship governed adapter manifests and at least first expansion tranche (Slack, Matrix, Email, WhatsApp) with policy-scoped auth and deterministic delivery receipts. | 9 | adapter/1/2/client |
 | V6-OPENFANG-GAP-001.4 | queued | Security Parity Deepening (Taint, Merkle, Signing, SSRF) | Defense-in-depth parity requires stronger kernel-level controls than current baseline wrappers alone. | Implement taint labels, Merkle audit chain, manifest signing verification, and explicit SSRF deny-path tests in Rust security lanes. | 10 | 0/1/2 |
 | V6-OPENFANG-GAP-001.5 | queued | Hands/Skills Capability Assimilation | OpenFang “Hands” workflows and marketplace runtime are key differentiators for autonomous capability breadth. | Assimilate hand manifests + runner contracts into governed skills runtime with deterministic promotion/evaluation receipts and fail-closed execution gates. | 8 | 1/2/adapter/client |
+
+## Swarm Companion Evidence Update (2026-03-29)
+
+- Swarm runtime and companion surfaces were decomposed into include-part modules to enforce file-size governance without changing authority boundaries.
+- Companion test/doc evidence remains wired to swarm hardening policy: `core/layer0/ops/src/swarm_runtime.rs`, `core/layer0/ops/tests/v9_swarm_runtime_integration.rs`, and this SRS note as orchestrator evidence companion.
