@@ -11,10 +11,12 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Seek;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::time::UNIX_EPOCH;
+use sysinfo::Disks;
 
 #[derive(Debug, Clone)]
 struct CliArgs {
@@ -75,8 +77,34 @@ struct SleepCleanupPolicy {
     target_root: PathBuf,
     target_max_age_hours: i64,
     detached_worktree_max_age_hours: i64,
+    disk_free_floor_percent: f64,
+    pressure_target_free_percent: f64,
+    pressure_jsonl_cap_bytes: u64,
+    pressure_log_cap_bytes: u64,
+    pressure_max_candidates: usize,
+    pressure_min_age_hours: i64,
     state_path: PathBuf,
     history_path: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum PressureAction {
+    TrimTail { max_bytes: u64 },
+    RemoveFile,
+}
+
+#[derive(Debug, Clone)]
+struct PressureCandidate {
+    path: PathBuf,
+    size_bytes: u64,
+    last_touch_ms: i64,
+    action: PressureAction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SleepCleanupMode {
+    Normal,
+    Purge,
 }
 
 fn stable_hash(seed: &str, len: usize) -> String {
@@ -218,7 +246,9 @@ fn usage() {
     eprintln!("  protheus-ops spine daily [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine run [eyes|daily] [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine status [--mode=eyes|daily] [--date=YYYY-MM-DD]");
-    eprintln!("  protheus-ops spine sleep-cleanup <run|plan|status> [--apply=1|0] [--force=1|0]");
+    eprintln!(
+        "  protheus-ops spine sleep-cleanup <run|plan|status|purge> [--apply=1|0] [--force=1|0]"
+    );
     eprintln!(
         "  protheus-ops spine background-hands-scheduler <configure|schedule|status> [flags]"
     );
@@ -510,10 +540,26 @@ fn parse_i64_env(name: &str, default: i64, min: i64, max: i64) -> i64 {
         .clamp(min, max)
 }
 
+fn parse_f64_env(name: &str, default: f64, min: f64, max: f64) -> f64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<f64>().ok())
+        .unwrap_or(default)
+        .clamp(min, max)
+}
+
 fn parse_usize_env(name: &str, default: usize, max: usize) -> usize {
     std::env::var(name)
         .ok()
         .and_then(|raw| raw.trim().parse::<usize>().ok())
+        .unwrap_or(default)
+        .min(max)
+}
+
+fn parse_u64_env(name: &str, default: u64, max: u64) -> u64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
         .unwrap_or(default)
         .min(max)
 }
@@ -602,6 +648,184 @@ fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf
     }
 }
 
+fn system_time_to_epoch_ms(ts: std::time::SystemTime) -> Option<i64> {
+    ts.duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
+}
+
+fn path_last_touch_ms(path: &Path) -> i64 {
+    let Ok(meta) = fs::metadata(path) else {
+        return 0;
+    };
+    let accessed = meta.accessed().ok().and_then(system_time_to_epoch_ms);
+    let modified = meta.modified().ok().and_then(system_time_to_epoch_ms);
+    accessed.or(modified).unwrap_or(0)
+}
+
+fn disk_free_snapshot(root: &Path) -> Option<(u64, u64, f64, String)> {
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let disks = Disks::new_with_refreshed_list();
+    let mut best: Option<(usize, u64, u64, String)> = None;
+    for disk in disks.list() {
+        let mount = disk.mount_point();
+        if !canonical.starts_with(mount) {
+            continue;
+        }
+        let rank = mount.as_os_str().len();
+        let available = disk.available_space();
+        let total = disk.total_space();
+        let mount_label = mount.to_string_lossy().to_string();
+        match &best {
+            Some((best_rank, _, _, _)) if *best_rank >= rank => {}
+            _ => best = Some((rank, available, total, mount_label)),
+        }
+    }
+    if best.is_none() {
+        if let Some(disk) = disks.list().first() {
+            best = Some((
+                0,
+                disk.available_space(),
+                disk.total_space(),
+                disk.mount_point().to_string_lossy().to_string(),
+            ));
+        }
+    }
+    let (_, available, total, mount_label) = best?;
+    let free_percent = if total == 0 {
+        0.0
+    } else {
+        (available as f64 * 100.0) / total as f64
+    };
+    Some((available, total, free_percent, mount_label))
+}
+
+fn trim_file_to_tail(path: &Path, max_bytes: u64) -> Result<u64, String> {
+    if max_bytes == 0 {
+        return Ok(0);
+    }
+    let current = fs::metadata(path)
+        .map(|meta| meta.len())
+        .map_err(|err| format!("trim_metadata_failed:{}:{err}", path.display()))?;
+    if current <= max_bytes {
+        return Ok(0);
+    }
+    let keep = max_bytes.min(current);
+    let mut file =
+        fs::File::open(path).map_err(|err| format!("trim_open_failed:{}:{err}", path.display()))?;
+    file.seek(std::io::SeekFrom::End(-(keep as i64)))
+        .map_err(|err| format!("trim_seek_failed:{}:{err}", path.display()))?;
+    let mut tail = Vec::<u8>::new();
+    std::io::Read::read_to_end(&mut file, &mut tail)
+        .map_err(|err| format!("trim_read_failed:{}:{err}", path.display()))?;
+    let tmp = path.with_extension(format!(
+        "trim-{}-{}",
+        std::process::id(),
+        chrono::Utc::now().timestamp_millis()
+    ));
+    fs::write(&tmp, &tail).map_err(|err| format!("trim_write_failed:{}:{err}", tmp.display()))?;
+    fs::rename(&tmp, path).map_err(|err| {
+        format!(
+            "trim_rename_failed:{}:{}:{err}",
+            tmp.display(),
+            path.display()
+        )
+    })?;
+    Ok(current.saturating_sub(keep))
+}
+
+fn pressure_candidate_estimated_reclaim(candidate: &PressureCandidate) -> u64 {
+    match candidate.action {
+        PressureAction::RemoveFile => candidate.size_bytes,
+        PressureAction::TrimTail { max_bytes } => candidate.size_bytes.saturating_sub(max_bytes),
+    }
+}
+
+fn pressure_action_label(action: PressureAction) -> &'static str {
+    match action {
+        PressureAction::TrimTail { .. } => "trim_tail",
+        PressureAction::RemoveFile => "remove_file",
+    }
+}
+
+fn collect_pressure_candidates(
+    root: &Path,
+    policy: &SleepCleanupPolicy,
+    now_ms: i64,
+) -> Vec<PressureCandidate> {
+    let roots = [
+        root.join("core/local/state"),
+        root.join("client/runtime/local/state"),
+        root.join("local/state"),
+    ];
+    let mut rows = Vec::<PressureCandidate>::new();
+    for state_root in roots {
+        if !state_root.exists() {
+            continue;
+        }
+        let mut stack = vec![state_root];
+        while let Some(dir) = stack.pop() {
+            let Ok(entries) = fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Ok(meta) = fs::symlink_metadata(&path) else {
+                    continue;
+                };
+                if meta.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if !meta.is_file() {
+                    continue;
+                }
+                let size_bytes = meta.len();
+                if size_bytes == 0 {
+                    continue;
+                }
+                let last_touch_ms = path_last_touch_ms(&path);
+                if age_hours(now_ms, last_touch_ms) < policy.pressure_min_age_hours {
+                    continue;
+                }
+                let rel = path
+                    .strip_prefix(root)
+                    .ok()
+                    .map(|v| v.to_string_lossy().to_ascii_lowercase())
+                    .unwrap_or_else(|| path.to_string_lossy().to_ascii_lowercase());
+                let action = if rel.ends_with("history.bin") {
+                    Some(PressureAction::RemoveFile)
+                } else if rel.ends_with(".jsonl") && size_bytes > policy.pressure_jsonl_cap_bytes {
+                    Some(PressureAction::TrimTail {
+                        max_bytes: policy.pressure_jsonl_cap_bytes,
+                    })
+                } else if rel.ends_with(".log") && size_bytes > policy.pressure_log_cap_bytes {
+                    Some(PressureAction::TrimTail {
+                        max_bytes: policy.pressure_log_cap_bytes,
+                    })
+                } else {
+                    None
+                };
+                if let Some(action) = action {
+                    rows.push(PressureCandidate {
+                        path,
+                        size_bytes,
+                        last_touch_ms,
+                        action,
+                    });
+                }
+            }
+        }
+    }
+    rows.sort_by(|a, b| {
+        a.last_touch_ms
+            .cmp(&b.last_touch_ms)
+            .then_with(|| b.size_bytes.cmp(&a.size_bytes))
+    });
+    rows.truncate(policy.pressure_max_candidates);
+    rows
+}
+
 fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
     SleepCleanupPolicy {
         enabled: bool_from_env("SPINE_SLEEP_CLEANUP_ENABLED").unwrap_or(true),
@@ -629,6 +853,39 @@ fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
         detached_worktree_max_age_hours: parse_i64_env(
             "SPINE_SLEEP_CLEANUP_DETACHED_WORKTREE_MAX_AGE_HOURS",
             72,
+            0,
+            365 * 24,
+        ),
+        disk_free_floor_percent: parse_f64_env(
+            "SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT",
+            20.0,
+            1.0,
+            95.0,
+        ),
+        pressure_target_free_percent: parse_f64_env(
+            "SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT",
+            30.0,
+            2.0,
+            98.0,
+        ),
+        pressure_jsonl_cap_bytes: parse_u64_env(
+            "SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES",
+            512 * 1024,
+            128 * 1024 * 1024,
+        ),
+        pressure_log_cap_bytes: parse_u64_env(
+            "SPINE_SLEEP_CLEANUP_PRESSURE_LOG_CAP_BYTES",
+            256 * 1024,
+            64 * 1024 * 1024,
+        ),
+        pressure_max_candidates: parse_usize_env(
+            "SPINE_SLEEP_CLEANUP_PRESSURE_MAX_CANDIDATES",
+            10_000,
+            200_000,
+        ),
+        pressure_min_age_hours: parse_i64_env(
+            "SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS",
+            4,
             0,
             365 * 24,
         ),
@@ -661,8 +918,20 @@ fn parse_worktree_blocks(raw: &str) -> Vec<(PathBuf, bool)> {
     out
 }
 
-fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) -> (i32, Value) {
-    let policy = load_sleep_cleanup_policy(root);
+fn execute_sleep_cleanup_with_mode(
+    root: &Path,
+    apply: bool,
+    force: bool,
+    origin: &str,
+    mode: SleepCleanupMode,
+) -> (i32, Value) {
+    let mut policy = load_sleep_cleanup_policy(root);
+    if mode == SleepCleanupMode::Purge {
+        policy.pressure_min_age_hours = 0;
+        policy.pressure_max_candidates = policy.pressure_max_candidates.max(200_000);
+        policy.pressure_jsonl_cap_bytes = policy.pressure_jsonl_cap_bytes.min(128 * 1024);
+        policy.pressure_log_cap_bytes = policy.pressure_log_cap_bytes.min(64 * 1024);
+    }
     let now_ms = now_epoch_ms();
     let now = now_iso();
     let mut errors = Vec::<String>::new();
@@ -672,7 +941,7 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
         .unwrap_or(0);
     let elapsed_minutes = ((now_ms - last_run_ms).max(0)) / (1000 * 60);
 
-    if !policy.enabled && !force {
+    if mode != SleepCleanupMode::Purge && !policy.enabled && !force {
         let payload = json!({
             "ok": true,
             "type": "spine_sleep_cleanup",
@@ -689,7 +958,11 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
         return (0, payload);
     }
 
-    if !force && last_run_ms > 0 && elapsed_minutes < policy.min_interval_minutes {
+    if mode != SleepCleanupMode::Purge
+        && !force
+        && last_run_ms > 0
+        && elapsed_minutes < policy.min_interval_minutes
+    {
         let payload = json!({
             "ok": true,
             "type": "spine_sleep_cleanup",
@@ -702,6 +975,57 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
             "min_interval_minutes": policy.min_interval_minutes
         });
         return (0, payload);
+    }
+
+    let (available_before_bytes, total_before_bytes, free_before_percent, disk_mount_point) =
+        disk_free_snapshot(root).unwrap_or((0, 0, 0.0, "".to_string()));
+    let pressure_mode = if mode == SleepCleanupMode::Purge {
+        true
+    } else {
+        total_before_bytes > 0 && free_before_percent <= policy.disk_free_floor_percent
+    };
+    let pressure_target_free_percent = if mode == SleepCleanupMode::Purge {
+        99.0
+    } else {
+        policy
+            .pressure_target_free_percent
+            .max((policy.disk_free_floor_percent + 0.5).min(99.0))
+    };
+    let pressure_target_available_bytes = if pressure_mode {
+        ((total_before_bytes as f64) * (pressure_target_free_percent / 100.0)) as u64
+    } else {
+        0
+    };
+    let pressure_reclaim_needed_bytes =
+        pressure_target_available_bytes.saturating_sub(available_before_bytes);
+    let mut pressure_candidates = if pressure_mode {
+        collect_pressure_candidates(root, &policy, now_ms)
+    } else {
+        Vec::new()
+    };
+    let mut pressure_candidate_estimated_bytes = 0u64;
+    if pressure_mode {
+        if mode == SleepCleanupMode::Purge {
+            pressure_candidate_estimated_bytes = pressure_candidates
+                .iter()
+                .map(pressure_candidate_estimated_reclaim)
+                .fold(0u64, |acc, value| acc.saturating_add(value));
+        } else {
+            let mut selected = Vec::<PressureCandidate>::new();
+            for candidate in pressure_candidates {
+                let estimated = pressure_candidate_estimated_reclaim(&candidate);
+                if estimated == 0 {
+                    continue;
+                }
+                pressure_candidate_estimated_bytes =
+                    pressure_candidate_estimated_bytes.saturating_add(estimated);
+                selected.push(candidate);
+                if pressure_candidate_estimated_bytes >= pressure_reclaim_needed_bytes {
+                    break;
+                }
+            }
+            pressure_candidates = selected;
+        }
     }
 
     let mut archive_entries: Vec<(i64, PathBuf)> = Vec::new();
@@ -717,11 +1041,13 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
     let mut archive_candidates = Vec::<PathBuf>::new();
     let mut archive_candidate_bytes = 0u64;
     for (idx, (mtime_ms, path)) in archive_entries.iter().enumerate() {
-        if idx < policy.archive_keep_latest {
-            continue;
-        }
-        if age_hours(now_ms, *mtime_ms) < policy.archive_max_age_hours {
-            continue;
+        if mode != SleepCleanupMode::Purge {
+            if idx < policy.archive_keep_latest {
+                continue;
+            }
+            if age_hours(now_ms, *mtime_ms) < policy.archive_max_age_hours {
+                continue;
+            }
         }
         archive_candidate_bytes = archive_candidate_bytes.saturating_add(path_size_bytes(path));
         archive_candidates.push(path.clone());
@@ -730,7 +1056,10 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
     let mut target_candidate = false;
     let mut target_candidate_bytes = 0u64;
     if policy.target_root.exists() {
-        if let Some(mtime_ms) = path_mtime_ms(&policy.target_root) {
+        if mode == SleepCleanupMode::Purge {
+            target_candidate = true;
+            target_candidate_bytes = path_size_bytes(&policy.target_root);
+        } else if let Some(mtime_ms) = path_mtime_ms(&policy.target_root) {
             if age_hours(now_ms, mtime_ms) >= policy.target_max_age_hours {
                 target_candidate = true;
                 target_candidate_bytes = path_size_bytes(&policy.target_root);
@@ -754,7 +1083,9 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
                         continue;
                     }
                     let mtime_ms = path_mtime_ms(&path).unwrap_or(0);
-                    if age_hours(now_ms, mtime_ms) < policy.detached_worktree_max_age_hours {
+                    if mode != SleepCleanupMode::Purge
+                        && age_hours(now_ms, mtime_ms) < policy.detached_worktree_max_age_hours
+                    {
                         continue;
                     }
                     detached_candidates.push(path);
@@ -780,9 +1111,42 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
     let mut removed_target = false;
     let mut removed_target_bytes = 0u64;
     let mut removed_detached_worktrees = 0usize;
+    let mut pressure_removed_files = 0usize;
+    let mut pressure_reclaimed_bytes = 0u64;
+    let mut pressure_applied = Vec::<Value>::new();
 
     let has_git_root = root.join(".git").exists();
     if apply {
+        for candidate in &pressure_candidates {
+            let result = match candidate.action {
+                PressureAction::RemoveFile => {
+                    let before = path_size_bytes(&candidate.path);
+                    remove_path(&candidate.path).map(|_| before).map_err(|err| {
+                        format!("pressure_remove_failed:{}:{err}", candidate.path.display())
+                    })
+                }
+                PressureAction::TrimTail { max_bytes } => {
+                    trim_file_to_tail(&candidate.path, max_bytes)
+                }
+            };
+            match result {
+                Ok(reclaimed) => {
+                    if reclaimed > 0 {
+                        pressure_removed_files += 1;
+                        pressure_reclaimed_bytes =
+                            pressure_reclaimed_bytes.saturating_add(reclaimed);
+                    }
+                    pressure_applied.push(json!({
+                        "path": candidate.path.display().to_string(),
+                        "action": pressure_action_label(candidate.action),
+                        "last_touch_ms": candidate.last_touch_ms,
+                        "reclaimed_bytes": reclaimed
+                    }));
+                }
+                Err(err) => errors.push(err),
+            }
+        }
+
         for path in &archive_candidates {
             let bytes = path_size_bytes(path);
             match remove_path(path) {
@@ -835,11 +1199,28 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
         }
     }
 
+    let (available_after_bytes, total_after_bytes, free_after_percent) = if apply {
+        disk_free_snapshot(root)
+            .map(|(available, total, free, _)| (available, total, free))
+            .unwrap_or((
+                available_before_bytes,
+                total_before_bytes,
+                free_before_percent,
+            ))
+    } else {
+        (
+            available_before_bytes,
+            total_before_bytes,
+            free_before_percent,
+        )
+    };
+
     let ok = errors.is_empty();
     let payload = json!({
         "ok": ok,
         "type": "spine_sleep_cleanup",
         "ts": now,
+        "mode": if mode == SleepCleanupMode::Purge { "purge" } else { "normal" },
         "origin": origin,
         "applied": apply,
         "executed": true,
@@ -851,22 +1232,47 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
             "archive_keep_latest": policy.archive_keep_latest,
             "target_root": policy.target_root,
             "target_max_age_hours": policy.target_max_age_hours,
-            "detached_worktree_max_age_hours": policy.detached_worktree_max_age_hours
+            "detached_worktree_max_age_hours": policy.detached_worktree_max_age_hours,
+            "disk_free_floor_percent": policy.disk_free_floor_percent,
+            "pressure_target_free_percent": pressure_target_free_percent,
+            "pressure_jsonl_cap_bytes": policy.pressure_jsonl_cap_bytes,
+            "pressure_log_cap_bytes": policy.pressure_log_cap_bytes,
+            "pressure_max_candidates": policy.pressure_max_candidates,
+            "pressure_min_age_hours": policy.pressure_min_age_hours
+        },
+        "disk": {
+            "mount_point": disk_mount_point,
+            "free_percent_before": free_before_percent,
+            "available_bytes_before": available_before_bytes,
+            "total_bytes_before": total_before_bytes,
+            "free_percent_after": free_after_percent,
+            "available_bytes_after": available_after_bytes,
+            "total_bytes_after": total_after_bytes
+        },
+        "pressure_mode": {
+            "active": pressure_mode,
+            "target_available_bytes": pressure_target_available_bytes,
+            "reclaim_needed_bytes": pressure_reclaim_needed_bytes
         },
         "candidates": {
             "archive_paths": archive_candidates.len(),
             "archive_bytes": archive_candidate_bytes,
             "target_path": target_candidate,
             "target_bytes": target_candidate_bytes,
-            "detached_worktrees": detached_candidates.len()
+            "detached_worktrees": detached_candidates.len(),
+            "pressure_paths": pressure_candidates.len(),
+            "pressure_estimated_bytes": pressure_candidate_estimated_bytes
         },
         "removed": {
             "archive_paths": removed_archive,
             "archive_bytes": removed_archive_bytes,
             "target_path": removed_target,
             "target_bytes": removed_target_bytes,
-            "detached_worktrees": removed_detached_worktrees
+            "detached_worktrees": removed_detached_worktrees,
+            "pressure_paths": pressure_removed_files,
+            "pressure_bytes": pressure_reclaimed_bytes
         },
+        "pressure_actions": pressure_applied,
         "errors": errors
     });
 
@@ -893,6 +1299,19 @@ fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) ->
     }
 
     (if ok { 0 } else { 1 }, payload)
+}
+
+fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) -> (i32, Value) {
+    execute_sleep_cleanup_with_mode(root, apply, force, origin, SleepCleanupMode::Normal)
+}
+
+fn execute_sleep_cleanup_purge(
+    root: &Path,
+    apply: bool,
+    force: bool,
+    origin: &str,
+) -> (i32, Value) {
+    execute_sleep_cleanup_with_mode(root, apply, force, origin, SleepCleanupMode::Purge)
 }
 
 fn run_sleep_cleanup_command(root: &Path, argv: &[String]) -> i32 {
@@ -925,6 +1344,13 @@ fn run_sleep_cleanup_command(root: &Path, argv: &[String]) -> i32 {
             let apply = bool_from_flag(rest, "apply", true);
             let force = bool_from_flag(rest, "force", false);
             let (code, out) = execute_sleep_cleanup(root, apply, force, "manual_run");
+            print_json_line(&out);
+            code
+        }
+        "purge" => {
+            let apply = bool_from_flag(rest, "apply", true);
+            let force = bool_from_flag(rest, "force", true);
+            let (code, out) = execute_sleep_cleanup_purge(root, apply, force, "manual_purge");
             print_json_line(&out);
             code
         }
@@ -1909,6 +2335,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         if command == "sleep-cleanup" || command == "sleep_cleanup" {
             return run_sleep_cleanup_command(root, &argv[1..]);
         }
+        if command == "cleanup" || command == "cleanup-purge" || command == "purge" {
+            let mut routed = Vec::<String>::with_capacity(argv.len() + 1);
+            routed.push("purge".to_string());
+            routed.extend(argv.iter().skip(1).cloned());
+            return run_sleep_cleanup_command(root, &routed);
+        }
         if command == "background-hands-scheduler" || command == "background_hands_scheduler" {
             let (code, payload) = run_background_hands_scheduler(root, &argv[1..]);
             print_json_line(&payload);
@@ -2210,6 +2642,70 @@ mod tests {
         std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS");
         std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
         std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+    }
+
+    #[test]
+    fn sleep_cleanup_pressure_mode_prunes_old_state_first() {
+        let root = tempdir().expect("tempdir");
+        let state_history = root
+            .path()
+            .join("core/local/state/ops/pressure_lane/history.jsonl");
+        fs::create_dir_all(state_history.parent().expect("state parent")).expect("state dir");
+        let payload = "x".repeat(16_000);
+        fs::write(&state_history, payload).expect("state write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT", "100");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT", "100");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES", "1024");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS", "0");
+
+        let (code, out) = execute_sleep_cleanup(root.path(), true, true, "pressure_test");
+        assert_eq!(code, 0);
+        assert_eq!(
+            out.pointer("/pressure_mode/active")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            out.pointer("/removed/pressure_paths")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let capped_size = fs::metadata(&state_history).expect("metadata").len();
+        assert!(capped_size <= 1024);
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS");
+    }
+
+    #[test]
+    fn sleep_cleanup_purge_removes_fresh_target_and_trims_history() {
+        let root = tempdir().expect("tempdir");
+        let target_file = root.path().join("target/debug/fresh.bin");
+        let history_path = root
+            .path()
+            .join("core/local/state/ops/purge_lane/history.jsonl");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::create_dir_all(history_path.parent().expect("history parent")).expect("history dir");
+        fs::write(&target_file, "fresh_target").expect("target write");
+        fs::write(&history_path, "x".repeat(24_000)).expect("history write");
+
+        let (code, out) = execute_sleep_cleanup_purge(root.path(), true, true, "purge_test");
+        assert_eq!(code, 0);
+        assert_eq!(out.get("mode").and_then(Value::as_str), Some("purge"));
+        assert_eq!(
+            out.pointer("/pressure_mode/active")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!root.path().join("target").exists());
+        assert!(fs::metadata(&history_path).expect("history metadata").len() <= 128 * 1024);
     }
 
     #[test]

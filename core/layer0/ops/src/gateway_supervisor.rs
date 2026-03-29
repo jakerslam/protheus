@@ -117,6 +117,7 @@ fn watchdog_args(executable: &Path, cfg: &GatewaySupervisorConfig) -> Vec<String
         "daemon-control".to_string(),
         "watchdog".to_string(),
         "--dashboard-autoboot=1".to_string(),
+        "--gateway-persist=1".to_string(),
         format!("--dashboard-host={}", cfg.host),
         format!("--dashboard-port={}", cfg.port),
         format!("--dashboard-team={}", cfg.team),
@@ -178,12 +179,42 @@ fn xml_escape(value: &str) -> String {
 }
 
 #[cfg(target_os = "macos")]
+fn launchd_env_path() -> String {
+    let mut entries = vec![
+        "/usr/local/bin".to_string(),
+        "/opt/homebrew/bin".to_string(),
+        "/usr/bin".to_string(),
+        "/bin".to_string(),
+        "/usr/sbin".to_string(),
+        "/sbin".to_string(),
+    ];
+    if let Some(home) = home_dir() {
+        let home_text = home.to_string_lossy().to_string();
+        entries.insert(0, format!("{home_text}/.local/bin"));
+        entries.insert(1, format!("{home_text}/.cargo/bin"));
+    }
+    let mut dedup = Vec::<String>::new();
+    for entry in entries {
+        let clean = entry.trim().to_string();
+        if clean.is_empty() || dedup.iter().any(|row| row == &clean) {
+            continue;
+        }
+        dedup.push(clean);
+    }
+    dedup.join(":")
+}
+
+#[cfg(target_os = "macos")]
 fn render_launchd_plist(
     root: &Path,
     log_path: &Path,
     label: &str,
     watchdog_args: &[String],
 ) -> String {
+    let launchd_home = home_dir().unwrap_or_else(|| root.to_path_buf());
+    let launchd_home_text = launchd_home.to_string_lossy().to_string();
+    let launchd_path = launchd_env_path();
+    let watchdog_bin = watchdog_args.first().cloned().unwrap_or_default();
     let mut args_xml = String::new();
     for arg in watchdog_args {
         args_xml.push_str(&format!(
@@ -203,6 +234,19 @@ fn render_launchd_plist(
 {args_xml}  </array>\n\
   <key>WorkingDirectory</key>\n\
   <string>{working_dir}</string>\n\
+  <key>EnvironmentVariables</key>\n\
+  <dict>\n\
+    <key>HOME</key>\n\
+    <string>{env_home}</string>\n\
+    <key>PATH</key>\n\
+    <string>{env_path}</string>\n\
+    <key>PROTHEUS_OPS_ALLOW_STALE</key>\n\
+    <string>1</string>\n\
+    <key>PROTHEUS_NPM_ALLOW_STALE</key>\n\
+    <string>1</string>\n\
+    <key>PROTHEUS_NPM_BINARY</key>\n\
+    <string>{env_binary}</string>\n\
+  </dict>\n\
   <key>KeepAlive</key>\n\
   <true/>\n\
   <key>RunAtLoad</key>\n\
@@ -218,6 +262,9 @@ fn render_launchd_plist(
         label = xml_escape(label),
         args_xml = args_xml,
         working_dir = xml_escape(root.to_string_lossy().as_ref()),
+        env_home = xml_escape(launchd_home_text.as_str()),
+        env_path = xml_escape(launchd_path.as_str()),
+        env_binary = xml_escape(watchdog_bin.as_str()),
         log_file = xml_escape(log_path.to_string_lossy().as_ref())
     )
 }
@@ -630,6 +677,8 @@ pub fn status(root: &Path) -> GatewaySupervisorResult {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    use super::render_launchd_plist;
     #[cfg(target_os = "linux")]
     use super::render_systemd_service;
     use super::{shell_quote, trim_text, watchdog_args, GatewaySupervisorConfig};
@@ -667,6 +716,32 @@ mod tests {
             .iter()
             .any(|row| row == "--dashboard-watchdog-interval-ms=2000"));
         assert!(args.iter().any(|row| row == "--node-binary=/usr/bin/node"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn launchd_plist_includes_bootstrap_environment() {
+        let cfg = GatewaySupervisorConfig {
+            host: "127.0.0.1".to_string(),
+            port: 4173,
+            team: "ops".to_string(),
+            refresh_ms: 2000,
+            ready_timeout_ms: 36000,
+            watchdog_interval_ms: 2000,
+            node_binary: "/usr/bin/node".to_string(),
+        };
+        let args = watchdog_args(Path::new("/tmp/protheus-ops"), &cfg);
+        let plist = render_launchd_plist(
+            Path::new("/tmp/workspace"),
+            Path::new("/tmp/watchdog.log"),
+            "ai.infring.gateway",
+            &args,
+        );
+        assert!(plist.contains("<key>EnvironmentVariables</key>"));
+        assert!(plist.contains("<key>PROTHEUS_OPS_ALLOW_STALE</key>"));
+        assert!(plist.contains("<key>PROTHEUS_NPM_ALLOW_STALE</key>"));
+        assert!(plist.contains("<key>PROTHEUS_NPM_BINARY</key>"));
+        assert!(plist.contains("/tmp/protheus-ops"));
     }
 
     #[cfg(target_os = "linux")]

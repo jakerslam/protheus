@@ -12,10 +12,6 @@ use walkdir::WalkDir;
 #[cfg(test)]
 const PROVIDER_REGISTRY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
-const APPROVALS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/approvals.json";
-const WORKFLOWS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/workflows.json";
-const CRON_JOBS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/cron_jobs.json";
-const TRIGGERS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/triggers.json";
 const AGENT_PROFILES_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
 const AGENT_CONTRACTS_REL: &str =
@@ -28,16 +24,18 @@ const ACTION_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
 const APP_PLANE_STATE_ENV: &str = "APP_PLANE_STATE_ROOT";
 const APP_PLANE_SCOPE: &str = "app_plane";
-const EYES_CATALOG_STATE_PATHS: [&str; 3] = [
-    "client/runtime/local/state/ui/infring_dashboard/eyes_catalog.json",
-    "client/runtime/local/state/eyes/catalog.json",
-    "client/runtime/local/state/ui/eyes/catalog.json",
-];
+const AGENT_RUNTIME_SYSTEM_PROMPT: &str = "You are an Infring runtime operations agent with host-integrated access to runtime telemetry, queue metrics, cockpit blocks, conduit signals, memory contexts, and approved protheus/infring command surfaces. Never claim you lack runtime access. If data is stale, request a runtime sync and continue with the best available numbers.";
 
 #[path = "dashboard_compat_api_channels.rs"]
 mod dashboard_compat_api_channels;
 #[path = "dashboard_compat_api_comms.rs"]
 mod dashboard_compat_api_comms;
+#[path = "dashboard_compat_api_hands.rs"]
+mod dashboard_compat_api_hands;
+#[path = "dashboard_compat_api_settings_ops.rs"]
+mod dashboard_compat_api_settings_ops;
+#[path = "dashboard_compat_api_sidebar_ops.rs"]
+mod dashboard_compat_api_sidebar_ops;
 #[path = "dashboard_skills_marketplace.rs"]
 mod dashboard_skills_marketplace;
 
@@ -135,7 +133,9 @@ fn app_plane_state_root(root: &Path) -> PathBuf {
 }
 
 fn app_plane_settings_path(root: &Path) -> PathBuf {
-    app_plane_state_root(root).join("chat_ui").join("settings.json")
+    app_plane_state_root(root)
+        .join("chat_ui")
+        .join("settings.json")
 }
 
 fn extract_app_settings(root: &Path, snapshot: &Value) -> (String, String) {
@@ -226,6 +226,83 @@ fn runtime_sync_summary(snapshot: &Value) -> Value {
         "sync_mode": "live_sync",
         "backpressure_level": "normal"
     })
+}
+
+fn runtime_access_denied_phrase(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    lowered.contains("don't have access")
+        || lowered.contains("do not have access")
+        || lowered.contains("cannot access")
+        || lowered.contains("without system monitoring")
+        || lowered.contains("text-based ai assistant")
+        || lowered.contains("cannot directly interface")
+        || lowered.contains("no access to")
+}
+
+fn persistent_memory_denied_phrase(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let conduit_gated_memory_denial = (lowered.contains("memory conduit")
+        || lowered.contains("cockpit block")
+        || lowered.contains("active memory context"))
+        && (lowered.contains("current message")
+            || lowered.contains("do not retain information")
+            || lowered.contains("between exchanges")
+            || lowered.contains("create a memory context"));
+    lowered.contains("don't have persistent memory")
+        || lowered.contains("do not have persistent memory")
+        || lowered.contains("cannot recall our conversation")
+        || lowered.contains("cannot recall the specific content")
+        || lowered.contains("cannot recall previous conversation")
+        || lowered.contains("cannot recall previous sessions")
+        || lowered.contains("do not retain memory")
+        || lowered.contains("don't retain memory")
+        || lowered.contains("between sessions")
+        || lowered.contains("session is stateless")
+        || lowered.contains("each session is stateless")
+        || lowered.contains("without persistent memory")
+        || lowered.contains("within this session")
+        || lowered.contains("do not retain information between exchanges")
+        || lowered.contains("don't detect an active memory context")
+        || lowered.contains("do not detect an active memory context")
+        || lowered.contains("within active runtime scope")
+        || conduit_gated_memory_denial
+}
+
+fn memory_recall_requested(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    lowered.contains("remember")
+        || lowered.contains("recall")
+        || lowered.contains("last week")
+        || lowered.contains("earlier")
+        || lowered.contains("previous session")
+        || lowered.contains("what did i ask")
+}
+
+fn runtime_probe_requested(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    (lowered.contains("queue depth")
+        || lowered.contains("cockpit blocks")
+        || lowered.contains("conduit signals")
+        || lowered.contains("memory context")
+        || lowered.contains("runtime sync")
+        || lowered.contains("what changed")
+        || lowered.contains("attention queue"))
+        && (lowered.contains("runtime")
+            || lowered.contains("status")
+            || lowered.contains("sync")
+            || lowered.contains("report")
+            || lowered.contains("now"))
+}
+
+fn runtime_access_summary_text(runtime_summary: &Value) -> String {
+    let queue_depth = parse_non_negative_i64(runtime_summary.get("queue_depth"), 0);
+    let cockpit_blocks = parse_non_negative_i64(runtime_summary.get("cockpit_blocks"), 0);
+    let cockpit_total_blocks =
+        parse_non_negative_i64(runtime_summary.get("cockpit_total_blocks"), 0);
+    let conduit_signals = parse_non_negative_i64(runtime_summary.get("conduit_signals"), 0);
+    format!(
+        "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable. Runtime memory context and protheus/infring command surfaces are available through this agent lane."
+    )
 }
 
 fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
@@ -463,7 +540,10 @@ fn config_payload(root: &Path, snapshot: &Value) -> Value {
     let llm_ready = crate::dashboard_model_catalog::catalog_payload(root, snapshot)
         .get("models")
         .and_then(Value::as_array)
-        .map(|rows| rows.iter().any(|row| row.get("available").and_then(Value::as_bool) == Some(true)))
+        .map(|rows| {
+            rows.iter()
+                .any(|row| row.get("available").and_then(Value::as_bool) == Some(true))
+        })
         .unwrap_or(false);
     json!({
         "ok": true,
@@ -494,16 +574,22 @@ fn config_schema_payload() -> Value {
 }
 
 fn set_config_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
-    let path = clean_text(request.get("path").and_then(Value::as_str).unwrap_or(""), 120)
-        .to_ascii_lowercase();
+    let path = clean_text(
+        request.get("path").and_then(Value::as_str).unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase();
     let string_value = clean_text(
         request
             .get("value")
             .and_then(|value| {
-                value
-                    .as_str()
-                    .map(|row| row.to_string())
-                    .or_else(|| if value.is_null() { None } else { Some(value.to_string()) })
+                value.as_str().map(|row| row.to_string()).or_else(|| {
+                    if value.is_null() {
+                        None
+                    } else {
+                        Some(value.to_string())
+                    }
+                })
             })
             .unwrap_or_default()
             .trim_matches('"'),
@@ -533,45 +619,10 @@ fn set_config_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
             &current_provider,
             &string_value,
         ),
-        _ => json!({"ok": true, "path": path, "value": request.get("value").cloned().unwrap_or(Value::Null)}),
-    }
-}
-
-fn approvals_payload(root: &Path) -> Value {
-    let rows = read_json(&state_path(root, APPROVALS_REL))
-        .and_then(|v| v.get("approvals").cloned())
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_else(|| {
-            vec![json!({
-                "id": "default-approval-policy",
-                "name": "Default Approval Policy",
-                "status": "active",
-                "updated_at": crate::now_iso()
-            })]
-        });
-    json!({"ok": true, "approvals": rows})
-}
-
-fn rows_from_array_store(root: &Path, rel: &str, key: &str) -> Value {
-    let rows = read_json(&state_path(root, rel))
-        .and_then(|v| {
-            if v.is_array() {
-                v.as_array().cloned()
-            } else {
-                v.get(key).and_then(Value::as_array).cloned()
-            }
-        })
-        .unwrap_or_default();
-    json!({"ok": true, key: rows})
-}
-
-fn read_eyes_payload(root: &Path) -> Value {
-    for rel in EYES_CATALOG_STATE_PATHS {
-        if let Some(value) = read_json(&state_path(root, rel)) {
-            return json!({"ok": true, "type": "eyes_catalog", "catalog": value});
+        _ => {
+            json!({"ok": true, "path": path, "value": request.get("value").cloned().unwrap_or(Value::Null)})
         }
     }
-    json!({"ok": true, "type": "eyes_catalog", "catalog": {"eyes": []}})
 }
 
 fn extract_profiles(root: &Path) -> Vec<Value> {
@@ -854,6 +905,72 @@ fn session_messages(state: &Value) -> Vec<Value> {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default()
+}
+
+fn all_session_messages(state: &Value) -> Vec<Value> {
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut rows = Vec::<Value>::new();
+    for session in sessions {
+        let messages = session
+            .get("messages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        rows.extend(messages);
+    }
+    rows.sort_by_key(message_timestamp_iso);
+    rows
+}
+
+fn memory_kv_pairs_from_state(state: &Value) -> Vec<Value> {
+    let mut out = state
+        .get("memory_kv")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.iter()
+                .map(|(key, value)| {
+                    json!({
+                        "key": clean_text(key, 200),
+                        "value": value
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    out.sort_by_key(|row| clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 200));
+    out
+}
+
+fn memory_kv_prompt_context(state: &Value, max_entries: usize) -> String {
+    let mut lines = Vec::<String>::new();
+    let kv_pairs = memory_kv_pairs_from_state(state);
+    for row in kv_pairs.into_iter().take(max_entries.max(1)) {
+        let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 120);
+        if key.is_empty() {
+            continue;
+        }
+        let value = row.get("value").cloned().unwrap_or(Value::Null);
+        let rendered = if value.is_string() {
+            clean_text(value.as_str().unwrap_or(""), 280)
+        } else {
+            clean_text(&value.to_string(), 280)
+        };
+        if rendered.is_empty() {
+            continue;
+        }
+        lines.push(format!("- {key}: {rendered}"));
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    format!(
+        "Persistent memory KV (authoritative):\n{}",
+        lines.join("\n")
+    )
 }
 
 fn session_rows_payload(state: &Value) -> Vec<Value> {
@@ -1442,8 +1559,17 @@ fn archived_agent_stub(root: &Path, agent_id: &str) -> Value {
         .get(&id)
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let name = clean_text(profile.get("name").and_then(Value::as_str).unwrap_or(""), 120);
-    let role = clean_text(profile.get("role").and_then(Value::as_str).unwrap_or("analyst"), 60);
+    let name = clean_text(
+        profile.get("name").and_then(Value::as_str).unwrap_or(""),
+        120,
+    );
+    let role = clean_text(
+        profile
+            .get("role")
+            .and_then(Value::as_str)
+            .unwrap_or("analyst"),
+        60,
+    );
     let role_value = if role.is_empty() {
         "analyst".to_string()
     } else {
@@ -1729,6 +1855,26 @@ fn parse_provider_route(path_only: &str) -> Option<(String, Vec<String>)> {
     Some((provider_id, parts))
 }
 
+fn parse_memory_route(path_only: &str) -> Option<(String, Vec<String>)> {
+    let prefix = "/api/memory/agents/";
+    if !path_only.starts_with(prefix) {
+        return None;
+    }
+    let tail = path_only.trim_start_matches(prefix).trim_matches('/');
+    if tail.is_empty() {
+        return None;
+    }
+    let mut parts = tail.split('/').map(decode_path_segment).collect::<Vec<_>>();
+    if parts.len() < 2 {
+        return None;
+    }
+    let agent_id = clean_agent_id(&parts.remove(0));
+    if agent_id.is_empty() {
+        return None;
+    }
+    Some((agent_id, parts))
+}
+
 fn decode_path_segment(raw: &str) -> String {
     let decoded = urlencoding::decode(raw)
         .ok()
@@ -1811,7 +1957,11 @@ fn trim_context_pool(messages: &[Value], limit_tokens: i64) -> Vec<Value> {
     out
 }
 
-fn select_active_context_window(messages: &[Value], target_tokens: i64, min_recent: usize) -> Vec<Value> {
+fn select_active_context_window(
+    messages: &[Value],
+    target_tokens: i64,
+    min_recent: usize,
+) -> Vec<Value> {
     let cap = target_tokens.max(1_024);
     let floor = min_recent.clamp(1, 128);
     let mut out = messages.to_vec();
@@ -1851,7 +2001,11 @@ fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
 fn data_url_from_bytes(bytes: &[u8], content_type: &str) -> String {
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
-    format!("data:{};base64,{}", clean_text(content_type, 120), STANDARD.encode(bytes))
+    format!(
+        "data:{};base64,{}",
+        clean_text(content_type, 120),
+        STANDARD.encode(bytes)
+    )
 }
 
 fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> Value {
@@ -1892,10 +2046,12 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
     } else {
         PathBuf::from(&current_workspace)
     };
-    let current_workspace_rel = current
-        .get("workspace_rel")
-        .cloned()
-        .unwrap_or_else(|| json!(crate::dashboard_git_runtime::workspace_rel(root, &current_workspace_dir)));
+    let current_workspace_rel = current.get("workspace_rel").cloned().unwrap_or_else(|| {
+        json!(crate::dashboard_git_runtime::workspace_rel(
+            root,
+            &current_workspace_dir
+        ))
+    });
     let (main_branch, mut branches) =
         crate::dashboard_git_runtime::list_git_branches(root, 200, &current_branch);
     if branches.is_empty() {
@@ -1976,15 +2132,84 @@ pub fn handle_with_headers(
     {
         return Some(response);
     }
-    if let Some(response) = dashboard_compat_api_comms::handle(root, method, path, path_only, body, snapshot) {
+    if let Some(response) =
+        dashboard_compat_api_comms::handle(root, method, path, path_only, body, snapshot)
+    {
         return Some(response);
+    }
+    if let Some(response) =
+        dashboard_compat_api_hands::handle(root, method, path_only, body, snapshot)
+    {
+        return Some(response);
+    }
+    if let Some(response) =
+        dashboard_compat_api_sidebar_ops::handle(root, method, path_only, body, snapshot)
+    {
+        return Some(response);
+    }
+    if let Some(response) = dashboard_compat_api_settings_ops::handle(root, method, path_only, body)
+    {
+        return Some(response);
+    }
+
+    if let Some((requested_agent_id, segments)) = parse_memory_route(path_only) {
+        let agent_id = resolve_agent_id_alias(root, &requested_agent_id);
+        if segments.first().map(|v| v == "kv").unwrap_or(false) {
+            if method == "GET" && segments.len() == 1 {
+                let state = load_session_state(root, &agent_id);
+                return Some(CompatApiResponse {
+                    status: 200,
+                    payload: json!({
+                        "ok": true,
+                        "agent_id": agent_id,
+                        "kv_pairs": memory_kv_pairs_from_state(&state)
+                    }),
+                });
+            }
+            if segments.len() >= 2 {
+                let key = decode_path_segment(&segments[1..].join("/"));
+                if method == "GET" {
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload: crate::dashboard_agent_state::memory_kv_get(root, &agent_id, &key),
+                    });
+                }
+                if method == "PUT" {
+                    let request =
+                        serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+                    let value = request.get("value").cloned().unwrap_or(Value::Null);
+                    let payload =
+                        crate::dashboard_agent_state::memory_kv_set(root, &agent_id, &key, &value);
+                    return Some(CompatApiResponse {
+                        status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                            200
+                        } else {
+                            400
+                        },
+                        payload,
+                    });
+                }
+                if method == "DELETE" {
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload: crate::dashboard_agent_state::memory_kv_delete(
+                            root, &agent_id, &key,
+                        ),
+                    });
+                }
+            }
+        }
     }
 
     if let Some((provider_id, segments)) = parse_provider_route(path_only) {
         if method == "POST" && segments.len() == 1 && segments[0] == "key" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let key = clean_text(request.get("key").and_then(Value::as_str).unwrap_or(""), 4096);
-            let payload = crate::dashboard_provider_runtime::save_provider_key(root, &provider_id, &key);
+            let key = clean_text(
+                request.get("key").and_then(Value::as_str).unwrap_or(""),
+                4096,
+            );
+            let payload =
+                crate::dashboard_provider_runtime::save_provider_key(root, &provider_id, &key);
             return Some(CompatApiResponse {
                 status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     200
@@ -2050,8 +2275,17 @@ pub fn handle_with_headers(
     }
     if method == "POST" && path_only == "/api/models/download" {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-        let provider = clean_text(request.get("provider").and_then(Value::as_str).unwrap_or(""), 80);
-        let model = clean_text(request.get("model").and_then(Value::as_str).unwrap_or(""), 240);
+        let provider = clean_text(
+            request
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        let model = clean_text(
+            request.get("model").and_then(Value::as_str).unwrap_or(""),
+            240,
+        );
         let payload = crate::dashboard_provider_runtime::download_model(root, &provider, &model);
         return Some(CompatApiResponse {
             status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -2322,7 +2556,8 @@ pub fn handle_with_headers(
     if let Some((requested_agent_id, segments)) = parse_agent_route(path_only) {
         let agent_id = resolve_agent_id_alias(root, &requested_agent_id);
         let existing = agent_row_by_id(root, snapshot, &agent_id);
-        let is_archived = crate::dashboard_agent_state::archived_agent_ids(root).contains(&agent_id);
+        let is_archived =
+            crate::dashboard_agent_state::archived_agent_ids(root).contains(&agent_id);
         if method == "GET" && segments.is_empty() {
             if let Some(row) = existing {
                 return Some(CompatApiResponse {
@@ -2589,7 +2824,9 @@ pub fn handle_with_headers(
             }
             let row = agent_row_by_id(root, snapshot, &agent_id).unwrap_or_else(|| json!({}));
             let requested_provider = clean_text(
-                row.get("model_provider").and_then(Value::as_str).unwrap_or("auto"),
+                row.get("model_provider")
+                    .and_then(Value::as_str)
+                    .unwrap_or("auto"),
                 80,
             );
             let requested_model = clean_text(
@@ -2626,7 +2863,12 @@ pub fn handle_with_headers(
                     &route_request,
                 );
             let mut state = load_session_state(root, &agent_id);
-            let messages = session_messages(&state);
+            let sessions_total = state
+                .get("sessions")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+                .unwrap_or(0);
+            let messages = all_session_messages(&state);
             let context_pool_limit_tokens = request
                 .get("context_pool_limit_tokens")
                 .and_then(Value::as_i64)
@@ -2666,10 +2908,22 @@ pub fn handle_with_headers(
             );
             let context_pool_tokens = total_message_tokens(&pooled_messages);
             let context_active_tokens = total_message_tokens(&active_messages);
-            let system_prompt = clean_text(
-                row.get("system_prompt").and_then(Value::as_str).unwrap_or(""),
+            let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
+            let memory_prompt_context = memory_kv_prompt_context(&state, 24);
+            let custom_system_prompt = clean_text(
+                row.get("system_prompt")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 12_000,
             );
+            let mut prompt_parts = vec![AGENT_RUNTIME_SYSTEM_PROMPT.to_string()];
+            if !custom_system_prompt.is_empty() {
+                prompt_parts.push(custom_system_prompt);
+            }
+            if !memory_prompt_context.is_empty() {
+                prompt_parts.push(memory_prompt_context);
+            }
+            let system_prompt = clean_text(&prompt_parts.join("\n\n"), 12_000);
             match crate::dashboard_provider_runtime::invoke_chat(
                 root,
                 &provider,
@@ -2679,10 +2933,77 @@ pub fn handle_with_headers(
                 &message,
             ) {
                 Ok(result) => {
-                    let response_text = clean_text(
+                    let mut response_text = clean_text(
                         result.get("response").and_then(Value::as_str).unwrap_or(""),
                         32_000,
                     );
+                    let runtime_summary = runtime_sync_summary(snapshot);
+                    if runtime_access_denied_phrase(&response_text)
+                        || runtime_probe_requested(&message)
+                    {
+                        response_text = runtime_access_summary_text(&runtime_summary);
+                    }
+                    if memory_recall_requested(&message)
+                        || persistent_memory_denied_phrase(&response_text)
+                    {
+                        let mut remembered = pooled_messages
+                            .iter()
+                            .rev()
+                            .filter_map(|row| {
+                                let role = clean_text(
+                                    row.get("role").and_then(Value::as_str).unwrap_or(""),
+                                    20,
+                                )
+                                .to_ascii_lowercase();
+                                if role != "user" {
+                                    return None;
+                                }
+                                let text = message_text(row);
+                                if text.is_empty() {
+                                    return None;
+                                }
+                                if text.to_ascii_lowercase().contains("remember") {
+                                    return Some(text);
+                                }
+                                None
+                            })
+                            .take(3)
+                            .collect::<Vec<_>>();
+                        if remembered.is_empty() {
+                            remembered = pooled_messages
+                                .iter()
+                                .rev()
+                                .filter_map(|row| {
+                                    let role = clean_text(
+                                        row.get("role").and_then(Value::as_str).unwrap_or(""),
+                                        20,
+                                    )
+                                    .to_ascii_lowercase();
+                                    if role != "user" {
+                                        return None;
+                                    }
+                                    let text = message_text(row);
+                                    if text.is_empty() {
+                                        None
+                                    } else {
+                                        Some(text)
+                                    }
+                                })
+                                .take(3)
+                                .collect::<Vec<_>>();
+                        }
+                        if remembered.is_empty() {
+                            response_text = format!(
+                                "Persistent memory is enabled for this agent across {sessions_total} session(s), but no earlier stored turns were found yet."
+                            );
+                        } else {
+                            response_text = format!(
+                                "Persistent memory is enabled for this agent across {sessions_total} session(s) with {} stored messages. Recalled context: {}",
+                                pooled_messages.len(),
+                                remembered.join(" | ")
+                            );
+                        }
+                    }
                     append_turn_message(root, &agent_id, &message, &response_text);
                     let runtime_model = clean_text(
                         result
@@ -2705,8 +3026,7 @@ pub fn handle_with_headers(
                         {
                             runtime_patch["model_provider"] = json!(provider.clone());
                             runtime_patch["model_name"] = json!(model.clone());
-                            runtime_patch["model_override"] =
-                                json!(format!("{provider}/{model}"));
+                            runtime_patch["model_override"] = json!(format!("{provider}/{model}"));
                         }
                     }
                     let _ = update_profile_patch(root, &agent_id, &runtime_patch);
@@ -2716,20 +3036,23 @@ pub fn handle_with_headers(
                     payload["provider"] = json!(provider);
                     payload["model"] = json!(model);
                     payload["iterations"] = json!(1);
+                    payload["response"] = json!(response_text);
+                    payload["runtime_sync"] = runtime_summary;
                     payload["context_pool"] = json!({
                         "pool_limit_tokens": context_pool_limit_tokens,
                         "pool_tokens": context_pool_tokens,
                         "pool_messages": pooled_messages.len(),
+                        "session_count": sessions_total,
+                        "cross_session_memory_enabled": true,
+                        "memory_kv_entries": memory_kv_entries,
                         "active_target_tokens": active_context_target_tokens,
                         "active_tokens": context_active_tokens,
                         "active_messages": active_messages.len(),
                         "min_recent_messages": active_context_min_recent
                     });
                     if let Some(route) = auto_route {
-                        payload["auto_route"] = route
-                            .get("route")
-                            .cloned()
-                            .unwrap_or_else(|| route.clone());
+                        payload["auto_route"] =
+                            route.get("route").cloned().unwrap_or_else(|| route.clone());
                     }
                     return Some(CompatApiResponse {
                         status: 200,
@@ -2904,7 +3227,10 @@ pub fn handle_with_headers(
                 require_new,
             );
             let kind = clean_text(
-                result.get("kind").and_then(Value::as_str).unwrap_or("isolated"),
+                result
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or("isolated"),
                 40,
             );
             let default_workspace_dir = root.to_string_lossy().to_string();
@@ -2922,7 +3248,10 @@ pub fn handle_with_headers(
                     .unwrap_or(""),
                 4000,
             );
-            let ready = result.get("ready").and_then(Value::as_bool).unwrap_or(false);
+            let ready = result
+                .get("ready")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let error = clean_text(
                 result.get("error").and_then(Value::as_str).unwrap_or(""),
                 280,
@@ -2986,7 +3315,10 @@ pub fn handle_with_headers(
                 });
             }
             let bytes = fs::read(&target_path).unwrap_or_default();
-            let full = request.get("full").and_then(Value::as_bool).unwrap_or(false);
+            let full = request
+                .get("full")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let max_bytes = if full {
                 bytes.len().max(1)
             } else {
@@ -2994,8 +3326,7 @@ pub fn handle_with_headers(
                     .get("max_bytes")
                     .and_then(Value::as_u64)
                     .unwrap_or((256 * 1024) as u64)
-                    .clamp((4 * 1024) as u64, (8 * 1024 * 1024) as u64)
-                    as usize
+                    .clamp((4 * 1024) as u64, (8 * 1024 * 1024) as u64) as usize
             };
             let (content, truncated) = truncate_utf8_lossy(&bytes, max_bytes);
             let content_type = "text/plain; charset=utf-8";
@@ -3069,7 +3400,10 @@ pub fn handle_with_headers(
                     }),
                 });
             }
-            let full = request.get("full").and_then(Value::as_bool).unwrap_or(false);
+            let full = request
+                .get("full")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let max_entries = if full {
                 1_000_000usize
             } else {
@@ -3107,10 +3441,8 @@ pub fn handle_with_headers(
                     continue;
                 }
                 let rel = path.strip_prefix(&target_path).unwrap_or(path);
-                let rel_name = clean_text(
-                    rel.file_name().and_then(|v| v.to_str()).unwrap_or(""),
-                    240,
-                );
+                let rel_name =
+                    clean_text(rel.file_name().and_then(|v| v.to_str()).unwrap_or(""), 240);
                 if rel_name.is_empty() {
                     continue;
                 }
@@ -3170,6 +3502,21 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "command_required"}),
                 });
             }
+            let resolution =
+                match crate::dashboard_terminal_broker::resolve_operator_command(&command) {
+                    Ok(resolution) => resolution,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 400,
+                            payload: err,
+                        });
+                    }
+                };
+            let requested_command = resolution.requested_command.clone();
+            let executed_command = resolution.resolved_command.clone();
+            let command_translated = resolution.translated;
+            let translation_reason = resolution.translation_reason.clone();
+            let suggestions = resolution.suggestions.clone();
             let workspace_base = workspace_base_for_agent(root, existing.as_ref());
             let requested_cwd = clean_text(
                 request.get("cwd").and_then(Value::as_str).unwrap_or(""),
@@ -3184,12 +3531,12 @@ pub fn handle_with_headers(
             let started = Instant::now();
             let output = if cfg!(windows) {
                 Command::new("cmd")
-                    .args(["/C", &command])
+                    .args(["/C", &executed_command])
                     .current_dir(&cwd)
                     .output()
             } else {
                 Command::new("sh")
-                    .args(["-lc", &command])
+                    .args(["-lc", &executed_command])
                     .current_dir(&cwd)
                     .output()
             };
@@ -3206,7 +3553,8 @@ pub fn handle_with_headers(
                     {
                         if last_line.starts_with('/') {
                             let parsed = normalize_lexical(&PathBuf::from(last_line));
-                            if parsed.is_dir() && (parsed == workspace_base || parsed.starts_with(&workspace_base))
+                            if parsed.is_dir()
+                                && (parsed == workspace_base || parsed.starts_with(&workspace_base))
                             {
                                 effective_cwd = parsed;
                             }
@@ -3222,7 +3570,12 @@ pub fn handle_with_headers(
                             "stderr_truncated": stderr_truncated,
                             "exit_code": out.status.code().unwrap_or(1),
                             "duration_ms": started.elapsed().as_millis() as i64,
-                            "cwd": effective_cwd.to_string_lossy().to_string()
+                            "cwd": effective_cwd.to_string_lossy().to_string(),
+                            "requested_command": requested_command,
+                            "executed_command": executed_command,
+                            "command_translated": command_translated,
+                            "translation_reason": translation_reason,
+                            "suggestions": suggestions
                         }),
                     });
                 }
@@ -3235,7 +3588,12 @@ pub fn handle_with_headers(
                             "message": clean_text(&err.to_string(), 500),
                             "exit_code": 1,
                             "duration_ms": started.elapsed().as_millis() as i64,
-                            "cwd": cwd.to_string_lossy().to_string()
+                            "cwd": cwd.to_string_lossy().to_string(),
+                            "requested_command": requested_command,
+                            "executed_command": executed_command,
+                            "command_translated": command_translated,
+                            "translation_reason": translation_reason,
+                            "suggestions": suggestions
                         }),
                     });
                 }
@@ -3527,7 +3885,6 @@ pub fn handle_with_headers(
                 crate::dashboard_model_catalog::route_decision_payload(root, snapshot, &json!({}))
             }
             "/api/channels" => dashboard_compat_api_channels::channels_payload(root),
-            "/api/eyes" => read_eyes_payload(root),
             "/api/audit/recent" => {
                 let entries = recent_audit_entries(root, snapshot);
                 let tip_hash = crate::deterministic_receipt_hash(&json!({"entries": entries}));
@@ -3596,14 +3953,9 @@ pub fn handle_with_headers(
                 "monthly_limit": 0
             }),
             "/api/a2a/agents" => json!({"ok": true, "agents": []}),
-            "/api/approvals" => approvals_payload(root),
             "/api/sessions" => {
                 json!({"ok": true, "sessions": session_summary_rows(root, snapshot)})
             }
-            "/api/workflows" => rows_from_array_store(root, WORKFLOWS_REL, "workflows"),
-            "/api/cron/jobs" => rows_from_array_store(root, CRON_JOBS_REL, "jobs"),
-            "/api/triggers" => rows_from_array_store(root, TRIGGERS_REL, "triggers"),
-            "/api/schedules" => rows_from_array_store(root, CRON_JOBS_REL, "schedules"),
             "/api/comms/topology" => json!({
                 "ok": true,
                 "topology": {
@@ -3613,7 +3965,6 @@ pub fn handle_with_headers(
                 }
             }),
             "/api/comms/events" => json!({"ok": true, "events": []}),
-            "/api/hands" | "/api/hands/active" => json!({"ok": true, "hands": [], "active": []}),
             "/api/profiles" => json!({"ok": true, "profiles": extract_profiles(root)}),
             "/api/update/check" => crate::dashboard_release_update::check_update(root),
             "/api/templates" => json!({
@@ -3755,12 +4106,12 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(rows.len() >= 2);
-        assert!(rows.iter().any(|row| {
-            row.get("id").and_then(Value::as_str) == Some("openai")
-        }));
-        assert!(rows.iter().any(|row| {
-            row.get("id").and_then(Value::as_str) == Some("ollama")
-        }));
+        assert!(rows
+            .iter()
+            .any(|row| { row.get("id").and_then(Value::as_str) == Some("openai") }));
+        assert!(rows
+            .iter()
+            .any(|row| { row.get("id").and_then(Value::as_str) == Some("ollama") }));
     }
 
     #[test]
@@ -3984,6 +4335,39 @@ mod tests {
                 .and_then(Value::as_str),
             Some(sid.as_str())
         );
+        let cross_session = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"What did I say earlier?"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("cross session message");
+        assert_eq!(cross_session.status, 200);
+        assert!(
+            cross_session
+                .payload
+                .pointer("/context_pool/pool_messages")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 2
+        );
+        assert_eq!(
+            cross_session
+                .payload
+                .pointer("/context_pool/cross_session_memory_enabled")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            cross_session
+                .payload
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("Persistent memory is enabled"),
+            "cross-session recall should be remediated to persistent memory summary"
+        );
 
         let configured = handle(
             root.path(),
@@ -4083,6 +4467,240 @@ mod tests {
                 .pointer("/current/git_branch")
                 .and_then(Value::as_str),
             Some("feature/jarvis")
+        );
+    }
+
+    #[test]
+    fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        init_git_repo(root.path());
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Runtime Probe","role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let message = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"Report runtime sync now. What changed in queue depth, cockpit blocks, conduit signals, and memory context?"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("agent runtime probe");
+        assert_eq!(message.status, 200);
+        assert_eq!(
+            message.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        let response = message
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(response.contains("Current queue depth:"));
+        assert!(response.contains("Runtime memory context"));
+        assert!(message
+            .payload
+            .get("runtime_sync")
+            .and_then(Value::as_object)
+            .is_some());
+    }
+
+    #[test]
+    fn memory_denial_variant_is_remediated_to_persistent_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        init_git_repo(root.path());
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Memory Probe","role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let seeded = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"Remember this exactly: favorite animal is octopus and codename aurora-7."}"#,
+            &json!({"ok": true}),
+        )
+        .expect("seed memory");
+        assert_eq!(seeded.status, 200);
+
+        let second = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/sessions"),
+            br#"{"label":"Session 2"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create second session");
+        let sid = clean_text(
+            second
+                .payload
+                .get("active_session_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!sid.is_empty());
+        let switched = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/sessions/{sid}/switch"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("switch second session");
+        assert_eq!(switched.status, 200);
+
+        let denial_variant = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"I still do not see any stored memory context from earlier in this session. I do not retain information between exchanges unless you explicitly use a memory conduit, and I can only work with what is in the current message."}"#,
+            &json!({"ok": true}),
+        )
+        .expect("denial variant message");
+        assert_eq!(denial_variant.status, 200);
+        let response = denial_variant
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            response.contains("Persistent memory is enabled"),
+            "memory denial variant should be remediated to persistent memory summary"
+        );
+        assert!(
+            !response
+                .to_ascii_lowercase()
+                .contains("do not retain information between exchanges"),
+            "raw denial text should not leak back to caller"
+        );
+    }
+
+    #[test]
+    fn memory_kv_http_routes_round_trip_and_feed_context_pool() {
+        let root = tempfile::tempdir().expect("tempdir");
+        init_git_repo(root.path());
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Memory KV Probe","role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let set = handle(
+            root.path(),
+            "PUT",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            br#"{"value":"reliability"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("set memory kv");
+        assert_eq!(set.status, 200);
+
+        let listed = handle(
+            root.path(),
+            "GET",
+            &format!("/api/memory/agents/{agent_id}/kv"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("list memory kv");
+        assert_eq!(listed.status, 200);
+        let keys = listed
+            .payload
+            .get("kv_pairs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|row| row.get("key").and_then(Value::as_str))
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        assert!(keys.iter().any(|key| key == "focus.topic"));
+
+        let got = handle(
+            root.path(),
+            "GET",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("get memory kv");
+        assert_eq!(got.status, 200);
+        assert_eq!(
+            got.payload.get("value").and_then(Value::as_str),
+            Some("reliability")
+        );
+
+        let message = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"Use stored memory if present."}"#,
+            &json!({"ok": true}),
+        )
+        .expect("message with memory kv");
+        assert_eq!(message.status, 200);
+        assert!(
+            message
+                .payload
+                .pointer("/context_pool/memory_kv_entries")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let deleted = handle(
+            root.path(),
+            "DELETE",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("delete memory kv");
+        assert_eq!(deleted.status, 200);
+        assert_eq!(
+            deleted.payload.get("removed").and_then(Value::as_bool),
+            Some(true)
         );
     }
 
@@ -4505,6 +5123,88 @@ mod tests {
         assert_eq!(
             ran.payload.get("stdout").and_then(Value::as_str),
             Some("ok")
+        );
+        assert_eq!(
+            ran.payload.get("executed_command").and_then(Value::as_str),
+            Some("printf 'ok'")
+        );
+        assert_eq!(
+            ran.payload
+                .get("command_translated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn agent_terminal_routes_through_command_router() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let terminal = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"printf 'ok'"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("terminal");
+        assert_eq!(terminal.status, 200);
+        assert_eq!(
+            terminal.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            terminal.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
+        assert_eq!(
+            terminal
+                .payload
+                .get("executed_command")
+                .and_then(Value::as_str),
+            Some("printf 'ok'")
+        );
+        assert_eq!(
+            terminal
+                .payload
+                .get("command_translated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let blocked = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"infring daemon ping"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("blocked");
+        assert_eq!(blocked.status, 400);
+        assert_eq!(
+            blocked.payload.get("ok").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            blocked.payload.get("error").and_then(Value::as_str),
+            Some("unsupported_infring_cli_surface")
         );
     }
 

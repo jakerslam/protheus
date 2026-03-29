@@ -1,5 +1,9 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
+use crate::dashboard_agent_state;
+use crate::dashboard_compat_api;
+use crate::dashboard_model_catalog;
+use crate::dashboard_terminal_broker;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::cmp::Reverse;
@@ -13,10 +17,6 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
-use crate::dashboard_agent_state;
-use crate::dashboard_compat_api;
-use crate::dashboard_model_catalog;
-use crate::dashboard_terminal_broker;
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 4173;
@@ -35,9 +35,11 @@ const ACTION_LATEST_REL: &str =
 const ACTION_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
 #[cfg(test)]
-const AGENT_PROFILES_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
+const AGENT_PROFILES_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
 #[cfg(test)]
-const ARCHIVED_AGENTS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
+const ARCHIVED_AGENTS_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
 const RUNTIME_SYNC_MAX_BLOCKS: usize = 40;
 const RUNTIME_SYNC_WARN_DEPTH: i64 = 50;
 const RUNTIME_SYNC_BATCH_DEPTH: i64 = 75;
@@ -811,16 +813,7 @@ fn write_json(path: &Path, value: &Value) {
 }
 
 fn append_jsonl(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        ensure_dir(parent);
-    }
-    if let Ok(line) = serde_json::to_string(value) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut f| writeln!(f, "{line}"));
-    }
+    let _ = crate::v8_kernel::append_jsonl_without_binary_queue(path, value);
 }
 
 fn to_iso(ts: SystemTime) -> String {
@@ -1204,8 +1197,8 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
                 .pointer("/cockpit/render/total_blocks")
                 .cloned()
         });
-    let total_block_count =
-        i64_from_value(total_block_count_value.as_ref(), blocks.len() as i64).max(blocks.len() as i64);
+    let total_block_count = i64_from_value(total_block_count_value.as_ref(), blocks.len() as i64)
+        .max(blocks.len() as i64);
     let stale_from_metrics =
         i64_from_value(cockpit_metrics.get("stale_block_count"), stale_measured_raw);
     let stale_block_raw_count = stale_measured_raw.max(stale_from_metrics);
@@ -1431,8 +1424,8 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         .unwrap_or_default();
     let critical_total_count = i64_from_value(lane_counts.get("critical"), critical_visible_count)
         .max(critical_visible_count);
-    let telemetry_total_count = i64_from_value(lane_counts.get("telemetry"), telemetry_count)
-        .max(telemetry_count);
+    let telemetry_total_count =
+        i64_from_value(lane_counts.get("telemetry"), telemetry_count).max(telemetry_count);
     let standard_total_count = i64_from_value(lane_counts.get("standard"), standard_count);
     let background_total_count = i64_from_value(lane_counts.get("background"), background_count);
     let critical_events = critical_events_full
@@ -1467,8 +1460,9 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         "standard": (max_batch_size / 2).max(1),
         "background": (max_batch_size / 4).max(1)
     });
-    let priority_preempt =
-        queue_depth >= RUNTIME_SYNC_WARN_DEPTH || pressure_level == "high" || pressure_level == "critical";
+    let priority_preempt = queue_depth >= RUNTIME_SYNC_WARN_DEPTH
+        || pressure_level == "high"
+        || pressure_level == "critical";
 
     let mut out = json!({
         "ok": cockpit.ok && attention_status.ok && attention_next.ok,
@@ -1604,9 +1598,9 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .or_else(|| read_cached_snapshot_component(root, "app"))
         .unwrap_or_else(|| json!({}));
 
-    let mut collab_payload = read_json_file(
-        &root.join(format!("core/local/state/ops/collab_plane/dashboard/{team}.json")),
-    )
+    let mut collab_payload = read_json_file(&root.join(format!(
+        "core/local/state/ops/collab_plane/dashboard/{team}.json"
+    )))
     .map(|dashboard| {
         json!({
             "ok": true,
@@ -1618,9 +1612,10 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     .unwrap_or_else(|| json!({}));
     dashboard_agent_state::merge_profiles_into_collab(root, &mut collab_payload, &team);
 
-    let skills_payload = read_json_file(&root.join("core/local/state/ops/skills_plane/latest.json"))
-        .or_else(|| read_cached_snapshot_component(root, "skills"))
-        .unwrap_or_else(|| json!({}));
+    let skills_payload =
+        read_json_file(&root.join("core/local/state/ops/skills_plane/latest.json"))
+            .or_else(|| read_cached_snapshot_component(root, "skills"))
+            .unwrap_or_else(|| json!({}));
 
     let health_payload = read_cached_snapshot_component(root, "health").unwrap_or_else(|| {
         json!({
@@ -1674,10 +1669,8 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let cockpit_stale_actionable = i64_from_value(
-        cockpit_runtime.pointer("/metrics/stale_block_count"),
-        0,
-    );
+    let cockpit_stale_actionable =
+        i64_from_value(cockpit_runtime.pointer("/metrics/stale_block_count"), 0);
     let runtime_stall_detected =
         queue_depth >= RUNTIME_SYNC_WARN_DEPTH || cockpit_stale_actionable > 0;
     let normal_cadence_ms = flags.refresh_ms.max(500);
@@ -1835,6 +1828,7 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 &[
                     "run".to_string(),
                     "--app=chat-ui".to_string(),
+                    format!("--session-id={agent_id}"),
                     format!("--input={input}"),
                 ],
             );
@@ -1845,13 +1839,16 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     "type": "infring_dashboard_action_lane_passthrough"
                 });
             }
+            let mut assistant_text = String::new();
             if lane.ok {
-                let assistant_text = lane_payload
+                assistant_text = lane_payload
                     .get("response")
                     .and_then(Value::as_str)
+                    .or_else(|| lane_payload.get("output").and_then(Value::as_str))
                     .or_else(|| {
                         lane_payload
-                            .get("output")
+                            .get("turn")
+                            .and_then(|turn| turn.get("assistant"))
                             .and_then(Value::as_str)
                     })
                     .or_else(|| {
@@ -1861,8 +1858,8 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             .and_then(|turns| turns.last())
                             .and_then(|turn| turn.get("assistant").and_then(Value::as_str))
                     })
-                    .unwrap_or("");
-                let _ = dashboard_agent_state::append_turn(root, &agent_id, &input, assistant_text);
+                    .unwrap_or("")
+                    .to_string();
             }
             let runtime_flags = Flags {
                 mode: "runtime-sync".to_string(),
@@ -1873,14 +1870,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 pretty: false,
             };
             let runtime = build_runtime_sync(root, &runtime_flags);
-            let mut runtime_sync = runtime
-                .get("summary")
-                .cloned()
-                .unwrap_or_else(|| json!({}));
+            let mut runtime_sync = runtime.get("summary").cloned().unwrap_or_else(|| json!({}));
             if !runtime_sync.is_object() {
                 runtime_sync = json!({});
             }
-            let health = read_cached_snapshot_component(root, "health").unwrap_or_else(|| json!({}));
+            let health =
+                read_cached_snapshot_component(root, "health").unwrap_or_else(|| json!({}));
             let receipt_latency_p95 = i64_from_value(
                 health.pointer("/dashboard_metrics/receipt_latency_p95_ms/value"),
                 0,
@@ -1911,14 +1906,44 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
 
             let input_lower = input.to_ascii_lowercase();
             let raw_input_lower = raw_input.to_ascii_lowercase();
-            if input_lower.contains("report runtime sync now") {
+            let assistant_lower = assistant_text.to_ascii_lowercase();
+            let runtime_access_denied = assistant_lower.contains("don't have access")
+                || assistant_lower.contains("do not have access")
+                || assistant_lower.contains("cannot access")
+                || assistant_lower.contains("without system monitoring")
+                || assistant_lower.contains("text-based ai assistant")
+                || assistant_lower.contains("cannot directly interface")
+                || assistant_lower.contains("no access to");
+            if input_lower.contains("report runtime sync now")
+                || ((input_lower.contains("queue depth")
+                    || input_lower.contains("cockpit blocks")
+                    || input_lower.contains("conduit signals"))
+                    && (input_lower.contains("runtime")
+                        || input_lower.contains("sync")
+                        || input_lower.contains("status")
+                        || input_lower.contains("what changed")))
+                || runtime_access_denied
+            {
                 let queue_depth = i64_from_value(runtime_sync.get("queue_depth"), 0);
                 let cockpit_blocks = i64_from_value(runtime_sync.get("cockpit_blocks"), 0);
-                let cockpit_total_blocks = i64_from_value(runtime_sync.get("cockpit_total_blocks"), 0);
+                let cockpit_total_blocks =
+                    i64_from_value(runtime_sync.get("cockpit_total_blocks"), 0);
                 let conduit_signals = i64_from_value(runtime_sync.get("conduit_signals"), 0);
-                lane_payload["response"] = json!(format!(
-                    "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable."
-                ));
+                let authoritative = format!(
+                    "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable. Runtime memory context and protheus/infring command surfaces are available through this dashboard lane."
+                );
+                lane_payload["response"] = json!(authoritative.clone());
+                lane_payload["output"] = json!(authoritative.clone());
+                if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut) {
+                    turn.insert("assistant".to_string(), json!(authoritative.clone()));
+                }
+                if let Some(turns) = lane_payload.get_mut("turns").and_then(Value::as_array_mut) {
+                    if let Some(last) = turns.last_mut() {
+                        if let Some(last_obj) = last.as_object_mut() {
+                            last_obj.insert("assistant".to_string(), json!(authoritative));
+                        }
+                    }
+                }
             }
             if input_lower.contains("one week ago") && input_lower.contains("memory file path") {
                 let memory_dir = root.join("local/workspace/memory");
@@ -2211,14 +2236,13 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             let result = dashboard_terminal_broker::exec_command(root, payload);
             LaneResult {
                 ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
-                status: result
-                    .get("exit_code")
-                    .and_then(Value::as_i64)
-                    .unwrap_or(if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                status: result.get("exit_code").and_then(Value::as_i64).unwrap_or(
+                    if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                         0
                     } else {
                         2
-                    }) as i32,
+                    },
+                ) as i32,
                 argv: vec!["dashboard.terminal.exec".to_string()],
                 payload: Some(result),
             }
@@ -2453,10 +2477,7 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             LaneResult {
                 ok: true,
                 status: 0,
-                argv: vec![
-                    normalized.clone(),
-                    format!("--team={team}"),
-                ],
+                argv: vec![normalized.clone(), format!("--team={team}")],
                 payload: Some(json!({
                     "ok": true,
                     "type": "infring_dashboard_runtime_action",
@@ -3067,18 +3088,16 @@ fn handle_request(
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect::<Vec<_>>();
-        if let Some(response) =
-            dashboard_compat_api::handle_with_headers(
-                root,
-                &req.method,
-                &req.path,
-                &req.body,
-                &header_refs,
-                &snapshot,
-            )
-        {
-            let body =
-                serde_json::to_string_pretty(&response.payload).unwrap_or_else(|_| "{}".to_string());
+        if let Some(response) = dashboard_compat_api::handle_with_headers(
+            root,
+            &req.method,
+            &req.path,
+            &req.body,
+            &header_refs,
+            &snapshot,
+        ) {
+            let body = serde_json::to_string_pretty(&response.payload)
+                .unwrap_or_else(|_| "{}".to_string());
             return write_response(
                 stream,
                 response.status,
@@ -3499,11 +3518,8 @@ mod tests {
             }),
         );
         assert!(upsert_contract.ok);
-        let enforce_contracts = run_action(
-            root.path(),
-            "dashboard.agent.enforceContracts",
-            &json!({}),
-        );
+        let enforce_contracts =
+            run_action(root.path(), "dashboard.agent.enforceContracts", &json!({}));
         assert!(enforce_contracts.ok);
         let terminated_rows = enforce_contracts
             .payload

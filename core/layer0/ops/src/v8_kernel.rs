@@ -6,8 +6,13 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+
+const DEFAULT_RECEIPT_HISTORY_MAX_BYTES: u64 = 2 * 1024 * 1024;
+const DEFAULT_RECEIPT_BINARY_MAX_BYTES: u64 = 2 * 1024 * 1024;
+const RETENTION_MAX_BYTES_CAP: u64 = 1024 * 1024 * 1024;
+const RETENTION_TAIL_SLACK_BYTES: u64 = 8 * 1024;
 
 pub fn scoped_state_root(root: &Path, env_key: &str, scope: &str) -> PathBuf {
     if let Ok(v) = std::env::var(env_key) {
@@ -79,6 +84,26 @@ pub fn write_json(path: &Path, value: &Value) -> Result<(), String> {
 }
 
 pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
+    append_jsonl_with_limits(
+        path,
+        value,
+        receipt_history_max_bytes(),
+        receipt_binary_queue_enabled(),
+        receipt_binary_queue_max_bytes(),
+    )
+}
+
+pub fn append_jsonl_without_binary_queue(path: &Path, value: &Value) -> Result<(), String> {
+    append_jsonl_with_limits(path, value, receipt_history_max_bytes(), false, 0)
+}
+
+pub fn append_jsonl_with_limits(
+    path: &Path,
+    value: &Value,
+    history_max_bytes: u64,
+    binary_queue_enabled: bool,
+    binary_max_bytes: u64,
+) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
@@ -92,8 +117,18 @@ pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
     writeln!(file, "{line}")
         .map_err(|err| format!("append_jsonl_failed:{}:{err}", path.display()))?;
-    if receipt_binary_queue_enabled() {
-        append_binary_queue(&receipt_binary_queue_path(path), value)?;
+
+    let queue_path = if binary_queue_enabled {
+        let queue = receipt_binary_queue_path(path);
+        append_binary_queue(&queue, value)?;
+        Some(queue)
+    } else {
+        None
+    };
+
+    let history_trimmed = enforce_jsonl_tail_limit(path, history_max_bytes)?;
+    if let Some(queue) = queue_path {
+        enforce_binary_queue_limit(path, &queue, binary_max_bytes, history_trimmed)?;
     }
     Ok(())
 }
@@ -106,6 +141,31 @@ fn receipt_binary_queue_enabled() -> bool {
         ),
         Err(_) => true,
     }
+}
+
+fn parse_retention_max_bytes_env(name: &str, fallback: u64) -> u64 {
+    match std::env::var(name) {
+        Ok(raw) => match raw.trim().parse::<u64>() {
+            Ok(0) => u64::MAX,
+            Ok(v) => v.min(RETENTION_MAX_BYTES_CAP),
+            Err(_) => fallback,
+        },
+        Err(_) => fallback,
+    }
+}
+
+fn receipt_history_max_bytes() -> u64 {
+    parse_retention_max_bytes_env(
+        "PROTHEUS_RECEIPT_HISTORY_MAX_BYTES",
+        DEFAULT_RECEIPT_HISTORY_MAX_BYTES,
+    )
+}
+
+fn receipt_binary_queue_max_bytes() -> u64 {
+    parse_retention_max_bytes_env(
+        "PROTHEUS_RECEIPT_BINARY_QUEUE_MAX_BYTES",
+        DEFAULT_RECEIPT_BINARY_MAX_BYTES,
+    )
 }
 
 pub fn receipt_binary_queue_path(history_jsonl_path: &Path) -> PathBuf {
@@ -136,6 +196,131 @@ pub fn append_binary_queue(path: &Path, value: &Value) -> Result<(), String> {
     file.write_all(&len)
         .and_then(|_| file.write_all(&encoded))
         .map_err(|err| format!("append_binary_receipt_failed:{}:{err}", path.display()))
+}
+
+fn enforce_jsonl_tail_limit(path: &Path, max_bytes: u64) -> Result<bool, String> {
+    if max_bytes == u64::MAX {
+        return Ok(false);
+    }
+    let current = fs::metadata(path)
+        .map(|meta| meta.len())
+        .map_err(|err| format!("jsonl_metadata_failed:{}:{err}", path.display()))?;
+    if current <= max_bytes {
+        return Ok(false);
+    }
+
+    let mut file =
+        fs::File::open(path).map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
+    let read_len = current.min(max_bytes.saturating_add(RETENTION_TAIL_SLACK_BYTES));
+    if current > read_len {
+        file.seek(SeekFrom::End(-(read_len as i64)))
+            .map_err(|err| format!("seek_jsonl_failed:{}:{err}", path.display()))?;
+    }
+    let mut buffer = Vec::<u8>::new();
+    file.read_to_end(&mut buffer)
+        .map_err(|err| format!("read_jsonl_failed:{}:{err}", path.display()))?;
+
+    let mut start = 0usize;
+    if current > read_len {
+        if let Some(pos) = buffer.iter().position(|byte| *byte == b'\n') {
+            start = pos.saturating_add(1);
+        }
+    }
+    let retained = if start < buffer.len() {
+        &buffer[start..]
+    } else {
+        &[][..]
+    };
+
+    atomic_write_bytes(path, retained)?;
+    Ok(true)
+}
+
+fn enforce_binary_queue_limit(
+    history_jsonl_path: &Path,
+    queue_path: &Path,
+    max_bytes: u64,
+    force_rebuild: bool,
+) -> Result<(), String> {
+    let queue_too_large = if max_bytes == u64::MAX {
+        false
+    } else {
+        fs::metadata(queue_path)
+            .map(|meta| meta.len() > max_bytes)
+            .unwrap_or(false)
+    };
+    if !force_rebuild && !queue_too_large {
+        return Ok(());
+    }
+    rebuild_binary_queue_from_jsonl(history_jsonl_path, queue_path, max_bytes)
+}
+
+fn rebuild_binary_queue_from_jsonl(
+    history_jsonl_path: &Path,
+    queue_path: &Path,
+    max_bytes: u64,
+) -> Result<(), String> {
+    let rows = read_jsonl(history_jsonl_path);
+    if rows.is_empty() {
+        if queue_path.exists() {
+            fs::remove_file(queue_path)
+                .map_err(|err| format!("remove_binary_queue_failed:{}:{err}", queue_path.display()))?;
+        }
+        return Ok(());
+    }
+
+    let mut frames = Vec::<Vec<u8>>::with_capacity(rows.len());
+    let mut total = 0u64;
+    for row in rows {
+        let encoded = serde_json::to_vec(&row)
+            .map_err(|err| format!("encode_binary_receipt_failed:{}:{err}", queue_path.display()))?;
+        let mut frame = Vec::<u8>::with_capacity(4 + encoded.len());
+        frame.extend_from_slice(&(encoded.len() as u32).to_le_bytes());
+        frame.extend_from_slice(&encoded);
+        total = total.saturating_add(frame.len() as u64);
+        frames.push(frame);
+    }
+
+    let mut keep_from = 0usize;
+    if max_bytes != u64::MAX && total > max_bytes {
+        let mut running = 0u64;
+        keep_from = frames.len().saturating_sub(1);
+        for idx in (0..frames.len()).rev() {
+            let frame_len = frames[idx].len() as u64;
+            if running == 0 || running.saturating_add(frame_len) <= max_bytes {
+                running = running.saturating_add(frame_len);
+                keep_from = idx;
+            } else {
+                break;
+            }
+        }
+    }
+
+    let mut payload = Vec::<u8>::new();
+    for frame in frames.into_iter().skip(keep_from) {
+        payload.extend_from_slice(&frame);
+    }
+    atomic_write_bytes(queue_path, &payload)
+}
+
+fn atomic_write_bytes(path: &Path, payload: &[u8]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
+    }
+    let tmp = path.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        chrono::Utc::now().timestamp_millis()
+    ));
+    fs::write(&tmp, payload).map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
+    fs::rename(&tmp, path).map_err(|err| {
+        format!(
+            "rename_tmp_failed:{}:{}:{err}",
+            tmp.display(),
+            path.display()
+        )
+    })
 }
 
 pub fn print_json(value: &Value) {
@@ -606,4 +791,84 @@ pub fn parse_csv_or_file_unique(
     values.sort();
     values.dedup();
     values
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn decode_binary_rows(path: &Path) -> Vec<Value> {
+        let Ok(bytes) = fs::read(path) else {
+            return Vec::new();
+        };
+        let mut out = Vec::<Value>::new();
+        let mut idx = 0usize;
+        while idx + 4 <= bytes.len() {
+            let len = u32::from_le_bytes([
+                bytes[idx],
+                bytes[idx + 1],
+                bytes[idx + 2],
+                bytes[idx + 3],
+            ]) as usize;
+            idx += 4;
+            if idx + len > bytes.len() {
+                break;
+            }
+            if let Ok(value) = serde_json::from_slice::<Value>(&bytes[idx..idx + len]) {
+                out.push(value);
+            }
+            idx += len;
+        }
+        out
+    }
+
+    #[test]
+    fn append_jsonl_with_limits_caps_history_and_binary_queue() {
+        let dir = tempdir().expect("tempdir");
+        let history_path = dir.path().join("history.jsonl");
+        for idx in 0..120 {
+            let payload = json!({
+                "idx": idx,
+                "text": "x".repeat(64)
+            });
+            append_jsonl_with_limits(&history_path, &payload, 1024, true, 1024).expect("append");
+        }
+
+        let history_size = fs::metadata(&history_path).expect("history metadata").len();
+        assert!(history_size <= 1024 + RETENTION_TAIL_SLACK_BYTES);
+
+        let history_rows = read_jsonl(&history_path);
+        assert!(!history_rows.is_empty());
+        assert_eq!(
+            history_rows
+                .last()
+                .and_then(|row| row.get("idx"))
+                .and_then(Value::as_i64),
+            Some(119)
+        );
+
+        let queue_path = receipt_binary_queue_path(&history_path);
+        let queue_size = fs::metadata(&queue_path).expect("queue metadata").len();
+        assert!(queue_size <= 1024);
+        let queue_rows = decode_binary_rows(&queue_path);
+        assert!(!queue_rows.is_empty());
+        assert_eq!(
+            queue_rows
+                .last()
+                .and_then(|row| row.get("idx"))
+                .and_then(Value::as_i64),
+            Some(119)
+        );
+    }
+
+    #[test]
+    fn append_jsonl_without_binary_queue_skips_binary_file() {
+        let dir = tempdir().expect("tempdir");
+        let history_path = dir.path().join("history.jsonl");
+        append_jsonl_without_binary_queue(&history_path, &json!({"ok": true})).expect("append");
+
+        let queue_path = receipt_binary_queue_path(&history_path);
+        assert!(!queue_path.exists());
+    }
 }

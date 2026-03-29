@@ -1080,9 +1080,6 @@ fn invoke_chat_live(
         return Err("message_required".to_string());
     }
     messages.push(("user".to_string(), user.clone()));
-    if messages.len() > 24 {
-        messages = messages[messages.len().saturating_sub(24)..].to_vec();
-    }
     let base_url = clean_text(
         provider_row(root, &provider)
             .get("base_url")
