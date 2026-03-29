@@ -416,6 +416,7 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "status"
                     | "termination_reason"
                     | "created_at"
+                    | "revived_from_contract_id"
             ) {
                 contract[key] = value.clone();
             }
@@ -778,29 +779,55 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
         &id,
         &json!({
             "role": role_value,
-            "state": "active"
+            "state": "Running"
         }),
     );
     let _ = unarchive_agent(root, &id);
 
     let mut state = load_contracts_state(root);
+    let mut revived_from_contract_id = state
+        .get("contracts")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.get(&id))
+        .and_then(|row| row.get("contract_id").and_then(Value::as_str))
+        .map(|v| clean_text(v, 120))
+        .unwrap_or_default();
     {
         let history = as_array_mut(&mut state, "terminated_history");
+        if revived_from_contract_id.is_empty() {
+            for row in history.iter().rev() {
+                if normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
+                    == id
+                {
+                    revived_from_contract_id = clean_text(
+                        row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
+                        120,
+                    );
+                    if !revived_from_contract_id.is_empty() {
+                        break;
+                    }
+                }
+            }
+        }
         history.retain(|row| {
             normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or("")) != id
         });
     }
     save_contracts_state(root, state);
 
+    let mut contract_patch = json!({
+        "status": "active",
+        "created_at": now_iso(),
+        "termination_reason": "",
+        "expiry_seconds": DEFAULT_EXPIRY_SECONDS
+    });
+    if !revived_from_contract_id.is_empty() {
+        contract_patch["revived_from_contract_id"] = json!(revived_from_contract_id);
+    }
     let contract = upsert_contract(
         root,
         &id,
-        &json!({
-            "status": "active",
-            "created_at": now_iso(),
-            "termination_reason": "",
-            "expiry_seconds": DEFAULT_EXPIRY_SECONDS
-        }),
+        &contract_patch,
     );
     json!({
         "ok": true,

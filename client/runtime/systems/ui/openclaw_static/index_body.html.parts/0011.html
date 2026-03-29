@@ -73,11 +73,11 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             </div>
           </div>
 
-          <!-- TAB: Quick Start (Create prompt-only skills) -->
+          <!-- TAB: Quick Start (Create prompt-only plugins) -->
           <div x-show="tab === 'create'">
             <div class="info-card">
-              <h4>Quick Start Skills</h4>
-              <p>Create prompt-only skills with one click. These inject context into your agent's system prompt &mdash; no code required. Perfect for adding domain expertise or workflow guidelines.</p>
+              <h4>Quick Start Plugins</h4>
+              <p>Create prompt-only plugins with one click. These inject context into your agent's system prompt &mdash; no code required. Perfect for adding domain expertise or workflow guidelines.</p>
             </div>
             <div class="card-grid">
               <template x-for="qs in quickStartSkills" :key="qs.name">
@@ -88,7 +88,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   </div>
                   <div class="card-meta" x-text="qs.description"></div>
                   <div class="flex justify-end mt-2">
-                    <button class="btn btn-ghost btn-sm" @click="createDemoSkill(qs)" :disabled="isSkillInstalledByName(qs.name)" x-text="isSkillInstalledByName(qs.name) ? 'Created' : 'Create Skill'"></button>
+                    <button class="btn btn-ghost btn-sm" @click="createDemoSkill(qs)" :disabled="isSkillInstalledByName(qs.name)" x-text="isSkillInstalledByName(qs.name) ? 'Created' : 'Create Plugin'"></button>
                   </div>
                 </div>
               </template>
@@ -100,7 +100,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="modal-overlay" @click.self="closeDetail()" @keydown.escape.window="closeDetail()">
               <div class="modal" style="max-width:600px">
                 <!-- Loading state -->
-                <div x-show="detailLoading" class="loading-state" style="padding:40px 0"><div class="spinner"></div><span>Loading skill details...</span></div>
+                <div x-show="detailLoading" class="loading-state" style="padding:40px 0"><div class="spinner"></div><span>Loading plugin details...</span></div>
                 <!-- Loaded content -->
                 <template x-if="skillDetail">
                   <div>
@@ -148,7 +148,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                       </div>
                       <pre style="margin:0;padding:12px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all" x-text="skillCode"></pre>
                     </div>
-                    <div class="text-xs text-dim mt-2 text-center">Skills are security-scanned before installation. Prompt injection and malware patterns are blocked.</div>
+                    <div class="text-xs text-dim mt-2 text-center">Plugins are security-scanned before installation. Prompt injection and malware patterns are blocked.</div>
                   </div>
                 </template>
               </div>
@@ -397,4 +397,3 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                         <template x-if="req.satisfied">
                           <div class="dep-met-msg">&check; Detected on your system</div>
                         </template>
-
