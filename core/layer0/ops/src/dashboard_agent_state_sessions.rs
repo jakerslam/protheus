@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const AGENT_SESSIONS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
-const MAX_MESSAGES: usize = 400;
+const MAX_MESSAGES: usize = 4000;
 
 fn now_iso() -> String {
     crate::now_iso()

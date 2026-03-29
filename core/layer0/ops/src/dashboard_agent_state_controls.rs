@@ -273,6 +273,40 @@ pub fn memory_kv_set(root: &Path, agent_id: &str, key: &str, value: &Value) -> V
     json!({"ok": true, "type": "dashboard_agent_memory_kv_set", "agent_id": id, "key": k, "value": value.clone()})
 }
 
+pub fn memory_kv_pairs(root: &Path, agent_id: &str) -> Value {
+    let id = normalize_agent_id(agent_id);
+    if id.is_empty() {
+        return json!({"ok": false, "error": "agent_id_required"});
+    }
+    let state = load_session_state(root, &id);
+    let mut kv_pairs = state
+        .get("memory_kv")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.iter()
+                .map(|(key, value)| {
+                    json!({
+                        "key": key,
+                        "value": value
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    kv_pairs.sort_by_key(|row| {
+        clean_text(
+            row.get("key").and_then(Value::as_str).unwrap_or(""),
+            160,
+        )
+    });
+    json!({
+        "ok": true,
+        "type": "dashboard_agent_memory_kv_pairs",
+        "agent_id": id,
+        "kv_pairs": kv_pairs
+    })
+}
+
 pub fn memory_kv_get(root: &Path, agent_id: &str, key: &str) -> Value {
     let id = normalize_agent_id(agent_id);
     let k = normalize_memory_key(key);
@@ -328,6 +362,14 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let set = memory_kv_set(root.path(), "agent-z", "focus.topic", &json!("reliability"));
         assert_eq!(set.get("ok").and_then(Value::as_bool), Some(true));
+        let pairs = memory_kv_pairs(root.path(), "agent-z");
+        assert_eq!(
+            pairs
+                .get("kv_pairs")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
         let got = memory_kv_get(root.path(), "agent-z", "focus.topic");
         assert_eq!(got.get("value").and_then(Value::as_str), Some("reliability"));
         let deleted = memory_kv_delete(root.path(), "agent-z", "focus.topic");

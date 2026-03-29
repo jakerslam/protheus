@@ -268,6 +268,10 @@ fn dashboard_stop_latch_path(root: &Path) -> std::path::PathBuf {
     dashboard_state_dir(root).join("dashboard.stop")
 }
 
+fn dashboard_desired_state_path(root: &Path) -> std::path::PathBuf {
+    dashboard_state_dir(root).join("dashboard.desired")
+}
+
 fn kill_pid(pid: u32) -> bool {
     if pid == 0 {
         return false;
@@ -393,6 +397,15 @@ fn resolve_dashboard_executable(current_exe: &Path) -> PathBuf {
     } else {
         current_exe.to_path_buf()
     }
+}
+
+fn dashboard_backend_binary_hint() -> Option<String> {
+    let current_exe = std::env::current_exe().ok()?;
+    let resolved = resolve_dashboard_executable(&current_exe);
+    if resolved.is_file() {
+        return Some(resolved.to_string_lossy().to_string());
+    }
+    None
 }
 
 fn dashboard_health_ok(host: &str, port: u16) -> bool {
@@ -556,6 +569,20 @@ fn dashboard_stop_latch_active(root: &Path) -> bool {
     dashboard_stop_latch_path(root).exists()
 }
 
+fn set_dashboard_desired_state(root: &Path, active: bool) {
+    let path = dashboard_desired_state_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, if active { b"1\n" } else { b"0\n" });
+}
+
+fn dashboard_desired_state_active(root: &Path) -> bool {
+    fs::read_to_string(dashboard_desired_state_path(root))
+        .map(|raw| raw.trim() == "1")
+        .unwrap_or(false)
+}
+
 fn append_watchdog_log(root: &Path, payload: &Value) {
     let path = dashboard_watchdog_log_path(root);
     if let Some(parent) = path.parent() {
@@ -673,8 +700,8 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
         .map_err(|err| format!("dashboard_log_clone_failed:{err}"))?;
     // Canonical dashboard surface: TypeScript pipeline serving the OpenClaw-derived browser UI.
     // Keep a single browser surface wired to the Rust API lane.
-    let child = Command::new(cfg.node_binary.as_str())
-        .arg("client/runtime/lib/ts_entrypoint.ts")
+    let mut cmd = Command::new(cfg.node_binary.as_str());
+    cmd.arg("client/runtime/lib/ts_entrypoint.ts")
         .arg("client/runtime/systems/ui/infring_dashboard.ts")
         .arg("serve")
         .arg(format!("--host={}", cfg.host))
@@ -685,6 +712,13 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(log_err))
+        .env("PROTHEUS_OPS_ALLOW_STALE", "1")
+        .env("PROTHEUS_NPM_ALLOW_STALE", "1")
+        .env("PROTHEUS_NODE_BINARY", cfg.node_binary.as_str());
+    if let Some(bin_hint) = dashboard_backend_binary_hint() {
+        cmd.env("PROTHEUS_NPM_BINARY", bin_hint);
+    }
+    let child = cmd
         .spawn()
         .map_err(|err| format!("dashboard_spawn_failed:{err}"))?;
     let _ = fs::write(dashboard_pid_path(root), format!("{}\n", child.id()));
@@ -703,6 +737,7 @@ fn dashboard_watchdog_status(root: &Path) -> Value {
         "running": running,
         "log_path": dashboard_watchdog_log_path(root).to_string_lossy().to_string(),
         "stop_latch_active": dashboard_stop_latch_active(root),
+        "desired_active": dashboard_desired_state_active(root),
     })
 }
 
@@ -716,6 +751,7 @@ fn stop_dashboard_watchdog(root: &Path) -> Value {
         "stopped": stopped,
         "pid": pid,
         "stop_latch_active": dashboard_stop_latch_active(root),
+        "desired_active": dashboard_desired_state_active(root),
     })
 }
 
@@ -747,6 +783,10 @@ fn spawn_dashboard_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Result<
     let child = Command::new(executable)
         .arg("daemon-control")
         .arg("watchdog")
+        .arg(format!(
+            "--gateway-persist={}",
+            if cfg.persistent_supervisor { 1 } else { 0 }
+        ))
         .arg(format!("--dashboard-host={}", cfg.host))
         .arg(format!("--dashboard-port={}", cfg.port))
         .arg(format!("--dashboard-team={}", cfg.team))
@@ -917,7 +957,20 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     let mut last_health: Option<bool> = None;
     loop {
         if dashboard_stop_latch_active(root) {
-            break;
+            if dashboard_desired_state_active(root) {
+                clear_dashboard_stop_latch(root);
+                append_watchdog_log(
+                    root,
+                    &json!({
+                        "ok": true,
+                        "type": "dashboard_watchdog",
+                        "event": "stop_latch_cleared",
+                        "reason": "desired_state_active",
+                    }),
+                );
+            } else {
+                break;
+            }
         }
         let healthy = dashboard_health_ok(cfg.host.as_str(), cfg.port);
         if last_health != Some(healthy) {
@@ -1089,7 +1142,6 @@ pub fn inprocess_lazy_probe_receipt(root: &Path) -> Value {
         root,
     )
 }
-
 fn error_receipt(error: &str, argv: &[String]) -> Value {
     let mut out = json!({
         "ok": false,
@@ -1100,7 +1152,6 @@ fn error_receipt(error: &str, argv: &[String]) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -1113,11 +1164,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mode = parse_mode(argv)
         .or_else(|| std::env::var("PROTHEUSD_DEFAULT_COMMAND").ok())
         .filter(|value| !value.trim().is_empty());
-
     if command == "watchdog" {
         return run_dashboard_watchdog(root, argv);
     }
-
     if matches!(
         command.as_str(),
         "start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick" | "diagnostics"
@@ -1125,8 +1174,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let mut receipt = success_receipt(command.as_str(), mode.as_deref(), argv, root);
         let dashboard = match command.as_str() {
             "start" => {
-                clear_dashboard_stop_latch(root);
                 let cfg = parse_dashboard_launch_config(argv, "start");
+                set_dashboard_desired_state(root, cfg.enabled);
+                if cfg.enabled { clear_dashboard_stop_latch(root); } else { set_dashboard_stop_latch(root); }
                 if cfg.persistent_supervisor {
                     let _ = stop_dashboard_watchdog(root);
                 }
@@ -1136,12 +1186,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 started
             }
             "restart" => {
-                set_dashboard_stop_latch(root);
                 let cfg = parse_dashboard_launch_config(argv, "restart");
+                set_dashboard_desired_state(root, cfg.enabled);
+                set_dashboard_stop_latch(root);
                 let supervisor_stopped = gateway_supervisor::disable(root);
                 let watchdog_stopped = stop_dashboard_watchdog(root);
                 let stopped = kill_dashboard_process(root, &cfg);
-                clear_dashboard_stop_latch(root);
+                if cfg.enabled { clear_dashboard_stop_latch(root); }
                 let mut started =
                     start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
                 let supervisor = ensure_gateway_supervisor(root, &cfg, &mut started);
@@ -1154,6 +1205,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 })
             }
             "stop" => {
+                set_dashboard_desired_state(root, false);
                 set_dashboard_stop_latch(root);
                 let cfg = parse_dashboard_launch_config(argv, "stop");
                 let supervisor_stopped = gateway_supervisor::disable(root);
@@ -1174,6 +1226,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "url": cfg.url(),
                     "log_path": dashboard_log_path(root).to_string_lossy().to_string(),
                     "stop_latch_active": dashboard_stop_latch_active(root),
+                    "desired_active": dashboard_desired_state_active(root),
                     "watchdog": dashboard_watchdog_status(root),
                     "supervisor": gateway_supervisor::status(root).payload,
                 })
