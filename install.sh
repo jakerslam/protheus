@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# FILE_SIZE_EXCEPTION: reason=Single-file curl installer distribution requires contiguous standalone script; owner=jay; expires=2026-04-12
 set -eu
 
 REPO_OWNER="protheuslabs"
@@ -46,6 +47,16 @@ need_cmd chmod
 need_cmd mkdir
 need_cmd uname
 need_cmd tar
+
+finalize_installed_binary() {
+  binary_path="$1"
+  chmod 755 "$binary_path"
+  if [ "$(uname -s)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
+    if ! codesign --force --sign - "$binary_path" >/dev/null 2>&1; then
+      echo "[infring install] warning: failed to ad-hoc sign $(basename "$binary_path"); launchd may reject it" >&2
+    fi
+  fi
+}
 
 is_truthy() {
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
@@ -618,7 +629,7 @@ install_binary_from_source_fallback() {
   [ -f "$built" ] || return 1
 
   cp "$built" "$binary_out"
-  chmod 755 "$binary_out"
+  finalize_installed_binary "$binary_out"
   echo "[infring install] built $bin_name from source fallback"
   return 0
 }
@@ -657,28 +668,28 @@ install_binary() {
     tmpdir="$(mktemp -d)"
     if download_asset "$version_tag" "${stem_name}-${candidate_triple}" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
 
     if download_asset "$version_tag" "${stem_name}-${candidate_triple}.bin" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
 
     if download_asset "$version_tag" "${stem_name}" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
 
     if download_asset "$version_tag" "${stem_name}.bin" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
@@ -687,7 +698,7 @@ install_binary() {
       tar -xzf "$tmpdir/${stem_name}.tar.gz" -C "$tmpdir"
       if [ -f "$tmpdir/$stem_name" ]; then
         mv "$tmpdir/$stem_name" "$binary_out"
-        chmod 755 "$binary_out"
+        finalize_installed_binary "$binary_out"
         rm -rf "$tmpdir"
         return 0
       fi
@@ -695,14 +706,14 @@ install_binary() {
 
     if download_bootstrap_asset "${stem_name}-${candidate_triple}" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi
 
     if download_bootstrap_asset "${stem_name}-${candidate_triple}.bin" "$tmpdir/$stem_name"; then
       mv "$tmpdir/$stem_name" "$binary_out"
-      chmod 755 "$binary_out"
+      finalize_installed_binary "$binary_out"
       rm -rf "$tmpdir"
       return 0
     fi

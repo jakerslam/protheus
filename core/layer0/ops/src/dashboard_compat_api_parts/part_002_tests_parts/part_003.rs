@@ -1,0 +1,356 @@
+
+    #[test]
+    fn terminated_agent_endpoints_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-a",
+            &json!({
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root.path());
+
+        let listed = handle(
+            root.path(),
+            "GET",
+            "/api/agents/terminated",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("terminated list");
+        let rows = listed
+            .payload
+            .get("entries")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+
+        let revived = handle(
+            root.path(),
+            "POST",
+            "/api/agents/agent-a/revive",
+            br#"{"role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("revive");
+        assert_eq!(
+            revived.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let after_revive = handle(
+            root.path(),
+            "GET",
+            "/api/agents/terminated",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("terminated list after revive");
+        let rows_after = after_revive
+            .payload
+            .get("entries")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows_after.is_empty());
+
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-a",
+            &json!({
+                "created_at": "2000-01-01T00:00:00Z",
+                "expiry_seconds": 1,
+                "status": "active"
+            }),
+        );
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root.path());
+        let deleted = handle(
+            root.path(),
+            "DELETE",
+            "/api/agents/terminated/agent-a",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("delete terminated");
+        assert!(
+            deleted
+                .payload
+                .get("removed_history_entries")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
+    }
+
+    #[test]
+    fn terminal_endpoints_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/terminal/sessions",
+            br#"{"id":"term-a"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create");
+        assert_eq!(
+            created.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        let listed = handle(
+            root.path(),
+            "GET",
+            "/api/terminal/sessions",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("list");
+        assert_eq!(
+            listed
+                .payload
+                .get("sessions")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+        let ran = handle(
+            root.path(),
+            "POST",
+            "/api/terminal/queue",
+            br#"{"session_id":"term-a","command":"printf 'ok'"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("exec");
+        assert_eq!(
+            ran.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
+        assert_eq!(
+            ran.payload.get("executed_command").and_then(Value::as_str),
+            Some("printf 'ok'")
+        );
+        assert_eq!(
+            ran.payload
+                .get("command_translated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn agent_terminal_routes_through_command_router() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let terminal = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"printf 'ok'"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("terminal");
+        assert_eq!(terminal.status, 200);
+        assert_eq!(
+            terminal.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            terminal.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
+        assert_eq!(
+            terminal
+                .payload
+                .get("executed_command")
+                .and_then(Value::as_str),
+            Some("printf 'ok'")
+        );
+        assert_eq!(
+            terminal
+                .payload
+                .get("command_translated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let blocked = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"infring daemon ping"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("blocked");
+        assert_eq!(blocked.status, 400);
+        assert_eq!(
+            blocked.payload.get("ok").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            blocked.payload.get("error").and_then(Value::as_str),
+            Some("unsupported_infring_cli_surface")
+        );
+    }
+
+    #[test]
+    fn session_backed_agents_drive_roster_sessions_and_usage() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::append_turn(
+            root.path(),
+            "chat-ui-default-agent",
+            "hello there",
+            "hi back",
+        );
+
+        let listed = handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true}))
+            .expect("list agents");
+        let rows = listed.payload.as_array().cloned().unwrap_or_default();
+        assert!(rows.iter().any(|row| {
+            row.get("id")
+                .and_then(Value::as_str)
+                .map(|value| value == "chat-ui-default-agent")
+                .unwrap_or(false)
+        }));
+
+        let session = handle(
+            root.path(),
+            "GET",
+            "/api/agents/chat-ui-default-agent/session",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("session");
+        assert_eq!(
+            session.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            session
+                .payload
+                .get("messages")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
+        );
+
+        let summaries = handle(
+            root.path(),
+            "GET",
+            "/api/sessions",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("session summaries");
+        assert!(summaries
+            .payload
+            .get("sessions")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("agent_id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "chat-ui-default-agent")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false));
+
+        let usage =
+            handle(root.path(), "GET", "/api/usage", &[], &json!({"ok": true})).expect("usage");
+        assert!(usage
+            .payload
+            .get("agents")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("agent_id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "chat-ui-default-agent")
+                        .unwrap_or(false)
+                        && row.get("total_tokens").and_then(Value::as_i64).unwrap_or(0) > 0
+                })
+            })
+            .unwrap_or(false));
+
+        let summary = handle(
+            root.path(),
+            "GET",
+            "/api/usage/summary",
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("usage summary");
+        assert_eq!(
+            summary.payload.get("call_count").and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn active_collab_agent_is_not_hidden_by_stale_terminated_contract() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_profile(
+            root.path(),
+            "agent-live",
+            &json!({"name":"Jarvis","role":"analyst","updated_at":"2026-03-28T00:00:00Z"}),
+        );
+        let _ = crate::dashboard_agent_state::upsert_contract(
+            root.path(),
+            "agent-live",
+            &json!({
+                "status": "terminated",
+                "created_at": "2026-03-28T00:00:00Z",
+                "updated_at": "2026-03-28T00:00:00Z"
+            }),
+        );
+        let snapshot = json!({
+            "ok": true,
+            "collab": {
+                "dashboard": {
+                    "agents": [
+                        {
+                            "shadow": "agent-live",
+                            "status": "active",
+                            "role": "analyst",
+                            "activated_at": "2026-03-29T00:00:00Z"
+                        }
+                    ]
+                }
+            }
+        });
+
+        let listed = handle(root.path(), "GET", "/api/agents", &[], &snapshot).expect("agents");
+        assert!(listed
+            .payload
+            .as_array()
+            .map(|rows| {
+                rows.iter().any(|row| {
+                    row.get("id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == "agent-live")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false));
+    }

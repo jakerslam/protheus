@@ -205,6 +205,35 @@ fn launchd_env_path() -> String {
 }
 
 #[cfg(target_os = "macos")]
+fn refresh_codesign_signature(executable: &Path) -> Value {
+    let executable_str = executable.to_string_lossy().to_string();
+    let verify_args = vec![
+        "--verify".to_string(),
+        "--verbose=2".to_string(),
+        executable_str.clone(),
+    ];
+    let verify_before = run_command("codesign", &verify_args, None);
+    let resign = run_command(
+        "codesign",
+        &[
+            "--force".to_string(),
+            "--sign".to_string(),
+            "-".to_string(),
+            executable_str.clone(),
+        ],
+        None,
+    );
+    let verify_after = run_command("codesign", &verify_args, None);
+    json!({
+        "ok": command_ok(&verify_after),
+        "executable": executable_str,
+        "verify_before": verify_before,
+        "resign": resign,
+        "verify_after": verify_after,
+    })
+}
+
+#[cfg(target_os = "macos")]
 fn render_launchd_plist(
     root: &Path,
     log_path: &Path,
@@ -313,6 +342,7 @@ fn launchd_enable(
     }
 
     let args = watchdog_args(executable, cfg);
+    let codesign_refresh = refresh_codesign_signature(executable);
     let plist = render_launchd_plist(root, log_path, label.as_str(), &args);
     if let Err(err) = fs::write(&plist_path, plist) {
         return GatewaySupervisorResult {
@@ -323,6 +353,7 @@ fn launchd_enable(
                 "action": "enable",
                 "error": format!("launchd_plist_write_failed:{err}"),
                 "service_file": plist_path.to_string_lossy().to_string(),
+                "codesign_refresh": codesign_refresh,
             }),
         };
     }
@@ -375,6 +406,7 @@ fn launchd_enable(
         if let Some(load) = fallback_load {
             obj.insert("fallback_load".to_string(), load);
         }
+        obj.insert("codesign_refresh".to_string(), codesign_refresh);
         obj.insert("enable_cmd".to_string(), enable);
         obj.insert("kickstart".to_string(), kickstart);
         obj.insert("watchdog_args".to_string(), json!(args));
