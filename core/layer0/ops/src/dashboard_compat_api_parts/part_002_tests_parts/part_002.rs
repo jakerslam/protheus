@@ -1,0 +1,390 @@
+
+    #[test]
+    fn memory_kv_http_routes_round_trip_and_feed_context_pool() {
+        let root = tempfile::tempdir().expect("tempdir");
+        init_git_repo(root.path());
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Memory KV Probe","role":"analyst"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let set = handle(
+            root.path(),
+            "PUT",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            br#"{"value":"reliability"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("set memory kv");
+        assert_eq!(set.status, 200);
+
+        let listed = handle(
+            root.path(),
+            "GET",
+            &format!("/api/memory/agents/{agent_id}/kv"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("list memory kv");
+        assert_eq!(listed.status, 200);
+        let keys = listed
+            .payload
+            .get("kv_pairs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|row| row.get("key").and_then(Value::as_str))
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        assert!(keys.iter().any(|key| key == "focus.topic"));
+
+        let got = handle(
+            root.path(),
+            "GET",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("get memory kv");
+        assert_eq!(got.status, 200);
+        assert_eq!(
+            got.payload.get("value").and_then(Value::as_str),
+            Some("reliability")
+        );
+
+        let message = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/message"),
+            br#"{"message":"Use stored memory if present."}"#,
+            &json!({"ok": true}),
+        )
+        .expect("message with memory kv");
+        assert_eq!(message.status, 200);
+        assert!(
+            message
+                .payload
+                .pointer("/context_pool/memory_kv_entries")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let deleted = handle(
+            root.path(),
+            "DELETE",
+            &format!("/api/memory/agents/{agent_id}/kv/focus.topic"),
+            &[],
+            &json!({"ok": true}),
+        )
+        .expect("delete memory kv");
+        assert_eq!(deleted.status, 200);
+        assert_eq!(
+            deleted.payload.get("removed").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let notes_dir = root.path().join("notes");
+        let _ = fs::create_dir_all(&notes_dir);
+        let _ = fs::write(notes_dir.join("plan.txt"), "ship it");
+        let _ = fs::create_dir_all(notes_dir.join("sub"));
+        let _ = fs::write(notes_dir.join("sub").join("extra.txt"), "plus one");
+
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let file_read = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read");
+        assert_eq!(
+            file_read
+                .payload
+                .pointer("/file/ok")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            file_read
+                .payload
+                .pointer("/file/content")
+                .and_then(Value::as_str),
+            Some("ship it")
+        );
+        let file_read_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read limited");
+        assert_eq!(
+            file_read_limited
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let file_read_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read full");
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/content")
+                .and_then(Value::as_str),
+            Some("ship it")
+        );
+
+        let folder_export = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export");
+        assert_eq!(
+            folder_export
+                .payload
+                .pointer("/folder/ok")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(folder_export
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("plan.txt"));
+        assert!(folder_export
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("extra.txt"));
+
+        let folder_export_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export limited");
+        assert_eq!(
+            folder_export_limited
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let folder_export_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export full");
+        assert_eq!(
+            folder_export_full
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(folder_export_full
+            .payload
+            .pointer("/folder/tree")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("extra.txt"));
+
+        let terminal = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/terminal"),
+            br#"{"command":"printf 'ok'","cwd":"notes"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("terminal");
+        assert_eq!(
+            terminal.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            terminal.payload.get("stdout").and_then(Value::as_str),
+            Some("ok")
+        );
+
+        let upload = handle_with_headers(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/upload"),
+            b"voice",
+            &[("X-Filename", "voice.webm"), ("Content-Type", "audio/webm")],
+            &json!({"ok": true}),
+        )
+        .expect("upload");
+        assert_eq!(
+            upload.payload.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!clean_text(
+            upload
+                .payload
+                .get("file_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180
+        )
+        .is_empty());
+        assert_eq!(
+            upload.payload.get("filename").and_then(Value::as_str),
+            Some("voice.webm")
+        );
+    }
+
+    #[test]
+    fn full_mode_overrides_file_and_folder_limits() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let notes_dir = root.path().join("notes");
+        let _ = fs::create_dir_all(notes_dir.join("sub"));
+        let _ = fs::write(notes_dir.join("plan.txt"), "ship it");
+        let _ = fs::write(notes_dir.join("sub").join("extra.txt"), "plus one");
+
+        let created = handle(
+            root.path(),
+            "POST",
+            "/api/agents",
+            br#"{"name":"Ops","role":"operator"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("create agent");
+        let agent_id = clean_text(
+            created
+                .payload
+                .get("agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        assert!(!agent_id.is_empty());
+
+        let file_read_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read limited");
+        assert_eq!(
+            file_read_limited
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let file_read_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/plan.txt","max_bytes":4,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read full");
+        assert_eq!(
+            file_read_full
+                .payload
+                .pointer("/file/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let folder_export_limited = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export limited");
+        assert_eq!(
+            folder_export_limited
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let folder_export_full = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/folder/export"),
+            br#"{"path":"notes","max_entries":1,"full":true}"#,
+            &json!({"ok": true}),
+        )
+        .expect("folder export full");
+        assert_eq!(
+            folder_export_full
+                .payload
+                .pointer("/folder/truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }

@@ -132,6 +132,76 @@ function readForkScript(basePathNoExt) {
   const tsPath = path.resolve(STATIC_DIR, `${basePathNoExt}.ts`);
   return fileExists(tsPath) || listSegmentPartFiles(tsPath).length > 0 ? readSegmentedText(tsPath, '') : '';
 }
+function agentMutationSyncPatchScript() {
+  return [
+    '(function(){',
+    '  if (window.__infringAgentMutationSyncPatchInstalled) return;',
+    '  window.__infringAgentMutationSyncPatchInstalled = true;',
+    '  function parseUrl(rawPath) {',
+    '    try { return new URL(String(rawPath || \'\'), window.location.origin); } catch(_) { return null; }',
+    '  }',
+    '  function readStore() {',
+    '    try {',
+    '      if (window.Alpine && typeof window.Alpine.store === \'function\') return window.Alpine.store(\'app\');',
+    '    } catch(_) {}',
+    '    return null;',
+    '  }',
+    '  function triggerForcedRefreshBurst() {',
+    '    var delays = [0, 260, 920];',
+    '    delays.forEach(function(delay) {',
+    '      window.setTimeout(function() {',
+    '        var store = readStore();',
+    '        if (!store || typeof store.refreshAgents !== \'function\') return;',
+    '        Promise.resolve(store.refreshAgents({ force: true })).catch(function() {});',
+    '      }, delay);',
+    '    });',
+    '  }',
+    '  function isCreatePath(pathname) {',
+    '    if (pathname === \'/api/agents\') return true;',
+    '    return /^\\/api\\/agents\\/[^\\/]+\\/(clone|revive)$/.test(pathname);',
+    '  }',
+    '  function isArchivePath(pathname) {',
+    '    return /^\\/api\\/agents\\/[^\\/]+$/.test(pathname);',
+    '  }',
+    '  function installApiPatch() {',
+    '    var api = window.InfringAPI;',
+    '    if (!api) return false;',
+    '    if (api.__infringAgentMutationSyncPatched) return true;',
+    '    api.__infringAgentMutationSyncPatched = true;',
+    '    var basePost = typeof api.post === \'function\' ? api.post.bind(api) : null;',
+    '    var baseDel = typeof api.del === \'function\' ? api.del.bind(api) : null;',
+    '    if (basePost) {',
+    '      api.post = function(path, body) {',
+    '        var parsed = parseUrl(path);',
+    '        return Promise.resolve(basePost(path, body)).then(function(result) {',
+    '          var pathname = parsed ? parsed.pathname : String(path || \'\');',
+    '          if (isCreatePath(pathname)) triggerForcedRefreshBurst();',
+    '          return result;',
+    '        });',
+    '      };',
+    '    }',
+    '    if (baseDel) {',
+    '      api.del = function(path) {',
+    '        var parsed = parseUrl(path);',
+    '        return Promise.resolve(baseDel(path)).then(function(result) {',
+    '          var pathname = parsed ? parsed.pathname : String(path || \'\');',
+    '          if (isArchivePath(pathname)) triggerForcedRefreshBurst();',
+    '          return result;',
+    '        });',
+    '      };',
+    '      api.delete = api.del;',
+    '    }',
+    '    return true;',
+    '  }',
+    '  if (installApiPatch()) return;',
+    '  var attempts = 0;',
+    '  var timer = window.setInterval(function() {',
+    '    attempts += 1;',
+    '    if (installApiPatch() || attempts >= 80) window.clearInterval(timer);',
+    '  }, 100);',
+    '})();',
+  ].join('\n');
+}
 function buildPrimaryDashboardHtml() {
   const head = readSegmentedText(path.resolve(STATIC_DIR, 'index_head.html'), '');
   const body = readSegmentedText(path.resolve(STATIC_DIR, 'index_body.html'), '');
@@ -151,7 +221,7 @@ function buildPrimaryDashboardHtml() {
     PAGE_SCRIPTS.map((name) => readForkScript(`js/pages/${name}`)).filter(Boolean).join('\n'),
   ].filter(Boolean).join('\n');
   const alpine = readText(path.resolve(STATIC_DIR, 'vendor/alpine.min.js'), '');
-  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', scripts, '</script>', '<script>', alpine, '</script>', '</body></html>'].join('\n'));
+  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
 }
 function contentTypeForFile(filePath) { return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream'; }
 function readPrimaryDashboardAsset(pathname) {

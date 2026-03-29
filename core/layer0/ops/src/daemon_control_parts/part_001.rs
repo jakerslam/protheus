@@ -1,0 +1,404 @@
+fn dashboard_health_ok(host: &str, port: u16) -> bool {
+    let addr = format!("{host}:{port}");
+    let mut resolved = match addr.to_socket_addrs() {
+        Ok(addrs) => addrs,
+        Err(_) => return false,
+    };
+    let Some(sock_addr) = resolved.next() else {
+        return false;
+    };
+    let mut stream = match TcpStream::connect_timeout(
+        &sock_addr,
+        Duration::from_millis(DASHBOARD_CONNECT_TIMEOUT_MS),
+    ) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
+    if stream
+        .write_all(
+            format!("GET /healthz HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n")
+                .as_bytes(),
+        )
+        .is_err()
+    {
+        return false;
+    }
+
+    let mut collected = Vec::<u8>::new();
+    let mut buf = [0u8; 1024];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                collected.extend_from_slice(&buf[..n]);
+                if collected.len() > DASHBOARD_HEALTH_MAX_BYTES {
+                    collected.truncate(DASHBOARD_HEALTH_MAX_BYTES);
+                }
+                if String::from_utf8_lossy(&collected).contains("200 OK") {
+                    return true;
+                }
+            }
+            Err(err)
+                if err.kind() == ErrorKind::WouldBlock || err.kind() == ErrorKind::TimedOut =>
+            {
+                break;
+            }
+            Err(_) => return false,
+        }
+    }
+    String::from_utf8_lossy(&collected).contains("200 OK")
+}
+
+fn wait_for_dashboard(host: &str, port: u16, attempts: usize) -> bool {
+    for _ in 0..attempts {
+        if dashboard_health_ok(host, port) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    false
+}
+
+fn wait_for_dashboard_stable(
+    host: &str,
+    port: u16,
+    attempts: usize,
+    required_successes: usize,
+) -> bool {
+    let needed = required_successes.max(1);
+    let mut ok_streak = 0usize;
+    for _ in 0..attempts {
+        if dashboard_health_ok(host, port) {
+            ok_streak += 1;
+            if ok_streak >= needed {
+                return true;
+            }
+        } else {
+            ok_streak = 0;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    false
+}
+
+fn dashboard_wait_attempts(cfg: &DashboardLaunchConfig) -> usize {
+    let ticks = (cfg.ready_timeout_ms / 150).max(1);
+    usize::try_from(ticks).unwrap_or(240).clamp(1, 1200)
+}
+
+fn dashboard_log_tail(root: &Path, lines: usize) -> String {
+    let log_path = dashboard_log_path(root);
+    let raw = fs::read_to_string(log_path).unwrap_or_default();
+    let mut tail = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .rev()
+        .take(lines)
+        .collect::<Vec<_>>();
+    tail.reverse();
+    tail.join("\n")
+}
+
+fn open_browser(url: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        return Command::new("open")
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+    }
+    #[cfg(target_os = "linux")]
+    {
+        return Command::new("xdg-open")
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return Command::new("cmd")
+            .arg("/C")
+            .arg("start")
+            .arg("")
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+    }
+    #[allow(unreachable_code)]
+    false
+}
+
+fn clear_dashboard_stop_latch(root: &Path) {
+    let _ = fs::remove_file(dashboard_stop_latch_path(root));
+}
+
+fn set_dashboard_stop_latch(root: &Path) {
+    let latch = dashboard_stop_latch_path(root);
+    if let Some(parent) = latch.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(latch, b"stop\n");
+}
+
+fn dashboard_stop_latch_active(root: &Path) -> bool {
+    dashboard_stop_latch_path(root).exists()
+}
+
+fn set_dashboard_desired_state(root: &Path, active: bool) {
+    let path = dashboard_desired_state_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, if active { b"1\n" } else { b"0\n" });
+}
+
+fn dashboard_desired_state_active(root: &Path) -> bool {
+    fs::read_to_string(dashboard_desired_state_path(root))
+        .map(|raw| raw.trim() == "1")
+        .unwrap_or(false)
+}
+
+fn append_watchdog_log(root: &Path, payload: &Value) {
+    let path = dashboard_watchdog_log_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(
+            file,
+            "{}",
+            serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string())
+        );
+    }
+}
+
+fn kill_dashboard_process(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
+    let pid_path = dashboard_pid_path(root);
+    let raw = fs::read_to_string(&pid_path).unwrap_or_default();
+    let mut candidate_pids = Vec::<u32>::new();
+    if let Some(pid) = raw.trim().parse::<u32>().ok() {
+        candidate_pids.push(pid);
+    }
+
+    for pid in dashboard_listener_pids(cfg.port) {
+        if !candidate_pids.contains(&pid) {
+            candidate_pids.push(pid);
+        }
+    }
+
+    let mut killed_pids = Vec::<u32>::new();
+    for pid in candidate_pids {
+        if kill_pid(pid) {
+            killed_pids.push(pid);
+        }
+    }
+
+    let _ = fs::remove_file(pid_path);
+    let still_running = wait_for_dashboard(cfg.host.as_str(), cfg.port, 5);
+    json!({
+        "ok": true,
+        "stopped": !killed_pids.is_empty() && !still_running,
+        "killed_pids": killed_pids,
+        "host": cfg.host.as_str(),
+        "port": cfg.port,
+        "still_running": still_running,
+        "reason": if killed_pids.is_empty() { "no_pid_killed" } else { "pid_killed" }
+    })
+}
+
+fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
+    let previous_pid = read_pid_file(&dashboard_pid_path(root));
+    let previous_running = previous_pid.map(pid_running).unwrap_or(false);
+    let listeners_before = dashboard_listener_pids(cfg.port);
+    let had_listener = !listeners_before.is_empty();
+
+    let stop_attempt = if previous_running || had_listener {
+        kill_dashboard_process(root, cfg)
+    } else {
+        json!({
+            "ok": true,
+            "stopped": false,
+            "reason": "nothing_to_stop",
+            "killed_pids": []
+        })
+    };
+
+    let wait_attempts = dashboard_wait_attempts(cfg);
+    let spawn = spawn_dashboard(root, cfg);
+    let spawned_pid = spawn.as_ref().ok().copied();
+    let spawn_error = spawn.as_ref().err().cloned();
+    let launched = spawn.is_ok();
+    let running = if launched {
+        wait_for_dashboard_stable(
+            cfg.host.as_str(),
+            cfg.port,
+            wait_attempts,
+            DASHBOARD_WATCHDOG_STABLE_RETRIES,
+        )
+    } else {
+        false
+    };
+    let pid = read_pid_file(&dashboard_pid_path(root)).or(spawned_pid);
+    let mut out = json!({
+        "ok": true,
+        "running": running,
+        "launched": launched,
+        "pid": pid,
+        "previous_pid": previous_pid,
+        "previous_running": previous_running,
+        "listeners_before": listeners_before,
+        "stop_attempt": stop_attempt,
+    });
+    if let Some(err) = spawn_error {
+        out["spawn_error"] = Value::String(err);
+    }
+    if !running {
+        let tail = dashboard_log_tail(root, 8);
+        if !tail.is_empty() {
+            out["log_tail"] = Value::String(tail);
+        }
+    }
+    out
+}
+
+fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
+    fs::create_dir_all(dashboard_state_dir(root))
+        .map_err(|err| format!("dashboard_state_dir_create_failed:{err}"))?;
+    let log_path = dashboard_log_path(root);
+    let log = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .map_err(|err| format!("dashboard_log_open_failed:{err}"))?;
+    let log_err = log
+        .try_clone()
+        .map_err(|err| format!("dashboard_log_clone_failed:{err}"))?;
+    // Canonical dashboard surface: TypeScript pipeline serving the OpenClaw-derived browser UI.
+    // Keep a single browser surface wired to the Rust API lane.
+    let mut cmd = Command::new(cfg.node_binary.as_str());
+    cmd.arg("client/runtime/lib/ts_entrypoint.ts")
+        .arg("client/runtime/systems/ui/infring_dashboard.ts")
+        .arg("serve")
+        .arg(format!("--host={}", cfg.host))
+        .arg(format!("--port={}", cfg.port))
+        .arg(format!("--team={}", cfg.team))
+        .arg(format!("--refresh-ms={}", cfg.refresh_ms))
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log))
+        .stderr(Stdio::from(log_err))
+        .env("PROTHEUS_OPS_ALLOW_STALE", "1")
+        .env("PROTHEUS_NPM_ALLOW_STALE", "1")
+        .env("PROTHEUS_NODE_BINARY", cfg.node_binary.as_str());
+    if let Some(bin_hint) = dashboard_backend_binary_hint() {
+        cmd.env("PROTHEUS_NPM_BINARY", bin_hint);
+    }
+    let child = cmd
+        .spawn()
+        .map_err(|err| format!("dashboard_spawn_failed:{err}"))?;
+    let _ = fs::write(dashboard_pid_path(root), format!("{}\n", child.id()));
+    Ok(child.id())
+}
+
+fn dashboard_watchdog_status(root: &Path) -> Value {
+    let pid_path = dashboard_watchdog_pid_path(root);
+    let pid = read_pid_file(&pid_path);
+    let running = pid.map(pid_running).unwrap_or(false);
+    if !running {
+        let _ = fs::remove_file(pid_path);
+    }
+    json!({
+        "pid": pid,
+        "running": running,
+        "log_path": dashboard_watchdog_log_path(root).to_string_lossy().to_string(),
+        "stop_latch_active": dashboard_stop_latch_active(root),
+        "desired_active": dashboard_desired_state_active(root),
+    })
+}
+
+fn stop_dashboard_watchdog(root: &Path) -> Value {
+    let pid_path = dashboard_watchdog_pid_path(root);
+    let pid = read_pid_file(&pid_path);
+    let stopped = pid.map(kill_pid).unwrap_or(false);
+    let _ = fs::remove_file(pid_path);
+    json!({
+        "ok": true,
+        "stopped": stopped,
+        "pid": pid,
+        "stop_latch_active": dashboard_stop_latch_active(root),
+        "desired_active": dashboard_desired_state_active(root),
+    })
+}
+
+fn spawn_dashboard_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
+    fs::create_dir_all(dashboard_state_dir(root))
+        .map_err(|err| format!("dashboard_state_dir_create_failed:{err}"))?;
+    let status = dashboard_watchdog_status(root);
+    if status.get("running").and_then(Value::as_bool) == Some(true) {
+        if let Some(pid) = status
+            .get("pid")
+            .and_then(Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+        {
+            return Ok(pid);
+        }
+    }
+    let log_path = dashboard_watchdog_log_path(root);
+    let log = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .map_err(|err| format!("dashboard_watchdog_log_open_failed:{err}"))?;
+    let log_err = log
+        .try_clone()
+        .map_err(|err| format!("dashboard_watchdog_log_clone_failed:{err}"))?;
+    let current_exe = std::env::current_exe()
+        .map_err(|err| format!("dashboard_watchdog_current_exe_failed:{err}"))?;
+    let executable = resolve_dashboard_executable(&current_exe);
+    let child = Command::new(executable)
+        .arg("daemon-control")
+        .arg("watchdog")
+        .arg(format!(
+            "--gateway-persist={}",
+            if cfg.persistent_supervisor { 1 } else { 0 }
+        ))
+        .arg(format!("--dashboard-host={}", cfg.host))
+        .arg(format!("--dashboard-port={}", cfg.port))
+        .arg(format!("--dashboard-team={}", cfg.team))
+        .arg(format!("--dashboard-refresh-ms={}", cfg.refresh_ms))
+        .arg(format!(
+            "--dashboard-ready-timeout-ms={}",
+            cfg.ready_timeout_ms
+        ))
+        .arg(format!(
+            "--dashboard-watchdog-interval-ms={}",
+            cfg.watchdog_interval_ms
+        ))
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log))
+        .stderr(Stdio::from(log_err))
+        .spawn()
+        .map_err(|err| format!("dashboard_watchdog_spawn_failed:{err}"))?;
+    let _ = fs::write(
+        dashboard_watchdog_pid_path(root),
+        format!("{}\n", child.id()),
+    );
+    Ok(child.id())
+}
+
