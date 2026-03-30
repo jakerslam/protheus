@@ -5,13 +5,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { WebSocketServer } = require('ws');
-const { spawn, spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { ROOT, resolveBinary, runProtheusOps } = require('../ops/run_protheus_ops.ts');
-const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, hasSvelteKitDashboardUi, readPrimaryDashboardAsset, readSvelteKitDashboardAsset } = require('./dashboard_asset_router.ts');
+const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 
 const DASHBOARD_DIR = __dirname;
 const STATIC_DIR = path.resolve(DASHBOARD_DIR, 'openclaw_static');
-const SVELTEKIT_BUILD_DIR = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit/build');
+const FORBIDDEN_ALT_DASHBOARD_DIRS = [
+  path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit'),
+  path.resolve(DASHBOARD_DIR, 'openfang_static'),
+  path.resolve(DASHBOARD_DIR, 'legacy_dashboard'),
+];
+const SIBLING_ALT_DASHBOARD_PATTERN = /(dashboard|legacy|openfang|svelte)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
@@ -70,35 +75,45 @@ function parseFlags(argv = []) {
 }
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
-function npmExecutable() { return process.platform === 'win32' ? 'npm.cmd' : 'npm'; }
-function runNpmPrefix(projectDir, args = [], timeoutMs = 180000) {
-  return spawnSync(npmExecutable(), ['--prefix', projectDir, ...args], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: timeoutMs,
-    env: process.env,
-  });
+function discoverSiblingAltDashboardSurfaces() {
+  const out = [];
+  let rows = [];
+  try { rows = fs.readdirSync(DASHBOARD_DIR, { withFileTypes: true }); } catch { return out; }
+  for (const entry of rows) {
+    if (!entry || typeof entry.isDirectory !== 'function' || !entry.isDirectory()) continue;
+    const dirPath = path.resolve(DASHBOARD_DIR, String(entry.name || ''));
+    if (!dirPath || dirPath === STATIC_DIR) continue;
+    const dirName = path.basename(dirPath);
+    const hasInlineDashboardRoot = hasPrimaryDashboardUi(dirPath);
+    const hasBuildIndex = fs.existsSync(path.resolve(dirPath, 'build', 'index.html'));
+    const hasIndexHtml = fs.existsSync(path.resolve(dirPath, 'index.html'));
+    if (SIBLING_ALT_DASHBOARD_PATTERN.test(dirName) || hasInlineDashboardRoot || hasBuildIndex || hasIndexHtml) out.push(dirPath);
+  }
+  return out;
 }
-function ensureSvelteDashboardBuild() {
-  const projectDir = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit');
-  if (hasSvelteKitDashboardUi(SVELTEKIT_BUILD_DIR)) return true;
-  if (!fs.existsSync(path.resolve(projectDir, 'package.json'))) return false;
-  if (!fs.existsSync(path.resolve(projectDir, 'node_modules'))) {
-    const installResult = runNpmPrefix(projectDir, ['install'], 240000);
-    if (installResult.status !== 0) {
-      const installErr = cleanText(installResult.stderr || installResult.stdout || 'unknown', 360);
-      console.error(cleanText(`dashboard_sveltekit_install_failed:${installErr}`, 380));
-      return false;
-    }
-  }
-  const buildResult = runNpmPrefix(projectDir, ['run', 'build'], 240000);
-  if (buildResult.status !== 0) {
-    const buildErr = cleanText(buildResult.stderr || buildResult.stdout || 'unknown', 360);
-    console.error(cleanText(`dashboard_sveltekit_build_failed:${buildErr}`, 380));
-    return false;
-  }
-  return hasSvelteKitDashboardUi(SVELTEKIT_BUILD_DIR);
+function assertNoAlternateDashboardSurfaces() {
+  const found = new Set();
+  FORBIDDEN_ALT_DASHBOARD_DIRS.filter((dirPath) => fs.existsSync(dirPath)).forEach((dirPath) => found.add(dirPath));
+  discoverSiblingAltDashboardSurfaces().forEach((dirPath) => found.add(dirPath));
+  if (found.size === 0) return;
+  const labels = Array.from(found).map((dirPath) => path.basename(dirPath)).sort((a, b) => a.localeCompare(b, 'en')).join(',');
+  throw new Error(`forbidden_dashboard_surface_present:${labels}`);
+}
+function assertSingleDashboardRoot() {
+  if (!hasPrimaryDashboardUi(STATIC_DIR)) throw new Error('primary_dashboard_ui_missing');
+  let rows = [];
+  try { rows = fs.readdirSync(DASHBOARD_DIR, { withFileTypes: true }); } catch { return; }
+  const duplicateRoots = rows
+    .filter((entry) => entry && typeof entry.isDirectory === 'function' && entry.isDirectory())
+    .map((entry) => path.resolve(DASHBOARD_DIR, String(entry.name || '')))
+    .filter((dirPath) => dirPath !== STATIC_DIR && hasPrimaryDashboardUi(dirPath));
+  if (!duplicateRoots.length) return;
+  const labels = duplicateRoots.map((dirPath) => path.basename(dirPath)).sort((a, b) => a.localeCompare(b, 'en')).join(',');
+  throw new Error(`multiple_dashboard_roots_detected:${labels}`);
+}
+function assertDashboardSurfaceLocked() {
+  assertNoAlternateDashboardSurfaces();
+  assertSingleDashboardRoot();
 }
 function backendBase(flags) { return `http://${flags.apiHost}:${flags.apiPort}`; }
 async function sleep(ms) { await new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -326,10 +341,9 @@ function createAgentWsBridge(flags) {
   };
 }
 async function runServe(flags) {
-  if (!hasPrimaryDashboardUi(STATIC_DIR)) throw new Error('primary_dashboard_ui_missing');
+  assertDashboardSurfaceLocked();
   let dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR);
   if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
-  const hasSvelteDashboard = ensureSvelteDashboardBuild();
   const backend = await ensureBackend(flags);
   const status = {
     ok: true,
@@ -340,7 +354,7 @@ async function runServe(flags) {
     port: flags.port,
     refresh_ms: flags.refreshMs,
     team: flags.team,
-    authority: hasSvelteDashboard ? 'primary_dashboard_ui_with_sveltekit_assets_over_rust_core_api' : 'primary_dashboard_ui_over_rust_core_api',
+    authority: 'primary_dashboard_ui_over_rust_core_api',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
     status_path: path.relative(ROOT, STATUS_PATH),
@@ -383,14 +397,6 @@ async function runServe(flags) {
           res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });
           res.end(asset.body);
           return;
-        }
-        if (hasSvelteDashboard) {
-          const svelteAsset = readSvelteKitDashboardAsset(SVELTEKIT_BUILD_DIR, pathname);
-          if (svelteAsset) {
-            res.writeHead(200, { 'content-type': svelteAsset.contentType, 'cache-control': 'no-store' });
-            res.end(svelteAsset.body);
-            return;
-          }
         }
       }
       if (pathname === '/healthz' || pathname.startsWith('/api/')) return void await proxyToBackend(req, res, flags);

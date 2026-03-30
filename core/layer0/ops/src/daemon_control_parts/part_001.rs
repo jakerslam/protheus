@@ -288,7 +288,7 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
     let log_err = log
         .try_clone()
         .map_err(|err| format!("dashboard_log_clone_failed:{err}"))?;
-    // Canonical dashboard surface: TypeScript pipeline serving the OpenClaw-derived browser UI.
+    // Canonical dashboard surface: TypeScript pipeline serving the Infring browser UI.
     // Keep a single browser surface wired to the Rust API lane.
     let mut cmd = Command::new(cfg.node_binary.as_str());
     cmd.arg("client/runtime/lib/ts_entrypoint.ts")
@@ -401,4 +401,3 @@ fn spawn_dashboard_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Result<
     );
     Ok(child.id())
 }
-
