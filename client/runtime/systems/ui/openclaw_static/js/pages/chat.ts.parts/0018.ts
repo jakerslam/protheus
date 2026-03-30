@@ -162,32 +162,11 @@
     suggestedFreshIdentityForAgent: function(agentRef, templateDef) {
       var agent = agentRef && typeof agentRef === 'object' ? agentRef : {};
       var id = String(agent.id || agentRef || '').trim();
-      var role = String(agent.role || '').trim().toLowerCase();
-      var templateName = String(templateDef && templateDef.name ? templateDef.name : '').trim();
-      var archetype = String(templateDef && templateDef.archetype ? templateDef.archetype : '').trim().toLowerCase();
-      var seed = [id, role, templateName, archetype].join('|');
-      var hash = 0;
-      for (var idx = 0; idx < seed.length; idx += 1) {
-        hash = ((hash * 31) ^ seed.charCodeAt(idx)) >>> 0;
+      var name = String(agent.name || '').trim();
+      var emoji = String((agent.identity && agent.identity.emoji) || '').trim();
+      if (!emoji) {
+        emoji = this.defaultFreshEmojiForAgent(id || name || 'agent');
       }
-      var prefixOptions = [
-        'Nimbus', 'Vector', 'Harbor', 'Atlas', 'Signal', 'Flux',
-        'Forge', 'Scout', 'Axiom', 'Nova', 'Beacon', 'Cipher'
-      ];
-      var suffixByArchetype = {
-        assistant: ['Guide', 'Assist', 'Navigator', 'Anchor'],
-        coder: ['Builder', 'Compiler', 'Kernel', 'Patcher'],
-        researcher: ['Analyst', 'Research', 'Surveyor', 'Trace'],
-        writer: ['Draft', 'Scribe', 'Composer', 'Narrator'],
-        devops: ['Ops', 'Reliability', 'Deploy', 'Runtime'],
-        support: ['Support', 'Resolver', 'Bridge', 'Caretaker'],
-        analyst: ['Insight', 'Signal', 'Vector', 'Ledger'],
-        custom: ['Agent', 'Core', 'Node', 'Prime']
-      };
-      var suffixPool = suffixByArchetype[archetype] || suffixByArchetype[role] || suffixByArchetype.assistant;
-      var prefix = prefixOptions[hash % prefixOptions.length];
-      var suffix = suffixPool[(Math.floor(hash / 17) % suffixPool.length)];
-      var emoji = this.defaultFreshEmojiForAgent(id || (prefix + '-' + suffix));
       if (templateDef && templateDef.category) {
         var category = String(templateDef.category).toLowerCase();
         if (category.indexOf('development') >= 0) emoji = '🧑\u200d💻';
@@ -196,7 +175,7 @@
         else if (category.indexOf('writing') >= 0) emoji = '📝';
       }
       return {
-        name: (prefix + ' ' + suffix).trim(),
+        name: name || String(id || '').trim(),
         emoji: String(emoji || '🤖').trim() || '🤖',
       };
     },
@@ -206,8 +185,59 @@
       if (!this.drawerEmojiPickerOpen) {
         this.drawerEmojiSearch = '';
       } else {
+        this.drawerAvatarUrlPickerOpen = false;
         this.drawerEditingEmoji = true;
       }
+    },
+
+    toggleDrawerAvatarUrlPicker: function() {
+      this.drawerAvatarUrlPickerOpen = !this.drawerAvatarUrlPickerOpen;
+      if (this.drawerAvatarUrlPickerOpen) {
+        this.drawerEmojiPickerOpen = false;
+        this.drawerAvatarUploadError = '';
+        this.drawerAvatarUrlDraft = String(
+          (this.drawerConfigForm && this.drawerConfigForm.avatar_url) ||
+          (this.agentDrawer && this.agentDrawer.avatar_url) ||
+          ''
+        ).trim();
+      } else {
+        this.drawerAvatarUrlDraft = '';
+      }
+    },
+
+    applyDrawerAvatarUrl: async function() {
+      if (!this.agentDrawer || !this.agentDrawer.id) return;
+      var draft = String(this.drawerAvatarUrlDraft || '').trim();
+      if (!draft) {
+        this.drawerAvatarUploadError = 'avatar_url_required';
+        InfringToast.error('Avatar URL is required.');
+        return;
+      }
+      var parsed = null;
+      try {
+        parsed = new URL(draft);
+      } catch (_) {
+        parsed = null;
+      }
+      if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+        this.drawerAvatarUploadError = 'avatar_url_invalid';
+        InfringToast.error('Avatar URL must start with http:// or https://');
+        return;
+      }
+      if (!this.drawerConfigForm || typeof this.drawerConfigForm !== 'object') {
+        this.drawerConfigForm = {};
+      }
+      var normalized = String(parsed.toString()).trim();
+      this.drawerConfigForm.avatar_url = normalized;
+      if (this.agentDrawer && typeof this.agentDrawer === 'object') {
+        this.agentDrawer.avatar_url = normalized;
+      }
+      this.drawerAvatarUploadError = '';
+      this.drawerEmojiPickerOpen = false;
+      this.drawerAvatarUrlPickerOpen = false;
+      this.drawerAvatarUrlDraft = '';
+      this.drawerEditingEmoji = false;
+      await this.saveDrawerIdentity('avatar');
     },
 
     selectDrawerEmoji: function(choice) {
@@ -228,6 +258,8 @@
     },
 
     openDrawerAvatarPicker: function() {
+      this.drawerAvatarUrlPickerOpen = false;
+      this.drawerAvatarUrlDraft = '';
       if (this.$refs && this.$refs.drawerAvatarInput) {
         this.$refs.drawerAvatarInput.click();
       }
@@ -277,6 +309,8 @@
         this.agentDrawer.avatar_url = String(payload.avatar_url || '').trim();
         this.drawerEditingEmoji = false;
         this.drawerEmojiPickerOpen = false;
+        this.drawerAvatarUrlPickerOpen = false;
+        this.drawerAvatarUrlDraft = '';
         InfringToast.success('Avatar uploaded');
         await this.saveDrawerIdentity('avatar');
       } catch (error) {
@@ -300,6 +334,8 @@
       this.drawerEditingEmoji = false;
       this.drawerEmojiPickerOpen = false;
       this.drawerEmojiSearch = '';
+      this.drawerAvatarUrlPickerOpen = false;
+      this.drawerAvatarUrlDraft = '';
       this.drawerAvatarUploading = false;
       this.drawerAvatarUploadError = '';
       this.drawerIdentitySaving = false;
@@ -347,6 +383,8 @@
       this.drawerEditingEmoji = false;
       this.drawerEmojiPickerOpen = false;
       this.drawerEmojiSearch = '';
+      this.drawerAvatarUrlPickerOpen = false;
+      this.drawerAvatarUrlDraft = '';
       this.drawerAvatarUploadError = '';
     },
 

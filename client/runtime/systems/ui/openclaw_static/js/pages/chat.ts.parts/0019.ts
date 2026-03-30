@@ -108,7 +108,11 @@
         }
         if (part === 'name') this.drawerEditingName = false;
         if (part === 'emoji') this.drawerEditingEmoji = false;
-        if (part === 'avatar') this.drawerAvatarUploadError = '';
+        if (part === 'avatar') {
+          this.drawerAvatarUploadError = '';
+          this.drawerAvatarUrlPickerOpen = false;
+          this.drawerAvatarUrlDraft = '';
+        }
         InfringToast.success(
           part === 'name'
             ? 'Name updated'

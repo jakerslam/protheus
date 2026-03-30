@@ -16,6 +16,7 @@ const DEFAULT_PROVIDER_IDS: &[&str] = &[
     "anthropic",
     "google",
     "groq",
+    "moonshot",
     "deepseek",
     "openrouter",
     "xai",
@@ -106,6 +107,8 @@ fn normalize_provider_id(raw: &str) -> String {
     match cleaned.as_str() {
         "gemini" => "google".to_string(),
         "google-ai" => "google".to_string(),
+        "kimi" => "moonshot".to_string(),
+        "moonshot-ai" => "moonshot".to_string(),
         other => other.to_string(),
     }
 }
@@ -117,6 +120,7 @@ fn provider_display_name(provider_id: &str) -> String {
         "anthropic" => "Anthropic".to_string(),
         "google" => "Gemini".to_string(),
         "groq" => "Groq".to_string(),
+        "moonshot" => "Moonshot".to_string(),
         "xai" => "xAI".to_string(),
         "openrouter" => "OpenRouter".to_string(),
         "deepseek" => "DeepSeek".to_string(),
@@ -181,8 +185,9 @@ fn local_provider_reachable(provider_id: &str, row: &Value) -> bool {
 pub fn provider_supports_chat(provider_id: &str, base_url: &str) -> bool {
     let cleaned = clean_text(base_url, 400);
     match provider_id {
-        "openai" | "anthropic" | "google" | "groq" | "xai" | "openrouter" | "deepseek"
-        | "together" | "fireworks" | "perplexity" | "mistral" | "ollama" | "llama.cpp" => {
+        "openai" | "anthropic" | "google" | "groq" | "moonshot" | "xai" | "openrouter"
+        | "deepseek" | "together" | "fireworks" | "perplexity" | "mistral" | "ollama"
+        | "llama.cpp" => {
             !cleaned.is_empty()
         }
         "claude-code" | "cohere" | "auto" => false,
@@ -210,6 +215,7 @@ fn provider_key_env_names(provider_id: &str) -> &'static [&'static str] {
         "anthropic" => &["ANTHROPIC_API_KEY"],
         "google" => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
         "groq" => &["GROQ_API_KEY"],
+        "moonshot" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
         "xai" => &["XAI_API_KEY"],
         "openrouter" => &["OPENROUTER_API_KEY"],
         "deepseek" => &["DEEPSEEK_API_KEY"],
@@ -256,6 +262,7 @@ fn provider_base_url_default(provider_id: &str) -> String {
         "anthropic" => "https://api.anthropic.com".to_string(),
         "google" => "https://generativelanguage.googleapis.com".to_string(),
         "groq" => "https://api.groq.com/openai/v1".to_string(),
+        "moonshot" => "https://api.moonshot.ai/v1".to_string(),
         "xai" => "https://api.x.ai/v1".to_string(),
         "openrouter" => "https://openrouter.ai/api/v1".to_string(),
         "deepseek" => "https://api.deepseek.com/v1".to_string(),
@@ -292,6 +299,12 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
             "llama-3.1-8b-instant": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 8, "specialty": "speed", "specialty_tags": ["speed", "general"], "deployment_kind": "api", "context_window": 131072}
         }))
         .unwrap_or_default(),
+        "moonshot" => serde_json::from_value(json!({
+            "kimi-k2.5": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api", "context_window": 262144},
+            "kimi-k2-thinking": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api", "context_window": 262144},
+            "kimi-k2": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 1000, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "api", "context_window": 262144}
+        }))
+        .unwrap_or_default(),
         "deepseek" => serde_json::from_value(json!({
             "deepseek-chat": {"power_rating": 4, "cost_rating": 2, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general", "coding"], "deployment_kind": "api", "context_window": 65536},
             "deepseek-reasoner": {"power_rating": 5, "cost_rating": 3, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api", "context_window": 65536}
@@ -299,7 +312,9 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
         .unwrap_or_default(),
         "openrouter" => serde_json::from_value(json!({
             "google/gemini-2.5-flash": {"power_rating": 3, "cost_rating": 2, "param_count_billion": 0, "specialty": "vision", "specialty_tags": ["vision", "speed", "general"], "deployment_kind": "api", "context_window": 1048576},
-            "anthropic/claude-sonnet-4": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api", "context_window": 200000}
+            "anthropic/claude-sonnet-4": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api", "context_window": 200000},
+            "moonshotai/kimi-k2": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 1000, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "api", "context_window": 262144},
+            "moonshotai/kimi-k2.5": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api", "context_window": 262144}
         }))
         .unwrap_or_default(),
         "xai" => serde_json::from_value(json!({
@@ -317,6 +332,321 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
         .unwrap_or_default(),
         _ => Map::new(),
     }
+}
+
+fn parse_billion_hint(model_id: &str) -> i64 {
+    let lower = model_id.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut best = 0i64;
+    for idx in 1..bytes.len() {
+        let unit = bytes[idx];
+        if unit != b'b' && unit != b't' {
+            continue;
+        }
+        let mut start = idx;
+        while start > 0 && bytes[start - 1].is_ascii_digit() {
+            start -= 1;
+        }
+        if start == idx {
+            continue;
+        }
+        if let Ok(raw) = lower[start..idx].parse::<i64>() {
+            if raw <= 0 {
+                continue;
+            }
+            let scaled = if unit == b't' { raw.saturating_mul(1000) } else { raw };
+            if scaled > best {
+                best = scaled;
+            }
+        }
+    }
+    best
+}
+
+fn infer_model_context_window(provider_id: &str, model_id: &str) -> i64 {
+    let provider = normalize_provider_id(provider_id);
+    let model = clean_text(model_id, 240).to_ascii_lowercase();
+    if provider == "google" || model.contains("gemini-2.5") {
+        return 1_048_576;
+    }
+    if provider == "moonshot" || model.contains("kimi") {
+        return 262_144;
+    }
+    if model.contains("claude") {
+        return 200_000;
+    }
+    if model.contains("qwen") || model.contains("llama") || model.contains("mixtral") {
+        return 131_072;
+    }
+    if model.contains("deepseek") {
+        return 65_536;
+    }
+    if provider_is_local(&provider) {
+        return 131_072;
+    }
+    0
+}
+
+fn infer_model_specialty_and_tags(model_id: &str) -> (String, Vec<String>) {
+    let model = clean_text(model_id, 240).to_ascii_lowercase();
+    let mut specialty = "general".to_string();
+    let mut tags = vec!["general".to_string()];
+    let mut add_tag = |value: &str| {
+        if !tags.iter().any(|row| row == value) {
+            tags.push(value.to_string());
+        }
+    };
+
+    if model.contains("thinking")
+        || model.contains("reason")
+        || model.contains("-r1")
+        || model.contains("o1")
+        || model.contains("o3")
+    {
+        specialty = "reasoning".to_string();
+        add_tag("reasoning");
+    }
+    if model.contains("coder") || model.contains("code") {
+        if specialty == "general" {
+            specialty = "coding".to_string();
+        }
+        add_tag("coding");
+    }
+    if model.contains("vision")
+        || model.contains("vl")
+        || model.contains("multimodal")
+        || model.contains("image")
+    {
+        if specialty == "general" {
+            specialty = "vision".to_string();
+        }
+        add_tag("vision");
+    }
+    if model.contains("flash")
+        || model.contains("instant")
+        || model.contains("mini")
+        || model.contains("nano")
+        || model.contains("small")
+        || model.contains("lite")
+    {
+        if specialty == "general" {
+            specialty = "speed".to_string();
+        }
+        add_tag("speed");
+    }
+
+    (specialty, tags)
+}
+
+fn inferred_model_profile(provider_id: &str, model_id: &str, force_local: bool) -> Value {
+    let provider = normalize_provider_id(provider_id);
+    let model = clean_text(model_id, 240).to_ascii_lowercase();
+    let is_local = force_local || provider_is_local(&provider);
+    let param_count_billion = parse_billion_hint(&model);
+    let (specialty, specialty_tags) = infer_model_specialty_and_tags(&model);
+    let mut power_rating = 3i64;
+    if model.contains("kimi-k2.5")
+        || model.contains("kimi-k2-thinking")
+        || model.contains("kimi-k2")
+        || model.contains("gpt-5")
+        || model.contains("claude-opus")
+        || model.contains("reasoner")
+        || model.contains("-r1")
+        || model.contains("thinking")
+        || model.contains("deepseek-r1")
+    {
+        power_rating = 5;
+    } else if model.contains("pro")
+        || model.contains("sonnet")
+        || model.contains("70b")
+        || model.contains("72b")
+        || model.contains("32b")
+        || model.contains("34b")
+    {
+        power_rating = 4;
+    } else if model.contains("flash")
+        || model.contains("instant")
+        || model.contains("mini")
+        || model.contains("haiku")
+        || model.contains("8b")
+        || model.contains("7b")
+        || model.contains("4b")
+        || model.contains("3b")
+        || model.contains("2b")
+        || model.contains("1b")
+        || model.contains("small")
+        || model.contains("nano")
+        || model.contains("tiny")
+    {
+        power_rating = 2;
+    }
+    if param_count_billion >= 200 {
+        power_rating = power_rating.max(5);
+    } else if param_count_billion >= 60 {
+        power_rating = power_rating.max(4);
+    }
+
+    let mut cost_rating = if is_local { 1 } else { 3 };
+    if !is_local {
+        if power_rating >= 5 {
+            cost_rating = 4;
+        } else if model.contains("flash")
+            || model.contains("mini")
+            || model.contains("instant")
+            || model.contains("haiku")
+            || model.contains("nano")
+        {
+            cost_rating = 2;
+        }
+    }
+
+    json!({
+        "power_rating": power_rating,
+        "cost_rating": cost_rating,
+        "param_count_billion": param_count_billion.max(0),
+        "specialty": specialty,
+        "specialty_tags": specialty_tags,
+        "deployment_kind": if is_local { "local" } else { "api" },
+        "context_window": infer_model_context_window(&provider, &model)
+    })
+}
+
+fn profile_tags_are_general_only(value: &Value) -> bool {
+    let Some(rows) = value.as_array() else {
+        return true;
+    };
+    if rows.is_empty() {
+        return true;
+    }
+    rows.iter()
+        .filter_map(Value::as_str)
+        .map(|raw| clean_text(raw, 40).to_ascii_lowercase())
+        .all(|tag| tag == "general" || tag.is_empty())
+}
+
+fn enrich_single_model_profile(
+    provider_id: &str,
+    model_id: &str,
+    profile: &Value,
+    force_local: bool,
+) -> Value {
+    let inferred = inferred_model_profile(provider_id, model_id, force_local);
+    let Some(mut merged) = profile.as_object().cloned() else {
+        return inferred;
+    };
+    let inferred_obj = inferred.as_object().cloned().unwrap_or_default();
+    let inferred_power = inferred_obj
+        .get("power_rating")
+        .and_then(Value::as_i64)
+        .unwrap_or(3);
+    let inferred_cost = inferred_obj
+        .get("cost_rating")
+        .and_then(Value::as_i64)
+        .unwrap_or(3);
+    let inferred_param = inferred_obj
+        .get("param_count_billion")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let inferred_context = inferred_obj
+        .get("context_window")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let inferred_specialty = inferred_obj
+        .get("specialty")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 40).to_ascii_lowercase())
+        .unwrap_or_else(|| "general".to_string());
+    let inferred_tags = inferred_obj
+        .get("specialty_tags")
+        .cloned()
+        .unwrap_or_else(|| json!(["general"]));
+
+    let current_power = merged
+        .get("power_rating")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let current_cost = merged
+        .get("cost_rating")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let current_param = merged
+        .get("param_count_billion")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let current_context = merged
+        .get("context_window")
+        .or_else(|| merged.get("context_window_tokens"))
+        .or_else(|| merged.get("context_size"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let current_specialty = merged
+        .get("specialty")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 40).to_ascii_lowercase())
+        .unwrap_or_else(|| "general".to_string());
+    let current_tags_general_only = profile_tags_are_general_only(
+        merged
+            .get("specialty_tags")
+            .unwrap_or(&Value::Null),
+    );
+    let generic_profile = current_power == 3
+        && current_specialty == "general"
+        && current_tags_general_only
+        && current_param == 0;
+
+    if current_power == 0 || (generic_profile && inferred_power > current_power) {
+        merged.insert("power_rating".to_string(), json!(inferred_power.max(1)));
+    }
+    if current_cost == 0 || (generic_profile && inferred_cost != current_cost) {
+        merged.insert("cost_rating".to_string(), json!(inferred_cost.max(1)));
+    }
+    if current_param == 0 && inferred_param > 0 {
+        merged.insert("param_count_billion".to_string(), json!(inferred_param));
+    }
+    if current_context == 0 && inferred_context > 0 {
+        merged.insert("context_window".to_string(), json!(inferred_context));
+    }
+    if (current_specialty.is_empty() || current_specialty == "general")
+        && inferred_specialty != "general"
+    {
+        merged.insert("specialty".to_string(), json!(inferred_specialty));
+    }
+    if current_tags_general_only {
+        merged.insert("specialty_tags".to_string(), inferred_tags);
+    }
+    if merged
+        .get("deployment_kind")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 30).is_empty())
+        .unwrap_or(true)
+    {
+        let inferred_deployment = inferred_obj
+            .get("deployment_kind")
+            .cloned()
+            .unwrap_or_else(|| json!(if force_local { "local" } else { "api" }));
+        merged.insert("deployment_kind".to_string(), inferred_deployment);
+    }
+
+    Value::Object(merged)
+}
+
+fn enrich_model_profiles_for_provider(provider_id: &str, profiles: &mut Map<String, Value>) -> bool {
+    let mut changed = false;
+    let force_local = provider_is_local(provider_id);
+    let model_ids = profiles.keys().cloned().collect::<Vec<_>>();
+    for model_id in model_ids {
+        let current = profiles.get(&model_id).cloned().unwrap_or(Value::Null);
+        let next = enrich_single_model_profile(provider_id, &model_id, &current, force_local);
+        if next != current {
+            profiles.insert(model_id, next);
+            changed = true;
+        }
+    }
+    changed
 }
 
 fn ensure_provider_row_mut<'a>(registry: &'a mut Value, provider_id: &str) -> &'a mut Value {
@@ -357,7 +687,7 @@ fn ensure_provider_row_mut<'a>(registry: &'a mut Value, provider_id: &str) -> &'
 fn provider_row(root: &Path, provider_id: &str) -> Value {
     let registry = load_registry(root);
     let id = normalize_provider_id(provider_id);
-    registry
+    let mut row = registry
         .get("providers")
         .and_then(Value::as_object)
         .and_then(|obj| obj.get(&id))
@@ -376,7 +706,20 @@ fn provider_row(root: &Path, provider_id: &str) -> Value {
                 "model_profiles": model_profiles_for_provider(provider_id),
                 "updated_at": crate::now_iso()
             })
-        })
+        });
+    let mut profiles = row
+        .get("model_profiles")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    if profiles.is_empty() {
+        profiles = model_profiles_for_provider(&id);
+    }
+    if !profiles.is_empty() {
+        let _ = enrich_model_profiles_for_provider(&id, &mut profiles);
+        row["model_profiles"] = Value::Object(profiles);
+    }
+    row
 }
 
 fn masked_prefix(key: &str) -> String {
@@ -435,4 +778,3 @@ fn content_from_message_rows(rows: &[Value]) -> Vec<(String, String)> {
         })
         .collect()
 }
-

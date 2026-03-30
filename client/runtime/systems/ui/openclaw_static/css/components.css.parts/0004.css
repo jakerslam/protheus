@@ -56,6 +56,30 @@
   overflow-y: auto;
 }
 
+.chat-agent-url-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 240px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  z-index: 20;
+}
+
+.chat-agent-url-input {
+  font-size: 11px;
+}
+
+.chat-agent-url-menu-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .chat-agent-identity-edit {
   display: flex;
   align-items: center;
