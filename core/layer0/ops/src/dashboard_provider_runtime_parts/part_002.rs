@@ -15,20 +15,16 @@ pub fn discover_models(root: &Path, input: &str) -> Value {
                     if name.is_empty() {
                         continue;
                     }
-                    profiles.insert(
-                        name.clone(),
-                        json!({
-                            "power_rating": 3,
-                            "cost_rating": 1,
-                            "param_count_billion": 0,
-                            "specialty": "general",
-                            "specialty_tags": ["general"],
-                            "deployment_kind": "local",
-                            "local_download_path": entry.path().to_string_lossy().to_string(),
-                            "download_available": true,
-                            "updated_at": crate::now_iso()
-                        }),
-                    );
+                    let mut profile = inferred_model_profile(provider, &name, true);
+                    if let Some(profile_obj) = profile.as_object_mut() {
+                        profile_obj.insert(
+                            "local_download_path".to_string(),
+                            json!(entry.path().to_string_lossy().to_string()),
+                        );
+                        profile_obj.insert("download_available".to_string(), json!(true));
+                        profile_obj.insert("updated_at".to_string(), json!(crate::now_iso()));
+                    }
+                    profiles.insert(name.clone(), profile);
                     local_paths.push(json!(entry.path().to_string_lossy().to_string()));
                 }
             }
@@ -98,20 +94,24 @@ pub fn add_custom_model(
     if row.get("model_profiles").is_none() || !row.get("model_profiles").map(Value::is_object).unwrap_or(false) {
         row["model_profiles"] = json!({});
     }
-    row["model_profiles"][model.clone()] = json!({
-        "power_rating": 3,
-        "cost_rating": if provider_is_local(&provider) { 1 } else { 3 },
-        "param_count_billion": 0,
-        "specialty": "general",
-        "specialty_tags": ["general"],
-        "deployment_kind": if provider_is_local(&provider) { "local" } else { "api" },
-        "context_window": context_window.max(0),
-        "max_output_tokens": max_output_tokens.max(0),
-        "download_available": provider_is_local(&provider),
-        "local_download_path": "",
-        "custom": true,
-        "updated_at": crate::now_iso()
-    });
+    let mut profile = inferred_model_profile(&provider, &model, provider_is_local(&provider));
+    if let Some(profile_obj) = profile.as_object_mut() {
+        if context_window.max(0) > 0 {
+            profile_obj.insert("context_window".to_string(), json!(context_window.max(0)));
+        }
+        profile_obj.insert(
+            "max_output_tokens".to_string(),
+            json!(max_output_tokens.max(0)),
+        );
+        profile_obj.insert(
+            "download_available".to_string(),
+            json!(provider_is_local(&provider)),
+        );
+        profile_obj.insert("local_download_path".to_string(), json!(""));
+        profile_obj.insert("custom".to_string(), json!(true));
+        profile_obj.insert("updated_at".to_string(), json!(crate::now_iso()));
+    }
+    row["model_profiles"][model.clone()] = profile;
     row["updated_at"] = json!(crate::now_iso());
     save_registry(root, registry);
     json!({"ok": true, "provider": provider, "model": model})
@@ -483,4 +483,3 @@ pub fn invoke_chat(
         user_message,
     )
 }
-

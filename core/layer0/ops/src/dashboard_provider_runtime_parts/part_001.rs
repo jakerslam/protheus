@@ -204,8 +204,18 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
             row["auth_status"] = json!("not_set");
         }
         row["supports_chat"] = json!(provider_supports_chat(&provider_id, &base_url));
-        if row.get("model_profiles").and_then(Value::as_object).map(|obj| obj.is_empty()).unwrap_or(true) {
-            row["model_profiles"] = Value::Object(model_profiles_for_provider(&provider_id));
+        let mut profiles = row
+            .get("model_profiles")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let profiles_missing = profiles.is_empty();
+        if profiles_missing {
+            profiles = model_profiles_for_provider(&provider_id);
+        }
+        let profiles_enriched = enrich_model_profiles_for_provider(&provider_id, &mut profiles);
+        if profiles_missing || profiles_enriched {
+            row["model_profiles"] = Value::Object(profiles);
         }
         if row
             .get("detected_models")
@@ -222,6 +232,8 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
         }
         if provider_id == "google" {
             row["aliases"] = json!(["gemini"]);
+        } else if provider_id == "moonshot" {
+            row["aliases"] = json!(["kimi", "moonshot-ai"]);
         }
     }
     rows.sort_by(|a, b| {
@@ -413,4 +425,3 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
         }
     }
 }
-
