@@ -5,7 +5,7 @@
           <div x-show="tab === 'mcp'">
             <div class="info-card">
               <h4>MCP Servers (Model Context Protocol)</h4>
-              <p>MCP servers provide external tools to your agents &mdash; GitHub, filesystem, databases, APIs, and more. Infring is compatible with all OpenClaw MCP servers.</p>
+              <p>MCP servers provide external tools to your agents &mdash; GitHub, filesystem, databases, APIs, and more. Infring is compatible with all supported MCP servers.</p>
               <p class="mt-2" style="font-size:0.8rem;color:var(--text-dim)">Configure MCP servers in your <code>config.toml</code> under <code>[mcp_servers]</code>.</p>
             </div>
             <div x-show="mcpLoading" class="loading-state"><div class="spinner"></div><span>Loading MCP servers...</span></div>
@@ -68,7 +68,7 @@ timeout_secs = 30
 type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
-                <p class="hint mt-2" style="font-size:0.75rem">Infring supports all OpenClaw-compatible MCP servers.</p>
+                <p class="hint mt-2" style="font-size:0.75rem">Infring supports all compatible MCP servers.</p>
               </div>
             </div>
           </div>

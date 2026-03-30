@@ -240,7 +240,7 @@
         <div class="page-body" x-init="loadSkills()">
           <div class="info-card">
             <h4>Plugins &amp; Ecosystem</h4>
-            <p>Plugins extend your agents with new capabilities. Infring supports the <strong>OpenClaw/ClawHub</strong> ecosystem (3,000+ community plugins) plus local plugins.</p>
+            <p>Plugins extend your agents with new capabilities. Infring supports the <strong>Infring/ClawHub</strong> ecosystem (3,000+ community plugins) plus local plugins.</p>
             <ul>
               <li><strong>Prompt-only</strong> &mdash; inject context and instructions into the agent's system prompt (most ClawHub plugins)</li>
               <li><strong>Python / Node.js</strong> &mdash; executable tools that agents can call during conversations</li>
@@ -303,7 +303,7 @@
             </div>
           </div>
 
-          <!-- TAB: ClawHub (OpenClaw Ecosystem) -->
+          <!-- TAB: ClawHub (Infring Ecosystem) -->
           <div x-show="tab === 'clawhub'">
             <!-- Search bar with live search and clear button -->
             <div class="search-input mb-4" style="position:relative">
@@ -337,7 +337,7 @@
             <div x-show="clawhubError && !clawhubLoading" class="error-state">
               <span class="error-icon">!</span>
               <p x-text="clawhubError"></p>
-              <p class="hint mt-2">ClawHub may be temporarily unavailable. The OpenClaw ecosystem is hosted at clawhub.ai.</p>
+              <p class="hint mt-2">ClawHub may be temporarily unavailable. The Infring ecosystem is hosted at clawhub.ai.</p>
               <button class="btn btn-ghost btn-sm mt-2" @click="clawhubSearch ? searchClawHub() : browseClawHub(clawhubSort)">Retry</button>
             </div>
 

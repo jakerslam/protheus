@@ -307,7 +307,7 @@
         var target = this.targetPath;
         if (!target) target = '';
         var data = await InfringAPI.post('/api/migrate', {
-          source: 'openclaw',
+          source: 'infring',
           source_dir: this.sourcePath || (this.scanResult ? this.scanResult.path : ''),
           target_dir: target,
           dry_run: dryRun
@@ -326,4 +326,3 @@
     }
   };
 }
-

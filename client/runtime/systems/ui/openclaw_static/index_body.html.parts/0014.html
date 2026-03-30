@@ -290,9 +290,9 @@
           <!-- Migration tab -->
           <div x-show="tab === 'migration'">
             <div class="card mb-4" style="border-left:3px solid var(--accent)" x-show="migStep === 'intro'">
-              <div class="font-bold" style="font-size:14px;margin-bottom:6px">Migrate from OpenClaw</div>
+              <div class="font-bold" style="font-size:14px;margin-bottom:6px">Migrate into Infring</div>
               <div class="text-sm text-dim" style="line-height:1.7">
-                Seamlessly transfer your agents, memory, workspace files, and channel configurations from OpenClaw to Infring.
+                Seamlessly transfer your agents, memory, workspace files, and channel configurations into Infring.
               </div>
               <ul class="text-sm text-dim" style="margin:8px 0 0 16px;line-height:1.8">
                 <li>Converts agent.yaml to agent.toml with proper capabilities</li>
@@ -302,7 +302,7 @@
               </ul>
               <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" @click="autoDetect()" :disabled="detecting">
-                  <span x-show="!detecting">Auto-Detect OpenClaw</span>
+                  <span x-show="!detecting">Auto-Detect Source</span>
                   <span x-show="detecting">Scanning...</span>
                 </button>
                 <button class="btn btn-ghost" @click="migStep = 'manual'">Enter Path Manually</button>
@@ -310,10 +310,10 @@
             </div>
 
             <div class="card mb-4" x-show="migStep === 'manual'" style="border-left:3px solid var(--accent)">
-              <div class="font-bold" style="font-size:14px;margin-bottom:8px">Specify OpenClaw Path</div>
+              <div class="font-bold" style="font-size:14px;margin-bottom:8px">Specify Source Path</div>
               <div class="form-group">
-                <label>OpenClaw Home Directory</label>
-                <input class="form-input" type="text" x-model="sourcePath" placeholder="~/.openclaw" style="font-family:monospace;font-size:12px">
+                <label>Source Home Directory</label>
+                <input class="form-input" type="text" x-model="sourcePath" placeholder="/path/to/source/home" style="font-family:monospace;font-size:12px">
               </div>
               <div class="form-group mt-2">
                 <label>Infring Target Directory</label>
@@ -331,7 +331,7 @@
             <div x-show="migStep === 'preview' && scanResult">
               <div class="card mb-4" style="border-left:3px solid var(--success, #22c55e)">
                 <div class="flex justify-between items-center mb-2">
-                  <div class="font-bold" style="font-size:14px">OpenClaw Workspace Found</div>
+                  <div class="font-bold" style="font-size:14px">Source Workspace Found</div>
                   <span class="badge badge-connected">Ready to Migrate</span>
                 </div>
                 <div class="text-sm text-dim" style="font-family:monospace" x-text="scanResult.path"></div>
@@ -366,8 +366,8 @@
             </div>
 
             <div class="card" x-show="migStep === 'not_found'" style="border-left:3px solid var(--warning, #f59e0b)">
-              <div class="font-bold mb-2" style="font-size:14px">OpenClaw Not Found</div>
-              <div class="text-sm text-dim">Could not auto-detect an OpenClaw installation.</div>
+              <div class="font-bold mb-2" style="font-size:14px">Source Workspace Not Found</div>
+              <div class="text-sm text-dim">Could not auto-detect a compatible source installation.</div>
               <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" @click="migStep = 'manual'">Enter Path Manually</button>
                 <button class="btn btn-ghost" @click="migStep = 'intro'">Back</button>
