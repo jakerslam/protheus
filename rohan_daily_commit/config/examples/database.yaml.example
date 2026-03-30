@@ -1,0 +1,148 @@
+# =============================================================================
+# Protheus Database Configuration Template
+# =============================================================================
+# This file serves as a reference for database connection configuration.
+# Copy this file to database.yaml and update with actual values.
+#
+# Security Note: Never commit actual credentials to version control.
+# Use environment variables or secrets management for production.
+#
+# Author: Platform Operations
+# Last Updated: 2026-03-30
+# =============================================================================
+
+# Primary Database Configuration
+# -----------------------------
+# The main application database for transactional workloads
+
+primary:
+  host: "${DB_PRIMARY_HOST:-localhost}"
+  port: "${DB_PRIMARY_PORT:-5432}"
+  database: "protheus_production"
+  
+  # Connection Pool Settings
+  # These defaults are suitable for moderate workloads.
+  # Adjust based on your application needs and database capacity.
+  pool:
+    min_size: 5              # Minimum connections in pool
+    max_size: 20             # Maximum connections in pool
+    max_overflow: 10           # Extra connections allowed beyond max_size
+    pool_timeout: 30          # Seconds to wait for connection from pool
+    pool_recycle: 3600        # Seconds before connection is recycled
+    
+  # SSL Configuration
+  # Always enable SSL for production environments
+  ssl:
+    mode: "require"           # Options: disable, allow, prefer, require, verify-ca, verify-full
+    # ca_file: "/path/to/ca-cert.pem"    # Required for verify-ca/full modes
+    # cert_file: "/path/to/client-cert.pem"  # For client certificate auth
+    # key_file: "/path/to/client-key.pem"
+    
+  # Performance Tuning
+  # These settings may need adjustment based on your database schema
+  performance:
+    statement_timeout: "30s"  # Maximum query execution time
+    lock_timeout: "10s"       # Maximum time to wait for lock acquisition
+    idle_in_transaction_session_timeout: "60s"
+    
+  # Connection Retry Logic
+  retry:
+    max_attempts: 3
+    backoff_multiplier: 2
+    initial_wait_ms: 100
+
+# Read Replica Configuration
+# -----------------------------
+# Used for read-heavy workloads to distribute load from primary
+
+replicas:
+  - host: "${DB_REPLICA_1_HOST:-localhost}"
+    port: "${DB_REPLICA_1_PORT:-5432}"
+    database: "protheus_production"
+    weight: 1                   # Load balancing weight (higher = more traffic)
+    
+  - host: "${DB_REPLICA_2_HOST:-localhost}"
+    port: "${DB_REPLICA_2_PORT:-5432}"
+    database: "protheus_production"  
+    weight: 1
+    
+  # Connection pool settings apply to each replica individually
+  pool:
+    min_size: 3
+    max_size: 15
+    max_overflow: 5
+
+# Query Performance Monitoring
+# -----------------------------
+# Enable detailed query logging for optimization
+
+monitoring:
+  # Log slow queries (execution time exceeds threshold)
+  slow_query_threshold_ms: 100
+  
+  # Log queries that scan many rows
+  large_scan_threshold: 10000
+  
+  # Track connection pool utilization
+  pool_metrics_enabled: true
+  pool_metrics_interval_sec: 60
+
+# Backup and Recovery Settings
+# -----------------------------
+
+backup:
+  # Point-in-time recovery window
+  wal_archive_retention_days: 7
+  
+  # Full backup schedule (cron expression)
+  full_backup_schedule: "0 2 * * *"
+  
+  # Backup retention policy
+  daily_backups_retained: 7
+  weekly_backups_retained: 4
+  monthly_backups_retained: 12
+
+# Development Environment Override
+# -------------------------------
+# This section is automatically used when RAILS_ENV=development
+# or NODE_ENV=development
+
+development:
+  primary:
+    host: "localhost"
+    port: 5432
+    database: "protheus_development"
+    pool:
+      min_size: 1
+      max_size: 5
+    ssl:
+      mode: "disable"  # SSL typically disabled for local development
+      
+# Staging Environment Override
+# -----------------------------
+# Mirrors production configuration with scaled-down resources
+
+staging:
+  primary:
+    pool:
+      min_size: 2
+      max_size: 10
+    
+  replicas: []  # Typically no replicas in staging
+
+# TODO: Add connection string support for environment variables
+# TODO: Document failover strategies for multi-region deployments
+# FIXME: Review timeout values for high-latency environments
+
+# =============================================================================
+# Configuration Best Practices
+# =============================================================================
+#
+# 1. Always use environment variables for sensitive values
+# 2. Set pool sizes based on your database's max_connections setting
+# 3. Monitor pg_stat_activity to identify connection patterns
+# 4. Use SSL mode 'verify-full' for production with proper certificates
+# 5. Test failover scenarios regularly
+#
+# For questions, contact: platform-ops@company.com
+# =============================================================================
