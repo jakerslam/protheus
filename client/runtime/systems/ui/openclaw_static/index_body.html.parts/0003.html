@@ -26,12 +26,15 @@
                   style="display:none"
                   @change="uploadDrawerAvatar($event.target.files); $event.target.value = ''"
                 >
-                <div class="chat-agent-avatar-actions" @click.outside="drawerEmojiPickerOpen = false">
+                <div class="chat-agent-avatar-actions" @click.outside="drawerEmojiPickerOpen = false; drawerAvatarUrlPickerOpen = false">
                   <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="toggleDrawerEmojiPicker()" title="Pick emoji" aria-label="Pick emoji">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 15c1 .8 2.1 1.2 4 1.2s3-.4 4-1.2"></path><circle cx="9" cy="10" r="1"></circle><circle cx="15" cy="10" r="1"></circle></svg>
                   </button>
                   <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="openDrawerAvatarPicker()" :disabled="drawerAvatarUploading" title="Upload avatar" aria-label="Upload avatar">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5-5 5 5"></path><path d="M12 5v12"></path></svg>
+                  </button>
+                  <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="toggleDrawerAvatarUrlPicker()" title="Set avatar URL" aria-label="Set avatar URL">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a13 13 0 0 1 0 18"></path><path d="M12 3a13 13 0 0 0 0 18"></path></svg>
                   </button>
                   <div class="chat-agent-emoji-menu" x-show="drawerEmojiPickerOpen" x-transition.opacity>
                     <input class="form-input chat-agent-emoji-search" x-model="drawerEmojiSearch" placeholder="Search emoji...">
@@ -39,6 +42,19 @@
                       <template x-for="item in filteredDrawerEmojiCatalog()" :key="'drawer-emoji-' + item.emoji + '-' + item.name">
                         <button class="emoji-grid-item" @click.stop="selectDrawerEmoji(item)" :title="item.name" x-text="item.emoji"></button>
                       </template>
+                    </div>
+                  </div>
+                  <div class="chat-agent-url-menu" x-show="drawerAvatarUrlPickerOpen" x-transition.opacity>
+                    <input
+                      class="form-input chat-agent-url-input"
+                      x-model="drawerAvatarUrlDraft"
+                      placeholder="https://example.com/avatar.png"
+                      @keydown.enter.prevent="applyDrawerAvatarUrl()"
+                      @keydown.escape="drawerAvatarUrlPickerOpen = false"
+                    >
+                    <div class="chat-agent-url-menu-actions">
+                      <button class="btn btn-primary btn-sm" @click.stop="applyDrawerAvatarUrl()">Use URL</button>
+                      <button class="btn btn-ghost btn-sm" @click.stop="drawerAvatarUrlPickerOpen = false">Cancel</button>
                     </div>
                   </div>
                 </div>

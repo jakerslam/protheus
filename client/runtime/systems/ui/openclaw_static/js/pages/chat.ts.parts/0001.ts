@@ -145,6 +145,8 @@ function chatPage() {
     drawerEditingEmoji: false,
     drawerEmojiPickerOpen: false,
     drawerEmojiSearch: '',
+    drawerAvatarUrlPickerOpen: false,
+    drawerAvatarUrlDraft: '',
     drawerAvatarUploading: false,
     drawerAvatarUploadError: '',
     drawerNewModelValue: '',
