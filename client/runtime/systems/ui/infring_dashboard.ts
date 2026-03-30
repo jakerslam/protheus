@@ -1,14 +1,17 @@
 #!/usr/bin/env tsx
-// Thin dashboard UI host: serves the OpenClaw-fork browser UI over the Rust API lane.
+// Thin dashboard UI host: serves the Infring browser UI over the Rust API lane.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const { WebSocketServer } = require('ws');
 const { spawn, spawnSync } = require('node:child_process');
-const { ROOT, resolveBinary, runProtheusOps } = require('../ops/run_protheus_ops.js');
+const { ROOT, resolveBinary, runProtheusOps } = require('../ops/run_protheus_ops.ts');
+const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, hasSvelteKitDashboardUi, readPrimaryDashboardAsset, readSvelteKitDashboardAsset } = require('./dashboard_asset_router.ts');
 
 const DASHBOARD_DIR = __dirname;
 const STATIC_DIR = path.resolve(DASHBOARD_DIR, 'openclaw_static');
+const SVELTEKIT_BUILD_DIR = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit/build');
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
@@ -18,28 +21,6 @@ const DEFAULT_REFRESH_MS = 2000;
 const DEFAULT_BACKEND_READY_TIMEOUT_MS = 120000;
 const BACKEND_PORT_OFFSET = 1000;
 const HOP_BY_HOP = new Set(['connection', 'host', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']);
-const PAGE_SCRIPTS = ['overview', 'chat', 'agents', 'workflows', 'workflow-builder', 'channels', 'eyes', 'skills', 'hands', 'scheduler', 'settings', 'usage', 'sessions', 'logs', 'wizard', 'approvals', 'comms', 'runtime'];
-const MIME = {
-  '.css': 'text/css; charset=utf-8',
-  '.html': 'text/html; charset=utf-8',
-  '.ico': 'image/x-icon',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.md': 'text/plain; charset=utf-8',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-  '.wav': 'audio/wav',
-  '.webm': 'audio/webm',
-  '.webp': 'image/webp',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-};
 
 function nowIso() { return new Date().toISOString(); }
 function cleanText(value, maxLen = 200) { return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen); }
@@ -89,149 +70,35 @@ function parseFlags(argv = []) {
 }
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
-function fileExists(filePath) { try { return fs.existsSync(filePath); } catch { return false; } }
-function readText(filePath, fallback = '') { try { return fs.readFileSync(filePath, 'utf8'); } catch { return fallback; } }
-function listSegmentPartFiles(basePath) {
-  const ext = path.extname(basePath).toLowerCase();
-  const partDirs = [`${basePath}.parts`];
-  if (ext === '.js') partDirs.push(basePath.replace(/\.js$/i, '.ts') + '.parts');
-  if (ext === '.ts') partDirs.push(basePath.replace(/\.ts$/i, '.js') + '.parts');
-  for (const partsDir of partDirs) {
-    try {
-      if (!fs.statSync(partsDir).isDirectory()) continue;
-      const rows = fs.readdirSync(partsDir, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === ext)
-        .map((entry) => path.resolve(partsDir, entry.name))
-        .sort((a, b) => a.localeCompare(b, 'en'));
-      if (rows.length) return rows;
-    } catch {}
+function npmExecutable() { return process.platform === 'win32' ? 'npm.cmd' : 'npm'; }
+function runNpmPrefix(projectDir, args = [], timeoutMs = 180000) {
+  return spawnSync(npmExecutable(), ['--prefix', projectDir, ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: timeoutMs,
+    env: process.env,
+  });
+}
+function ensureSvelteDashboardBuild() {
+  const projectDir = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit');
+  if (hasSvelteKitDashboardUi(SVELTEKIT_BUILD_DIR)) return true;
+  if (!fs.existsSync(path.resolve(projectDir, 'package.json'))) return false;
+  if (!fs.existsSync(path.resolve(projectDir, 'node_modules'))) {
+    const installResult = runNpmPrefix(projectDir, ['install'], 240000);
+    if (installResult.status !== 0) {
+      const installErr = cleanText(installResult.stderr || installResult.stdout || 'unknown', 360);
+      console.error(cleanText(`dashboard_sveltekit_install_failed:${installErr}`, 380));
+      return false;
+    }
   }
-  return [];
-}
-function readSegmentedText(basePath, fallback = '') {
-  const partFiles = listSegmentPartFiles(basePath);
-  if (partFiles.length) {
-    const joined = partFiles.map((filePath) => readText(filePath, '')).filter(Boolean).join('\n');
-    if (joined.trim()) return joined;
+  const buildResult = runNpmPrefix(projectDir, ['run', 'build'], 240000);
+  if (buildResult.status !== 0) {
+    const buildErr = cleanText(buildResult.stderr || buildResult.stdout || 'unknown', 360);
+    console.error(cleanText(`dashboard_sveltekit_build_failed:${buildErr}`, 380));
+    return false;
   }
-  return readText(basePath, fallback);
-}
-function hasPrimaryDashboardUi() {
-  const headPath = path.resolve(STATIC_DIR, 'index_head.html');
-  const bodyPath = path.resolve(STATIC_DIR, 'index_body.html');
-  return (fileExists(headPath) || listSegmentPartFiles(headPath).length > 0) && (fileExists(bodyPath) || listSegmentPartFiles(bodyPath).length > 0);
-}
-function rebrandDashboardText(text) {
-  return String(text || '')
-    .replace(/\bOpenFang\b/g, 'Infring').replace(/\bOPENFANG\b/g, 'INFRING').replace(/\bopenfang\b/g, 'infring')
-    .replace(/\bOpenClaw\b/g, 'Infring').replace(/\bOPENCLAW\b/g, 'INFRING').replace(/\bopenclaw\b/g, 'infring');
-}
-function readForkScript(basePathNoExt) {
-  const jsPath = path.resolve(STATIC_DIR, `${basePathNoExt}.js`);
-  if (fileExists(jsPath) || listSegmentPartFiles(jsPath).length > 0) return readSegmentedText(jsPath, '');
-  const tsPath = path.resolve(STATIC_DIR, `${basePathNoExt}.ts`);
-  return fileExists(tsPath) || listSegmentPartFiles(tsPath).length > 0 ? readSegmentedText(tsPath, '') : '';
-}
-function agentMutationSyncPatchScript() {
-  return [
-    '(function(){',
-    '  if (window.__infringAgentMutationSyncPatchInstalled) return;',
-    '  window.__infringAgentMutationSyncPatchInstalled = true;',
-    '  function parseUrl(rawPath) {',
-    '    try { return new URL(String(rawPath || \'\'), window.location.origin); } catch(_) { return null; }',
-    '  }',
-    '  function readStore() {',
-    '    try {',
-    '      if (window.Alpine && typeof window.Alpine.store === \'function\') return window.Alpine.store(\'app\');',
-    '    } catch(_) {}',
-    '    return null;',
-    '  }',
-    '  function triggerForcedRefreshBurst() {',
-    '    var delays = [0, 260, 920];',
-    '    delays.forEach(function(delay) {',
-    '      window.setTimeout(function() {',
-    '        var store = readStore();',
-    '        if (!store || typeof store.refreshAgents !== \'function\') return;',
-    '        Promise.resolve(store.refreshAgents({ force: true })).catch(function() {});',
-    '      }, delay);',
-    '    });',
-    '  }',
-    '  function isCreatePath(pathname) {',
-    '    if (pathname === \'/api/agents\') return true;',
-    '    return /^\\/api\\/agents\\/[^\\/]+\\/(clone|revive)$/.test(pathname);',
-    '  }',
-    '  function isArchivePath(pathname) {',
-    '    return /^\\/api\\/agents\\/[^\\/]+$/.test(pathname);',
-    '  }',
-    '  function installApiPatch() {',
-    '    var api = window.InfringAPI;',
-    '    if (!api) return false;',
-    '    if (api.__infringAgentMutationSyncPatched) return true;',
-    '    api.__infringAgentMutationSyncPatched = true;',
-    '    var basePost = typeof api.post === \'function\' ? api.post.bind(api) : null;',
-    '    var baseDel = typeof api.del === \'function\' ? api.del.bind(api) : null;',
-    '    if (basePost) {',
-    '      api.post = function(path, body) {',
-    '        var parsed = parseUrl(path);',
-    '        return Promise.resolve(basePost(path, body)).then(function(result) {',
-    '          var pathname = parsed ? parsed.pathname : String(path || \'\');',
-    '          if (isCreatePath(pathname)) triggerForcedRefreshBurst();',
-    '          return result;',
-    '        });',
-    '      };',
-    '    }',
-    '    if (baseDel) {',
-    '      api.del = function(path) {',
-    '        var parsed = parseUrl(path);',
-    '        return Promise.resolve(baseDel(path)).then(function(result) {',
-    '          var pathname = parsed ? parsed.pathname : String(path || \'\');',
-    '          if (isArchivePath(pathname)) triggerForcedRefreshBurst();',
-    '          return result;',
-    '        });',
-    '      };',
-    '      api.delete = api.del;',
-    '    }',
-    '    return true;',
-    '  }',
-    '  if (installApiPatch()) return;',
-    '  var attempts = 0;',
-    '  var timer = window.setInterval(function() {',
-    '    attempts += 1;',
-    '    if (installApiPatch() || attempts >= 80) window.clearInterval(timer);',
-    '  }, 100);',
-    '})();',
-  ].join('\n');
-}
-function buildPrimaryDashboardHtml() {
-  const head = readSegmentedText(path.resolve(STATIC_DIR, 'index_head.html'), '');
-  const body = readSegmentedText(path.resolve(STATIC_DIR, 'index_body.html'), '');
-  if (!head || !body) return '';
-  const css = [
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/theme.css'), ''),
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/layout.css'), ''),
-    readSegmentedText(path.resolve(STATIC_DIR, 'css/components.css'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/github-dark.min.css'), ''),
-  ].join('\n');
-  const scripts = [
-    readText(path.resolve(STATIC_DIR, 'vendor/marked.min.js'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/highlight.min.js'), ''),
-    readText(path.resolve(STATIC_DIR, 'vendor/chart.umd.min.js'), ''),
-    readForkScript('js/api'),
-    readForkScript('js/app'),
-    PAGE_SCRIPTS.map((name) => readForkScript(`js/pages/${name}`)).filter(Boolean).join('\n'),
-  ].filter(Boolean).join('\n');
-  const alpine = readText(path.resolve(STATIC_DIR, 'vendor/alpine.min.js'), '');
-  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
-}
-function contentTypeForFile(filePath) { return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream'; }
-function readPrimaryDashboardAsset(pathname) {
-  const requestPath = pathname === '/' || pathname === '/dashboard' ? '/index_body.html' : pathname;
-  const resolved = path.resolve(STATIC_DIR, requestPath.replace(/^\/+/, ''));
-  const ext = path.extname(resolved).toLowerCase();
-  if (!resolved.startsWith(STATIC_DIR)) return null;
-  if (!fileExists(resolved) && listSegmentPartFiles(resolved).length === 0) return null;
-  if (['.js', '.css', '.html', '.json', '.md', '.txt'].includes(ext)) return { body: rebrandDashboardText(readSegmentedText(resolved, '')), contentType: contentTypeForFile(resolved) };
-  return { body: fs.readFileSync(resolved), contentType: contentTypeForFile(resolved) };
+  return hasSvelteKitDashboardUi(SVELTEKIT_BUILD_DIR);
 }
 function backendBase(flags) { return `http://${flags.apiHost}:${flags.apiPort}`; }
 async function sleep(ms) { await new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -340,63 +207,129 @@ function proxyUpgrade(req, socket, head, flags) {
   upstream.on('error', () => { try { socket.destroy(); } catch {} });
   upstream.end();
 }
-function currentGitBranch() {
-  try {
-    const result = spawnSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 });
-    return cleanText(result.stdout || '', 120);
-  } catch { return ''; }
-}
-async function buildCompatStatus(flags) {
-  const [versionRow, toolsRow, usageRow, snapshotRow, configRow] = await Promise.allSettled([
-    fetchBackendJson(flags, '/api/version', 8000),
-    fetchBackendJson(flags, '/api/tools', 8000),
-    fetchBackendJson(flags, '/api/usage', 8000),
-    fetchBackendJson(flags, '/api/dashboard/snapshot', 12000),
-    fetchBackendJson(flags, '/api/config', 8000),
-  ]);
-  const version = versionRow.status === 'fulfilled' ? versionRow.value : {};
-  const tools = toolsRow.status === 'fulfilled' ? toolsRow.value : {};
-  const usage = usageRow.status === 'fulfilled' ? usageRow.value : {};
-  const snapshot = snapshotRow.status === 'fulfilled' ? snapshotRow.value : {};
-  const config = configRow.status === 'fulfilled' ? configRow.value : {};
-  const appTurn = snapshot && snapshot.app && snapshot.app.turn && typeof snapshot.app.turn === 'object' ? snapshot.app.turn : {};
-  const usageAgents = usage && Array.isArray(usage.agents) ? usage.agents : [];
-  return {
-    ok: true,
-    version: cleanText(version.version || '0.1.0', 120) || '0.1.0',
-    agent_count: parsePositiveInt(usageAgents.length, 0, 0, 100000),
-    connected: true,
-    uptime_sec: 0,
-    uptime_seconds: 0,
-    ws: true,
-    default_provider: cleanText(config.provider || appTurn.provider || '', 80) || 'unknown',
-    default_model: cleanText(config.model || appTurn.model || '', 160) || 'gpt-5',
-    git_branch: currentGitBranch(),
-    api_listen: `${flags.host}:${flags.port}`,
-    listen: `${flags.host}:${flags.port}`,
-    home_dir: ROOT,
-    workspace_dir: ROOT,
-    log_level: cleanText(process.env.RUST_LOG || process.env.LOG_LEVEL || 'info', 32) || 'info',
-    network_enabled: true,
-    runtime_sync: tools && tools.runtime_sync && typeof tools.runtime_sync === 'object' ? tools.runtime_sync : null,
+function createAgentWsBridge(flags) {
+  const wss = new WebSocketServer({ noServer: true, clientTracking: false, perMessageDeflate: false });
+  const route = /^\/api\/agents\/([^/]+)\/ws$/;
+  const enc = (agentId) => encodeURIComponent(String(agentId || '').trim());
+  const send = (ws, payload) => {
+    try { if (ws && ws.readyState === 1) ws.send(JSON.stringify(payload)); } catch {}
   };
-}
-async function buildCompatConfig(flags) {
-  const config = await fetchBackendJson(flags, '/api/config', 12000).catch(() => ({}));
-  const snapshot = await fetchBackendJson(flags, '/api/dashboard/snapshot', 12000).catch(() => ({}));
-  const appTurn = snapshot && snapshot.app && snapshot.app.turn && typeof snapshot.app.turn === 'object' ? snapshot.app.turn : {};
+  const parseJson = (raw) => { try { return JSON.parse(raw); } catch { return null; } };
+  const toNum = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const sendContext = async (ws, agentId) => {
+    const agent = await fetchBackendJson(flags, `/api/agents/${enc(agentId)}`, 8000).catch(() => ({}));
+    const contextWindow = toNum(agent.context_window || agent.context_window_tokens || 0, 0);
+    send(ws, { type: 'context_state', agent_id: agentId, context_tokens: 0, context_window: contextWindow, context_ratio: 0, context_pressure: contextWindow > 0 ? 'normal' : '' });
+    return agent;
+  };
+  wss.on('connection', (ws, _req, agentId) => {
+    const targetAgent = cleanText(agentId || '', 180);
+    let agentName = '';
+    let chain = Promise.resolve();
+    chain = chain.then(async () => {
+      const agent = await sendContext(ws, targetAgent);
+      agentName = cleanText(agent.name || '', 120);
+      send(ws, { type: 'connected', agent_id: targetAgent, agent_name: agentName || '' });
+    }).catch((error) => send(ws, { type: 'error', content: cleanText(error && error.message ? error.message : 'ws_connect_failed', 260), agent_id: targetAgent }));
+    ws.on('message', (chunk) => {
+      const raw = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk || '');
+      chain = chain.then(async () => {
+        const payload = parseJson(raw);
+        if (!payload || typeof payload !== 'object') return;
+        const msgType = cleanText(payload.type || '', 40).toLowerCase();
+        if (!msgType || msgType === 'ping') { send(ws, { type: 'pong' }); return; }
+        if (msgType === 'message') {
+          const content = String(payload.content == null ? '' : payload.content).slice(0, 12000);
+          if (!content.trim()) { send(ws, { type: 'error', content: 'message_required', agent_id: targetAgent }); return; }
+          send(ws, { type: 'typing', state: 'start', agent_id: targetAgent });
+          const res = await fetchBackend(flags, `/api/agents/${enc(targetAgent)}/message`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ message: content, attachments: Array.isArray(payload.attachments) ? payload.attachments : [] }),
+          }, 180000);
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok || out.ok === false) {
+            send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(out.error || `backend_http_${res.status}`, 260) });
+            return;
+          }
+          send(ws, {
+            type: 'response',
+            agent_id: targetAgent,
+            agent_name: agentName || cleanText(out.agent_name || '', 120) || '',
+            content: String(out.response || out.content || ''),
+            input_tokens: toNum(out.input_tokens || 0, 0),
+            output_tokens: toNum(out.output_tokens || 0, 0),
+            cost_usd: toNum(out.cost_usd || 0, 0),
+            iterations: toNum(out.iterations || 1, 1),
+            duration_ms: toNum(out.duration_ms || out.latency_ms || 0, 0),
+            context_tokens: toNum(out.context_tokens || out.context_used_tokens || out.context_total_tokens || 0, 0),
+            context_window: toNum(out.context_window || out.context_window_tokens || 0, 0),
+            context_ratio: toNum(out.context_ratio || 0, 0),
+            context_pressure: cleanText(out.context_pressure || '', 32),
+            auto_route: out.auto_route || null,
+          });
+          return;
+        }
+        if (msgType === 'terminal') {
+          const command = String(payload.command == null ? '' : payload.command).slice(0, 16000);
+          if (!command.trim()) { send(ws, { type: 'terminal_error', agent_id: targetAgent, message: 'command_required' }); return; }
+          const res = await fetchBackend(flags, `/api/agents/${enc(targetAgent)}/terminal`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ command, cwd: cleanText(payload.cwd || '', 4000) }),
+          }, 120000);
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok || out.ok === false) {
+            send(ws, { type: 'terminal_error', agent_id: targetAgent, message: cleanText(out.error || out.message || `backend_http_${res.status}`, 260) });
+            return;
+          }
+          send(ws, { type: 'terminal_output', agent_id: targetAgent, stdout: String(out.stdout || ''), stderr: String(out.stderr || ''), exit_code: toNum(out.exit_code || 0, 0), duration_ms: toNum(out.duration_ms || 0, 0), cwd: cleanText(out.cwd || '', 4000) });
+          return;
+        }
+        if (msgType === 'command') {
+          const command = cleanText(payload.command || '', 80).toLowerCase();
+          const res = await fetchBackend(flags, `/api/agents/${enc(targetAgent)}/command`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ command, silent: !!payload.silent }),
+          }, 12000);
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok || out.ok === false) {
+            send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(out.error || `backend_http_${res.status}`, 260) });
+            return;
+          }
+          send(ws, {
+            type: 'command_result',
+            silent: !!payload.silent,
+            agent_id: targetAgent,
+            command: cleanText(out.command || command || 'unknown', 80),
+            message: cleanText(out.message || `Command '${command || 'unknown'}' acknowledged.`, 320),
+            runtime_sync: out.runtime_sync || null,
+            context_window: toNum(out.context_window || 0, 0),
+          });
+          return;
+        }
+      }).catch((error) => send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(error && error.message ? error.message : 'ws_bridge_failed', 260) }));
+    });
+    ws.on('error', () => {});
+  });
   return {
-    ok: true,
-    api_key: cleanText(config.api_key || '', 20) || 'set',
-    provider: cleanText(config.provider || appTurn.provider || '', 80) || 'openai',
-    model: cleanText(config.model || appTurn.model || '', 160) || 'gpt-5',
-    cli_mode: cleanText(config.cli_mode || '', 20) || 'ops',
+    tryHandle(req, socket, head) {
+      const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
+      const match = pathname.match(route);
+      if (!match) return false;
+      const agentId = cleanText(decodeURIComponent(match[1] || ''), 180);
+      if (!agentId) { try { socket.destroy(); } catch {} return true; }
+      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, agentId));
+      return true;
+    },
   };
 }
 async function runServe(flags) {
-  if (!hasPrimaryDashboardUi()) throw new Error('primary_dashboard_ui_missing');
-  let dashboardHtml = buildPrimaryDashboardHtml();
+  if (!hasPrimaryDashboardUi(STATIC_DIR)) throw new Error('primary_dashboard_ui_missing');
+  let dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR);
   if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
+  const hasSvelteDashboard = ensureSvelteDashboardBuild();
   const backend = await ensureBackend(flags);
   const status = {
     ok: true,
@@ -407,33 +340,57 @@ async function runServe(flags) {
     port: flags.port,
     refresh_ms: flags.refreshMs,
     team: flags.team,
-    authority: 'openclaw_static_ui_over_rust_core_api',
+    authority: hasSvelteDashboard ? 'primary_dashboard_ui_with_sveltekit_assets_over_rust_core_api' : 'primary_dashboard_ui_over_rust_core_api',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
     status_path: path.relative(ROOT, STATUS_PATH),
   };
+  const wsBridge = createAgentWsBridge(flags);
   const server = http.createServer(async (req, res) => {
     const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
     try {
-      if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
-        dashboardHtml = buildPrimaryDashboardHtml() || dashboardHtml;
+      if (req.method === 'GET' && pathname === '/dashboard-shell') {
+        dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         res.end(dashboardHtml);
         return;
       }
-      if (req.method === 'GET' && pathname === '/api/status') return void sendJson(res, 200, await buildCompatStatus(flags));
-      if (req.method === 'GET' && pathname === '/api/config') return void sendJson(res, 200, await buildCompatConfig(flags));
+      if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
+        dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(dashboardHtml);
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/api/status') {
+        const status = await fetchBackendJson(flags, '/api/status', 8000).catch(() => ({ ok: false, error: 'status_unavailable' }));
+        return void sendJson(res, 200, status);
+      }
+      if (req.method === 'GET' && pathname === '/api/config') {
+        const config = await fetchBackendJson(flags, '/api/config', 8000).catch(() => ({ ok: false, error: 'config_unavailable' }));
+        return void sendJson(res, 200, config);
+      }
       if (req.method === 'GET' && pathname === '/api/config/schema') {
         const schema = await fetchBackendJson(flags, '/api/config/schema', 8000).catch(() => ({ ok: true, sections: {} }));
         return void sendJson(res, 200, schema);
       }
-      if (req.method === 'GET' && pathname === '/api/auth/check') return void sendJson(res, 200, { ok: true, mode: 'none', authenticated: true, user: 'operator' });
+      if (req.method === 'GET' && pathname === '/api/auth/check') {
+        const auth = await fetchBackendJson(flags, '/api/auth/check', 8000).catch(() => ({ ok: true, mode: 'none', authenticated: true, user: 'operator' }));
+        return void sendJson(res, 200, auth);
+      }
       if (req.method === 'GET') {
-        const asset = readPrimaryDashboardAsset(pathname);
+        const asset = readPrimaryDashboardAsset(STATIC_DIR, pathname);
         if (asset) {
           res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });
           res.end(asset.body);
           return;
+        }
+        if (hasSvelteDashboard) {
+          const svelteAsset = readSvelteKitDashboardAsset(SVELTEKIT_BUILD_DIR, pathname);
+          if (svelteAsset) {
+            res.writeHead(200, { 'content-type': svelteAsset.contentType, 'cache-control': 'no-store' });
+            res.end(svelteAsset.body);
+            return;
+          }
         }
       }
       if (pathname === '/healthz' || pathname.startsWith('/api/')) return void await proxyToBackend(req, res, flags);
@@ -443,6 +400,7 @@ async function runServe(flags) {
     }
   });
   server.on('upgrade', (req, socket, head) => {
+    if (wsBridge.tryHandle(req, socket, head)) return;
     const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
     if (!pathname.startsWith('/api/')) { socket.destroy(); return; }
     proxyUpgrade(req, socket, head, flags);

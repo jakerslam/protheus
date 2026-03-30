@@ -1,4 +1,4 @@
-// Infring Skills Page — OpenClaw/ClawHub ecosystem + local skills + MCP servers
+// Infring Skills Page — Infring/ClawHub ecosystem + local skills + MCP servers
 'use strict';
 
 function skillsPage() {
@@ -34,7 +34,7 @@ function skillsPage() {
     mcpServers: [],
     mcpLoading: false,
 
-    // Category definitions from the OpenClaw ecosystem
+    // Category definitions from the Infring ecosystem
     categories: [
       { id: 'coding', name: 'Coding & IDEs' },
       { id: 'git', name: 'Git & GitHub' },
@@ -69,7 +69,7 @@ function skillsPage() {
       if (!source) return { text: 'Local', cls: 'badge-dim' };
       switch (source.type) {
         case 'clawhub': return { text: 'ClawHub', cls: 'badge-info' };
-        case 'openclaw': return { text: 'OpenClaw', cls: 'badge-info' };
+        case 'openclaw': return { text: 'Infring', cls: 'badge-info' };
         case 'bundled': return { text: 'Built-in', cls: 'badge-success' };
         default: return { text: 'Local', cls: 'badge-dim' };
       }
