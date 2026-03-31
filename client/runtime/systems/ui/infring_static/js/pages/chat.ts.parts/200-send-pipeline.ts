@@ -388,16 +388,14 @@
           { remove_last_agent_failure: false }
         );
         if (!handedOffToRecovery) {
-          this.messages.push({
-            id: ++msgId,
-            role: 'system',
+          this.pushSystemMessage({
             text: 'Error: ' + e.message,
             meta: '',
             tools: [],
             system_origin: 'http:error',
-            ts: Date.now()
+            ts: Date.now(),
+            dedupe_window_ms: 12000
           });
           this._inflightPayload = null;
-          this.scheduleConversationPersist();
         } else {
           return;

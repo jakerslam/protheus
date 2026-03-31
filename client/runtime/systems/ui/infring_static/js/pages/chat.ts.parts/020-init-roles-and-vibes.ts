@@ -39,6 +39,8 @@
       { cmd: '/queue', desc: 'Check if agent is processing' },
       { cmd: '/status', desc: 'Show system status' },
       { cmd: '/alerts', desc: 'Show proactive telemetry alerts' },
+      { cmd: '/next', desc: 'Show predicted next high-ROI actions' },
+      { cmd: '/memory', desc: 'Show memory hygiene + cleanup recommendations' },
       { cmd: '/continuity', desc: 'Show pending actions across channels/sessions/tasks' },
       { cmd: '/aliases', desc: 'List active slash aliases' },
       { cmd: '/alias', desc: 'Create custom alias (/alias /short /target ...)' },

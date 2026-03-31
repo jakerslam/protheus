@@ -232,6 +232,13 @@ fn runtime_sync_summary(snapshot: &Value) -> Value {
 
 fn runtime_access_denied_phrase(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
+    let internal_meta_dump = lowered.contains("internal memory metadata")
+        || lowered.contains("instead of actually answering your question")
+        || lowered.contains("bug in my response generation")
+        || lowered.contains("my response generation")
+        || lowered.contains("which of the suggestions did you implement")
+        || lowered.contains("if you can tell me which lever you pulled")
+        || lowered.contains("what should i be looking for");
     lowered.contains("don't have access")
         || lowered.contains("do not have access")
         || lowered.contains("cannot access")
@@ -239,6 +246,7 @@ fn runtime_access_denied_phrase(text: &str) -> bool {
         || lowered.contains("text-based ai assistant")
         || lowered.contains("cannot directly interface")
         || lowered.contains("no access to")
+        || internal_meta_dump
 }
 
 fn persistent_memory_denied_phrase(text: &str) -> bool {
@@ -365,4 +373,32 @@ fn runtime_access_summary_text(runtime_summary: &Value) -> String {
     format!(
         "Current queue depth: {queue_depth}, active workers: {cockpit_blocks} ({cockpit_total_blocks} total), live signals: {conduit_signals}. Runtime status, persistent memory, and command surfaces are available."
     )
+}
+
+#[cfg(test)]
+mod clean_text_runtime_access_tests {
+    use super::runtime_access_denied_phrase;
+
+    #[test]
+    fn runtime_access_denied_phrase_catches_classic_denial() {
+        assert!(runtime_access_denied_phrase(
+            "I do not have access to runtime systems right now."
+        ));
+    }
+
+    #[test]
+    fn runtime_access_denied_phrase_catches_internal_meta_dump_pattern() {
+        assert!(runtime_access_denied_phrase(
+            "Yes—my apologies. I dumped internal memory metadata instead of actually answering your question. \
+             That's a bug in my response generation. Which of the suggestions did you implement? \
+             If you can tell me which lever you pulled, I can check what should I be looking for."
+        ));
+    }
+
+    #[test]
+    fn runtime_access_denied_phrase_ignores_normal_user_facing_status() {
+        assert!(!runtime_access_denied_phrase(
+            "Queue depth is low, workers are stable, and alerts are clear."
+        ));
+    }
 }

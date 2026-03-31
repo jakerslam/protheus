@@ -108,8 +108,18 @@
         var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
         if (this._suggestionFetchSeq !== seq) return;
         var gatingContext = [cleanHint, String(context.signature || '')].join(' | ');
+        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
+        var telemetryNext = Array.isArray(this.telemetryNextActions) ? this.telemetryNextActions : [];
+        var nextCommandSuggestions = telemetryNext
+          .map(function(row) {
+            return String((row && row.command) || '').trim();
+          })
+          .filter(Boolean);
+        if ((!Array.isArray(baseSuggestions) || !baseSuggestions.length) && typeof this.derivePromptSuggestionFallback === 'function') {
+          baseSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint, gatingContext);
+        }
         var suggestions = this.normalizePromptSuggestions(
-          result && result.suggestions ? result.suggestions : [],
+          (Array.isArray(baseSuggestions) ? baseSuggestions : []).concat(nextCommandSuggestions),
           gatingContext,
           this.recentUserSuggestionSamples()
         );
@@ -118,7 +128,19 @@
         this._lastSuggestionsAgentId = agentId;
       } catch (_) {
         if (this._suggestionFetchSeq === seq) {
-          this.promptSuggestions = [];
+          var fallbackContext = this.collectPromptSuggestionContext();
+          var fallbackRows = [];
+          if (typeof this.derivePromptSuggestionFallback === 'function') {
+            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
+          }
+          var fallbackTelemetry = (Array.isArray(this.telemetryNextActions) ? this.telemetryNextActions : [])
+            .map(function(row) { return String((row && row.command) || '').trim(); })
+            .filter(Boolean);
+          this.promptSuggestions = this.normalizePromptSuggestions(
+            (Array.isArray(fallbackRows) ? fallbackRows : []).concat(fallbackTelemetry),
+            String(fallbackContext.signature || ''),
+            this.recentUserSuggestionSamples()
+          );
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = agentId;
         }

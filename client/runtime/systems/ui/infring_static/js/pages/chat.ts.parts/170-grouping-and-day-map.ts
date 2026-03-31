@@ -360,6 +360,69 @@
       this.scheduleConversationPersist();
     },
 
+    pushSystemMessage: function(entry) {
+      var payload = entry && typeof entry === 'object' ? entry : { text: entry };
+      var text = String(payload && payload.text ? payload.text : '').trim();
+      if (!text) return null;
+      var origin = String(payload.system_origin || payload.systemOrigin || '').trim();
+      var canonicalText = text.replace(/\s+/g, ' ').trim().toLowerCase();
+      var tsRaw = Number(payload.ts || 0);
+      var ts = Number.isFinite(tsRaw) && tsRaw > 0 ? tsRaw : Date.now();
+      var dedupeWindowMs = Number(payload.dedupe_window_ms || payload.dedupeWindowMs || 8000);
+      if (!Number.isFinite(dedupeWindowMs) || dedupeWindowMs < 0) dedupeWindowMs = 8000;
+      if (dedupeWindowMs > 60000) dedupeWindowMs = 60000;
+      var dedupeScope = Number(payload.dedupe_scope || payload.dedupeScope || 12);
+      if (!Number.isFinite(dedupeScope) || dedupeScope < 1) dedupeScope = 12;
+      if (dedupeScope > 24) dedupeScope = 24;
+      var canDedupe = payload.dedupe !== false;
+      if (canDedupe && Array.isArray(this.messages) && this.messages.length > 0) {
+        var scannedSystemRows = 0;
+        for (var idx = this.messages.length - 1; idx >= 0; idx -= 1) {
+          var row = this.messages[idx];
+          if (!row || row.thinking || row.streaming) continue;
+          var role = String(row.role || '').toLowerCase();
+          if (role !== 'system' || row.is_notice) {
+            if (scannedSystemRows > 0) break;
+            continue;
+          }
+          scannedSystemRows += 1;
+          var rowText = String(row.text || '').trim();
+          var rowCanonicalText = rowText.replace(/\s+/g, ' ').trim().toLowerCase();
+          var rowOrigin = String(row.system_origin || '').trim();
+          var rowTs = Number(row.ts || 0);
+          var ageMs = Number.isFinite(rowTs) && rowTs > 0 ? Math.abs(ts - rowTs) : Number.POSITIVE_INFINITY;
+          var sameText = rowCanonicalText === canonicalText;
+          var sameOrigin = rowOrigin === origin || !rowOrigin || !origin;
+          var isErrorLine = /^error:/i.test(canonicalText) || /^error:/i.test(rowCanonicalText);
+          if (sameText && ageMs <= dedupeWindowMs && (sameOrigin || isErrorLine)) {
+            var repeatCount = Number(row._repeat_count || 1);
+            if (!Number.isFinite(repeatCount) || repeatCount < 1) repeatCount = 1;
+            repeatCount += 1;
+            row._repeat_count = repeatCount;
+            var priorMeta = String(row.meta || '').trim().replace(/\s*\|\s*repeated x\d+\s*$/i, '').trim();
+            row.meta = (priorMeta ? (priorMeta + ' | ') : '') + 'repeated x' + repeatCount;
+            row.ts = ts;
+            this.scheduleConversationPersist();
+            return row;
+          }
+          if (scannedSystemRows >= dedupeScope) break;
+        }
+      }
+      var message = {
+        id: ++msgId,
+        role: 'system',
+        text: text,
+        meta: String(payload.meta || ''),
+        tools: Array.isArray(payload.tools) ? payload.tools : [],
+        system_origin: origin,
+        ts: ts
+      };
+      this.messages.push(message);
+      if (payload.auto_scroll) this.scrollToBottom();
+      this.scheduleConversationPersist();
+      return message;
+    },
+
     addModelSwitchNotice: function(previousModelName, previousProviderName, modelName, providerName) {
       var legacyCall = arguments.length < 3;
       var previousModel = '';

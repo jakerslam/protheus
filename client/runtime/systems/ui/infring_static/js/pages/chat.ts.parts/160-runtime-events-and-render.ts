@@ -2,7 +2,8 @@
               meta: '',
               tools: [],
               system_origin: 'runtime:error',
-              ts: Date.now()
+              ts: Date.now(),
+              dedupe_window_ms: 12000
             });
             self2._inflightPayload = null;
             self2.scrollToBottom();
