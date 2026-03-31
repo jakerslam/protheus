@@ -290,6 +290,10 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'pinToLatestOnOpen: function(container, options)', 'chat open pin-to-latest helper missing');
   assertContains(chatSource, 'cancelPinToLatestOnOpen: function()', 'chat open pin cancel helper missing');
   assertContains(chatSource, 'self.pinToLatestOnOpen(null, { maxFrames: 24 });', 'session loader should re-pin to latest after render settles');
+  assertContains(chatSource, 'scrollBottomBufferPx: 28', 'chat bottom buffer baseline should preserve visual padding without blank over-scroll');
+  assertContains(chatSource, 'scrollBottomClampSlackPx: 16', 'chat bottom clamp slack tuning missing');
+  assertContains(chatSource, 'page && page.showFreshArchetypeTiles', 'fresh-init mode should bypass hard bottom clamp');
+  assertContains(chatSource, 'setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host));', 'bottom clamp should defer correction to avoid scroll thrash');
   assertContains(chatSource, "text: 'This session is empty. Send a message to begin.'", 'empty-session fallback message missing');
   assertContains(chatSource, 'self.recoverEmptySessionRender(agentId, data || null);', 'empty-session recovery hook missing from session loader');
   assertContains(

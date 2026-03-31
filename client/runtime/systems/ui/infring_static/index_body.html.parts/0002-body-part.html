@@ -340,7 +340,7 @@
 
     <!-- Page: Chat -->
     <template x-if="page === 'chat'">
-      <div x-data="chatPage" class="chat-wrapper">
+      <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive }">
         <!-- Keep selector wiring for later use, but hide visual control for now -->
         <div style="display:none" aria-hidden="true">
           <select

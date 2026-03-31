@@ -426,12 +426,50 @@ function runPinToLatestOnOpenJob(page, container, options) {
   schedule();
 }
 
+function resolveBottomBufferPx(page) {
+  var raw = Number(page && page.scrollBottomBufferPx);
+  if (!Number.isFinite(raw) || raw < 0) raw = 28;
+  if (raw > 96) raw = 96;
+  return raw;
+}
+
+function resolveBottomFollowTolerancePx(page, overridePx) {
+  var raw = Number(overridePx);
+  if (!Number.isFinite(raw) || raw < 1) raw = Number(page && page.scrollBottomFollowTolerancePx);
+  if (!Number.isFinite(raw) || raw < 1) raw = 32;
+  if (raw > 160) raw = 160;
+  return raw;
+}
+
+function isNearLatestMessageBottom(page, el, tolerancePx) {
+  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
+  if (!host) return false;
+  var targetTop = resolveLatestMessageScrollTop(page, host);
+  var top = Math.max(0, Number(host.scrollTop || 0));
+  return Math.abs(top - targetTop) <= resolveBottomFollowTolerancePx(page, tolerancePx);
+}
+
+function clampScrollToLatestMessageBottom(page, el) {
+  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
+  if (!host) return 0;
+  var targetTop = resolveLatestMessageScrollTop(page, host);
+  if ((page && page.showFreshArchetypeTiles) || !host.querySelector('.chat-message-block[data-msg-idx], .chat-message-block')) return targetTop;
+  var top = Number(host.scrollTop || 0);
+  var slack = Number(page && page.scrollBottomClampSlackPx);
+  if (!Number.isFinite(slack) || slack < 0) slack = 16;
+  if (top <= (targetTop + slack)) return targetTop;
+  if (page && page._bottomClampTimer) clearTimeout(page._bottomClampTimer);
+  if (page) page._bottomClampTimer = setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host)); page._bottomClampTimer = 0; }, 64);
+  else host.scrollTop = targetTop;
+  return targetTop;
+}
+
 function resolveLatestMessageScrollTop(page, el) {
   var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
   if (!host) return 0;
   var clientHeight = Math.max(0, Number(host.clientHeight || 0));
   var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
-  var blocks = host.querySelectorAll('.chat-message-block[data-msg-idx]');
+  var blocks = host.querySelectorAll('.chat-message-block[data-msg-idx], .chat-message-block');
   if (!blocks || !blocks.length) return maxTop;
   var bottom = 0;
   for (var i = 0; i < blocks.length; i++) {
@@ -441,6 +479,7 @@ function resolveLatestMessageScrollTop(page, el) {
     if (blockBottom > bottom) bottom = blockBottom;
   }
   if (!(bottom > 0)) return maxTop;
-  var targetTop = Math.max(0, Math.round(bottom - clientHeight));
+  var bottomBuffer = resolveBottomBufferPx(page);
+  var targetTop = Math.max(0, Math.round((bottom + bottomBuffer) - clientHeight));
   return targetTop > maxTop ? maxTop : targetTop;
 }

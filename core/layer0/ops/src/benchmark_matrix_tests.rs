@@ -79,6 +79,25 @@ fn extract_runtime_metrics_prefers_install_artifact_over_full_install() {
 }
 
 #[test]
+fn extract_runtime_metrics_prefers_engine_start_when_available() {
+    let runtime = json!({
+        "metrics": {
+            "cold_start_p50_ms": 2345.0,
+            "cold_start_p95_ms": 2401.0,
+            "engine_start_p50_ms": 18.4,
+            "engine_start_p95_ms": 21.2,
+            "gateway_supervisor_orchestration_p50_ms": 2326.6,
+            "gateway_supervisor_orchestration_p95_ms": 2379.8,
+            "idle_rss_p50_mb": 7.1,
+            "idle_rss_p95_mb": 7.2,
+            "install_artifact_total_mb": 25.8
+        }
+    });
+
+    assert_eq!(extract_runtime_metrics(&runtime), Some((18.4, 7.1, 25.8)));
+}
+
+#[test]
 fn runtime_metrics_falls_back_to_top1_snapshot_when_runtime_floor_state_is_missing() {
     let root = tempdir().expect("tempdir");
     let benchmark_snapshot = root.path().join(TOP1_BENCHMARK_SNAPSHOT_REL);

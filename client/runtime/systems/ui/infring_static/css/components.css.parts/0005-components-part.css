@@ -258,6 +258,32 @@
   cursor: text;
 }
 
+.message-bubble-content {
+  display: block;
+  transition: opacity 0.1s var(--ease-smooth), filter 0.1s var(--ease-smooth);
+  filter: blur(0);
+}
+
+@keyframes chatMessageResizeTextBlur {
+  0% {
+    filter: blur(2.2px);
+    opacity: 0.78;
+  }
+  82% {
+    filter: blur(2.2px);
+    opacity: 0.82;
+  }
+  100% {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+.chat-wrapper.chat-resize-blur-active .message-agent-name,
+.chat-wrapper.chat-resize-blur-active .message-bubble-content {
+  animation: chatMessageResizeTextBlur 0.14s var(--ease-smooth) forwards;
+}
+
 .message-bubble a,
 .message-bubble button,
 .message-bubble input,

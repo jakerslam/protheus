@@ -75,12 +75,12 @@ fn archive_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Str
             }
             let ts = row.get("ts").and_then(Value::as_str).unwrap_or("");
             if let Some(s) = &start {
-                if ts < s {
+                if ts < s.as_str() {
                     return false;
                 }
             }
             if let Some(e) = &end {
-                if ts > e {
+                if ts > e.as_str() {
                     return false;
                 }
             }
@@ -244,4 +244,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ),
     }
 }
-

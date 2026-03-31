@@ -64,6 +64,7 @@
           clearTimeout(self._agentTrailListenTimer);
           self._agentTrailListenTimer = 0;
         }
+        self.teardownChatResizeBlurObserver();
         self.stopAgentTrailLoop(true);
       });
 
@@ -78,6 +79,12 @@
         } else {
           self.clearPromptSuggestions();
         }
+      });
+
+      this.$watch('messages.length', function() {
+        self.$nextTick(function() {
+          self.scrollToBottom({ force: false });
+        });
       });
 
       // Check for pending agent from Agents page (set before chat mounted)
@@ -224,6 +231,7 @@
         self.startAgentTrailLoop();
         self.installChatMapWheelLock();
         self.scheduleMessageRenderWindowUpdate();
+        self.installChatResizeBlurObserver();
       });
 
       InfringAPI.get('/api/status').then(function(status) {

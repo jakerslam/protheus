@@ -343,6 +343,13 @@ function app() {
     })(),
     chatSidebarDragAgentId: '',
     chatSidebarDropTargetId: '',
+    collapsedAgentHover: {
+      active: false,
+      name: '',
+      text: '',
+      unread: false,
+      top: 0
+    },
     confirmArchiveAgentId: '',
     archivedAgentIds: (() => {
       try {

@@ -57,7 +57,7 @@
 
         <!-- MODE 1: Inline Chat (agent selected) -->
         <template x-if="activeChatAgent">
-          <div x-data="chatPage" class="chat-wrapper">
+          <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive }">
             <!-- Chat header with back button -->
             <div class="page-header" x-show="currentAgent">
               <div class="flex items-center gap-2" style="min-width:0">
@@ -203,7 +203,9 @@
                           </div>
                         </template>
                         <!-- Normal message content -->
-                        <div class="message-bubble" :class="{ 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages))" x-html="highlightSearch(msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') && !msg.thinking ? renderMarkdown(msg.text) : escapeHtml(msg.text)))"></div>
+                        <div class="message-bubble" :class="{ 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages))">
+                          <div class="message-bubble-content" x-html="highlightSearch(msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') && !msg.thinking ? renderMarkdown(msg.text) : escapeHtml(msg.text)))"></div>
+                        </div>
                         <template x-if="messageProgress(msg)">
                           <div class="chat-progress-wrap">
                             <div class="chat-progress-meta">

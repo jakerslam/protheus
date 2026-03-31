@@ -321,7 +321,8 @@
         images: images,
         ts: Number.isFinite(Number(opts.ts)) ? Number(opts.ts) : Date.now()
       });
-      this.scrollToBottom();
+      this._stickToBottom = true;
+      this.scrollToBottom({ force: true, stabilize: true });
       localStorage.setItem('of-first-msg', 'true');
       this.promptSuggestions = [];
       if (!opts.deferPersist) this.scheduleConversationPersist();

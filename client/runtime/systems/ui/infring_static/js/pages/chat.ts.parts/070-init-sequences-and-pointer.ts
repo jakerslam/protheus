@@ -17,6 +17,52 @@
       chip.classList.remove('is-expanded');
     },
 
+    triggerChatResizeBlurPulse() {
+      this.chatResizeBlurActive = true;
+      if (this._chatResizeBlurTimer) {
+        clearTimeout(this._chatResizeBlurTimer);
+        this._chatResizeBlurTimer = 0;
+      }
+      var self = this;
+      this._chatResizeBlurTimer = setTimeout(function() {
+        self._chatResizeBlurTimer = 0;
+        self.chatResizeBlurActive = false;
+      }, 140);
+    },
+
+    teardownChatResizeBlurObserver() {
+      if (this._chatResizeObserver && typeof this._chatResizeObserver.disconnect === 'function') {
+        try { this._chatResizeObserver.disconnect(); } catch(_) {}
+      }
+      this._chatResizeObserver = null;
+      if (this._chatResizeBlurTimer) {
+        clearTimeout(this._chatResizeBlurTimer);
+        this._chatResizeBlurTimer = 0;
+      }
+      this.chatResizeBlurActive = false;
+    },
+
+    installChatResizeBlurObserver() {
+      this.teardownChatResizeBlurObserver();
+      if (typeof ResizeObserver !== 'function') return;
+      var host = this.$el || null;
+      if (!host || typeof host.getBoundingClientRect !== 'function') return;
+      var self = this;
+      this._chatResizeLastWidth = Math.round(Number(host.getBoundingClientRect().width || 0));
+      this._chatResizeObserver = new ResizeObserver(function(entries) {
+        var entry = entries && entries.length ? entries[0] : null;
+        if (!entry) return;
+        var width = Math.round(Number((entry.contentRect && entry.contentRect.width) || host.getBoundingClientRect().width || 0));
+        if (!Number.isFinite(width) || width <= 0) return;
+        var previous = Number(self._chatResizeLastWidth || 0);
+        self._chatResizeLastWidth = width;
+        if (previous <= 0) return;
+        if (Math.abs(width - previous) < 2) return;
+        self.triggerChatResizeBlurPulse();
+      });
+      this._chatResizeObserver.observe(host);
+    },
+
     async refreshPromptSuggestions(force, hint) {
       var agent = this.currentAgent;
       if (!agent || !agent.id) {

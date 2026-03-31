@@ -276,6 +276,7 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String]) {
             | "repl"
             | "status"
             | "toolkit"
+            | "task"
     ) {
         return;
     }

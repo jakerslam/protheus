@@ -95,34 +95,33 @@
       }
       if (!bestNode || !bestNode.id) return;
       var domId = String(bestNode.id);
-      if (this.selectedMessageDomId !== domId) {
-        this.selectedMessageDomId = domId;
-      }
-      if (!this.activeMapPreviewDomId) {
-        this.hoveredMessageDomId = domId;
-      }
+      if (this.selectedMessageDomId !== domId) this.selectedMessageDomId = domId;
+      if (!this.activeMapPreviewDomId) this.hoveredMessageDomId = domId;
       for (var idx = 0; idx < this.messages.length; idx++) {
-        if (this.messageDomId(this.messages[idx], idx) === domId) {
-          this.mapStepIndex = idx;
-          break;
-        }
+        if (this.messageDomId(this.messages[idx], idx) === domId) { this.mapStepIndex = idx; break; }
       }
       this.centerChatMapOnMessage(domId, { immediate: true });
     },
 
-    scrollToBottom() {
+    scrollToBottom(options) {
+      var opts = options && typeof options === 'object' ? options : {};
       var self = this;
       self.$nextTick(function() {
-        self.scrollToBottomImmediate();
+        self.scrollToBottomImmediate(opts);
+        if (opts.stabilize) self.stabilizeBottomScroll();
       });
     },
 
-    scrollToBottomImmediate() {
-      var el = this.resolveMessagesScroller();
+    scrollToBottomImmediate(options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var el = this.resolveMessagesScroller(opts.container || null);
       if (!el) return;
+      var force = opts.force !== false;
+      if (!force && !this._stickToBottom && !isNearLatestMessageBottom(this, el, opts.tolerancePx)) return;
       el.scrollTop = resolveLatestMessageScrollTop(this, el);
       this.syncGridBackgroundOffset(el);
       this.showScrollDown = false;
+      this._stickToBottom = true;
       this.syncMapSelectionToScroll(el);
       this.scheduleMessageRenderWindowUpdate(el);
       if (this._latexTimer) clearTimeout(this._latexTimer);
@@ -148,17 +147,18 @@
     cancelPinToLatestOnOpen: function() {
       cancelPinToLatestOnOpenJob(this);
     },
-
     pinToLatestOnOpen: function(container, options) {
       runPinToLatestOnOpenJob(this, container, options);
     },
     handleMessagesScroll(e) {
       var el = this.resolveMessagesScroller(e && e.target ? e.target : null);
       if (!el) return;
+      var targetTop = clampScrollToLatestMessageBottom(this, el);
       this.startAgentTrailLoop(el);
       this.syncGridBackgroundOffset(el);
       this.syncDirectHoverAfterScroll(el);
-      var hiddenBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      var hiddenBottom = Math.max(0, targetTop - Number(el.scrollTop || 0));
+      this._stickToBottom = hiddenBottom <= resolveBottomFollowTolerancePx(this);
       this.showScrollDown = hiddenBottom > 120;
       var self = this;
       if (typeof requestAnimationFrame === 'function') {
