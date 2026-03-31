@@ -53,9 +53,12 @@
       if (text.startsWith('/') && !this.attachments.length) {
         var cmd = text.split(' ')[0].toLowerCase();
         var cmdArgs = text.substring(cmd.length).trim();
-        var matched = this.slashCommands.find(function(c) { return c.cmd === cmd; });
+        var aliasResolution = this.resolveSlashAlias(cmd, cmdArgs);
+        var routedCmd = String(aliasResolution && aliasResolution.cmd ? aliasResolution.cmd : cmd).toLowerCase();
+        var routedArgs = String(aliasResolution && typeof aliasResolution.args === 'string' ? aliasResolution.args : cmdArgs).trim();
+        var matched = this.slashCommands.find(function(c) { return c.cmd === routedCmd; });
         if (matched) {
-          this.executeSlashCommand(matched.cmd, cmdArgs);
+          this.executeSlashCommand(matched.cmd, routedArgs);
           return;
         }
       }

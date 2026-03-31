@@ -727,6 +727,11 @@ fn main() {
             let exit = protheus_ops_core::command_list_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "operator-tooling-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::operator_tooling_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "coverage-badge-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::coverage_badge_kernel::run(&cwd, &rest);

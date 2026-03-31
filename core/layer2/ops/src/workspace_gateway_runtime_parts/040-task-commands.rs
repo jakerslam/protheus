@@ -322,12 +322,29 @@ fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
         eprintln!("{}", json!({ "ok": false, "type": "task_worker_error", "error": err }));
         return 1;
     }
-    let max_tasks = parse_u64_flag(&parsed.flags, "max-tasks", 1) as usize;
-    let wait_ms = parse_u64_flag(&parsed.flags, "wait-ms", 800);
+    let max_tasks = parse_u64_flag(&parsed.flags, "max-tasks", 0) as usize;
+    let wait_ms = parse_u64_flag(&parsed.flags, "wait-ms", DEFAULT_WORKER_MIN_POLL_MS)
+        .clamp(DEFAULT_WORKER_MIN_POLL_MS, DEFAULT_WORKER_MAX_POLL_MS);
+    let idle_hibernate_ms = parse_u64_flag(
+        &parsed.flags,
+        "idle-hibernate-ms",
+        DEFAULT_WORKER_IDLE_HIBERNATE_MS,
+    )
+    .clamp(1_000, 900_000);
+    let service_mode = parse_bool_flag(&parsed.flags, "service", max_tasks == 0);
     let (bus, notes) = build_task_bus(root, &parsed.flags);
+    let worker_id = Uuid::new_v4().to_string();
+    let _ = mark_worker_started(&paths, &worker_id, bus.mode(), service_mode);
     let mut processed = 0usize;
-    for _ in 0..max_tasks {
-        let batch = match bus.dequeue(1, wait_ms) {
+    let mut polls = 0usize;
+    let mut hibernated = false;
+    let mut idle_since_ms = now_epoch_ms();
+    let mut poll_wait_ms = wait_ms;
+    loop {
+        if max_tasks > 0 && processed >= max_tasks {
+            break;
+        }
+        let batch = match bus.dequeue(1, poll_wait_ms) {
             Ok(rows) => rows,
             Err(err) => {
                 eprintln!(
@@ -338,8 +355,26 @@ fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
             }
         };
         if batch.is_empty() {
+            polls += 1;
+            let now = now_epoch_ms();
+            let idle_ms = now.saturating_sub(idle_since_ms);
+            let _ = mark_worker_poll(&paths, &worker_id, true, poll_wait_ms);
+            if service_mode {
+                if idle_ms >= idle_hibernate_ms {
+                    hibernated = true;
+                    let _ = mark_worker_hibernated(&paths, &worker_id, idle_ms, processed);
+                    break;
+                }
+                poll_wait_ms = poll_wait_ms
+                    .saturating_mul(2)
+                    .clamp(DEFAULT_WORKER_MIN_POLL_MS, DEFAULT_WORKER_MAX_POLL_MS);
+                continue;
+            }
             break;
         }
+        idle_since_ms = now_epoch_ms();
+        poll_wait_ms = wait_ms;
+        let _ = mark_worker_poll(&paths, &worker_id, false, poll_wait_ms);
         for payload in batch {
             if let Err(err) = process_task(&paths, &payload) {
                 eprintln!(
@@ -356,12 +391,19 @@ fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
             processed += 1;
         }
     }
+    if !hibernated {
+        let _ = mark_worker_stopped(&paths, &worker_id, processed);
+    }
     println!(
         "{}",
         json!({
             "ok": true,
             "type": "task_worker",
             "processed": processed,
+            "polls": polls,
+            "hibernated": hibernated,
+            "service_mode": service_mode,
+            "idle_hibernate_ms": idle_hibernate_ms,
             "bus_mode": bus.mode(),
             "notes": notes
         })

@@ -9,7 +9,9 @@
 
       // Fetch dynamic commands from server
       this.fetchCommands();
+      this.loadSlashAliases();
       this.fetchModelContextWindows();
+      this.fetchProactiveTelemetryAlerts(false);
 
       // Ctrl+/ keyboard shortcut
       document.addEventListener('keydown', function(e) {
@@ -59,6 +61,10 @@
         if (self._sendWatchdogTimer) {
           clearInterval(self._sendWatchdogTimer);
           self._sendWatchdogTimer = null;
+        }
+        if (self._telemetryAlertsTimer) {
+          clearInterval(self._telemetryAlertsTimer);
+          self._telemetryAlertsTimer = null;
         }
         if (self._agentTrailListenTimer) {
           clearTimeout(self._agentTrailListenTimer);
@@ -245,6 +251,10 @@
       this._contextTelemetryTimer = setInterval(function() {
         self.requestContextTelemetry(false);
       }, 8000);
+      if (this._telemetryAlertsTimer) clearInterval(this._telemetryAlertsTimer);
+      this._telemetryAlertsTimer = setInterval(function() {
+        self.fetchProactiveTelemetryAlerts(true);
+      }, 15000);
     },
 
     toggleTerminalMode() {

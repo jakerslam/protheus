@@ -3,6 +3,7 @@ use super::Route;
 
 #[path = "../protheusctl_plane_shortcuts.rs"]
 mod protheusctl_plane_shortcuts;
+include!("012-operator-tooling-shortcuts.rs");
 fn contains_help_flag(args: &[String]) -> bool {
     args.iter().any(|arg| matches!(arg.trim(), "--help" | "-h"))
 }
@@ -29,6 +30,9 @@ fn has_prefix_flag(args: &[String], key: &str) -> bool {
 }
 
 pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
+    if let Some(route) = resolve_operator_tooling_shortcuts(cmd, rest) {
+        return Some(route);
+    }
     match cmd {
         "start" | "boot" => Some(Route {
             script_rel: "core://daemon-control".to_string(),

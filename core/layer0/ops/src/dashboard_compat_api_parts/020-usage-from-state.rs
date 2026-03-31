@@ -278,6 +278,7 @@ fn auth_check_payload() -> Value {
 fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let usage = usage_from_state(root, snapshot);
     let runtime = runtime_sync_summary(snapshot);
+    let continuity = continuity_pending_payload(root, snapshot);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version = read_json(&root.join("package.json"))
         .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
@@ -323,6 +324,353 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
             32,
         ),
         "network_enabled": true,
-        "runtime_sync": runtime
+        "runtime_sync": runtime,
+        "continuity": {
+            "pending_total": continuity.get("pending_total").cloned().unwrap_or_else(|| json!(0)),
+            "tasks_pending": continuity.pointer("/tasks/pending").cloned().unwrap_or_else(|| json!(0)),
+            "stale_sessions": continuity.pointer("/sessions/stale_48h_count").cloned().unwrap_or_else(|| json!(0)),
+            "channel_attention": continuity.pointer("/channels/attention_needed_count").cloned().unwrap_or_else(|| json!(0))
+        }
     })
+}
+
+fn task_runtime_summary(root: &Path) -> Value {
+    let path = root.join("local/state/runtime/task_runtime/registry.json");
+    let registry = read_json(&path).unwrap_or_else(|| json!({}));
+    let tasks = registry
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut queued = 0i64;
+    let mut running = 0i64;
+    let mut done = 0i64;
+    let mut cancelled = 0i64;
+    for row in tasks {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        match status.as_str() {
+            "queued" => queued += 1,
+            "running" => running += 1,
+            "done" => done += 1,
+            "cancelled" => cancelled += 1,
+            _ => {}
+        }
+    }
+    json!({
+        "queued": queued,
+        "running": running,
+        "done": done,
+        "cancelled": cancelled,
+        "pending": queued + running
+    })
+}
+
+fn worker_runtime_summary(root: &Path) -> Value {
+    let path = root.join("local/state/runtime/task_runtime/worker_state.json");
+    let state = read_json(&path).unwrap_or_else(|| json!({}));
+    let active_workers = state
+        .get("active_workers")
+        .and_then(Value::as_object)
+        .map(|rows| rows.len())
+        .unwrap_or(0) as i64;
+    json!({
+        "active_workers": active_workers,
+        "total_hibernations": state.get("total_hibernations").and_then(Value::as_i64).unwrap_or(0).max(0),
+        "last_hibernated": state.get("last_hibernated").cloned().unwrap_or(Value::Null),
+        "last_event": state.get("last_event").cloned().unwrap_or(Value::Null),
+        "updated_at_ms": state.get("updated_at_ms").cloned().unwrap_or(Value::Null)
+    })
+}
+
+fn session_pending_rows(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<Value> {
+    let now = Utc::now();
+    let mut rows = Vec::<Value>::new();
+    for row in session_summary_rows(root, snapshot).into_iter() {
+        let message_count = row.get("message_count").and_then(Value::as_i64).unwrap_or(0).max(0);
+        if message_count <= 0 {
+            continue;
+        }
+        let agent_id = clean_text(row.get("agent_id").and_then(Value::as_str).unwrap_or(""), 140);
+        if agent_id.is_empty() {
+            continue;
+        }
+        let updated_at = clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80);
+        let age_hours = parse_rfc3339_utc(&updated_at)
+            .map(|ts| {
+                let delta = now.signed_duration_since(ts).num_minutes().max(0);
+                delta as f64 / 60.0
+            })
+            .unwrap_or(0.0);
+        rows.push(json!({
+            "agent_id": agent_id,
+            "active_session_id": clean_text(row.get("active_session_id").and_then(Value::as_str).unwrap_or(""), 120),
+            "message_count": message_count,
+            "updated_at": updated_at,
+            "age_hours": (age_hours * 10.0).round() / 10.0,
+            "stale_48h": age_hours >= 48.0
+        }));
+    }
+    rows.sort_by(|a, b| {
+        let left = a.get("age_hours").and_then(Value::as_f64).unwrap_or(0.0);
+        let right = b.get("age_hours").and_then(Value::as_f64).unwrap_or(0.0);
+        right.partial_cmp(&left).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    rows.truncate(max_rows.clamp(1, 100));
+    rows
+}
+
+fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
+    let tasks = task_runtime_summary(root);
+    let workers = worker_runtime_summary(root);
+    let sessions = session_pending_rows(root, snapshot, 24);
+    let stale_sessions = sessions
+        .iter()
+        .filter(|row| row.get("stale_48h").and_then(Value::as_bool).unwrap_or(false))
+        .cloned()
+        .collect::<Vec<_>>();
+    let channel_rows = dashboard_compat_api_channels::channels_payload(root)
+        .get("channels")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let channel_attention = channel_rows
+        .into_iter()
+        .filter(|row| {
+            let configured = row.get("configured").and_then(Value::as_bool).unwrap_or(false);
+            let connected = row.get("connected").and_then(Value::as_bool).unwrap_or(false);
+            configured && !connected
+        })
+        .map(|row| {
+            json!({
+                "name": clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80),
+                "provider": clean_text(row.get("provider").and_then(Value::as_str).unwrap_or(""), 80),
+                "status": clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let pending_total = tasks.get("pending").and_then(Value::as_i64).unwrap_or(0).max(0)
+        + stale_sessions.len() as i64
+        + channel_attention.len() as i64;
+    json!({
+        "ok": true,
+        "type": "cross_channel_project_continuity",
+        "pending_total": pending_total,
+        "tasks": tasks,
+        "workers": workers,
+        "sessions": {
+            "rows": sessions,
+            "stale_48h_count": stale_sessions.len(),
+            "stale_48h": stale_sessions
+        },
+        "channels": {
+            "attention_needed_count": channel_attention.len(),
+            "attention_needed": channel_attention
+        }
+    })
+}
+
+fn proactive_telemetry_alerts_payload(root: &Path, snapshot: &Value) -> Value {
+    let continuity = continuity_pending_payload(root, snapshot);
+    let runtime = runtime_sync_summary(snapshot);
+    let task_pending = continuity
+        .pointer("/tasks/pending")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let active_workers = continuity
+        .pointer("/workers/active_workers")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let stale_sessions = continuity
+        .pointer("/sessions/stale_48h_count")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let channel_attention = continuity
+        .pointer("/channels/attention_needed_count")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let dashboard_alerts = parse_non_negative_i64(snapshot.pointer("/health/alerts/count"), 0);
+    let queue_depth = runtime
+        .get("queue_depth")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+
+    let mut alerts = Vec::<Value>::new();
+    if dashboard_alerts > 0 {
+        alerts.push(json!({
+            "id": "health_alerts_present",
+            "severity": "high",
+            "message": format!("Health checks report {} alert(s).", dashboard_alerts),
+            "recommended_command": "/status",
+            "source": "health"
+        }));
+    }
+    if task_pending >= 22 || queue_depth >= 22 {
+        alerts.push(json!({
+            "id": "queue_pressure_high",
+            "severity": "high",
+            "message": format!("Queue pressure is elevated (pending={}, depth={}).", task_pending, queue_depth),
+            "recommended_command": "/queue",
+            "source": "task_runtime"
+        }));
+    }
+    if stale_sessions > 0 {
+        alerts.push(json!({
+            "id": "stale_sessions_detected",
+            "severity": "medium",
+            "message": format!("{} session(s) have pending context older than 48h.", stale_sessions),
+            "recommended_command": "/continuity",
+            "source": "sessions"
+        }));
+    }
+    if channel_attention > 0 {
+        alerts.push(json!({
+            "id": "channel_attention_needed",
+            "severity": "medium",
+            "message": format!("{} configured channel(s) are disconnected.", channel_attention),
+            "recommended_command": "/continuity",
+            "source": "channels"
+        }));
+    }
+    if active_workers > 0 && task_pending == 0 {
+        alerts.push(json!({
+            "id": "worker_hibernation_candidate",
+            "severity": "low",
+            "message": "Workers are active with zero pending tasks; hibernation path can reclaim compute.",
+            "recommended_command": "infring task worker --service=1 --idle-hibernate-ms=15000",
+            "source": "task_runtime"
+        }));
+    }
+
+    json!({
+        "ok": true,
+        "type": "proactive_telemetry_alerts",
+        "generated_at": crate::now_iso(),
+        "count": alerts.len(),
+        "alerts": alerts,
+        "continuity": continuity
+    })
+}
+
+#[cfg(test)]
+mod continuity_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn write_json(path: &Path, value: &Value) {
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let raw = serde_json::to_string_pretty(value).expect("json");
+        fs::write(path, raw).expect("write");
+    }
+
+    #[test]
+    fn task_runtime_summary_counts_pending_and_done() {
+        let temp = tempdir().expect("tempdir");
+        write_json(
+            &temp.path().join("local/state/runtime/task_runtime/registry.json"),
+            &json!({
+                "version": "v1",
+                "tasks": [
+                    {"id":"a","status":"queued"},
+                    {"id":"b","status":"running"},
+                    {"id":"c","status":"done"},
+                    {"id":"d","status":"cancelled"}
+                ]
+            }),
+        );
+        let out = task_runtime_summary(temp.path());
+        assert_eq!(out.get("pending").and_then(Value::as_i64), Some(2));
+        assert_eq!(out.get("done").and_then(Value::as_i64), Some(1));
+        assert_eq!(out.get("cancelled").and_then(Value::as_i64), Some(1));
+    }
+
+    #[test]
+    fn continuity_payload_surfaces_stale_sessions_and_channel_attention() {
+        let temp = tempdir().expect("tempdir");
+        let stale_iso = (Utc::now() - chrono::Duration::hours(72)).to_rfc3339();
+        write_json(
+            &temp.path().join(
+                "client/runtime/local/state/ui/infring_dashboard/agent_sessions/agent-alpha.json",
+            ),
+            &json!({
+                "agent_id": "agent-alpha",
+                "active_session_id": "default",
+                "sessions": [
+                    {
+                        "session_id": "default",
+                        "updated_at": stale_iso,
+                        "messages": [
+                            {"role": "user", "text": "investigate pending deployment"}
+                        ]
+                    }
+                ]
+            }),
+        );
+        write_json(
+            &temp.path()
+                .join("client/runtime/local/state/ui/infring_dashboard/channel_registry.json"),
+            &json!({
+                "type": "infring_dashboard_channel_registry",
+                "channels": {
+                    "slack": {
+                        "name": "slack",
+                        "provider": "slack",
+                        "configured": true,
+                        "has_token": false,
+                        "status": "disconnected"
+                    }
+                }
+            }),
+        );
+
+        let out = continuity_pending_payload(temp.path(), &json!({}));
+        assert_eq!(out.pointer("/sessions/stale_48h_count").and_then(Value::as_i64), Some(1));
+        assert_eq!(
+            out.pointer("/channels/attention_needed_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn proactive_alerts_raise_queue_pressure_signal() {
+        let temp = tempdir().expect("tempdir");
+        write_json(
+            &temp.path().join("local/state/runtime/task_runtime/registry.json"),
+            &json!({
+                "version": "v1",
+                "tasks": (0..24).map(|idx| json!({"id": format!("t-{idx}"), "status": "queued"})).collect::<Vec<_>>()
+            }),
+        );
+        let out = proactive_telemetry_alerts_payload(
+            temp.path(),
+            &json!({
+                "ok": true,
+                "health": {
+                    "dashboard_metrics": {
+                        "queue_depth": { "value": 24 }
+                    },
+                    "alerts": { "count": 0 }
+                }
+            }),
+        );
+        let alerts = out
+            .get("alerts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let ids = alerts
+            .iter()
+            .filter_map(|row| row.get("id").and_then(Value::as_str))
+            .collect::<Vec<_>>();
+        assert!(ids.contains(&"queue_pressure_high"));
+    }
 }

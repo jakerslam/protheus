@@ -29,6 +29,21 @@
             self.scrollToBottom();
           }).catch(function() {});
           break;
+        case '/alerts':
+          await self.runSlashAlerts();
+          break;
+        case '/continuity':
+          await self.runSlashContinuity();
+          break;
+        case '/aliases':
+          self.runSlashAliases();
+          break;
+        case '/alias':
+          self.runSlashAliasCommand(cmdArgs);
+          break;
+        case '/opt':
+          await self.runSlashOptimizeWorkers();
+          break;
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
