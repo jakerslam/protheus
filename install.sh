@@ -34,6 +34,9 @@ SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
 PATH_PERSISTED_FILE=""
 PATH_PERSISTED_KIND=""
+PATH_PERSISTED_MIRRORS=""
+PATH_ACTIVATE_FILE=""
+INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-${PROTHEUS_INSTALL_SUDO_SHIMS:-auto}}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -140,13 +143,32 @@ parse_install_args() {
   done
 }
 
+path_dir_writable_or_creatable() {
+  candidate="$1"
+  [ -n "$candidate" ] || return 1
+  case "$candidate" in
+    .) return 1 ;;
+  esac
+  if [ -d "$candidate" ]; then
+    [ -w "$candidate" ] || return 1
+    return 0
+  fi
+  parent_dir="$(dirname "$candidate")"
+  [ -n "$parent_dir" ] || return 1
+  [ -d "$parent_dir" ] || return 1
+  [ -w "$parent_dir" ] || return 1
+  mkdir -p "$candidate" 2>/dev/null || return 1
+  return 0
+}
+
 first_writable_path_dir() {
   old_ifs="$IFS"
   IFS=':'
   for candidate in $PATH; do
     [ -n "$candidate" ] || continue
-    [ -d "$candidate" ] || continue
-    [ -w "$candidate" ] || continue
+    if ! path_dir_writable_or_creatable "$candidate"; then
+      continue
+    fi
     printf '%s\n' "$candidate"
     IFS="$old_ifs"
     return 0
@@ -155,45 +177,107 @@ first_writable_path_dir() {
   return 1
 }
 
+path_contains_dir() {
+  candidate="$1"
+  [ -n "$candidate" ] || return 1
+  case ":$PATH:" in
+    *":$candidate:"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+should_attempt_sudo_path_shims() {
+  mode="$(printf '%s' "${INSTALL_SUDO_SHIMS:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$mode" in
+    1|true|yes|on|auto) ;;
+    *) return 1 ;;
+  esac
+  command -v sudo >/dev/null 2>&1 || return 1
+  [ -t 0 ] || return 1
+  [ -t 1 ] || return 1
+  return 0
+}
+
+ensure_path_shims_via_sudo() {
+  should_attempt_sudo_path_shims || return 1
+
+  echo "[infring install] PATH fallback: attempting privileged shim install so commands work immediately from any terminal path"
+  if ! sudo -v >/dev/null 2>&1; then
+    echo "[infring install] sudo path shim skipped (authorization failed)"
+    return 1
+  fi
+
+  created_any=0
+  for shim_dir in /usr/local/bin /opt/homebrew/bin /usr/local/sbin; do
+    path_contains_dir "$shim_dir" || continue
+    [ "$shim_dir" = "$INSTALL_DIR" ] && continue
+    sudo mkdir -p "$shim_dir" >/dev/null 2>&1 || continue
+
+    for name in infring infringctl infringd protheus protheusctl protheusd; do
+      target="$INSTALL_DIR/$name"
+      shim="$shim_dir/$name"
+      [ -e "$target" ] || continue
+      if sudo test -e "$shim"; then
+        if sudo test -L "$shim"; then
+          link_target="$(sudo readlink "$shim" 2>/dev/null || true)"
+          if [ "$link_target" = "$target" ]; then
+            continue
+          fi
+        fi
+        continue
+      fi
+      if sudo ln -s "$target" "$shim" >/dev/null 2>&1; then
+        created_any=1
+        continue
+      fi
+      if sudo cp "$target" "$shim" >/dev/null 2>&1; then
+        sudo chmod 755 "$shim" >/dev/null 2>&1 || true
+        created_any=1
+      fi
+    done
+
+    if [ "$created_any" = "1" ]; then
+      PATH_SHIM_DIR="$shim_dir"
+      echo "[infring install] linked commands into PATH dir via sudo: $PATH_SHIM_DIR"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 resolve_install_dir_default() {
   if [ "$INSTALL_DIR_EXPLICIT" = "1" ]; then
     return 0
   fi
-  preferred="$HOME/.local/bin"
-  case ":$PATH:" in
-    *":$preferred:"*)
-      INSTALL_DIR="$preferred"
-      return 0
-      ;;
-  esac
-  for candidate in /usr/local/bin /opt/homebrew/bin /usr/bin /usr/local/sbin; do
-    case ":$PATH:" in
-      *":$candidate:"*)
-        if [ -d "$candidate" ] && [ -w "$candidate" ]; then
-          INSTALL_DIR="$candidate"
-          return 0
-        fi
-        ;;
-    esac
-  done
   if writable_dir="$(first_writable_path_dir 2>/dev/null || true)"; then
     if [ -n "$writable_dir" ]; then
       INSTALL_DIR="$writable_dir"
       return 0
     fi
   fi
+  for candidate in /usr/local/bin /opt/homebrew/bin /usr/local/sbin; do
+    if path_dir_writable_or_creatable "$candidate"; then
+      INSTALL_DIR="$candidate"
+      return 0
+    fi
+  done
+  preferred="$HOME/.local/bin"
+  if path_dir_writable_or_creatable "$preferred"; then
+    INSTALL_DIR="$preferred"
+    return 0
+  fi
   INSTALL_DIR="$preferred"
   return 0
 }
 
 ensure_path_shims() {
-  case ":$PATH:" in
-    *":$INSTALL_DIR:"*)
-      return 0
-      ;;
-  esac
+  path_contains_dir "$INSTALL_DIR" && return 0
   shim_dir="$(first_writable_path_dir 2>/dev/null || true)"
-  [ -n "$shim_dir" ] || return 0
+  if [ -z "$shim_dir" ]; then
+    ensure_path_shims_via_sudo || true
+    return 0
+  fi
   [ "$shim_dir" = "$INSTALL_DIR" ] && return 0
 
   created_any=0
@@ -222,6 +306,8 @@ ensure_path_shims() {
   if [ "$created_any" = "1" ]; then
     PATH_SHIM_DIR="$shim_dir"
     echo "[infring install] linked commands into PATH dir: $PATH_SHIM_DIR"
+  else
+    ensure_path_shims_via_sudo || true
   fi
 }
 
@@ -334,17 +420,8 @@ append_path_block_fish() {
   } >> "$file"
 }
 
-persist_path_for_shell() {
-  case ":$PATH:" in
-    *":$INSTALL_DIR:"*)
-      return 0
-      ;;
-  esac
-  if [ -n "$PATH_SHIM_DIR" ]; then
-    return 0
-  fi
-  shell_name="$(shell_name_guess)"
-  target_file="$(select_path_persist_file "$shell_name" 2>/dev/null || true)"
+persist_path_block_to_file() {
+  target_file="$1"
   [ -n "$target_file" ] || return 0
   persist_kind="$(path_persist_kind_for_file "$target_file")"
   if [ "$persist_kind" = "fish" ]; then
@@ -352,9 +429,73 @@ persist_path_for_shell() {
   else
     append_path_block_posix "$target_file"
   fi
+}
+
+append_path_persist_mirror() {
+  entry="$1"
+  [ -n "$entry" ] || return 0
+  if [ -z "$PATH_PERSISTED_MIRRORS" ]; then
+    PATH_PERSISTED_MIRRORS="$entry"
+  else
+    PATH_PERSISTED_MIRRORS="$PATH_PERSISTED_MIRRORS, $entry"
+  fi
+}
+
+persist_path_to_additional_shell_files() {
+  shell_name="$1"
+  primary="$2"
+  candidates="$(path_persist_candidates "$shell_name")"
+  old_ifs="$IFS"
+  IFS='
+'
+  for candidate in $candidates; do
+    [ -n "$candidate" ] || continue
+    [ "$candidate" = "$primary" ] && continue
+    if [ -f "$candidate" ]; then
+      persist_path_block_to_file "$candidate"
+      append_path_persist_mirror "$candidate"
+    fi
+  done
+  IFS="$old_ifs"
+}
+
+persist_path_for_shell() {
+  path_contains_dir "$INSTALL_DIR" && return 0
+  if [ -n "$PATH_SHIM_DIR" ]; then
+    return 0
+  fi
+  shell_name="$(shell_name_guess)"
+  target_file="$(select_path_persist_file "$shell_name" 2>/dev/null || true)"
+  [ -n "$target_file" ] || return 0
+  persist_path_block_to_file "$target_file"
+  persist_kind="$(path_persist_kind_for_file "$target_file")"
   PATH_PERSISTED_FILE="$target_file"
   PATH_PERSISTED_KIND="$persist_kind"
+  persist_path_to_additional_shell_files "$shell_name" "$target_file"
   echo "[infring install] PATH persisted in $PATH_PERSISTED_FILE"
+  if [ -n "$PATH_PERSISTED_MIRRORS" ]; then
+    echo "[infring install] PATH mirrored in: $PATH_PERSISTED_MIRRORS"
+  fi
+}
+
+write_path_activate_script() {
+  activate_root="${INFRING_ACTIVATE_DIR:-${PROTHEUS_ACTIVATE_DIR:-$HOME/.infring}}"
+  [ -n "$activate_root" ] || return 0
+  mkdir -p "$activate_root"
+  activate_file="$activate_root/env.sh"
+  {
+    printf '%s\n' "#!/usr/bin/env sh"
+    printf '%s\n' "# Generated by Infring installer."
+    printf '%s\n' "if [ -d \"$INSTALL_DIR\" ]; then"
+    printf '%s\n' "  case \":\$PATH:\" in"
+    printf '%s\n' "    *\":$INSTALL_DIR:\"*) ;;"
+    printf '%s\n' "    *) export PATH=\"$INSTALL_DIR:\$PATH\" ;;"
+    printf '%s\n' "  esac"
+    printf '%s\n' "fi"
+    printf '%s\n' "hash -r 2>/dev/null || true"
+  } > "$activate_file"
+  chmod 644 "$activate_file" 2>/dev/null || true
+  PATH_ACTIVATE_FILE="$activate_file"
 }
 
 repair_install_dir() {
@@ -378,7 +519,7 @@ resolve_workspace_root_for_repair() {
     "${PROTHEUS_WORKSPACE_ROOT:-}" \
     "$(pwd)" \
     "$HOME/.infring/workspace" \
-    "$HOME/.openclaw/workspace"
+    "$HOME/.infring/workspace"
   do
     [ -n "$candidate" ] || continue
     if [ -f "$candidate/core/layer0/ops/Cargo.toml" ] && [ -d "$candidate/client/runtime" ]; then
@@ -813,7 +954,7 @@ write_wrapper() {
   printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "    probe=\"\$parent\"" >> "$wrapper_path"
   printf '%s\n' "  done" >> "$wrapper_path"
-  printf '%s\n' "  for candidate in \"\$HOME/.openclaw/workspace\" \"\$HOME/.infring/workspace\" \"\$HOME/.openclaw\" \"\$HOME/.infring\"; do" >> "$wrapper_path"
+  printf '%s\n' "  for candidate in \"\$HOME/.infring/workspace\" \"\$HOME/.infring/workspace\" \"\$HOME/.infring\" \"\$HOME/.infring\"; do" >> "$wrapper_path"
   printf '%s\n' "    [ -n \"\$candidate\" ] || continue" >> "$wrapper_path"
   printf '%s\n' "    if [ -f \"\$candidate/core/layer0/ops/Cargo.toml\" ] && [ -d \"\$candidate/client/runtime\" ]; then" >> "$wrapper_path"
   printf '%s\n' "      printf '%s\n' \"\$candidate\"" >> "$wrapper_path"
@@ -934,10 +1075,11 @@ infring_gateway_launchd_write_plist() {
   plist="$(infring_gateway_launchd_plist "$host" "$port")"
   launch_dir="$(dirname "$plist")"
   mkdir -p "$launch_dir" >/dev/null 2>&1 || return 1
-  node_bin="$(command -v node 2>/dev/null || true)"
-  [ -n "$node_bin" ] || return 1
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infringctl}"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
+  [ -x "$dashboard_bin" ] || return 1
   label_xml="$(infring_gateway_xml_escape "$label")"
-  launch_cmd="cd $root && exec $node_bin client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ui/infring_dashboard.ts serve --host=$host --port=$port"
+  launch_cmd="cd $root && exec $dashboard_bin dashboard-ui serve --host=$host --port=$port"
   launch_cmd_xml="$(infring_gateway_xml_escape "$launch_cmd")"
   cat > "$plist" <<__INFRING_PLIST__
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1023,15 +1165,23 @@ infring_gateway_watchdog_stop() {
 infring_gateway_dashboard_match() {
   host="${1:-127.0.0.1}"
   port="${2:-4173}"
+  printf '%s\n' "dashboard-ui serve --host=${host} --port=${port}"
+}
+
+infring_gateway_dashboard_match_legacy() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
   printf '%s\n' "client/runtime/systems/ui/infring_dashboard.ts serve --host=${host} --port=${port}"
 }
 
 infring_gateway_dashboard_process_running() {
   match="$(infring_gateway_dashboard_match "$1" "$2")"
+  legacy_match="$(infring_gateway_dashboard_match_legacy "$1" "$2")"
   if command -v pgrep >/dev/null 2>&1; then
     pgrep -f "$match" >/dev/null 2>&1 && return 0
+    pgrep -f "$legacy_match" >/dev/null 2>&1 && return 0
   else
-    ps ax -o command= 2>/dev/null | awk -v m="$match" 'index($0,m)>0 {found=1} END {exit(found?0:1)}'
+    ps ax -o command= 2>/dev/null | awk -v m="$match" -v l="$legacy_match" 'index($0,m)>0 || index($0,l)>0 {found=1} END {exit(found?0:1)}'
     return $?
   fi
   return 1
@@ -1045,8 +1195,10 @@ infring_gateway_pid_matches_dashboard() {
   cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
   [ -n "$cmd" ] || return 1
   match="$(infring_gateway_dashboard_match "$host" "$port")"
+  legacy_match="$(infring_gateway_dashboard_match_legacy "$host" "$port")"
   case "$cmd" in
     *"$match"*) return 0 ;;
+    *"$legacy_match"*) return 0 ;;
   esac
   return 1
 }
@@ -1241,12 +1393,15 @@ infring_gateway_start_dashboard_fallback() {
   root=""
   for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PROTHEUS_WORKSPACE_ROOT:-}" "${PWD:-.}"; do
     [ -n "$candidate" ] || continue
-    if [ -f "$candidate/client/runtime/lib/ts_entrypoint.ts" ] && [ -f "$candidate/client/runtime/systems/ui/infring_dashboard.ts" ]; then
+    if [ -f "$candidate/core/layer0/ops/Cargo.toml" ] && [ -d "$candidate/client/runtime" ]; then
       root="$candidate"
       break
     fi
   done
   [ -n "$root" ] || return 1
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infringctl}"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
+  [ -x "$dashboard_bin" ] || return 1
   if infring_gateway_launchd_mode_enabled; then
     if infring_gateway_launchd_start "$host" "$port" "$root" >/dev/null 2>&1; then
       match="$(infring_gateway_dashboard_match "$host" "$port")"
@@ -1259,12 +1414,10 @@ infring_gateway_start_dashboard_fallback() {
       return 0
     fi
   fi
-  command -v node >/dev/null 2>&1 || return 1
   (
     cd "$root" 2>/dev/null || exit 1
-    child_pid="$(infring_gateway_spawn_detached_logged /tmp/infring-dashboard-serve.log node client/runtime/lib/ts_entrypoint.ts \
-      client/runtime/systems/ui/infring_dashboard.ts \
-      serve "--host=${host}" "--port=${port}" \
+    child_pid="$(infring_gateway_spawn_detached_logged /tmp/infring-dashboard-serve.log "$dashboard_bin" \
+      dashboard-ui serve "--host=${host}" "--port=${port}" \
       2>/dev/null || true)"
     if [ -n "$child_pid" ]; then
       printf '%s\n' "$child_pid" > "$(infring_gateway_pidfile "$host" "$port")"
@@ -1608,7 +1761,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   write_wrapper "protheusd" "echo \"[deprecation] 'protheusd' is deprecated; use 'infringd'.\" >&2; exec \"$INSTALL_DIR/infringd\" \"\$@\""
 
   if is_truthy "$INSTALL_PURE"; then
-    echo "[infring install] pure mode: skipping OpenClaw client bundle"
+    echo "[infring install] pure mode: skipping Infring client bundle"
   elif is_truthy "$INSTALL_FULL"; then
     client_dir="$INSTALL_DIR/protheus-client"
     if install_client_bundle "$version" "$triple" "$client_dir"; then
@@ -1622,12 +1775,11 @@ exec \"$ops_bin\" protheusctl \"\$@\""
 
   echo "[infring install] installed: infring, infringctl, infringd"
   echo "[infring install] aliases: protheus, protheusctl, protheusd"
-  echo "[infring install] run: infring --help"
-  echo "[infring install] quickstart: infring gateway"
-  echo "[infring install] stop: infring gateway stop"
 
   ensure_path_shims
   persist_path_for_shell
+  write_path_activate_script
+  quickstart_prefix=""
   if command -v infring >/dev/null 2>&1; then
     echo "[infring install] PATH check: infring command available in current shell"
   else
@@ -1635,19 +1787,42 @@ exec \"$ops_bin\" protheusctl \"\$@\""
       *":$INSTALL_DIR:"*)
         echo "[infring install] PATH check: install dir is on PATH but shell may require command hash refresh"
         echo "[infring install] activate now: hash -r 2>/dev/null || true"
+        quickstart_prefix="hash -r 2>/dev/null || true && "
         ;;
       *)
         if [ -n "$PATH_SHIM_DIR" ]; then
           echo "[infring install] PATH notice: wrappers installed in $INSTALL_DIR and linked from $PATH_SHIM_DIR"
+          if [ -n "$PATH_ACTIVATE_FILE" ]; then
+            echo "[infring install] activate now: . \"$PATH_ACTIVATE_FILE\""
+            quickstart_prefix=". \"$PATH_ACTIVATE_FILE\" && "
+          fi
         elif [ -n "$PATH_PERSISTED_FILE" ]; then
           echo "[infring install] activate now: . \"$PATH_PERSISTED_FILE\""
           echo "[infring install] fallback: export PATH=\"$INSTALL_DIR:\$PATH\""
+          quickstart_prefix=". \"$PATH_PERSISTED_FILE\" && "
+          if [ -n "$PATH_ACTIVATE_FILE" ]; then
+            echo "[infring install] portable activate script: . \"$PATH_ACTIVATE_FILE\""
+          fi
         else
           echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+          if [ -n "$PATH_ACTIVATE_FILE" ]; then
+            echo "[infring install] portable activate script: . \"$PATH_ACTIVATE_FILE\""
+            quickstart_prefix=". \"$PATH_ACTIVATE_FILE\" && "
+          else
+            quickstart_prefix="export PATH=\"$INSTALL_DIR:\$PATH\" && "
+          fi
         fi
         ;;
     esac
   fi
+  if [ -n "$PATH_ACTIVATE_FILE" ]; then
+    echo "[infring install] activation script: $PATH_ACTIVATE_FILE"
+  fi
+  echo "[infring install] run now (direct path): \"$INSTALL_DIR/infring\" --help"
+  echo "[infring install] quickstart now (direct path): \"$INSTALL_DIR/infring\" gateway"
+  echo "[infring install] run: ${quickstart_prefix}infring --help"
+  echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
+  echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
 
   if [ -n "$SOURCE_FALLBACK_TMP" ] && [ -d "$SOURCE_FALLBACK_TMP" ]; then
     rm -rf "$SOURCE_FALLBACK_TMP"

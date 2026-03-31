@@ -6,676 +6,239 @@
 [![Release](https://img.shields.io/github/v/release/protheuslabs/InfRing?display_name=tag)](https://github.com/protheuslabs/InfRing/releases)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fprotheuslabs%2Finfring-blue)](https://github.com/protheuslabs/InfRing/pkgs/container/infring)
 [![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
-[![ORCID](https://img.shields.io/badge/ORCID-0009--0002--0617--7360-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0002-0617-7360)
 ![Coverage](docs/client/badges/coverage.svg)
-![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
 
-InfRing is an evidence-first Rust operating substrate for autonomous operations, policy-governed workflow execution, and auditable system evolution.
-This repository is maintained under the InfRing operating model and packages the three-plane metakernel substrate: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
+InfRing is an evidence-first autonomous runtime with a three-plane metakernel architecture:
 
-> **Clarification:** The term "metakernel" refers to the architectural pattern where the runtime itself operates as a managed system layer, not a traditional monolithic kernel. This enables policy-driven, auditable execution across safety, cognition, and substrate planes.
+- Safety plane for deterministic guardrails and fail-closed behavior
+- Cognition plane for agentic orchestration and adaptive workflows
+- Substrate plane for platform integration and execution surfaces
 
-The repository is structured like an internal platform product: typed runtime lanes, deterministic receipts, strict governance surfaces, and operator guardrails that remain reviewable in-source.
+The core authority is Rust-first (`core/**`), while client/runtime surfaces stay thin wrappers around policy-governed core lanes.
 
-## Licensing Model
+## Current State (March 2026)
 
-InfRing uses a dual-license model:
+What is true right now in this repository:
 
-- `Apache-2.0` for the Open Core scope (commercial use allowed): see [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and [LICENSE_SCOPE.md](LICENSE_SCOPE.md).
-- `InfRing-NC-1.0` (Protheus Non-Commercial License v1.0) for default scope: see [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0).
-
-Scope resolution:
-- File-level SPDX header wins.
-- Otherwise apply path scope in `LICENSE_SCOPE.md`.
-- Otherwise default to `InfRing-NC-1.0`.
-
-For commercial licensing and enterprise support on NC-scoped surfaces, contact Protheus Labs.
-
-## InfRing 101
-
-Start here if you are new to the platform:
-
-- Roadmap: [roadmap.md](roadmap.md)
-- Glossary: [glossary.md](glossary.md)
-- Layer 2 extension guide: [docs/client/architecture/layer2_initiative_extensions.md](docs/client/architecture/layer2_initiative_extensions.md)
-- Plugin/WASM spec: [docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md](docs/plugins/PLUGIN_WASM_COMPONENT_SPEC.md)
-
-Reference example apps:
-- `apps/sovereign-memory-os`
-- `apps/local-research-agent`
-- `apps/mcu-sensor-monitor-tiny-max`
-
-## Platform Capabilities
-
-- Control-plane CLIs for operators and automation (`infring`, `infringd`, `infringctl`, `infring top`)
-- Policy-backed runtime lanes across operations, security, memory, routing, workflow, sensory, and observability domains
-- Deterministic state, receipts, and contract-runtime evidence for audited execution
-- Backlog and SRS governance pipelines with generated active, archived, and reviewed views
-- Runbooks and operator documentation that map directly to executable scripts and verification gates
+- Primary operator entrypoint is `infring` (with `infringctl` and `infringd` wrappers).
+- The main dashboard is served by the gateway at `http://127.0.0.1:4173/dashboard#chat`.
+- Gateway health endpoint is `http://127.0.0.1:4173/healthz`.
+- Gateway persistence is on by default (auto-restart + reboot supervision unless disabled).
+- Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
+- Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
 
 ## Quick Start
 
-Default install (minimal mode, macOS/Linux):
+### macOS / Linux
+
+Install, then launch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh
-```
-
-Install modes (macOS/Linux):
-
-- `--minimal` (default): daemon + CLI wrappers only
-- `--pure`: 100% Rust client + daemon, no Node/TS surfaces
-- `--tiny-max`: extreme low-resource pure profile
-- `--full`: includes optional published client runtime bundle
-- `--repair`: clears stale local wrappers/runtime state before install
-
-```bash
-# Pure mode
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
-
-# Tiny-max mode
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --tiny-max
-
-# Full mode
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
-
-# Repair + reinstall in pure mode
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --pure
-```
-
-Install to specific paths (macOS/Linux):
-
-```bash
-# Flags
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | \
-  sh -s -- --pure --install-dir "$HOME/.infring/bin" --tmp-dir "$HOME/.infring/tmp"
-
-# Equivalent env vars
-INFRING_INSTALL_DIR="$HOME/.infring/bin" \
-INFRING_TMP_DIR="$HOME/.infring/tmp" \
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
-```
-
-Windows (PowerShell):
-
-```powershell
-# Default minimal install
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
-
-# Pure / tiny-max / full / repair
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Pure
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -TinyMax
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Full
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Repair -Pure
-```
-
-Install to specific paths (Windows):
-
-```powershell
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Pure -InstallDir "$HOME\\.infring\\bin" -TmpDir "$HOME\\.infring\\tmp"
-```
-
-Then verify:
-
-```bash
-infring --help
-infringctl --help
-infringd --help
-```
-
-If your shell still says `command not found`, refresh PATH and retry:
-
-```bash
-# macOS/Linux
-hash -r 2>/dev/null || true
-~/.local/bin/infring --help
-```
-
-```powershell
-# Windows
-$HOME\.protheus\bin\infring.cmd --help
-```
-
-One-command rich runtime boot (auto-opens dashboard):
-
-```bash
 infring gateway
 ```
 
-By default this enables persistent gateway supervision (auto-restart on process failure + reboot).
-Use `--gateway-persist=0` if you want a non-persistent one-shot run.
+### Windows (PowerShell)
 
-`gateway` is part of the full control surface (`--minimal`/default or `--full`).  
-Pure profiles (`--pure`, `--tiny-max`) use the Rust-only command set and do not expose `gateway`.
+```powershell
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex -Full
+infring gateway
+```
 
-Stop runtime + dashboard:
+### Verify Commands Work From Any Directory
 
 ```bash
+infring --help
+infring list
+infring gateway status
+```
+
+If your current shell has not refreshed `PATH` yet:
+
+```bash
+. "$HOME/.infring/env.sh"
+hash -r 2>/dev/null || true
+infring --help
+```
+
+If needed, run by direct path once:
+
+```bash
+"$HOME/.local/bin/infring" --help
+```
+
+Installer behavior summary:
+
+- Persists PATH to your shell startup file(s)
+- Writes an activation script at `~/.infring/env.sh`
+- Attempts PATH command shims when install dir is not already on PATH
+- Supports privileged shim fallback for stricter environments (`INFRING_INSTALL_SUDO_SHIMS=auto|off`)
+
+## Install Modes
+
+| Mode | Command Flag | Purpose |
+|---|---|---|
+| Minimal (default) | `--minimal` | CLI + daemon wrappers |
+| Full | `--full` | Minimal plus optional published client runtime bundle |
+| Pure | `--pure` | Rust-only runtime surface (no Node/TS runtime dependency) |
+| Tiny-Max | `--tiny-max` | Lowest-footprint pure profile for constrained hardware |
+| Repair | `--repair` | Remove stale wrappers/runtime artifacts before reinstall |
+
+Examples:
+
+```bash
+# Pure
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
+
+# Tiny-max
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --tiny-max
+
+# Repair + full
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --full
+```
+
+## Gateway + Dashboard Operations
+
+```bash
+# Start runtime + dashboard
+infring gateway
+
+# Check runtime + dashboard status
+infring gateway status
+
+# Stop runtime + dashboard
 infring gateway stop
+
+# Restart
+infring gateway restart
 ```
 
-Pure Intelligence v1 (Node-free in `--pure` / `--tiny-max`):
+Default behavior:
 
-```bash
-# Minimal research surface (Rust core)
-infring research status
-infring research fetch --url=https://example.com
+- Auto-opens dashboard on launch
+- Supervises runtime and dashboard
+- Keeps gateway persistent unless explicitly disabled (`--gateway-persist=0`)
 
-# Minimal memory surface (Rust core)
-infring memory write --session-id=alpha --text="important note" --tags=pure,intel
-infring memory query --session-id=alpha --q=important --limit=5
+## CLI Surfaces
 
-# Deterministic think primitive (Rust core)
-infring think --session-id=alpha --prompt="What should I do next?"
-```
+### Rust Fallback Surface (No Node.js)
 
-## Mode Capability Matrix (Core Shedding Model)
+When Node.js is unavailable, `infring` exposes a reduced but useful command set:
 
-InfRing modes are layered, not forked: `tiny-max` and `pure` use the same Rust core authority, then shed capabilities based on hardware sensing when needed.
+- `gateway [start|stop|restart|status]`
+- `start`, `stop`, `restart`
+- `dashboard`, `status`
+- `session <status|register|resume|send|list>`
+- `rag <status|search|chat|memory>`
+- `memory <status|search>`
+- `adaptive <status|propose|shadow-train|prioritize|graduate>`
+- `enterprise-hardening <run|status|export-compliance|identity-surface|certify-scale|dashboard>`
+- `benchmark <run|status>`
+- `alpha-check [--strict=1|0] [--run-gates=1|0]`
+- `research <status|diagnostics|fetch>`
+- `help`, `list`, `version`
 
-`infring capability-profile` shows the active profile and any shed capabilities. You can force a test profile with `--hardware-class=<mcu|legacy|standard|high> --memory-mb=<n> --cpu-cores=<n>`.
+Install Node.js 22+ to unlock full JS-assisted command surfaces.
 
-| Mode | Primary Goal | Intelligence Surface | Runtime Dependencies | Shedding Behavior |
-|---|---|---|---|---|
-| `InfRing (rich)` | Full operator UX + integrations | Full core intelligence + rich adapters | Rust + Node/TS client surfaces | Minimal shedding by default |
-| `InfRing (pure)` | Rust-only client with high intelligence parity | Core `think`, `research`, `memory`, `orchestration`, `swarm-runtime` | Rust only | Capability shedding only when hardware is constrained |
-| `InfRing (tiny-max)` | Run on anything while keeping max feasible intelligence | Same core lanes as pure, bounded by hardware class | Rust only (`no_std` profile lanes available) | Aggressive, explicit shedding (for example persistent swarm or heavy orchestration on MCU-class targets) |
-
-Tiny-max hardware classes:
-- `mcu`: strict floor (bounded memory hits, max swarm depth 1, no heavy orchestration ops, no `research fetch`).
-- `legacy`: moderate floor (bounded swarm depth, no persistent swarm).
-- `standard` / `high`: progressively restores capabilities up to full parity.
-
-Regression recovery runbook: [RUNBOOK-007-pure-tiny-capability-restore](docs/ops/RUNBOOK-007-pure-tiny-capability-restore.md).
-
-Legacy command aliases remain supported with a deprecation notice.
-
-> **Note:** Full CLI surface requires Node.js 22+ (see `package.json#engines`). Rust fallback supports `help`, `list`, `status`, `version`, plus Pure Intelligence v1 commands (`think`, `research status|fetch|diagnostics`, `memory status|write|query`) when Node is unavailable. See `docs/TROUBLESHOOTING.md` for environment setup details.
-
-Local source workflow:
+### Local Source Workflow
 
 ```bash
 npm ci
 npm run local:init
 npm run build
-npm run start
-# one-command runtime + dashboard auto-open
+npm run test:ci
 npm run gateway
 ```
 
-> **Note:** Ensure Node.js 22+ is active before running `npm ci`. If you encounter 
-> peer dependency warnings during install, these are generally safe to ignore for 
-> development builds. Run `node --version` to verify your environment.
+## Benchmarks (Latest Artifact)
 
-`npm run local:init` creates any missing instance-local continuity files under `local/workspace/assistant/` from the tracked templates in `docs/workspace/templates/assistant/` and archives deprecated root copies if they still exist.
-It also imports legacy root continuity/memory state (`SOUL.md`, `USER.md`, `HEARTBEAT.md`, `IDENTITY.md`, `TOOLS.md`, `MEMORY.md`, `memory/**`, `MEMORY_INDEX.md`, `TAGS_INDEX.md`) into `local/workspace/**` with conflict-safe archiving under `local/workspace/archive/`.
-For OpenClaw transitions you can run `npm run local:migrate:openclaw` (alias to the same deterministic migration).
+Latest benchmark source:
 
-## Benchmark Snapshot
+- [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
-### Refresh Runtime Benchmarks
+Current measured rows in that artifact:
 
-The repo ships an executable benchmark lane. To refresh the tracked benchmark artifacts:
-
-```bash
-npm run -s ops:benchmark:build-release
-npm run ops:benchmark:refresh
-```
-
-`ops:benchmark:refresh` now fails closed if `target/release/protheus-ops` is missing so benchmark publication does not silently fall back to `cargo run` and contaminate throughput with compile-time load.
-
-This regenerates:
-- `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
-- `docs/client/reports/benchmark_matrix_run_2026-03-06_full_install.json`
-
-### Current Runtime Measurements (InfRing Instance Modes)
-
-Sources:
-- Live control-plane run: `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
-- Stabilized multi-run median (2 warmups + 9 runs): `docs/client/reports/benchmark_matrix_stabilized_preflight_2026-03-20.json`
-- Historical proof-pack reference (2026-03-14): `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
-- Headline runtime metrics below reflect the latest live refresh benchmark artifact (`2026-03-23T14:35:50.712Z`); stabilized median details remain in the JSON reports for tail-latency diagnostics.
-- Throughput now reflects a shared pre-profile release-binary baseline measured once per run to avoid per-profile contamination from probe order and compile-time load.
-- The latest 2026-03-23 refresh shown below ran with benchmark preflight disabled (`--benchmark-preflight=0`) under elevated host load; runtime floor metrics remained sourced from `runtime-efficiency-floor run`.
-
-| Metric | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) | Historical Reference |
-|---|---:|---:|---:|---:|
-| Cold start | 5.9 ms | 1.6 ms | 1.6 ms | 74.5 ms |
-| Idle memory | 9.9 MB | 1.4 MB | 1.4 MB | 22.1 MB |
-| Install size (artifact) | 1.7 MB | 1.1 MB | 0.4 MB | 126.4 MB |
-| Runtime footprint (stateful full) | 109.8 MB | n/a | n/a | n/a |
-| Throughput | 10,262 ops/sec | 10,262 ops/sec | 10,262 ops/sec | 7,420 ops/sec |
-
-The historical reference column is an older proof-pack baseline used for internal assurance and regression comparison. It is not an additional InfRing runtime mode.
-
-| Capability Counter | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) |
+| Metric | Rich (`Infring`) | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Static daemon size (musl + UPX) | 0.4 MB | 0.4 MB | 0.3 MB |
-| Rust client binary size (musl + UPX) | n/a | 0.2 MB | 0.2 MB |
-| Full binary system set (daemon + pure client + tiny daemon) | 0.9 MB | 0.9 MB | 0.9 MB |
+| Cold start | 2268.019 ms | 1.522 ms | 1.527 ms |
+| Idle memory | 8.922 MB | 1.344 MB | 1.344 MB |
+| Install artifact size | 25.84 MB | 2.31 MB | 0.617 MB |
+| Throughput | 146,573.6 ops/sec | 146,573.6 ops/sec | 146,573.6 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
+| Data channels | 4 | 0 | 0 |
+| Plugin marketplace checks | 4 | 0 | 0 |
 
-### Competitive Benchmark Snapshot
+Benchmark preflight state in the same artifact:
 
-External comparison sources:
-- [OpenFang README](https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md)
-- [ZeroClaw official site](https://www.zeroclaw.dev/)
+- `benchmark_preflight.ok = true`
+- `noise_cv_pct = 0.5` (limit `12.5`)
+- `load_per_core_peak = 0.644` (limit `4.0`)
 
-InfRing numbers reflect the latest live refresh benchmark artifact. Competitor rows use the closest public footprint/runtime metrics published by each project. Where a project only publishes a ceiling rather than an exact benchmark median, the table uses that published ceiling and marks it. Artifact footprint and runtime stateful footprint are reported separately.
+Important current nuance:
 
-Copyable benchmark snapshot:
+- Runtime efficiency receipt currently shows rich mode not passing strict cold-start target (`runtime_receipt.ok = false`) due high rich-mode startup latency.
+- Pure and tiny-max lanes remain the low-latency footprint profiles.
 
-```text
-| Project | Published Footprint (MB, artifact) | Runtime Stateful Footprint (MB) | Cold Start | Idle Memory (MB) | Throughput (ops/sec) | Static Daemon (MB) | Security Systems | Channel Adapters | LLM Providers |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| InfRing-rich | 1.7 | 109.8 | 5.9 ms | 9.9 | 10262 | 0.4 | 83 | 6 | 3 |
-| InfRing-pure | 1.1 | n/a | 1.6 ms | 1.4 | 10262 | 0.4 | 83 | 0 | 0 |
-| InfRing-tiny* | 0.4 | n/a | 1.6 ms | 1.4 | 10262 | 0.3 | 83 | 0 | 0 |
-| ZeroClaw* | 3.4 | n/p | 10.0 ms* | 5.0* | n/p | 3.4 | n/p | 9 | 28+ |
-| OpenFang | 32.0 | n/p | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
-| OpenHands | 95.5 | n/p | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
-| LangGraph | 150.0 | n/p | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
-| CrewAI | 100.0 | n/p | 3.0 sec | 200.0 | n/p | n/p | 1 | 3 | 10 |
-| AutoGen | 200.0 | n/p | 4.0 sec | 250.0 | n/p | n/p | 2 | 4 | 8 |
-```
-
-`n/p` means not publicly published with a reproducible method in the referenced sources.
-`n/a` means the metric does not apply to that mode in this snapshot.
-`*` ZeroClaw publishes `<10 ms startup`, `<5 MB RAM`, and `~3.4 MB binary size`; the snapshot preserves those published ceilings/values.
-`tiny*` is benchmark-display shorthand for InfRing's `tiny-max` low-resource pure profile.
-
-Pure Workspace mode is 100% Rust with no Node/TS runtime surfaces and is designed to run on low-resource hardware.
-Pure Workspace Tiny-Max is the low-resource profile for old/embedded targets and keeps the same Rust-only control boundary.
-Tiny-max currently ships with a 0.3 MB daemon and a 0.9 MB full binary system set (below the 1.1 MB target envelope), and is the active lane for microcontroller and 1990s-hardware deployment proof.
-Tiny-max is the smallest full agentic OS artifact shipped in this repo today and is optimized for microcontroller and 1990s-hardware deployment lanes.
-
-### Tiny-Max Extreme Hardware Proof Status
-
-- `status`: `blocked_external` (physical flash session pending)
-- `preflight_artifact`: `core/local/artifacts/mcu_proof_preflight_current.json`
-- `preflight_report`: `local/workspace/reports/MCU_PROOF_PREFLIGHT.md`
-- `runbook`: `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`
-- `human_owner`: `HMAN-092` (`docs/client/HUMAN_ONLY_ACTIONS.md`)
-- required evidence targets:
-  - `docs/client/reports/hardware/esp32_tiny_max_status_<date>.png`
-  - `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png`
-  - `state/ops/evidence/mcu_flash_session_<date>.md`
-
-### Benchmarks: Measured, Not Marketed
-
-All data from official documentation and public repositories — March 2026.
-Bars use log scaling for wide-range lower-is-better metrics (cold start, memory, footprint) and linear scaling for bounded higher-is-better metrics; fuller bars still indicate better results. `n/p` entries are left unbarred. Chart labels are conservatively rounded in InfRing's disfavor; exact values remain in the snapshot above.
-
-#### Cold Start Time (lower is better)
-
-```text
-InfRing-pure    ███████████████████████████████████████████████████████████████  ~2 ms
-InfRing-tiny*   ███████████████████████████████████████████████████████████████  ~2 ms
-InfRing-rich    ███████████████████████████████████████████████████████████████  ~7 ms
-ZeroClaw        ██████████████████████████████████████████████████████░░░░░░░░░  10 ms*
-OpenFang        ████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 ms
-OpenHands       ███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1 sec
-LangGraph       █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2 sec
-CrewAI          ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  3 sec
-AutoGen         █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  4 sec
-```
-
-#### Idle Memory Usage (lower is better)
-
-```text
-InfRing-pure    ███████████████████████████████████████████████████████████████  ~2 MB
-InfRing-tiny*   ███████████████████████████████████████████████████████████████  ~2 MB
-InfRing-rich    ██████████████████████████████████████████████████████████████░  ~7 MB
-ZeroClaw        █████████████████████████████████████████████████░░░░░░░░░░░░░░  5 MB*
-OpenFang        ███████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  40 MB
-OpenHands       ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
-LangGraph       █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 MB
-CrewAI          ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
-AutoGen         █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  250 MB
-```
-
-#### Published Footprint (lower is better)
-
-```text
-InfRing-tiny*   ███████████████████████████████████████████████████████████████  ~1 MB
-InfRing-pure    ████████████████████████████████████████████████████████████░░░  ~1 MB
-InfRing-rich    ████████████████████████████████████████████████████████░░░░░░░  ~2 MB
-ZeroClaw        ████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░  3 MB
-OpenFang        ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  32 MB
-OpenHands       █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  95 MB
-CrewAI          ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100 MB
-LangGraph       ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
-AutoGen         █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
-```
-
-## Alpha Readiness Checklist
-
-Use this sequence for a clean alpha trial on a fresh workspace:
+Refresh commands:
 
 ```bash
-npm ci
-npm run local:migrate:openclaw
-npm run local:status
-npm run build
-npm run test:ci
-infring alpha-check --strict=1 --run-gates=1
+npm run -s ops:benchmark:refresh
+npm run -s ops:benchmark:sanity
 ```
 
-Recommended preflight gates:
+## What Ships Today
 
-```bash
-npm run -s ops:repo-surface:audit
-npm run -s ops:root-surface:check
-cargo test --manifest-path core/layer0/ops/Cargo.toml optimize_receipt_emits_cost_savings_plan -- --test-threads=1
-cargo test --manifest-path core/layer0/ops/Cargo.toml enable_bedrock_produces_sigv4_private_profile -- --test-threads=1
-```
+- Rust-authoritative control and policy lanes under `core/layer0`, `core/layer1`, and `core/layer2`
+- Gateway runtime with dashboard serving and health probes
+- Agent/session/memory/rag/research command surfaces
+- Signed policy/config registry surfaces under `client/runtime/config/**`
+- Regression and governance gates in `tests/**` and `verify.sh`
 
-## npm Installation (Primary Distribution)
-
-Install the CLI globally:
-
-```bash
-npm install -g ./packages/*-npm
-```
-
-For local source installs from this repository:
-
-```bash
-npm install -g .
-infring --help
-```
-
-The npm package is a thin wrapper around the Rust operator runtime and includes:
-- release-binary download on install (when available)
-- local Cargo build fallback
-- `infring` / `infringd` command entrypoints for operator workflows
-- backward compatibility aliases for legacy scripts
-
-Then verify the runtime surface:
-
-```bash
-infring status
-infring top
-```
-
-## pip Installation (Thin Wrapper Option)
-
-Install the Python wrapper from PyPI:
-
-```bash
-pip install ./packages/*-py
-infring --help
-```
-
-Install from this repository with editable mode:
-
-```bash
-pip install -e ./packages/*-py
-infring status --dashboard
-```
-
-The Python package is intentionally thin and delegates all kernel authority to Rust.
-
-## Operator Commands
-
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Start local daemon control surface (dev profile) |
-| `npm run start` | Start daemon control surface |
-| `npm run build` | Build systems + smoke verification |
-| `npm run test` | Stable test suite |
-| `npm run test:ci` | Deterministic CI-oriented test suite |
-| `npm run lint` | Type/system lint gate |
-| `npm run typecheck:systems` | Typecheck `client/runtime/systems/` lanes |
-| `npm run dashboard:serve` | Launch unified dashboard web UI on localhost |
-| `npm run dashboard:snapshot` | Emit one dashboard snapshot receipt as JSON |
-| `npm run guard:merge` | Merge guard for core quality/security gates |
-| `npm run ops:backlog:registry:sync` | Regenerate backlog registry/views from source backlog |
-| `npm run ops:backlog:registry:check` | Validate generated backlog artifacts are in sync |
-
-## Control Surface CLI
-
-| CLI | Purpose |
-|---|---|
-| `infring` | Primary control-plane interface |
-| `infringd` | Daemon lifecycle wrapper |
-| `infringctl` | Job and control-plane operations |
-| `infring top` | Live operator observability surface |
-
-Compatibility aliases remain available for legacy scripts.
-
-Run `infring list` (or `infring --help`) for a categorized command index.
-
-### CLI Discoverability and UX
-
-- `infring list` and `infring --help` provide a categorized command index.
-- `infring setup` runs an optional, lightweight first-run wizard (covenant confirmation, interaction mode, notification preference).
-- `infring completion <bash|zsh|fish>` generates shell auto-completion scripts.
-- Global flags work across CLI entrypoints: `--json`, `--quiet`, `--help`, `--version`, `--example`.
-- Running `infring` with no args in a TTY opens interactive REPL mode with guided shortcuts/wizards.
-  - On first run, setup executes once before REPL unless `--skip-setup` is passed.
-- Unknown commands return suggestion hints plus an `infring list` prompt.
-- Long-running research/assimilation flows support spinner/progress indicators in interactive terminals.
-- `infring demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
-- `infring version` and `infring update` provide version + update channel information.
-- Internal operator commands:
-  - `infring gateway` -> one-command runtime boot + rich dashboard auto-open + persistent auto-restart
-  - `infring gateway stop` -> stop runtime + dashboard
-  - `infring start` -> start daemon control + auto-boot dashboard on localhost
-  - `infring dashboard` -> launch unified web dashboard (localhost)
-  - `infring status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)
-  - `infring status --dashboard` -> launch the unified dashboard web surface
-  - `infring debug` -> parity/security diagnostics + recent log summary
-  - `infring shadow <list|arise|pause|review|status>` -> direct shadow-army operations
-  - `infring diagram ...` -> Mermaid diagram generator
-
-Completion setup examples:
-
-```bash
-infring completion bash > ~/.local/share/bash-completion/completions/infring
-infring completion zsh > ~/.zfunc/_infring
-infring completion fish > ~/.client/runtime/config/fish/completions/infring.fish
-infring setup
-infring --skip-setup
-infring demo
-infring research --example
-infring --version
-infring status --json=1
-infring debug --json=1
-infring shadow list --json=1
-```
-
-### Persona Lens Command
-
-- `infring lens <persona> "<query>"` loads `personas/<persona>/{profile.md,correspondence.md,lens.md}` and returns a Markdown response using that persona lens.
-- Example: `infring lens vikram "Should we prioritize memory or security first?"`
-- Dedicated arbitration: `infring arbitrate --between=vikram,priya --issue="sample vs full audit"` resolves disagreements with deterministic arbitration rules.
-- Control mode: `infring lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for cognizance-gap + intercept simulation (`e`=edit, `a`=approve early during gap).
-- Emotion toggle: `--emotion=on|off` (default `on`).
-- Surprise toggle: `--surprise=on|off` (default `off`) enables deterministic 20% anti-puppet deviation.
-- Structured output: `--schema=json` returns machine-readable recommendations (`recommendation`, `confidence`, `time_estimate`, `blockers`, `escalate_to`, `reasoning`).
-- Daily internal check-in: `infring lens checkin --persona=<persona_id> --heartbeat=local/workspace/assistant/HEARTBEAT.md`.
-- Meta-feedback loop: `infring lens feedback ...` and `infring lens feedback-summary` capture utility signals to tune persona weighting over time.
-
-### Persona Orchestration Command
-
-- `infring orchestrate status` validates policy/schema state and prints artifact counters.
-- `infring orchestrate telemetry --window=20` renders recent orchestration metrics plus a Markdown dashboard table.
-- `infring orchestrate meeting "<topic>" [--approval-note="..."]` runs role-based attendee selection, deterministic arbitration, and writes hash-chained artifacts.
-- `infring orchestrate project "<name>" "<goal>" [--approval-note="..."]` opens a project state machine lane (`proposed -> active/blocked/paused_on_breaker/reviewed/resumed/rolled_back/completed/cancelled`).
-- `infring orchestrate project --id=<project_id> --transition=<state> [--approval-note="..."]` advances project state with receipts.
-
-### Shadow Operator Command
-
-- `infring shadow status` shows active/paused shadows and governance snapshot.
-- `infring shadow list` shows available personas plus current shadow state.
-- `infring shadow arise <persona>` activates a persona shadow with telemetry receipt.
-- `infring shadow pause <persona>` pauses a persona shadow with telemetry receipt.
-- `infring shadow review [persona] [--note="..."]` queues review checkpoints for audit and memory.
-
-### Assimilation Command
-
-- `infring assimilate <path|url>` ingests a local file or allowlisted web page, runs research-organ probe + Core-5 persona review, and emits a Codex-ready sprint prompt.
-- Safety gates are fail-closed: blocked domains/private hosts are rejected, covenant violation signals stop execution, and `--apply` requires `--confirm-execution=1`.
-- Default mode is proposal-only with auditable receipts at `local/state/tools/assimilate/`.
-- Example: `infring assimilate ./docs/client/cognitive_toolkit.md --dry-run=1`
-- Example: `infring assimilate https://github.com/example/repo`
-- Programmatic use for loops/shadows:
-  ```js
-  const { systemAssimilate } = require('./client/runtime/systems/tools/assimilate_api.ts');
-  const result = systemAssimilate('./docs/client/cognitive_toolkit.md', { dryRun: true, format: 'json' });
-  ```
-
-### Research Command
-
-- `infring research "<query>"` runs research-organ routing (query intake, local hybrid evidence grading, synthesis) and Core-5 review/arbitration.
-- Includes covenant fail-closed checks and query token-budget guard (`trim` or `reject` mode).
-- Implementation-intent queries automatically include an optional Codex sprint prompt.
-- Proactive suggestion mode: when tool/path/URL mentions are detected, the system can suggest assimilation with a natural prompt and optional auto-confirm flags.
-- Example: `infring research "creating a quant trading software" --dry-run=1`
-- Example proactive flow: `infring research "I just used docs/client/cognitive_toolkit.md for this workflow" --dry-run=1 --auto-confirm-assimilate=1`
-- Programmatic use for loops/shadows:
-  ```js
-  const { systemResearch } = require('./client/runtime/systems/tools/research_api.ts');
-  const result = systemResearch('creating a quant trading software', { dryRun: true, format: 'json' });
-  ```
-
-### Context-Aware CLI Suggestions (Tutorial Mode)
-
-- The CLI can suggest next commands using context triggers (external tool/path mentions, drift-like signals, and planning intent).
-- Suggestions run a light Core-5 safety review before prompting.
-- Prompt format: `Would you like to run \`infring <command>\`? (y/n) — <why>`
-- Toggle tutorial mode:
-  - `infring tutorial status`
-  - `infring tutorial on`
-  - `infring tutorial off`
-- Example contexts (JSON mode for deterministic output):
-  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="I just used docs/client/cognitive_toolkit.md for this workflow." --auto-reject=1 --dry-run=1 --json=1`
-  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="drift regression detected in memory lane" --auto-reject=1 --dry-run=1 --json=1`
-  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="plan next sprint backlog for rust migration" --auto-reject=1 --dry-run=1 --json=1`
-
-### Cognitive Toolkit Suite
-
-Introducing the Cognitive Toolkit Suite: internal operators tooling for red-teaming and alignment workflows.
-
-- `infring toolkit list` shows suite tools and routes.
-- `infring toolkit personas ...` routes to persona lens operations.
-- `infring toolkit dictionary [list|term "<name>"]` reads novel concept definitions.
-- `infring toolkit orchestration ...` routes to deterministic meeting/project operations.
-- `infring toolkit blob-morphing [status|verify]` validates blob assets used by fold/unfold paths.
-- `infring toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]` runs stream-of-thought mapping with optional intercept controls.
-- `infring toolkit assimilate <path|url>` runs the same assimilation flow through the toolkit wrapper.
-- `infring toolkit research "<query>"` runs the research command through the toolkit wrapper.
-
-See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `apps/examples/*-demo/` for runnable examples.
-
-## Architecture Map
+## Repository Map
 
 | Path | Responsibility |
 |---|---|
-| `planes/` | Three-plane architecture contracts and schemas |
-| `client/runtime/systems/` | Executable runtime lanes and control-plane modules |
-| `client/runtime/lib/` | Shared runtime helpers used by lanes |
-| `client/runtime/config/` | Policy, registries, and lane configuration |
-| `client/observability/` | Reports, runbooks, dashboard specs, and research artifacts |
-| `apps/` | User-facing/internal app layers and runnable example suites |
-| `client/cli/developer/` | Developer templates and scaffolding assets |
-| `docs/client/` | Architecture, governance, runbooks, and contracts |
-| `tests/client-memory-tools/` | Deterministic tests and regression harnesses |
-| `client/runtime/local/`, `core/local/` | Instance-local runtime artifacts and receipts |
+| `core/` | Rust authority layers and runtime core |
+| `client/runtime/systems/` | Runtime wrappers and operator surfaces |
+| `client/runtime/config/` | Policy manifests, registries, and guardrails |
+| `adapters/` | Integration bridges |
+| `apps/` | Runnable app surfaces and examples |
+| `tests/` | Regression, governance, and toolchain validation |
+| `docs/` | Runbooks, architecture, onboarding, and policies |
+| `planes/` | Three-plane architecture contract definitions |
+| `install.sh`, `install.ps1` | Cross-platform installers |
 
-### Three-Plane Filesystem Alignment
+## Onboarding and Operator Docs
 
-- `planes/` is the architecture contract surface (`safety`, `cognition`, `substrate`).
-- `core/` and `client/` are the only source-code roots.
-- `client/runtime/local/` and `core/local/` are the only mutable runtime roots.
-- Root stays intentionally clean so runtime churn does not pollute source history.
-
-## Quality And Governance Baseline
-
-The project is operated with explicit documentation and governance contracts:
-
-- [Architecture](ARCHITECTURE.md)
 - [Getting Started](docs/client/GETTING_STARTED.md)
-- [Security Posture](docs/client/SECURITY_POSTURE.md)
-- [Security Policy](SECURITY.md)
-- [Good First Issues](docs/client/community/GOOD_FIRST_ISSUES.md)
-- [InfRing Launch Announcement Template](docs/client/announcements/INFRING_LAUNCH_TEMPLATE.md)
 - [Onboarding Playbook](docs/client/ONBOARDING_PLAYBOOK.md)
 - [Developer Lane Quickstart](docs/client/DEVELOPER_LANE_QUICKSTART.md)
-- [Help](docs/client/HELP.md)
-- [UI Surface Maturity Matrix](docs/client/UI_SURFACE_MATURITY_MATRIX.md)
-- [UI Surface Inventory](docs/client/UI_SURFACE_INVENTORY.md)
-- [UI Accessibility & Interaction Contract](docs/client/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md)
-- [Enhanced Reasoning Mirror](docs/client/ENHANCED_REASONING_MIRROR.md)
-- [History Cleanliness Program](docs/client/HISTORY_CLEANLINESS.md)
-- [Release Discipline Policy](docs/client/RELEASE_DISCIPLINE_POLICY.md)
-- [Claim-Evidence Policy](docs/client/CLAIM_EVIDENCE_POLICY.md)
-- [Empty Fort Integrity Checklist](docs/client/EMPTY_FORT_INTEGRITY_CHECKLIST.md)
-- [Org Code Format Standard](docs/client/ORG_CODE_FORMAT_STANDARD.md)
-- [Perception Audit Program](docs/client/PERCEPTION_AUDIT_PROGRAM.md)
-- [Public Collaboration Triage Contract](docs/client/PUBLIC_COLLABORATION_TRIAGE.md)
-- [Public Collaboration Surface](docs/client/PUBLIC_COLLABORATION_SURFACE.md)
-- [Core Migration Bridge](docs/client/CORE_MIGRATION_BRIDGE.md)
-- [Community Repo Graduation Pack](docs/client/COMMUNITY_REPO_GRADUATION_PACK.md)
-- [Universal Importers](docs/client/UNIVERSAL_IMPORTERS.md)
-- [Self-Healing Migration Daemon](docs/client/SELF_HEALING_MIGRATION_DAEMON.md)
-- [Post-Migration Completion Report](docs/client/POST_MIGRATION_COMPLETION_REPORT.md)
-- [WASI2 Execution Completeness Gate](docs/client/WASI2_EXECUTION_COMPLETENESS_GATE.md)
-- [Type-Derived Lane Docs Autogen](docs/client/TYPE_DERIVED_LANE_DOCS_AUTOGEN.md)
-- [Rust Authoritative Microkernel Acceleration](docs/client/RUST_AUTHORITATIVE_MICROKERNEL_ACCELERATION.md)
-- [ChromeOS/Fuchsia OTA Adapter](docs/client/CHROMEOS_FUCHSIA_DISTRIBUTION_OTA_ADAPTER.md)
-- [NGC NVIDIA Distribution Adapter](docs/client/NGC_NVIDIA_ENTERPRISE_DISTRIBUTION_ADAPTER.md)
-- [Public Operator Profile](docs/client/PUBLIC_OPERATOR_PROFILE.md)
-- [Illusion Integrity Auditor](docs/client/ILLUSION_INTEGRITY_AUDITOR.md)
-- [Backlog Governance](docs/client/BACKLOG_GOVERNANCE.md)
-- [Branch Protection Policy](docs/client/BRANCH_PROTECTION_POLICY.md)
 - [Operator Runbook](docs/client/OPERATOR_RUNBOOK.md)
-- [Documentation Hub](docs/client/README.md)
-- [Changelog](docs/workspace/CHANGELOG.md)
-
-### Public Automation Disclosure
-
-- `empty-fort-pulse` is an optional low-risk maintenance automation constrained by declared service-account policy in [`client/runtime/config/empty_fort_pulse_policy.json`](client/runtime/config/empty_fort_pulse_policy.json).
-- Pulse runs are audit-logged and bounded by explicit daily caps before any PR creation attempt (`tests/tooling/scripts/empty_fort_pulse_scheduler.ts`, `.github/workflows/empty-fort-pulse.yml`).
+- [Security Posture](docs/client/SECURITY_POSTURE.md)
+- [Backlog Governance](docs/client/BACKLOG_GOVERNANCE.md)
+- [Architecture](ARCHITECTURE.md)
+- [Roadmap](roadmap.md)
+- [Glossary](glossary.md)
 
 ## Contribution Workflow
 
 1. Read [CONTRIBUTING.md](docs/workspace/CONTRIBUTING.md).
-2. Follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
-3. Keep changes scoped and test-backed.
-4. Run quality gates before PR.
-5. Link measurable claims to evidence per [Claim-Evidence Policy](docs/client/CLAIM_EVIDENCE_POLICY.md).
-6. Update [CHANGELOG.md](docs/workspace/CHANGELOG.md) for user-visible behavior/docs changes.
-7. Use [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml), [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml), and [Pull request](.github/PULL_REQUEST_TEMPLATE.md) templates.
+2. Run tests and required gates for touched surfaces.
+3. Keep claims evidence-backed (diff + test output + runtime proof).
+4. Update [CHANGELOG.md](docs/workspace/CHANGELOG.md) for user-visible changes.
 
 ## Security
 
-- Security policy and disclosure path: [SECURITY.md](SECURITY.md)
-- Runtime security lane overview: [docs/client/SECURITY.md](docs/client/SECURITY.md)
+- Security disclosure policy: [SECURITY.md](SECURITY.md)
+- Runtime security docs: [docs/client/SECURITY.md](docs/client/SECURITY.md)
 
-## Legal
+## License
 
-- License: [LICENSE](LICENSE)
-- License details: InfRing Non-Commercial License v1.0
-- Archived historical legal docs: [docs/client/legal/archive](docs/client/legal/archive)
+InfRing uses dual licensing:
 
-## Platform Compatibility Notes
+- Apache-2.0 for open-core scope: [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
+- InfRing-NC-1.0 for default NC scope: [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0)
 
-### Path Conventions
-
-> **Note:** Log and configuration paths shown in documentation use standard Unix
-> conventions (`/var/log/...`, `/etc/...`). Windows deployments automatically
-> translate these to `%PROGRAMDATA%` equivalents via the adapter layer. No
-> manual path translation is required by operators.
-
-### Tested Environments
-
-| Platform | Version | Status |
-|----------|---------|--------|
-| macOS | 14.x | ✅ Tested |
-| Ubuntu | 22.04, 24.04 | ✅ Tested |
-| Windows | Server 2022 | ⚠️ Known path quirks |
-| Windows | 11 (WSL2) | ✅ Tested |
+See [LICENSE_SCOPE.md](LICENSE_SCOPE.md) for path-level scope resolution.
