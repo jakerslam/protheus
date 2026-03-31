@@ -23,7 +23,7 @@ const TASK_USAGE: &[&str] = &[
     "  protheus-ops workspace-gateway-runtime task status <ticket_id>",
     "  protheus-ops workspace-gateway-runtime task list [--limit=<n>]",
     "  protheus-ops workspace-gateway-runtime task cancel <ticket_id>",
-    "  protheus-ops workspace-gateway-runtime task worker [--max-tasks=<n>] [--wait-ms=<n>] [--bus=<auto|nats|local>]",
+    "  protheus-ops workspace-gateway-runtime task worker [--max-tasks=<n>] [--wait-ms=<n>] [--idle-hibernate-ms=<n>] [--service=1|0] [--bus=<auto|nats|local>]",
     "  protheus-ops workspace-gateway-runtime task slow-test [--seconds=<n>] [--progress-interval-seconds=<n>] [--bus=<auto|nats|local>]",
 ];
 
@@ -40,6 +40,9 @@ const DEFAULT_NATS_STREAM: &str = "INFRING_TASKS";
 const DEFAULT_NATS_SUBJECT: &str = "infring.tasks";
 const DEFAULT_NATS_CANCEL_SUBJECT: &str = "infring.tasks.cancel";
 const DEFAULT_NATS_DURABLE: &str = "infring-task-workers";
+const DEFAULT_WORKER_IDLE_HIBERNATE_MS: u64 = 15_000;
+const DEFAULT_WORKER_MIN_POLL_MS: u64 = 125;
+const DEFAULT_WORKER_MAX_POLL_MS: u64 = 900;
 
 // TEMPORARY SCAFFOLDING — NATS JetStream. To be replaced with native InfRing task ions built from baryons later.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -110,6 +113,7 @@ struct TaskPaths {
     conduit_jsonl: PathBuf,
     receipts_jsonl: PathBuf,
     cancelled_json: PathBuf,
+    worker_state_json: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -163,6 +167,13 @@ fn parse_non_empty(flags: &BTreeMap<String, String>, key: &str) -> Option<String
     })
 }
 
+fn parse_bool_flag(flags: &BTreeMap<String, String>, key: &str, fallback: bool) -> bool {
+    flags
+        .get(key)
+        .map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(fallback)
+}
+
 fn clean_id(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for ch in raw.chars() {
@@ -195,6 +206,7 @@ fn task_paths(root: &Path) -> TaskPaths {
         conduit_jsonl: runtime_root.join("conduit_messages.jsonl"),
         receipts_jsonl: runtime_root.join("verity_receipts.jsonl"),
         cancelled_json: runtime_root.join("cancelled.json"),
+        worker_state_json: runtime_root.join("worker_state.json"),
         root: runtime_root,
     }
 }

@@ -147,6 +147,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
     println!("  protheus-ops command-list-kernel [--mode=<list|help>] [--json]");
+    println!("  protheus-ops operator-tooling-kernel <status|route-model|escalate-model|plan-auto|plan-validate|postflight-validate|output-validate|state-read|state-write|decision-log-append|append-decision|safe-apply|memory-search|memory-summarize|memory-last-change|membrief|trace-find|sync-allowed-models|smoke-routing|spawn-safe|smart-spawn|auto-spawn|execute-handoff|safe-run|openclaw-health|daily-brief|cron-drift|cron-sync|doctor|audit-plane|fail-playbook> [flags]");
     println!("  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--out-json=<path>] [--out-badge=<path>]");
     println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
     println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");

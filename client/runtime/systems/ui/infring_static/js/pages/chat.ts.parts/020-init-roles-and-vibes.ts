@@ -38,6 +38,11 @@
       { cmd: '/verbose', desc: 'Cycle tool detail level (/verbose [off|on|full])' },
       { cmd: '/queue', desc: 'Check if agent is processing' },
       { cmd: '/status', desc: 'Show system status' },
+      { cmd: '/alerts', desc: 'Show proactive telemetry alerts' },
+      { cmd: '/continuity', desc: 'Show pending actions across channels/sessions/tasks' },
+      { cmd: '/aliases', desc: 'List active slash aliases' },
+      { cmd: '/alias', desc: 'Create custom alias (/alias /short /target ...)' },
+      { cmd: '/opt', desc: 'Suggest worker optimization / hibernation actions' },
       { cmd: '/clear', desc: 'Clear chat display' },
       { cmd: '/exit', desc: 'Disconnect from agent' },
       { cmd: '/budget', desc: 'Show spending limits and current costs' },
@@ -78,7 +83,7 @@
 
     // ── Tip Bar ──
     tipIndex: 0,
-    tips: ['Type / for commands', '/think on for reasoning', 'Ctrl+Shift+F for focus mode', 'Ctrl+T or Ctrl+\\ for terminal mode', 'Ctrl+F to add files', '/model to switch models', '/context to check usage', '/verbose off to hide tool details'],
+    tips: ['Type / for commands', '/think on for reasoning', 'Ctrl+Shift+F for focus mode', 'Ctrl+T or Ctrl+\\ for terminal mode', 'Ctrl+F to add files', '/model to switch models', '/context to check usage', '/continuity to see pending work'],
     tipTimer: null,
     get currentTip() {
       if (localStorage.getItem('of-tips-off') === 'true') return '';

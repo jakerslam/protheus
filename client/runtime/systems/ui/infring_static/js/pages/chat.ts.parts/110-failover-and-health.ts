@@ -46,14 +46,6 @@
       }).catch(function() { /* silent — use hardcoded list */ });
     },
 
-    get filteredSlashCommands() {
-      if (!this.slashFilter) return this.slashCommands;
-      var f = this.slashFilter;
-      return this.slashCommands.filter(function(c) {
-        return c.cmd.toLowerCase().indexOf(f) !== -1 || c.desc.toLowerCase().indexOf(f) !== -1;
-      });
-    },
-
     // Clear any stuck typing indicator after 120s
     _resetTypingTimeout: function() {
       var self = this;

@@ -148,6 +148,7 @@ pub mod narrow_agent_parity_harness;
 pub mod network_protocol;
 pub mod nexus_plane;
 pub mod observability_plane;
+pub mod operator_tooling_kernel;
 pub mod offline_runtime_guard;
 pub mod offsite_backup;
 pub mod ops_domain_conduit_runner_kernel;

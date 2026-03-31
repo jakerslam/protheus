@@ -1412,6 +1412,61 @@ fn reset_active_session(root: &Path, agent_id: &str) -> Value {
     })
 }
 
+fn compaction_message_text(row: &Value) -> String {
+    let text = message_text(row);
+    if !text.is_empty() {
+        return clean_text(&text, 4000);
+    }
+    clean_text(row.get("summary").and_then(Value::as_str).unwrap_or(""), 4000)
+}
+
+fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize) -> Vec<Value> {
+    if removed.is_empty() {
+        return Vec::new();
+    }
+    let cap = max_keyframes.clamp(1, 24);
+    let chunk_size = ((removed.len() as f64 / cap as f64).ceil() as usize).max(1);
+    let mut out = Vec::<Value>::new();
+    for (idx, chunk) in removed.chunks(chunk_size).enumerate() {
+        if out.len() >= cap {
+            break;
+        }
+        let mut highlights = Vec::<String>::new();
+        for row in chunk {
+            let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 20)
+                .to_ascii_lowercase();
+            let text = compaction_message_text(row);
+            if text.is_empty() {
+                continue;
+            }
+            let prefix = if role.is_empty() {
+                "note".to_string()
+            } else {
+                role
+            };
+            highlights.push(format!("{prefix}: {}", clean_text(&text, 120)));
+            if highlights.len() >= 2 {
+                break;
+            }
+        }
+        let summary = if highlights.is_empty() {
+            format!("Compaction batch {} summarized {} older turns.", idx + 1, chunk.len())
+        } else {
+            highlights.join(" | ")
+        };
+        let key_seed = json!({"batch": idx + 1, "summary": summary, "count": chunk.len()});
+        let key_hash = crate::deterministic_receipt_hash(&key_seed);
+        out.push(json!({
+            "keyframe_id": format!("kf-{}", &key_hash[..12]),
+            "batch": idx + 1,
+            "turns_covered": chunk.len(),
+            "summary": clean_text(&summary, 260),
+            "captured_at": crate::now_iso()
+        }));
+    }
+    out
+}
+
 fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
@@ -1450,6 +1505,8 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
     let mut after_tokens = 0i64;
     let mut before_messages = 0usize;
     let mut after_messages = 0usize;
+    let mut removed_messages = Vec::<Value>::new();
+    let mut emitted_keyframes = Vec::<Value>::new();
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
             let sid = clean_text(
@@ -1481,7 +1538,7 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
             let target_tokens = ((target_window as f64) * target_ratio).round() as i64;
             if messages.len() > max_messages {
                 let drain = messages.len().saturating_sub(max_messages);
-                messages.drain(0..drain);
+                removed_messages.extend(messages.drain(0..drain));
             }
             while messages.len() > min_recent_messages {
                 let current_tokens = messages
@@ -1498,7 +1555,9 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                 if current_tokens <= target_tokens {
                     break;
                 }
-                messages.remove(0);
+                if !messages.is_empty() {
+                    removed_messages.push(messages.remove(0));
+                }
             }
             after_messages = messages.len();
             after_tokens = messages
@@ -1512,6 +1571,53 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                     estimate_tokens(text)
                 })
                 .sum::<i64>();
+            emitted_keyframes = build_context_keyframes_from_removed(&removed_messages, 8);
+            if !row.get("context_keyframes").map(Value::is_array).unwrap_or(false) {
+                row["context_keyframes"] = Value::Array(Vec::new());
+            }
+            if let Some(keyframes) = row.get_mut("context_keyframes").and_then(Value::as_array_mut) {
+                keyframes.extend(emitted_keyframes.clone());
+                if keyframes.len() > 48 {
+                    let trim = keyframes.len().saturating_sub(48);
+                    keyframes.drain(0..trim);
+                }
+            }
+            if !row.get("compaction_archives").map(Value::is_array).unwrap_or(false) {
+                row["compaction_archives"] = Value::Array(Vec::new());
+            }
+            let archive_messages = removed_messages
+                .iter()
+                .take(240)
+                .map(|item| {
+                    json!({
+                        "role": clean_text(item.get("role").and_then(Value::as_str).unwrap_or(""), 24),
+                        "text": clean_text(&compaction_message_text(item), 1200),
+                        "ts": item.get("ts").cloned().unwrap_or(Value::Null),
+                        "created_at": item.get("created_at").cloned().unwrap_or(Value::Null)
+                    })
+                })
+                .collect::<Vec<_>>();
+            let archive = json!({
+                "archive_id": format!("cmp-{}", &crate::deterministic_receipt_hash(&json!({
+                    "agent_id": id,
+                    "removed_count": removed_messages.len(),
+                    "before_tokens": before_tokens,
+                    "after_tokens": after_tokens,
+                    "captured_at": crate::now_iso()
+                }))[..12]),
+                "captured_at": crate::now_iso(),
+                "removed_count": removed_messages.len(),
+                "removed_excerpt_count": archive_messages.len(),
+                "removed_messages": archive_messages,
+                "keyframes": emitted_keyframes
+            });
+            if let Some(archives) = row.get_mut("compaction_archives").and_then(Value::as_array_mut) {
+                archives.push(archive);
+                if archives.len() > 12 {
+                    let trim = archives.len().saturating_sub(12);
+                    archives.drain(0..trim);
+                }
+            }
             row["updated_at"] = Value::String(crate::now_iso());
             break;
         }
@@ -1525,6 +1631,9 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
         "after_tokens": after_tokens,
         "before_messages": before_messages,
         "after_messages": after_messages,
+        "removed_messages": removed_messages.len(),
+        "keyframes_emitted": emitted_keyframes.len(),
+        "keyframes": emitted_keyframes,
         "message": format!("Compaction complete: {} -> {} tokens", before_tokens, after_tokens)
     })
 }
@@ -4621,6 +4730,10 @@ pub fn handle_with_headers(
                 "first_event_date": usage["first_event_date"].clone()
             }),
             "/api/status" => status_payload(root, snapshot, &request_host),
+            "/api/telemetry/alerts" => proactive_telemetry_alerts_payload(root, snapshot),
+            "/api/continuity" | "/api/continuity/pending" => {
+                continuity_pending_payload(root, snapshot)
+            }
             "/api/config" => config_payload(root, snapshot),
             "/api/config/schema" => config_schema_payload(),
             "/api/auth/check" => auth_check_payload(),
@@ -4690,12 +4803,16 @@ pub fn handle_with_headers(
             "/api/commands" => json!({
                 "ok": true,
                 "commands": [
-                    {"command": "/status", "description": "Show runtime status and cockpit summary"},
-                    {"command": "/queue", "description": "Show current queue pressure"},
-                    {"command": "/context", "description": "Show context and attention state"},
-                    {"command": "/model", "description": "Inspect or switch active model"},
-                    {"command": "/file <path>", "description": "Render full file output in chat from workspace path"},
-                    {"command": "/folder <path>", "description": "Render folder tree + downloadable archive in chat"}
+                    {"cmd": "/status", "command": "/status", "desc": "Show runtime status and cockpit summary", "description": "Show runtime status and cockpit summary"},
+                    {"cmd": "/queue", "command": "/queue", "desc": "Show current queue pressure", "description": "Show current queue pressure"},
+                    {"cmd": "/context", "command": "/context", "desc": "Show context and attention state", "description": "Show context and attention state"},
+                    {"cmd": "/model", "command": "/model", "desc": "Inspect or switch model (/model [name])", "description": "Inspect or switch model (/model [name])"},
+                    {"cmd": "/file <path>", "command": "/file <path>", "desc": "Render full file output in chat from workspace path", "description": "Render full file output in chat from workspace path"},
+                    {"cmd": "/folder <path>", "command": "/folder <path>", "desc": "Render folder tree + downloadable archive in chat", "description": "Render folder tree + downloadable archive in chat"},
+                    {"cmd": "/alerts", "command": "/alerts", "desc": "Show proactive telemetry alerts", "description": "Show proactive telemetry alerts"},
+                    {"cmd": "/continuity", "command": "/continuity", "desc": "Show pending actions across sessions/channels/tasks", "description": "Show pending actions across sessions/channels/tasks"},
+                    {"cmd": "/aliases", "command": "/aliases", "desc": "List active slash command aliases", "description": "List active slash command aliases"},
+                    {"cmd": "/alias", "command": "/alias <shortcut> <target>", "desc": "Create a custom slash alias", "description": "Create a custom slash alias"}
                 ]
             }),
             "/api/budget" => json!({
@@ -4801,4 +4918,5 @@ mod tests {
     include!("config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.rs");
     include!("config_payload_tests_parts/030-memory-kv-http-routes-round-trip-and-feed-context.rs");
     include!("config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.rs");
+    include!("config_payload_tests_parts/050-compact-session-keyframes.rs");
 }

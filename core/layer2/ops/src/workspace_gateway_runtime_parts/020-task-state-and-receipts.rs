@@ -10,6 +10,18 @@ fn ensure_task_state(paths: &TaskPaths) -> Result<(), String> {
     if !paths.cancelled_json.exists() {
         write_json_pretty(&paths.cancelled_json, &json!({ "ids": [] }))?;
     }
+    if !paths.worker_state_json.exists() {
+        write_json_pretty(
+            &paths.worker_state_json,
+            &json!({
+                "type": "task_worker_state",
+                "updated_at_ms": now_epoch_ms(),
+                "active_workers": {},
+                "total_hibernations": 0,
+                "last_hibernated": Value::Null
+            }),
+        )?;
+    }
     Ok(())
 }
 
@@ -150,6 +162,122 @@ fn emit_final_result(paths: &TaskPaths, result: &TaskResult) -> Result<(), Strin
     println!("{}", payload);
     println!("{}", receipt);
     Ok(())
+}
+
+fn load_worker_state(paths: &TaskPaths) -> Result<Value, String> {
+    ensure_task_state(paths)?;
+    let raw = fs::read_to_string(&paths.worker_state_json)
+        .map_err(|err| format!("read_worker_state_failed:{err}"))?;
+    serde_json::from_str::<Value>(&raw).map_err(|err| format!("parse_worker_state_failed:{err}"))
+}
+
+fn save_worker_state(paths: &TaskPaths, state: &Value) -> Result<(), String> {
+    write_json_pretty(&paths.worker_state_json, state)
+}
+
+fn mark_worker_started(
+    paths: &TaskPaths,
+    worker_id: &str,
+    bus_mode: &str,
+    service_mode: bool,
+) -> Result<(), String> {
+    let mut state = load_worker_state(paths)?;
+    if !state.get("active_workers").map(Value::is_object).unwrap_or(false) {
+        state["active_workers"] = json!({});
+    }
+    let now = now_epoch_ms();
+    state["active_workers"][worker_id] = json!({
+        "worker_id": worker_id,
+        "bus_mode": bus_mode,
+        "service_mode": service_mode,
+        "started_at_ms": now,
+        "last_poll_ms": now,
+        "poll_wait_ms": 0,
+        "queue_empty": false
+    });
+    state["last_event"] = json!({
+        "type": "worker_started",
+        "worker_id": worker_id,
+        "ts_ms": now
+    });
+    state["updated_at_ms"] = json!(now);
+    save_worker_state(paths, &state)
+}
+
+fn mark_worker_poll(
+    paths: &TaskPaths,
+    worker_id: &str,
+    queue_empty: bool,
+    poll_wait_ms: u64,
+) -> Result<(), String> {
+    let mut state = load_worker_state(paths)?;
+    let now = now_epoch_ms();
+    if state
+        .get("active_workers")
+        .and_then(Value::as_object)
+        .is_none()
+    {
+        state["active_workers"] = json!({});
+    }
+    state["active_workers"][worker_id]["last_poll_ms"] = json!(now);
+    state["active_workers"][worker_id]["queue_empty"] = json!(queue_empty);
+    state["active_workers"][worker_id]["poll_wait_ms"] = json!(poll_wait_ms);
+    state["updated_at_ms"] = json!(now);
+    save_worker_state(paths, &state)
+}
+
+fn mark_worker_hibernated(
+    paths: &TaskPaths,
+    worker_id: &str,
+    idle_ms: u64,
+    processed: usize,
+) -> Result<(), String> {
+    let mut state = load_worker_state(paths)?;
+    let now = now_epoch_ms();
+    if let Some(active) = state.get_mut("active_workers").and_then(Value::as_object_mut) {
+        active.remove(worker_id);
+    } else {
+        state["active_workers"] = json!({});
+    }
+    let next_total = state
+        .get("total_hibernations")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        .saturating_add(1);
+    state["total_hibernations"] = json!(next_total);
+    state["last_hibernated"] = json!({
+        "worker_id": worker_id,
+        "idle_ms": idle_ms,
+        "processed": processed,
+        "ts_ms": now
+    });
+    state["last_event"] = json!({
+        "type": "worker_hibernated",
+        "worker_id": worker_id,
+        "idle_ms": idle_ms,
+        "processed": processed,
+        "ts_ms": now
+    });
+    state["updated_at_ms"] = json!(now);
+    save_worker_state(paths, &state)
+}
+
+fn mark_worker_stopped(paths: &TaskPaths, worker_id: &str, processed: usize) -> Result<(), String> {
+    let mut state = load_worker_state(paths)?;
+    let now = now_epoch_ms();
+    if let Some(active) = state.get_mut("active_workers").and_then(Value::as_object_mut) {
+        active.remove(worker_id);
+    } else {
+        state["active_workers"] = json!({});
+    }
+    state["last_event"] = json!({
+        "type": "worker_stopped",
+        "worker_id": worker_id,
+        "processed": processed,
+        "ts_ms": now
+    });
+    state["updated_at_ms"] = json!(now);
+    save_worker_state(paths, &state)
 }
 
 fn read_queue_rows(path: &Path) -> Result<Vec<TaskPayload>, String> {
