@@ -169,6 +169,39 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .get("alerts")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let component_checksums = json!({
+        "app": crate::deterministic_receipt_hash(&app_payload),
+        "collab": crate::deterministic_receipt_hash(&collab_payload),
+        "skills": crate::deterministic_receipt_hash(&skills_payload),
+        "health": crate::deterministic_receipt_hash(&health_payload),
+        "runtime_sync": crate::deterministic_receipt_hash(&runtime_summary),
+        "attention_queue": crate::deterministic_receipt_hash(&attention_runtime),
+        "cockpit": crate::deterministic_receipt_hash(&cockpit_runtime),
+        "memory": crate::deterministic_receipt_hash(&out["memory"]),
+        "agent_lifecycle": crate::deterministic_receipt_hash(&out["agent_lifecycle"])
+    });
+    let composite_checksum = crate::deterministic_receipt_hash(&component_checksums);
+    let previous_composite = read_json_file(&root.join(SNAPSHOT_LATEST_REL))
+        .and_then(|row| {
+            row.pointer("/sync/composite_checksum")
+                .and_then(Value::as_str)
+                .map(|raw| clean_text(raw, 160))
+        })
+        .unwrap_or_default();
+    let sync_changed = previous_composite != composite_checksum;
+    let previous_checksum_value = if previous_composite.is_empty() {
+        Value::Null
+    } else {
+        Value::String(previous_composite)
+    };
+    out["sync"] = json!({
+        "strategy": "component_receipt_hash_v1",
+        "component_checksums": component_checksums,
+        "composite_checksum": composite_checksum,
+        "previous_composite_checksum": previous_checksum_value,
+        "changed": sync_changed,
+        "checkpoint_ts": now_iso()
+    });
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
@@ -178,4 +211,114 @@ fn write_snapshot_receipt(root: &Path, snapshot: &Value) {
     let history = root.join(SNAPSHOT_HISTORY_REL);
     write_json(&latest, snapshot);
     append_jsonl(&history, snapshot);
+    let force = fs::metadata(&history)
+        .map(|meta| meta.len() > SNAPSHOT_HISTORY_MAX_BYTES)
+        .unwrap_or(false);
+    if should_prune_snapshot_history(&history, force) {
+        trim_snapshot_history_with_policy(
+            &history,
+            SNAPSHOT_HISTORY_MAX_BYTES,
+            SNAPSHOT_HISTORY_MAX_LINES,
+            SNAPSHOT_HISTORY_MAX_AGE_DAYS,
+        );
+    }
+}
+
+fn should_prune_snapshot_history(path: &Path, force: bool) -> bool {
+    static LAST_PRUNE_SECONDS: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
+    let now = Utc::now().timestamp();
+    let key = path.to_string_lossy().to_string();
+    let mut guard = match LAST_PRUNE_SECONDS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+    {
+        Ok(locked) => locked,
+        Err(_) => return force,
+    };
+    let last = *guard.get(&key).unwrap_or(&0);
+    if force || (now - last) >= SNAPSHOT_HISTORY_PRUNE_INTERVAL_SECONDS {
+        guard.insert(key, now);
+        return true;
+    }
+    false
+}
+
+fn parse_snapshot_timestamp(row: &Value) -> Option<DateTime<Utc>> {
+    row.get("ts")
+        .and_then(Value::as_str)
+        .and_then(|raw| DateTime::parse_from_rfc3339(raw).ok())
+        .map(|ts| ts.with_timezone(&Utc))
+}
+
+fn trim_snapshot_history_with_policy(
+    path: &Path,
+    max_bytes: u64,
+    max_lines: usize,
+    max_age_days: i64,
+) {
+    let meta = match fs::metadata(path) {
+        Ok(meta) => meta,
+        Err(_) => return,
+    };
+    if meta.len() == 0 {
+        return;
+    }
+
+    let byte_cap = max_bytes.max(1024);
+    let line_cap = max_lines.max(1);
+    let cutoff = Utc::now() - chrono::Duration::days(max_age_days.max(0));
+    let mut file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return,
+    };
+
+    let tail_window = meta
+        .len()
+        .min(byte_cap.saturating_add(LOG_TAIL_MAX_READ_BYTES as u64));
+    if meta.len() > tail_window {
+        let _ = file.seek(SeekFrom::End(-(tail_window as i64)));
+    }
+
+    let mut reader = BufReader::new(file);
+    let mut raw = String::new();
+    if reader.read_to_string(&mut raw).is_err() {
+        return;
+    }
+    if meta.len() > tail_window {
+        if let Some((_, rest)) = raw.split_once('\n') {
+            raw = rest.to_string();
+        }
+    }
+
+    let mut kept = VecDeque::<String>::new();
+    let mut kept_bytes = 0u64;
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let parsed = parse_json_loose(trimmed).unwrap_or(Value::Null);
+        let keep_by_age = parse_snapshot_timestamp(&parsed)
+            .map(|ts| ts >= cutoff)
+            .unwrap_or(true);
+        if !keep_by_age {
+            continue;
+        }
+        kept.push_back(trimmed.to_string());
+        kept_bytes = kept_bytes.saturating_add((trimmed.len() + 1) as u64);
+        while kept.len() > line_cap || kept_bytes > byte_cap {
+            if let Some(removed) = kept.pop_front() {
+                kept_bytes = kept_bytes.saturating_sub((removed.len() + 1) as u64);
+            } else {
+                break;
+            }
+        }
+    }
+
+    let mut out = String::new();
+    while let Some(line) = kept.pop_front() {
+        out.push_str(&line);
+        out.push('\n');
+    }
+    let _ = fs::write(path, out);
 }

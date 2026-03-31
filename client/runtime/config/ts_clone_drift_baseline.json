@@ -48,7 +48,7 @@
     },
     {
       "base": "lib/rust_lane_bridge",
-      "js": "lib/rust_lane_bridge.js",
+      "js": "lib/rust_lane_bridge.ts",
       "ts": "lib/rust_lane_bridge.ts",
       "exact": true,
       "similarity": 1,
@@ -61,7 +61,7 @@
     },
     {
       "base": "lib/spine_conduit_bridge",
-      "js": "lib/spine_conduit_bridge.js",
+      "js": "lib/spine_conduit_bridge.ts",
       "ts": "lib/spine_conduit_bridge.ts",
       "exact": true,
       "similarity": 1,

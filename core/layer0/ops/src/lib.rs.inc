@@ -241,6 +241,7 @@ pub mod upgrade_lane_kernel;
 pub mod upwork_gigs_collector_kernel;
 pub mod v8_kernel;
 pub mod vbrowser_plane;
+pub mod verity_plane;
 pub mod venom_containment_layer;
 pub mod vertical_plane;
 pub mod workflow_controller;

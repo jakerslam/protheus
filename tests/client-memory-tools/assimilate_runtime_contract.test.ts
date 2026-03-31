@@ -6,8 +6,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.js');
-const runOpsScript = path.join(root, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.js');
+const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.ts');
+const runOpsScript = path.join(root, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 
 // Claim evidence coverage for assimilation hardening SRS rows:
 // V10-ASSIM-001.1 Unified progress UX across known/generic targets

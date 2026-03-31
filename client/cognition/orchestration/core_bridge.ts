@@ -5,7 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const { parseArgs, parseJson } = require('./cli_shared.ts');
-const { ROOT, resolveBinary } = require(path.join(__dirname, '..', '..', 'runtime', 'systems', 'ops', 'run_protheus_ops.js'));
+const { ROOT, resolveBinary } = require(path.join(__dirname, '..', '..', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts'));
 
 function parseJsonOutput(stdout) {
   const text = String(stdout || '').trim();

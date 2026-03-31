@@ -87,8 +87,8 @@ function writeSyncedReadme(readmePath, benchmarkReportPath) {
   const report = JSON.parse(readFileSync(benchmarkReportPath, 'utf8'));
   const lines = [
     '# Snowball Benchmark Sync Fixture',
-    `${Number(report.openclaw_measured?.cold_start_ms || 0).toFixed(1)} ms`,
-    `${Number(report.openclaw_measured?.idle_memory_mb || 0).toFixed(1)} MB`,
+    `${Number(report.infring_measured?.cold_start_ms || 0).toFixed(1)} ms`,
+    `${Number(report.infring_measured?.idle_memory_mb || 0).toFixed(1)} MB`,
     `${formatWithCommas(report.pure_workspace_measured?.tasks_per_sec || 0)} ops/sec`,
     `${formatWithCommas(report.pure_workspace_tiny_max_measured?.tasks_per_sec || 0)} ops/sec`,
   ];

@@ -1,7 +1,7 @@
 {
   "id": "V6-CLOUD-001.2",
   "upgrade": "Tenant/Workspace Isolation + Managed Ops Health/SLA Evidence Contract",
-  "section": "OpenClaw Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
+  "section": "Infring Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
   "impact": 8,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

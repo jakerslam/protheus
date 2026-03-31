@@ -5,7 +5,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, test } from 'vitest';
 
 const ROOT = process.cwd();
-const GUARD_PATH = path.join(ROOT, 'tests/tooling/scripts/ci/churn_guard.mjs');
+const GUARD_PATH = path.join(ROOT, 'tests/tooling/scripts/ci/churn_guard.ts');
 const tempDirs: string[] = [];
 
 function createFixtureRepo(): string {

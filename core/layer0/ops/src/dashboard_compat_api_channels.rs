@@ -4,6 +4,7 @@ use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::CompatApiResponse;
@@ -58,6 +59,79 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
 
 fn parse_non_negative_i64(value: Option<&Value>, fallback: i64) -> i64 {
     value.and_then(Value::as_i64).unwrap_or(fallback).max(0)
+}
+
+fn error_text_from_value(value: &Value) -> String {
+    if let Some(text) = value.get("error").and_then(Value::as_str) {
+        return clean_text(text, 280);
+    }
+    if let Some(text) = value
+        .get("error")
+        .and_then(Value::as_object)
+        .and_then(|row| row.get("message"))
+        .and_then(Value::as_str)
+    {
+        return clean_text(text, 280);
+    }
+    if let Some(text) = value.get("message").and_then(Value::as_str) {
+        return clean_text(text, 280);
+    }
+    clean_text(&value.to_string(), 280)
+}
+
+fn config_text(channel: &Value, keys: &[&str], max_len: usize) -> String {
+    let Some(config) = channel.get("config").and_then(Value::as_object) else {
+        return String::new();
+    };
+    for key in keys {
+        let value = clean_text(config.get(*key).and_then(Value::as_str).unwrap_or(""), max_len);
+        if !value.is_empty() {
+            return value;
+        }
+    }
+    String::new()
+}
+
+fn curl_json_get(url: &str, headers: &[String], timeout_secs: u64) -> Result<(u16, Value), String> {
+    let mut cmd = Command::new("curl");
+    cmd.arg("-sS")
+        .arg("-L")
+        .arg("--connect-timeout")
+        .arg("8")
+        .arg("--max-time")
+        .arg(timeout_secs.to_string());
+    for header in headers {
+        cmd.arg("-H").arg(header);
+    }
+    cmd.arg("-w").arg("\n__HTTP_STATUS__:%{http_code}").arg(url);
+    let output = cmd
+        .output()
+        .map_err(|err| format!("curl_spawn_failed:{err}"))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = clean_text(&String::from_utf8_lossy(&output.stderr), 600);
+    let marker = "\n__HTTP_STATUS__:";
+    let Some(index) = stdout.rfind(marker) else {
+        return Err(if stderr.is_empty() {
+            "curl_http_status_missing".to_string()
+        } else {
+            stderr
+        });
+    };
+    let body_raw = stdout[..index].trim();
+    let status = stdout[index + marker.len()..]
+        .trim()
+        .parse::<u16>()
+        .unwrap_or(0);
+    let value = serde_json::from_str::<Value>(body_raw)
+        .unwrap_or_else(|_| json!({"raw": clean_text(body_raw, 8_000)}));
+    if !output.status.success() && status == 0 {
+        return Err(if stderr.is_empty() {
+            "curl_failed".to_string()
+        } else {
+            stderr
+        });
+    }
+    Ok((status, value))
 }
 
 fn now_ms() -> i64 {
@@ -260,6 +334,131 @@ fn test_channel(root: &Path, name: &str) -> CompatApiResponse {
         return CompatApiResponse {
             status: 200,
             payload: json!({"ok": true, "status": "error", "message": "Channel is not configured yet."}),
+        };
+    }
+    if name == "gohighlevel" {
+        let pit = config_text(
+            &channel,
+            &[
+                "private_integration_token",
+                "pit",
+                "token",
+                "access_token",
+                "api_key",
+            ],
+            500,
+        );
+        if pit.is_empty() {
+            return CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "status": "error",
+                    "message": "Missing Private Integration Token (PIT)."
+                }),
+            };
+        }
+        let location_id = config_text(
+            &channel,
+            &["location_id", "locationid", "sub_account_id", "subaccount_id"],
+            160,
+        );
+        if location_id.is_empty() {
+            return CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "status": "error",
+                    "message": "Missing location_id. Add a HighLevel location (sub-account) ID to run live verification."
+                }),
+            };
+        }
+        let endpoint = {
+            let configured_endpoint =
+                config_text(&channel, &["endpoint", "base_url", "api_url"], 400);
+            let fallback = "https://services.leadconnectorhq.com".to_string();
+            let raw = if configured_endpoint.is_empty() {
+                fallback
+            } else {
+                configured_endpoint
+            };
+            clean_text(raw.trim_end_matches('/'), 400)
+        };
+        let api_version = {
+            let configured_version = config_text(&channel, &["api_version", "version"], 40);
+            if configured_version.is_empty() {
+                "2021-07-28".to_string()
+            } else {
+                configured_version
+            }
+        };
+        let location_id_encoded = urlencoding::encode(&location_id).to_string();
+        let url = format!("{endpoint}/locations/{location_id_encoded}");
+        let headers = vec![
+            "Accept: application/json".to_string(),
+            format!("Authorization: Bearer {pit}"),
+            format!("Version: {api_version}"),
+        ];
+        return match curl_json_get(&url, &headers, 20) {
+            Ok((status, body)) if (200..300).contains(&status) => {
+                let location_name = clean_text(
+                    body.get("location")
+                        .and_then(Value::as_object)
+                        .and_then(|row| row.get("name").and_then(Value::as_str))
+                        .or_else(|| body.get("name").and_then(Value::as_str))
+                        .unwrap_or(""),
+                    160,
+                );
+                CompatApiResponse {
+                    status: 200,
+                    payload: json!({
+                        "ok": true,
+                        "status": "ok",
+                        "message": if location_name.is_empty() {
+                            "GoHighLevel connection verified.".to_string()
+                        } else {
+                            format!("GoHighLevel connection verified for location: {location_name}")
+                        },
+                        "details": {
+                            "http_status": status,
+                            "endpoint": endpoint,
+                            "location_id": location_id
+                        }
+                    }),
+                }
+            }
+            Ok((status, body)) => {
+                let error_text = error_text_from_value(&body);
+                CompatApiResponse {
+                    status: 200,
+                    payload: json!({
+                        "ok": true,
+                        "status": "error",
+                        "message": if error_text.is_empty() {
+                            format!("GoHighLevel test failed with HTTP {status}.")
+                        } else {
+                            format!("GoHighLevel test failed with HTTP {status}: {error_text}")
+                        },
+                        "details": {
+                            "http_status": status,
+                            "endpoint": endpoint,
+                            "location_id": location_id
+                        }
+                    }),
+                }
+            }
+            Err(err) => CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "status": "error",
+                    "message": format!("GoHighLevel connectivity test failed: {}", clean_text(&err, 280)),
+                    "details": {
+                        "endpoint": endpoint,
+                        "location_id": location_id
+                    }
+                }),
+            },
         };
     }
     CompatApiResponse {

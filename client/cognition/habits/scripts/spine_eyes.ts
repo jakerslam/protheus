@@ -5,7 +5,7 @@
 // Thin compatibility wrapper only.
 const path = require('path');
 const { spawnSync } = require('child_process');
-const target = path.resolve(__dirname, './spine_eyes.js');
+const target = path.resolve(__dirname, './spine_eyes.ts');
 
 function run(args = process.argv.slice(2)) {
   const r = spawnSync(process.execPath, [target, ...args], {

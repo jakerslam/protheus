@@ -26,8 +26,8 @@ function expandWorkspaceToken(filepath) {
   if (filepath.startsWith('${WORKSPACE_ROOT}/')) {
     return path.join(WORKSPACE_ROOT, filepath.slice('${WORKSPACE_ROOT}/'.length));
   }
-  if (filepath.startsWith('$OPENCLAW_WORKSPACE/')) {
-    return path.join(WORKSPACE_ROOT, filepath.slice('$OPENCLAW_WORKSPACE/'.length));
+  if (filepath.startsWith('$INFRING_WORKSPACE/')) {
+    return path.join(WORKSPACE_ROOT, filepath.slice('$INFRING_WORKSPACE/'.length));
   }
   return filepath;
 }
@@ -95,13 +95,13 @@ function verifySkillOrThrow(targetPath) {
   
   // Check break glass mode
   const breakGlassEnabled = config.break_glass && config.break_glass.enabled;
-  const breakGlassEnv = process.env.OPENCLAW_BREAK_GLASS === '1';
-  const breakGlassReason = process.env.OPENCLAW_BREAK_GLASS_REASON;
+  const breakGlassEnv = process.env.INFRING_BREAK_GLASS === '1';
+  const breakGlassReason = process.env.INFRING_BREAK_GLASS_REASON;
   
   if (breakGlassEnabled && breakGlassEnv) {
     if (!breakGlassReason || breakGlassReason.trim().length < 10) {
       throw new Error(
-        'BREAK_GLASS_REASON_REQUIRED: OPENCLAW_BREAK_GLASS_REASON must be set with a meaningful reason (min 10 chars)'
+        'BREAK_GLASS_REASON_REQUIRED: INFRING_BREAK_GLASS_REASON must be set with a meaningful reason (min 10 chars)'
       );
     }
     console.warn(`⚠️  BREAK GLASS MODE: Executing ${targetPath}`);

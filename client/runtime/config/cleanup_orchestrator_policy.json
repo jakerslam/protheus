@@ -19,7 +19,7 @@
           }
         },
         {
-          "id": "openclaw_backup_retention",
+          "id": "infring_backup_retention",
           "enabled": true,
           "critical": false,
           "apply": true,

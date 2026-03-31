@@ -345,7 +345,7 @@ fn normalize_policy(runtime_root: &Path, raw: &Value) -> IntegrityPolicy {
     let protected_files = {
         let raw_files = as_string_vec(obj.get("protected_files"));
         if raw_files.is_empty() {
-            vec!["lib/directive_resolver.js".to_string()]
+            vec!["lib/directive_resolver.ts".to_string()]
         } else {
             raw_files
                 .into_iter()

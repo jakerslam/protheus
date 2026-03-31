@@ -1,3 +1,6 @@
+// TypeScript compatibility shim only.
+// Layer ownership: core/layer0/ops (authoritative); this file reads UI runtime status only.
+
 export type RuntimeStatus = {
   ok?: boolean;
   connected?: boolean;
@@ -10,4 +13,3 @@ export async function readRuntimeStatus(): Promise<RuntimeStatus> {
   const payload = (await response.json()) as RuntimeStatus;
   return payload || {};
 }
-

@@ -26,7 +26,7 @@ const sidecarMain = path.join(
 if (!fs.existsSync(sidecarMain)) {
   process.stderr.write(
     '[visualizer] sidecar repo not found at client/runtime/local/workspaces/agent-holo-viz/. ' +
-    'Create/populate $OPENCLAW_WORKSPACE/client/runtime/local/workspaces/agent-holo-viz first.\n'
+    'Create/populate $INFRING_WORKSPACE/client/runtime/local/workspaces/agent-holo-viz first.\n'
   );
   process.exit(1);
 }

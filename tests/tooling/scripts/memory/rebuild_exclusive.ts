@@ -5,7 +5,10 @@ const fs = require('fs');
 const path = require('path');
 
 // PARTS_LOADER: split oversized file into <=1000-line wrapper + parts.
-const PARTS_DIR = `${__filename}.parts`;
+const PARTS_DIR = [
+  `${__filename}.parts`,
+  `${__filename.replace(/\.js$/i, '.ts')}.parts`,
+].find((candidate) => fs.existsSync(candidate)) || `${__filename}.parts`;
 const source = fs
   .readdirSync(PARTS_DIR, { withFileTypes: true })
   .filter((entry) => entry.isFile() && /\.ts$/i.test(entry.name))

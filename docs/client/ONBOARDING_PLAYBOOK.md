@@ -23,9 +23,10 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
 
 ### Day 0
 
-- Start daemon and verify control plane:
-  - `npm run start`
-  - `protheus status`
+- Run one-command bootstrap from repo root (installs if missing + starts dashboard):
+  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --gateway=1`
+- Verify control plane:
+  - `infring gateway status`
 - Read escalation surfaces in `docs/client/OPERATOR_RUNBOOK.md`.
 - Confirm ability to run backlog sync:
   - `npm run ops:backlog:registry:sync`
@@ -48,6 +49,8 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
 
 ### Day 0
 
+- Bootstrap first so CLI/runtime are ready:
+  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1`
 - Run full local baseline:
   - `npm ci`
   - `npm run lint`

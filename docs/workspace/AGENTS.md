@@ -294,5 +294,5 @@ When Jay says **"watch [something]"** in an info-related context, this is a dire
 3. Keep `client/runtime/systems/` generic only. Do not add source-specific collector code outside adaptive layer.
 4. Add the eye through controller only:
    `node client/runtime/systems/sensory/eyes_intake.js create --name="..." --parser=<parser_type> --directive=<active_directive_id> [--domains=d1,d2]`
-5. Test with `node client/cognition/habits/scripts/external_eyes.js run --eye=<id>`
+5. Test with `node client/cognition/habits/scripts/external_eyes.ts run --eye=<id>`
 6. Report eye creation + test results

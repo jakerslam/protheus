@@ -33,7 +33,7 @@ Out of scope:
   - Include cold start, idle memory, install size, and evidence-verification latency metrics.
   - Publish result snapshots with timestamped receipts; no unverifiable claims.
 
-3. `REQ-13-003` Migration importer (`protheus migrate --from openfang`)
+3. `REQ-13-003` Migration importer (`protheus migrate --from infring`)
 - Acceptance:
   - Add importer command path to ingest competitor config artifacts into Protheus governance format.
   - Import path is fail-closed with schema validation and explicit conversion receipts.

@@ -230,7 +230,7 @@
         "set_risk": "high"
       },
       {
-        "if_any": ["openclaw cron", "cron add", "cron remove", "cron swap", "scheduler"],
+        "if_any": ["infring cron", "cron add", "cron remove", "cron swap", "scheduler"],
         "set_risk": "high"
       },
       {

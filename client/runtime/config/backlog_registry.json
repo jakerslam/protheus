@@ -3178,7 +3178,7 @@
       "class": "v3",
       "dependencies": [],
       "id": "RM-110",
-      "problem": "Control-plane overlay contract now includes routing lane, trust posture, provider health set, and error-lane counts from router/weaver telemetry, and is rendered in visualizer preview metrics via the same typed contract pipeline (`client/runtime/systems/ops/holo_overlay_compiler.ts`, `agent-holo-viz/server/system_visualizer_server.js`, `agent-holo-viz/client/app.js`).",
+      "problem": "Control-plane overlay contract now includes routing lane, trust posture, provider health set, and error-lane counts from router/weaver telemetry, and is rendered in visualizer preview metrics via the same typed contract pipeline (`client/runtime/systems/ops/holo_overlay_compiler.ts`, `agent-holo-viz/server/system_visualizer_server.js`, `agent-holo-viz/client/app.ts`).",
       "status": "holo-viz_control-plane_overlays",
       "title": "Operators need real-time legibility for orchestration and risk states",
       "wave": "done"
@@ -4374,7 +4374,7 @@
       "wave": "V2"
     },
     {
-      "acceptance": "Delivered in sidecar visualizer (`agent-holo-viz/client/index.html`, `agent-holo-viz/client/app.js`): explicit high-contrast/stable scrollbars, auto-follow/manual-scroll behavior guards (manual scroll preserved unless auto-follow is enabled), and terminal-pane smoke checks remain green / 7 / 1/2/client/adapter",
+      "acceptance": "Delivered in sidecar visualizer (`agent-holo-viz/client/index.html`, `agent-holo-viz/client/app.ts`): explicit high-contrast/stable scrollbars, auto-follow/manual-scroll behavior guards (manual scroll preserved unless auto-follow is enabled), and terminal-pane smoke checks remain green / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V2-HV-001",
@@ -4574,7 +4574,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Delivered `client/runtime/systems/ops/holo_overlay_compiler.ts` + policy (`client/runtime/config/holo_overlay_compiler_policy.json`) to emit typed overlay contract at `state/ops/holo_overlays/latest.json`; visualizer server now injects overlay contract into payload summary/holo responses and client preview renders emergence rows (`agent-holo-viz/server/system_visualizer_server.js`, `agent-holo-viz/client/app.js`); coverage in `tests/client-memory-tools/holo_overlay_compiler.test.ts`. / 7 / 1/2/client/adapter",
+      "acceptance": "Delivered `client/runtime/systems/ops/holo_overlay_compiler.ts` + policy (`client/runtime/config/holo_overlay_compiler_policy.json`) to emit typed overlay contract at `state/ops/holo_overlays/latest.json`; visualizer server now injects overlay contract into payload summary/holo responses and client preview renders emergence rows (`agent-holo-viz/server/system_visualizer_server.js`, `agent-holo-viz/client/app.ts`); coverage in `tests/client-memory-tools/holo_overlay_compiler.test.ts`. / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-011",
@@ -5574,7 +5574,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/openfang_parity_runtime.ts`. / / 7 / 1/2/client/adapter Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/infring_parity_runtime.ts`. / / 7 / 1/2/client/adapter Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts.",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-BLD-001",
@@ -5754,7 +5754,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/openfang_parity_runtime.ts`. / / 7 / 1/2/client/adapter",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/infring_parity_runtime.ts`. / / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-DEP-001",
@@ -7684,7 +7684,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Eliminate absolute `/Users/...`-style paths from runtime/client/runtime/config/tooling surfaces, add workspace-root resolver primitive (`$OPENCLAW_WORKSPACE` fallback to repo root), and enforce via CI/path-contract check with fail-closed policy allowlist for fixtures/tests only. Evidence: `client/runtime/systems/ops/backlog_runtime_anchors/v3_race_120_anchor.ts`. / PLM-005, V3-RACE-107, V3-RACE-113 / 10 / 0/1/2/client/adapter",
+      "acceptance": "Eliminate absolute `/Users/...`-style paths from runtime/client/runtime/config/tooling surfaces, add workspace-root resolver primitive (`$INFRING_WORKSPACE` fallback to repo root), and enforce via CI/path-contract check with fail-closed policy allowlist for fixtures/tests only. Evidence: `client/runtime/systems/ops/backlog_runtime_anchors/v3_race_120_anchor.ts`. / PLM-005, V3-RACE-107, V3-RACE-113 / 10 / 0/1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-RACE-120",
@@ -8224,7 +8224,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/OpenFang lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-RACE-174",
@@ -11244,13 +11244,13 @@
       "wave": "V4"
     },
     {
-      "acceptance": "Add `client/runtime/systems/migration/importers/` pluggable import surface with first-class OpenFang importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms. / V4-MIGR-001, V3-RACE-127 / 7 / 0/1/2/client/adapter",
+      "acceptance": "Add `client/runtime/systems/migration/importers/` pluggable import surface with first-class Infring importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms. / V4-MIGR-001, V3-RACE-127 / 7 / 0/1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V4-MIGR-003",
       "problem": "Users coming from other agent stacks face high switching cost without structured import tooling.",
       "status": "existing-coverage-validated",
-      "title": "[interoperability / V4] Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "[interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
       "wave": "V4"
     },
     {
@@ -11344,7 +11344,7 @@
       "wave": "V4"
     },
     {
-      "acceptance": "Add adoption bridge commands for import/sync/mapping (`import`, `sync`, compatibility adapters) with OpenClaw/legacy comment migration support, diff receipts, and reversible checkpoints. Verify via migration simulation suites and round-trip parity tests between source comments and generated lenses. Rollback by forcing read-only compatibility mode and disabling write-path migration adapters. / V4-PKG-004, V4-PKG-005, V4-PKG-003 / 6 / 1/2/client",
+      "acceptance": "Add adoption bridge commands for import/sync/mapping (`import`, `sync`, compatibility adapters) with Infring/legacy comment migration support, diff receipts, and reversible checkpoints. Verify via migration simulation suites and round-trip parity tests between source comments and generated lenses. Rollback by forcing read-only compatibility mode and disabling write-path migration adapters. / V4-PKG-004, V4-PKG-005, V4-PKG-003 / 6 / 1/2/client",
       "class": "backlog",
       "dependencies": [],
       "id": "V4-PKG-007",
@@ -12594,13 +12594,13 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Restored importer lane surfaces/wrappers (`client/runtime/systems/migration/universal_importers.ts`, `client/runtime/systems/migration/importers/*.js`) and added `protheusctl migrate --from=<engine>` alias routing in `client/runtime/systems/ops/protheusctl.ts`. Documentation updated (`docs/client/UNIVERSAL_IMPORTERS.md`) and regression verified by `tests/client-memory-tools/protheusctl_migrate_openfang_alias.test.ts` (pass) plus `universal_importers.test.ts` (pass).",
+      "acceptance": "Restored importer lane surfaces/wrappers (`client/runtime/systems/migration/universal_importers.ts`, `client/runtime/systems/migration/importers/*.js`) and added `protheusctl migrate --from=<engine>` alias routing in `client/runtime/systems/ops/protheusctl.ts`. Documentation updated (`docs/client/UNIVERSAL_IMPORTERS.md`) and regression verified by `tests/client-memory-tools/protheusctl_migrate_infring_alias.test.ts` (pass) plus `universal_importers.test.ts` (pass).",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-COMP-002",
       "problem": "Lowering migration friction from competitor ecosystems improves adoption while preserving governance contracts.",
       "status": "existing-coverage-validated",
-      "title": "`protheus migrate --from openfang` importer lane",
+      "title": "`protheus migrate --from infring` importer lane",
       "wave": "V6"
     },
     {
@@ -12864,7 +12864,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Auto-generate migration guides/matrices (e.g., LangGraph/CrewAI/OpenFang -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold.",
+      "acceptance": "Auto-generate migration guides/matrices (e.g., LangGraph/CrewAI/Infring -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold.",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-DOM-416",
@@ -14784,7 +14784,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "TLA+/Lean or equivalent proof artifacts cover constitution gate, receipt chain, and conduit command validation invariants with reproducible checks. Evidence: `docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md`, `tests/tooling/scripts/ci/formal_verification_expansion_report.mjs`, `core/local/artifacts/formal_verification_expansion_latest.json`. / V6-SEC-002, V6-SEC-004 / 10 / 0/1/2",
+      "acceptance": "TLA+/Lean or equivalent proof artifacts cover constitution gate, receipt chain, and conduit command validation invariants with reproducible checks. Evidence: `docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md`, `tests/tooling/scripts/ci/formal_verification_expansion_report.ts`, `core/local/artifacts/formal_verification_expansion_latest.json`. / V6-SEC-002, V6-SEC-004 / 10 / 0/1/2",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-SEC-005",
@@ -14814,7 +14814,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Scheduled workflow (`.github/workflows/nightly-fuzz-chaos.yml`) runs `tests/tooling/scripts/ci/nightly_fuzz_chaos_report.mjs`, uploads nightly report artifacts (`core/local/artifacts/nightly_fuzz_chaos_report_*.json`), and triage policy is documented in `docs/client/FUZZ_CHAOS_TRIAGE.md`. / V6-SEC-003 / 10 / 0/1/2",
+      "acceptance": "Scheduled workflow (`.github/workflows/nightly-fuzz-chaos.yml`) runs `tests/tooling/scripts/ci/nightly_fuzz_chaos_report.ts`, uploads nightly report artifacts (`core/local/artifacts/nightly_fuzz_chaos_report_*.json`), and triage policy is documented in `docs/client/FUZZ_CHAOS_TRIAGE.md`. / V6-SEC-003 / 10 / 0/1/2",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-SEC-008",
@@ -15324,7 +15324,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Executed mech/control/formal/benchmark/harness parity pack (`test:ops:mech-suit`, `test:ops:mech-suit:control`, `ops:test:protheus-ops-core:attention`, `ops:test:execution-core:initiative`, `formal:invariants:run`, `ops:benchmark-autonomy:run`, `ops:mech-suit:benchmark`, `ops:harness:6m`, `ops:protheus-vs-openclaw`), with deterministic receipts and no host-timeout skips. Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts.",
+      "acceptance": "Executed mech/control/formal/benchmark/harness parity pack (`test:ops:mech-suit`, `test:ops:mech-suit:control`, `ops:test:protheus-ops-core:attention`, `ops:test:execution-core:initiative`, `formal:invariants:run`, `ops:benchmark-autonomy:run`, `ops:mech-suit:benchmark`, `ops:harness:6m`, `ops:protheus-vs-infring`), with deterministic receipts and no host-timeout skips. Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts.",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-VALIDATION-HOST-001",

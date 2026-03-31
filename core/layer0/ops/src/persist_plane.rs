@@ -43,7 +43,7 @@ fn usage() {
         "  protheus-ops persist-plane mobile-cockpit --op=<publish|status|intervene> [--session-id=<id>] [--device=<id>] [--action=<pause|resume|abort>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane continuity --op=<checkpoint|reconstruct|status> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
+        "  protheus-ops persist-plane continuity --op=<checkpoint|reconstruct|status|validate> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
     );
     println!(
         "  protheus-ops persist-plane connector --op=<add|list|status|remove> [--provider=<slack|gmail|drive>] [--policy-template=<id>] [--strict=1|0]"
@@ -861,6 +861,89 @@ mod tests {
             true,
         );
         assert_eq!(reconstruct.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn continuity_validate_passes_with_matching_hashes() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let checkpoint = run_continuity(
+            root.path(),
+            &crate::parse_args(&[
+                "continuity".to_string(),
+                "--op=checkpoint".to_string(),
+                "--session-id=s-validate".to_string(),
+                "--context-json={\"context\":[\"a\"],\"user_model\":{\"style\":\"direct\"},\"active_tasks\":[\"t\"]}".to_string(),
+            ]),
+            true,
+        );
+        assert_eq!(checkpoint.get("ok").and_then(Value::as_bool), Some(true));
+        let reconstruct = run_continuity(
+            root.path(),
+            &crate::parse_args(&[
+                "continuity".to_string(),
+                "--op=reconstruct".to_string(),
+                "--session-id=s-validate".to_string(),
+            ]),
+            true,
+        );
+        assert_eq!(reconstruct.get("ok").and_then(Value::as_bool), Some(true));
+        let validate = run_continuity(
+            root.path(),
+            &crate::parse_args(&[
+                "continuity".to_string(),
+                "--op=validate".to_string(),
+                "--session-id=s-validate".to_string(),
+            ]),
+            true,
+        );
+        assert_eq!(validate.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn continuity_validate_fails_when_snapshot_hash_is_tampered() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let checkpoint = run_continuity(
+            root.path(),
+            &crate::parse_args(&[
+                "continuity".to_string(),
+                "--op=checkpoint".to_string(),
+                "--session-id=s-tamper".to_string(),
+                "--context-json={\"context\":[\"a\"],\"user_model\":{\"style\":\"direct\"},\"active_tasks\":[\"t\"]}".to_string(),
+            ]),
+            true,
+        );
+        assert_eq!(checkpoint.get("ok").and_then(Value::as_bool), Some(true));
+
+        let path = continuity_snapshot_path(root.path(), "s-tamper");
+        let mut snapshot = read_json(&path).expect("snapshot");
+        snapshot["context_payload"] = json!({
+            "context": ["tampered"],
+            "user_model": {"style": "direct"},
+            "active_tasks": ["t"]
+        });
+        write_json(&path, &snapshot).expect("write tampered snapshot");
+
+        let validate = run_continuity(
+            root.path(),
+            &crate::parse_args(&[
+                "continuity".to_string(),
+                "--op=validate".to_string(),
+                "--session-id=s-tamper".to_string(),
+            ]),
+            true,
+        );
+        assert_eq!(validate.get("ok").and_then(Value::as_bool), Some(false));
+        let errors = validate
+            .get("errors")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| row.as_str().map(str::to_string))
+            .collect::<Vec<String>>();
+        assert!(errors
+            .iter()
+            .any(|row| row.contains("snapshot_context_hash_match")));
     }
 
     #[test]

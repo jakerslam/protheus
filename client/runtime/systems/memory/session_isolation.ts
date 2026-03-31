@@ -4,48 +4,74 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const fs = require('fs');
 const path = require('path');
-const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+const { spawnSync } = require('child_process');
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
-const DEFAULT_STATE_PATH = path.resolve(
-  __dirname,
-  '..',
-  '..',
-  'local',
-  'state',
-  'memory',
-  'session_isolation.json'
-);
+const DEFAULT_STATE_PATH = 'client/runtime/local/state/memory/session_isolation.json';
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
-const bridge = createOpsLaneBridge(__dirname, 'session_isolation', 'memory-session-isolation-kernel');
+const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+const OPS_WRAPPER = path.join(
+  ROOT,
+  'client',
+  'runtime',
+  'systems',
+  'ops',
+  'run_protheus_ops.ts'
+);
+const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 
 function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
+function parseLastJson(stdout) {
+  const lines = String(stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (!line.startsWith('{')) continue;
+    try {
+      return JSON.parse(line);
+    } catch {}
+  }
+  return null;
+}
+
 function invoke(command, payload = {}, opts = {}) {
-  const out = bridge.run([
-    command,
-    `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
-  ]);
-  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
-  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+  const run = spawnSync(
+    process.execPath,
+    [
+      TS_ENTRYPOINT,
+      OPS_WRAPPER,
+      'memory-session-isolation-kernel',
+      command,
+      `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+    ],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env }
+    }
+  );
+  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  const receipt = parseLastJson(run.stdout);
+  const payloadOut = receipt && typeof receipt === 'object'
+    && receipt.payload && typeof receipt.payload === 'object'
     ? receipt.payload
     : receipt;
-  if (out.status !== 0) {
+  if (status !== 0) {
     const message = payloadOut && typeof payloadOut.error === 'string'
       ? payloadOut.error
-      : (out && out.stderr ? String(out.stderr).trim() : `memory_session_isolation_kernel_${command}_failed`);
+      : (run && run.stderr ? String(run.stderr).trim() : `memory_session_isolation_kernel_${command}_failed`);
     if (opts.throwOnError !== false) throw new Error(message || `memory_session_isolation_kernel_${command}_failed`);
     return { ok: false, error: message || `memory_session_isolation_kernel_${command}_failed` };
   }
   if (!payloadOut || typeof payloadOut !== 'object') {
-    const message = out && out.stderr
-      ? String(out.stderr).trim() || `memory_session_isolation_kernel_${command}_bridge_failed`
+    const message = run && run.stderr
+      ? String(run.stderr).trim() || `memory_session_isolation_kernel_${command}_bridge_failed`
       : `memory_session_isolation_kernel_${command}_bridge_failed`;
     if (opts.throwOnError !== false) throw new Error(message);
     return { ok: false, error: message };
@@ -54,7 +80,14 @@ function invoke(command, payload = {}, opts = {}) {
 }
 
 function loadState(filePath = DEFAULT_STATE_PATH) {
-  const out = invoke('load-state', { state_path: filePath });
+  const out = invoke(
+    'load-state',
+    {
+      state_path: String(filePath || DEFAULT_STATE_PATH),
+      statePath: String(filePath || DEFAULT_STATE_PATH)
+    },
+    { throwOnError: false }
+  );
   return out.state && typeof out.state === 'object'
     ? out.state
     : {
@@ -64,128 +97,57 @@ function loadState(filePath = DEFAULT_STATE_PATH) {
 }
 
 function saveState(state, filePath = DEFAULT_STATE_PATH) {
-  const out = invoke('save-state', {
-    state: state && typeof state === 'object' ? state : {},
-    state_path: filePath
-  });
+  const out = invoke(
+    'save-state',
+    {
+      state: state && typeof state === 'object' ? state : {},
+      state_path: String(filePath || DEFAULT_STATE_PATH),
+      statePath: String(filePath || DEFAULT_STATE_PATH)
+    },
+    { throwOnError: false }
+  );
   return out.state && typeof out.state === 'object'
     ? out.state
     : {
         schema_version: '1.0',
-      resources: {}
+        resources: {}
       };
-}
-
-function parseArgsToFlags(args = []) {
-  const flags = {};
-  for (const token of Array.isArray(args) ? args : []) {
-    const value = String(token || '');
-    if (!value.startsWith('--')) continue;
-    const eq = value.indexOf('=');
-    if (eq === -1) {
-      flags[value.slice(2)] = '1';
-    } else {
-      flags[value.slice(2, eq)] = value.slice(eq + 1);
-    }
-  }
-  return flags;
-}
-
-function loadLocalState(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      if (parsed && typeof parsed === 'object' && parsed.resources && typeof parsed.resources === 'object') {
-        return parsed;
-      }
-    }
-  } catch {
-    // fail closed to empty state snapshot
-  }
-  return {
-    schema_version: '1.0',
-    resources: {}
-  };
-}
-
-function saveLocalState(state, filePath) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-}
-
-function localValidateSessionIsolation(args = [], options = {}) {
-  const flags = parseArgsToFlags(args);
-  const sessionId = typeof flags['session-id'] === 'string' ? flags['session-id'].trim() : '';
-  const statePathCandidate = options && typeof options === 'object'
-    ? (options.statePath || options.state_path || DEFAULT_STATE_PATH)
-    : DEFAULT_STATE_PATH;
-  const statePath = path.resolve(String(statePathCandidate || DEFAULT_STATE_PATH));
-  if (!sessionId) {
-    return {
-      ok: false,
-      type: 'memory_session_isolation',
-      reason_code: 'missing_session_id'
-    };
-  }
-  if (!SESSION_ID_PATTERN.test(sessionId)) {
-    return {
-      ok: false,
-      type: 'memory_session_isolation',
-      reason_code: 'invalid_session_id'
-    };
-  }
-  const resourceId = typeof flags['resource-id'] === 'string' ? flags['resource-id'].trim() : '';
-  if (resourceId) {
-    const state = loadLocalState(statePath);
-    const resources = state.resources && typeof state.resources === 'object' ? state.resources : {};
-    const owner = typeof resources[resourceId] === 'string' ? resources[resourceId] : '';
-    if (owner && owner !== sessionId) {
-      return {
-        ok: false,
-        type: 'memory_session_isolation',
-        reason_code: 'cross_session_leak_blocked'
-      };
-    }
-    resources[resourceId] = sessionId;
-    state.resources = resources;
-    saveLocalState(state, statePath);
-  }
-  return {
-    ok: true,
-    type: 'memory_session_isolation',
-    reason_code: 'session_isolation_ok'
-  };
 }
 
 function validateSessionIsolation(args = [], options = {}) {
-  return localValidateSessionIsolation(args, options);
+  const normalizedOptions = options && typeof options === 'object' ? { ...options } : {};
+  const statePath = String(
+    normalizedOptions.statePath || normalizedOptions.state_path || DEFAULT_STATE_PATH
+  );
+  if (!normalizedOptions.statePath) normalizedOptions.statePath = statePath;
+  if (!normalizedOptions.state_path) normalizedOptions.state_path = statePath;
+
+  const out = invoke(
+    'validate',
+    {
+      args: Array.isArray(args) ? args.map((row) => String(row)) : [],
+      options: normalizedOptions
+    },
+    { throwOnError: false }
+  );
+  return out.validation && typeof out.validation === 'object'
+    ? out.validation
+    : {
+        ok: false,
+        type: 'memory_session_isolation',
+        reason_code: 'session_isolation_failed'
+      };
 }
 
 function sessionFailureResult(validation, context = {}) {
-  if (validation && typeof validation.reason_code === 'string' && validation.reason_code.trim()) {
-    const reason = validation.reason_code.trim();
-    return {
-      ok: false,
-      status: 2,
-      stdout: `${JSON.stringify({
-        ok: false,
-        type: 'memory_session_isolation_reject',
-        reason,
-        fail_closed: true
-      })}\n`,
-      stderr: `memory_session_isolation_reject:${reason}\n`,
-      payload: {
-        ok: false,
-        type: 'memory_session_isolation_reject',
-        reason,
-        fail_closed: true
-      }
-    };
-  }
-  const out = invoke('failure-result', {
-    validation: validation && typeof validation === 'object' ? validation : {},
-    context: context && typeof context === 'object' ? context : {}
-  });
+  const out = invoke(
+    'failure-result',
+    {
+      validation: validation && typeof validation === 'object' ? validation : {},
+      context: context && typeof context === 'object' ? context : {}
+    },
+    { throwOnError: false }
+  );
   return out.result && typeof out.result === 'object'
     ? out.result
     : {

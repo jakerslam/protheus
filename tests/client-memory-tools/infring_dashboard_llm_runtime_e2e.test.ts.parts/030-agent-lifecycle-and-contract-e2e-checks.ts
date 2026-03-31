@@ -24,6 +24,12 @@
       }
     );
     assert.strictEqual(createContractAgent.status, 200, 'contract agent create should return 200');
+    const contractAgentId = String(
+      createContractAgent.body
+      && (createContractAgent.body.id || createContractAgent.body.agent_id)
+        ? (createContractAgent.body.id || createContractAgent.body.agent_id)
+        : contractShadow
+    );
     const createdContractId = String(
       createContractAgent.body
       && createContractAgent.body.contract
@@ -37,7 +43,7 @@
     assert.strictEqual(immediatePostExpiryAgents.status, 200, 'immediate post-expiry agents endpoint should return 200');
     const immediatePostExpiryRows = Array.isArray(immediatePostExpiryAgents.body) ? immediatePostExpiryAgents.body : [];
     summary.checks.contract_expired_hidden_on_immediate_agents_read = !immediatePostExpiryRows.some(
-      (row) => row && row.id === contractShadow
+      (row) => row && row.id === contractAgentId
     );
     assert.strictEqual(
       summary.checks.contract_expired_hidden_on_immediate_agents_read,
@@ -63,13 +69,13 @@
       const agentsRes = await fetchJson(`${BASE_URL}/api/agents`);
       if (!agentsRes.ok) return null;
       const rows = Array.isArray(agentsRes.body) ? agentsRes.body : [];
-      const stillActive = rows.some((row) => row && row.id === contractShadow);
+      const stillActive = rows.some((row) => row && row.id === contractAgentId);
       if (stillActive) return null;
       const terminatedRes = await fetchJson(`${BASE_URL}/api/agents/terminated`);
       const entries = terminatedRes.ok && Array.isArray(terminatedRes.body && terminatedRes.body.entries)
         ? terminatedRes.body.entries
         : [];
-      const hit = entries.find((entry) => entry && entry.agent_id === contractShadow);
+      const hit = entries.find((entry) => entry && entry.agent_id === contractAgentId);
       return hit || null;
     }, 15000, 250);
 
@@ -79,7 +85,7 @@
       true,
       'contract agent should auto-terminate by timeout and appear in terminated history'
     );
-    summary.checks.contract_timeout_removed_from_collab_authority = !authorityAgentShadows().includes(contractShadow);
+    summary.checks.contract_timeout_removed_from_collab_authority = !authorityAgentShadows().includes(contractAgentId);
     assert.strictEqual(
       summary.checks.contract_timeout_removed_from_collab_authority,
       true,
@@ -87,7 +93,7 @@
     );
 
     const reviveContractAgent = await fetchJson(
-      `${BASE_URL}/api/agents/${encodeURIComponent(contractShadow)}/revive`,
+      `${BASE_URL}/api/agents/${encodeURIComponent(contractAgentId)}/revive`,
       {
         method: 'POST',
         body: JSON.stringify({ role: 'analyst' }),
@@ -114,8 +120,14 @@
       }
     );
     assert.strictEqual(createRogueAgent.status, 200, 'rogue agent create should return 200');
+    const rogueAgentId = String(
+      createRogueAgent.body
+      && (createRogueAgent.body.id || createRogueAgent.body.agent_id)
+        ? (createRogueAgent.body.id || createRogueAgent.body.agent_id)
+        : rogueShadow
+    );
     const rogueAttempt = await fetchJson(
-      `${BASE_URL}/api/agents/${encodeURIComponent(rogueShadow)}/message`,
+      `${BASE_URL}/api/agents/${encodeURIComponent(rogueAgentId)}/message`,
       {
         method: 'POST',
         body: JSON.stringify({

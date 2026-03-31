@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
-const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.js');
+const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.ts');
 function resolveWorkspaceRoot(startDir = __dirname) {
   let dir = path.resolve(startDir);
   while (true) {

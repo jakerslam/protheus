@@ -14,12 +14,12 @@
 ```bash
 # Generate + verify only
 node client/runtime/systems/migration/community_repo_graduation_pack.ts run \
-  --legacy-repo=https://github.com/openclaw/openclaw \
+  --legacy-repo=https://github.com/infring/infring \
   --target-repo=https://github.com/protheuslabs/InfRing
 
 # Apply artifacts and update README banner
 node client/runtime/systems/migration/community_repo_graduation_pack.ts run \
-  --legacy-repo=https://github.com/openclaw/openclaw \
+  --legacy-repo=https://github.com/infring/infring \
   --target-repo=https://github.com/protheuslabs/InfRing \
   --apply=1 --strict=1
 ```

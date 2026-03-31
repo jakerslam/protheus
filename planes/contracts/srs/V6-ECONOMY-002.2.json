@@ -1,7 +1,7 @@
 {
   "id": "V6-ECONOMY-002.2",
   "upgrade": "Adversarial Bull/Bear Debate Contract",
-  "section": "OpenFang Trading-Hand Hardening Intake (Doc/Source `V6-ECONOMY-002`, 2026-03-12)",
+  "section": "Infring Trading-Hand Hardening Intake (Doc/Source `V6-ECONOMY-002`, 2026-03-12)",
   "impact": 9,
   "layer_map": "0/1/2",
   "conduit_only_boundary": false,

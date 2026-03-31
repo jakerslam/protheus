@@ -1130,7 +1130,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-LENS-011 | blocked_external_prepared | queued | needs_implementation | no | [hardening / V4] LensMap Security Posture and External Audit Landing Page |
 | V4-MIGR-001 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Core Migration Bridge + Workspace Port Command |
 | V4-MIGR-002 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) |
-| V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) |
+| V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps) |
 | V4-MIGR-004 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Self-Healing Migration Daemon |
 | V4-MIGR-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Post-Migration Verification + Premium Completion Report |
 | V4-OBS-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Advanced `protheus-top` observability dashboard polish |
@@ -1265,7 +1265,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-COCKPIT-011 | existing-coverage-validated | queued | needs_implementation | no | Moltbook skill-path contract repair + heartbeat verification lane (`REQ-37`) |
 | V6-COGNITION-010 | existing-coverage-validated | queued | needs_implementation | no | Conversation Eye default synthesis lane |
 | V6-COMP-001 | existing-coverage-validated | queued | needs_implementation | no | Competitive benchmark matrix with reproducible receipts |
-| V6-COMP-002 | existing-coverage-validated | queued | needs_implementation | no | `protheus migrate --from openfang` importer lane |
+| V6-COMP-002 | existing-coverage-validated | queued | needs_implementation | no | `protheus migrate --from infring` importer lane |
 | V6-COMP-003 | existing-coverage-validated | queued | needs_implementation | no | Evidence-first audit dashboard drilldown |
 | V6-COMP-004 | existing-coverage-validated | queued | needs_implementation | no | Security-layer inventory with evidence links |
 | V6-COMP-005 | blocked_external_prepared | queued | needs_implementation | no | Public multi-release cadence target (9+ tags) |

@@ -14,24 +14,54 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
         "messaging" => ("💬", "Easy", "2-5 min"),
         _ => ("🔗", "Easy", "2-5 min"),
     };
+    let (description, quick_setup, fields, setup_steps, config_template) = if name == "gohighlevel"
+    {
+        (
+            "Connect GoHighLevel (HighLevel API 2.0) for CRM contacts, messaging, and workflow automation.".to_string(),
+            "Create a Private Integration Token (PIT), add the location ID, then validate with a live API check.".to_string(),
+            json!([
+                {"key": "private_integration_token", "label": "Private Integration Token (PIT)", "type": "secret", "advanced": false, "placeholder": "pit-..."},
+                {"key": "location_id", "label": "Location ID", "type": "text", "advanced": false, "placeholder": "ve9EPM428h8vShlRW1KT"},
+                {"key": "api_version", "label": "API Version", "type": "text", "advanced": true, "placeholder": "2021-07-28"},
+                {"key": "endpoint", "label": "API Endpoint", "type": "text", "advanced": true, "placeholder": "https://services.leadconnectorhq.com"}
+            ]),
+            json!([
+                "In GoHighLevel, create a Private Integration with required scopes.",
+                "Paste PIT + location ID in channel settings.",
+                "Run test to verify /locations/{locationId} access."
+            ]),
+            "PRIVATE_INTEGRATION_TOKEN=pit-...\\nLOCATION_ID=ve9EPM428h8vShlRW1KT\\nAPI_VERSION=2021-07-28\\nENDPOINT=https://services.leadconnectorhq.com".to_string(),
+        )
+    } else {
+        (
+            format!("Connect {} channel adapter for agent messaging.", display_name),
+            format!(
+                "Configure credentials for {} and validate connectivity.",
+                display_name
+            ),
+            json!([
+                {"key": "token", "label": "Token", "type": "secret", "advanced": false, "placeholder": "••••••"},
+                {"key": "endpoint", "label": "Endpoint/Room/Channel", "type": "text", "advanced": true, "placeholder": "default"}
+            ]),
+            json!(["Create app/bot credentials", "Paste credentials", "Run connection test"]),
+            "TOKEN=...\\nENDPOINT=...".to_string(),
+        )
+    };
     json!({
         "name": name,
         "icon": icon,
         "display_name": display_name,
-        "description": format!("Connect {} channel adapter for agent messaging.", display_name),
-        "quick_setup": format!("Configure credentials for {} and validate connectivity.", display_name),
+        "description": description,
+        "quick_setup": quick_setup,
         "category": category,
         "difficulty": difficulty,
         "setup_time": setup_time,
         "setup_type": setup_type,
         "has_token": false,
         "configured": false,
-        "fields": [
-            {"key": "token", "label": "Token", "type": "secret", "advanced": false, "placeholder": "••••••"},
-            {"key": "endpoint", "label": "Endpoint/Room/Channel", "type": "text", "advanced": true, "placeholder": "default"}
-        ],
-        "setup_steps": ["Create app/bot credentials", "Paste credentials", "Run connection test"],
-        "config_template": "TOKEN=...\\nENDPOINT=..."
+        "fields": fields,
+        "setup_steps": setup_steps,
+        "config_template": config_template
     })
 }
 
@@ -110,6 +140,7 @@ pub fn catalog() -> Vec<Value> {
         ("trello", "Trello", "enterprise", "oauth"),
         ("airtable", "Airtable", "enterprise", "oauth"),
         ("servicenow", "ServiceNow", "enterprise", "oauth"),
+        ("gohighlevel", "GoHighLevel", "enterprise", "form"),
         ("pagerduty", "PagerDuty", "enterprise", "form"),
         ("opsgenie", "Opsgenie", "enterprise", "form"),
         ("jira", "Jira", "enterprise", "oauth"),

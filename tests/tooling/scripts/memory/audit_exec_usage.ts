@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * audit_exec_usage.js - CI-style guardrail for child_process usage
+ * audit_exec_usage.ts - CI-style guardrail for child_process usage
  * 
  * Scans all JS files for direct child_process imports (bypassing exec_compacted.js)
  * Fails if any unauthorized imports are found.
  * 
- * Usage: node audit_exec_usage.js [--fix] [--strict]
+ * Usage: node audit_exec_usage.ts [--fix] [--strict]
  *   --fix:    Auto-wrap simple exec calls with execCompacted (optional)
  *   --strict: Exit with error code even for warnings
  *   --ci:     CI mode - only outputs JSON result

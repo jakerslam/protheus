@@ -2,7 +2,7 @@
 'use strict';
 
 // Thin bridge to core authority: rust50-migration-program domain.
-const { runProtheusOps } = require('./run_protheus_ops.js');
+const { runProtheusOps } = require('./run_protheus_ops.ts');
 
 function normalizeSubcommand(raw) {
   const sub = String(raw || 'status').trim().toLowerCase();

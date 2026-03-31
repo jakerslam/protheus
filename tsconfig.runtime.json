@@ -50,7 +50,7 @@
     "client/runtime/systems/ops/blank_slate_reset.ts",
     "client/runtime/systems/ops/foundation_contract_gate.ts",
     "client/runtime/systems/ops/js_holdout_audit.ts",
-    "client/runtime/systems/ops/openclaw_backup_retention.ts",
+    "client/runtime/systems/ops/infring_backup_retention.ts",
     "client/runtime/systems/ops/scale_envelope_baseline.ts",
     "client/runtime/systems/ops/state_backup.ts",
     "client/runtime/systems/ops/state_cleanup.ts",

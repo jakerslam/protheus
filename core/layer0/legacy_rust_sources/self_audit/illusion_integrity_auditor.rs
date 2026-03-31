@@ -35,7 +35,7 @@ struct Metrics {
     suspicious_root_entries: usize,
     personal_marker_hits: usize,
     legacy_ticket_style_hits: usize,
-    openclaw_mentions: usize,
+    infring_mentions: usize,
 }
 
 #[derive(Serialize)]
@@ -172,7 +172,7 @@ fn main() {
     let mut suspicious_root_entries = 0usize;
     let mut personal_marker_hits = 0usize;
     let mut legacy_ticket_style_hits = 0usize;
-    let mut openclaw_mentions = 0usize;
+    let mut infring_mentions = 0usize;
 
     for rel in &required_files {
         let abs = root.join(rel);
@@ -236,17 +236,17 @@ fn main() {
     let readme_path = root.join("README.md");
     if readme_path.exists() {
         let readme = safe_read(&readme_path).to_lowercase();
-        let count = readme.matches("openclaw").count();
+        let count = readme.matches("infring").count();
         if count > 0 {
-            openclaw_mentions = count;
+            infring_mentions = count;
             findings.push(finding(
-                "brand_openclaw_in_readme",
+                "brand_infring_in_readme",
                 "branding_consistency",
                 "Legacy branding mention in README",
                 "low",
                 "README contains legacy naming that can weaken a consistent organizational identity surface.",
                 Some("README.md".to_string()),
-                vec![format!("openclaw_mentions: {}", count)],
+                vec![format!("infring_mentions: {}", count)],
                 true,
                 Some("Replace legacy product naming with current canonical naming where appropriate.".to_string()),
             ));
@@ -308,7 +308,7 @@ fn main() {
             suspicious_root_entries,
             personal_marker_hits,
             legacy_ticket_style_hits,
-            openclaw_mentions,
+            infring_mentions,
         },
         summary: Summary {
             finding_count: high_count + medium_count + low_count,

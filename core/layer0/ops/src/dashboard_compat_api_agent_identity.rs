@@ -10,24 +10,66 @@ const AGENT_PROFILES_REL: &str =
 const ARCHIVED_AGENTS_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
 
-const HUMAN_NAME_POOL: [&str; 26] = [
-    "Avery", "Kai", "Maya", "Noah", "Iris", "Leo", "Nora", "Theo", "Aria", "Milo", "Sage",
-    "Luna", "Jules", "Nia", "Ezra", "Zara", "Rhea", "Owen", "Dylan", "Skye", "Ruby", "Hugo",
-    "Mira", "Finn", "Elio", "Wren",
+const HUMAN_NAME_POOL: [&str; 73] = [
+    "Avery", "Kai", "Maya", "Noah", "Iris", "Leo", "Nora", "Theo", "Aria", "Milo", "Sage", "Luna",
+    "Jules", "Nia", "Ezra", "Zara", "Rhea", "Owen", "Dylan", "Skye", "Ruby", "Hugo", "Mira",
+    "Finn", "Elio", "Wren", "Ari", "Liam", "Emma", "Mason", "Ava", "Lucas", "Mila", "Ethan",
+    "Isla", "Caleb", "Ivy", "Asher", "Zoe", "Silas", "Nina", "Julian", "Hazel", "Rowan", "Clara",
+    "Jonah", "Mae", "Levi", "Freya", "Micah", "Sadie", "Adrian", "Cora", "Felix", "Talia", "Elias",
+    "Vera", "Bennett", "Layla", "Simon", "Elena", "Maddox", "Naomi", "Roman", "Piper", "Jasper",
+    "Chloe", "Sawyer", "Reese", "Damon", "Sienna", "Callum", "Maeve",
 ];
 
-const ROLE_EMOJI_ANALYST: [&str; 10] =
-    ["🔎", "📊", "🧠", "📈", "🧭", "🧪", "🧩", "🛰️", "📡", "📝"];
+const ROLE_EMOJI_ANALYST: [&str; 10] = ["🔎", "📊", "🧠", "📈", "🧭", "🧪", "🧩", "🛰️", "📡", "📝"];
 const ROLE_EMOJI_ENGINEER: [&str; 10] =
     ["🛠️", "💻", "⚙️", "🧰", "🔧", "🧪", "📐", "🧬", "🛰️", "🔌"];
-const ROLE_EMOJI_RUNTIME: [&str; 10] =
-    ["⚙️", "🛰️", "📡", "🔧", "🛡️", "🧯", "🧰", "📊", "🧭", "🧠"];
+const ROLE_EMOJI_RUNTIME: [&str; 10] = ["⚙️", "🛰️", "📡", "🔧", "🛡️", "🧯", "🧰", "📊", "🧭", "🧠"];
 const ROLE_EMOJI_WRITER: [&str; 8] = ["✍️", "📝", "📚", "🧾", "🗂️", "🧠", "📖", "🧩"];
 const ROLE_EMOJI_GENERIC: [&str; 44] = [
-    "🤖", "🧑‍💻", "🧠", "🧭", "🛰️", "⚡", "🔮", "🧪", "🛡️", "📡", "📈", "📊", "🧩", "🛠️",
-    "🔧", "🧰", "📐", "🗺️", "🗂️", "📎", "📦", "📌", "🧱", "🧿", "🌐", "🕹️", "🎛️", "🎯",
-    "🪐", "🌟", "✨", "🔥", "🌀", "🪄", "🧲", "🧬", "🔬", "🔭", "📘", "📙", "📗", "📓",
-    "📒", "🗃️",
+    "🤖",
+    "🧑‍💻",
+    "🧠",
+    "🧭",
+    "🛰️",
+    "⚡",
+    "🔮",
+    "🧪",
+    "🛡️",
+    "📡",
+    "📈",
+    "📊",
+    "🧩",
+    "🛠️",
+    "🔧",
+    "🧰",
+    "📐",
+    "🗺️",
+    "🗂️",
+    "📎",
+    "📦",
+    "📌",
+    "🧱",
+    "🧿",
+    "🌐",
+    "🕹️",
+    "🎛️",
+    "🎯",
+    "🪐",
+    "🌟",
+    "✨",
+    "🔥",
+    "🌀",
+    "🪄",
+    "🧲",
+    "🧬",
+    "🔬",
+    "🔭",
+    "📘",
+    "📙",
+    "📗",
+    "📓",
+    "📒",
+    "🗃️",
 ];
 
 fn clean_text(raw: &str, max_len: usize) -> String {
@@ -192,17 +234,60 @@ fn humanize_agent_name(agent_id: &str) -> String {
     }
 }
 
-fn role_title(role: &str) -> String {
-    let normalized = clean_text(role, 80);
-    if normalized.is_empty() {
-        return "Analyst".to_string();
+fn is_probably_legacy_autoname(name: &str) -> bool {
+    let cleaned = clean_text(name, 120);
+    if cleaned.is_empty() {
+        return false;
     }
-    let built = title_case(&normalized.replace('_', " ").replace('-', " "));
-    if built.is_empty() {
-        "Analyst".to_string()
-    } else {
-        built
+    let lower = cleaned.to_ascii_lowercase();
+    if lower.starts_with("agent-") || lower.starts_with("agent_") || lower == "agent" {
+        return true;
     }
+    if lower.starts_with("new agent") {
+        return true;
+    }
+    if lower.contains('-') && lower.chars().any(|ch| ch.is_ascii_digit()) {
+        return true;
+    }
+    let parts = lower.split_whitespace().collect::<Vec<_>>();
+    if parts.len() != 2 {
+        return false;
+    }
+    let legacy_prefixes = [
+        "nimbus", "vector", "harbor", "atlas", "signal", "flux", "forge", "scout", "axiom", "nova",
+        "beacon", "cipher",
+    ];
+    let legacy_suffixes = [
+        "guide",
+        "assist",
+        "navigator",
+        "anchor",
+        "builder",
+        "compiler",
+        "kernel",
+        "patcher",
+        "analyst",
+        "research",
+        "surveyor",
+        "trace",
+        "ops",
+        "reliability",
+        "deploy",
+        "runtime",
+        "support",
+        "resolver",
+        "bridge",
+        "caretaker",
+        "insight",
+        "signal",
+        "vector",
+        "ledger",
+        "agent",
+        "core",
+        "node",
+        "prime",
+    ];
+    legacy_prefixes.contains(&parts[0]) && legacy_suffixes.contains(&parts[1])
 }
 
 fn role_emoji_candidates(role: &str) -> Vec<&'static str> {
@@ -238,29 +323,29 @@ fn role_emoji_candidates(role: &str) -> Vec<&'static str> {
 }
 
 pub fn resolve_agent_name(root: &Path, requested_name: &str, role: &str) -> String {
-    let manual = clean_text(requested_name, 120);
-    if !manual.is_empty() {
-        return manual;
-    }
     let (mut used_names, _) = collect_reserved_name_and_emoji_keys(root);
-    let role_name = role_title(role);
-    let seed = crate::deterministic_receipt_hash(
-        &json!({"role": role_name, "ts": crate::now_iso(), "kind": "agent_name"}),
-    );
-    let parity = seed.as_bytes().first().copied().unwrap_or_default() % 2;
-    let human_offset = seed.as_bytes().get(1).copied().unwrap_or_default() as usize;
-
-    let mut candidates = Vec::<String>::new();
-    if parity == 0 {
-        candidates.push(role_name.clone());
+    let manual = clean_text(requested_name, 120);
+    if !manual.is_empty() && !is_probably_legacy_autoname(&manual) {
+        let manual_key = normalized_name_key(&manual);
+        if !manual_key.is_empty() && used_names.insert(manual_key) {
+            return manual;
+        }
+        for idx in 2..5000 {
+            let candidate = format!("{manual}{idx}");
+            let key = normalized_name_key(&candidate);
+            if !key.is_empty() && used_names.insert(key) {
+                return candidate;
+            }
+        }
     }
+    let seed = crate::deterministic_receipt_hash(
+        &json!({"role": clean_text(role, 80), "ts": crate::now_iso(), "kind": "agent_name"}),
+    );
+    let human_offset = seed.as_bytes().first().copied().unwrap_or_default() as usize;
+    let mut candidates = Vec::<String>::new();
     for idx in 0..HUMAN_NAME_POOL.len() {
         candidates.push(HUMAN_NAME_POOL[(human_offset + idx) % HUMAN_NAME_POOL.len()].to_string());
     }
-    if parity != 0 {
-        candidates.push(role_name.clone());
-    }
-    candidates.push(format!("{role_name} Agent"));
     for base in candidates {
         let key = normalized_name_key(&base);
         if key.is_empty() {
@@ -271,13 +356,14 @@ pub fn resolve_agent_name(root: &Path, requested_name: &str, role: &str) -> Stri
         }
     }
     for idx in 2..5000 {
-        let candidate = format!("{role_name} {idx}");
+        let base = HUMAN_NAME_POOL[(human_offset + idx) % HUMAN_NAME_POOL.len()];
+        let candidate = format!("{base}{idx}");
         let key = normalized_name_key(&candidate);
         if !key.is_empty() && used_names.insert(key) {
             return candidate;
         }
     }
-    role_name
+    "Avery".to_string()
 }
 
 pub fn resolve_agent_identity(root: &Path, request: &Value, role: &str) -> Value {
@@ -423,5 +509,53 @@ mod tests {
         assert!(!emoji.is_empty());
         assert_ne!(emoji, "🔎");
         assert_ne!(emoji, "📊");
+    }
+
+    #[test]
+    fn auto_name_is_single_word_for_role_compound() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let name = resolve_agent_name(tmp.path(), "", "runtime engineer");
+        assert!(!name.trim().is_empty());
+        assert!(!name.contains(' '));
+        assert!(HUMAN_NAME_POOL.iter().any(|candidate| *candidate == name));
+    }
+
+    #[test]
+    fn auto_name_fallback_suffix_stays_single_word() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut agents = Map::<String, Value>::new();
+        for name in HUMAN_NAME_POOL {
+            agents.insert(
+                format!("agent-{}", name.to_ascii_lowercase()),
+                json!({"name": name, "identity": {"emoji": ""}}),
+            );
+        }
+        agents.insert(
+            "agent-runtime".to_string(),
+            json!({"name": "RuntimeEngineer", "identity": {"emoji": ""}}),
+        );
+        write_json(
+            &tmp.path().join(AGENT_PROFILES_REL),
+            &json!({
+                "type": "infring_dashboard_agent_profiles",
+                "agents": agents
+            }),
+        );
+        let name = resolve_agent_name(tmp.path(), "", "runtime engineer");
+        assert!(HUMAN_NAME_POOL
+            .iter()
+            .any(|candidate| name.starts_with(candidate)));
+        assert!(!name.contains(' '));
+    }
+
+    #[test]
+    fn legacy_codename_request_is_replaced_with_human_name() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let name = resolve_agent_name(tmp.path(), "Vector Ledger", "analyst");
+        assert_ne!(name, "Vector Ledger");
+        assert!(!name.contains(' '));
+        assert!(HUMAN_NAME_POOL
+            .iter()
+            .any(|candidate| name.starts_with(candidate)));
     }
 }

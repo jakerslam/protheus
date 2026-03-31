@@ -9,7 +9,7 @@
   },
   "detector": {
     "legacy_remote_patterns": [
-      "openclaw",
+      "infring",
       "legacy",
       "community"
     ],

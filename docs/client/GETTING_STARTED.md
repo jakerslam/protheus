@@ -7,25 +7,24 @@ InfRing runs with a Rust core and a thin TypeScript surface routed through condu
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://get.protheus.ai/install | sh
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh && . "$HOME/.infring/env.sh" && infring gateway
 ```
 
-Fallback (direct repo script):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/infring/main/install.sh | sh
-```
+If PATH has not refreshed in the same shell, run directly: `~/.local/bin/infring gateway`.
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/protheuslabs/infring/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
+infring gateway
 ```
 
-### Optional: Python Wrapper (`pip install`)
+If PATH has not refreshed in the same shell, run directly: `$HOME\.protheus\bin\infring.cmd gateway`.
+
+### Optional: Python Wrapper (`pipx`)
 
 ```bash
-pip install protheus-cli-wrapper
+pipx install protheus-cli-wrapper
 infring --help
 ```
 
@@ -62,4 +61,3 @@ NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
 - Rust is the source of truth for kernel logic (primitives, constitution, policy, receipts).
 - TypeScript is limited to thin client surfaces and extension/UI workflows via conduit.
 - Python is optional and only provides a thin CLI wrapper that forwards to Rust.
-- If `get.protheus.ai` is not yet wired in your environment, use the raw GitHub fallback command above.

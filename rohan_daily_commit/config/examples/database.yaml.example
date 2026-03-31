@@ -117,6 +117,10 @@ development:
       max_size: 5
     ssl:
       mode: "disable"  # SSL typically disabled for local development
+      # NOTE: Some PostgreSQL versions require explicit host=localhost to use
+      # local Unix socket, which bypasses SSL requirements. When using Docker
+      # for Mac/Windows, ensure POSTGRES_HOST_AUTH_METHOD is set appropriately
+      # if you encounter "no pg_hba.conf entry" errors. See ops docs #DB-101.
       
 # Staging Environment Override
 # -----------------------------

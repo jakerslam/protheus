@@ -13,7 +13,7 @@ const OPS_WRAPPER = path.join(
   'runtime',
   'systems',
   'ops',
-  'run_protheus_ops.js'
+  'run_protheus_ops.ts'
 );
 const DEFAULT_STATE_PATH = path.join(ROOT, 'local', 'state', 'ops', 'swarm_runtime', 'latest.json');
 

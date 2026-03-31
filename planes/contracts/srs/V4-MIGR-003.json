@@ -1,6 +1,6 @@
 {
   "id": "V4-MIGR-003",
-  "upgrade": "[interoperability / V4] Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps)",
+  "upgrade": "[interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
   "section": "V4 Migration & Ecosystem Porting Track (Google Doc `16j8PyjyYt3CpzfR11jpQkG3fAhIPifQBUlBO_pYxfR0`, 2026-03-02)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",

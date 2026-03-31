@@ -9,13 +9,13 @@ If you're seeing WebSocket disconnects with code 1001, this usually indicates:
 
 ## Required Headers for Proxies
 
-When running OpenClaw behind a reverse proxy (nginx, Apache, etc.), ensure these headers are set:
+When running Infring behind a reverse proxy (nginx, Apache, etc.), ensure these headers are set:
 
 ### Nginx Configuration
 
 ```nginx
 # Upstream definition
-upstream openclaw {
+upstream infring {
     server 127.0.0.1:18789;
     
     # Enable keepalive
@@ -24,11 +24,11 @@ upstream openclaw {
 
 server {
     listen 80;
-    server_name openclaw.local;
+    server_name infring.local;
     
     # WebSocket upgrade headers
     location / {
-        proxy_pass http://openclaw;
+        proxy_pass http://infring;
         proxy_http_version 1.1;
         
         # Required WebSocket headers
@@ -56,7 +56,7 @@ server {
 
 ```apache
 <VirtualHost *:80>
-    ServerName openclaw.local
+    ServerName infring.local
     
     # WebSocket proxy
     ProxyPass / ws://127.0.0.1:18789/
@@ -79,7 +79,7 @@ server {
 ### Caddy Configuration
 
 ```caddyfile
-openclaw.local {
+infring.local {
     reverse_proxy 127.0.0.1:18789 {
         # Enable WebSocket support (automatic in Caddy 2)
         
@@ -187,15 +187,15 @@ wscat -c ws://127.0.0.1:18789/
 
 ## Production Mode
 
-To run OpenClaw Gateway in production mode:
+To run Infring Gateway in production mode:
 
 ```bash
 # Disable hot reload, enable optimizations
-NODE_ENV=production openclaw gateway start
+NODE_ENV=production infring gateway start
 
 # Or set in shell
 export NODE_ENV=production
-openclaw gateway start
+infring gateway start
 ```
 
 In production mode:

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // Compatibility shim: routes legacy merge-guard contract-check entrypoint into Rust authority.
 
-import { runProtheusOps } from '../ops/run_protheus_ops.js';
+import { runProtheusOps } from '../ops/run_protheus_ops.ts';
 
 export function run(argv: string[] = process.argv.slice(2)): number {
   const args = argv.length ? ['contract-check', ...argv] : ['contract-check', 'status'];

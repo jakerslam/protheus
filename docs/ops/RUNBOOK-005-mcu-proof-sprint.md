@@ -24,7 +24,7 @@ This runbook is linked to `P0-MCU-PROOF-001` and unblock action `HMAN-092`.
 3. Preflight passes:
 
 ```bash
-node tests/tooling/scripts/ci/mcu_proof_preflight.mjs
+node tests/tooling/scripts/ci/mcu_proof_preflight.ts
 cat local/workspace/reports/MCU_PROOF_PREFLIGHT.md
 ```
 

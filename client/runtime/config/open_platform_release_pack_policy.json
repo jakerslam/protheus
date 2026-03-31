@@ -6,7 +6,7 @@
   "allowlisted_modules": [
     "client/runtime/systems/ops/compatibility_conformance_program.ts",
     "client/runtime/systems/ops/event_sourced_control_plane.ts",
-    "client/runtime/systems/ops/openfang_capability_pack.ts",
+    "client/runtime/systems/ops/infring_capability_pack.ts",
     "client/runtime/systems/observability/thought_action_trace_contract.ts"
   ],
   "reference_integrations": [

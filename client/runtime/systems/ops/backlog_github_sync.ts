@@ -3,7 +3,7 @@
 
 // Thin bridge to core authority: backlog-github-sync domain.
 
-const { runProtheusOps } = require('./run_protheus_ops.js');
+const { runProtheusOps } = require('./run_protheus_ops.ts');
 
 function normalizeSubcommand(raw) {
   const sub = String(raw || 'status').trim().toLowerCase();

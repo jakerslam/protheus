@@ -73,7 +73,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Some(raw) = std::env::var_os("OPENCLAW_WORKSPACE") {
+    if let Some(raw) = std::env::var_os("INFRING_WORKSPACE") {
         let value = PathBuf::from(raw);
         if value.is_absolute() {
             return value;

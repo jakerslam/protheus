@@ -221,6 +221,49 @@ pub fn json_bool(raw: Option<&Value>, fallback: bool) -> bool {
     raw.and_then(Value::as_bool).unwrap_or(fallback)
 }
 
+pub fn json_u64_coerce(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
+    raw.and_then(|value| match value {
+        Value::Number(number) => number.as_u64(),
+        Value::String(text) => text.trim().parse::<u64>().ok(),
+        _ => None,
+    })
+    .unwrap_or(fallback)
+    .clamp(min, max)
+}
+
+pub fn json_f64_coerce(raw: Option<&Value>, fallback: f64, min: f64, max: f64) -> f64 {
+    raw.and_then(|value| match value {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
+        _ => None,
+    })
+    .unwrap_or(fallback)
+    .clamp(min, max)
+}
+
+pub fn json_bool_coerce(raw: Option<&Value>, fallback: bool) -> bool {
+    raw.and_then(|value| match value {
+        Value::Bool(flag) => Some(*flag),
+        Value::String(text) => match text.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    })
+    .unwrap_or(fallback)
+}
+
+pub fn json_string_list(raw: Option<&Value>) -> Vec<String> {
+    raw.and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_str().map(|text| clean_token(Some(text), "")))
+        .filter(|value| !value.is_empty())
+        .collect()
+}
+
 pub fn string_set(raw: Option<&Value>) -> Vec<String> {
     let mut out = BTreeSet::new();
     if let Some(items) = raw.and_then(Value::as_array) {
@@ -306,6 +349,36 @@ pub fn rel_path(root: &Path, path: &Path) -> String {
         .ok()
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|| path.to_string_lossy().replace('\\', "/"))
+}
+
+fn now_millis() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|row| row.as_millis())
+        .unwrap_or(0)
+}
+
+fn to_base36(mut value: u128) -> String {
+    if value == 0 {
+        return "0".to_string();
+    }
+    let mut out = Vec::new();
+    while value > 0 {
+        let digit = (value % 36) as u8;
+        out.push(if digit < 10 {
+            (b'0' + digit) as char
+        } else {
+            (b'a' + digit - 10) as char
+        });
+        value /= 36;
+    }
+    out.iter().rev().collect()
+}
+
+pub fn stable_id(prefix: &str, basis: &Value) -> String {
+    let digest = deterministic_receipt_hash(basis);
+    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
 }
 
 #[cfg(test)]

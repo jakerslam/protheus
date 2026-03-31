@@ -1,7 +1,7 @@
 {
   "id": "V8-MCP-001",
   "upgrade": "MCP Protocol Client/Server Interop Closure Contract",
-  "section": "OpenFang Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
+  "section": "Infring Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

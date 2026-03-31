@@ -144,6 +144,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops dashboard-ui <serve|snapshot|status|runtime-sync> [--host=<ip>] [--port=<n>] [--team=<id>] [--refresh-ms=<n>]");
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|watchdog> [flags]");
+    println!("  protheus-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
     println!("  protheus-ops command-list-kernel [--mode=<list|help>] [--json]");
     println!("  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--out-json=<path>] [--out-badge=<path>]");
@@ -230,10 +231,11 @@ pub(super) fn print_usage() {
     println!("  protheus-ops context-doctor <run|status> [flags]");
     println!("  protheus-ops discord-swarm-orchestration <run|status> [flags]");
     println!("  protheus-ops bookmark-knowledge-pipeline <run|status> [flags]");
-    println!("  protheus-ops public-api-catalog <run|status> [flags]");
+    println!("  protheus-ops public-api-catalog <status|sync|search|integrate|connect|import-flow|run-flow|verify> [flags]");
     println!("  protheus-ops decentralized-data-marketplace <run|status> [flags]");
     println!("  protheus-ops autoresearch-loop <run|status> [flags]");
     println!("  protheus-ops intel-sweep-router <run|status> [flags]");
+    println!("  protheus-ops nexus-internal-comms <status|validate|compress|decompress|send|log|agent-prompt|export-lexicon> [flags]");
     println!("  protheus-ops gui-drift-manager <run|status> [flags]");
     println!("  protheus-ops release-gate-canary-rollback-enforcer <gate|status> [flags]");
     println!("  protheus-ops srs-contract-runtime <run|run-many|status> [--id=<V6-...>|--ids=<csv>|--ids-file=<path>] [flags]");

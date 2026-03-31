@@ -1,6 +1,6 @@
-# Protheus / OpenClaw Superintelligence Seed (March 2, 2026)
+# Protheus / Infring Superintelligence Seed (March 2, 2026)
 
-Vision: "Protheus / OpenClaw — the first superintelligence seed, built on its live March 2 2026 architecture with contract lanes, System 3, and MemFS already in place"
+Vision: "Protheus / Infring — the first superintelligence seed, built on its live March 2 2026 architecture with contract lanes, System 3, and MemFS already in place"
 
 ## Scope
 

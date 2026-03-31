@@ -17,7 +17,7 @@ function mustInclude(needle, output) {
 }
 
 (function main() {
-  const workspace = process.env.OPENCLAW_WORKSPACE || path.resolve(__dirname, "..", "..");
+  const workspace = process.env.INFRING_WORKSPACE || path.resolve(__dirname, "..", "..");
   const memoryDir = path.join(workspace, "memory");
   const script = path.join(workspace, "tests/tooling/scripts/memory/rebuild_exclusive.ts");
 

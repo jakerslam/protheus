@@ -8,7 +8,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.js');
+const ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
+const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 
 function parseLastJson(stdout) {
   const lines = String(stdout || '')
@@ -26,7 +27,7 @@ function parseLastJson(stdout) {
 }
 
 function runOps(args, env = {}) {
-  const run = spawnSync(process.execPath, [OPS].concat(args), {
+  const run = spawnSync(process.execPath, [ENTRYPOINT, OPS].concat(args), {
     cwd: ROOT,
     encoding: 'utf8',
     env: { ...process.env, ...env },

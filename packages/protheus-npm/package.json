@@ -12,6 +12,7 @@
     "url": "https://github.com/protheuslabs/InfRing/issues"
   },
   "bin": {
+    "infring": "./bin/protheus.ts",
     "protheus": "./bin/protheus.ts"
   },
   "files": [
@@ -28,6 +29,7 @@
     "node": ">=22.0.0"
   },
   "keywords": [
+    "infring",
     "protheus",
     "cli",
     "rust",

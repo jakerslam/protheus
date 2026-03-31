@@ -272,7 +272,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
 
     write_text(
         root,
-        "fixtures/openfang.json",
+        "fixtures/infring.json",
         r#"{
   "agents": [{"name": "alpha"}],
   "tasks": [{"name": "ship"}],
@@ -286,10 +286,10 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
             &[
                 "migrate-ecosystem".to_string(),
                 "--strict=1".to_string(),
-                "--from=openfang".to_string(),
+                "--from=infring".to_string(),
                 format!(
                     "--payload-file={}",
-                    root.join("fixtures/openfang.json").display()
+                    root.join("fixtures/infring.json").display()
                 ),
             ],
         ),

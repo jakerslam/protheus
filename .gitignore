@@ -24,6 +24,7 @@ client/logs/tool_raw/
 client/local/logs/tool_raw/
 tmp/
 dist/
+.svelte-kit/
 .internal/
 **/target/
 target_l0ops_*/
@@ -304,7 +305,7 @@ client/cognition/skills/moltbook/manifest.json
 client/cognition/skills/moltstack/SKILL.md
 client/cognition/skills/moltstack/references/
 client/cognition/skills/notion/
-client/cognition/skills/openclaw-token-optimizer/
+client/cognition/skills/infring-token-optimizer/
 client/cognition/skills/polymarket-arbitrage/
 client/cognition/skills/reddit-readonly/
 client/cognition/skills/reddit/

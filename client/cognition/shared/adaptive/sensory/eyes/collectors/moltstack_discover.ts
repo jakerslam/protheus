@@ -4,7 +4,7 @@
  * Thin wrapper over Rust-authoritative moltstack-discover collector kernel.
  */
 
-const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.js');
+const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.ts');
 const {
   makeCollectorError,
 } = require('./collector_errors.ts');

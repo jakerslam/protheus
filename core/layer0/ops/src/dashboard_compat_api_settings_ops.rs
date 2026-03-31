@@ -209,7 +209,7 @@ fn scan_source_path(source_path: &str) -> Result<Value, String> {
         ));
     }
     let Some(workspace) = detect_workspace_for_source(&source) else {
-        return Err("openclaw_workspace_not_found".to_string());
+        return Err("infring_workspace_not_found".to_string());
     };
     let mut scan = scan_workspace(&workspace);
     scan["path"] = Value::String(source.to_string_lossy().to_string());
@@ -225,10 +225,10 @@ fn detect_paths(root: &Path) -> Vec<PathBuf> {
     }
     if let Ok(home) = std::env::var("HOME") {
         let home_path = PathBuf::from(home);
-        rows.push(home_path.join(".openclaw"));
-        rows.push(home_path.join(".openclaw").join("workspace"));
-        rows.push(home_path.join(".openfang"));
-        rows.push(home_path.join(".openfang").join("workspace"));
+        rows.push(home_path.join(".infring"));
+        rows.push(home_path.join(".infring").join("workspace"));
+        rows.push(home_path.join(".infring"));
+        rows.push(home_path.join(".infring").join("workspace"));
     }
     let mut seen = HashSet::<String>::new();
     rows.into_iter()
@@ -244,7 +244,7 @@ fn detect_paths(root: &Path) -> Vec<PathBuf> {
         .collect::<Vec<_>>()
 }
 
-fn detect_openclaw(root: &Path) -> Value {
+fn detect_infring(root: &Path) -> Value {
     let mut best: Option<(usize, PathBuf, Value)> = None;
     for candidate in detect_paths(root) {
         let source = candidate.to_string_lossy().to_string();
@@ -410,7 +410,7 @@ fn run_migration(root: &Path, request: &Value) -> Value {
             .get("source_dir")
             .or_else(|| request.get("source_path"))
             .and_then(Value::as_str)
-            .unwrap_or("~/.openclaw"),
+            .unwrap_or("~/.infring"),
         4000,
     );
     let scan = match scan_source_path(&source_dir) {
@@ -447,7 +447,7 @@ fn run_migration(root: &Path, request: &Value) -> Value {
         "type": "infring_migration_receipt",
         "status": "completed",
         "dry_run": dry_run,
-        "source": clean_text(request.get("source").and_then(Value::as_str).unwrap_or("openclaw"), 80),
+        "source": clean_text(request.get("source").and_then(Value::as_str).unwrap_or("infring"), 80),
         "source_dir": source_dir,
         "target_dir": target_path.to_string_lossy().to_string(),
         "scan": scan,
@@ -468,7 +468,7 @@ fn run_migration(root: &Path, request: &Value) -> Value {
         "ok": true,
         "status": "completed",
         "dry_run": dry_run,
-        "source": clean_text(request.get("source").and_then(Value::as_str).unwrap_or("openclaw"), 80),
+        "source": clean_text(request.get("source").and_then(Value::as_str).unwrap_or("infring"), 80),
         "source_dir": source_dir,
         "target_dir": target_path.to_string_lossy().to_string(),
         "migrated": {
@@ -517,7 +517,7 @@ pub fn handle(
     if method == "GET" && path_only == "/api/migrate/detect" {
         return Some(CompatApiResponse {
             status: 200,
-            payload: detect_openclaw(root),
+            payload: detect_infring(root),
         });
     }
     if method == "POST" && path_only == "/api/migrate/scan" {
@@ -604,7 +604,7 @@ mod tests {
     fn migrate_scan_and_run_report() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path();
-        let source = root.join("openclaw-home");
+        let source = root.join("infring-home");
         let workspace = source.join("workspace");
 
         fs::create_dir_all(workspace.join("client/runtime/local/state/ui/infring_dashboard"))
@@ -641,7 +641,7 @@ mod tests {
         );
 
         let run_body = serde_json::to_vec(&json!({
-            "source": "openclaw",
+            "source": "infring",
             "source_dir": source.to_string_lossy().to_string(),
             "target_dir": root.join("target-home").to_string_lossy().to_string(),
             "dry_run": false

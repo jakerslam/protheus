@@ -38,6 +38,19 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('activate now: .')).toBe(true);
   });
 
+  test('install.sh gateway fallback is Rust-first (Node optional legacy only)', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    expect(source).toMatch(
+      /launch_cmd="cd \$root && exec \$dashboard_bin dashboard-ui serve --host=\$host --port=\$port"/,
+    );
+    expect(source).toMatch(
+      /infring_gateway_spawn_detached_logged \/tmp\/infring-dashboard-serve\.log "\$dashboard_bin"/,
+    );
+    expect(source).not.toMatch(
+      /infring_gateway_spawn_detached_logged \/tmp\/infring-dashboard-serve\.log node/,
+    );
+  });
+
   test('install.ps1 exists and provisions Windows wrappers', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
     expect(source.includes('protheus-ops.exe')).toBe(true);

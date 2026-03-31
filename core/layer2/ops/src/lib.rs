@@ -19,6 +19,7 @@ pub mod decentralized_data_marketplace;
 pub mod discord_swarm_orchestration;
 pub mod gui_drift_manager;
 pub mod intel_sweep_router;
+pub mod nexus_internal_comms;
 pub mod observability_automation_engine;
 pub mod observability_slo_runbook_closure;
 pub mod opendev_dual_agent;

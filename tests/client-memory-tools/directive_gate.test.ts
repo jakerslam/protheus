@@ -87,13 +87,13 @@ test('trust modify detection: delete trust_add.js task => MANUAL', () => {
 
 // Test 4: Harmless internal file write => ALLOW
 test('safe: read file in workspace => ALLOW', () => {
-  const result = evaluateTask('Read the file ~/.openclaw/workspace/client/runtime/config/settings.json');
+  const result = evaluateTask('Read the file ~/.infring/workspace/client/runtime/config/settings.json');
   assert.strictEqual(result.decision, 'ALLOW');
   assert.strictEqual(result.risk, 'low');
 });
 
 test('safe: write to allowlisted path => ALLOW', () => {
-  const result = evaluateTask('Write test output to ~/.openclaw/workspace/local/state/test.json');
+  const result = evaluateTask('Write test output to ~/.infring/workspace/local/state/test.json');
   assert.strictEqual(result.decision, 'ALLOW');
 });
 
@@ -123,8 +123,8 @@ test('tamper detection: modify registry hashes => DENY', () => {
 });
 
 // Test 6: Credentials access => MANUAL
-test('credentials detection: read ~/.openclaw/credentials => MANUAL', () => {
-  const result = evaluateTask('Read the credentials file at ~/.openclaw/credentials');
+test('credentials detection: read ~/.infring/credentials => MANUAL', () => {
+  const result = evaluateTask('Read the credentials file at ~/.infring/credentials');
   assert.strictEqual(result.decision, 'MANUAL');
   assert.ok(result.reasons.some(r => r.includes('credential')));
 });

@@ -59,7 +59,7 @@ function main() {
     receipts_path: 'local/state/ops/system_health_audit/receipts.jsonl'
   }, null, 2));
 
-  process.env.OPENCLAW_WORKSPACE = workspace;
+  process.env.INFRING_WORKSPACE = workspace;
   process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
 

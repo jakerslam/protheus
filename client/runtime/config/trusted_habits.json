@@ -15,43 +15,43 @@
       "approved_at": "2026-02-14",
       "note": "Safe cron swap - atomic job replacement with verification gates (CANDIDATE until proven)"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/auto_canary_deterministic_habit_crystallization_.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/auto_canary_habit_crystallization.ts": {
       "sha256": "7573c489f20128b390a43b206ce92db2ed04da1e06dd2b9a302da3079c28ba75",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-20",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/zeta_muon_sigma_habit_crystallization_fresh_rout.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/zeta_muon_sigma_habit_crystallization_fresh_route.ts": {
       "sha256": "dc4f914047561ef7699045f66207c3486e649b55c467b4a0d96e31838e074a2e",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-20",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_prp_b422f9b8183ba4d0__e.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_ai_workflow_optimization.ts": {
       "sha256": "746831a180daa130a191fbdb287c98f8d41595e272978539421a4afe10728699",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-20",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_prp_9eca862955cf4462__e.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_writer_60_seconds_a.ts": {
       "sha256": "b8248cab47fca28e3282d399caf98dbb8d3138fcf368fad0683c881f078cdfa6",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-20",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_prp_d97b20e8b824f700__e.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_writer_60_seconds_b.ts": {
       "sha256": "4007456d339d051c3ebc28bcc39b7b9a1080348efd38c2fd1468cafe5dd8d421",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-20",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_prp_28492a3aa16ac61f__e.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_nocode_saas_mvp.ts": {
       "sha256": "dae8b1fbd75a18591b35cd580116801fcf85cd0119c4c581489cb98a02322e5f",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-21",
       "note": "Auto-trusted deterministic scaffold"
     },
-    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_csg_3c7677ecc41e6fba__c.ts": {
+    "${WORKSPACE_ROOT}/client/cognition/habits/routines/execute_bounded_proposal_cross_signal_automation.ts": {
       "sha256": "9e890a1d528fad8b5b5c0e1cd2e163c8c9a0cd9caf3dde8e60d88f0643a86749",
       "approved_by": "habit_crystallizer",
       "approved_at": "2026-02-21",

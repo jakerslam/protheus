@@ -1,10 +1,10 @@
 # Public Operator Profile
 
-This document defines the external, operator-facing surface for OpenClaw.
+This document defines the external, operator-facing surface for Infring.
 
-## What OpenClaw Is
+## What Infring Is
 
-OpenClaw is a local automation and orchestration runtime for macOS/Linux with typed control-plane lanes, policy contracts, and deterministic receipts.
+Infring is a local automation and orchestration runtime for macOS/Linux with typed control-plane lanes, policy contracts, and deterministic receipts.
 
 ## Public-First Entry Points
 

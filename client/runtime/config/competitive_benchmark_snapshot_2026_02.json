@@ -2,11 +2,11 @@
   "version": "2026.02",
   "reference_month": "2026-02",
   "reference_sources": [
-    "https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md"
+    "https://raw.githubusercontent.com/RightNow-AI/infring/main/README.md"
   ],
-  "notes": "Reference competitor values sourced from OpenFang public benchmark table (Feb 2026 snapshot). OpenClaw is measured at runtime by benchmark_matrix.",
+  "notes": "Reference competitor values sourced from Infring public benchmark table (Feb 2026 snapshot). Infring is measured at runtime by benchmark_matrix.",
   "projects": {
-    "OpenFang": {
+    "Infring": {
       "cold_start_ms": 180,
       "idle_memory_mb": 40,
       "install_size_mb": 32,

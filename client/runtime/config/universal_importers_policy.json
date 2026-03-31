@@ -8,7 +8,7 @@
     "algorithm": "sha256"
   },
   "engine_aliases": {
-    "openfang": "openfang",
+    "infring": "infring",
     "crewai": "generic_json",
     "autogen": "generic_json",
     "langgraph": "workflow_graph",

@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TARGET = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
-const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.js');
+const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
 const REMOVED_DASHBOARD_CLIENT_REL = [
   'client',
   'runtime',
@@ -41,19 +41,19 @@ const LEGACY_DASHBOARD_ARTIFACTS = [
 ];
 const CHAT_PAGE_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/pages/chat.js'
+  'client/runtime/systems/ui/infring_static/js/pages/chat.ts'
 );
 const APP_STATIC_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/app.js'
+  'client/runtime/systems/ui/infring_static/js/app.ts'
 );
 const API_STATIC_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js/api.js'
+  'client/runtime/systems/ui/infring_static/js/api.ts'
 );
 const STATIC_UI_JS_ROOT = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/openclaw_static/js'
+  'client/runtime/systems/ui/infring_static/js'
 );
 const SNAPSHOT_PATH = path.resolve(
   ROOT,
@@ -123,15 +123,20 @@ function readUtf8(filePath) {
 function isRustDashboardLaneWrapperSource(source) {
   const text = String(source || '');
   if (!text) return false;
-  return (
+  const legacyWrapperSignature =
     text.includes('Thin client wrapper only: delegates all dashboard authority to Rust core.') &&
-    text.includes("runProtheusOps(['dashboard-ui'")
-  );
+    text.includes("runProtheusOps(['dashboard-ui'");
+  const apiHostWrapperSignature =
+    text.includes('Thin dashboard UI host: serves the Infring browser UI over the Rust API lane.') &&
+    text.includes("authority: 'primary_dashboard_ui_over_rust_core_api'") &&
+    text.includes('function proxyToBackend(req, res, flags)');
+  return legacyWrapperSignature || apiHostWrapperSignature;
 }
 
 function assertDashboardFileSizeCaps() {
   const uiRoot = path.resolve(ROOT, 'client/runtime/systems/ui');
   const sourceExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.css', '.html']);
+  const generatedDirs = new Set(['.svelte-kit', 'build', 'dist', 'node_modules']);
   const violations = [];
   const walk = (dir) => {
     if (!fs.existsSync(dir)) return;
@@ -139,6 +144,7 @@ function assertDashboardFileSizeCaps() {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
+        if (generatedDirs.has(entry.name)) continue;
         walk(fullPath);
         continue;
       }
@@ -259,8 +265,8 @@ function assertChatSyntaxGuards() {
 function assertChatEnhancementFeatures() {
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
   const apiSource = readUtf8(API_STATIC_TS_PATH);
-  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
-  const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/css/components.css'));
+  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
+  const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/css/components.css'));
   const laneSource = readUtf8(TARGET_SOURCE);
 
   // Fresh agent init flow ("Who am I?" + init panel)
@@ -279,6 +285,23 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'freshInitModelSelection = ranked.length ? this.normalizeFreshInitModelRef(ranked[0]) : \'\';', 'fresh-init should auto-select top-ranked model by default');
   assertContains(cssSource, '.chat-init-advanced-toggle', 'fresh-init advanced toggle styles missing');
   assertContains(cssSource, '.chat-init-model-meta', 'fresh-init model metadata row styles missing');
+  assertContains(chatSource, 'sessionHasAnyHistory: function(data)', 'empty-session history detector missing');
+  assertContains(chatSource, 'recoverEmptySessionRender: function(agentId, sessionPayload)', 'empty-session render recovery helper missing');
+  assertContains(chatSource, 'pinToLatestOnOpen: function(container, options)', 'chat open pin-to-latest helper missing');
+  assertContains(chatSource, 'cancelPinToLatestOnOpen: function()', 'chat open pin cancel helper missing');
+  assertContains(chatSource, 'self.pinToLatestOnOpen(null, { maxFrames: 24 });', 'session loader should re-pin to latest after render settles');
+  assertContains(chatSource, "text: 'This session is empty. Send a message to begin.'", 'empty-session fallback message missing');
+  assertContains(chatSource, 'self.recoverEmptySessionRender(agentId, data || null);', 'empty-session recovery hook missing from session loader');
+  assertContains(
+    htmlSource,
+    "x-if=\"currentAgent && !sessionLoading && (!messages || messages.length === 0) && !showFreshArchetypeTiles\"",
+    'primary chat empty-session fallback UI missing'
+  );
+  assertContains(
+    htmlSource,
+    "x-if=\"currentAgent && !sessionLoading && (!filteredMessages || filteredMessages.length === 0) && !showFreshArchetypeTiles\"",
+    'inline filtered chat empty-session fallback UI missing'
+  );
 
   // Prompt suggestion chips above composer
   assertContains(chatSource, 'refreshPromptSuggestions', 'prompt suggestion refresh flow missing');
@@ -378,7 +401,11 @@ function assertChatEnhancementFeatures() {
     'system origin extraction missing'
   );
   assertContains(chatSource, 'system_origin: systemOrigin,', 'system origin normalization missing');
-  assertContains(chatSource, "return 'system:legacy:' + legacySystemId.toLowerCase();", 'legacy system message source key fallback missing');
+  assert.ok(
+    chatSource.includes("return 'system:legacy:' + legacySystemId.toLowerCase();") ||
+      chatSource.includes("return 'system';"),
+    'system message source key grouping fallback missing'
+  );
   assertContains(chatSource, "system_origin: 'slash:help'", 'slash help messages should carry explicit system origin');
   assertContains(chatSource, "system_origin: 'agent:inactive'", 'inactive agent notices should carry explicit system origin');
   assertContains(chatSource, "system_origin: 'runtime:error'", 'runtime error messages should carry explicit system origin');
@@ -415,6 +442,6 @@ function assertMemoryApiWired() {
 
 function assertEyesPageWired() {
   const laneSource = readUtf8(TARGET_SOURCE);
-  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html'));
+  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
   const appSource = readUtf8(APP_STATIC_TS_PATH);
-  const eyesPagePath = path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/eyes.js');
+  const eyesPagePath = path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/js/pages/eyes.ts');

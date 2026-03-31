@@ -6,7 +6,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.js');
+const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.ts');
 
 const run = spawnSync(process.execPath, [script, 'codex', '--duration-ms=0'], {
   cwd: root,

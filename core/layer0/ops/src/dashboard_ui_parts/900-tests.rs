@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Duration, Utc};
     use std::fs;
 
     #[test]
@@ -303,5 +304,81 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(!terminated_rows.is_empty());
+    }
+
+    #[test]
+    fn snapshot_history_trim_applies_age_and_line_caps() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let history_path = root.path().join(SNAPSHOT_HISTORY_REL);
+        if let Some(parent) = history_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir history");
+        }
+        let stale_ts = (Utc::now() - Duration::days(9)).to_rfc3339();
+        let recent_ts = (Utc::now() - Duration::minutes(5)).to_rfc3339();
+        let mut rows = Vec::<String>::new();
+        for idx in 0..4 {
+            rows.push(
+                serde_json::to_string(
+                    &json!({"ts": stale_ts, "type": "snapshot", "idx": idx, "age": "stale"}),
+                )
+                .expect("stale row"),
+            );
+        }
+        for idx in 4..9 {
+            rows.push(
+                serde_json::to_string(
+                    &json!({"ts": recent_ts, "type": "snapshot", "idx": idx, "age": "recent"}),
+                )
+                .expect("recent row"),
+            );
+        }
+        fs::write(&history_path, format!("{}\n", rows.join("\n"))).expect("write history");
+        trim_snapshot_history_with_policy(&history_path, 10_000, 3, 7);
+
+        let lines = fs::read_to_string(&history_path)
+            .expect("read history")
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        assert_eq!(lines.len(), 3);
+        let cutoff = Utc::now() - Duration::days(7);
+        for line in lines {
+            let row = serde_json::from_str::<Value>(&line).expect("line json");
+            let ts = row
+                .get("ts")
+                .and_then(Value::as_str)
+                .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
+                .map(|v| v.with_timezone(&Utc))
+                .expect("snapshot ts");
+            assert!(ts >= cutoff);
+        }
+    }
+
+    #[test]
+    fn snapshot_history_trim_applies_byte_cap() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let history_path = root.path().join(SNAPSHOT_HISTORY_REL);
+        if let Some(parent) = history_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir history");
+        }
+        let ts = Utc::now().to_rfc3339();
+        let mut rows = Vec::<String>::new();
+        for idx in 0..16 {
+            rows.push(
+                serde_json::to_string(&json!({
+                    "ts": ts,
+                    "type": "snapshot",
+                    "idx": idx,
+                    "payload": "x".repeat(120)
+                }))
+                .expect("row"),
+            );
+        }
+        fs::write(&history_path, format!("{}\n", rows.join("\n"))).expect("write history");
+        trim_snapshot_history_with_policy(&history_path, 700, 100, 30);
+        let len = fs::metadata(&history_path).expect("metadata").len();
+        assert!(len <= 700, "trimmed bytes should honor cap: {len}");
     }
 }

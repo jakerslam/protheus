@@ -5,7 +5,7 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../..');
-const RUNNER = path.join(ROOT, 'tests/tooling/scripts/ci/v6_app_023_governance_lane.mjs');
+const RUNNER = path.join(ROOT, 'tests/tooling/scripts/ci/v6_app_023_governance_lane.ts');
 const IDS = [
   'V6-APP-023.7',
   'V6-APP-023.8',

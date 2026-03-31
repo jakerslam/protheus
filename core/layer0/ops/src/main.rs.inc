@@ -106,6 +106,7 @@ fn main() {
     }
 
     let domain = args.first().map(String::as_str).unwrap_or("");
+    protheus_ops_core::verity_plane::record_cli_domain_receipt(&cwd, domain, &args);
     match domain {
         "runtime-efficiency-floor" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
@@ -704,6 +705,11 @@ fn main() {
             let exit = protheus_ops_core::daemon_control::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "verity-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::verity_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "dashboard-ui" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::dashboard_ui::run(&cwd, &rest);
@@ -1252,6 +1258,9 @@ fn main() {
         }
         "intel-sweep-router" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::intel_sweep_router::run);
+        }
+        "nexus-internal-comms" => {
+            exit_domain!(&cwd, &args, protheus_ops_core_v1::nexus_internal_comms::run);
         }
         "gui-drift-manager" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::gui_drift_manager::run);

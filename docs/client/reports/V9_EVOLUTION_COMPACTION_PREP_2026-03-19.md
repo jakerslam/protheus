@@ -14,7 +14,7 @@ Median metrics (2 warmups + 9 runs):
 
 | Mode | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 | --- | ---: | ---: | ---: | ---: |
-| OpenClaw/rich | 4.703 | 8.250 | 14.899 | 143710.82 |
+| Infring/rich | 4.703 | 8.250 | 14.899 | 143710.82 |
 | InfRing pure | 1.7345 | 1.3594 | 1.054 | 143710.82 |
 | InfRing tiny-max | 1.7233 | 1.3594 | 0.445 | 143710.82 |
 
@@ -107,7 +107,7 @@ Post-compaction stabilized artifact:
 - `docs/client/reports/benchmark_matrix_resample_post_compaction_2026-03-20.json`
 - Method: `2` warmups + `9` measured runs
 - Median metrics:
-  - OpenClaw/rich: cold `4.95 ms`, idle `8.25 MB`, install `14.883 MB`, throughput `140172.64 ops/sec`
+  - Infring/rich: cold `4.95 ms`, idle `8.25 MB`, install `14.883 MB`, throughput `140172.64 ops/sec`
   - Pure: cold `1.730333 ms`, idle `1.375 MB`, install `1.054 MB`, throughput `140172.64 ops/sec`
   - Tiny-max: cold `1.711583 ms`, idle `1.375 MB`, install `0.445 MB`, throughput `140172.64 ops/sec`
 

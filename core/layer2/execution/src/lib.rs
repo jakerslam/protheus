@@ -130,7 +130,7 @@ pub use decompose::{
     TaskSummaryRequest, TaskSummaryResponse,
 };
 pub use importers::{
-    run_importer_generic_json_json, run_importer_generic_yaml_json, run_importer_openfang_json,
+    run_importer_generic_json_json, run_importer_generic_yaml_json, run_importer_infring_json,
     run_importer_workflow_graph_json,
 };
 pub use initiative::{

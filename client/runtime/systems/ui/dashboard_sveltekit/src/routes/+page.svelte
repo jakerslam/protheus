@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { readRuntimeStatus, type RuntimeStatus } from '$runtime/runtime';
+  import { readRuntimeStatus, type RuntimeStatus } from '../lib/runtime';
 
   let status: RuntimeStatus | null = null;
   let error = '';
@@ -81,4 +81,3 @@
     border: 1px solid rgba(127, 173, 255, 0.28);
   }
 </style>
-

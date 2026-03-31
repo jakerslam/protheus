@@ -1,7 +1,7 @@
 {
   "id": "V3-USE-002",
   "upgrade": "[hardening / V3] Redacted Diagnostics Bundle (`protheus doctor --bundle`)",
-  "section": "OpenFang Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
+  "section": "Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

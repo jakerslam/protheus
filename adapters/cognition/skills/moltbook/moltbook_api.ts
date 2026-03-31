@@ -1,4 +1,4 @@
-// skills/moltbook/moltbook_api.js
+// skills/moltbook/moltbook_api.ts
 // Core Moltbook functions for agent automation
 
 const { egressFetch, EgressGatewayError } = require('../../../lib/egress_gateway.ts');

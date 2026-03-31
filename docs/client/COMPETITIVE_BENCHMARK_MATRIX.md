@@ -22,4 +22,4 @@ npm run -s ops:competitive-matrix:status
 - `install_size_mb`
 - `evidence_verify_latency_ms`
 
-The matrix includes deterministic score generation plus optional sub-benchmark invocation for observability, mobile matrix, and OpenFang runtime budget lanes.
+The matrix includes deterministic score generation plus optional sub-benchmark invocation for observability, mobile matrix, and Infring runtime budget lanes.

@@ -155,9 +155,9 @@
           "description": "Fix V7-ASM-003 hash-chain ledger integration",
           "type": "investigation_required",
           "investigation_commands": [
-            "grep -r 'prev_hash|hash_chain' /Users/jay/.openclaw/workspace/core/layer0/ops/src/ 2>/dev/null",
-            "grep -r 'hash_chain_ledger' /Users/jay/.openclaw/workspace/core/ 2>/dev/null",
-            "cat /Users/jay/.openclaw/workspace/local/state/ops/capability_events.jsonl | head -5"
+            "grep -r 'prev_hash|hash_chain' /Users/jay/.infring/workspace/core/layer0/ops/src/ 2>/dev/null",
+            "grep -r 'hash_chain_ledger' /Users/jay/.infring/workspace/core/ 2>/dev/null",
+            "cat /Users/jay/.infring/workspace/local/state/ops/capability_events.jsonl | head -5"
           ],
           "archived_reference": "hash_chain_ledger.ts (from 2026-03-08)",
           "required_fix": "Integrate hash-chain linkage into capability_events.jsonl with prev_hash field"

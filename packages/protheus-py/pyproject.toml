@@ -26,6 +26,7 @@ Homepage = "https://github.com/protheuslabs/InfRing"
 Repository = "https://github.com/protheuslabs/InfRing"
 
 [project.scripts]
+infring = "protheus_cli_wrapper.cli:main"
 protheus = "protheus_cli_wrapper.cli:main"
 protheus-py = "protheus_cli_wrapper.cli:main"
 

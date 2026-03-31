@@ -4,7 +4,7 @@
 
 ## Supported Engines
 
-- `openfang` (first-class importer)
+- `infring` (first-class importer)
 - `crewai` (via generic JSON adapter)
 - `autogen` (via generic JSON adapter)
 - `langgraph` (workflow-graph adapter)
@@ -14,13 +14,13 @@
 
 ```bash
 # Direct lane
-node client/runtime/systems/migration/universal_importers.ts run --from=openfang --path=./dump/openfang.json --apply=1 --strict=1
+node client/runtime/systems/migration/universal_importers.ts run --from=infring --path=./dump/infring.json --apply=1 --strict=1
 
 # Control-plane façade
-protheusctl import --from=openfang --path=./dump/openfang.json --apply=1 --strict=1
+protheusctl import --from=infring --path=./dump/infring.json --apply=1 --strict=1
 
 # Migration alias façade
-protheusctl migrate --from=openfang --path=./dump/openfang.json --apply=1 --strict=1
+protheusctl migrate --from=infring --path=./dump/infring.json --apply=1 --strict=1
 ```
 
 ## Contract

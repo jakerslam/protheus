@@ -168,13 +168,13 @@ console.log('[4/4] Checking cron jobs...');
 console.log('───────────────────────────────────────────────');
 
 try {
-  const cronOutput = execSync('openclaw cron list', {
+  const cronOutput = execSync('infring cron list', {
     encoding: 'utf8',
     timeout: 10000
   });
   const jobCount = (cronOutput.match(/\n/g) || []).length - 1;
   console.log(`✓ Active cron jobs: ${jobCount}`);
-  console.log('  Run: openclaw cron list to see all jobs');
+  console.log('  Run: infring cron list to see all jobs');
 } catch (err) {
   console.log('⚠️ Could not query cron list (non-fatal)');
 }
@@ -193,7 +193,7 @@ console.log('  ☐ $WORKSPACE_ROOT/memory/ (nodes + indices)');
 console.log('  ☐ $WORKSPACE_ROOT/local/state/memory/ (snapshots + rebuild cache)');
 console.log('  ☐ $WORKSPACE_ROOT/client/cognition/skills/ (if custom)');
 console.log('  ☐ $WORKSPACE_ROOT/client/runtime/config/ (model_adapters.json + credentials)');
-console.log('  ☐ Cron list: openclaw cron list → save to file');
+console.log('  ☐ Cron list: infring cron list → save to file');
 console.log();
 console.log('Quick backup command:');
 console.log('  tar -czf protheus-backup-$(date +%Y%m%d).tar.gz \\\
@@ -205,7 +205,7 @@ console.log('    $WORKSPACE_ROOT/local/state/memory/ \\\
 console.log('    $WORKSPACE_ROOT/client/runtime/config/');
 console.log();
 console.log('Restore test:');
-console.log('  1) Install OpenClaw + deps on new machine');
+console.log('  1) Install Infring + deps on new machine');
 console.log('  2) Restore backup directories');
 console.log('  3) Run: node tests/tooling/scripts/memory/lint_memory.ts');
 console.log('  4) Run: node tests/tooling/scripts/memory/rebuild_exclusive.ts');

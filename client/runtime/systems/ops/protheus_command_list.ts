@@ -3,7 +3,7 @@
 
 // Layer ownership: core/layer0/ops::command-list-kernel (authoritative)
 // Thin TypeScript launcher wrapper only.
-const { runProtheusOps } = require('./run_protheus_ops.js');
+const { runProtheusOps } = require('./run_protheus_ops.ts');
 
 function run(argv = process.argv.slice(2)): number {
   const args = Array.isArray(argv)

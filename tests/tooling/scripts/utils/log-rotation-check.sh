@@ -20,7 +20,7 @@ fi
 # Configuration
 LOG_DIRS=(
     "${HOME}/.protheus/logs"
-    "${HOME}/.openclaw/workspace/logs"
+    "${HOME}/.infring/workspace/logs"
 )
 MAX_LOG_AGE_DAYS=7
 MAX_LOG_SIZE_MB=100

@@ -98,11 +98,11 @@ fn v6_app_batch18_snowball_governance_lanes_are_receipted() {
         format!(
             "# Snowball Benchmark Sync Fixture\n{:.1} ms\n{:.1} MB\n{} ops/sec\n{} ops/sec\n",
             benchmark_json
-                .pointer("/openclaw_measured/cold_start_ms")
+                .pointer("/infring_measured/cold_start_ms")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0),
             benchmark_json
-                .pointer("/openclaw_measured/idle_memory_mb")
+                .pointer("/infring_measured/idle_memory_mb")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0),
             format_with_commas(

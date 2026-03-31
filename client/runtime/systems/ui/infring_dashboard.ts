@@ -11,16 +11,17 @@ const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
 const DASHBOARD_DIR = __dirname;
 const CANONICAL_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'infring_static');
-const LEGACY_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'openclaw_static');
+const LEGACY_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'legacy_dashboard');
 const SVELTEKIT_MODULE_DIR = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit');
 const SVELTEKIT_BUILD_DIR = path.resolve(SVELTEKIT_MODULE_DIR, 'build');
 const SVELTEKIT_INDEX_PATH = path.resolve(SVELTEKIT_BUILD_DIR, 'index.html');
 const STATIC_DIR = resolvePrimaryStaticDir();
 const FORBIDDEN_ALT_DASHBOARD_DIRS = [
-  path.resolve(DASHBOARD_DIR, 'openfang_static'),
-  path.resolve(DASHBOARD_DIR, 'legacy_dashboard'),
+  LEGACY_STATIC_DIR,
+  path.resolve(DASHBOARD_DIR, 'dashboard_legacy'),
+  path.resolve(DASHBOARD_DIR, 'deprecated_dashboard'),
 ];
-const SIBLING_ALT_DASHBOARD_PATTERN = /(dashboard|legacy|openfang|svelte)/i;
+const SIBLING_ALT_DASHBOARD_PATTERN = /(dashboard|legacy|infring|svelte)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
