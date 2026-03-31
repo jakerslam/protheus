@@ -2,6 +2,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use rand::RngCore;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::env;
@@ -30,6 +31,19 @@ pub struct HotStateEnvelopeStats {
     pub enveloped_rows: usize,
     pub legacy_cipher_rows: usize,
     pub plain_rows: usize,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct DbFragmentationStats {
+    pub page_count: u64,
+    pub free_pages: u64,
+    pub fragmentation_ratio: f64,
+    pub physical_fragmentation_ratio: f64,
+    pub tier_fragmentation_ratio: f64,
+    pub db_file_bytes: u64,
+    pub working_rows: u64,
+    pub episodic_rows: u64,
+    pub semantic_rows: u64,
 }
 
 const HOT_STATE_ENVELOPE_SCHEMA_ID: &str = "organ_state_envelope";
@@ -318,6 +332,91 @@ impl MemoryDb {
             .unwrap_or(&self.db_path)
             .to_string_lossy()
             .replace('\\', "/")
+    }
+
+    fn query_single_i64(&self, sql: &str) -> Result<i64, String> {
+        self.conn
+            .query_row(sql, [], |row| row.get::<_, i64>(0))
+            .map_err(|err| format!("db_query_scalar_failed:{err}"))
+    }
+
+    fn query_table_count(&self, table: &str) -> Result<u64, String> {
+        let sql = match table {
+            "hot_state" => "SELECT COUNT(1) FROM hot_state",
+            "memory_index" => "SELECT COUNT(1) FROM memory_index",
+            "embeddings" => "SELECT COUNT(1) FROM embeddings",
+            _ => return Err("db_unknown_table_count_request".to_string()),
+        };
+        let count = self
+            .conn
+            .query_row(sql, [], |row| row.get::<_, i64>(0))
+            .map_err(|err| format!("db_table_count_failed:{err}"))?;
+        Ok(count.max(0) as u64)
+    }
+
+    pub fn fragmentation_stats(&self) -> Result<DbFragmentationStats, String> {
+        let page_count = self.query_single_i64("PRAGMA page_count;")?.max(0) as u64;
+        let free_pages = self.query_single_i64("PRAGMA freelist_count;")?.max(0) as u64;
+        let physical_fragmentation_ratio = if page_count == 0 {
+            0.0
+        } else {
+            (free_pages as f64) / (page_count as f64)
+        };
+        let db_file_bytes = fs::metadata(&self.db_path).map(|meta| meta.len()).unwrap_or(0);
+        let working_rows = self.query_table_count("hot_state")?;
+        let episodic_rows = self.query_table_count("memory_index")?;
+        let semantic_rows = self.query_table_count("embeddings")?;
+        let tier_total = working_rows
+            .saturating_add(episodic_rows)
+            .saturating_add(semantic_rows);
+        let tier_max = working_rows.max(episodic_rows).max(semantic_rows);
+        let tier_min = working_rows.min(episodic_rows).min(semantic_rows);
+        let tier_fragmentation_ratio = if tier_total == 0 {
+            0.0
+        } else {
+            ((tier_max.saturating_sub(tier_min)) as f64) / (tier_total as f64)
+        };
+        let fragmentation_ratio = physical_fragmentation_ratio.max(tier_fragmentation_ratio);
+        Ok(DbFragmentationStats {
+            page_count,
+            free_pages,
+            fragmentation_ratio,
+            physical_fragmentation_ratio,
+            tier_fragmentation_ratio,
+            db_file_bytes,
+            working_rows,
+            episodic_rows,
+            semantic_rows,
+        })
+    }
+
+    pub fn predictive_realign_compaction(&self) -> Result<(), String> {
+        let working_rows = self.query_table_count("hot_state")?;
+        let episodic_rows = self.query_table_count("memory_index")?;
+        let semantic_rows = self.query_table_count("embeddings")?;
+        let target_working = episodic_rows
+            .saturating_add(semantic_rows)
+            .saturating_add(8)
+            .max(32);
+        if working_rows > target_working {
+            let prune_rows = (working_rows - target_working) as i64;
+            self.conn
+                .execute(
+                    "DELETE FROM hot_state
+                     WHERE state_key IN (
+                        SELECT state_key
+                        FROM hot_state
+                        ORDER BY updated_ts ASC, state_key ASC
+                        LIMIT ?1
+                     )",
+                    params![prune_rows],
+                )
+                .map_err(|err| format!("db_predictive_realign_prune_failed:{err}"))?;
+        }
+        self.conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM; ANALYZE;")
+            .map_err(|err| format!("db_predictive_realign_failed:{err}"))?;
+        Ok(())
     }
 
     fn init_schema(&self) -> Result<(), String> {

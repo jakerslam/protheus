@@ -5,7 +5,7 @@
 // Thin TypeScript wrapper only.
 
 const path = require('path');
-const { runProtheusOps } = require('../ops/run_protheus_ops.js');
+const { runProtheusOps } = require('../ops/run_protheus_ops.ts');
 
 function run(argv = process.argv.slice(2)) {
   const args = Array.isArray(argv)
@@ -21,7 +21,7 @@ function run(argv = process.argv.slice(2)) {
 }
 
 const entryFile = String((require.main && require.main.filename) || process.argv[1] || '');
-if (require.main === module || entryFile.endsWith(`${path.sep}assimilate.js`)) {
+if (require.main === module || entryFile.endsWith(`${path.sep}assimilate.ts`)) {
   process.exit(run(process.argv.slice(2)));
 }
 
