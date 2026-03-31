@@ -142,10 +142,46 @@ fn write_response(
         .map_err(|err| format!("response_flush_failed:{err}"))
 }
 
+fn now_unix_ms() -> i64 {
+    Utc::now().timestamp_millis()
+}
+
+fn maybe_schedule_snapshot_refresh(
+    root: &Path,
+    flags: &Flags,
+    latest_snapshot: &Arc<Mutex<SnapshotState>>,
+) {
+    let now_ms = now_unix_ms();
+    let mut should_spawn = false;
+    if let Ok(mut guard) = latest_snapshot.lock() {
+        let stale = now_ms.saturating_sub(guard.built_at_ms) >= flags.refresh_ms as i64;
+        if stale && !guard.refresh_inflight {
+            guard.refresh_inflight = true;
+            should_spawn = true;
+        }
+    }
+    if !should_spawn {
+        return;
+    }
+
+    let root_owned = root.to_path_buf();
+    let flags_owned = flags.clone();
+    let state = Arc::clone(latest_snapshot);
+    std::thread::spawn(move || {
+        let snapshot = build_snapshot(&root_owned, &flags_owned);
+        write_snapshot_receipt(&root_owned, &snapshot);
+        if let Ok(mut guard) = state.lock() {
+            guard.snapshot = snapshot;
+            guard.built_at_ms = now_unix_ms();
+            guard.refresh_inflight = false;
+        }
+    });
+}
+
 fn handle_request(
     root: &Path,
     flags: &Flags,
-    latest_snapshot: &Arc<Mutex<Value>>,
+    latest_snapshot: &Arc<Mutex<SnapshotState>>,
     stream: &TcpStream,
 ) -> Result<(), String> {
     let req = parse_request(stream)?;
@@ -167,11 +203,12 @@ fn handle_request(
     }
 
     if req.method == "GET" && req.path == "/api/dashboard/snapshot" {
-        let snapshot = build_snapshot(root, flags);
-        write_snapshot_receipt(root, &snapshot);
-        if let Ok(mut guard) = latest_snapshot.lock() {
-            *guard = snapshot.clone();
-        }
+        maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
+        let snapshot = latest_snapshot
+            .lock()
+            .ok()
+            .map(|state| state.snapshot.clone())
+            .unwrap_or_else(|| build_snapshot(root, flags));
         let body = serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string());
         return write_response(
             stream,
@@ -195,7 +232,9 @@ fn handle_request(
         let snapshot = build_snapshot(root, flags);
         write_snapshot_receipt(root, &snapshot);
         if let Ok(mut guard) = latest_snapshot.lock() {
-            *guard = snapshot.clone();
+            guard.snapshot = snapshot.clone();
+            guard.built_at_ms = now_unix_ms();
+            guard.refresh_inflight = false;
         }
         let out = json!({
             "ok": lane.ok,
@@ -220,10 +259,11 @@ fn handle_request(
     }
 
     if req.method == "GET" && req.path == "/healthz" {
+        maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
         let hash = latest_snapshot
             .lock()
             .ok()
-            .and_then(|s| s.get("receipt_hash").cloned())
+            .and_then(|s| s.snapshot.get("receipt_hash").cloned())
             .unwrap_or(Value::Null);
         let out = json!({
             "ok": true,
@@ -241,10 +281,11 @@ fn handle_request(
     }
 
     if req.path.starts_with("/api/") {
+        maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
         let snapshot = latest_snapshot
             .lock()
             .ok()
-            .map(|v| v.clone())
+            .map(|v| v.snapshot.clone())
             .unwrap_or_else(|| build_snapshot(root, flags));
         let header_refs = req
             .headers
@@ -290,7 +331,11 @@ fn run_serve(root: &Path, flags: &Flags) -> i32 {
 
     let initial = build_snapshot(root, flags);
     write_snapshot_receipt(root, &initial);
-    let latest_snapshot = Arc::new(Mutex::new(initial.clone()));
+    let latest_snapshot = Arc::new(Mutex::new(SnapshotState {
+        snapshot: initial.clone(),
+        built_at_ms: now_unix_ms(),
+        refresh_inflight: false,
+    }));
     let addr = format!("{}:{}", flags.host, flags.port);
     let listener = match TcpListener::bind(&addr) {
         Ok(listener) => listener,
@@ -334,26 +379,32 @@ fn run_serve(root: &Path, flags: &Flags) -> i32 {
     );
     println!("Dashboard API listening at {url}");
 
+    let root_owned = root.to_path_buf();
     for stream in listener.incoming() {
         let Ok(stream) = stream else {
             continue;
         };
-        if let Err(err) = handle_request(root, flags, &latest_snapshot, &stream) {
-            let out = json!({
-                "ok": false,
-                "type": "infring_dashboard_request_error",
-                "ts": now_iso(),
-                "error": clean_text(&err, 240)
-            });
-            let body =
-                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{\"ok\":false}".to_string());
-            let _ = write_response(
-                &stream,
-                500,
-                "application/json; charset=utf-8",
-                body.as_bytes(),
-            );
-        }
+        let latest_snapshot_ref = Arc::clone(&latest_snapshot);
+        let root_ref = root_owned.clone();
+        let flags_ref = flags.clone();
+        std::thread::spawn(move || {
+            if let Err(err) = handle_request(&root_ref, &flags_ref, &latest_snapshot_ref, &stream) {
+                let out = json!({
+                    "ok": false,
+                    "type": "infring_dashboard_request_error",
+                    "ts": now_iso(),
+                    "error": clean_text(&err, 240)
+                });
+                let body = serde_json::to_string_pretty(&out)
+                    .unwrap_or_else(|_| "{\"ok\":false}".to_string());
+                let _ = write_response(
+                    &stream,
+                    500,
+                    "application/json; charset=utf-8",
+                    body.as_bytes(),
+                );
+            }
+        });
     }
     0
 }

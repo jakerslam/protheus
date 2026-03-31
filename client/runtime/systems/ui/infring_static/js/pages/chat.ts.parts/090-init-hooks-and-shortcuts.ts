@@ -342,17 +342,12 @@
         if (!scroller || scroller.__ofBottomWheelLock) continue;
         scroller.__ofBottomWheelLock = true;
         scroller.addEventListener('wheel', function(ev) {
-          var target = ev.currentTarget; if (!target || Number(ev.deltaY || 0) <= 0) return;
-          var hardCapTop = resolveLatestMessageScrollTop(self, target);
-          var maxTop = Math.max(0, Number(target.scrollHeight || 0) - Math.max(0, Number(target.clientHeight || 0)));
-          if (hardCapTop >= (maxTop - 1) || Number(target.scrollTop || 0) < (hardCapTop - 2)) return;
-          if (Math.abs(Number(target.scrollTop || 0) - hardCapTop) > 0.5) target.scrollTop = hardCapTop;
-          self.showScrollDown = false; self._stickToBottom = true;
-          if (ev.cancelable) ev.preventDefault();
-        }, { passive: false });
+          self._lastMessagesWheelAt = Date.now();
+          if (Number(ev.deltaY || 0) <= 0) return;
+          self._stickToBottom = true;
+        }, { passive: true });
       }
     },
-
     anchorAgentTrailToThinking(host, hostRect, now, pad, w, h) {
       if (!host || typeof host.querySelectorAll !== 'function') return false;
       var bubbles = host.querySelectorAll('.message.thinking .message-bubble.message-bubble-thinking');
@@ -397,7 +392,6 @@
         return m.id.toLowerCase().indexOf(f) !== -1 || (m.display_name || '').toLowerCase().indexOf(f) !== -1 || m.provider.toLowerCase().indexOf(f) !== -1;
       }).slice(0, 15);
     },
-
     pickModel(modelId) {
       this.showModelPicker = false;
       this.inputText = '/model ' + modelId;

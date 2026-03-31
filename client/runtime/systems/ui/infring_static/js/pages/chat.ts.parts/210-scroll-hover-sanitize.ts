@@ -153,7 +153,9 @@
     handleMessagesScroll(e) {
       var el = this.resolveMessagesScroller(e && e.target ? e.target : null);
       if (!el) return;
-      var targetTop = clampScrollToLatestMessageBottom(this, el);
+      this._lastMessagesScrollAt = Date.now();
+      var targetTop = resolveLatestMessageScrollTop(this, el);
+      scheduleBottomHardCapClamp(this, el, targetTop, 128);
       this.startAgentTrailLoop(el);
       this.syncGridBackgroundOffset(el);
       this.syncDirectHoverAfterScroll(el);
@@ -172,7 +174,6 @@
       }
       this.scheduleMessageRenderWindowUpdate(el);
     },
-
     resolveHoveredMessageDomIdFromPoint(container, clientX, clientY) {
       var host = this.resolveMessagesScroller(container || null);
       if (!host) return '';
@@ -483,7 +484,6 @@
       }
       return merged;
     },
-
     renderLiveThoughtHtml: function(thoughtText) {
       var text = String(thoughtText || '').trim();
       return '<span class="thinking-live-inline"><em>' + escapeHtml(text) + '</em></span>';

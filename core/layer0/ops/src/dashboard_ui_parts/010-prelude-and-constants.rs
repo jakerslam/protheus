@@ -87,6 +87,13 @@ struct HttpRequest {
     body: Vec<u8>,
 }
 
+#[derive(Debug, Clone)]
+struct SnapshotState {
+    snapshot: Value,
+    built_at_ms: i64,
+    refresh_inflight: bool,
+}
+
 fn now_iso() -> String {
     crate::now_iso()
 }

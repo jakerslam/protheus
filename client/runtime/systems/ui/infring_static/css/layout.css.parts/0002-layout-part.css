@@ -4,11 +4,9 @@
   align-items: center;
   justify-content: center;
 }
-
 .nav-agent-avatar-wrap .agent-activity-spinner {
   top: 50%;
 }
-
 .nav-agent-archive {
   width: 16px;
   height: 16px;
@@ -25,7 +23,6 @@
   opacity: 0.8;
   transition: color var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast);
 }
-
 .nav-agent-archive svg {
   width: 13px;
   height: 13px;
@@ -35,13 +32,11 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 .nav-agent-archive:hover {
   color: var(--text);
   opacity: 1;
   background: var(--surface2);
 }
-
 .nav-agent-archive.nav-agent-archive-confirm {
   width: auto;
   min-width: 56px;

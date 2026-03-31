@@ -307,6 +307,18 @@
           var rawError = String(data && data.content ? data.content : 'unknown_error');
           var errorText = 'Error: ' + rawError;
           var lowerError = rawError.toLowerCase();
+          if (
+            lowerError.indexOf('this operation was aborted') >= 0 ||
+            lowerError.indexOf('operation was aborted') >= 0
+          ) {
+            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            this.sending = false;
+            this._responseStartedAt = 0;
+            this.tokenCount = 0;
+            this._inflightPayload = null;
+            this.refreshPromptSuggestions(true, 'post-ws-abort');
+            break;
+          }
           if (lowerError.indexOf('backend_http_404') >= 0) {
             // Soft-ignore noisy command-surface 404s so they do not get injected
             // into the conversation stream after a successful agent response.

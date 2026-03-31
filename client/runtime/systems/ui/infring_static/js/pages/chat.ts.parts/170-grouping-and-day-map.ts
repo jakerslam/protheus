@@ -375,6 +375,28 @@
       if (!Number.isFinite(dedupeScope) || dedupeScope < 1) dedupeScope = 12;
       if (dedupeScope > 24) dedupeScope = 24;
       var canDedupe = payload.dedupe !== false;
+      var dedupeKey = (origin || '_') + '|' + canonicalText;
+      if (canDedupe) {
+        if (!this._systemMessageDedupeIndex || typeof this._systemMessageDedupeIndex !== 'object') {
+          this._systemMessageDedupeIndex = {};
+        }
+        var indexed = this._systemMessageDedupeIndex[dedupeKey];
+        if (indexed && Math.abs(ts - Number(indexed.ts || 0)) <= dedupeWindowMs && Array.isArray(this.messages)) {
+          for (var scan = this.messages.length - 1; scan >= 0; scan -= 1) {
+            var match = this.messages[scan];
+            if (!match || Number(match.id || 0) !== Number(indexed.id || 0)) continue;
+            var rCount = Number(match._repeat_count || 1);
+            if (!Number.isFinite(rCount) || rCount < 1) rCount = 1;
+            match._repeat_count = rCount + 1;
+            var baseMeta = String(match.meta || '').trim().replace(/\s*\|\s*repeated x\d+\s*$/i, '').trim();
+            match.meta = (baseMeta ? (baseMeta + ' | ') : '') + 'repeated x' + match._repeat_count;
+            match.ts = ts;
+            this._systemMessageDedupeIndex[dedupeKey] = { id: match.id, ts: ts };
+            this.scheduleConversationPersist();
+            return match;
+          }
+        }
+      }
       if (canDedupe && Array.isArray(this.messages) && this.messages.length > 0) {
         var scannedSystemRows = 0;
         for (var idx = this.messages.length - 1; idx >= 0; idx -= 1) {
@@ -418,11 +440,11 @@
         ts: ts
       };
       this.messages.push(message);
+      if (canDedupe && canonicalText) this._systemMessageDedupeIndex[dedupeKey] = { id: message.id, ts: ts };
       if (payload.auto_scroll) this.scrollToBottom();
       this.scheduleConversationPersist();
       return message;
     },
-
     addModelSwitchNotice: function(previousModelName, previousProviderName, modelName, providerName) {
       var legacyCall = arguments.length < 3;
       var previousModel = '';
@@ -466,7 +488,6 @@
       var sec = Math.round((num % 60000) / 1000);
       return min + 'm ' + sec + 's';
     },
-
     stepMessageMap: function(list, dir) {
       if (!Array.isArray(list) || !list.length) return;
       this.suppressMapPreview = true;
