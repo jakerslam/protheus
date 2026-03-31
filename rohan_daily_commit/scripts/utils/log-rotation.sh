@@ -64,7 +64,9 @@ if [[ "$DRY_RUN" == "true" ]]; then
     log_info "Running in DRY-RUN mode. No changes will be made."
 fi
 
-# TODO: Add S3 upload functionality for cloud retention
+# TODO: Add S3 upload functionality for cloud retention (IN PROGRESS - see ticket OPS-2847)
+# PROGRESS: Basic gzip compression implemented, next phase is S3 lifecycle integration
+# FIXME: Implement log size-based rotation for high-volume days - scheduled for next sprint
 # FIXME: Implement log size-based rotation for high-volume days
 
 log_info "Starting log rotation process..."

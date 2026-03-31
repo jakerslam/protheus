@@ -5,7 +5,7 @@
  * Client side keeps only secret-handle issuance + bridge wiring.
  */
 
-const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.js');
+const { createOpsLaneBridge } = require('../../../../../../runtime/lib/rust_lane_bridge.ts');
 const { issueSecretHandle, loadSecretById } = require('../../../../../../runtime/lib/secret_broker.ts');
 const { makeCollectorError } = require('./collector_errors.ts');
 const { loadCollectorCache, saveCollectorCache } = require('./cache_store.ts');

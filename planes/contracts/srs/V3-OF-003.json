@@ -1,7 +1,7 @@
 {
   "id": "V3-OF-003",
   "upgrade": "[hardening / V3] SSRF + DNS-Rebinding Egress Defense Pack",
-  "section": "OpenFang Capability Intake (Normalized, 2026-02-28)",
+  "section": "Infring Capability Intake (Normalized, 2026-02-28)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

@@ -20,7 +20,7 @@ process.env.EYES_STATE_DIR = path.join(TEST_DIR, 'state', 'sensory', 'eyes');
 process.env.EYES_QUEUE_DIR = path.join(TEST_DIR, 'state', 'queue');
 
 // Module under test
-const eyes = require('../../../habits/scripts/external_eyes.js');
+const eyes = require('../../../habits/scripts/external_eyes.ts');
 
 let failed = false;
 
@@ -314,7 +314,7 @@ test('propose creates valid proposal structure', () => {
     },
     proposed_topics: [],
     proposed_date: today,
-    proposed_by: 'external_eyes.js propose',
+    proposed_by: 'external_eyes.ts propose',
     status: 'pending_review'
   };
   

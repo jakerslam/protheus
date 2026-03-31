@@ -2,7 +2,7 @@
 'use strict';
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-const SYSTEM_ID = 'V6-OPENCLAW-DETACH-001.1';
+const SYSTEM_ID = 'V6-INFRING-DETACH-001.1';
 const bridge = createOpsLaneBridge(__dirname, 'nursery_bootstrap', 'runtime-systems', {
   inheritStdio: true,
   preferLocalCore: true
@@ -13,7 +13,7 @@ function run(args = process.argv.slice(2)) {
   if (!passthrough.some((row) => String(row).startsWith('--strict='))) passthrough.push('--strict=1');
   if (!passthrough.some((row) => String(row).startsWith('--apply='))) passthrough.push('--apply=1');
   if (!passthrough.some((row) => String(row).startsWith('--payload-json='))) {
-    const sourceRoot = process.env.INFRING_OPENCLAW_SOURCE_ROOT || '..';
+    const sourceRoot = process.env.INFRING_INFRING_SOURCE_ROOT || '..';
     passthrough.push(`--payload-json=${JSON.stringify({ source_root: sourceRoot })}`);
   }
   const out = bridge.run(['run', `--system-id=${SYSTEM_ID}`].concat(passthrough));

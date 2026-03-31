@@ -47,8 +47,8 @@ function normalizeProjects(report) {
   const rawProjects = report?.projects;
   if (rawProjects && typeof rawProjects === 'object') {
     const normalized = { ...rawProjects };
-    if (!normalized['InfRing (rich)'] && normalized.OpenClaw) {
-      normalized['InfRing (rich)'] = normalized.OpenClaw;
+    if (!normalized['InfRing (rich)'] && normalized.Infring) {
+      normalized['InfRing (rich)'] = normalized.Infring;
     }
     return normalized;
   }
@@ -149,7 +149,7 @@ function checkBounds(rows, policy) {
 function runtimeSourcePayload(report) {
   return (
     report?.projects?.['InfRing (rich)']?.runtime_metric_source ??
-    report?.projects?.OpenClaw?.runtime_metric_source ??
+    report?.projects?.Infring?.runtime_metric_source ??
     null
   );
 }
@@ -180,6 +180,19 @@ function throughputSource(runtimeReport) {
   return runtimeSourcePayload(runtimeReport)?.tasks_source ?? null;
 }
 
+function reportBuildProfile(report) {
+  const explicit = String(report?.benchmark_refresh_context?.build_profile || '').trim();
+  if (explicit) return explicit;
+  const pureProbe = String(
+    report?.projects?.['InfRing (pure)']?.probe_binary_path ||
+      report?.pure_workspace_measured?.probe_binary_path ||
+      '',
+  ).trim();
+  if (pureProbe.includes('/target/release/')) return 'release';
+  if (pureProbe.includes('/target/debug/')) return 'debug';
+  return '';
+}
+
 function throughputSourceChanged(runtimeReport, previous) {
   const current = throughputSource(runtimeReport);
   const prior = previous?.shared_throughput_source ?? null;
@@ -188,23 +201,48 @@ function throughputSourceChanged(runtimeReport, previous) {
   return current !== prior;
 }
 
-function reportSourceChanged(previous, reportPath, runtimeSourcePath, currentReportType) {
+function reportSourceChanged(
+  previous,
+  reportPath,
+  runtimeSourcePath,
+  currentReportType,
+  currentBuildProfile,
+) {
   const priorReportPath = String(previous?.source_report || '').trim();
   const priorRuntimeSourcePath = String(previous?.runtime_source_report || '').trim();
   const priorReportType = String(previous?.report_type || '').trim();
+  const priorBuildProfile = String(previous?.build_profile || '').trim();
   return (
     (priorReportPath && priorReportPath !== reportPath) ||
     (priorRuntimeSourcePath && priorRuntimeSourcePath !== runtimeSourcePath) ||
-    (priorReportType && priorReportType !== currentReportType)
+    (priorReportType && priorReportType !== currentReportType) ||
+    priorBuildProfile !== String(currentBuildProfile || '').trim()
   );
 }
 
-function checkStepChanges(rows, policy, previous, runtimeReport, reportPath, runtimeSourcePath, currentReportType) {
+function checkStepChanges(
+  rows,
+  policy,
+  previous,
+  runtimeReport,
+  reportPath,
+  runtimeSourcePath,
+  currentReportType,
+  currentBuildProfile,
+) {
   const violations = [];
   if (!previous || typeof previous !== 'object') {
     return violations;
   }
-  if (reportSourceChanged(previous, reportPath, runtimeSourcePath, currentReportType)) {
+  if (
+    reportSourceChanged(
+      previous,
+      reportPath,
+      runtimeSourcePath,
+      currentReportType,
+      currentBuildProfile,
+    )
+  ) {
     return violations;
   }
   const exemptions = new Set(
@@ -302,12 +340,22 @@ function main() {
   const rows = sanitizeMeasured(projects, policy);
   const previous = statePath && existsSync(resolve(statePath)) ? readJson(statePath) : null;
   const currentReportType = reportType(report);
+  const currentBuildProfile = reportBuildProfile(report);
 
   const violations = [
     ...checkRequiredRows(rows),
     ...checkBounds(rows, policy),
     ...checkRuntimeSource(runtimeReport, policy),
-    ...checkStepChanges(rows, policy, previous, runtimeReport, reportPath, runtimeSourcePath, currentReportType),
+    ...checkStepChanges(
+      rows,
+      policy,
+      previous,
+      runtimeReport,
+      reportPath,
+      runtimeSourcePath,
+      currentReportType,
+      currentBuildProfile,
+    ),
   ];
 
   const payload = {
@@ -318,6 +366,7 @@ function main() {
     report_path: reportPath,
     runtime_source_report_path: runtimeSourcePath,
     report_type: currentReportType,
+    build_profile: currentBuildProfile || null,
     state_path: statePath,
     summary: {
       strict: args.strict,
@@ -345,6 +394,7 @@ function main() {
       source_report: reportPath,
       runtime_source_report: runtimeSourcePath,
       report_type: currentReportType,
+      build_profile: currentBuildProfile || null,
       shared_throughput_source: throughputSource(runtimeReport),
       lane: 'benchmark_sanity',
       event_type: 'benchmark_sanity_gate',

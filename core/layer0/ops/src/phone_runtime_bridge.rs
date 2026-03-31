@@ -9,7 +9,7 @@ use crate::contract_lane_utils::{
     self as lane_utils, clean_text, clean_token, cli_error, cli_receipt, json_bool as parse_bool,
     json_u64 as parse_u64, path_flag, payload_obj, print_json_line, string_set,
 };
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_STATE_REL: &str = "local/state/ops/phone_runtime_bridge/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/phone_runtime_bridge/history.jsonl";
@@ -148,34 +148,8 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
         .expect("object")
 }
 
-fn now_millis() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
-}
-
-fn to_base36(mut value: u128) -> String {
-    if value == 0 {
-        return "0".to_string();
-    }
-    let mut out = Vec::new();
-    while value > 0 {
-        let digit = (value % 36) as u8;
-        out.push(if digit < 10 {
-            (b'0' + digit) as char
-        } else {
-            (b'a' + digit - 10) as char
-        });
-        value /= 36;
-    }
-    out.iter().rev().collect()
-}
-
 fn stable_id(prefix: &str, basis: &Value) -> String {
-    let digest = deterministic_receipt_hash(basis);
-    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
+    lane_utils::stable_id(prefix, basis)
 }
 
 fn battery_schedule(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {

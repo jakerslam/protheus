@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const INFRING_DETACH_XTASK_CONTRACT_ID: &str = "V6-INFRING-DETACH-001.7";
+
 fn main() -> Result<()> {
     let mut args = env::args().skip(1).collect::<Vec<_>>();
     if args.is_empty() {
@@ -19,8 +21,8 @@ fn main() -> Result<()> {
 
     let command = args.remove(0);
     match command.as_str() {
-        "openclaw-detach-bootstrap" => run_openclaw_detach_bootstrap(&args),
-        "verify-openclaw-detach" => run_verify_openclaw_detach(&args),
+        "infring-detach-bootstrap" => run_infring_detach_bootstrap(&args),
+        "verify-infring-detach" => run_verify_infring_detach(&args),
         "emit-nursery-plan" => run_emit_nursery_plan(&args),
         "help" | "--help" | "-h" => {
             print_usage();
@@ -36,10 +38,10 @@ fn main() -> Result<()> {
 fn print_usage() {
     println!("xtask commands:");
     println!(
-        "  cargo run -p xtask -- openclaw-detach-bootstrap [--source-root=..] [--apply=1|0] [--strict=1|0] [--max-copy-mb=2048]"
+        "  cargo run -p xtask -- infring-detach-bootstrap [--source-root=..] [--apply=1|0] [--strict=1|0] [--max-copy-mb=2048]"
     );
     println!(
-        "  cargo run -p xtask -- verify-openclaw-detach [--root=. ]  # validates assimilated artifacts"
+        "  cargo run -p xtask -- verify-infring-detach [--root=. ]  # validates assimilated artifacts"
     );
     println!(
         "  cargo run -p xtask -- emit-nursery-plan --seed=<seed_manifest.json> --permissions=<permissions.json> --out=<plan.json>"
@@ -90,7 +92,7 @@ fn resolve_workspace_root() -> Result<PathBuf> {
     Err(anyhow!("xtask_workspace_root_not_found"))
 }
 
-fn run_openclaw_detach_bootstrap(args: &[String]) -> Result<()> {
+fn run_infring_detach_bootstrap(args: &[String]) -> Result<()> {
     let flags = parse_flag_map(args);
     let root = resolve_workspace_root()?;
     let source_root = flags
@@ -102,10 +104,10 @@ fn run_openclaw_detach_bootstrap(args: &[String]) -> Result<()> {
     let max_copy_mb = parse_u64(flags.get("max-copy-mb"), 2048);
 
     let contract_ids = [
-        "V6-OPENCLAW-DETACH-001.1",
-        "V6-OPENCLAW-DETACH-001.2",
-        "V6-OPENCLAW-DETACH-001.3",
-        "V6-OPENCLAW-DETACH-001.4",
+        "V6-INFRING-DETACH-001.1",
+        "V6-INFRING-DETACH-001.2",
+        "V6-INFRING-DETACH-001.3",
+        "V6-INFRING-DETACH-001.4",
     ];
 
     let payload = json!({
@@ -132,13 +134,13 @@ fn run_openclaw_detach_bootstrap(args: &[String]) -> Result<()> {
             .arg(format!("--strict={}", if strict { 1 } else { 0 }))
             .arg(format!("--payload-json={payload}"))
             .output()
-            .with_context(|| format!("xtask_openclaw_detach_exec_failed:{id}"))?;
+            .with_context(|| format!("xtask_infring_detach_exec_failed:{id}"))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             return Err(anyhow!(
-                "xtask_openclaw_detach_contract_failed:{id}:stdout={stdout}:stderr={stderr}"
+                "xtask_infring_detach_contract_failed:{id}:stdout={stdout}:stderr={stderr}"
             ));
         }
 
@@ -152,6 +154,7 @@ fn run_openclaw_detach_bootstrap(args: &[String]) -> Result<()> {
         "{}",
         serde_json::to_string_pretty(&json!({
             "ok": true,
+            "contract_id": INFRING_DETACH_XTASK_CONTRACT_ID,
             "executed_contracts": executed,
             "source_root": source_root,
             "apply": apply,
@@ -163,7 +166,7 @@ fn run_openclaw_detach_bootstrap(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn run_verify_openclaw_detach(args: &[String]) -> Result<()> {
+fn run_verify_infring_detach(args: &[String]) -> Result<()> {
     let flags = parse_flag_map(args);
     let root = flags
         .get("root")
@@ -171,10 +174,10 @@ fn run_verify_openclaw_detach(args: &[String]) -> Result<()> {
         .unwrap_or(resolve_workspace_root()?);
 
     let required = [
-        "config/openclaw_assimilation/cron/jobs.json",
-        "config/openclaw_assimilation/nursery/containment/permissions.json",
-        "config/openclaw_assimilation/nursery/manifests/seed_manifest.json",
-        "config/openclaw_assimilation/llm/model_registry.json",
+        "config/infring_assimilation/cron/jobs.json",
+        "config/infring_assimilation/nursery/containment/permissions.json",
+        "config/infring_assimilation/nursery/manifests/seed_manifest.json",
+        "config/infring_assimilation/llm/model_registry.json",
         "local/state/nursery/promotion/specialist_training_plan.json",
         "local/state/llm_runtime/model_registry.json",
     ];
@@ -192,6 +195,7 @@ fn run_verify_openclaw_detach(args: &[String]) -> Result<()> {
 
     let out = json!({
         "ok": missing.is_empty(),
+        "contract_id": INFRING_DETACH_XTASK_CONTRACT_ID,
         "root": root.display().to_string(),
         "present": present,
         "missing": missing,
@@ -199,7 +203,7 @@ fn run_verify_openclaw_detach(args: &[String]) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(&out).expect("encode"));
 
     if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        bail!("xtask_openclaw_detach_verify_missing_required_artifacts");
+        bail!("xtask_infring_detach_verify_missing_required_artifacts");
     }
     Ok(())
 }
@@ -247,6 +251,7 @@ fn run_emit_nursery_plan(args: &[String]) -> Result<()> {
         "{}",
         serde_json::to_string_pretty(&json!({
             "ok": true,
+            "contract_id": INFRING_DETACH_XTASK_CONTRACT_ID,
             "seed_path": seed_path.display().to_string(),
             "permissions_path": permissions_path.display().to_string(),
             "out_path": out_path.display().to_string(),

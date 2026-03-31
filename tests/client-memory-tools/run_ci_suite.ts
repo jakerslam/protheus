@@ -15,7 +15,7 @@ const SUITE = [
 function runTestLanguagePolicyGuard() {
   return spawnSync(
     process.execPath,
-    ['tests/tooling/scripts/ci/test_language_policy_guard.mjs'],
+    ['client/runtime/lib/ts_entrypoint.ts', 'tests/tooling/scripts/ci/test_language_policy_guard.ts'],
     {
       cwd: ROOT,
       encoding: 'utf8'
@@ -34,7 +34,7 @@ function runVitestSuite(extraArgs = []) {
 function runLegacyCorpusAudit() {
   return spawnSync(
     process.execPath,
-    ['tests/tooling/scripts/ci/legacy_client_memory_wrapper_audit.mjs', '--strict=1'],
+    ['client/runtime/lib/ts_entrypoint.ts', 'tests/tooling/scripts/ci/legacy_client_memory_wrapper_audit.ts', '--strict=1'],
     {
       cwd: ROOT,
       encoding: 'utf8'

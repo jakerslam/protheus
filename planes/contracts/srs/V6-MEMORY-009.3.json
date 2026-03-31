@@ -1,6 +1,6 @@
 {
   "id": "V6-MEMORY-009.3",
-  "upgrade": "OpenClaw-Compatible Memory Search Profile Contract",
+  "upgrade": "Infring-Compatible Memory Search Profile Contract",
   "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
   "impact": 8,
   "layer_map": "0/1/2/adapter",

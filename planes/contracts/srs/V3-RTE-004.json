@@ -1,7 +1,7 @@
 {
   "id": "V3-RTE-004",
   "upgrade": "[extension / V3] Adaptive Idle Governor",
-  "section": "OpenFang Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
+  "section": "Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
   "impact": 7,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

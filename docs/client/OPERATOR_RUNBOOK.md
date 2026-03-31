@@ -122,7 +122,7 @@ Recovery:
 
 Verification:
 
-1. `external_eyes.js slo` returns healthy.
+1. `external_eyes.ts slo` returns healthy.
 2. `state/sensory/proposals/YYYY-MM-DD.json` contains current-day actionable records.
 3. `health_status` sensory metrics recover.
 

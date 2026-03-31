@@ -72,7 +72,10 @@ fn scale_to_five(value: i64, min: i64, max: i64) -> i64 {
 fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
     let mut rows = Vec::<ModelRow>::new();
     for provider_row in crate::dashboard_provider_runtime::provider_rows(root, snapshot) {
-        let provider = clean_text(provider_row.get("id").and_then(Value::as_str).unwrap_or(""), 80);
+        let provider = clean_text(
+            provider_row.get("id").and_then(Value::as_str).unwrap_or(""),
+            80,
+        );
         if provider.is_empty() {
             continue;
         }
@@ -144,20 +147,24 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
                 || deployment_kind.contains("ollama")
                 || deployment_kind.contains("local");
             let max_output_tokens = parse_i64(profile.get("max_output_tokens"), 0).max(0);
-            let is_local =
-                is_provider_local || deployment_kind.contains("local") || deployment_kind.contains("ollama");
-            let power_signal = parse_i64(profile.get("power_rating"), 0).max(0).max(
-                if param_count_billion > 0 {
-                    ((param_count_billion as f64).log10() * 2.0).round() as i64
+            let is_local = is_provider_local
+                || deployment_kind.contains("local")
+                || deployment_kind.contains("ollama");
+            let power_signal =
+                parse_i64(profile.get("power_rating"), 0)
+                    .max(0)
+                    .max(if param_count_billion > 0 {
+                        ((param_count_billion as f64).log10() * 2.0).round() as i64
+                    } else {
+                        0
+                    });
+            let cost_signal = parse_i64(profile.get("cost_rating"), 0)
+                .max(0)
+                .max(if is_local {
+                    ((param_count_billion as f64 / 20.0).ceil() as i64).clamp(1, 5)
                 } else {
                     0
-                },
-            );
-            let cost_signal = parse_i64(profile.get("cost_rating"), 0).max(0).max(if is_local {
-                ((param_count_billion as f64 / 20.0).ceil() as i64).clamp(1, 5)
-            } else {
-                0
-            });
+                });
             let tier = clean_text(
                 profile
                     .get("tier")
@@ -259,7 +266,9 @@ pub fn catalog_payload(root: &Path, snapshot: &Value) -> Value {
                 } else {
                     !row.needs_key
                         || row.reachable
-                        || crate::dashboard_provider_runtime::auth_status_configured(&row.auth_status)
+                        || crate::dashboard_provider_runtime::auth_status_configured(
+                            &row.auth_status,
+                        )
                 };
             let display_name = if row.display_name.is_empty() {
                 row.model.clone()
@@ -300,7 +309,10 @@ pub fn catalog_payload(root: &Path, snapshot: &Value) -> Value {
         .collect::<Vec<_>>();
     models.sort_by(|a, b| {
         clean_text(a.get("provider").and_then(Value::as_str).unwrap_or(""), 80)
-            .cmp(&clean_text(b.get("provider").and_then(Value::as_str).unwrap_or(""), 80))
+            .cmp(&clean_text(
+                b.get("provider").and_then(Value::as_str).unwrap_or(""),
+                80,
+            ))
             .then(
                 clean_text(a.get("model").and_then(Value::as_str).unwrap_or(""), 140).cmp(
                     &clean_text(b.get("model").and_then(Value::as_str).unwrap_or(""), 140),
@@ -310,7 +322,12 @@ pub fn catalog_payload(root: &Path, snapshot: &Value) -> Value {
     json!({"ok": true, "models": models})
 }
 
-pub fn model_ref_available(root: &Path, snapshot: &Value, provider_id: &str, model_name: &str) -> bool {
+pub fn model_ref_available(
+    root: &Path,
+    snapshot: &Value,
+    provider_id: &str,
+    model_name: &str,
+) -> bool {
     let provider = clean_text(provider_id, 80).to_ascii_lowercase();
     let model = clean_text(model_name, 240);
     if provider.is_empty() || model.is_empty() {
@@ -321,8 +338,11 @@ pub fn model_ref_available(root: &Path, snapshot: &Value, provider_id: &str, mod
         .and_then(Value::as_array)
         .map(|rows| {
             rows.iter().any(|row| {
-                clean_text(row.get("provider").and_then(Value::as_str).unwrap_or(""), 80)
-                    .eq_ignore_ascii_case(&provider)
+                clean_text(
+                    row.get("provider").and_then(Value::as_str).unwrap_or(""),
+                    80,
+                )
+                .eq_ignore_ascii_case(&provider)
                     && clean_text(row.get("model").and_then(Value::as_str).unwrap_or(""), 240)
                         == model
                     && parse_bool(row.get("available"), false)
@@ -351,14 +371,16 @@ pub fn resolve_model_selection(
 
     let route = route_decision_payload(root, snapshot, request);
     let routed_provider = clean_text(
-        route.pointer("/route/provider")
+        route
+            .pointer("/route/provider")
             .or_else(|| route.pointer("/selected/provider"))
             .and_then(Value::as_str)
             .unwrap_or(""),
         80,
     );
     let routed_model = clean_text(
-        route.pointer("/route/model")
+        route
+            .pointer("/route/model")
             .or_else(|| route.pointer("/selected/model"))
             .and_then(Value::as_str)
             .unwrap_or(""),
@@ -413,14 +435,70 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
             .partial_cmp(&score_a)
             .unwrap_or(Ordering::Equal)
             .then_with(|| {
-                clean_text(a.get("id").and_then(Value::as_str).unwrap_or(""), 200).cmp(
-                    &clean_text(b.get("id").and_then(Value::as_str).unwrap_or(""), 200),
-                )
+                clean_text(a.get("id").and_then(Value::as_str).unwrap_or(""), 200).cmp(&clean_text(
+                    b.get("id").and_then(Value::as_str).unwrap_or(""),
+                    200,
+                ))
             })
     });
 
-    let selected = rows.first().cloned().unwrap_or_else(|| json!({}));
+    let routing_policy = crate::dashboard_provider_runtime::routing_policy(root);
+    let strategy = clean_text(
+        routing_policy
+            .pointer("/load_balancing/strategy")
+            .and_then(Value::as_str)
+            .unwrap_or("score_weighted"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let strategy_is_round_robin = strategy == "round_robin";
+    let pool_limit = if strategy_is_round_robin {
+        rows.len().min(3)
+    } else {
+        1
+    }
+    .max(1);
+    let selected_index = if strategy_is_round_robin {
+        let selector_seed = crate::deterministic_receipt_hash(&json!({
+            "agent_id": request.get("agent_id").cloned().unwrap_or(Value::Null),
+            "task_type": task_type,
+            "complexity": complexity,
+            "budget_mode": budget_mode,
+            "token_count": request.get("token_count").cloned().unwrap_or(Value::Null),
+            "seed": routing_policy.pointer("/load_balancing/seed").cloned().unwrap_or_else(|| json!("stable"))
+        }));
+        let hex = selector_seed.chars().take(8).collect::<String>();
+        let seed = u64::from_str_radix(&hex, 16).unwrap_or(0);
+        (seed as usize) % pool_limit
+    } else {
+        0
+    };
+    let selected = rows
+        .get(selected_index)
+        .cloned()
+        .or_else(|| rows.first().cloned())
+        .unwrap_or_else(|| json!({}));
     let top = rows.into_iter().take(5).collect::<Vec<_>>();
+    let selected_provider = clean_text(
+        selected
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let selected_model = clean_text(
+        selected.get("model").and_then(Value::as_str).unwrap_or(""),
+        240,
+    );
+    let fallback_chain = crate::dashboard_provider_runtime::routing_fallback_chain(
+        root,
+        &selected_provider,
+        &selected_model,
+    );
+    let retry_policy = routing_policy
+        .get("retry")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let route = json!({
         "provider": selected.get("provider").cloned().unwrap_or_else(|| json!("")),
         "model": selected.get("model").cloned().unwrap_or_else(|| json!("")),
@@ -435,7 +513,15 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         "context_window_tokens": selected
             .get("context_window_tokens")
             .cloned()
-            .unwrap_or_else(|| json!(0))
+            .unwrap_or_else(|| json!(0)),
+        "fallback_chain": fallback_chain,
+        "retry_policy": retry_policy,
+        "load_balancing": routing_policy
+            .get("load_balancing")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "selection_strategy": strategy,
+        "selection_index": selected_index
     });
     json!({
         "ok": true,
@@ -446,6 +532,7 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         "selected_model": selected.get("model").cloned().unwrap_or_else(|| json!("")),
         "selected_model_id": selected.get("id").cloned().unwrap_or_else(|| json!("")),
         "candidates": top,
+        "routing_policy": routing_policy,
         "input": {
             "prefer_local": prefer_local,
             "complexity": complexity,
@@ -470,13 +557,24 @@ fn route_score(
     let context = parse_i64(row.get("context_scale"), 3) as f64;
     let is_local = parse_bool(row.get("is_local"), false);
     let needs_key = parse_bool(row.get("needs_key"), false);
-    let auth_status = clean_text(row.get("auth_status").and_then(Value::as_str).unwrap_or(""), 40)
-        .to_ascii_lowercase();
-    let specialty = clean_text(row.get("specialty").and_then(Value::as_str).unwrap_or(""), 40)
-        .to_ascii_lowercase();
+    let auth_status = clean_text(
+        row.get("auth_status").and_then(Value::as_str).unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
+    let specialty = clean_text(
+        row.get("specialty").and_then(Value::as_str).unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
 
     let mut score = 0.0;
-    score += power * if complexity == "high" || complexity == "deep" { 1.8 } else { 0.9 };
+    score += power
+        * if complexity == "high" || complexity == "deep" {
+            1.8
+        } else {
+            0.9
+        };
     score += context * if task_type.contains("long") { 1.2 } else { 0.4 };
     score += if budget_mode.contains("cheap") || budget_mode.contains("low") {
         (6.0 - cost) * 1.2
@@ -534,12 +632,13 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(rows.len() >= 2);
-        assert!(rows.iter().any(|row| {
-            row.get("id").and_then(Value::as_str) == Some("openai/gpt-5")
-        }));
         assert!(rows
             .iter()
-            .all(|row| parse_i64(row.get("power_scale"), 0) >= 1 && parse_i64(row.get("power_scale"), 0) <= 5));
+            .any(|row| { row.get("id").and_then(Value::as_str) == Some("openai/gpt-5") }));
+        assert!(rows
+            .iter()
+            .all(|row| parse_i64(row.get("power_scale"), 0) >= 1
+                && parse_i64(row.get("power_scale"), 0) <= 5));
         assert!(rows.iter().any(|row| {
             row.get("provider").and_then(Value::as_str) == Some("ollama")
                 && row.get("is_local").and_then(Value::as_bool) == Some(true)
@@ -590,6 +689,18 @@ mod tests {
                 .and_then(Value::as_str),
             Some("ollama")
         );
+        assert!(decision
+            .pointer("/route/fallback_chain")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(
+            decision
+                .pointer("/route/retry_policy/max_total_attempts")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
     }
 
     #[test]
@@ -624,14 +735,16 @@ mod tests {
             .get("models")
             .and_then(Value::as_array)
             .and_then(|rows| {
-                rows.iter().find(|row| {
-                    row.get("id").and_then(Value::as_str) == Some("cohere/command-r")
-                })
+                rows.iter()
+                    .find(|row| row.get("id").and_then(Value::as_str) == Some("cohere/command-r"))
             })
             .cloned()
             .unwrap_or_else(|| json!({}));
         assert_eq!(row.get("is_local").and_then(Value::as_bool), Some(false));
-        assert_eq!(row.get("supports_chat").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            row.get("supports_chat").and_then(Value::as_bool),
+            Some(false)
+        );
         assert_eq!(row.get("available").and_then(Value::as_bool), Some(false));
     }
 }

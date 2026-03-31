@@ -19,8 +19,8 @@ pip install ./packages/protheus-py
 ## Usage
 
 ```bash
-protheus --help
-protheus status --dashboard
+infring --help
+infring status --dashboard
 ```
 
 ## Runtime Resolution Order

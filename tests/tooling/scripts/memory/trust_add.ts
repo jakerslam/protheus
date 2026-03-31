@@ -29,7 +29,7 @@ function main() {
   
   const targetPath = args[0];
   const note = args[1];
-  const approvedBy = process.env.OPENCLAW_APPROVER || process.env.USER || 'operator';
+  const approvedBy = process.env.INFRING_APPROVER || process.env.USER || 'operator';
   
   // Resolve path
   const resolvedPath = normalizePath(targetPath);

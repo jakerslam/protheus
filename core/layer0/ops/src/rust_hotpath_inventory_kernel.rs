@@ -194,7 +194,7 @@ fn is_thin_bridge(path: &str, ext: &str, text: &str) -> bool {
         || normalized.contains("createManifestLaneBridge")
         || normalized.contains("runProtheusOps(args")
         || normalized.contains("runProtheusOps(['")
-        || normalized.contains("require('./run_protheus_ops.js')")
+        || normalized.contains("require('./run_protheus_ops.ts')")
         || normalized.contains("Thin TypeScript wrapper only")
         || normalized.contains("Thin runtime wrapper:")
         || normalized.contains("thin CLI bridge")

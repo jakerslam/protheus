@@ -202,7 +202,7 @@ pub fn infer_topics(content: &str) -> Vec<String> {
         add("dev");
     }
     if text.contains("moltbook")
-        || text.contains("openclaw")
+        || text.contains("infring")
         || text.contains("clawhub")
         || text.contains("agent")
     {
@@ -350,7 +350,7 @@ pub fn normalize_queries(payload: &Map<String, Value>) -> Vec<String> {
     if out.is_empty() {
         out = vec![
             "AI agent".to_string(),
-            "moltbook OR openclaw".to_string(),
+            "moltbook OR infring".to_string(),
             "local LLM ollama".to_string(),
         ];
     }

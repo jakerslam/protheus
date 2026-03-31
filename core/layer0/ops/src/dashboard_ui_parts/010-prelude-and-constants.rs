@@ -7,14 +7,14 @@ use crate::dashboard_terminal_broker;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::cmp::Reverse;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
 
@@ -30,6 +30,10 @@ const SNAPSHOT_LATEST_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json";
 const SNAPSHOT_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/snapshot_history.jsonl";
+const SNAPSHOT_HISTORY_MAX_BYTES: u64 = 100 * 1024 * 1024;
+const SNAPSHOT_HISTORY_MAX_LINES: usize = 10_000;
+const SNAPSHOT_HISTORY_MAX_AGE_DAYS: i64 = 7;
+const SNAPSHOT_HISTORY_PRUNE_INTERVAL_SECONDS: i64 = 60;
 const ACTION_LATEST_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/latest.json";
 const ACTION_HISTORY_REL: &str =

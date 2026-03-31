@@ -34,38 +34,38 @@ Updated: 2026-03-27 17:36 America/Denver
 
 | Rank | LOC | Unit | Class | Migration target |
 |---|---:|---|---|---|
-| 1 | 21874 | `client/runtime/systems/ui/infring_dashboard.js` | UI monolith | Decompose + remove authority from UI into Rust dashboard kernels |
-| 2 | 8668 | `client/runtime/systems/ui/openclaw_static/js/pages/chat.ts.parts` | UI behavior surface | Move chat decision logic to core chat/dashboard lanes |
-| 3 | 1618 | `client/runtime/systems/ui/openclaw_static/js/app.ts.parts` | UI shell surface | Keep view wiring only; route all mutations to core |
-| 4 | 1061 | `client/runtime/systems/ui/openclaw_static/js/pages/agents.ts.parts` | UI+agent orchestration surface | Move lifecycle authority to Rust agent/session kernel |
-| 5 | 955 | `client/runtime/systems/ui/openclaw_static/js/pages/hands.ts.parts` | UI+automation surface | Move hands orchestration authority to core hands domain |
-| 7 | 729 | `client/runtime/systems/ui/openclaw_static/js/pages/settings.ts.parts` | UI settings surface | Move settings validation/default policy authority to core |
+| 1 | 21874 | `client/runtime/systems/ui/infring_dashboard.ts` | UI monolith | Decompose + remove authority from UI into Rust dashboard kernels |
+| 2 | 8668 | `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts` | UI behavior surface | Move chat decision logic to core chat/dashboard lanes |
+| 3 | 1618 | `client/runtime/systems/ui/infring_static/js/app.ts.parts` | UI shell surface | Keep view wiring only; route all mutations to core |
+| 4 | 1061 | `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts` | UI+agent orchestration surface | Move lifecycle authority to Rust agent/session kernel |
+| 5 | 955 | `client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts` | UI+automation surface | Move hands orchestration authority to core hands domain |
+| 7 | 729 | `client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts` | UI settings surface | Move settings validation/default policy authority to core |
 | 8 | 684 | `client/cognition/shared/adaptive/sensory/eyes/collectors/collector_runtime.ts` | Runtime authority | Move collector scheduling/policy/state mutation to core |
-| 9 | 635 | `client/runtime/systems/ui/openclaw_static/js/pages/workflow-builder.ts.parts` | UI workflow surface | Move workflow compile/validate authority to core |
+| 9 | 635 | `client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts` | UI workflow surface | Move workflow compile/validate authority to core |
 | 10 | 582 | `client/runtime/systems/tools/assimilate.ts` | Tooling authority | Move target resolution/policy gating to Rust assimilation kernel |
-| 11 | 581 | `client/runtime/systems/ui/openclaw_static/js/pages/wizard.ts.parts` | UI init surface | Move init policy + defaults to core |
+| 11 | 581 | `client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts` | UI init surface | Move init policy + defaults to core |
 | 12 | 513 | `client/cognition/shared/adaptive/sensory/eyes/collectors/github_repo.ts` | Collector authority | Move fetch policy/scoring/state writes to core |
-| 13 | 452 | `client/runtime/lib/rust_lane_bridge.js` | Bridge runtime | Keep bridge transport only; move fallback policy to core |
-| 14 | 393 | `client/runtime/systems/ui/openclaw_static/js/pages/scheduler.js` | UI scheduler | Move schedule semantics + mutations to core scheduler kernel |
+| 13 | 452 | `client/runtime/lib/rust_lane_bridge.ts` | Bridge runtime | Keep bridge transport only; move fallback policy to core |
+| 14 | 393 | `client/runtime/systems/ui/infring_static/js/pages/scheduler.ts` | UI scheduler | Move schedule semantics + mutations to core scheduler kernel |
 | 15 | 372 | `client/runtime/systems/autonomy/swarm_repl_demo.ts` | Swarm authority | Move orchestration logic to core swarm runtime |
 | 16 | 361 | `client/runtime/systems/conduit/conduit-client.ts` | Conduit authority | Move routing/decision logic to core conduit domain |
 | 17 | 356 | `client/cognition/shared/adaptive/sensory/eyes/collectors/conversation_eye.ts` | Collector authority | Move capture rules/state mutation to core |
-| 18 | 333 | `client/runtime/systems/ui/openclaw_static/js/pages/skills.js` | UI+skills surface | Move skill install/permission authority to core |
+| 18 | 333 | `client/runtime/systems/ui/infring_static/js/pages/skills.ts` | UI+skills surface | Move skill install/permission authority to core |
 | 19 | 318 | `client/runtime/systems/autonomy/swarm_sessions_bridge.ts` | Session authority | Move session-state authority to core session kernel |
-| 20 | 313 | `client/runtime/systems/ui/openclaw_static/js/api.js` | Client API shim | Keep transport only; route all policy to core |
+| 20 | 313 | `client/runtime/systems/ui/infring_static/js/api.ts` | Client API shim | Keep transport only; route all policy to core |
 | 21 | 310 | `client/runtime/patches/websocket-client-patch.ts` | Reliability logic | Move reconnect/stream authority to Rust server/session lanes |
-| 22 | 309 | `client/runtime/systems/ui/openclaw_static/js/pages/channels.js` | Channel UI surface | Move channel lifecycle/auth authority to core channels |
+| 22 | 309 | `client/runtime/systems/ui/infring_static/js/pages/channels.ts` | Channel UI surface | Move channel lifecycle/auth authority to core channels |
 | 23 | 302 | `client/cognition/shared/adaptive/sensory/eyes/collectors/upwork_gigs.ts` | Collector authority | Move fetch/policy state writes to core |
-| 24 | 292 | `client/runtime/systems/ui/openclaw_static/js/pages/overview.js` | UI overview | Keep read-only rendering; no authority |
-| 25 | 289 | `client/runtime/systems/ui/openclaw_static/js/pages/usage.js` | UI usage | Keep read-only rendering; no authority |
+| 24 | 292 | `client/runtime/systems/ui/infring_static/js/pages/overview.ts` | UI overview | Keep read-only rendering; no authority |
+| 25 | 289 | `client/runtime/systems/ui/infring_static/js/pages/usage.ts` | UI usage | Keep read-only rendering; no authority |
 | 26 | 284 | `client/cognition/shared/adaptive/sensory/eyes/collectors/bird_x.ts` | Collector authority | Move fetch/policy state writes to core |
 | 27 | 274 | `client/runtime/systems/ops/rust_hotpath_inventory.ts` | Ops authority | Migrate inventory policy/evaluation logic to Rust |
 | 28 | 268 | `client/cognition/shared/adaptive/sensory/eyes/collectors/stock_market.ts` | Collector authority | Move fetch/policy state writes to core |
 | 29 | 268 | `client/cognition/orchestration/scratchpad.ts` | Orchestration authority | Keep thin wrapper; ensure full authority in core |
-| 30 | 267 | `client/runtime/lib/queued_backlog_runtime.js` | Backlog authority | Move all queue mutation logic to Rust kernel |
+| 30 | 267 | `client/runtime/lib/queued_backlog_runtime.ts` | Backlog authority | Move all queue mutation logic to Rust kernel |
 | 31 | 266 | `client/runtime/systems/memory/policy_validator.ts` | Memory guard | Continue reducing to strict thin wrapper |
 | 32 | 265 | `client/runtime/lib/test_compactor_benchmark.ts` | Test/runtime helper | Keep test tooling only; no production authority |
-| 33 | 263 | `client/runtime/systems/ui/openclaw_static/js/pages/logs.js` | UI logs | Keep read-only rendering |
+| 33 | 263 | `client/runtime/systems/ui/infring_static/js/pages/logs.ts` | UI logs | Keep read-only rendering |
 | 34 | 262 | `client/cognition/shared/adaptive/sensory/eyes/collectors/moltstack_discover.ts` | Collector authority | Move fetch/policy state writes to core |
 | 35 | 258 | `client/runtime/patches/websocket-server-patch.ts` | Runtime reliability | Migrate server-side authority into Rust host |
 | 36 | 251 | `client/runtime/systems/ops/top50_roi_sweep.ts` | Ops authority | Migrate scoring/ranking authority to Rust ops domain |
@@ -209,31 +209,31 @@ Updated: 2026-03-27 17:36 America/Denver
 
 14. `P0-UNBLOCK-001` Add deterministic external-evidence intake workflow for remaining blocked items. `STATUS: DONE`
 - Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_evidence_status.mjs` to validate external-evidence readiness per blocked ID.
+- Added `tests/tooling/scripts/ci/blocked_external_evidence_status.ts` to validate external-evidence readiness per blocked ID.
 - Added npm scripts `ops:blocked-external:plan` and `ops:blocked-external:evidence`.
 - Added intake policy doc at `docs/external/evidence/README.md`.
 - Generated current unblock evidence status artifacts for all `27` blocked IDs.
 
 15. `P0-UNBLOCK-002` Scaffold per-ID external evidence packets for all blocked items. `STATUS: DONE`
 - Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_scaffold.mjs` and npm script `ops:blocked-external:scaffold`.
+- Added `tests/tooling/scripts/ci/blocked_external_scaffold.ts` and npm script `ops:blocked-external:scaffold`.
 - Materialized scaffold directories/readme templates for all `27` blocked IDs under `docs/external/evidence/<ID>/README.md`.
 - Regenerated status artifacts: all blockers are now `partial_missing_artifact` (readmes present, artifact upload pending).
 
 16. `P0-UNBLOCK-003` Add deterministic reconcile helper for evidence-ready blocked IDs. `STATUS: DONE`
 - Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_reconcile.mjs` and npm script `ops:blocked-external:reconcile`.
+- Added `tests/tooling/scripts/ci/blocked_external_reconcile.ts` and npm script `ops:blocked-external:reconcile`.
 - Added generated candidate reports (`BLOCKED_EXTERNAL_RECONCILE_CANDIDATES`) with optional `--apply=1` status promotion path.
 - Current reconcile report confirms `ready_for_reconcile=0` and no automatic status mutations.
 
 17. `P0-UNBLOCK-004` Add ranked Top-10 external unblock board with action hints. `STATUS: DONE`
 - Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_top10.mjs` and npm script `ops:blocked-external:top10`.
+- Added `tests/tooling/scripts/ci/blocked_external_top10.ts` and npm script `ops:blocked-external:top10`.
 - Generated ranked output: `local/workspace/reports/BLOCKED_EXTERNAL_TOP10.md` + `core/local/artifacts/blocked_external_top10_current.json`.
 
 18. `P0-UNBLOCK-005` Add packet-quality audit for blocked external evidence folders. `STATUS: DONE`
 - Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_packet_audit.mjs` and npm script `ops:blocked-external:packet-audit`.
+- Added `tests/tooling/scripts/ci/blocked_external_packet_audit.ts` and npm script `ops:blocked-external:packet-audit`.
 - Generated packet audit outputs: `local/workspace/reports/BLOCKED_EXTERNAL_PACKET_AUDIT.md` + `core/local/artifacts/blocked_external_packet_audit_current.json`.
 
 19. `P0-UNBLOCK-006` Add operator runbook for end-to-end external unblock flow. `STATUS: DONE`
@@ -250,7 +250,7 @@ Updated: 2026-03-27 17:36 America/Denver
 21. `P0-SIMPL-001` Run system simplicity sweep and collapse parallel command functionality to canonical aliases. `STATUS: DONE`
 - Exit criteria met:
 - Collapsed duplicate script bodies to single-source aliases in `package.json` (`orchestron:run`, `start`, `lane:v6-rust50-007:run`, `test:lane:v6-edge-004`).
-- Added `tests/tooling/scripts/ci/simplicity_drift_audit.mjs` and `ops:simplicity:audit` strict gate.
+- Added `tests/tooling/scripts/ci/simplicity_drift_audit.ts` and `ops:simplicity:audit` strict gate.
 - Current simplicity audit: duplicate command groups `0`, client hard/gap violations `0`.
 
 22. `P0-TEST-001` Run full CI test suite and patch failures. `STATUS: DONE`
@@ -395,13 +395,13 @@ Updated: 2026-03-27 17:36 America/Denver
 
 31. `P1-DASHBOARD-WASM-001` Migrate dashboard runtime to Rust/WASM no-alternate-shell serving path after browser-host parity freeze. `STATUS: IN_PROGRESS`
 - Context:
-- Unified dashboard launch now serves the OpenClaw browser host by default (`infring dashboard`, `infring status --dashboard`, `infringd start` autoboot) with the Rust lane restricted to API authority only.
+- Unified dashboard launch now serves the Infring browser host by default (`infring dashboard`, `infring status --dashboard`, `infringd start` autoboot) with the Rust lane restricted to API authority only.
 - Remaining work is parity hardening + packaging so the unified host stays stable in normal operator flows without any second browser surface.
 - Linked SRS:
 - `V6-DASHBOARD-001.1` through `V6-DASHBOARD-001.10` (runtime host hardening follow-through).
 - Exit criteria:
 - Keep the Rust authority lane API-only for health/snapshot/action/WebSocket coverage.
-- Serve the OpenClaw browser UI through the unified dashboard host on the default operator launch path.
+- Serve the Infring browser UI through the unified dashboard host on the default operator launch path.
 - Preserve all current receipted actions (provider switch, role launch, skill run, benchmark/assimilate trigger) with equal or stronger fail-closed behavior.
 - Publish operator runbook documenting the unified host plus Rust API lane, with no second browser surface fallback.
 
@@ -415,7 +415,7 @@ Updated: 2026-03-27 17:36 America/Denver
 - Publish before/after interaction latency + scroll-jank evidence in benchmark report.
 
 ## Executed in this pass
-- Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
+- Added `tests/tooling/scripts/ci/srs_actionable_map.ts` to produce canonical remaining-work mapping and executability buckets.
 - Reviewed enforcer policy and kept DoD evidence gates strict.
 - Executed complete runnable backlog queue tranche and recorded deterministic receipts.
 - Executed metakernel tranche (`V7-META-001..003`) with deterministic receipts and passing invariants.
@@ -425,33 +425,33 @@ Updated: 2026-03-27 17:36 America/Denver
 - Executed ROI status-closure sweep with strict evidence rollback safeguards (`P1-EXEC-008`), reducing actionable queue by `34`.
 - Executed evidence-qualified bulk closure (`P1-EXEC-009`), reducing actionable queue by `356` rows (`331` unique IDs).
 - Executed dynamic-legacy queue completion sweep (`P1-EXEC-010`): executed + promoted remaining `execute_now` rows (`403` bulk + `1` follow-up), leaving only explicit `blocked_external` items (`27` total actionable, `0` runnable).
-- Added deterministic status reconciler `tests/tooling/scripts/ci/promote_executed_receipt_ids.mjs` and hardened regression scanners (`srs_full_regression` longest-first ID matching; `srs_top200_regression` consumes canonical full-regression counts) to eliminate prefix-collision and nondeterministic evidence drift.
+- Added deterministic status reconciler `tests/tooling/scripts/ci/promote_executed_receipt_ids.ts` and hardened regression scanners (`srs_full_regression` longest-first ID matching; `srs_top200_regression` consumes canonical full-regression counts) to eliminate prefix-collision and nondeterministic evidence drift.
 - Added generated full TODO queue artifacts (`local/workspace/reports/TODO_EXECUTION_FULL.md` + `todo_execution_full_current.json`) and kept ordering deterministic.
-- Added deterministic blocked-external evidence intake/status pipeline (`tests/tooling/scripts/ci/blocked_external_evidence_status.mjs`) with generated status artifacts and explicit evidence contract docs.
-- Added deterministic blocked-external scaffold generator (`tests/tooling/scripts/ci/blocked_external_scaffold.mjs`) and pre-created `docs/external/evidence/<ID>/README.md` packets for all 27 blockers.
-- Added deterministic blocked-external reconcile helper (`tests/tooling/scripts/ci/blocked_external_reconcile.mjs`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
-- Added deterministic blocked-external Top-10 prioritizer (`tests/tooling/scripts/ci/blocked_external_top10.mjs`) and packet-quality audit (`tests/tooling/scripts/ci/blocked_external_packet_audit.mjs`) plus operator runbook.
-- Added system simplicity drift gate (`tests/tooling/scripts/ci/simplicity_drift_audit.mjs`) and collapsed duplicate npm command bodies to canonical alias chains.
+- Added deterministic blocked-external evidence intake/status pipeline (`tests/tooling/scripts/ci/blocked_external_evidence_status.ts`) with generated status artifacts and explicit evidence contract docs.
+- Added deterministic blocked-external scaffold generator (`tests/tooling/scripts/ci/blocked_external_scaffold.ts`) and pre-created `docs/external/evidence/<ID>/README.md` packets for all 27 blockers.
+- Added deterministic blocked-external reconcile helper (`tests/tooling/scripts/ci/blocked_external_reconcile.ts`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
+- Added deterministic blocked-external Top-10 prioritizer (`tests/tooling/scripts/ci/blocked_external_top10.ts`) and packet-quality audit (`tests/tooling/scripts/ci/blocked_external_packet_audit.ts`) plus operator runbook.
+- Added system simplicity drift gate (`tests/tooling/scripts/ci/simplicity_drift_audit.ts`) and collapsed duplicate npm command bodies to canonical alias chains.
 - Patched full CI test blocker in `_legacy_retired_test_wrapper.ts` (TS wrapper resolution).
 - Kept client/core policy audits and full regression suite passing after state transitions.
-- Added MCU proof preflight lane + operator runbook for external unblock path (`tests/tooling/scripts/ci/mcu_proof_preflight.mjs`, `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`) and linked blocker governance (`P0-MCU-PROOF-001`, `HMAN-092`).
+- Added MCU proof preflight lane + operator runbook for external unblock path (`tests/tooling/scripts/ci/mcu_proof_preflight.ts`, `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`) and linked blocker governance (`P0-MCU-PROOF-001`, `HMAN-092`).
 
 ## Next command bundle
-- `node tests/tooling/scripts/ci/srs_actionable_map.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_unblock_plan.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_scaffold.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_evidence_status.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_reconcile.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_top10.mjs`
-- `node tests/tooling/scripts/ci/blocked_external_packet_audit.mjs`
-- `node tests/tooling/scripts/ci/simplicity_drift_audit.mjs --strict=1`
-- `node tests/tooling/scripts/ci/srs_full_regression.mjs`
-- `node tests/tooling/scripts/ci/srs_top200_regression.mjs`
+- `node tests/tooling/scripts/ci/srs_actionable_map.ts`
+- `node tests/tooling/scripts/ci/blocked_external_unblock_plan.ts`
+- `node tests/tooling/scripts/ci/blocked_external_scaffold.ts`
+- `node tests/tooling/scripts/ci/blocked_external_evidence_status.ts`
+- `node tests/tooling/scripts/ci/blocked_external_reconcile.ts`
+- `node tests/tooling/scripts/ci/blocked_external_top10.ts`
+- `node tests/tooling/scripts/ci/blocked_external_packet_audit.ts`
+- `node tests/tooling/scripts/ci/simplicity_drift_audit.ts --strict=1`
+- `node tests/tooling/scripts/ci/srs_full_regression.ts`
+- `node tests/tooling/scripts/ci/srs_top200_regression.ts`
 - `npm run -s test:ci:full`
-- `node tests/tooling/scripts/ci/backlog_actionable_report.mjs`
+- `node tests/tooling/scripts/ci/backlog_actionable_report.ts`
 - `npm run -s ops:client-target:audit`
 - `./verify.sh`
-- `node tests/tooling/scripts/ci/mcu_proof_preflight.mjs`
+- `node tests/tooling/scripts/ci/mcu_proof_preflight.ts`
 
 ---
 

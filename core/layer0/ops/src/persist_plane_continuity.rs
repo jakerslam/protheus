@@ -3,6 +3,102 @@
 
 use super::*;
 
+fn continuity_integrity_report(
+    session_id: &str,
+    snapshot: Option<&Value>,
+    reconstructed: Option<&Value>,
+    snapshot_path: &Path,
+    reconstruct_path: &Path,
+) -> Value {
+    let snapshot_present = snapshot.is_some();
+    let reconstructed_present = reconstructed.is_some();
+
+    let snapshot_context_hash_expected = snapshot
+        .and_then(|row| row.get("context_hash"))
+        .and_then(Value::as_str)
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_default();
+    let snapshot_context_hash_actual = snapshot
+        .and_then(|row| row.get("context_payload"))
+        .map(|payload| sha256_hex_str(&payload.to_string()))
+        .unwrap_or_default();
+    let snapshot_context_hash_match = snapshot_present
+        && !snapshot_context_hash_expected.is_empty()
+        && snapshot_context_hash_expected == snapshot_context_hash_actual;
+
+    let snapshot_file_hash = snapshot
+        .map(|row| sha256_hex_str(&row.to_string()))
+        .unwrap_or_default();
+
+    let reconstruct_source_context_hash = reconstructed
+        .and_then(|row| row.get("source_context_hash"))
+        .and_then(Value::as_str)
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_default();
+    let reconstruct_hash_actual = reconstructed
+        .and_then(|row| row.get("reconstruction_hash"))
+        .and_then(Value::as_str)
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_default();
+    let reconstruct_hash_expected = if reconstruct_source_context_hash.is_empty() {
+        String::new()
+    } else {
+        sha256_hex_str(&format!("{session_id}:{reconstruct_source_context_hash}"))
+    };
+    let reconstruct_source_hash_match = if !reconstructed_present {
+        true
+    } else {
+        !snapshot_context_hash_expected.is_empty()
+            && reconstruct_source_context_hash == snapshot_context_hash_expected
+    };
+    let reconstruct_hash_match = if !reconstructed_present {
+        true
+    } else {
+        !reconstruct_hash_expected.is_empty() && reconstruct_hash_expected == reconstruct_hash_actual
+    };
+
+    let checks = vec![
+        json!({
+            "id": "snapshot_present",
+            "ok": snapshot_present
+        }),
+        json!({
+            "id": "snapshot_context_hash_match",
+            "ok": snapshot_context_hash_match,
+            "expected": snapshot_context_hash_expected,
+            "actual": snapshot_context_hash_actual
+        }),
+        json!({
+            "id": "reconstruct_source_hash_match",
+            "ok": reconstruct_source_hash_match,
+            "required": reconstructed_present,
+            "expected": snapshot_context_hash_expected,
+            "actual": reconstruct_source_context_hash
+        }),
+        json!({
+            "id": "reconstruct_hash_match",
+            "ok": reconstruct_hash_match,
+            "required": reconstructed_present,
+            "expected": reconstruct_hash_expected,
+            "actual": reconstruct_hash_actual
+        }),
+    ];
+    let failed_checks = checks
+        .iter()
+        .filter(|row| row.get("ok").and_then(Value::as_bool) == Some(false))
+        .count();
+    json!({
+        "ok": failed_checks == 0,
+        "failed_checks": failed_checks,
+        "snapshot_present": snapshot_present,
+        "reconstructed_present": reconstructed_present,
+        "snapshot_path": snapshot_path.display().to_string(),
+        "reconstruct_path": reconstruct_path.display().to_string(),
+        "snapshot_file_sha256": snapshot_file_hash,
+        "checks": checks
+    })
+}
+
 pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -10,7 +106,7 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
         json!({
             "version": "v1",
             "kind": "persist_continuity_contract",
-            "allowed_ops": ["checkpoint", "reconstruct", "status"],
+            "allowed_ops": ["checkpoint", "reconstruct", "status", "validate"],
             "required_context_keys": ["context", "user_model", "active_tasks"]
         }),
     );
@@ -57,6 +153,13 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
     if op == "status" {
         let snapshot = read_json(&snapshot_path);
         let reconstructed = read_json(&reconstruct_path);
+        let integrity = continuity_integrity_report(
+            &session_id,
+            snapshot.as_ref(),
+            reconstructed.as_ref(),
+            &snapshot_path,
+            &reconstruct_path,
+        );
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -68,10 +171,76 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
             "reconstruct_path": reconstruct_path.display().to_string(),
             "snapshot_present": snapshot.is_some(),
             "reconstructed_present": reconstructed.is_some(),
+            "integrity": integrity,
             "claim_evidence": [
                 {
                     "id": "V6-PERSIST-001.3",
                     "claim": "continuity_status_tracks_reconstruction_survivability_across_restart_and_disconnect",
+                    "evidence": {
+                        "session_id": session_id,
+                        "snapshot_present": snapshot.is_some(),
+                        "reconstructed_present": reconstructed.is_some()
+                    }
+                }
+            ]
+        });
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+        return out;
+    }
+
+    if op == "validate" {
+        let snapshot = read_json(&snapshot_path);
+        let reconstructed = read_json(&reconstruct_path);
+        let integrity = continuity_integrity_report(
+            &session_id,
+            snapshot.as_ref(),
+            reconstructed.as_ref(),
+            &snapshot_path,
+            &reconstruct_path,
+        );
+        let ok = integrity.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let errors = integrity
+            .get("checks")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| {
+                let check_ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                if check_ok {
+                    None
+                } else {
+                    row.get("id")
+                        .and_then(Value::as_str)
+                        .map(|id| Value::String(format!("continuity_integrity_check_failed:{id}")))
+                }
+            })
+            .collect::<Vec<Value>>();
+        let _ = append_jsonl(
+            &continuity_dir(root).join("history.jsonl"),
+            &json!({
+                "type": "continuity_validate",
+                "session_id": session_id,
+                "ok": ok,
+                "failed_checks": integrity.get("failed_checks").cloned().unwrap_or_else(|| json!(0)),
+                "ts": crate::now_iso()
+            }),
+        );
+        let mut out = json!({
+            "ok": ok,
+            "strict": strict,
+            "type": "persist_plane_continuity",
+            "lane": "core/layer0/ops",
+            "op": "validate",
+            "session_id": session_id,
+            "snapshot_path": snapshot_path.display().to_string(),
+            "reconstruct_path": reconstruct_path.display().to_string(),
+            "integrity": integrity,
+            "errors": errors,
+            "claim_evidence": [
+                {
+                    "id": "V6-PERSIST-001.3",
+                    "claim": "continuity_validate_confirms_snapshot_and_reconstruction_hash_integrity_before_resume",
                     "evidence": {
                         "session_id": session_id,
                         "snapshot_present": snapshot.is_some(),

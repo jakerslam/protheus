@@ -115,7 +115,7 @@ fn to_bool(value: Option<&Value>, fallback: bool) -> bool {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Some(raw) = std::env::var_os("OPENCLAW_WORKSPACE") {
+    if let Some(raw) = std::env::var_os("INFRING_WORKSPACE") {
         let path = PathBuf::from(raw);
         if path.is_absolute() {
             return path;

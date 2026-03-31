@@ -1,5 +1,8 @@
 #!/usr/bin/env tsx
 
+// TypeScript compatibility shim only.
+// Layer ownership: core/layer0/ops (authoritative transport + receipts); this file is UI bridge/wrapper.
+
 const { WebSocketServer } = require('ws');
 
 function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson }) {
@@ -144,4 +147,3 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
 }
 
 module.exports = { createAgentWsBridge };
-

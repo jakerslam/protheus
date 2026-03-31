@@ -1,0 +1,392 @@
+                    <img x-show="att.preview" :src="att.preview" style="width:32px;height:32px;object-fit:cover;border-radius:4px">
+                    <span x-show="!att.preview" style="font-size:18px;width:32px;text-align:center">&#128196;</span>
+                    <span class="text-xs truncate" style="max-width:100px" x-text="att.file.name"></span>
+                    <span x-show="att.uploading" class="spinner" style="width:12px;height:12px;border-width:2px"></span>
+                    <button @click="removeAttachment(aidx)" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&times;</button>
+                  </div>
+                </template>
+              </div>
+              <!-- Slash command menu -->
+              <div x-show="!terminalMode && showSlashMenu && filteredSlashCommands.length" class="slash-menu">
+                <template x-for="(cmd, idx) in filteredSlashCommands" :key="cmd.cmd">
+                  <div class="slash-menu-item" :class="{ 'slash-active': idx === slashIdx }" @click="executeSlashCommand(cmd.cmd)" @mouseenter="slashIdx = idx">
+                    <span class="font-bold" style="font-size:13px" x-text="cmd.cmd"></span>
+                    <span class="text-xs text-dim" x-text="cmd.desc"></span>
+                  </div>
+                </template>
+              </div>
+              <!-- Model autocomplete picker -->
+              <div x-show="!terminalMode && showModelPicker && filteredModelPicker.length" class="slash-menu" style="max-height:280px;overflow-y:auto">
+                <div class="text-xs text-dim" style="padding:4px 10px;border-bottom:1px solid var(--border)">Available models — pick one or keep typing</div>
+                <template x-for="(m, idx) in filteredModelPicker" :key="m.id">
+                  <div class="slash-menu-item" :class="{ 'slash-active': idx === modelPickerIdx }" @click="pickModel(m.id)" @mouseenter="modelPickerIdx = idx">
+                    <span class="font-bold" style="font-size:12px;font-family:var(--font-mono)" x-text="m.id"></span>
+                    <span class="text-xs text-dim" x-text="m.provider + (m.display_name && m.display_name !== m.id ? ' · ' + m.display_name : '')"></span>
+                  </div>
+                </template>
+              </div>
+              <div class="composer-stack">
+                <div class="prompt-queue-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length > 0">
+                  <div class="prompt-queue-list">
+                    <template x-for="item in promptQueueItems" :key="'prompt-queue-inline-' + item.queue_id">
+                      <div
+                        class="prompt-queue-item"
+                        draggable="true"
+                        @dragstart="onPromptQueueDragStart(item.queue_id, $event)"
+                        @dragover.prevent
+                        @drop="onPromptQueueDrop(item.queue_id, $event)"
+                        @dragend="onPromptQueueDragEnd()"
+                      >
+                        <span class="prompt-queue-drag" title="Drag to reorder">⋮⋮</span>
+                        <button class="prompt-queue-text" type="button" @click="inputText = item.text" :title="item.text" x-text="queuePromptPreview(item)"></button>
+                        <button class="prompt-queue-steer" type="button" @click="steerPromptQueueItem(item.queue_id)">Steer</button>
+                        <button class="prompt-queue-remove" type="button" @click="removePromptQueueItem(item.queue_id)" aria-label="Remove queued prompt">×</button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
+                  <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-inline-' + sidx + '-' + suggestion">
+                    <button class="prompt-suggestion-chip" type="button" @click="applyPromptSuggestion(suggestion)" @mouseenter="onPromptSuggestionHoverIn($event)" @mouseleave="onPromptSuggestionHoverOut($event)" :title="suggestion">
+                      <span class="prompt-suggestion-chip-text" x-text="suggestion"></span>
+                    </button>
+                  </template>
+                </div>
+                <!-- Input row -->
+                <div class="input-row">
+                <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="addFiles($event.target.files); $event.target.value = ''" style="display:none">
+                <div class="composer-shell" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
+                  <div class="composer-plus-wrap composer-icon-left" @click.outside="showAttachMenu = false">
+                    <button class="composer-icon-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    </button>
+                    <div class="composer-plus-menu" x-show="showAttachMenu" x-transition:enter="transition ease-out duration-140" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                      <button class="composer-plus-menu-item" x-show="!terminalMode" @click="$refs.fileInput.click()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        <span>Add files</span>
+                        <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+F</span>
+                      </button>
+                      <button class="composer-plus-menu-item composer-plus-menu-item-toggle" @click="toggleTerminalMode()">
+                        <span class="composer-plus-toggle-label">
+                          <svg x-show="terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                          <svg x-show="!terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
+                          <span x-text="terminalMode ? 'chat mode' : 'terminal mode'"></span>
+                        </span>
+                        <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span>
+                        <span class="composer-plus-vtoggle" :class="{ active: terminalMode }" aria-hidden="true">
+                          <span class="composer-plus-vtoggle-knob"></span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="terminal-path-label" x-show="terminalMode" x-text="terminalPromptPrefix"></div>
+                  <template x-if="terminalMode && terminalCursorFocused">
+                    <span class="terminal-block-cursor" :style="terminalCursorStyle" aria-hidden="true">█</span>
+                  </template>
+                  <textarea id="msg-input" rows="1" :disabled="isFreshInitComposerLocked()" :placeholder="composerPlaceholder(true)"
+                            @keydown.enter.prevent="if(!$event.isComposing && $event.keyCode !== 229 && !$event.shiftKey){if(terminalMode){sendMessage()}else if(showModelPicker && filteredModelPicker.length){pickModel(filteredModelPicker[modelPickerIdx].id)}else if(showSlashMenu && filteredSlashCommands.length){executeSlashCommand(filteredSlashCommands[slashIdx].cmd)}else{sendMessage()}}"
+                            @keydown.escape="showSlashMenu = false; showModelPicker = false"
+                            @keydown.arrow-up.prevent="if(!terminalMode && showModelPicker){modelPickerIdx = Math.max(0, modelPickerIdx - 1)}else if(!terminalMode && showSlashMenu){slashIdx = Math.max(0, slashIdx - 1)}"
+                            @keydown.arrow-down.prevent="if(!terminalMode && showModelPicker){modelPickerIdx = Math.min(filteredModelPicker.length - 1, modelPickerIdx + 1)}else if(!terminalMode && showSlashMenu){slashIdx = Math.min(filteredSlashCommands.length - 1, slashIdx + 1)}"
+                            @focus="if(terminalMode){setTerminalCursorFocus(true, $event)}"
+                            @blur="if(terminalMode){setTerminalCursorFocus(false, $event)}"
+                            @click="if(terminalMode){updateTerminalCursor($event)}"
+                            @keyup="if(terminalMode){updateTerminalCursor($event)}"
+                            @select="if(terminalMode){updateTerminalCursor($event)}"
+                            @input="$el.style.height='auto';$el.style.height=Math.min($el.scrollHeight,150)+'px'; if(terminalMode){updateTerminalCursor($event)}"
+                            x-model="inputText"
+                            :class="{ 'streaming-active': sending, 'terminal-textarea': terminalMode }"></textarea>
+                  <div class="composer-actions-right">
+                    <span class="model-inline-label" x-show="currentAgent && !terminalMode" x-text="modelDisplayName"></span>
+                    <div class="model-switcher-inline" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
+                      <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" :disabled="sending" title="Switch model (Ctrl+M)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                      </button>
+                      <div class="model-switcher-dropdown model-switcher-dropdown-inline" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                        <div class="model-switcher-search">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                          <input id="model-switcher-search" type="text" x-model="modelSwitcherFilter" placeholder="Search models..." @keydown.escape.stop="showModelSwitcher = false" @keydown.arrow-down.prevent="modelSwitcherIdx = Math.min(modelSwitcherIdx + 1, filteredSwitcherModels.length - 1)" @keydown.arrow-up.prevent="modelSwitcherIdx = Math.max(modelSwitcherIdx - 1, 0)" @keydown.enter.prevent="!$event.isComposing && $event.keyCode !== 229 && filteredSwitcherModels[modelSwitcherIdx] && switchModel(filteredSwitcherModels[modelSwitcherIdx])">
+                          <select x-model="modelSwitcherProviderFilter" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:2px 6px;cursor:pointer;font-family:var(--font-mono);flex-shrink:0">
+                            <option value="">All</option>
+                            <template x-for="pn in switcherProviders" :key="pn">
+                              <option :value="pn" x-text="pn"></option>
+                            </template>
+                          </select>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border-subtle)">
+                          <input
+                            type="text"
+                            x-model="modelApiKeyInput"
+                            placeholder="Add API key or local model path"
+                            style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;padding:6px 8px;font-family:var(--font-mono)"
+                            @keydown.enter.prevent="discoverModelsFromApiKey()"
+                          >
+                          <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:11px;min-width:54px" @click="discoverModelsFromApiKey()" :disabled="modelApiKeySaving">
+                            <span x-show="!modelApiKeySaving">Add</span>
+                            <span x-show="modelApiKeySaving" class="spinner" style="width:10px;height:10px;border-width:2px"></span>
+                          </button>
+                        </div>
+                        <div class="text-xs text-dim" x-show="modelApiKeyStatus" x-text="modelApiKeyStatus" style="padding:4px 10px 0"></div>
+                        <div x-show="modelSwitching" style="display:flex;align-items:center;justify-content:center;padding:12px;gap:8px">
+                          <div class="tool-card-spinner"></div>
+                          <span class="text-xs text-dim">Switching...</span>
+                        </div>
+                        <div class="model-switcher-list" x-show="!modelSwitching">
+                          <template x-if="groupedSwitcherModels.length === 0">
+                            <div style="padding:16px;text-align:center" class="text-xs text-dim">No models found</div>
+                          </template>
+                          <template x-for="group in groupedSwitcherModels" :key="group.provider">
+                            <div>
+                              <div class="model-switcher-group-header" x-text="group.provider"></div>
+                              <template x-for="(m, mi) in group.models" :key="m.id">
+                                <div class="model-switcher-item" :class="{'active': isSwitcherModelActive(m), 'hovered': filteredSwitcherModels.indexOf(m) === modelSwitcherIdx}" @click="switchModel(m)" @mouseenter="modelSwitcherIdx = filteredSwitcherModels.indexOf(m)">
+                                  <div class="model-switcher-main">
+                                    <div class="model-switcher-title-row">
+                                      <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
+                                      <span class="model-switcher-item-tools" :title="modelDeploymentLabel(m)">
+                                        <svg x-show="modelDeploymentKind(m) === 'cloud'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
+                                        <svg x-show="modelDeploymentKind(m) === 'api'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><rect x="5" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1.2"/></svg>
+                                        <svg x-show="modelDeploymentKind(m) === 'local'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+                                        <button
+                                          x-show="isModelDownloadable(m)"
+                                          type="button"
+                                          class="model-download-inline-btn"
+                                          :disabled="isModelDownloadBusy(m)"
+                                          @click.stop="downloadModelToLocal(m)"
+                                          :title="'Download to local: ' + (m.local_download_path || '')"
+                                        >
+                                          <svg x-show="!isModelDownloadBusy(m)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg>
+                                          <span x-show="isModelDownloadBusy(m)" class="spinner" style="width:9px;height:9px;border-width:2px"></span>
+                                        </button>
+                                      </span>
+                                    </div>
+                                    <div class="model-switcher-item-meta">
+                                      <span class="model-meta-stat model-meta-specialty" :title="'Specialty: ' + modelSpecialtyLabel(m)" x-text="modelSpecialtyLabel(m)"></span>
+                                      <span class="model-meta-sep">•</span>
+                                      <span class="model-meta-stat model-meta-power" :title="'Power: ' + modelPowerLevel(m) + '/5'" x-text="modelPowerIcons(m)"></span>
+                                      <span class="model-meta-stat model-meta-cost" :title="'Cost: ' + modelCostLevel(m) + '/5'" x-text="modelCostIcons(m)"></span>
+                                      <span class="model-meta-sep">•</span>
+                                      <span class="model-meta-stat" :title="'Context: ' + modelContextWindowLabel(m)" x-text="modelContextWindowLabel(m)"></span>
+                                      <span class="model-meta-sep">•</span>
+                                      <span class="model-meta-stat" :title="'Parameters: ' + modelParamLabel(m)" x-text="modelParamLabel(m)"></span>
+                                    </div>
+                                    <div class="model-download-progress-wrap" x-show="isModelDownloadBusy(m) || modelDownloadProgressValue(m) > 0">
+                                      <div class="model-download-progress-track">
+                                        <div class="model-download-progress-fill" :style="modelDownloadProgressStyle(m)"></div>
+                                      </div>
+                                      <span class="model-download-progress-pct" x-text="modelDownloadProgressValue(m) + '%'"></span>
+                                    </div>
+                                  </div>
+                                  <svg x-show="isSwitcherModelActive(m)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="composer-icon-btn" x-show="!terminalMode" :class="{ 'btn-recording': recording }" @mousedown="startRecording()" @mouseup="stopRecording()" @mouseleave="if(recording) stopRecording()" title="Hold to record voice">
+                      <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                      <span x-show="recording" class="recording-dot"></span>
+                    </button>
+                    <template x-if="terminalMode">
+                      <button class="btn-send btn-send-terminal" @click="sendMessage()" :disabled="showFreshArchetypeTiles ? (!freshInitAwaitingOtherPrompt || !inputText.trim()) : !inputText.trim()" title="Run command">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                      </button>
+                    </template>
+                    <template x-if="!terminalMode && !sending">
+                      <button class="btn-send" @click="sendMessage()" :disabled="showFreshArchetypeTiles ? (!freshInitAwaitingOtherPrompt || !inputText.trim()) : (!inputText.trim() && !attachments.length)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                      </button>
+                    </template>
+                    <template x-if="!terminalMode && sending">
+                      <button class="btn-stop" @click="stopAgent()" title="Stop generating">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+                </div>
+              </div>
+              <div class="context-ring-row">
+                <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
+                  <button
+                    type="button"
+                    class="chat-branch-indicator chat-branch-indicator-btn"
+                    :title="'Active branch: ' + activeGitBranchLabel"
+                    :aria-expanded="showGitTreeMenu ? 'true' : 'false'"
+                    @click="toggleGitTreeMenu()"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="6" cy="6" r="3"></circle>
+                      <circle cx="18" cy="18" r="3"></circle>
+                      <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
+                      <path d="M18 15V9"></path>
+                    </svg>
+                    <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
+                    <svg class="chat-branch-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" :class="{ 'open': showGitTreeMenu }" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6"></path>
+                    </svg>
+                  </button>
+                  <div class="chat-branch-menu" x-show="showGitTreeMenu" x-cloak @click.outside="closeGitTreeMenu()">
+                    <div class="chat-branch-menu-head">Switch Git Tree</div>
+                    <div class="chat-branch-menu-status" x-show="gitTreeMenuLoading">Loading trees…</div>
+                    <div class="chat-branch-menu-status chat-branch-menu-error" x-show="!gitTreeMenuLoading && gitTreeMenuError" x-text="gitTreeMenuError"></div>
+                    <div class="chat-branch-menu-list" x-show="!gitTreeMenuLoading && !gitTreeMenuError">
+                      <template x-for="row in gitTreeMenuItems" :key="row.branch">
+                        <button
+                          type="button"
+                          class="chat-branch-menu-item"
+                          :class="{ 'active': row.current }"
+                          :disabled="gitTreeSwitching || row.current"
+                          @click="switchAgentGitTree(row.branch)"
+                        >
+                          <span class="chat-branch-menu-item-name" x-text="row.branch"></span>
+                          <span class="chat-branch-menu-item-meta" x-text="row.main ? 'main' : (row.in_use_by_agents > 0 ? (row.in_use_by_agents + ' agents') : 'branch')"></span>
+                        </button>
+                      </template>
+                    </div>
+                    <button type="button" class="chat-branch-menu-create" :disabled="gitTreeSwitching" @click="createAndCheckoutGitBranch()">
+                      Create and checkout new branch
+                    </button>
+                  </div>
+                </div>
+                <div class="context-ring" :data-tooltip="contextRingTooltip" tabindex="0">
+                  <svg viewBox="0 0 36 36" aria-hidden="true">
+                    <circle class="context-ring-track" cx="18" cy="18" r="14" pathLength="100"></circle>
+                    <circle class="context-ring-progress" cx="18" cy="18" r="14" pathLength="100" :style="contextRingProgressStyle"></circle>
+                  </svg>
+                </div>
+              </div>
+              <!-- Footer: model switcher + tokens + queue + tips -->
+              <div class="input-footer">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-dim" x-text="terminalMode ? ('terminal mode (' + terminalShortcutHint + ')') : (tokenCount > 0 ? '~' + tokenCount + ' tokens' : (attachments.length ? attachments.length + ' file(s)' : ''))"></span>
+                </div>
+                <div class="tip-bar" x-show="currentTip && !sending && !terminalMode">
+                  <span class="text-xs" x-text="currentTip"></span>
+                  <button class="tip-bar-dismiss" @click="dismissTips()" title="Dismiss">&times;</button>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- MODE 2: Agent picker + Templates (no agent chatting) -->
+        <div x-show="!activeChatAgent" class="chat-wrapper">
+        <div class="page-header">
+          <h2>Manage Agents</h2>
+          <div class="flex gap-2">
+            <button class="btn btn-ghost btn-sm" x-show="agents.length" @click="openSpawnWizard()">+ New Agent</button>
+            <button class="btn btn-danger btn-sm" x-show="agents.length > 1" @click="killAllAgents()">Stop All</button>
+          </div>
+        </div>
+        <div class="page-body" style="overflow-y:auto;padding:24px">
+          <div x-show="$store.app.agentsLoading || !$store.app.agentsHydrated" class="loading-state" style="padding:72px 24px">
+            <div class="spinner"></div>
+            <span>Loading agents...</span>
+          </div>
+          <div x-show="!($store.app.agentsLoading || !$store.app.agentsHydrated)">
+
+          <!-- Running agents — click to chat -->
+          <div style="margin-bottom:28px">
+            <div class="flex justify-between items-center mb-2" style="gap:10px">
+              <div class="text-sm font-bold" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">Your Agents</div>
+              <button
+                class="btn btn-ghost btn-archive-all btn-sm"
+                x-show="!confirmArchiveAllAgents"
+                @click="confirmArchiveAllAgents = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 7h18"/>
+                  <path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+                  <path d="M6 7v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/>
+                  <path d="M10 11v5"/>
+                  <path d="M14 11v5"/>
+                </svg>
+                Archive all
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="confirmArchiveAllAgents"
+                @mouseleave="confirmArchiveAllAgents = false"
+                @click="archiveAllAgents()"
+              >
+                Confirm
+              </button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px">
+              <button
+                class="card agent-chip new-agent-chip"
+                type="button"
+                @click="createSidebarAgentChat()"
+                :disabled="sidebarSpawningAgent"
+                :class="{ 'is-loading': sidebarSpawningAgent }"
+                style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 18px;min-width:200px"
+                title="Create a new agent and open initialization chat">
+                <div class="new-agent-chip-icon" style="width:36px;height:36px;border-radius:50%;background:color-mix(in srgb, var(--accent-subtle) 85%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid color-mix(in srgb, var(--accent) 34%, transparent);color:var(--accent)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :style="sidebarSpawningAgent ? 'opacity:0.45' : ''">
+                    <path d="M12 5v14"></path>
+                    <path d="M5 12h14"></path>
+                  </svg>
+                  <span class="spinner-sm new-agent-plus-spinner" x-show="sidebarSpawningAgent" aria-hidden="true"></span>
+                </div>
+                <div style="min-width:0;flex:1;text-align:left">
+                  <div class="font-bold" style="font-size:13px;color:var(--text)" x-text="sidebarSpawningAgent ? 'Creating Agent…' : 'Create New Agent'"></div>
+                  <div class="text-xs text-dim font-mono" style="font-size:11px" x-text="sidebarSpawningAgent ? 'Opening init chat…' : 'Open init chat'"></div>
+                </div>
+              </button>
+              <template x-for="agent in agents" :key="agent.id">
+                <div class="card agent-chip" @click="chatWithAgent(agent)" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 18px;min-width:200px">
+                  <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <img
+                      x-show="agent.avatar_url"
+                      :src="agent.avatar_url || ''"
+                      :alt="(agent.name || agent.id || 'agent') + ' avatar'"
+                      style="width:100%;height:100%;border-radius:50%;object-fit:cover"
+                      loading="lazy"
+                    >
+                    <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity && agent.identity.emoji" style="font-size:18px"></span>
+                    <svg x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div style="min-width:0;flex:1">
+                    <div class="font-bold" style="font-size:13px" x-text="agent.name"></div>
+                    <div class="text-xs text-dim font-mono" style="font-size:11px" x-text="agent.model_name"></div>
+                    <div
+                      class="text-xs text-dim font-mono"
+                      style="font-size:10px"
+                      x-show="formatAgentContractLine(agent)"
+                      x-text="formatAgentContractLine(agent)">
+                    </div>
+                  </div>
+                  <span class="badge" :class="'badge-' + agent.state.toLowerCase()" x-text="agent.state" style="font-size:10px"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div
+            x-show="agentLifecycle && agentLifecycle.idle_alert"
+            style="margin-bottom:20px;padding:10px 12px;border:1px solid rgba(255,179,71,0.45);background:rgba(255,179,71,0.12);border-radius:10px">
+            <div class="text-xs font-bold" style="letter-spacing:0.4px;text-transform:uppercase;color:#ffcf8a">Idle Agent Alert</div>
+            <div class="text-sm" style="margin-top:4px;color:var(--text)" x-text="idleAgentAlertText"></div>
+          </div>
+
+          <div style="margin-bottom:24px">
+            <div class="flex justify-between items-center mb-2" style="gap:10px">
+              <div class="text-sm font-bold" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">
+                Archived
+              </div>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="terminatedAgents.length && !confirmDeleteAllArchived"
+                @click="confirmDeleteAllArchived = true"
+              >
+                Delete all
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                x-show="terminatedAgents.length && confirmDeleteAllArchived"
+                @mouseleave="confirmDeleteAllArchived = false"
+                @click="deleteAllArchived()"

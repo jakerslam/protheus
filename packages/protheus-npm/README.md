@@ -13,7 +13,12 @@ cd packages/protheus-npm
 npm install -g .
 ```
 
-The package installs a `protheus` executable backed by the Rust `protheus-ops` binary.
+The package installs an `infring` executable (plus legacy `protheus`) backed by the Rust `protheus-ops` binary.
+
+```bash
+infring --help
+infring gateway
+```
 
 ## Runtime Notes
 

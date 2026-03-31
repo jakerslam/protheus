@@ -6,12 +6,18 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const AGENT_PROFILES_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
-const ARCHIVED_AGENTS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
-const AGENT_CONTRACTS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_contracts.json";
-const AGENT_SESSIONS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
+const AGENT_PROFILES_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
+const ARCHIVED_AGENTS_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/archived_agents.json";
+const AGENT_CONTRACTS_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_contracts.json";
+const AGENT_SESSIONS_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
 const DEFAULT_EXPIRY_SECONDS: i64 = 86_400;
+const DEFAULT_IDLE_TIMEOUT_SECONDS: i64 = 3_600;
 const MAX_EXPIRY_SECONDS: i64 = 31 * 24 * 60 * 60;
+const MAX_IDLE_TIMEOUT_SECONDS: i64 = 31 * 24 * 60 * 60;
 
 fn now_iso() -> String {
     crate::now_iso()
@@ -173,7 +179,9 @@ fn default_contract(agent_id: &str) -> Value {
         "created_at": now,
         "updated_at": now,
         "expires_at": "",
-        "auto_terminate_allowed": true
+        "auto_terminate_allowed": true,
+        "idle_terminate_allowed": true,
+        "idle_timeout_seconds": DEFAULT_IDLE_TIMEOUT_SECONDS
     })
 }
 
@@ -208,10 +216,46 @@ fn parse_expiry_seconds(value: Option<&Value>) -> i64 {
         .clamp(1, MAX_EXPIRY_SECONDS)
 }
 
+fn parse_idle_timeout_seconds(value: Option<&Value>) -> i64 {
+    value
+        .and_then(Value::as_i64)
+        .unwrap_or(DEFAULT_IDLE_TIMEOUT_SECONDS)
+        .clamp(30, MAX_IDLE_TIMEOUT_SECONDS)
+}
+
 fn parse_ts(value: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(value)
         .ok()
         .map(|v| v.with_timezone(&Utc))
+}
+
+fn session_last_activity_ts(root: &Path, agent_id: &str) -> Option<DateTime<Utc>> {
+    let state = read_json_file(&session_path(root, agent_id))?;
+    let sessions = state.get("sessions").and_then(Value::as_array)?;
+    let mut latest = None::<DateTime<Utc>>;
+
+    for session in sessions {
+        if let Some(updated) = session
+            .get("updated_at")
+            .and_then(Value::as_str)
+            .and_then(parse_ts)
+        {
+            latest = Some(latest.map(|ts| ts.max(updated)).unwrap_or(updated));
+        }
+        let messages = session
+            .get("messages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for row in messages {
+            for field in ["ts", "updated_at", "created_at"] {
+                if let Some(ts) = row.get(field).and_then(Value::as_str).and_then(parse_ts) {
+                    latest = Some(latest.map(|seen| seen.max(ts)).unwrap_or(ts));
+                }
+            }
+        }
+    }
+    latest
 }
 
 pub fn archived_agent_ids(root: &Path) -> HashSet<String> {
@@ -239,7 +283,11 @@ pub fn merge_profiles_into_collab(root: &Path, collab_payload: &mut Value, defau
         return;
     }
     let archived = archived_agent_ids(root);
-    if !collab_payload.get("dashboard").map(Value::is_object).unwrap_or(false) {
+    if !collab_payload
+        .get("dashboard")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         collab_payload["dashboard"] = json!({
             "version": "v1",
             "team": default_team,
@@ -336,6 +384,7 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "git_tree_ready"
                     | "git_tree_error"
                     | "is_master_agent"
+                    | "parent_agent_id"
                     | "mode"
             ) {
                 current[key] = value.clone();
@@ -403,7 +452,14 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
         for (key, value) in obj {
             if matches!(
                 key.as_str(),
-                "mission" | "owner" | "termination_condition" | "expires_at" | "expiry_seconds"
+                "mission"
+                    | "owner"
+                    | "termination_condition"
+                    | "expires_at"
+                    | "expiry_seconds"
+                    | "idle_timeout_seconds"
+                    | "idle_terminate_allowed"
+                    | "parent_agent_id"
             ) {
                 saw_lifecycle_patch = true;
             }
@@ -413,10 +469,12 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "owner"
                     | "termination_condition"
                     | "expires_at"
+                    | "parent_agent_id"
                     | "status"
                     | "termination_reason"
                     | "created_at"
                     | "revived_from_contract_id"
+                    | "idle_terminate_allowed"
             ) {
                 contract[key] = value.clone();
             }
@@ -429,6 +487,15 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
             if key == "auto_terminate_allowed" {
                 saw_lifecycle_patch = true;
                 contract["auto_terminate_allowed"] = Value::Bool(value.as_bool().unwrap_or(true));
+            }
+            if key == "idle_timeout_seconds" {
+                saw_lifecycle_patch = true;
+                contract["idle_timeout_seconds"] =
+                    Value::from(parse_idle_timeout_seconds(Some(value)));
+            }
+            if key == "idle_terminate_allowed" {
+                saw_lifecycle_patch = true;
+                contract["idle_terminate_allowed"] = Value::Bool(value.as_bool().unwrap_or(true));
             }
         }
     }
@@ -455,6 +522,12 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
     if contract.get("expiry_seconds").is_none() {
         contract["expiry_seconds"] = Value::from(DEFAULT_EXPIRY_SECONDS);
     }
+    if contract.get("idle_timeout_seconds").is_none() {
+        contract["idle_timeout_seconds"] = Value::from(DEFAULT_IDLE_TIMEOUT_SECONDS);
+    }
+    if contract.get("idle_terminate_allowed").is_none() {
+        contract["idle_terminate_allowed"] = Value::Bool(true);
+    }
     if contract
         .get("created_at")
         .and_then(Value::as_str)
@@ -476,32 +549,50 @@ pub fn enforce_expired_contracts(root: &Path) -> Value {
     {
         let contracts = as_object_mut(&mut state, "contracts");
         for (agent_id, contract) in contracts.iter_mut() {
-            let status = contract.get("status").and_then(Value::as_str).unwrap_or("active");
+            let status = contract
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("active");
             if status != "active" {
                 continue;
             }
-            if !contract
+            let auto_terminate_allowed = contract
                 .get("auto_terminate_allowed")
                 .and_then(Value::as_bool)
-                .unwrap_or(true)
-            {
-                continue;
-            }
-            let expires_at = contract.get("expires_at").and_then(Value::as_str).unwrap_or("");
+                .unwrap_or(true);
+            let idle_terminate_allowed = contract
+                .get("idle_terminate_allowed")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            let expires_at = contract
+                .get("expires_at")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             let created_at = contract
                 .get("created_at")
                 .and_then(Value::as_str)
                 .unwrap_or("");
             let expiry_seconds = parse_expiry_seconds(contract.get("expiry_seconds"));
+            let idle_timeout_seconds =
+                parse_idle_timeout_seconds(contract.get("idle_timeout_seconds"));
             let created_ts = parse_ts(created_at).unwrap_or(now);
             let expiry_ts = if let Some(ts) = parse_ts(expires_at) {
                 ts
             } else {
                 created_ts + chrono::Duration::seconds(expiry_seconds)
             };
-            if now >= expiry_ts {
+            let last_activity_ts = session_last_activity_ts(root, agent_id).unwrap_or(created_ts);
+            let idle_deadline = last_activity_ts + chrono::Duration::seconds(idle_timeout_seconds);
+            let termination_reason = if auto_terminate_allowed && now >= expiry_ts {
+                Some("contract_expired")
+            } else if idle_terminate_allowed && now >= idle_deadline {
+                Some("idle_timeout")
+            } else {
+                None
+            };
+            if let Some(reason) = termination_reason {
                 contract["status"] = Value::String("terminated".to_string());
-                contract["termination_reason"] = Value::String("contract_expired".to_string());
+                contract["termination_reason"] = Value::String(reason.to_string());
                 contract["terminated_at"] = Value::String(now_iso());
                 contract["updated_at"] = Value::String(now_iso());
                 let row = json!({
@@ -510,7 +601,7 @@ pub fn enforce_expired_contracts(root: &Path) -> Value {
                         .get("contract_id")
                         .cloned()
                         .unwrap_or(Value::String(String::new())),
-                    "termination_reason": "contract_expired",
+                    "termination_reason": reason,
                     "terminated_at": contract
                         .get("terminated_at")
                         .cloned()
@@ -536,10 +627,23 @@ fn purge_agent_artifacts(root: &Path, agent_id: &str) -> Value {
         return json!({
             "removed_profile": false,
             "removed_archived": false,
-            "removed_session_file": false
+            "removed_session_file": false,
+            "git_cleanup": json!({"ok": false, "error": "agent_id_required"})
         });
     }
     let mut profiles = load_profiles_state(root);
+    let git_branch_hint = profiles
+        .get("agents")
+        .and_then(Value::as_object)
+        .and_then(|agents| agents.get(&id))
+        .and_then(|profile| profile.get("git_branch").and_then(Value::as_str))
+        .map(|v| clean_text(v, 180))
+        .filter(|v| !v.is_empty());
+    let git_cleanup = crate::dashboard_git_runtime::cleanup_agent_git_artifacts(
+        root,
+        &id,
+        git_branch_hint.as_deref(),
+    );
     let removed_profile = {
         let agents = as_object_mut(&mut profiles, "agents");
         agents.remove(&id).is_some()
@@ -557,7 +661,8 @@ fn purge_agent_artifacts(root: &Path, agent_id: &str) -> Value {
     json!({
         "removed_profile": removed_profile,
         "removed_archived": removed_archived,
-        "removed_session_file": removed_session_file
+        "removed_session_file": removed_session_file,
+        "git_cleanup": git_cleanup
     })
 }
 
@@ -575,7 +680,10 @@ pub fn terminated_entries(root: &Path) -> Value {
         .cloned()
         .unwrap_or_default();
     for (agent_id, contract) in contracts {
-        let status = contract.get("status").and_then(Value::as_str).unwrap_or("active");
+        let status = contract
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("active");
         if status != "terminated" {
             continue;
         }
@@ -587,7 +695,8 @@ pub fn terminated_entries(root: &Path) -> Value {
             120,
         );
         let exists = entries.iter().any(|row| {
-            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or("")) == agent_id
+            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
+                == agent_id
                 && clean_text(
                     row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
                     120,
@@ -611,7 +720,8 @@ pub fn terminated_entries(root: &Path) -> Value {
     entries = entries
         .into_iter()
         .map(|mut row| {
-            let agent_id = normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let agent_id =
+                normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
             let role = profiles
                 .get(&agent_id)
                 .and_then(|profile| profile.get("role").and_then(Value::as_str))
@@ -623,11 +733,14 @@ pub fn terminated_entries(root: &Path) -> Value {
         })
         .collect::<Vec<_>>();
     entries.sort_by(|a, b| {
-        clean_text(b.get("terminated_at").and_then(Value::as_str).unwrap_or(""), 80)
-            .cmp(&clean_text(
-                a.get("terminated_at").and_then(Value::as_str).unwrap_or(""),
-                80,
-            ))
+        clean_text(
+            b.get("terminated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        )
+        .cmp(&clean_text(
+            a.get("terminated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
     });
     json!({"ok": true, "type": "dashboard_agent_terminated_entries", "entries": entries})
 }
@@ -646,8 +759,12 @@ pub fn delete_terminated(root: &Path, agent_id: &str, contract_id: Option<&str>)
         let history = as_array_mut(&mut state, "terminated_history");
         let before = history.len();
         history.retain(|row| {
-            let row_agent = normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
-            let row_contract = clean_text(row.get("contract_id").and_then(Value::as_str).unwrap_or(""), 120);
+            let row_agent =
+                normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let row_contract = clean_text(
+                row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
             if row_agent != id {
                 return true;
             }
@@ -662,7 +779,10 @@ pub fn delete_terminated(root: &Path, agent_id: &str, contract_id: Option<&str>)
     let removed_contract = {
         let contracts = as_object_mut(&mut state, "contracts");
         if let Some(contract) = contracts.get(&id) {
-            let status = contract.get("status").and_then(Value::as_str).unwrap_or("active");
+            let status = contract
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("active");
             let contract_match = cid.as_ref().map(|target| {
                 clean_text(
                     contract
@@ -692,7 +812,8 @@ pub fn delete_terminated(root: &Path, agent_id: &str, contract_id: Option<&str>)
         "removed_contract": removed_contract,
         "removed_profile": purged.get("removed_profile").cloned().unwrap_or(Value::Bool(false)),
         "removed_archived": purged.get("removed_archived").cloned().unwrap_or(Value::Bool(false)),
-        "removed_session_file": purged.get("removed_session_file").cloned().unwrap_or(Value::Bool(false))
+        "removed_session_file": purged.get("removed_session_file").cloned().unwrap_or(Value::Bool(false)),
+        "git_cleanup": purged.get("git_cleanup").cloned().unwrap_or_else(|| json!({"ok": false, "error": "cleanup_missing"}))
     })
 }
 
@@ -824,11 +945,7 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
     if !revived_from_contract_id.is_empty() {
         contract_patch["revived_from_contract_id"] = json!(revived_from_contract_id);
     }
-    let contract = upsert_contract(
-        root,
-        &id,
-        &contract_patch,
-    );
+    let contract = upsert_contract(root, &id, &contract_patch);
     json!({
         "ok": true,
         "type": "dashboard_agent_revive",
@@ -839,142 +956,5 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn expired_contracts_terminate() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = upsert_contract(
-            root.path(),
-            "agent-a",
-            &json!({
-                "created_at": "2000-01-01T00:00:00Z",
-                "expiry_seconds": 1,
-                "status": "active"
-            }),
-        );
-        let out = enforce_expired_contracts(root.path());
-        let terminated = out
-            .get("terminated")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!terminated.is_empty());
-    }
-
-    #[test]
-    fn upsert_lifecycle_reactivates_terminated_contract() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = upsert_contract(
-            root.path(),
-            "agent-revive",
-            &json!({
-                "created_at": "2000-01-01T00:00:00Z",
-                "expiry_seconds": 1,
-                "status": "active"
-            }),
-        );
-        let terminated = enforce_expired_contracts(root.path());
-        assert!(
-            !terminated
-                .get("terminated")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default()
-                .is_empty()
-        );
-
-        let reupsert = upsert_contract(
-            root.path(),
-            "agent-revive",
-            &json!({
-                "mission": "restart",
-                "expiry_seconds": 3600,
-                "auto_terminate_allowed": true
-            }),
-        );
-        assert_eq!(
-            reupsert
-                .get("contract")
-                .and_then(|v| v.get("status"))
-                .and_then(Value::as_str),
-            Some("active")
-        );
-        assert!(
-            reupsert
-                .get("contract")
-                .and_then(Value::as_object)
-                .map(|obj| !obj.contains_key("terminated_at"))
-                .unwrap_or(false)
-        );
-        let after = enforce_expired_contracts(root.path());
-        let rows = after
-            .get("terminated")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(rows.is_empty());
-    }
-
-    #[test]
-    fn terminated_entries_delete_and_revive_round_trip() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = upsert_contract(
-            root.path(),
-            "agent-zed",
-            &json!({
-                "created_at": "2000-01-01T00:00:00Z",
-                "expiry_seconds": 1,
-                "status": "active"
-            }),
-        );
-        let _ = enforce_expired_contracts(root.path());
-        let list = terminated_entries(root.path());
-        let before = list
-            .get("entries")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(before.iter().any(|row| {
-            row.get("agent_id")
-                .and_then(Value::as_str)
-                .map(|v| v == "agent-zed")
-                .unwrap_or(false)
-        }));
-
-        let revived = revive_agent(root.path(), "agent-zed", "analyst");
-        assert_eq!(revived.get("ok").and_then(Value::as_bool), Some(true));
-        let list_after_revive = terminated_entries(root.path());
-        let revived_rows = list_after_revive
-            .get("entries")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!revived_rows.iter().any(|row| {
-            row.get("agent_id")
-                .and_then(Value::as_str)
-                .map(|v| v == "agent-zed")
-                .unwrap_or(false)
-        }));
-
-        let _ = upsert_contract(
-            root.path(),
-            "agent-zed",
-            &json!({
-                "created_at": "2000-01-01T00:00:00Z",
-                "expiry_seconds": 1,
-                "status": "active"
-            }),
-        );
-        let _ = enforce_expired_contracts(root.path());
-        let deleted = delete_terminated(root.path(), "agent-zed", None);
-        assert!(
-            deleted
-                .get("removed_history_entries")
-                .and_then(Value::as_u64)
-                .unwrap_or(0)
-                >= 1
-        );
-    }
-}
+#[path = "dashboard_agent_state_registry_tests.rs"]
+mod tests;

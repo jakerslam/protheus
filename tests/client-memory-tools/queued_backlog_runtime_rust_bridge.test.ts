@@ -35,7 +35,7 @@ function resetModule(modulePath) {
 function main() {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'queued-backlog-rust-'));
   fs.mkdirSync(path.join(workspace, 'client', 'runtime', 'config'), { recursive: true });
-  process.env.OPENCLAW_WORKSPACE = workspace;
+  process.env.INFRING_WORKSPACE = workspace;
   process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
 

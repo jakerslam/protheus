@@ -4,6 +4,7 @@ use conduit::{
 };
 use std::io::Write;
 use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn policy_fixture() -> (ConduitPolicy, tempfile::TempDir) {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -55,7 +56,7 @@ fn write_policy_file(
 fn signed_envelope(policy: &ConduitPolicy, request_id: &str) -> CommandEnvelope {
     let security =
         ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
-    let ts_ms = 1_732_000_000_000;
+    let ts_ms = now_ts_ms();
     let command = TsCommand::GetSystemStatus;
     let metadata =
         security.mint_security_metadata("daemon-it", request_id, ts_ms, &command, 60_000);
@@ -67,6 +68,13 @@ fn signed_envelope(policy: &ConduitPolicy, request_id: &str) -> CommandEnvelope 
         command,
         security: metadata,
     }
+}
+
+fn now_ts_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn retarget_command(
@@ -121,6 +129,26 @@ fn run_daemon_with_envelope(
     let line = stdout.lines().next().expect("response line");
     let response: ResponseEnvelope = serde_json::from_str(line).expect("response json");
     (output, response)
+}
+
+fn run_daemon_with_fresh_envelope(
+    policy_path: &std::path::Path,
+    policy: &ConduitPolicy,
+    envelope: &CommandEnvelope,
+) -> (std::process::Output, ResponseEnvelope) {
+    let mut refreshed = envelope.clone();
+    refreshed.ts_ms = now_ts_ms();
+    let security =
+        ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
+    let client_id = refreshed.security.client_id.clone();
+    refreshed.security = security.mint_security_metadata(
+        client_id,
+        &refreshed.request_id,
+        refreshed.ts_ms,
+        &refreshed.command,
+        60_000,
+    );
+    run_daemon_with_envelope(policy_path, &refreshed)
 }
 
 #[test]
@@ -193,7 +221,7 @@ fn conduit_daemon_routes_edge_status_bridge_contract() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {
@@ -218,7 +246,7 @@ fn conduit_daemon_fail_closes_invalid_edge_json_bridge_payload() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {
@@ -251,7 +279,7 @@ fn conduit_daemon_emits_legacy_lane_receipt_for_lane_prefixed_agent() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {
@@ -283,7 +311,7 @@ fn conduit_daemon_routes_edge_inference_prefix_to_backend_contract() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {
@@ -313,7 +341,7 @@ fn conduit_daemon_returns_legacy_lane_error_for_invalid_lane_identifier() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {
@@ -352,7 +380,7 @@ fn conduit_daemon_falls_back_to_agent_lifecycle_for_standard_start_agent() {
         "daemon-it",
     );
 
-    let (output, response) = run_daemon_with_envelope(&policy_path, &envelope);
+    let (output, response) = run_daemon_with_fresh_envelope(&policy_path, &policy, &envelope);
     assert!(output.status.success());
     assert!(response.validation.ok);
     match response.event {

@@ -86,7 +86,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/autonomy/background_persistent_agent_runtime.js",
+      "path": "systems/autonomy/background_persistent_agent_runtime.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -101,7 +101,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/autonomy/canary_scheduler.js",
+      "path": "systems/autonomy/canary_scheduler.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -426,7 +426,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/edge/protheus_edge_runtime.js",
+      "path": "systems/edge/protheus_edge_runtime.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -456,7 +456,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/fractal/child_organ_runtime.js",
+      "path": "systems/fractal/child_organ_runtime.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -876,12 +876,12 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/primitives/primitive_runtime.js",
+      "path": "systems/primitives/primitive_runtime.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
     {
-      "path": "systems/primitives/runtime_scheduler.js",
+      "path": "systems/primitives/runtime_scheduler.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -971,7 +971,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/science/experiment_scheduler.js",
+      "path": "systems/science/experiment_scheduler.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },

@@ -660,7 +660,7 @@
       "class": "competitive-parity",
       "wave": "V6",
       "status": "queued",
-      "title": "protheus migrate --from openfang importer lane",
+      "title": "protheus migrate --from infring importer lane",
       "problem": "Lowering migration friction from competitor ecosystems improves adoption while preserving governance contracts.",
       "acceptance": "Implement REQ-13-003 fail-closed importer command with schema validation, conversion receipts, and rollback docs.",
       "dependencies": [
@@ -1433,7 +1433,7 @@
       "status": "done",
       "title": "Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity)",
       "problem": "Operational confidence and market credibility require explicit trace/eval UX and repeatable benchmark parity artifacts against common alternatives.",
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/OpenFang lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
       "dependencies": [
         "RM-122",
         "RM-123",
@@ -1506,7 +1506,7 @@
       "status": "done",
       "title": "Relocatable Path Contract (Absolute-Path Eradication)",
       "problem": "Hardcoded host paths reduce portability and make fresh-instance bootstrap brittle.",
-      "acceptance": "Eliminate absolute `/Users/...`-style paths from runtime/client/runtime/config/tooling surfaces, add workspace-root resolver primitive (`$OPENCLAW_WORKSPACE` fallback to repo root), and enforce via CI/path-contract check with fail-closed policy allowlist for fixtures/tests only. Evidence: `client/runtime/systems/ops/backlog_runtime_anchors/v3_race_120_anchor.ts`.",
+      "acceptance": "Eliminate absolute `/Users/...`-style paths from runtime/client/runtime/config/tooling surfaces, add workspace-root resolver primitive (`$INFRING_WORKSPACE` fallback to repo root), and enforce via CI/path-contract check with fail-closed policy allowlist for fixtures/tests only. Evidence: `client/runtime/systems/ops/backlog_runtime_anchors/v3_race_120_anchor.ts`.",
       "dependencies": [
         "PLM-005",
         "V3-RACE-107",
@@ -12597,7 +12597,7 @@
       "status": "done",
       "title": "Legacy dependency anchor (V3-DEP-001)",
       "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
-      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/openfang_parity_runtime.ts`.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/infring_parity_runtime.ts`.",
       "dependencies": [],
       "impact_score": 6,
       "risk_score": 4,
@@ -12974,7 +12974,7 @@
       "status": "done",
       "title": "LensMap Adoption Bridge (Import + Sync + Toolchain Fit)",
       "problem": "Teams need a deterministic migration path from existing comment-heavy repositories into LensMap to avoid manual conversion cost and drift.",
-      "acceptance": "Add adoption bridge commands for import/sync/mapping (`import`, `sync`, compatibility adapters) with OpenClaw/legacy comment migration support, diff receipts, and reversible checkpoints. Verify via migration simulation suites and round-trip parity tests between source comments and generated lenses. Rollback by forcing read-only compatibility mode and disabling write-path migration adapters.",
+      "acceptance": "Add adoption bridge commands for import/sync/mapping (`import`, `sync`, compatibility adapters) with Infring/legacy comment migration support, diff receipts, and reversible checkpoints. Verify via migration simulation suites and round-trip parity tests between source comments and generated lenses. Rollback by forcing read-only compatibility mode and disabling write-path migration adapters.",
       "dependencies": [
         "V4-PKG-004",
         "V4-PKG-005",
@@ -14853,7 +14853,7 @@
       "status": "done",
       "title": "Legacy dependency anchor (V3-BLD-001)",
       "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
-      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/openfang_parity_runtime.ts`.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback. Evidence: `client/runtime/systems/ops/infring_parity_runtime.ts`.",
       "dependencies": [],
       "impact_score": 6,
       "risk_score": 4,
@@ -16709,9 +16709,9 @@
       "class": "interoperability",
       "wave": "V4",
       "status": "done",
-      "title": "Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
       "problem": "Users coming from other agent stacks face high switching cost without structured import tooling.",
-      "acceptance": "Add `client/runtime/systems/migration/importers/` pluggable import surface with first-class OpenFang importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms.",
+      "acceptance": "Add `client/runtime/systems/migration/importers/` pluggable import surface with first-class Infring importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms.",
       "dependencies": [
         "V4-MIGR-001",
         "V3-RACE-127"
@@ -17764,7 +17764,7 @@
       "wave": "V6",
       "status": "queued",
       "reviewed_status": "queued",
-      "title": "protheus migrate --from openfang importer lane",
+      "title": "protheus migrate --from infring importer lane",
       "reviewed": false,
       "review_result": "needs_implementation",
       "evidence_refs": [],
@@ -32532,10 +32532,10 @@
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [
-        "client/runtime/systems/ops/openfang_parity_runtime.ts"
+        "client/runtime/systems/ops/infring_parity_runtime.ts"
       ],
       "evidence_found": [
-        "client/runtime/systems/ops/openfang_parity_runtime.ts"
+        "client/runtime/systems/ops/infring_parity_runtime.ts"
       ],
       "evidence_missing": [],
       "dependencies": []
@@ -35143,10 +35143,10 @@
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [
-        "client/runtime/systems/ops/openfang_parity_runtime.ts"
+        "client/runtime/systems/ops/infring_parity_runtime.ts"
       ],
       "evidence_found": [
-        "client/runtime/systems/ops/openfang_parity_runtime.ts"
+        "client/runtime/systems/ops/infring_parity_runtime.ts"
       ],
       "evidence_missing": [],
       "dependencies": []
@@ -37196,7 +37196,7 @@
       "wave": "V4",
       "status": "done",
       "reviewed_status": "reviewed",
-      "title": "Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [

@@ -1,5 +1,5 @@
 # Operator Onboarding Track
 
-1. Run `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --dry-run=1`.
-2. Validate status with `cargo run --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- health-status status --dashboard`.
-3. Capture first verified change receipt in `state/ops/onboarding_portal/`.
+1. Run one command from repo root: `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --gateway=1`.
+2. Validate runtime health with `infring gateway status`.
+3. Capture first verified onboarding receipt in `local/state/ops/onboarding_portal/`.

@@ -142,7 +142,7 @@ fn clamp_int(value: Option<&Value>, lo: i64, hi: i64, fallback: i64) -> i64 {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Some(raw) = std::env::var_os("OPENCLAW_WORKSPACE") {
+    if let Some(raw) = std::env::var_os("INFRING_WORKSPACE") {
         let path = PathBuf::from(raw);
         if path.is_absolute() {
             return path;

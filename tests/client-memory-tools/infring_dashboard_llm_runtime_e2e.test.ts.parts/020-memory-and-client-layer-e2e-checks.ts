@@ -94,9 +94,15 @@
       }
     );
     assert.strictEqual(createTerminalAgent.status, 200, 'terminal test agent create should return 200');
+    const terminalAgentId = String(
+      createTerminalAgent.body
+      && (createTerminalAgent.body.id || createTerminalAgent.body.agent_id)
+        ? (createTerminalAgent.body.id || createTerminalAgent.body.agent_id)
+        : terminalShadow
+    );
 
     const terminalFirst = await fetchJson(
-      `${BASE_URL}/api/agents/${encodeURIComponent(terminalShadow)}/terminal`,
+      `${BASE_URL}/api/agents/${encodeURIComponent(terminalAgentId)}/terminal`,
       {
         method: 'POST',
         body: JSON.stringify({ command: 'cd client && pwd', cwd: ROOT }),
@@ -106,7 +112,7 @@
     const terminalCwd = String((terminalFirst.body && terminalFirst.body.cwd) || '');
 
     const terminalSecond = await fetchJson(
-      `${BASE_URL}/api/agents/${encodeURIComponent(terminalShadow)}/terminal`,
+      `${BASE_URL}/api/agents/${encodeURIComponent(terminalAgentId)}/terminal`,
       {
         method: 'POST',
         body: JSON.stringify({ command: 'pwd', cwd: terminalCwd }),
@@ -124,7 +130,7 @@
       'terminal mode should preserve real shell cwd state across commands'
     );
     summary.evidence.terminal = {
-      agent: terminalShadow,
+      agent: terminalAgentId,
       first_cwd: terminalCwd,
       second_stdout: terminalStdout,
     };
@@ -360,6 +366,12 @@
       }
     );
     assert.strictEqual(createArchiveAgent.status, 200, 'archive-target agent create should return 200');
+    const archiveAgentId = String(
+      createArchiveAgent.body
+      && (createArchiveAgent.body.id || createArchiveAgent.body.agent_id)
+        ? (createArchiveAgent.body.id || createArchiveAgent.body.agent_id)
+        : archiveShadow
+    );
 
     const statusAfterCreate = await fetchJson(`${BASE_URL}/api/status`);
     assert.strictEqual(statusAfterCreate.status, 200, 'status-after-create should return 200');
@@ -370,7 +382,7 @@
     );
     summary.checks.archive_create_increments_count = afterCreateCount >= beforeArchiveCount;
 
-    const archiveResult = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}`, {
+    const archiveResult = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveAgentId)}`, {
       method: 'DELETE',
     });
     assert.strictEqual(archiveResult.status, 200, 'archive should return 200');
@@ -392,15 +404,15 @@
     const agentsAfterArchive = await fetchJson(`${BASE_URL}/api/agents`);
     assert.strictEqual(agentsAfterArchive.status, 200, 'agents-after-archive should return 200');
     const agentRows = Array.isArray(agentsAfterArchive.body) ? agentsAfterArchive.body : [];
-    summary.checks.archived_hidden_from_agent_list = !agentRows.some((row) => row && row.id === archiveShadow);
-    summary.checks.archived_removed_from_collab_authority = !authorityAgentShadows().includes(archiveShadow);
+    summary.checks.archived_hidden_from_agent_list = !agentRows.some((row) => row && row.id === archiveAgentId);
+    summary.checks.archived_removed_from_collab_authority = !authorityAgentShadows().includes(archiveAgentId);
     assert.strictEqual(
       summary.checks.archived_removed_from_collab_authority,
       true,
       'archived agent should be removed from collab authority state'
     );
 
-    const archivedMessage = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}/message`, {
+    const archivedMessage = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveAgentId)}/message`, {
       method: 'POST',
       body: JSON.stringify({ message: 'still there?' }),
     });
@@ -409,7 +421,7 @@
       && archivedMessage.body.error === 'agent_inactive';
     assert.strictEqual(summary.checks.archived_agent_message_blocked, true, 'archived agent should reject chat message');
 
-    const archivedGet = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveShadow)}`);
+    const archivedGet = await fetchJson(`${BASE_URL}/api/agents/${encodeURIComponent(archiveAgentId)}`);
     assert.strictEqual(archivedGet.status, 200, 'get archived agent should return 200 inactive record');
     summary.checks.archived_agent_state_inactive = !!(
       archivedGet.body
@@ -417,4 +429,4 @@
       && archivedGet.body.archived === true
     );
     summary.evidence.archive = {
-      target_agent: archiveShadow,
+      target_agent: archiveAgentId,

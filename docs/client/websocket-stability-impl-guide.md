@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fixes OpenClaw Control UI "missing chat until refresh" caused by WebSocket disconnects (code=1001) with:
+Fixes Infring Control UI "missing chat until refresh" caused by WebSocket disconnects (code=1001) with:
 
 1. **Server-side heartbeat**: Ping every 20s, kill socket if no pong within 60s
 2. **Client auto-reconnect**: Exponential backoff (250ms → 5s max)
@@ -52,7 +52,7 @@ If you can't modify the server, inject the client patch via Tampermonkey or simi
 
 ```javascript
 // ==UserScript==
-// @name OpenClaw WS Patch
+// @name Infring WS Patch
 // @match http://127.0.0.1:18789/*
 // @run-at document-start
 // ==/UserScript==

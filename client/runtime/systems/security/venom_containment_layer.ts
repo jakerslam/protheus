@@ -3,7 +3,7 @@
 
 // Thin bridge to core authority: venom-containment-layer domain.
 
-const { runProtheusOps } = require('../ops/run_protheus_ops.js');
+const { runProtheusOps } = require('../ops/run_protheus_ops.ts');
 
 function normalizeSubcommand(raw) {
   const sub = String(raw || 'status').trim().toLowerCase();

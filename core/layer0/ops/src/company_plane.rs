@@ -1,4 +1,4 @@
-include!("company_plane_parts/part_000.rs");
-include!("company_plane_parts/part_001.rs");
-include!("company_plane_parts/part_002.rs");
-include!("company_plane_parts/part_003.rs");
+include!("company_plane_parts/010-usage.rs");
+include!("company_plane_parts/020-run-budget-enforce.rs");
+include!("company_plane_parts/030-run-ticket.rs");
+include!("company_plane_parts/040-run-heartbeat.rs");

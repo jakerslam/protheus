@@ -11,7 +11,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const API_SCRIPT = path.join(ROOT, 'systems', 'economy', 'public_donation_api.js');
+const API_SCRIPT = path.join(ROOT, 'systems', 'economy', 'public_donation_api.ts');
 
 function main() {
   const args = process.argv.slice(2);

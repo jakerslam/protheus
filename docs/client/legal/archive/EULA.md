@@ -3,7 +3,7 @@
 Version: `2026-02-27.v1`
 Effective Date: `2026-02-27`
 
-This EULA governs use of the OpenClaw software and related materials in this repository.
+This EULA governs use of the Infring software and related materials in this repository.
 
 ## 1. License Grant
 
@@ -17,7 +17,7 @@ Subject to compliance with this agreement and project policies, a limited, revoc
 
 ## 3. Security and Misuse Protection
 
-OpenClaw is protected intellectual property. Unauthorized copying, reverse engineering, or bypass of policy controls is prohibited.
+Infring is protected intellectual property. Unauthorized copying, reverse engineering, or bypass of policy controls is prohibited.
 
 Detected misuse may trigger bounded security controls such as access denial, capability restriction, rate limiting, quarantine, and audit logging.
 

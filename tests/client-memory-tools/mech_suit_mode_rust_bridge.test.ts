@@ -46,7 +46,7 @@ async function main() {
     }
   }, null, 2));
 
-  process.env.OPENCLAW_WORKSPACE = workspace;
+  process.env.INFRING_WORKSPACE = workspace;
   process.env.MECH_SUIT_MODE_POLICY_PATH = policyPath;
   process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';

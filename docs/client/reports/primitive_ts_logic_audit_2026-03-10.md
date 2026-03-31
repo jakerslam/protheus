@@ -13,7 +13,7 @@ Scope: `primitive_ts_wrapper_contract` policy entries + `client/runtime/systems/
 
 ## Contract Residuals (REQ-08-005)
 
-All entries currently fail the direct-conduit wrapper token contract (`createConduitLaneModule` + `direct_conduit_lane_bridge.js`) and should be treated as migration backlog.
+All entries currently fail the direct-conduit wrapper token contract (`createConduitLaneModule` + `direct_conduit_lane_bridge.ts`) and should be treated as migration backlog.
 
 | TS Surface | Residual Type | Target Rust Ownership |
 |---|---|---|

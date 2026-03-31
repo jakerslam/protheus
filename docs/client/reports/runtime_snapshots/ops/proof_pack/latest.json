@@ -733,8 +733,8 @@
         "report_path": "/client/runtime/local/state/autonomy/simulations/2026-03-07.json"
       }
     },
-    "protheus_vs_openclaw": {
-      "file": "protheus_vs_openclaw_2026-03-07T19-02-46Z.json",
+    "protheus_vs_infring": {
+      "file": "protheus_vs_infring_2026-03-07T19-02-46Z.json",
       "payload": {
         "ok": true,
         "type": "narrow_agent_parity_harness",

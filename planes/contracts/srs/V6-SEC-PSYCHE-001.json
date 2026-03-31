@@ -1,7 +1,7 @@
 {
   "id": "V6-SEC-PSYCHE-001",
   "upgrade": "PsycheForge (Attacker Profiling)",
-  "section": "OpenFang Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
+  "section": "Infring Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
   "impact": 9,
   "layer_map": "0/1/2",
   "conduit_only_boundary": false,

@@ -1,7 +1,7 @@
 {
   "id": "V6-COCKPIT-018.4",
   "upgrade": "Zero-Human 24/7 Operation Profile",
-  "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+  "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo Infring ops pattern, 2026-03-09)",
   "impact": 8,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,

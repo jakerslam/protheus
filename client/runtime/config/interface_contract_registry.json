@@ -9,7 +9,7 @@
       "version_policy": "n-2",
       "migration_owner": "platform",
       "compatibility_window_days": 180,
-      "source": "client/runtime/systems/ops/openfang_capability_pack.ts"
+      "source": "client/runtime/systems/ops/infring_capability_pack.ts"
     },
     {
       "id": "state_kernel_event_log",

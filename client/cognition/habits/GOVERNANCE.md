@@ -142,15 +142,15 @@ Must pass with **0 errors** after promotion.
 ### Procedure
 ```
 Step 1: ADD new thing
-  → cron: openclaw cron add ...
+  → cron: infring cron add ...
   → habit: create + trust + registry update
 
 Step 2: VERIFY
-  → cron: openclaw cron list (confirm ID appears, check nextRunAtMs)
+  → cron: infring cron list (confirm ID appears, check nextRunAtMs)
   → habit: run_habit --list (shows it) + doctor.js passes + run once
 
 Step 3: Only then REMOVE old
-  → cron: openclaw cron remove ...
+  → cron: infring cron remove ...
   → habit: mark archived
 
 Step 4: FINAL verification

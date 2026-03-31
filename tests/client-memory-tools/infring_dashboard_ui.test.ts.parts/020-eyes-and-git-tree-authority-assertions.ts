@@ -285,15 +285,23 @@ function assertInterfaceSafetyGuards() {
 function assertLifecycleAndPlatformSrsEvidence() {
   const laneSource = readUtf8(TARGET_SOURCE);
   const agentsSource = readUtf8(
-    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/js/pages/agents.js')
+    path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/js/pages/agents.ts')
   );
   const htmlSource = readUtf8(
-    path.resolve(ROOT, 'client/runtime/systems/ui/openclaw_static/index_body.html')
+    path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html')
   );
   const readmeSource = readUtf8(path.resolve(ROOT, 'README.md'));
   const initiativeSource = readUtf8(path.resolve(ROOT, 'core/layer2/execution/src/initiative.rs'));
   const importanceSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/importance.rs'));
   const attentionQueueSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/attention_queue.rs'));
+  const attentionQueuePartsDir = path.resolve(ROOT, 'core/layer0/ops/src/attention_queue_parts');
+  const attentionQueuePartsSource = fs.existsSync(attentionQueuePartsDir)
+    ? fs
+        .readdirSync(attentionQueuePartsDir, { withFileTypes: true })
+        .filter((entry) => entry && entry.isFile() && /\.rs$/i.test(entry.name))
+        .map((entry) => fs.readFileSync(path.join(attentionQueuePartsDir, entry.name), 'utf8'))
+        .join('\n')
+    : '';
   const opsCargoSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/Cargo.toml'));
 
   // V6-AGENT-LIFECYCLE-001.1
@@ -345,7 +353,10 @@ function assertLifecycleAndPlatformSrsEvidence() {
   // V7-PLATFORM-001.5
   assertContains(opsCargoSource, 'proptest = "1.5"', 'V7-PLATFORM-001.5 missing proptest dependency');
   assertContains(importanceSource, 'proptest!', 'V7-PLATFORM-001.5 missing importance proptest coverage');
-  assertContains(attentionQueueSource, 'proptest!', 'V7-PLATFORM-001.5 missing attention queue proptest coverage');
+  assert.ok(
+    attentionQueueSource.includes('proptest!') || attentionQueuePartsSource.includes('proptest!'),
+    'V7-PLATFORM-001.5 missing attention queue proptest coverage'
+  );
 
   // V7-PLATFORM-001.6
   assert.ok(fs.existsSync(path.resolve(ROOT, 'docs/observability/OTLP_INTEGRATION_PLAN.md')), 'V7-PLATFORM-001.6 missing OTLP integration plan');

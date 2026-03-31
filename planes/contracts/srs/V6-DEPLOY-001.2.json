@@ -1,7 +1,7 @@
 {
   "id": "V6-DEPLOY-001.2",
   "upgrade": "Persistent Volume + SQLite State Continuity Contract",
-  "section": "OpenFang Deployment DX Source Coverage Intake (Doc `1NVuMS9MOZW5E6X3E5ZzIQJnoHa4hBD8gmWkSFnLqijc`, 2026-03-11)",
+  "section": "Infring Deployment DX Source Coverage Intake (Doc `1NVuMS9MOZW5E6X3E5ZzIQJnoHa4hBD8gmWkSFnLqijc`, 2026-03-11)",
   "impact": 10,
   "layer_map": "0/1/2/client/adapter",
   "conduit_only_boundary": false,

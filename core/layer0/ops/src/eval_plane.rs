@@ -22,7 +22,7 @@ fn usage() {
     println!("  protheus-ops eval-plane benchmark [--strict=1|0]");
     println!("  protheus-ops eval-plane dashboard [--strict=1|0]");
     println!("  protheus-ops eval-plane run [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--strict=1|0]");
-    println!("  protheus-ops eval-plane rl-upgrade [--profile=openclaw-v2] [--iterations=<n>] [--runtime-classes=terminal,gui,swe,tool-call] [--persona=<id>] [--strict=1|0]");
+    println!("  protheus-ops eval-plane rl-upgrade [--profile=infring-v2] [--iterations=<n>] [--runtime-classes=terminal,gui,swe,tool-call] [--persona=<id>] [--strict=1|0]");
     println!("  protheus-ops eval-plane rl-status [--strict=1|0]");
 }
 
@@ -57,13 +57,13 @@ fn benchmark_latest_path(root: &Path) -> PathBuf {
 }
 
 fn rl_latest_path(root: &Path) -> PathBuf {
-    state_root(root).join("rl").join("openclaw_v2_latest.json")
+    state_root(root).join("rl").join("infring_v2_latest.json")
 }
 
 fn rl_history_path(root: &Path) -> PathBuf {
     state_root(root)
         .join("rl")
-        .join("openclaw_v2_history.jsonl")
+        .join("infring_v2_history.jsonl")
 }
 
 fn emit(root: &Path, payload: Value) -> i32 {
@@ -586,11 +586,11 @@ fn run_rl_upgrade(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             .flags
             .get("profile")
             .cloned()
-            .unwrap_or_else(|| "openclaw-v2".to_string()),
+            .unwrap_or_else(|| "infring-v2".to_string()),
         60,
     )
     .to_ascii_lowercase();
-    if strict && profile != "openclaw-v2" {
+    if strict && profile != "infring-v2" {
         return json!({
             "ok": false,
             "strict": strict,
@@ -638,7 +638,7 @@ fn run_rl_upgrade(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         "persona_reward_profile": {
             "persona": persona,
             "policy_bounds": ["no_data_exfiltration", "format_contract", "risk_gate"],
-            "reward_template": format!("persona:{persona}:openclaw-v2")
+            "reward_template": format!("persona:{persona}:infring-v2")
         },
         "runtime_class_matrix": class_rows,
         "iterations": iterations,
@@ -695,7 +695,7 @@ fn run_rl_upgrade(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             },
             {
                 "id": "V6-COCKPIT-017.15",
-                "claim": "one_command_openclaw_v2_upgrade_surfaces_live_rl_metrics_from_core_receipts",
+                "claim": "one_command_infring_v2_upgrade_surfaces_live_rl_metrics_from_core_receipts",
                 "evidence": {
                     "reward_delta": reward_delta,
                     "loss_delta": loss_delta
@@ -746,7 +746,7 @@ fn dispatch(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "benchmark" | "benchmark-neuralavb" => run_benchmark(root, parsed, strict),
         "dashboard" => run_dashboard(root, strict),
         "run" | "evaluate" => run_eval(root, parsed, strict),
-        "rl-upgrade" | "upgrade-openclaw-v2" => run_rl_upgrade(root, parsed, strict),
+        "rl-upgrade" | "upgrade-infring-v2" => run_rl_upgrade(root, parsed, strict),
         "rl-status" => run_rl_status(root, strict),
         _ => json!({
             "ok": false,

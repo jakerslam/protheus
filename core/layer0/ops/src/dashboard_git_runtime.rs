@@ -90,7 +90,10 @@ pub fn git_current_branch(root: &Path, fallback: &str) -> String {
 }
 
 pub fn git_main_branch(root: &Path, fallback: &str) -> String {
-    if let Ok(output) = run_git(root, &["show-ref", "--verify", "--quiet", "refs/heads/main"]) {
+    if let Ok(output) = run_git(
+        root,
+        &["show-ref", "--verify", "--quiet", "refs/heads/main"],
+    ) {
         if output.status.success() {
             return "main".to_string();
         }
@@ -105,7 +108,12 @@ pub fn git_branch_exists(root: &Path, branch: &str) -> bool {
     }
     run_git(
         root,
-        &["show-ref", "--verify", "--quiet", &format!("refs/heads/{cleaned}")],
+        &[
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{cleaned}"),
+        ],
     )
     .map(|output| output.status.success())
     .unwrap_or(false)
@@ -177,6 +185,195 @@ pub fn workspace_rel(root: &Path, workspace: &Path) -> String {
         .unwrap_or_default()
 }
 
+fn git_workspace_branch(root: &Path, workspace: &Path) -> Option<String> {
+    if !git_workspace_ready(root, workspace) {
+        return None;
+    }
+    let output = Command::new("git")
+        .args([
+            "-C",
+            &workspace.to_string_lossy(),
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+        ])
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let branch = normalize_branch_name(&String::from_utf8_lossy(&output.stdout));
+    if branch.is_empty() {
+        None
+    } else {
+        Some(branch)
+    }
+}
+
+fn git_error_detail(output: std::process::Output, fallback: &str) -> String {
+    let detail = clean_text(
+        &format!(
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ),
+        280,
+    );
+    if detail.is_empty() {
+        fallback.to_string()
+    } else {
+        detail
+    }
+}
+
+pub fn cleanup_agent_git_artifacts(
+    root: &Path,
+    agent_id: &str,
+    branch_hint: Option<&str>,
+) -> Value {
+    let cleaned_agent = clean_text(agent_id, 160);
+    if cleaned_agent.is_empty() {
+        return json!({"ok": false, "error": "agent_id_required"});
+    }
+
+    let agent_workspace_root = agent_git_trees_dir(root).join(&cleaned_agent);
+    let mut workspace_paths = Vec::<PathBuf>::new();
+    if let Ok(entries) = fs::read_dir(&agent_workspace_root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                workspace_paths.push(path);
+            }
+        }
+    }
+    workspace_paths.sort();
+
+    let mut candidate_branches = HashSet::<String>::new();
+    if let Some(hint) = branch_hint {
+        let normalized = normalize_branch_name(hint);
+        if !normalized.is_empty() {
+            candidate_branches.insert(normalized);
+        }
+    }
+    for workspace in &workspace_paths {
+        if let Some(branch) = git_workspace_branch(root, workspace) {
+            candidate_branches.insert(branch);
+        }
+    }
+
+    let mut removed_worktrees = Vec::<String>::new();
+    let mut removed_workspace_dirs = Vec::<String>::new();
+    let mut errors = Vec::<Value>::new();
+    for workspace in &workspace_paths {
+        let workspace_str = workspace.to_string_lossy().to_string();
+        let remove_result = run_git(root, &["worktree", "remove", "--force", &workspace_str]);
+        match remove_result {
+            Ok(output) if output.status.success() => {
+                removed_worktrees.push(workspace_str.clone());
+            }
+            Ok(output) => {
+                let fs_removed = fs::remove_dir_all(workspace).is_ok();
+                if fs_removed {
+                    removed_workspace_dirs.push(workspace_str.clone());
+                } else {
+                    errors.push(json!({
+                        "stage": "worktree_remove",
+                        "workspace_dir": workspace_str,
+                        "error": git_error_detail(output, "git_worktree_remove_failed")
+                    }));
+                }
+            }
+            Err(err) => {
+                let fs_removed = fs::remove_dir_all(workspace).is_ok();
+                if fs_removed {
+                    removed_workspace_dirs.push(workspace_str.clone());
+                } else {
+                    errors.push(json!({
+                        "stage": "worktree_remove",
+                        "workspace_dir": workspace_str,
+                        "error": clean_text(&err, 280)
+                    }));
+                }
+            }
+        }
+    }
+    let _ = run_git(root, &["worktree", "prune", "--expire=now"]);
+    if let Ok(mut entries) = fs::read_dir(&agent_workspace_root) {
+        if entries.next().is_none() {
+            let _ = fs::remove_dir(&agent_workspace_root);
+        }
+    }
+
+    let mut deleted_branches = Vec::<String>::new();
+    let mut skipped_protected_branches = Vec::<String>::new();
+    let mut skipped_missing_branches = Vec::<String>::new();
+    let mut attempted_branches = candidate_branches.into_iter().collect::<Vec<_>>();
+    attempted_branches.sort();
+    let mut current_branch = git_current_branch(root, "main");
+    let main_branch = git_main_branch(root, &current_branch);
+    for branch in &attempted_branches {
+        if branch == "main" || branch == "master" {
+            skipped_protected_branches.push(branch.clone());
+            continue;
+        }
+        if !git_branch_exists(root, branch) {
+            skipped_missing_branches.push(branch.clone());
+            continue;
+        }
+        if current_branch == *branch
+            && main_branch != *branch
+            && git_branch_exists(root, &main_branch)
+        {
+            if let Ok(output) = run_git(root, &["checkout", &main_branch]) {
+                if output.status.success() {
+                    current_branch = main_branch.clone();
+                } else {
+                    errors.push(json!({
+                        "stage": "branch_checkout",
+                        "branch": branch,
+                        "error": git_error_detail(output, "git_checkout_main_failed")
+                    }));
+                }
+            }
+        }
+        match run_git(root, &["branch", "-D", branch]) {
+            Ok(output) if output.status.success() => {
+                deleted_branches.push(branch.clone());
+            }
+            Ok(output) => {
+                errors.push(json!({
+                    "stage": "branch_delete",
+                    "branch": branch,
+                    "error": git_error_detail(output, "git_branch_delete_failed")
+                }));
+            }
+            Err(err) => {
+                errors.push(json!({
+                    "stage": "branch_delete",
+                    "branch": branch,
+                    "error": clean_text(&err, 280)
+                }));
+            }
+        }
+    }
+
+    json!({
+        "ok": errors.is_empty(),
+        "type": "dashboard_agent_git_cleanup",
+        "agent_id": cleaned_agent,
+        "workspace_root": agent_workspace_root.to_string_lossy().to_string(),
+        "removed_worktrees": removed_worktrees,
+        "removed_workspace_dirs": removed_workspace_dirs,
+        "attempted_branches": attempted_branches,
+        "deleted_branches": deleted_branches,
+        "skipped_protected_branches": skipped_protected_branches,
+        "skipped_missing_branches": skipped_missing_branches,
+        "errors": errors
+    })
+}
+
 pub fn switch_agent_worktree(
     root: &Path,
     agent_id: &str,
@@ -242,11 +439,18 @@ pub fn switch_agent_worktree(
         args.push("HEAD");
     }
     let mut output = run_git(root, &args);
-    if output.as_ref().map(|out| !out.status.success()).unwrap_or(true) {
+    if output
+        .as_ref()
+        .map(|out| !out.status.success())
+        .unwrap_or(true)
+    {
         let _ = run_git(root, &["worktree", "prune", "--expire=now"]);
         output = run_git(root, &args);
     }
-    if output.as_ref().map(|out| !out.status.success()).unwrap_or(true)
+    if output
+        .as_ref()
+        .map(|out| !out.status.success())
+        .unwrap_or(true)
         || !git_workspace_ready(root, &workspace)
     {
         let detail = output
@@ -282,4 +486,67 @@ pub fn switch_agent_worktree(
         "created": true,
         "error": ""
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+
+    fn init_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let status = Command::new("git")
+            .args(["init"])
+            .current_dir(dir.path())
+            .status()
+            .expect("git init");
+        assert!(status.success(), "git init should succeed");
+        fs::write(dir.path().join("README.md"), "seed\n").expect("write seed file");
+        let status = Command::new("git")
+            .args(["add", "README.md"])
+            .current_dir(dir.path())
+            .status()
+            .expect("git add");
+        assert!(status.success(), "git add should succeed");
+        let status = Command::new("git")
+            .args([
+                "-c",
+                "user.name=Codex Test",
+                "-c",
+                "user.email=codex@test.local",
+                "commit",
+                "-m",
+                "init",
+            ])
+            .current_dir(dir.path())
+            .status()
+            .expect("git commit");
+        assert!(status.success(), "git commit should succeed");
+        dir
+    }
+
+    #[test]
+    fn cleanup_agent_git_artifacts_removes_worktree_and_branch() {
+        let root = init_repo();
+        let branch = "agent-test-feature";
+        let switched = switch_agent_worktree(root.path(), "agent-test", branch, true);
+        assert_eq!(switched.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(git_branch_exists(root.path(), branch));
+        let workspace = workspace_for_agent_branch(root.path(), "agent-test", branch);
+        assert!(workspace.exists());
+
+        let cleanup = cleanup_agent_git_artifacts(root.path(), "agent-test", Some(branch));
+        assert_eq!(cleanup.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(!git_branch_exists(root.path(), branch));
+        assert!(!workspace.exists());
+    }
+
+    #[test]
+    fn cleanup_agent_git_artifacts_preserves_protected_main_branch() {
+        let root = init_repo();
+        let main_branch = git_current_branch(root.path(), "main");
+        let cleanup = cleanup_agent_git_artifacts(root.path(), "agent-main", Some(&main_branch));
+        assert_eq!(cleanup.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(git_branch_exists(root.path(), &main_branch));
+    }
 }

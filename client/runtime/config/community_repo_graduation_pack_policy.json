@@ -8,7 +8,7 @@
     "algorithm": "sha256"
   },
   "defaults": {
-    "legacy_repo_url": "https://github.com/openclaw/openclaw",
+    "legacy_repo_url": "https://github.com/infring/infring",
     "target_repo_url": "https://github.com/protheuslabs/InfRing",
     "migration_guide_url": "docs/client/CORE_MIGRATION_BRIDGE.md"
   },

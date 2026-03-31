@@ -1,7 +1,7 @@
 {
   "id": "V3-OF-002",
   "upgrade": "[hardening / V3] End-to-End Execution Taint Tracking",
-  "section": "OpenFang Capability Intake (Normalized, 2026-02-28)",
+  "section": "Infring Capability Intake (Normalized, 2026-02-28)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,

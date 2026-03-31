@@ -20,11 +20,11 @@ fn bar_fill_prefers_higher_when_higher_is_better() {
 }
 
 #[test]
-fn merge_projects_replaces_openclaw_entry() {
+fn merge_projects_replaces_infring_entry() {
     let snapshot = json!({
         "projects": {
-            "OpenClaw": {"cold_start_ms": 5980.0},
-            "OpenFang": {"cold_start_ms": 180.0}
+            "Infring": {"cold_start_ms": 5980.0},
+            "Infring": {"cold_start_ms": 180.0}
         }
     });
     let mut measured = Map::<String, Value>::new();
@@ -32,16 +32,16 @@ fn merge_projects_replaces_openclaw_entry() {
     measured.insert("measured".to_string(), Value::Bool(true));
 
     let projects = merge_projects(&snapshot, &measured).expect("merge");
-    let openclaw = projects
-        .get("OpenClaw")
+    let infring = projects
+        .get("Infring")
         .and_then(Value::as_object)
-        .expect("openclaw object");
+        .expect("infring object");
     assert_eq!(
-        openclaw.get("cold_start_ms").and_then(Value::as_f64),
+        infring.get("cold_start_ms").and_then(Value::as_f64),
         Some(253.0)
     );
     assert_eq!(
-        openclaw.get("measured").and_then(Value::as_bool),
+        infring.get("measured").and_then(Value::as_bool),
         Some(true)
     );
 }

@@ -4,7 +4,7 @@ use conduit::{
     EchoCommandHandler, RegistryPolicyGate, TsCommand,
 };
 use std::io::{BufReader, Cursor};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 fn policy_fixture() -> (ConduitPolicy, tempfile::TempDir) {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -42,7 +42,7 @@ fn signed_envelope(policy: &ConduitPolicy) -> CommandEnvelope {
     let security =
         ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
     let request_id = "cert-req";
-    let ts_ms = 100;
+    let ts_ms = now_ts_ms();
     let command = TsCommand::GetSystemStatus;
     let security_metadata =
         security.mint_security_metadata("client-cert", request_id, ts_ms, &command, 120_000);
@@ -55,6 +55,13 @@ fn signed_envelope(policy: &ConduitPolicy) -> CommandEnvelope {
         command,
         security: security_metadata,
     }
+}
+
+fn now_ts_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 #[test]
@@ -119,7 +126,7 @@ fn hosted_roundtrip_budget_under_5ms() {
             "tok-secret",
         );
         let request_id = format!("latency-{i}");
-        let ts_ms = 1_000 + u64::from(i);
+        let ts_ms = now_ts_ms().saturating_add(u64::from(i));
         let command = TsCommand::GetSystemStatus;
         let security_metadata =
             security.mint_security_metadata("client-latency", &request_id, ts_ms, &command, 60_000);
@@ -151,7 +158,7 @@ fn embedded_stdio_budget_under_20ms() {
     let gate = RegistryPolicyGate::new(policy.clone());
 
     let request_id = "embedded-latency";
-    let ts_ms = 2_000;
+    let ts_ms = now_ts_ms();
     let command = TsCommand::GetSystemStatus;
     let security = ConduitSecurityContext::from_policy(
         &policy,

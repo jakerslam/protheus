@@ -27,7 +27,7 @@ This project follows a strict evidence-backed changelog model:
 - Alpha-readiness hardening:
   - Local migration now imports legacy root continuity + `memory/**` with conflict-safe archive semantics (`client/runtime/systems/ops/local_runtime_partitioner.ts`).
   - CLI wrapper resiliency improved with cargo fallback and explicit launcher failure diagnostics (`client/cli/bin/protheus`, `client/cli/bin/protheusctl`, `client/cli/bin/protheusd`, `client/cli/bin/protheus-top`).
-  - Benchmark snapshot moved to explicit competitor reference data (OpenFang/OpenHands baseline) and reproducible refresh command (`npm run ops:benchmark:refresh`).
+  - Benchmark snapshot moved to explicit competitor reference data (Infring/OpenHands baseline) and reproducible refresh command (`npm run ops:benchmark:refresh`).
   - Removed machine-specific absolute path leakage from active configs/scripts/docs by migrating to `${WORKSPACE_ROOT}` tokenized paths.
   - Repository legal posture changed to Protheus Non-Commercial License v1.0 (`LICENSE`, `README.md`, `SECURITY.md`, `package.json`).
 
@@ -35,8 +35,8 @@ This project follows a strict evidence-backed changelog model:
 
 ### Added
 - UI source-run grouping contract for multi-origin chat rendering:
-  - Source-aware first/last run logic in `client/runtime/systems/ui/openclaw_static/js/pages/chat.ts` (`messageSourceKey`, `isFirstInSourceRun`, `isLastInSourceRun`).
-  - System-tail style support in `client/runtime/systems/ui/openclaw_static/css/components.css`.
+  - Source-aware first/last run logic in `client/runtime/systems/ui/infring_static/js/pages/chat.ts` (`messageSourceKey`, `isFirstInSourceRun`, `isLastInSourceRun`).
+  - System-tail style support in `client/runtime/systems/ui/infring_static/css/components.css`.
 
 ### Changed
 - Runtime chat event metadata now preserves source identity for system/agent-origin rows:

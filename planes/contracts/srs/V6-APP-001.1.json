@@ -1,7 +1,7 @@
 {
   "id": "V6-APP-001.1",
   "upgrade": "Creator Discovery Engine (YouTube/Twitch)",
-  "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+  "section": "Creator Outreach Automation App Intake (Source: Infring creator-outreach demo pattern, 2026-03-09)",
   "impact": 6,
   "layer_map": "app",
   "conduit_only_boundary": false,

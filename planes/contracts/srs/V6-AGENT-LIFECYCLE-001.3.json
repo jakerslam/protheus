@@ -15,7 +15,7 @@
   "deliverables": [
     { "type": "contract", "path": "planes/contracts/srs/V6-AGENT-LIFECYCLE-001.3.json" },
     { "type": "runtime", "path": "client/runtime/systems/ui/infring_dashboard.ts" },
-    { "type": "ui", "path": "client/runtime/systems/ui/openclaw_static/js/pages/agents.ts" }
+    { "type": "ui", "path": "client/runtime/systems/ui/infring_static/js/pages/agents.ts" }
   ],
   "validation": {
     "lane_command": "protheus-ops srs-contract-runtime run --id=V6-AGENT-LIFECYCLE-001.3",

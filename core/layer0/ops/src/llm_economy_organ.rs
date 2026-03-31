@@ -1,3 +1,3 @@
-include!("llm_economy_organ_parts/part_000.rs");
-include!("llm_economy_organ_parts/part_001.rs");
-include!("llm_economy_organ_parts/part_002.rs");
+include!("llm_economy_organ_parts/010-state-root.rs");
+include!("llm_economy_organ_parts/020-run.rs");
+include!("llm_economy_organ_parts/030-has-claim.rs");

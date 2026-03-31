@@ -1,4 +1,4 @@
-# OpenClaw Terms of Service
+# Infring Terms of Service
 
 Version: `2026-02-27.v1`
 Effective Date: `2026-02-27`
@@ -23,7 +23,7 @@ By running install/bootstrap workflows for this system, the operator accepts the
 
 ## 4. Security and Misuse Protection
 
-OpenClaw is protected intellectual property. Unauthorized copying, reverse engineering, or bypass of policy controls is prohibited.
+Infring is protected intellectual property. Unauthorized copying, reverse engineering, or bypass of policy controls is prohibited.
 
 Detected misuse may trigger bounded security controls, including access denial, capability restriction, rate limiting, quarantine, and forensic logging.
 

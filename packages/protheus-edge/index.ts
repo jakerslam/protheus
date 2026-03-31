@@ -71,7 +71,7 @@ function edgeWrapper(command: string, options: Record<string, any> = {}) {
 
 function edgeBenchmark(command: string, options: Record<string, any> = {}) {
   return runNodeScript(
-    'client/runtime/systems/ops/run_protheus_ops.js',
+    'client/runtime/systems/ops/run_protheus_ops.ts',
     ['benchmark-matrix', command, ...toFlags(options)]
   );
 }

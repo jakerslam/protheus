@@ -211,6 +211,6 @@ Out of scope:
 - Ranked ROI lane execution was expanded and verified at 300-lane scale with deterministic lane-only execution controls.
 - Current evidence references:
   - `core/layer0/ops/src/swarm_runtime.rs`
-  - `tests/tooling/scripts/ci/srs_repair_lane_runner.mjs`
-  - `tests/tooling/scripts/ci/roi100_moves_runner.mjs`
-  - `core/layer0/ops/tests/v6_openfang_closure_integration.rs`
+  - `tests/tooling/scripts/ci/srs_repair_lane_runner.ts`
+  - `tests/tooling/scripts/ci/roi100_moves_runner.ts`
+  - `core/layer0/ops/tests/v6_infring_closure_integration.rs`

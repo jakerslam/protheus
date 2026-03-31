@@ -2,16 +2,16 @@
 
 **Audit Date:** 2026-03-26  
 **Auditor:** Subagent Tooling Analysis  
-**OpenFang Repository:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/`  
-**Infring Workspace Repository:** `/Users/jay/.openclaw/workspace/`
+**Infring Repository:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/`  
+**Infring Workspace Repository:** `/Users/jay/.infring/workspace/`
 
 ---
 
 ## Executive Summary
 
-This report compares OpenFang's tooling, deployment, and operational infrastructure against the Infring Workspace (Protheus). The analysis reveals **significant maturity gaps** across all operational domains. While OpenFang has basic CI/CD and release automation, it lacks enterprise-grade operational tooling, incident response capabilities, monitoring, and governance controls present in the Infring Workspace.
+This report compares Infring's tooling, deployment, and operational infrastructure against the Infring Workspace (Protheus). The analysis reveals **significant maturity gaps** across all operational domains. While Infring has basic CI/CD and release automation, it lacks enterprise-grade operational tooling, incident response capabilities, monitoring, and governance controls present in the Infring Workspace.
 
-| Category | OpenFang Status | Infring Workspace Status | Gap Severity |
+| Category | Infring Status | Infring Workspace Status | Gap Severity |
 |----------|-----------------|--------------------------|--------------|
 | Build Automation | Basic | Mature | Medium |
 | CI/CD Quality | Basic | Enterprise | High |
@@ -26,9 +26,9 @@ This report compares OpenFang's tooling, deployment, and operational infrastruct
 
 ## 1. Build Automation Tasks (`xtask/`)
 
-### 1.1 OpenFang
+### 1.1 Infring
 
-**Location:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/xtask/`
+**Location:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/xtask/`
 
 **Current State:**
 - Directory exists with skeletal structure (Cargo.toml, src/main.rs)
@@ -55,7 +55,7 @@ The Infring Workspace uses npm-based operational tooling rather than Cargo xtask
 
 ### 1.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | Build Tasks Defined | ❌ None (placeholder only) | ✅ Extensive | **Critical** |
 | Code Generation | ❌ Not present | ✅ Multiple generators | High |
@@ -74,30 +74,30 @@ The Infring Workspace uses npm-based operational tooling rather than Cargo xtask
 
 ## 2. Deployment Configuration (`deploy/`)
 
-### 2.1 OpenFang
+### 2.1 Infring
 
-**Location:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/deploy/`
+**Location:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/deploy/`
 
 **Current State:**
-- Single systemd service file (`openfang.service`)
+- Single systemd service file (`infring.service`)
 - Basic security hardening configurations
 - No deployment scripts, health checks, or verification procedures
 
 **Files:**
-- `deploy/openfang.service`: Systemd unit with basic hardening
+- `deploy/infring.service`: Systemd unit with basic hardening
 
 ```ini
 [Unit]
-Description=OpenFang Agent OS Daemon
-Documentation=https://github.com/openfang-ai/openfang
+Description=Infring Agent OS Daemon
+Documentation=https://github.com/infring-ai/infring
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=openfang
-Group=openfang
-ExecStart=/usr/local/bin/openfang start
+User=infring
+Group=infring
+ExecStart=/usr/local/bin/infring start
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
@@ -130,7 +130,7 @@ ProtectHome=true
 
 ### 2.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | Systemd Service | ✅ Basic | ✅ Advanced | Low |
 | Deployment Runbooks | ❌ None | ✅ Comprehensive | **Critical** |
@@ -153,7 +153,7 @@ ProtectHome=true
 - Critical service approval gates
 - Rollback metrics emission
 
-# OpenFang Deployment:
+# Infring Deployment:
 - Basic systemd unit with hardening
 - No rollback capabilities
 - No health verification
@@ -171,9 +171,9 @@ ProtectHome=true
 
 ## 3. Package Management (`packages/`)
 
-### 2.1 OpenFang
+### 2.1 Infring
 
-**Location:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/packages/`
+**Location:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/packages/`
 
 **Current State:**
 - Contains only `whatsapp-gateway/` subdirectory
@@ -185,16 +185,16 @@ ProtectHome=true
 
 ```json
 {
-  "name": "@openfang/whatsapp-gateway",
+  "name": "@infring/whatsapp-gateway",
   "version": "0.1.0",
-  "description": "WhatsApp Web gateway for OpenFang",
+  "description": "WhatsApp Web gateway for Infring",
   "engines": { "node": ">=18" }
 }
 ```
 
 ### 3.2 Infring Workspace Equivalent
 
-**Location:** `/Users/jay/.openclaw/workspace/packages/`, `core/layer*/`
+**Location:** `/Users/jay/.infring/workspace/packages/`, `core/layer*/`
 
 **Present Capabilities:**
 - Multi-language packages (Rust core, TypeScript clients)
@@ -204,7 +204,7 @@ ProtectHome=true
 
 ### 3.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | NPM Packages | ✅ Limited | ✅ Multiple | Medium |
 | Rust Crates | ✅ Via crates/ | ✅ Via core/layer*/ | Low |
@@ -215,9 +215,9 @@ ProtectHome=true
 
 ## 4. Root Scripts
 
-### 4.1 OpenFang
+### 4.1 Infring
 
-**Location:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/scripts/`
+**Location:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/scripts/`
 
 **Files:**
 - `scripts/install.sh` - Linux/macOS installer (comprehensive)
@@ -240,7 +240,7 @@ ProtectHome=true
 
 ### 4.2 Infring Workspace Equivalent
 
-**Location:** `/Users/jay/.openclaw/workspace/tools/ops-toolkit/`
+**Location:** `/Users/jay/.infring/workspace/tools/ops-toolkit/`
 
 **Present Capabilities:**
 - **Operational Scripts:**
@@ -251,7 +251,7 @@ ProtectHome=true
 
 ### 4.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | Installers | ✅ Excellent | ❌ Not present | Infring Lacks |
 | Maintenance Scripts | ❌ None | ✅ disk-cleanup, log-rotation | **Critical** |
@@ -262,7 +262,7 @@ ProtectHome=true
 **Key Missing Scripts:**
 
 ```bash
-# Infring Workspace has these; OpenFang lacks:
+# Infring Workspace has these; Infring lacks:
 
 1. disk-cleanup.sh
    - Threshold-based cleanup (default 80%)
@@ -288,15 +288,15 @@ ProtectHome=true
 
 **Recommendations:**
 1. Copy/adapt operational scripts for Rust-focused deployment
-2. Implement log rotation for OpenFang's data directory
+2. Implement log rotation for Infring's data directory
 3. Create systemd-based deployment rollback mechanisms
-4. Add disk monitoring for OpenFang data volume
+4. Add disk monitoring for Infring data volume
 
 ---
 
 ## 5. Docker & Containerization
 
-### 5.1 OpenFang
+### 5.1 Infring
 
 **Dockerfile:**
 ```dockerfile
@@ -304,11 +304,11 @@ FROM rust:1-slim-bookworm AS builder
 ...
 FROM rust:1-slim-bookworm
 RUN apt-get update && apt-get install -y ...
-COPY --from=builder /build/target/release/openfang /usr/local/bin/
+COPY --from=builder /build/target/release/infring /usr/local/bin/
 EXPOSE 4200
 VOLUME /data
-ENV OPENFANG_HOME=/data
-ENTRYPOINT ["openfang"]
+ENV INFRING_HOME=/data
+ENTRYPOINT ["infring"]
 CMD ["start"]
 ```
 
@@ -342,7 +342,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ### 5.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | Multi-stage Build | ✅ Yes | ✅ Yes | Low |
 | Health Checks | ❌ No | ✅ Yes | **High** |
@@ -355,7 +355,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 **Recommendations:**
 1. Add HEALTHCHECK to Dockerfile
-2. Create dedicated openfang user
+2. Create dedicated infring user
 3. Add runtime security labels
 4. FIPS compliance mode consideration for enterprise users
 
@@ -363,9 +363,9 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ## 6. CI/CD Workflows
 
-### 6.1 OpenFang
+### 6.1 Infring
 
-**Location:** `/Users/jay/.openclaw/workspace/artifacts/openfang-analysis/openfang-repo/.github/workflows/`
+**Location:** `/Users/jay/.infring/workspace/artifacts/infring-analysis/infring-repo/.github/workflows/`
 
 **Files:**
 - `ci.yml` - Basic CI pipeline
@@ -390,7 +390,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ### 6.2 Infring Workspace
 
-**Location:** `/Users/jay/.openclaw/workspace/.github/workflows/`
+**Location:** `/Users/jay/.infring/workspace/.github/workflows/`
 
 **43+ workflow files including:**
 - `ci.yml` - Quality gates, type checking, personas
@@ -414,7 +414,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ### 6.3 Gap Analysis
 
-| Feature | OpenFang | Infring Workspace | Gap |
+| Feature | Infring | Infring Workspace | Gap |
 |---------|----------|-------------------|-----|
 | Multi-platform CI | ✅ Yes | ✅ Yes | Low |
 | Rust Security Audit | ✅ Yes | ✅ Yes | None |
@@ -445,7 +445,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ### 7.1 Cross-Compilation
 
-**OpenFang:**
+**Infring:**
 - Uses `cross` tool for aarch64-linux-gnu
 - Basic Cross.toml configuration
 
@@ -453,7 +453,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ### 7.2 Nix Flake
 
-**OpenFang:**
+**Infring:**
 - Has `flake.nix` with rust-flake integration
 - Supports 4 systems: x86_64-linux, aarch64-linux, aarch64-darwin, x86_64-darwin
 - Defines both CLI and desktop apps
@@ -461,16 +461,16 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 **Infring Workspace:**
 - Uses Nix in release workflow (indeterminate version)
 
-**Gap:** OpenFang Nix flake is more developed; Infring could benefit from similar
+**Gap:** Infring Nix flake is more developed; Infring could benefit from similar
 
 ### 7.3 Release Infrastructure
 
-| Feature | OpenFang | Infring Workspace |
+| Feature | Infring | Infring Workspace |
 |---------|----------|-------------------|
 | Public Release | GitHub Releases | GitHub Releases |
 | Docker Registry | GHCR (noted as "not yet public") | Not specified |
 | Update Service | Tauri auto-updater | Not specified |
-| CDN | Vercel (openfang.sh) | Not specified |
+| CDN | Vercel (infring.sh) | Not specified |
 
 ---
 
@@ -506,11 +506,11 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 
 ## Appendix A: File References
 
-### OpenFang Key Files
+### Infring Key Files
 ```
-artifacts/openfang-analysis/openfang-repo/
+artifacts/infring-analysis/infring-repo/
 ├── xtask/src/main.rs                    # Placeholder - needs implementation
-├── deploy/openfang.service              # Systemd unit - needs health checks
+├── deploy/infring.service              # Systemd unit - needs health checks
 ├── scripts/
 │   ├── install.sh                       # Good - keep
 │   ├── install.ps1                      # Good - keep

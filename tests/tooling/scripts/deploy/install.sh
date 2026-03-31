@@ -19,14 +19,14 @@ if command -v protheus-ops >/dev/null 2>&1; then
   exec protheus-ops protheusctl "$@"
 fi
 
-WORKSPACE="${OPENCLAW_WORKSPACE:-${PROTHEUS_WORKSPACE:-$HOME/.openclaw/workspace}}"
+WORKSPACE="${INFRING_WORKSPACE:-${PROTHEUS_WORKSPACE:-$HOME/.infring/workspace}}"
 CLI="${WORKSPACE}/client/cli/bin/protheusctl"
 if [ -f "${CLI}" ]; then
   exec node "${CLI}" "$@"
 fi
 
 echo "protheus installer shim could not find a runnable backend." >&2
-echo "Set OPENCLAW_WORKSPACE or install protheus-ops in PATH." >&2
+echo "Set INFRING_WORKSPACE or install protheus-ops in PATH." >&2
 exit 1
 WRAP
 chmod +x "${INSTALL_DIR}/protheus"

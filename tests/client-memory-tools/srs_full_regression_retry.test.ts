@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const SCRIPT = path.join(ROOT, 'tests', 'tooling', 'scripts', 'ci', 'srs_full_regression.mjs');
+const SCRIPT = path.join(ROOT, 'tests', 'tooling', 'scripts', 'ci', 'srs_full_regression.ts');
 
 function parseLastJson(stdout) {
   const whole = String(stdout || '').trim();

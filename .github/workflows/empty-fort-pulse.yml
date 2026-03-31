@@ -34,7 +34,7 @@ jobs:
           if [ "${{ github.event.inputs.apply || 'false' }}" = "true" ]; then
             APPLY_FLAG=1
           fi
-          node scripts/empty_fort_pulse_scheduler.js --apply=${APPLY_FLAG} --actor=${{ github.actor }} --audit=artifacts/empty-fort/pulse_audit.json
+          node scripts/empty_fort_pulse_scheduler.ts --apply=${APPLY_FLAG} --actor=${{ github.actor }} --audit=artifacts/empty-fort/pulse_audit.json
 
       - name: Create pulse PR (optional apply mode)
         if: ${{ github.event.inputs.apply == 'true' }}

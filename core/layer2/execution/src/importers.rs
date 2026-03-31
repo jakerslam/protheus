@@ -163,7 +163,7 @@ fn coerce_row_name(row: &Value, kind: &str, idx: usize) -> String {
     fallback
 }
 
-fn map_openfang_rows(rows: &[Value], kind: &str) -> Vec<Value> {
+fn map_infring_rows(rows: &[Value], kind: &str) -> Vec<Value> {
     rows.iter()
         .enumerate()
         .map(|(idx, row)| {
@@ -186,7 +186,7 @@ fn map_openfang_rows(rows: &[Value], kind: &str) -> Vec<Value> {
         .collect()
 }
 
-pub fn run_importer_openfang_json(payload: &str) -> Result<String, String> {
+pub fn run_importer_infring_json(payload: &str) -> Result<String, String> {
     let parsed: Value =
         serde_json::from_str(payload).map_err(|err| format!("payload_json_parse_failed:{err}"))?;
     let obj = parsed.as_object().cloned().unwrap_or_default();
@@ -212,10 +212,10 @@ pub fn run_importer_openfang_json(payload: &str) -> Result<String, String> {
         .cloned()
         .unwrap_or_default();
 
-    let agents = map_openfang_rows(&source_agents, "agent");
-    let tasks = map_openfang_rows(&source_tasks, "task");
-    let workflows = map_openfang_rows(&source_workflows, "workflow");
-    let tools = map_openfang_rows(&source_tools, "tool");
+    let agents = map_infring_rows(&source_agents, "agent");
+    let tasks = map_infring_rows(&source_tasks, "task");
+    let workflows = map_infring_rows(&source_workflows, "workflow");
+    let tools = map_infring_rows(&source_tools, "tool");
 
     let source_item_count =
         source_agents.len() + source_tasks.len() + source_workflows.len() + source_tools.len();
@@ -355,7 +355,7 @@ pub fn run_importer_workflow_graph_json(payload: &str) -> Result<String, String>
 mod tests {
     use super::{
         parse_simple_yaml_text, run_importer_generic_json_json, run_importer_generic_yaml_json,
-        run_importer_openfang_json, run_importer_workflow_graph_json,
+        run_importer_infring_json, run_importer_workflow_graph_json,
     };
     use serde_json::{json, Value};
 
@@ -450,15 +450,15 @@ mod tests {
     }
 
     #[test]
-    fn importer_openfang_maps_named_rows() {
+    fn importer_infring_maps_named_rows() {
         let payload = json!({
             "agents": [{"name": "Planner"}],
             "tasks": [{"id": "task_alpha"}],
             "workflows": [{"name": "PrimaryFlow"}],
             "tools": [{"name": "Search"}]
         });
-        let out = run_importer_openfang_json(&payload.to_string())
-            .expect("importer_openfang_json should return output");
+        let out = run_importer_infring_json(&payload.to_string())
+            .expect("importer_infring_json should return output");
         let parsed: Value = serde_json::from_str(&out).expect("valid json output");
         assert_eq!(parsed["ok"], true);
         assert_eq!(parsed["payload"]["source_item_count"], 4);
@@ -476,9 +476,9 @@ mod tests {
     }
 
     #[test]
-    fn importer_openfang_non_object_payload_is_empty() {
+    fn importer_infring_non_object_payload_is_empty() {
         let out =
-            run_importer_openfang_json("[]").expect("importer_openfang_json should return output");
+            run_importer_infring_json("[]").expect("importer_infring_json should return output");
         let parsed: Value = serde_json::from_str(&out).expect("valid json output");
         assert_eq!(parsed["ok"], true);
         assert_eq!(parsed["payload"]["source_item_count"], 0);

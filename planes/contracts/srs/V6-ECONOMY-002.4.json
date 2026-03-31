@@ -1,7 +1,7 @@
 {
   "id": "V6-ECONOMY-002.4",
   "upgrade": "Config + Metrics Surface Contract",
-  "section": "OpenFang Trading-Hand Hardening Intake (Doc/Source `V6-ECONOMY-002`, 2026-03-12)",
+  "section": "Infring Trading-Hand Hardening Intake (Doc/Source `V6-ECONOMY-002`, 2026-03-12)",
   "impact": 8,
   "layer_map": "1/2/client",
   "conduit_only_boundary": false,

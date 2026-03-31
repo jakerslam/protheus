@@ -224,7 +224,7 @@ client/systems/security/thorn_swarm_protocol.ts
 client/systems/ops/repo_hygiene_generated_guard.ts
 client/systems/ops/autotest_recipe_release.ts
 client/systems/ops/enterprise_readiness_pack.ts
-client/systems/ops/openclaw_backup_retention.ts
+client/systems/ops/infring_backup_retention.ts
 client/systems/ops/dr_gameday.ts
 client/systems/ops/protheus_unknown_guard.ts
 client/systems/ops/rust_dual_logic_guard.ts
@@ -330,7 +330,7 @@ client/systems/ops/chaos_self_healing_automation.ts
 client/systems/ops/backlog_runtime_anchors/v4_eth_002_anchor.ts
 client/systems/ops/backlog_runtime_anchors/v4_eth_001_anchor.ts
 client/systems/ops/backlog_runtime_anchors/v3_race_222_anchor.ts
-client/systems/ops/openfang_parity_runtime.ts
+client/systems/ops/infring_parity_runtime.ts
 client/systems/ops/backlog_runtime_anchors/v3_race_167_anchor.ts
 client/systems/ops/backlog_runtime_anchors/v3_race_272_anchor.ts
 client/systems/ops/backlog_runtime_anchors/v2_063_anchor.ts

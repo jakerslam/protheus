@@ -5,7 +5,7 @@
 // SRS contract evidence anchor: V6-SWARM-032 (client-settable token budget bridge).
 
 const path = require('path');
-const { runProtheusOps, ROOT } = require('../ops/run_protheus_ops.js');
+const { runProtheusOps, ROOT } = require('../ops/run_protheus_ops.ts');
 
 const DEFAULT_STATE_PATH = path.join(
   ROOT,

@@ -15,7 +15,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 ## Completed In This Run
 - [x] `1dd15784` retire generic-json legacy fallback
 - [x] `42c3b4d1` retire generic-yaml legacy fallback
-- [x] `aa1b060a` retire openfang legacy fallback
+- [x] `aa1b060a` retire infring legacy fallback
 - [x] `3246b0b5` retire workflow-graph legacy fallback
 - [x] `697a4928` retire autotest-controller legacy TypeScript lane
 - [x] `8434df99` retire autotest-doctor legacy TypeScript lane
@@ -224,7 +224,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 149 | `client/runtime/systems/security/copy_hardening_pack.ts` | `c11cb386` |
 | 150 | `client/runtime/systems/ops/continuous_chaos_resilience.ts` | `d06beae6` |
 | 151 | `client/runtime/systems/ops/open_platform_release_pack.ts` | `b7c7bab0` |
-| 152 | `client/runtime/systems/ops/openfang_capability_pack.ts` | `bbf6d473` |
+| 152 | `client/runtime/systems/ops/infring_capability_pack.ts` | `bbf6d473` |
 | 153 | `client/runtime/systems/workflow/workflow_generator.ts` | `52b20b87` |
 | 154 | `client/runtime/systems/autonomy/dream_signal_bridge.ts` | `bfa51f3e` |
 | 155 | `client/runtime/systems/autonomy/receipt_dashboard.ts` | `d2c0c8eb` |
@@ -1044,7 +1044,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/execution/index.ts
 - client/runtime/systems/sensory/analysis_quality_slo_contract.ts
 - client/runtime/systems/ops/docs_coverage_gate.ts
-- client/runtime/systems/ops/openfang_parity_runtime.ts
+- client/runtime/systems/ops/infring_parity_runtime.ts
 - client/runtime/systems/helix/reweave_doctor.ts
 - client/runtime/systems/hardware/surface_embodiment_freshness_guard.ts
 - client/runtime/systems/helix/codex_root.ts
@@ -1170,7 +1170,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/memory/hybrid_memory_engine.ts
 - client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts
 - client/runtime/systems/hardware/device_mesh_adaptive_runtime.ts
-- client/runtime/systems/ops/openclaw_backup_retention.ts
+- client/runtime/systems/ops/infring_backup_retention.ts
 - client/runtime/systems/actuation/full_virtual_desktop_claw_lane.ts
 - client/runtime/systems/primitives/canonical_event_log.ts
 - client/runtime/systems/autonomy/inversion_semantic_matcher.ts

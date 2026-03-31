@@ -37,7 +37,7 @@ module.exports = {
   fetchMoltbookFeed
 };
 
-// Patch instructions for OpenClaw integration:
+// Patch instructions for Infring integration:
 // 1. Import this module in your tool wrapper
 // 2. Call processToolOutput(toolName, rawResult) before returning to context
 // 3. All outputs >1200 chars or >40 lines will be compacted automatically

@@ -1,7 +1,7 @@
 {
   "id": "V6-PERSIST-001.13",
   "upgrade": "Full-State Snapshot Backup/Restore + Forked Experiment Contract",
-  "section": "OpenClaw Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
+  "section": "Infring Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
   "impact": 8,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,

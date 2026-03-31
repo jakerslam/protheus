@@ -140,7 +140,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
         &json!({
             "version": "2026.02",
             "projects": {
-                "OpenClaw": {
+                "Infring": {
                     "cold_start_ms": 96,
                     "idle_memory_mb": 33,
                     "install_size_mb": 154,

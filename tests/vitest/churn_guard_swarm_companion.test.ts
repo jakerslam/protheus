@@ -5,7 +5,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, test } from 'vitest';
 
 const ROOT = process.cwd();
-const GUARD_PATH = path.join(ROOT, 'tests/tooling/scripts/ci/churn_guard.mjs');
+const GUARD_PATH = path.join(ROOT, 'tests/tooling/scripts/ci/churn_guard.ts');
 
 function writeTrackedFile(repoRoot: string, relativePath: string, contents = `${relativePath}\n`) {
   const absolutePath = path.join(repoRoot, relativePath);
@@ -24,7 +24,7 @@ function createFixtureRepo(): string {
     'client/runtime/systems/autonomy/swarm_sessions_bridge.ts',
     'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
     'tests/client-memory-tools/swarm_sessions_bridge.test.ts',
-    'tests/tooling/scripts/ci/swarm_protocol_audit_runner.mjs',
+    'tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts',
     'docs/workspace/SRS.md',
     'docs/client/requirements/REQ-38-agent-orchestration-hardening.md',
   ].forEach((relativePath) => writeTrackedFile(repoRoot, relativePath));

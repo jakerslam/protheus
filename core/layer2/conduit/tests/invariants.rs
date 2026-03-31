@@ -3,12 +3,13 @@ use conduit::{
     deterministic_receipt_hash, process_command, ConduitPolicy, ConduitSecurityContext,
     EchoCommandHandler, RegistryPolicyGate, TsCommand,
 };
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> conduit::CommandEnvelope {
     let security =
         ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
     let request_id = "inv-req";
-    let ts_ms = 2;
+    let ts_ms = now_ts_ms();
     let security_metadata =
         security.mint_security_metadata("client-a", request_id, ts_ms, &command, 120_000);
 
@@ -20,6 +21,13 @@ fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> conduit::Comma
         command,
         security: security_metadata,
     }
+}
+
+fn now_ts_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn invariant_policy() -> (ConduitPolicy, tempfile::TempDir) {

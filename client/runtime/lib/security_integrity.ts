@@ -80,7 +80,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     version: '1.0',
     target_roots: ['systems/security', 'config/directives'],
     target_extensions: ['.js', '.yaml', '.yml'],
-    protected_files: ['lib/directive_resolver.js'],
+    protected_files: ['lib/directive_resolver.ts'],
     exclude_paths: [],
     hashes: {}
   };

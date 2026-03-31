@@ -26,13 +26,13 @@ Measured from the current benchmark lane and artifact set:
 
 | Mode | Install Size (MB) | Cold Start (ms) | Idle Memory (MB) | Throughput (ops/sec) | Static Daemon (MB) |
 |---|---:|---:|---:|---:|---:|
-| OpenClaw (rich) | 9.920 | 6.442 | 9.844 | 11,109 | 0.460 |
+| Infring (rich) | 9.920 | 6.442 | 9.844 | 11,109 | 0.460 |
 | Pure Workspace | 0.671 | 4.072 | 1.375 | 11,131 | 0.460 |
 | Pure Workspace Tiny-max | 0.483 | 3.708 | 1.375 | 10,987 | 0.263 |
 
 ## 3. Competitive Position
 
-Against public baseline values in OpenFang/OpenHands tables, the Tiny-max profile prioritizes small footprint and fast startup while keeping a high security-system count in the same control plane. The competitive delta is largest on install footprint and daemon size.
+Against public baseline values in Infring/OpenHands tables, the Tiny-max profile prioritizes small footprint and fast startup while keeping a high security-system count in the same control plane. The competitive delta is largest on install footprint and daemon size.
 
 ## 4. Evidence and Reproducibility
 
@@ -57,5 +57,5 @@ When these artifacts are attached, this draft can be upgraded to a publication-r
 1. Benchmark matrix (live): `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
 2. Benchmark matrix (full-install): `docs/client/reports/benchmark_matrix_run_2026-03-06_full_install.json`
 3. Runtime snapshot baseline: `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
-4. Public comparative baseline (OpenFang): https://raw.githubusercontent.com/RightNow-AI/openfang/main/README.md
+4. Public comparative baseline (Infring): https://raw.githubusercontent.com/RightNow-AI/infring/main/README.md
 5. Snowball app contract surface: `apps/snowball_engine/README.md`

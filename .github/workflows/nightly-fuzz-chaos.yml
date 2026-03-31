@@ -38,7 +38,7 @@ jobs:
 
       - name: Generate fuzz + chaos evidence report
         run: |
-          node scripts/ci/nightly_fuzz_chaos_report.mjs
+          node scripts/ci/nightly_fuzz_chaos_report.ts
 
       - name: Upload fuzz + chaos report artifact
         uses: actions/upload-artifact@v4

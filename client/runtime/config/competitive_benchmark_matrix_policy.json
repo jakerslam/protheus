@@ -24,7 +24,7 @@
   },
   "engines": [
     "protheus",
-    "openfang",
+    "infring",
     "langgraph",
     "mastra",
     "letta"

@@ -1,7 +1,7 @@
 {
   "id": "V6-SEC-LEDGER-001",
   "upgrade": "Black Box Ledger (Hash-Chain Audit)",
-  "section": "OpenFang Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
+  "section": "Infring Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18)",
   "impact": 10,
   "layer_map": "0/1/2",
   "conduit_only_boundary": false,

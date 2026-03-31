@@ -157,7 +157,7 @@ fn read_policy(root: &Path) -> Policy {
 
 fn evaluate_gate(payload: &Value, gates: &Gates) -> Value {
     let measured = payload
-        .get("openclaw_measured")
+        .get("infring_measured")
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn evaluate_gate_detects_failures() {
         let payload = json!({
-            "openclaw_measured": {
+            "infring_measured": {
                 "cold_start_ms": 500.0,
                 "idle_memory_mb": 9.0,
                 "install_size_mb": 10.0,

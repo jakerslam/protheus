@@ -1,0 +1,417 @@
+        case 'text_delta':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
+          var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (last && last.streaming) {
+            if (last.thinking) { last.text = ''; last.thinking = false; }
+            // If we already detected a text-based tool call, skip further text
+            if (last._toolTextDetected) break;
+            var deltaText = String(data.content || '');
+            last._streamRawText = String(last._streamRawText || '') + deltaText;
+            last._stream_updated_at = Date.now();
+            var streamingSplit = this.extractThinkingLeak(last._streamRawText);
+            var visibleText = this.stripModelPrefix(streamingSplit.content || '');
+            last._cleanText = visibleText;
+            last._thoughtText = streamingSplit.thought || '';
+            if (streamingSplit.thought && !visibleText.trim()) {
+              this._clearMessageTypewriter(last);
+              last.isHtml = true;
+              last.thoughtStreaming = true;
+              last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
+            } else {
+              if (last.isHtml) last.isHtml = false;
+              last.thoughtStreaming = false;
+              this._queueStreamTypingRender(last, visibleText);
+            }
+            // Detect function-call patterns streamed as text and convert to tool cards
+            var toolScanText = String(last._cleanText || '');
+            var fcIdx = toolScanText.search(/\w+<\/function[=,>]/);
+            if (fcIdx === -1) fcIdx = toolScanText.search(/<function=\w+>/);
+            if (fcIdx !== -1) {
+              var fcPart = toolScanText.substring(fcIdx);
+              var toolMatch = fcPart.match(/^(\w+)<\/function/) || fcPart.match(/^<function=(\w+)>/);
+              var trimmedVisible = toolScanText.substring(0, fcIdx).trim();
+              if (streamingSplit.thought && !trimmedVisible) {
+                this._clearMessageTypewriter(last);
+                last.isHtml = true;
+                last.thoughtStreaming = true;
+                last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
+              } else {
+                if (last.isHtml) last.isHtml = false;
+                last.thoughtStreaming = false;
+                this._clearMessageTypewriter(last);
+                last.text = trimmedVisible;
+              }
+              last._cleanText = trimmedVisible;
+              last._toolTextDetected = true;
+              if (toolMatch) {
+                if (!last.tools) last.tools = [];
+                var inputMatch = fcPart.match(/[=,>]\s*(\{[\s\S]*)/);
+                last.tools.push({
+                  id: toolMatch[1] + '-txt-' + Date.now(),
+                  name: toolMatch[1],
+                  running: true,
+                  expanded: false,
+                  input: inputMatch ? inputMatch[1].replace(/<\/function>?\s*$/, '').trim() : '',
+                  result: '',
+                  is_error: false
+                });
+              }
+            }
+            this.tokenCount = Math.round(String(last._cleanText || '').length / 4);
+          } else {
+            var firstChunk = this.stripModelPrefix(data.content || '');
+            var firstSplit = this.extractThinkingLeak(firstChunk);
+            var firstVisible = firstSplit.content || '';
+            var firstMessage = {
+              id: ++msgId,
+              role: 'agent',
+              text: '',
+              meta: '',
+              streaming: true,
+              tools: [],
+              _streamRawText: firstChunk,
+              _cleanText: firstVisible,
+              _thoughtText: firstSplit.thought || '',
+              _stream_updated_at: Date.now(),
+              thoughtStreaming: false,
+              ts: Date.now(),
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+            };
+            if (firstSplit.thought && !firstVisible.trim()) {
+              firstMessage.isHtml = true;
+              firstMessage.thoughtStreaming = true;
+              firstMessage.text = this.renderLiveThoughtHtml(firstSplit.thought);
+            }
+            this.messages.push(firstMessage);
+            if (!firstMessage.isHtml) {
+              this._queueStreamTypingRender(firstMessage, firstVisible);
+            }
+          }
+          this.scrollToBottom();
+          break;
+
+        case 'tool_start':
+          var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (lastMsg && lastMsg.streaming) {
+            if (!lastMsg.tools) lastMsg.tools = [];
+            lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: '', result: '', is_error: false });
+          }
+          this.scrollToBottom();
+          break;
+
+        case 'tool_end':
+          // Tool call parsed by LLM — update tool card with input params
+          var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (lastMsg2 && lastMsg2.tools) {
+            for (var ti = lastMsg2.tools.length - 1; ti >= 0; ti--) {
+              if (lastMsg2.tools[ti].name === data.tool && lastMsg2.tools[ti].running) {
+                lastMsg2.tools[ti].input = data.input || '';
+                break;
+              }
+            }
+          }
+          break;
+
+        case 'tool_result':
+          // Tool execution completed — update tool card with result
+          var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (lastMsg3 && lastMsg3.tools) {
+            for (var ri = lastMsg3.tools.length - 1; ri >= 0; ri--) {
+              if (lastMsg3.tools[ri].name === data.tool && lastMsg3.tools[ri].running) {
+                lastMsg3.tools[ri].running = false;
+                lastMsg3.tools[ri].result = data.result || '';
+                lastMsg3.tools[ri].is_error = !!data.is_error;
+                // Extract image URLs from image_generate or browser_screenshot results
+                if ((data.tool === 'image_generate' || data.tool === 'browser_screenshot') && !data.is_error) {
+                  try {
+                    var parsed = JSON.parse(data.result);
+                    if (parsed.image_urls && parsed.image_urls.length) {
+                      lastMsg3.tools[ri]._imageUrls = parsed.image_urls;
+                    }
+                  } catch(e) { /* not JSON */ }
+                }
+                // Extract audio file path from text_to_speech results
+                if (data.tool === 'text_to_speech' && !data.is_error) {
+                  try {
+                    var ttsResult = JSON.parse(data.result);
+                    if (ttsResult.saved_to) {
+                      lastMsg3.tools[ri]._audioFile = ttsResult.saved_to;
+                      lastMsg3.tools[ri]._audioDuration = ttsResult.duration_estimate_ms;
+                    }
+                  } catch(e) { /* not JSON */ }
+                }
+                break;
+              }
+            }
+          }
+          this.scrollToBottom();
+          break;
+
+        case 'response':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
+          this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
+          this.applyContextTelemetry(data);
+          var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
+          if (!wsAutoSwitchPrevious) wsAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
+          var wsRoute = this.applyAutoRouteTelemetry(data);
+          var envelope = this.collectStreamedAssistantEnvelope();
+          var streamedText = envelope.text;
+          var streamedTools = envelope.tools;
+          var streamedThought = envelope.thought;
+          streamedTools.forEach(function(t) {
+            t.running = false;
+            // Text-detected tool calls (model leaked as text) — mark as not executed
+            if (t.id && t.id.indexOf('-txt-') !== -1 && !t.result) {
+              t.result = 'Model attempted this call as text (not executed via tool system)';
+              t.is_error = true;
+            }
+          });
+          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          var meta = (data.input_tokens || 0) + ' in / ' + (data.output_tokens || 0) + ' out';
+          if (data.cost_usd != null) meta += ' | $' + data.cost_usd.toFixed(4);
+          if (data.iterations) meta += ' | ' + data.iterations + ' iter';
+          if (data.fallback_model) meta += ' | fallback: ' + data.fallback_model;
+          var wsDurationMs = Number(data.duration_ms || data.elapsed_ms || data.response_ms || 0);
+          if (!wsDurationMs && this._responseStartedAt) {
+            wsDurationMs = Math.max(0, Date.now() - this._responseStartedAt);
+          }
+          var wsDuration = this.formatResponseDuration(wsDurationMs);
+          if (wsDuration) meta += ' | ' + wsDuration;
+          var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
+          if (wsRouteMeta) meta += ' | ' + wsRouteMeta;
+          // Use server response if non-empty, otherwise preserve accumulated streamed text
+          var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
+          finalText = this.stripModelPrefix(finalText);
+          var artifactDirectives = this.extractArtifactDirectives(finalText);
+          var finalSplit = this.extractThinkingLeak(finalText);
+          if (finalSplit.thought) {
+            if (!streamedThought) {
+              streamedThought = finalSplit.thought;
+            } else if (streamedThought.indexOf(finalSplit.thought) === -1) {
+              streamedThought += '\n' + finalSplit.thought;
+            }
+            finalText = finalSplit.content || '';
+          }
+          // Strip raw function-call JSON that some models leak as text
+          finalText = this.sanitizeToolText(finalText);
+          finalText = this.stripArtifactDirectivesFromText(finalText);
+          var collapsedThought = String(streamedThought || '').trim();
+          var maybePlaceholder = /^(thinking|processing|working)\.\.\.$/i.test(String(finalText || '').trim());
+          if (maybePlaceholder && collapsedThought) {
+            finalText = '';
+          }
+          if (collapsedThought) {
+            streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
+          }
+          var usedFallback = false;
+          if (!finalText.trim()) {
+            finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);
+            usedFallback = true;
+          }
+          var finalMessage = {
+            id: ++msgId,
+            role: 'agent',
+            text: finalText,
+            meta: meta,
+            tools: streamedTools,
+            ts: Date.now(),
+            _auto_fallback: usedFallback,
+            agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+            agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+          };
+          var lastStable = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          if (!usedFallback && lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {
+            this.messages[this.messages.length - 1] = finalMessage;
+          } else {
+            this.messages.push(finalMessage);
+          }
+          this.markAgentMessageComplete(finalMessage);
+          var wsFailure = this.extractRecoverableBackendFailure(finalText);
+          this.sending = false;
+          this._responseStartedAt = 0;
+          this.tokenCount = 0;
+          this.scrollToBottom();
+          this.requestContextTelemetry(false);
+          this.maybeAddAutoModelSwitchNotice(wsAutoSwitchPrevious, wsRoute);
+          this._pendingAutoModelSwitchBaseline = '';
+          if (artifactDirectives && artifactDirectives.length) {
+            this.resolveArtifactDirectives(artifactDirectives);
+          }
+          var self3 = this;
+          if (wsFailure) {
+            this.attemptAutomaticFailoverRecovery('ws_response', finalText, {
+              remove_last_agent_failure: true
+            }).then(function(recovered) {
+              if (recovered) return;
+              self3._inflightPayload = null;
+              self3.refreshPromptSuggestions(true, 'post-response-failed-recover');
+              self3.$nextTick(function() {
+                var el = document.getElementById('msg-input'); if (el) el.focus();
+                self3._processQueue();
+              });
+            });
+          } else {
+            this._inflightPayload = null;
+            this.refreshPromptSuggestions(true, 'post-response');
+            this.$nextTick(function() {
+              var el = document.getElementById('msg-input'); if (el) el.focus();
+              self3._processQueue();
+            });
+          }
+          break;
+
+        case 'silent_complete':
+          // Agent intentionally chose not to reply (NO_REPLY)
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
+          this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
+          this._inflightPayload = null;
+          this._pendingAutoModelSwitchBaseline = '';
+          var silentEnvelope = this.collectStreamedAssistantEnvelope();
+          var silentThought = String(silentEnvelope.thought || '').trim();
+          var silentTools = silentEnvelope.tools || [];
+          if (silentThought) {
+            silentTools.unshift(this.makeThoughtToolCard(silentThought, Number(data && data.duration_ms ? data.duration_ms : 0)));
+          }
+          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          this.messages.push({
+            id: ++msgId,
+            role: 'agent',
+            text: this.defaultAssistantFallback(silentThought, silentTools),
+            meta: '',
+            tools: silentTools,
+            ts: Date.now(),
+            _auto_fallback: true,
+            agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+            agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+          });
+          this.markAgentMessageComplete(this.messages[this.messages.length - 1]);
+          this.sending = false;
+          this._responseStartedAt = 0;
+          this.tokenCount = 0;
+          var selfSilent = this;
+          this.$nextTick(function() { selfSilent._processQueue(); });
+          this.refreshPromptSuggestions(true, 'post-silent');
+          break;
+
+        case 'error':
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
+          this._clearTypingTimeout();
+          this._clearStreamingTypewriters();
+          this._pendingAutoModelSwitchBaseline = '';
+          var rawError = String(data && data.content ? data.content : 'unknown_error');
+          var errorText = 'Error: ' + rawError;
+          var lowerError = rawError.toLowerCase();
+          if (lowerError.indexOf('backend_http_404') >= 0) {
+            // Soft-ignore noisy command-surface 404s so they do not get injected
+            // into the conversation stream after a successful agent response.
+            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            this.sending = false;
+            this._responseStartedAt = 0;
+            this.tokenCount = 0;
+            this._inflightPayload = null;
+            this.requestContextTelemetry(false);
+            var selfSuppressed = this;
+            this.$nextTick(function() {
+              var el = document.getElementById('msg-input'); if (el) el.focus();
+              selfSuppressed._processQueue();
+            });
+            this.refreshPromptSuggestions(true, 'post-suppressed-404');
+            break;
+          }
+          if (lowerError.indexOf('agent contract terminated') !== -1 || lowerError.indexOf('agent_contract_terminated') !== -1) {
+            this.handleAgentInactive(
+              this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '',
+              'contract_terminated',
+              { noticeText: errorText }
+            );
+            break;
+          }
+          if (lowerError.indexOf('agent is inactive') !== -1 || lowerError.indexOf('agent_inactive') !== -1) {
+            this.handleAgentInactive(
+              this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '',
+              'inactive',
+              { noticeText: errorText }
+            );
+            break;
+          }
+          if (lowerError.indexOf('agent not found') !== -1 || lowerError.indexOf('agent_not_found') !== -1) {
+            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            this.sending = false;
+            this._responseStartedAt = 0;
+            this.tokenCount = 0;
+            var priorAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
+            var inflight = this._inflightPayload && typeof this._inflightPayload === 'object' ? this._inflightPayload : null;
+            var rawNotFound = rawError;
+            var selfRebound = this;
+            Promise.resolve()
+              .then(function() {
+                return selfRebound.rebindCurrentAgentAuthoritative({
+                  preferred_id: priorAgentId,
+                  clear_when_missing: true
+                });
+              })
+              .then(function(reboundAgent) {
+                var reboundAgentId = reboundAgent && reboundAgent.id ? String(reboundAgent.id) : '';
+                if (
+                  reboundAgentId &&
+                  reboundAgentId !== priorAgentId &&
+                  inflight &&
+                  !inflight._agent_rebind_attempted
+                ) {
+                  inflight._agent_rebind_attempted = true;
+                  inflight.agent_id = reboundAgentId;
+                  selfRebound.addNoticeEvent({
+                    notice_label:
+                      'Active agent reference expired. Switched to ' +
+                      String(reboundAgent.name || reboundAgent.id || reboundAgentId) +
+                      ' and retried.',
+                    notice_type: 'warn',
+                    ts: Date.now(),
+                  });
+                  return selfRebound._sendPayload(
+                    inflight.final_text || '',
+                    Array.isArray(inflight.uploaded_files) ? inflight.uploaded_files : [],
+                    Array.isArray(inflight.msg_images) ? inflight.msg_images : [],
+                    { agent_id: reboundAgentId, retry_from_agent_rebind: true }
+                  );
+                }
+                return selfRebound
+                  .attemptAutomaticFailoverRecovery('ws_error', rawNotFound, {
+                    remove_last_agent_failure: false
+                  })
+                  .then(function(recovered) {
+                    if (recovered) return;
+                    selfRebound.messages.push({
+                      id: ++msgId,
+                      role: 'system',
+                      text: 'Error: ' + rawNotFound,
+                      meta: '',
+                      tools: [],
+                      system_origin: 'ws:error',
+                      ts: Date.now(),
+                    });
+                    selfRebound._inflightPayload = null;
+                    selfRebound.scheduleConversationPersist();
+                  });
+              })
+              .catch(function() {});
+            break;
+          }
+          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          this.sending = false;
+          this._responseStartedAt = 0;
+          this.tokenCount = 0;
+          var self2 = this;
+          this.attemptAutomaticFailoverRecovery('ws_error', rawError, {
+            remove_last_agent_failure: false
+          }).then(function(recovered) {
+            if (recovered) return;
+            self2.messages.push({
+              id: ++msgId,
+              role: 'system',

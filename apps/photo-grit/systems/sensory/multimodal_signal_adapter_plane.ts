@@ -275,8 +275,8 @@ function status(policy: Record<string, any>, dateStr: string) {
 
 function usageAndExit(code = 0) {
   console.log('Usage:');
-  console.log('  node systems/sensory/multimodal_signal_adapter_plane.js run [YYYY-MM-DD] [--strict=1] [--policy=<path>]');
-  console.log('  node systems/sensory/multimodal_signal_adapter_plane.js status [YYYY-MM-DD] [--policy=<path>]');
+  console.log('  node systems/sensory/multimodal_signal_adapter_plane.ts run [YYYY-MM-DD] [--strict=1] [--policy=<path>]');
+  console.log('  node systems/sensory/multimodal_signal_adapter_plane.ts status [YYYY-MM-DD] [--policy=<path>]');
   process.exit(code);
 }
 

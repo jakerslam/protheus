@@ -307,7 +307,7 @@ function Resolve-WorkspaceRootForRepair {
     $env:INFRING_WORKSPACE_ROOT,
     $env:PROTHEUS_WORKSPACE_ROOT,
     (Get-Location).Path,
-    (Join-Path $HOME ".openclaw/workspace")
+    (Join-Path $HOME ".infring/workspace")
   )
   foreach ($candidate in $candidates) {
     if (-not $candidate) { continue }
@@ -455,9 +455,9 @@ set "_infring_root="
 if defined INFRING_WORKSPACE_ROOT call :_check_candidate "%INFRING_WORKSPACE_ROOT%"
 if not defined _infring_root if defined PROTHEUS_WORKSPACE_ROOT call :_check_candidate "%PROTHEUS_WORKSPACE_ROOT%"
 if not defined _infring_root call :_search_up "%CD%"
-if not defined _infring_root call :_check_candidate "%USERPROFILE%\.openclaw\workspace"
 if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring\workspace"
-if not defined _infring_root call :_check_candidate "%USERPROFILE%\.openclaw"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring\workspace"
+if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring"
 if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring"
 if defined _infring_root (
   set "INFRING_WORKSPACE_ROOT=%_infring_root%"
@@ -634,7 +634,7 @@ $protheusdCmd = Join-Path $InstallDir "protheusd.cmd"
 Set-Content -Path $protheusdCmd -Value "@echo off`r`necho [deprecation] 'protheusd' is deprecated; use 'infringd'. 1>&2`r`ncall `"%~dp0infringd.cmd`" %*"
 
 if ($InstallPure) {
-  Write-Host "[infring install] pure mode: skipping OpenClaw client bundle"
+  Write-Host "[infring install] pure mode: skipping Infring client bundle"
 } elseif ($InstallFull) {
   $clientDir = Join-Path $InstallDir "protheus-client"
   if (Install-ClientBundle $version $triple $clientDir) {
@@ -657,7 +657,9 @@ if ($env:Path -notlike "*$InstallDir*") {
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"
 Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"
-Write-Host "[infring install] open a new terminal and run: infring --help"
+Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
+Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"
+Write-Host "[infring install] run in this shell: infring --help"
 Write-Host "[infring install] quickstart: infring gateway"
 Write-Host "[infring install] stop: infring gateway stop"
 Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"

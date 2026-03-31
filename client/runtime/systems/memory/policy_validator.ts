@@ -4,221 +4,129 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
-const DEFAULT_POLICY = Object.freeze({
-  index_first_required: true,
-  max_burn_slo_tokens: 200,
-  max_recall_top: 50,
-  max_max_files: 20,
-  max_expand_lines: 300,
-  bootstrap_hydration_token_cap: 48,
-  block_stale_override: true
-});
-
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-const bridge = createOpsLaneBridge(__dirname, 'policy_validator', 'memory-policy-kernel');
+const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+const OPS_WRAPPER = path.join(
+  ROOT,
+  'client',
+  'runtime',
+  'systems',
+  'ops',
+  'run_protheus_ops.ts'
+);
+const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 
 function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
-function invoke(command, payload = {}) {
-  const args = [command, `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`];
-  const out = bridge.run(args);
-  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
-  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
+function parseLastJson(stdout) {
+  const lines = String(stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (!line.startsWith('{')) continue;
+    try {
+      return JSON.parse(line);
+    } catch {}
+  }
+  return null;
+}
+
+function invoke(command, payload = {}, opts = {}) {
+  const run = spawnSync(
+    process.execPath,
+    [
+      TS_ENTRYPOINT,
+      OPS_WRAPPER,
+      'memory-policy-kernel',
+      command,
+      `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
+    ],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env }
+    }
+  );
+  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  const receipt = parseLastJson(run.stdout);
+  const payloadOut = receipt && typeof receipt === 'object'
+    && receipt.payload && typeof receipt.payload === 'object'
     ? receipt.payload
     : receipt;
-  if (!payloadOut || typeof payloadOut !== 'object') {
-    return {
-      ok: false,
-      error: out && out.stderr ? String(out.stderr).trim() || 'memory_policy_kernel_bridge_failed' : 'memory_policy_kernel_bridge_failed'
-    };
+  if (status !== 0 || !payloadOut || typeof payloadOut !== 'object') {
+    const message = run && run.stderr
+      ? String(run.stderr).trim() || 'memory_policy_kernel_bridge_failed'
+      : 'memory_policy_kernel_bridge_failed';
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
   }
   return payloadOut;
 }
 
-function parseCliArgs(args = []) {
-  const out = invoke('parse-cli', { args });
+function parseCliArgs(args = [], options = {}) {
+  const out = invoke(
+    'parse-cli',
+    { args, options: options && typeof options === 'object' ? options : {} },
+    { throwOnError: false }
+  );
   return out.parsed && typeof out.parsed === 'object'
     ? out.parsed
     : { positional: [], flags: {} };
 }
 
 function commandNameFromArgs(args = [], fallback = 'status') {
-  const normalizedArgs = Array.isArray(args) ? args.map((row) => String(row)) : [];
-  const localCommand = normalizedArgs.find((token) => !token.startsWith('--'));
-  if (localCommand) return String(localCommand).trim().toLowerCase();
-  const out = invoke('command-name', { args, fallback });
+  const out = invoke('command-name', { args, fallback }, { throwOnError: false });
   return String(out.command || fallback).trim().toLowerCase();
 }
 
 function validateDescendingRanking(scores = [], ids = []) {
-  const out = invoke('validate-ranking', { scores, ids });
+  const out = invoke('validate-ranking', { scores, ids }, { throwOnError: false });
   return out.validation && typeof out.validation === 'object'
     ? out.validation
     : { ok: false, reason_code: 'ranking_validation_failed' };
 }
 
 function validateLensMapAnnotation(annotation) {
-  const out = invoke('validate-lensmap', { annotation });
+  const out = invoke('validate-lensmap', { annotation }, { throwOnError: false });
   return out.validation && typeof out.validation === 'object'
     ? out.validation
     : { ok: false, reason_code: 'lensmap_annotation_invalid' };
 }
 
 function severityRank(raw) {
-  const out = invoke('severity-rank', { value: raw });
+  const out = invoke('severity-rank', { value: raw }, { throwOnError: false });
   return Number.isFinite(Number(out.rank)) ? Number(out.rank) : 0;
 }
 
-function parseArgsToFlags(args = []) {
-  const flags = {};
-  const positional = [];
-  for (const token of Array.isArray(args) ? args : []) {
-    const value = String(token || '');
-    if (!value.startsWith('--')) {
-      positional.push(value);
-      continue;
-    }
-    const eq = value.indexOf('=');
-    if (eq === -1) {
-      flags[value.slice(2)] = '1';
-      continue;
-    }
-    flags[value.slice(2, eq)] = value.slice(eq + 1);
-  }
-  return { flags, positional };
-}
-
-function truthyFlag(raw) {
-  const value = String(raw == null ? '' : raw).trim().toLowerCase();
-  return ['1', 'true', 'yes', 'on'].includes(value);
-}
-
-function parseJsonArray(raw) {
-  if (raw == null || raw === '') return null;
-  try {
-    const parsed = JSON.parse(String(raw));
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function localValidateMemoryPolicy(args = []) {
-  const { flags } = parseArgsToFlags(args);
-  const details = {};
-
-  if (truthyFlag(flags['bypass']) || truthyFlag(flags['allow-full-scan'])) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'index_first_bypass_forbidden', details };
-  }
-  if (
-    (typeof flags['file'] === 'string' && flags['file'].trim() !== '') ||
-    (typeof flags['path'] === 'string' && flags['path'].trim() !== '')
-  ) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'direct_file_read_forbidden', details };
-  }
-  if (truthyFlag(flags['bootstrap']) && !truthyFlag(flags['lazy-hydration'])) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'bootstrap_requires_lazy_hydration', details };
-  }
-
-  const burnThreshold = Number(flags['burn-threshold']);
-  if (Number.isFinite(burnThreshold) && burnThreshold > DEFAULT_POLICY.max_burn_slo_tokens) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'burn_slo_threshold_exceeded', details };
-  }
-
-  const top = Number(flags['top']);
-  const maxFiles = Number(flags['max-files']);
-  const expandLines = Number(flags['expand-lines']);
-  if (
-    (Number.isFinite(top) && top > DEFAULT_POLICY.max_recall_top) ||
-    (Number.isFinite(maxFiles) && maxFiles > DEFAULT_POLICY.max_max_files) ||
-    (Number.isFinite(expandLines) && expandLines > DEFAULT_POLICY.max_expand_lines)
-  ) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'recall_budget_exceeded', details };
-  }
-
-  if (DEFAULT_POLICY.block_stale_override && truthyFlag(flags['allow-stale'])) {
-    return { ok: false, type: 'memory_policy_validation', reason_code: 'stale_override_forbidden', details };
-  }
-
-  const scores = parseJsonArray(flags['scores-json']);
-  const ids = parseJsonArray(flags['ids-json']);
-  if (scores && ids && scores.length === ids.length && scores.length > 1) {
-    for (let i = 1; i < scores.length; i += 1) {
-      const prev = Number(scores[i - 1]);
-      const curr = Number(scores[i]);
-      if (Number.isFinite(prev) && Number.isFinite(curr) && curr > prev) {
-        return { ok: false, type: 'memory_policy_validation', reason_code: 'ranking_not_descending', details };
-      }
-    }
-  }
-
-  if (typeof flags['lensmap-annotation-json'] === 'string') {
-    try {
-      const annotation = JSON.parse(flags['lensmap-annotation-json']);
-      const tags = Array.isArray(annotation && annotation.tags) ? annotation.tags : [];
-      const jots = Array.isArray(annotation && annotation.jots) ? annotation.jots : [];
-      if (tags.length === 0 || jots.length === 0) {
-        return {
-          ok: false,
-          type: 'memory_policy_validation',
-          reason_code: 'lensmap_annotation_missing_tags_or_jots',
-          details
-        };
-      }
-    } catch {
-      return {
-        ok: false,
-        type: 'memory_policy_validation',
-        reason_code: 'lensmap_annotation_missing_tags_or_jots',
-        details
-      };
-    }
-  }
-
-  return {
-    ok: true,
-    type: 'memory_policy_validation',
-    reason_code: 'policy_ok',
-    details
-  };
-}
-
 function validateMemoryPolicy(args = [], options = {}) {
-  void options;
-  return localValidateMemoryPolicy(args);
+  const out = invoke(
+    'validate',
+    {
+      args: Array.isArray(args) ? args : [],
+      options: options && typeof options === 'object' ? options : {}
+    },
+    { throwOnError: false }
+  );
+  return out.validation && typeof out.validation === 'object'
+    ? out.validation
+    : { ok: false, type: 'memory_policy_validation', reason_code: 'policy_validation_failed' };
 }
 
 function guardFailureResult(validation, context = {}) {
-  if (validation && typeof validation.reason_code === 'string' && validation.reason_code.trim()) {
-    const reason = validation.reason_code.trim();
-    return {
-      ok: false,
-      status: 2,
-      stdout: `${JSON.stringify({
-        ok: false,
-        type: 'memory_policy_guard_reject',
-        reason,
-        layer: 'client_runtime_memory_guard',
-        fail_closed: true
-      })}\n`,
-      stderr: `memory_policy_guard_reject:${reason}\n`,
-      payload: {
-        ok: false,
-        type: 'memory_policy_guard_reject',
-        reason,
-        layer: 'client_runtime_memory_guard',
-        fail_closed: true
-      }
-    };
-  }
-  const out = invoke('guard-failure', {
-    validation: validation && typeof validation === 'object' ? validation : {},
-    context: context && typeof context === 'object' ? context : {}
-  });
+  const out = invoke(
+    'guard-failure',
+    {
+      validation: validation && typeof validation === 'object' ? validation : {},
+      context: context && typeof context === 'object' ? context : {}
+    },
+    { throwOnError: false }
+  );
   return out.result && typeof out.result === 'object'
     ? out.result
     : {
@@ -253,6 +161,32 @@ function guardFailureResult(validation, context = {}) {
         }
       };
 }
+
+const DEFAULT_POLICY = (() => {
+  const status = invoke('status', {}, { throwOnError: false });
+  const candidate = status.default_policy && typeof status.default_policy === 'object'
+    ? status.default_policy
+    : {};
+  return Object.freeze({
+    index_first_required: candidate.index_first_required !== false,
+    max_burn_slo_tokens: Number.isFinite(Number(candidate.max_burn_slo_tokens))
+      ? Number(candidate.max_burn_slo_tokens)
+      : 200,
+    max_recall_top: Number.isFinite(Number(candidate.max_recall_top))
+      ? Number(candidate.max_recall_top)
+      : 50,
+    max_max_files: Number.isFinite(Number(candidate.max_max_files))
+      ? Number(candidate.max_max_files)
+      : 20,
+    max_expand_lines: Number.isFinite(Number(candidate.max_expand_lines))
+      ? Number(candidate.max_expand_lines)
+      : 300,
+    bootstrap_hydration_token_cap: Number.isFinite(Number(candidate.bootstrap_hydration_token_cap))
+      ? Number(candidate.bootstrap_hydration_token_cap)
+      : 48,
+    block_stale_override: candidate.block_stale_override !== false
+  });
+})();
 
 module.exports = {
   DEFAULT_POLICY,

@@ -229,9 +229,9 @@ function testHighChurnProposal() {
       anomalies: [
         {
           type: 'high_churn',
-          path: 'client/runtime/config/settings.js',
+          path: 'client/runtime/config/settings.ts',
           severity: 'medium',
-          message: 'client/runtime/config/settings.js modified across 4 days',
+          message: 'client/runtime/config/settings.ts modified across 4 days',
           days_active: 4
         }
       ],

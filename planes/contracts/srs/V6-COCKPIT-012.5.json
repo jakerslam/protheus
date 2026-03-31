@@ -1,7 +1,7 @@
 {
   "id": "V6-COCKPIT-012.5",
   "upgrade": "Safe exec/browser tool-mode governance (`sandbox`/`gateway`/`full`) + conduit receipts",
-  "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+  "section": "Infring-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
   "impact": 10,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,

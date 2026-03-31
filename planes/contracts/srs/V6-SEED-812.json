@@ -1,7 +1,7 @@
 {
   "id": "V6-SEED-812",
   "upgrade": "First-Class Windows Socket/Adapter Profile",
-  "section": "OpenClaw Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
+  "section": "Infring Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11)",
   "impact": 6,
   "layer_map": "1/2/client/adapter",
   "conduit_only_boundary": false,

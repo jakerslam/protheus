@@ -108,7 +108,7 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("OPENCLAW_WORKSPACE") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE") {
         let raw = raw.trim();
         if !raw.is_empty() {
             return PathBuf::from(raw);
@@ -227,8 +227,8 @@ fn rewrite_legacy_runtime_absolute(root: &Path, abs_path: &Path) -> PathBuf {
 fn resolve_path(root: &Path, raw: &str, fallback_rel: &str) -> PathBuf {
     let workspace = workspace_root(root);
     let expanded = raw
-        .replace("${OPENCLAW_WORKSPACE}", &workspace.to_string_lossy())
-        .replace("$OPENCLAW_WORKSPACE", &workspace.to_string_lossy());
+        .replace("${INFRING_WORKSPACE}", &workspace.to_string_lossy())
+        .replace("$INFRING_WORKSPACE", &workspace.to_string_lossy());
     if expanded.trim().is_empty() {
         return workspace.join(rewrite_legacy_runtime_relative(fallback_rel));
     }

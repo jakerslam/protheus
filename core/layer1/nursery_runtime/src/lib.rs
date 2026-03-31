@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub const INFRING_DETACH_CONTRACT_ID_NURSERY_RUNTIME: &str = "V6-INFRING-DETACH-001.5";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PromotionStage {
@@ -275,6 +277,14 @@ pub fn evaluate_quarantine(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn infring_detach_contract_id_is_bound_to_nursery_runtime_authority() {
+        assert_eq!(
+            INFRING_DETACH_CONTRACT_ID_NURSERY_RUNTIME,
+            "V6-INFRING-DETACH-001.5"
+        );
+    }
 
     #[test]
     fn training_plan_builds_for_all_seed_artifacts() {

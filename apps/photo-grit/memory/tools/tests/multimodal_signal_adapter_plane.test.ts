@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'systems', 'sensory', 'multimodal_signal_adapter_plane.js');
+const SCRIPT = path.join(ROOT, 'systems', 'sensory', 'multimodal_signal_adapter_plane.ts');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

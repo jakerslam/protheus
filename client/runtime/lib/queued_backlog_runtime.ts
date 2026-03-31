@@ -31,7 +31,7 @@ function findWorkspaceRoot(startAbsPath) {
     return null;
 }
 function resolveWorkspaceRoot() {
-    const envWorkspace = String(process.env.OPENCLAW_WORKSPACE || '').trim();
+    const envWorkspace = String(process.env.INFRING_WORKSPACE || '').trim();
     if (envWorkspace) {
         const resolved = path.resolve(envWorkspace);
         if (hasWorkspaceMarkers(resolved))

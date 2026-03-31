@@ -6,7 +6,7 @@
 - Source/runtime split gate: PASS
 - Mech Benchmark: FAIL
 - 6-Month Harness: PASS (verdict: warn)
-- Protheus vs OpenClaw: FAIL (parity_pass=false)
+- Protheus vs Infring: FAIL (parity_pass=false)
 
 ## Highlights
 
@@ -22,4 +22,4 @@
 - Source/runtime split: source_runtime_2026-03-07T19-03-39Z.json
 - Mech benchmark: mech_benchmark_2026-03-07T19-02-46Z.json
 - Harness: harness_6m_2026-03-07T19-02-46Z.json
-- Parity: protheus_vs_openclaw_2026-03-07T19-02-46Z.json
+- Parity: protheus_vs_infring_2026-03-07T19-02-46Z.json

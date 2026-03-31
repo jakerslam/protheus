@@ -1,6 +1,6 @@
 # API Reference
 
-This directory is the canonical API reference surface for InfRing/OpenClaw runtime operators and integrators.
+This directory is the canonical API reference surface for InfRing/Infring runtime operators and integrators.
 
 ## Scope
 

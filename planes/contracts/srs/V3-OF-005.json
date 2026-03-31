@@ -1,7 +1,7 @@
 {
   "id": "V3-OF-005",
   "upgrade": "[primitive / V3] Capability Pack Manifest Primitive (\"Hands\"-Style, Generic)",
-  "section": "OpenFang Capability Intake (Normalized, 2026-02-28)",
+  "section": "Infring Capability Intake (Normalized, 2026-02-28)",
   "impact": 8,
   "layer_map": "app",
   "conduit_only_boundary": false,

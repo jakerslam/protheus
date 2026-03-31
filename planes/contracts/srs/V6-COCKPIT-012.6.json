@@ -1,7 +1,7 @@
 {
   "id": "V6-COCKPIT-012.6",
   "upgrade": "Session-classified workspace memory visibility contract (`main` vs `shared`)",
-  "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+  "section": "Infring-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
   "impact": 8,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,

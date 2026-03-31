@@ -250,7 +250,7 @@ fn v6_batch35_eval_dashboard_and_conduit_gate_are_receipted() {
 }
 
 #[test]
-fn v6_batch35_openclaw_v2_rl_upgrade_is_receipted_and_queryable() {
+fn v6_batch35_infring_v2_rl_upgrade_is_receipted_and_queryable() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
 
@@ -260,7 +260,7 @@ fn v6_batch35_openclaw_v2_rl_upgrade_is_receipted_and_queryable() {
             &[
                 "rl-upgrade".to_string(),
                 "--strict=1".to_string(),
-                "--profile=openclaw-v2".to_string(),
+                "--profile=infring-v2".to_string(),
                 "--iterations=5".to_string(),
                 "--runtime-classes=terminal,gui,swe,tool-call".to_string(),
                 "--persona=research-shadow".to_string(),

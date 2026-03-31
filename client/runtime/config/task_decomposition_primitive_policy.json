@@ -54,7 +54,7 @@
       "actor": "task_decomposition_primitive",
       "role": "execution",
       "model": "task_decomposer",
-      "framework": "openclaw",
+      "framework": "infring",
       "org": "protheus",
       "tenant": "local"
     }

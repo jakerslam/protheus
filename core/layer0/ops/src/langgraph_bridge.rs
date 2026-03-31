@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils::{
     self as lane_utils, clean_text, clean_token, cli_error, cli_receipt, normalize_bridge_path,
-    payload_obj, print_json_line, rel_path as rel, repo_path,
+    path_flag, payload_obj, print_json_line, rel_path as rel,
 };
 use crate::{deterministic_receipt_hash, now_iso};
 
@@ -31,51 +31,40 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "state-path", false)
-        .or_else(|| {
-            payload
-                .get("state_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_STATE_REL))
+    path_flag(
+        root,
+        argv,
+        payload,
+        "state-path",
+        "state_path",
+        DEFAULT_STATE_REL,
+    )
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "history-path", false)
-        .or_else(|| {
-            payload
-                .get("history_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_HISTORY_REL))
+    path_flag(
+        root,
+        argv,
+        payload,
+        "history-path",
+        "history_path",
+        DEFAULT_HISTORY_REL,
+    )
 }
 
 fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "swarm-state-path", false)
-        .or_else(|| {
-            payload
-                .get("swarm_state_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_SWARM_STATE_REL))
+    path_flag(
+        root,
+        argv,
+        payload,
+        "swarm-state-path",
+        "swarm_state_path",
+        DEFAULT_SWARM_STATE_REL,
+    )
 }
 
 fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "trace-path", false)
-        .or_else(|| {
-            payload
-                .get("trace_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_TRACE_REL))
+    path_flag(root, argv, payload, "trace-path", "trace_path", DEFAULT_TRACE_REL)
 }
 
 fn default_state() -> Value {
@@ -149,34 +138,8 @@ fn as_array_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
         .expect("array")
 }
 
-fn now_millis() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|row| row.as_millis())
-        .unwrap_or(0)
-}
-
-fn to_base36(mut value: u128) -> String {
-    if value == 0 {
-        return "0".to_string();
-    }
-    let mut out = Vec::new();
-    while value > 0 {
-        let digit = (value % 36) as u8;
-        out.push(if digit < 10 {
-            (b'0' + digit) as char
-        } else {
-            (b'a' + digit - 10) as char
-        });
-        value /= 36;
-    }
-    out.iter().rev().collect()
-}
-
 fn stable_id(prefix: &str, basis: &Value) -> String {
-    let digest = deterministic_receipt_hash(basis);
-    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
+    lane_utils::stable_id(prefix, basis)
 }
 
 fn default_claim_evidence(id: &str, claim: &str) -> Value {

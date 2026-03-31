@@ -15,7 +15,7 @@ describe('churn commit gate wiring', () => {
     const packageJsonPath = path.join(ROOT, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
     const cmd = String(pkg?.scripts?.['ops:churn:commit-gate'] || '');
-    expect(cmd).toContain('churn_guard.mjs');
+    expect(cmd).toContain('churn_guard.ts');
     expect(cmd).toContain('--commit-gate=1');
     expect(cmd).toContain('--strict=1');
   });
