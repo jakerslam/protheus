@@ -327,6 +327,7 @@ path_persist_candidates() {
   shell_name="$1"
   case "$shell_name" in
     zsh)
+      printf '%s\n' "$HOME/.zshenv"
       printf '%s\n' "$HOME/.zshrc"
       printf '%s\n' "$HOME/.zprofile"
       printf '%s\n' "$HOME/.profile"

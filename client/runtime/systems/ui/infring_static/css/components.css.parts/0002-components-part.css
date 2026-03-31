@@ -63,7 +63,7 @@
   padding-right: 24px;
   position: relative;
   background: var(--bg);
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   overscroll-behavior-y: none;
   isolation: isolate;
   --chat-grid-x: 50%;

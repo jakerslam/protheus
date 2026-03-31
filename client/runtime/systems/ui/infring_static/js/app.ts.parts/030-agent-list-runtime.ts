@@ -5,7 +5,6 @@
         below: (maxScroll - scrollTop) > 2
       };
     },
-
     updateSidebarScrollIndicators() {
       var refs = this.$refs || {};
       var navState = this._computeScrollHintState(refs.sidebarNav);
@@ -16,7 +15,6 @@
       this.chatSidebarHasOverflowAbove = !!chatState.above;
       this.chatSidebarHasOverflowBelow = !!chatState.below;
     },
-
     scheduleSidebarScrollIndicators() {
       if (this._sidebarScrollIndicatorRaf) return;
       var self = this;
@@ -25,7 +23,6 @@
         self.updateSidebarScrollIndicators();
       });
     },
-
     getAppStore() {
       try {
         var store = Alpine && typeof Alpine.store === 'function' ? Alpine.store('app') : null;
@@ -34,12 +31,10 @@
         return null;
       }
     },
-
     get agents() {
       var store = this.getAppStore();
       return store && Array.isArray(store.agents) ? store.agents : [];
     },
-
     persistChatSidebarTopologyOrder() {
       var seen = {};
       var out = [];
@@ -54,11 +49,9 @@
         localStorage.setItem('infring-chat-sidebar-topology-order', JSON.stringify(out));
       } catch(_) {}
     },
-
     chatSidebarCanReorderTopology() {
       return String(this.chatSidebarSortMode || '').toLowerCase() === 'topology';
     },
-
     startChatSidebarTopologyDrag(agent, ev) {
       if (!this.chatSidebarCanReorderTopology() || !agent || !agent.id) return;
       this.syncChatSidebarTopologyOrderFromAgents();
@@ -69,7 +62,6 @@
         ev.dataTransfer.setData('text/plain', this.chatSidebarDragAgentId);
       }
     },
-
     handleChatSidebarTopologyDragOver(agent, ev) {
       if (!this.chatSidebarCanReorderTopology() || !this.chatSidebarDragAgentId || !agent || !agent.id) return;
       if (ev) {
@@ -79,7 +71,6 @@
       var targetId = String(agent.id);
       this.chatSidebarDropTargetId = targetId === this.chatSidebarDragAgentId ? '' : targetId;
     },
-
     handleChatSidebarTopologyDrop(agent, ev) {
       if (ev) ev.preventDefault();
       if (!this.chatSidebarCanReorderTopology() || !agent || !agent.id) return this.endChatSidebarTopologyDrag();
@@ -108,12 +99,10 @@
       this.endChatSidebarTopologyDrag();
       this.scheduleSidebarScrollIndicators();
     },
-
     endChatSidebarTopologyDrag() {
       this.chatSidebarDragAgentId = '';
       this.chatSidebarDropTargetId = '';
     },
-
     get chatSidebarAgents() {
       var list = (this.agents || []).slice();
       var self = this;
@@ -152,7 +141,6 @@
         return name.indexOf(q) >= 0 || text.indexOf(q) >= 0;
       });
     },
-
     init() {
       var self = this;
       this._bootSplashStartedAt = Date.now();
@@ -259,7 +247,6 @@
         self.scheduleSidebarScrollIndicators();
       });
     },
-
     releaseBootSplash(force) {
       if (!this.bootSplashVisible) return;
       var now = Date.now();
@@ -290,13 +277,11 @@
         }
       }, minRemain);
     },
-
     navigate(p) {
       this.page = p;
       window.location.hash = p;
       this.mobileMenuOpen = false;
     },
-
     setTheme(mode) {
       this.beginInstantThemeFlip();
       this.themeMode = mode;
@@ -307,7 +292,6 @@
         this.theme = mode;
       }
     },
-
     beginInstantThemeFlip() {
       var self = this;
       var body = document && document.body ? document.body : null;
@@ -323,13 +307,11 @@
         self._themeSwitchReset = 0;
       }, 260);
     },
-
     toggleTheme() {
       var modes = ['light', 'system', 'dark'];
       var next = modes[(modes.indexOf(this.themeMode) + 1) % modes.length];
       this.setTheme(next);
     },
-
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       localStorage.setItem('infring-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
@@ -338,14 +320,12 @@
       }
       this.scheduleSidebarScrollIndicators();
     },
-
     updateCollapsedAgentHoverPosition(ev) {
       if (!ev || !ev.currentTarget || typeof ev.currentTarget.getBoundingClientRect !== 'function') return;
       var rect = ev.currentTarget.getBoundingClientRect();
       var top = Math.max(48, Math.round(rect.top + (rect.height / 2)));
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, { top: top });
     },
-
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
       this.updateCollapsedAgentHoverPosition(ev);
@@ -357,12 +337,10 @@
         unread: !!preview.unread_response
       });
     },
-
     hideCollapsedAgentHover() {
       if (!this.collapsedAgentHover || !this.collapsedAgentHover.active) return;
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover, { active: false });
     },
-
     runtimeFacadeState() {
       var store = this.getAppStore();
       var conn = this.normalizeConnectionIndicatorState(
@@ -373,14 +351,12 @@
       if (conn === 'disconnected') return 'down';
       return 'connected';
     },
-
     runtimeFacadeClass() {
       var state = this.runtimeFacadeState();
       if (state === 'connected') return 'health-ok';
       if (state === 'connecting') return 'health-connecting';
       return 'health-down';
     },
-
     runtimeFacadeLabel() {
       var state = this.runtimeFacadeState();
       if (state === 'connected') {
@@ -391,7 +367,6 @@
       if (state === 'connecting') return 'Connecting...';
       return 'Disconnected';
     },
-
     runtimeResponseP95Ms() {
       var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
@@ -406,7 +381,6 @@
       if (Number.isFinite(p99) && p99 > 0) return Math.round(p99);
       return null;
     },
-
     runtimeConfidencePercent() {
       var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
@@ -441,7 +415,6 @@
       score = Math.max(10, Math.min(100, Math.round(score)));
       return score;
     },
-
     runtimeEtaSeconds() {
       var store = this.getAppStore();
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
@@ -457,7 +430,6 @@
       // Conservative client-side estimate for "Active" mode only.
       return Math.max(1, Math.min(300, Math.ceil(queueDepth / 8)));
     },
-
     runtimeFacadeDetail() {
       var state = this.runtimeFacadeState();
       if (state === 'connecting') return 'Establishing runtime link';
@@ -473,11 +445,9 @@
       }
       return base + ' · ' + agents + ' agent(s)';
     },
-
     runtimeFacadeTitle() {
       return this.runtimeFacadeLabel();
     },
-
     toggleAgentChatsSidebar() {
       if (this.sidebarCollapsed) {
         this.sidebarCollapsed = false;
@@ -485,7 +455,6 @@
       }
       this.scheduleSidebarScrollIndicators();
     },
-
     closeAgentChatsSidebar() {
       if (this.chatSidebarMode !== 'default') {
         this.chatSidebarMode = 'default';
@@ -494,7 +463,6 @@
       this.confirmArchiveAgentId = '';
       this.scheduleSidebarScrollIndicators();
     },
-
     async applyBootChatSelection() {
       if (this.bootSelectionApplied) return;
       var store = this.getAppStore();

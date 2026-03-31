@@ -354,6 +354,16 @@
         this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
         var rawHttpError = String(e && e.message ? e.message : e || '');
         var lowerHttpError = rawHttpError.toLowerCase();
+        var isAbortError =
+          (e && String(e.name || '').toLowerCase() === 'aborterror') ||
+          lowerHttpError.indexOf('this operation was aborted') >= 0 ||
+          lowerHttpError.indexOf('operation was aborted') >= 0;
+        if (isAbortError) {
+          this._inflightPayload = null;
+          this.refreshPromptSuggestions(true, 'post-http-abort');
+          this.scheduleConversationPersist();
+          return;
+        }
         if (
           !opts.retry_from_agent_rebind &&
           (lowerHttpError.indexOf('agent_not_found') >= 0 || lowerHttpError.indexOf('agent not found') >= 0)

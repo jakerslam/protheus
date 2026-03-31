@@ -275,10 +275,51 @@ fn auth_check_payload() -> Value {
     })
 }
 
+#[derive(Clone)]
+struct StatusPayloadCacheEntry {
+    key: String,
+    built_at_ms: u128,
+    payload: Value,
+}
+
+fn monotonic_now_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+fn status_payload_cache() -> &'static Mutex<Option<StatusPayloadCacheEntry>> {
+    static STATUS_PAYLOAD_CACHE: OnceLock<Mutex<Option<StatusPayloadCacheEntry>>> = OnceLock::new();
+    STATUS_PAYLOAD_CACHE.get_or_init(|| Mutex::new(None))
+}
+
 fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
+    let cache_key = format!(
+        "{}|{}|{}",
+        clean_text(host_header, 200),
+        clean_text(snapshot.get("receipt_hash").and_then(Value::as_str).unwrap_or(""), 128),
+        parse_non_negative_i64(
+            snapshot
+                .pointer("/runtime_sync/uptime_seconds")
+                .or_else(|| snapshot.pointer("/runtime_sync/uptime_sec")),
+            0
+        )
+    );
+    let now_ms = monotonic_now_ms();
+    if let Ok(guard) = status_payload_cache().lock() {
+        if let Some(entry) = guard.as_ref() {
+            if entry.key == cache_key && now_ms.saturating_sub(entry.built_at_ms) <= 900 {
+                return entry.payload.clone();
+            }
+        }
+    }
     let usage = usage_from_state(root, snapshot);
     let runtime = runtime_sync_summary(snapshot);
     let continuity = continuity_pending_payload(root, snapshot);
+    let memory_hygiene = memory_hygiene_payload(root, &continuity);
+    let task_runtime = task_runtime_summary(root);
+    let worker_runtime = worker_runtime_summary(root);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version = read_json(&root.join("package.json"))
         .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
@@ -302,7 +343,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
         .and_then(Value::as_array)
         .map(|rows| rows.len())
         .unwrap_or(0);
-    json!({
+    let out = json!({
         "ok": true,
         "version": version,
         "agent_count": agent_count,
@@ -325,13 +366,24 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
         ),
         "network_enabled": true,
         "runtime_sync": runtime,
+        "task_runtime": task_runtime,
+        "worker_runtime": worker_runtime,
+        "memory_hygiene": memory_hygiene,
         "continuity": {
             "pending_total": continuity.get("pending_total").cloned().unwrap_or_else(|| json!(0)),
             "tasks_pending": continuity.pointer("/tasks/pending").cloned().unwrap_or_else(|| json!(0)),
             "stale_sessions": continuity.pointer("/sessions/stale_48h_count").cloned().unwrap_or_else(|| json!(0)),
             "channel_attention": continuity.pointer("/channels/attention_needed_count").cloned().unwrap_or_else(|| json!(0))
         }
-    })
+    });
+    if let Ok(mut guard) = status_payload_cache().lock() {
+        *guard = Some(StatusPayloadCacheEntry {
+            key: cache_key,
+            built_at_ms: now_ms,
+            payload: out.clone(),
+        });
+    }
+    out
 }
 
 fn task_runtime_summary(root: &Path) -> Value {

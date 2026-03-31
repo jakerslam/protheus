@@ -6,7 +6,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-use std::time::Instant;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
 
 #[cfg(test)]
@@ -242,9 +243,12 @@ fn runtime_access_denied_phrase(text: &str) -> bool {
     lowered.contains("don't have access")
         || lowered.contains("do not have access")
         || lowered.contains("cannot access")
+        || lowered.contains("text-based ai assistant without system monitoring capabilities")
         || lowered.contains("without system monitoring")
         || lowered.contains("text-based ai assistant")
         || lowered.contains("cannot directly interface")
+        || lowered.contains("cannot execute the protheus-ops commands")
+        || lowered.contains("check your system monitoring tools")
         || lowered.contains("no access to")
         || internal_meta_dump
 }
@@ -275,6 +279,7 @@ fn persistent_memory_denied_phrase(text: &str) -> bool {
         || lowered.contains("don't detect an active memory context")
         || lowered.contains("do not detect an active memory context")
         || lowered.contains("within active runtime scope")
+        || lowered.contains("unless you explicitly use a memory conduit")
         || conduit_gated_memory_denial
 }
 
@@ -399,6 +404,13 @@ mod clean_text_runtime_access_tests {
     fn runtime_access_denied_phrase_ignores_normal_user_facing_status() {
         assert!(!runtime_access_denied_phrase(
             "Queue depth is low, workers are stable, and alerts are clear."
+        ));
+    }
+
+    #[test]
+    fn runtime_access_denied_phrase_catches_monitoring_tools_fallback() {
+        assert!(runtime_access_denied_phrase(
+            "I do not have access to runtime systems. Check your system monitoring tools."
         ));
     }
 }

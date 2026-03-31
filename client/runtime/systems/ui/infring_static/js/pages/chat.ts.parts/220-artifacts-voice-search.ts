@@ -38,7 +38,6 @@
       if (message.length > 300) message = message.slice(0, 297) + '...';
       return message;
     },
-
     extractArtifactDirectives: function(text) {
       var value = String(text || '');
       if (!value) return [];
@@ -53,13 +52,11 @@
       }
       return out;
     },
-
     stripArtifactDirectivesFromText: function(text) {
       var value = String(text || '');
       if (!value) return '';
       return value.replace(/\[\[\s*(file|folder)\s*:\s*[^\]]+?\s*\]\]/gi, '').replace(/\n{3,}/g, '\n\n').trim();
     },
-
     resolveArtifactDirectives: async function(directives) {
       if (!this.currentAgent || !this.currentAgent.id) return;
       var rows = Array.isArray(directives) ? directives : [];
@@ -454,16 +451,33 @@ function clampScrollToLatestMessageBottom(page, el) {
   if (!host) return 0;
   var targetTop = resolveLatestMessageScrollTop(page, host);
   if ((page && page.showFreshArchetypeTiles) || !host.querySelector('.chat-message-block[data-msg-idx], .chat-message-block')) return targetTop;
-  var top = Number(host.scrollTop || 0);
-  var clientHeight = Math.max(0, Number(host.clientHeight || 0));
+  var top = Number(host.scrollTop || 0), clientHeight = Math.max(0, Number(host.clientHeight || 0));
   var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
   var hardCapTop = Math.min(maxTop, targetTop);
   var slack = Number(page && page.scrollBottomClampSlackPx);
-  if (!Number.isFinite(slack) || slack < 0) slack = 2;
-  if (top > (hardCapTop + slack)) host.scrollTop = hardCapTop;
+  if (!Number.isFinite(slack) || slack < 0) slack = 16;
+  if (top > (hardCapTop + slack)) {
+    var wheelAt = Number(page && page._lastMessagesWheelAt || 0), recentWheel = wheelAt > 0 && ((Date.now() - wheelAt) < 120);
+    if (!recentWheel) setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host)); }, 24);
+  }
   return hardCapTop;
 }
-
+function scheduleBottomHardCapClamp(page, el, targetTop, delayMs) {
+  if (!page || typeof page !== 'object') return;
+  if (page._bottomClampTimer) clearTimeout(page._bottomClampTimer);
+  var host = el || (typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
+  if (!host) return;
+  var hardCapTop = Number(targetTop), delay = Number(delayMs);
+  if (!Number.isFinite(hardCapTop)) hardCapTop = resolveLatestMessageScrollTop(page, host);
+  if (!Number.isFinite(delay) || delay < 24) delay = 120;
+  page._bottomClampTimer = setTimeout(function() {
+    page._bottomClampTimer = 0;
+    var now = Date.now(), recentAt = Math.max(Number(page._lastMessagesWheelAt || 0), Number(page._lastMessagesScrollAt || 0));
+    if (recentAt > 0 && (now - recentAt) < 96) return scheduleBottomHardCapClamp(page, host, hardCapTop, 72);
+    clampScrollToLatestMessageBottom(page, host);
+    if (typeof page.syncGridBackgroundOffset === 'function') page.syncGridBackgroundOffset(host);
+  }, delay);
+}
 function resolveLatestMessageScrollTop(page, el) {
   var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
   if (!host) return 0;

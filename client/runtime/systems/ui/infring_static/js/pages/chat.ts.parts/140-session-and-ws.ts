@@ -33,6 +33,7 @@
           });
           await self.waitForSessionRender(agentId, loadSeq);
           if (self._sessionLoadSeq === loadSeq) {
+            self.enforceLatestViewportDeterminism();
             self.pinToLatestOnOpen(null, { maxFrames: 24 });
             self.sessionLoading = false;
           }
@@ -91,6 +92,33 @@
 
         await self.waitForAnimationFrame();
       }
+    },
+
+    enforceLatestViewportDeterminism() {
+      var el = this.resolveMessagesScroller();
+      if (!el) return false;
+      if (!Array.isArray(this.messages) || this.messages.length < 1) return false;
+      var blocks = el.querySelectorAll('.chat-message-block[data-msg-idx], .chat-message-block');
+      if (!blocks || !blocks.length) {
+        this.scrollToBottomImmediate({ force: true });
+        return true;
+      }
+      var viewportTop = Number(el.scrollTop || 0);
+      var viewportBottom = viewportTop + Math.max(0, Number(el.clientHeight || 0));
+      var lastBottom = 0;
+      for (var i = 0; i < blocks.length; i++) {
+        var block = blocks[i];
+        if (!block || block.offsetParent === null) continue;
+        var bottom = Number(block.offsetTop || 0) + Math.max(0, Number(block.offsetHeight || 0));
+        if (bottom > lastBottom) lastBottom = bottom;
+      }
+      if (!(lastBottom > 0)) return false;
+      if (viewportTop > (lastBottom + 24) || viewportBottom < 24) {
+        this.scrollToBottomImmediate({ force: true, tolerancePx: 999999 });
+        this.stabilizeBottomScroll();
+        return true;
+      }
+      return false;
     },
 
     // Multi-session: load session list for current agent

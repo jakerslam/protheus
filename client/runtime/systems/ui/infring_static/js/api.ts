@@ -214,6 +214,16 @@ var InfringAPI = (function() {
   var _reconnectTimer = null;
   var _reconnectAttempts = 0;
   var MAX_RECONNECT = 5;
+  var _wsLastSignal = { key: '', ts: 0 };
+
+  function shouldEmitWsSignal(key, windowMs) {
+    var now = Date.now();
+    var win = Number(windowMs || 0);
+    if (!Number.isFinite(win) || win < 100) win = 1200;
+    if (_wsLastSignal.key === key && (now - Number(_wsLastSignal.ts || 0)) <= win) return false;
+    _wsLastSignal = { key: key, ts: now };
+    return true;
+  }
 
   function wsConnect(agentId, callbacks) {
     wsDisconnect();
@@ -254,17 +264,18 @@ var InfringAPI = (function() {
           _reconnectAttempt = _reconnectAttempts;
           setConnectionState('reconnecting');
           _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, 1000);
+          if (_wsCallbacks.onClose && shouldEmitWsSignal('close:reconnecting:' + String(e.code || 0), 900)) _wsCallbacks.onClose();
           return;
         }
         if (_wsAgentId && _reconnectAttempts >= MAX_RECONNECT) {
           setConnectionState('disconnected');
         }
-        if (_wsCallbacks.onClose) _wsCallbacks.onClose();
+        if (_wsCallbacks.onClose && shouldEmitWsSignal('close:terminal:' + String(e.code || 0), 1200)) _wsCallbacks.onClose();
       };
 
       _ws.onerror = function() {
         _wsConnected = false;
-        if (_wsCallbacks.onError) _wsCallbacks.onError();
+        if (_wsCallbacks.onError && shouldEmitWsSignal('error:' + String(_wsAgentId || ''), 1200)) _wsCallbacks.onError();
       };
     } catch(e) {
       _wsConnected = false;
