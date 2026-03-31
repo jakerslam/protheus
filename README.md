@@ -8,30 +8,43 @@
 [![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
 ![Coverage](docs/client/badges/coverage.svg)
 
-InfRing is an evidence-first autonomous runtime with a three-plane metakernel architecture:
+InfRing is a deterministic, receipt-first autonomous runtime built on a three-plane metakernel.  
+It is designed for verifiable execution, fail-closed safety, and reproducible operator workflows.
 
-- Safety plane for deterministic guardrails and fail-closed behavior
-- Cognition plane for agentic orchestration and adaptive workflows
-- Substrate plane for platform integration and execution surfaces
+Core authority is Rust-first (`core/**`). Client/runtime surfaces are thin wrappers around policy-governed core lanes.
 
-The core authority is Rust-first (`core/**`), while client/runtime surfaces stay thin wrappers around policy-governed core lanes.
+## Why InfRing
+
+- Deterministic execution with evidence-backed receipts.
+- Fail-closed safety and policy enforcement by default.
+- Rust-authoritative core with explicit thin-client boundaries.
+- Multi-profile runtime strategy: rich, pure, and tiny-max.
+- Operator-first CLI and gateway control surface.
+
+## Architecture At A Glance
+
+| Plane | Role |
+|---|---|
+| Safety Plane | Deterministic guardrails, invariants, fail-closed behavior |
+| Cognition Plane | Agent orchestration, scheduling, adaptive workflows |
+| Substrate Plane | Runtime integration, execution surfaces, system bridges |
+
+See [planes/README.md](planes/README.md) for the canonical architecture contract.
 
 ## Current State (March 2026)
 
-What is true right now in this repository:
+What is true in this repository today:
 
 - Primary operator entrypoint is `infring` (with `infringctl` and `infringd` wrappers).
-- The main dashboard is served by the gateway at `http://127.0.0.1:4173/dashboard#chat`.
+- Main dashboard is served by the gateway at `http://127.0.0.1:4173/dashboard#chat`.
 - Gateway health endpoint is `http://127.0.0.1:4173/healthz`.
-- Gateway persistence is on by default (auto-restart + reboot supervision unless disabled).
+- Gateway persistence is enabled by default (auto-restart + reboot supervision unless disabled).
 - Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
 - Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
 
 ## Quick Start
 
 ### macOS / Linux
-
-Install, then launch:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
@@ -45,7 +58,7 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | ie
 infring gateway
 ```
 
-### Verify Commands Work From Any Directory
+### Verify CLI Is Globally Available
 
 ```bash
 infring --help
@@ -53,7 +66,7 @@ infring list
 infring gateway status
 ```
 
-If your current shell has not refreshed `PATH` yet:
+If your shell has not reloaded `PATH` yet:
 
 ```bash
 . "$HOME/.infring/env.sh"
@@ -61,28 +74,28 @@ hash -r 2>/dev/null || true
 infring --help
 ```
 
-If needed, run by direct path once:
+Fallback (direct path):
 
 ```bash
 "$HOME/.local/bin/infring" --help
 ```
 
-Installer behavior summary:
+Installer behavior:
 
-- Persists PATH to your shell startup file(s)
-- Writes an activation script at `~/.infring/env.sh`
-- Attempts PATH command shims when install dir is not already on PATH
+- Persists `PATH` to shell startup file(s)
+- Writes activation script at `~/.infring/env.sh`
+- Applies command shims when install dir is not already on `PATH`
 - Supports privileged shim fallback for stricter environments (`INFRING_INSTALL_SUDO_SHIMS=auto|off`)
 
 ## Install Modes
 
-| Mode | Command Flag | Purpose |
+| Mode | Flag | Purpose |
 |---|---|---|
 | Minimal (default) | `--minimal` | CLI + daemon wrappers |
 | Full | `--full` | Minimal plus optional published client runtime bundle |
 | Pure | `--pure` | Rust-only runtime surface (no Node/TS runtime dependency) |
 | Tiny-Max | `--tiny-max` | Lowest-footprint pure profile for constrained hardware |
-| Repair | `--repair` | Remove stale wrappers/runtime artifacts before reinstall |
+| Repair | `--repair` | Removes stale wrappers/runtime artifacts before reinstall |
 
 Examples:
 
@@ -119,11 +132,11 @@ Default behavior:
 - Supervises runtime and dashboard
 - Keeps gateway persistent unless explicitly disabled (`--gateway-persist=0`)
 
-## CLI Surfaces
+## Command Surfaces
 
 ### Rust Fallback Surface (No Node.js)
 
-When Node.js is unavailable, `infring` exposes a reduced but useful command set:
+When Node.js is unavailable, `infring` exposes a reduced but operational command set:
 
 - `gateway [start|stop|restart|status]`
 - `start`, `stop`, `restart`
@@ -150,7 +163,7 @@ npm run test:ci
 npm run gateway
 ```
 
-## Benchmarks (Latest Artifact)
+## Performance Snapshot (Latest Artifact)
 
 Latest benchmark source:
 
@@ -170,16 +183,16 @@ Current measured rows in that artifact:
 | Data channels | 4 | 0 | 0 |
 | Plugin marketplace checks | 4 | 0 | 0 |
 
-Benchmark preflight state in the same artifact:
+Preflight metadata in the same artifact:
 
 - `benchmark_preflight.ok = true`
 - `noise_cv_pct = 0.5` (limit `12.5`)
 - `load_per_core_peak = 0.644` (limit `4.0`)
 
-Important current nuance:
+Current nuance:
 
-- Runtime efficiency receipt currently shows rich mode not passing strict cold-start target (`runtime_receipt.ok = false`) due high rich-mode startup latency.
-- Pure and tiny-max lanes remain the low-latency footprint profiles.
+- Runtime efficiency receipt shows rich mode not passing strict cold-start target (`runtime_receipt.ok = false`) due elevated startup latency.
+- Pure and tiny-max lanes remain low-latency footprint profiles.
 
 Refresh commands:
 
@@ -210,7 +223,7 @@ npm run -s ops:benchmark:sanity
 | `planes/` | Three-plane architecture contract definitions |
 | `install.sh`, `install.ps1` | Cross-platform installers |
 
-## Onboarding and Operator Docs
+## Documentation
 
 - [Getting Started](docs/client/GETTING_STARTED.md)
 - [Onboarding Playbook](docs/client/ONBOARDING_PLAYBOOK.md)
@@ -222,7 +235,7 @@ npm run -s ops:benchmark:sanity
 - [Roadmap](roadmap.md)
 - [Glossary](glossary.md)
 
-## Contribution Workflow
+## Contributing
 
 1. Read [CONTRIBUTING.md](docs/workspace/CONTRIBUTING.md).
 2. Run tests and required gates for touched surfaces.
@@ -231,7 +244,7 @@ npm run -s ops:benchmark:sanity
 
 ## Security
 
-- Security disclosure policy: [SECURITY.md](SECURITY.md)
+- Disclosure policy: [SECURITY.md](SECURITY.md)
 - Runtime security docs: [docs/client/SECURITY.md](docs/client/SECURITY.md)
 
 ## License

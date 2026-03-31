@@ -141,6 +141,28 @@ fn measure_infring(
 ) -> Result<(Map<String, Value>, Value), String> {
     let (cold_start_ms, idle_memory_mb, install_size_mb, mut runtime_json, mut runtime_source) =
         runtime_metrics(root, refresh_runtime)?;
+    let runtime_metrics = runtime_json
+        .get("latest")
+        .and_then(|value| value.get("metrics"))
+        .or_else(|| runtime_json.get("metrics"));
+    let rich_cold_start_total_ms = runtime_metrics
+        .and_then(|metrics| {
+            get_f64(metrics, "cold_start_p50_ms")
+                .or_else(|| get_f64(metrics, "cold_start_p95_ms"))
+        })
+        .unwrap_or(cold_start_ms);
+    let engine_start_ms = runtime_metrics
+        .and_then(|metrics| {
+            get_f64(metrics, "engine_start_p50_ms")
+                .or_else(|| get_f64(metrics, "engine_start_p95_ms"))
+        })
+        .unwrap_or(cold_start_ms);
+    let gateway_supervisor_orchestration_ms = runtime_metrics
+        .and_then(|metrics| {
+            get_f64(metrics, "gateway_supervisor_orchestration_p50_ms")
+                .or_else(|| get_f64(metrics, "gateway_supervisor_orchestration_p95_ms"))
+        })
+        .unwrap_or((rich_cold_start_total_ms - engine_start_ms).max(0.0));
     let security_systems = count_guard_checks(root)?;
     let channel_adapters = count_channel_adapters(root)?;
     let llm_providers = count_llm_providers(root)?;
@@ -149,6 +171,15 @@ fn measure_infring(
     let security_policy_checks_total = count_policy_checks_total(root)?;
     let mut measured = Map::<String, Value>::new();
     measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
+    measured.insert("engine_start_ms".to_string(), json!(engine_start_ms));
+    measured.insert(
+        "gateway_supervisor_orchestration_ms".to_string(),
+        json!(gateway_supervisor_orchestration_ms),
+    );
+    measured.insert(
+        "rich_cold_start_total_ms".to_string(),
+        json!(rich_cold_start_total_ms),
+    );
     measured.insert("idle_memory_mb".to_string(), json!(idle_memory_mb));
     measured.insert("install_size_mb".to_string(), json!(install_size_mb));
     attach_shared_throughput(&mut measured, throughput_sampling.tasks_per_sec);
@@ -229,6 +260,14 @@ fn measure_infring(
         meta.insert(
             "tasks_warmup_rounds".to_string(),
             json!(SHARED_THROUGHPUT_WARMUP_ROUNDS),
+        );
+        meta.insert(
+            "cold_start_breakdown".to_string(),
+            json!({
+                "engine_start_ms": engine_start_ms,
+                "gateway_supervisor_orchestration_ms": gateway_supervisor_orchestration_ms,
+                "rich_cold_start_total_ms": rich_cold_start_total_ms
+            }),
         );
     }
     measured.insert("runtime_metric_source".to_string(), runtime_source);

@@ -58,8 +58,7 @@ fn dashboard_health_ok(host: &str, port: u16) -> bool {
             return true;
         }
         if idx + 1 < attempts {
-            let backoff_ms = DASHBOARD_HEALTH_RETRY_BACKOFF_MS.saturating_mul((idx + 1) as u64);
-            std::thread::sleep(Duration::from_millis(backoff_ms.max(20)));
+            std::thread::sleep(Duration::from_millis(DASHBOARD_HEALTH_RETRY_BACKOFF_MS.max(1_000)));
         }
     }
     false

@@ -179,6 +179,7 @@ fn print_node_free_command_list(mode: &str) {
         "start [--dashboard-autoboot=1|0] [--dashboard-open=1|0] [--gateway-persist=1|0]",
         "stop",
         "restart",
+        "task <submit|status|list|cancel|worker|slow-test> [flags]",
         "dashboard",
         "status",
         "session <status|register|resume|send|list>",

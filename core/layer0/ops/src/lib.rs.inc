@@ -905,7 +905,32 @@ fn run_cmd(root: &Path, cmd: &[String]) -> Result<f64, String> {
     Ok(start.elapsed().as_secs_f64() * 1000.0)
 }
 
-fn run_core_lazy_process_cold_start(root: &Path) -> Result<f64, String> {
+fn core_lazy_daemon_start_command(
+    current: &Path,
+    include_gateway_supervisor_orchestration: bool,
+) -> Vec<String> {
+    let mut cmd = vec![
+        current.to_string_lossy().to_string(),
+        "daemon-control".to_string(),
+        "start".to_string(),
+        "--mode=lazy-minimal".to_string(),
+        "--lazy-init=1".to_string(),
+        "--dashboard-open=0".to_string(),
+    ];
+    if include_gateway_supervisor_orchestration {
+        cmd.push("--dashboard-autoboot=1".to_string());
+        cmd.push("--gateway-persist=1".to_string());
+    } else {
+        cmd.push("--dashboard-autoboot=0".to_string());
+        cmd.push("--gateway-persist=0".to_string());
+    }
+    cmd
+}
+
+fn run_core_lazy_process_cold_start_with_breakdown(
+    root: &Path,
+    include_gateway_supervisor_orchestration: bool,
+) -> Result<f64, String> {
     let current = std::env::current_exe()
         .map_err(|err| format!("current_exe_resolve_failed:{err}"))?
         .to_path_buf();
@@ -924,14 +949,13 @@ fn run_core_lazy_process_cold_start(root: &Path) -> Result<f64, String> {
         return Ok(started.elapsed().as_secs_f64() * 1000.0);
     }
 
-    let cmd = vec![
-        current.to_string_lossy().to_string(),
-        "daemon-control".to_string(),
-        "start".to_string(),
-        "--mode=lazy-minimal".to_string(),
-        "--lazy-init=1".to_string(),
-    ];
+    let cmd =
+        core_lazy_daemon_start_command(&current, include_gateway_supervisor_orchestration);
     run_cmd(root, &cmd)
+}
+
+fn run_core_lazy_process_cold_start(root: &Path) -> Result<f64, String> {
+    run_core_lazy_process_cold_start_with_breakdown(root, true)
 }
 
 fn cold_start_sample_ms(
@@ -1162,6 +1186,35 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
 
     let p50_ms = percentile(&samples, 0.50).unwrap_or(0.0);
     let p95_ms = percentile(&samples, 0.95).unwrap_or(0.0);
+    let core_lazy = matches!(
+        policy.cold_start_probe.engine.trim().to_ascii_lowercase().as_str(),
+        "core-lazy" | "core_lazy" | "rust-lazy" | "rust_lazy"
+    );
+    let mut engine_start_p50_ms = p50_ms;
+    let mut engine_start_p95_ms = p95_ms;
+    let mut gateway_supervisor_orchestration_p50_ms = 0.0f64;
+    let mut gateway_supervisor_orchestration_p95_ms = 0.0f64;
+    if core_lazy {
+        for _ in 0..policy.cold_start_probe.warmup_runs {
+            let _ = run_core_lazy_process_cold_start_with_breakdown(root, false);
+        }
+        let mut engine_samples = Vec::new();
+        for _ in 0..policy.cold_start_probe.samples {
+            engine_samples.push(run_core_lazy_process_cold_start_with_breakdown(root, false)?);
+        }
+        engine_start_p50_ms = percentile(&engine_samples, 0.50).unwrap_or(p50_ms);
+        engine_start_p95_ms = percentile(&engine_samples, 0.95).unwrap_or(p95_ms);
+        gateway_supervisor_orchestration_p50_ms = (p50_ms - engine_start_p50_ms).max(0.0);
+        gateway_supervisor_orchestration_p95_ms = (p95_ms - engine_start_p95_ms).max(0.0);
+    }
+    let cold_start_p50_ms = (p50_ms * 1000.0).round() / 1000.0;
+    let cold_start_p95_ms = (p95_ms * 1000.0).round() / 1000.0;
+    let engine_start_p50_ms = (engine_start_p50_ms * 1000.0).round() / 1000.0;
+    let engine_start_p95_ms = (engine_start_p95_ms * 1000.0).round() / 1000.0;
+    let gateway_supervisor_orchestration_p50_ms =
+        (gateway_supervisor_orchestration_p50_ms * 1000.0).round() / 1000.0;
+    let gateway_supervisor_orchestration_p95_ms =
+        (gateway_supervisor_orchestration_p95_ms * 1000.0).round() / 1000.0;
 
     let mut rss_samples = Vec::new();
     for _ in 0..policy.idle_rss_probe.samples {
@@ -1198,8 +1251,12 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "pass": pass,
         "strict": strict,
         "metrics": {
-            "cold_start_p50_ms": (p50_ms * 1000.0).round() / 1000.0,
-            "cold_start_p95_ms": (p95_ms * 1000.0).round() / 1000.0,
+            "cold_start_p50_ms": cold_start_p50_ms,
+            "cold_start_p95_ms": cold_start_p95_ms,
+            "engine_start_p50_ms": engine_start_p50_ms,
+            "engine_start_p95_ms": engine_start_p95_ms,
+            "gateway_supervisor_orchestration_p50_ms": gateway_supervisor_orchestration_p50_ms,
+            "gateway_supervisor_orchestration_p95_ms": gateway_supervisor_orchestration_p95_ms,
             "idle_rss_p50_mb": (idle_rss_p50_mb * 1000.0).round() / 1000.0,
             "idle_rss_p95_mb": (idle_rss_mb * 1000.0).round() / 1000.0,
             "install_artifact_total_mb": (install_total * 1000.0).round() / 1000.0,
@@ -1208,8 +1265,12 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "cold_start": {
             "samples": policy.cold_start_probe.samples,
             "max_ms": policy.cold_start_probe.max_ms,
-            "p50_ms": (p50_ms * 1000.0).round() / 1000.0,
-            "p95_ms": (p95_ms * 1000.0).round() / 1000.0,
+            "p50_ms": cold_start_p50_ms,
+            "p95_ms": cold_start_p95_ms,
+            "engine_start_p50_ms": engine_start_p50_ms,
+            "engine_start_p95_ms": engine_start_p95_ms,
+            "gateway_supervisor_orchestration_p50_ms": gateway_supervisor_orchestration_p50_ms,
+            "gateway_supervisor_orchestration_p95_ms": gateway_supervisor_orchestration_p95_ms,
             "engine": policy.cold_start_probe.engine.clone(),
             "runtime_mode": policy.cold_start_probe.runtime_mode,
             "command": rewrite.command,
@@ -1483,6 +1544,20 @@ mod tests {
                 .and_then(Value::as_str)
                 .unwrap_or(""),
             "process"
+        );
+        assert!(
+            out.json
+                .pointer("/metrics/engine_start_p50_ms")
+                .and_then(Value::as_f64)
+                .unwrap_or(-1.0)
+                >= 0.0
+        );
+        assert!(
+            out.json
+                .pointer("/metrics/gateway_supervisor_orchestration_p50_ms")
+                .and_then(Value::as_f64)
+                .unwrap_or(-1.0)
+                >= 0.0
         );
     }
 

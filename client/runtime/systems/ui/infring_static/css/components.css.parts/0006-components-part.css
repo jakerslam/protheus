@@ -186,9 +186,9 @@
   opacity: 0.72;
   transition: opacity 0.14s var(--ease-smooth), color 0.14s var(--ease-smooth), transform 0.14s var(--ease-smooth);
   position: absolute;
-  background: var(--bg);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: 860;
 }
 

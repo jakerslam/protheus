@@ -216,6 +216,19 @@ function main(): void {
       `benchmark_matrix_modes_missing:rich=${!!rich},pure=${!!pure},tiny_max=${!!tiny}`
     );
   }
+  const richEngineStartMs = Number((rich as any).engine_start_ms);
+  const richGatewaySupervisorOrchestrationMs = Number(
+    (rich as any).gateway_supervisor_orchestration_ms
+  );
+  if (!Number.isFinite(richEngineStartMs) || !Number.isFinite(richGatewaySupervisorOrchestrationMs)) {
+    throw new Error(
+      `benchmark_matrix_rich_startup_breakdown_missing:engine_start_ms=${String(
+        (rich as any).engine_start_ms
+      )},gateway_supervisor_orchestration_ms=${String(
+        (rich as any).gateway_supervisor_orchestration_ms
+      )}`
+    );
+  }
 
   writeJson(options.reportPath, report);
   if (options.mirrorLegacy) {
@@ -241,6 +254,8 @@ function main(): void {
           blockers: row.blockers
         })),
         rich: rich ? true : false,
+        rich_engine_start_ms: richEngineStartMs,
+        rich_gateway_supervisor_orchestration_ms: richGatewaySupervisorOrchestrationMs,
         pure: pure ? true : false,
         tiny_max: tiny ? true : false
       },

@@ -55,6 +55,7 @@ pub fn usage() {
     println!("Try:");
     println!("  infring gateway");
     println!("  infring dashboard");
+    println!("  infring task list");
     println!("  infring list");
     println!("  infring --help");
     println!("  infring setup");

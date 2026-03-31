@@ -267,8 +267,12 @@
                             class="message-bubble"
                             :class="{ 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'markdown-body': (msg.role === 'agent' || msg.role === 'system') && !msg.thinking && !msg.isHtml }"
                             x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, messages))"
-                            x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
-                          ></div>
+                          >
+                            <div
+                              class="message-bubble-content"
+                              x-html="msg.isHtml ? msg.text : ((msg.role === 'agent' || msg.role === 'system') ? renderMarkdown(msg.text) : escapeHtml(msg.text))"
+                            ></div>
+                          </div>
                           <template x-if="messageProgress(msg)">
                             <div class="chat-progress-wrap">
                               <div class="chat-progress-meta">

@@ -333,7 +333,34 @@
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
       localStorage.setItem('infring-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
+      if (!this.sidebarCollapsed) {
+        this.hideCollapsedAgentHover();
+      }
       this.scheduleSidebarScrollIndicators();
+    },
+
+    updateCollapsedAgentHoverPosition(ev) {
+      if (!ev || !ev.currentTarget || typeof ev.currentTarget.getBoundingClientRect !== 'function') return;
+      var rect = ev.currentTarget.getBoundingClientRect();
+      var top = Math.max(48, Math.round(rect.top + (rect.height / 2)));
+      this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, { top: top });
+    },
+
+    showCollapsedAgentHover(agent, ev) {
+      if (!this.sidebarCollapsed || !agent) return;
+      this.updateCollapsedAgentHoverPosition(ev);
+      var preview = this.chatSidebarPreview(agent) || {};
+      this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
+        active: true,
+        name: String(agent.name || agent.id || 'Agent'),
+        text: String(preview.text || 'No messages yet'),
+        unread: !!preview.unread_response
+      });
+    },
+
+    hideCollapsedAgentHover() {
+      if (!this.collapsedAgentHover || !this.collapsedAgentHover.active) return;
+      this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover, { active: false });
     },
 
     runtimeFacadeState() {

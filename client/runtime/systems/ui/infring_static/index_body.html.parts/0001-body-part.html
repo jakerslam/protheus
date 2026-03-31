@@ -43,7 +43,7 @@
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen }">
     <div class="sidebar-nav-shell">
-    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators()">
+    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideCollapsedAgentHover()">
       <!-- Agents conversations — primary action -->
       <div class="nav-section" x-data="{ collapsed: false }" aria-label="Agent conversations">
         <div class="nav-section-title" @click="collapsed = !collapsed">
@@ -111,6 +111,11 @@
                 @dragover="handleChatSidebarTopologyDragOver(agent, $event)"
                 @drop="handleChatSidebarTopologyDrop(agent, $event)"
                 @dragend="endChatSidebarTopologyDrag()"
+                @mouseenter="showCollapsedAgentHover(agent, $event)"
+                @mousemove="updateCollapsedAgentHoverPosition($event)"
+                @mouseleave="hideCollapsedAgentHover()"
+                @focusin="showCollapsedAgentHover(agent, $event)"
+                @focusout="hideCollapsedAgentHover()"
               >
                 <span class="nav-icon nav-agent-icon">
                   <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent) }">
@@ -177,14 +182,6 @@
                       Confirm
                     </button>
                   </span>
-                </span>
-                <span class="nav-agent-collapsed-hover-preview" aria-hidden="true">
-                  <span class="nav-agent-collapsed-hover-name truncate" x-text="agent.name || agent.id"></span>
-                  <span
-                    class="nav-agent-collapsed-hover-text"
-                    :class="{ 'preview-unread': !!chatSidebarPreview(agent).unread_response }"
-                    x-text="chatSidebarPreview(agent).text || 'No messages yet'"
-                  ></span>
                 </span>
               </a>
             </template>
@@ -292,6 +289,19 @@
       <div class="sidebar-scroll-indicator sidebar-scroll-indicator-bottom" x-show="sidebarHasOverflowBelow" aria-hidden="true">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
       </div>
+    </div>
+    <div
+      class="nav-agent-collapsed-hover-float"
+      x-show="sidebarCollapsed && collapsedAgentHover.active"
+      :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
+      aria-hidden="true"
+    >
+      <span class="nav-agent-collapsed-hover-name truncate" x-text="collapsedAgentHover.name || 'Agent'"></span>
+      <span
+        class="nav-agent-collapsed-hover-text"
+        :class="{ 'preview-unread': !!collapsedAgentHover.unread }"
+        x-text="collapsedAgentHover.text || 'No messages yet'"
+      ></span>
     </div>
 
     <div class="sidebar-settings-anchor">

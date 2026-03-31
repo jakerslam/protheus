@@ -108,7 +108,7 @@ var InfringAPI = (function() {
   var _connectionState = 'connecting';
   var _reconnectAttempt = 0;
   var _connectionListeners = [];
-  var HTTP_RETRY_DELAYS_MS = [0, 140, 280, 560, 1120];
+  var HTTP_RETRY_DELAYS_MS = [0, 1000, 1000, 1000, 1000];
 
   function setAuthToken(token) { _authToken = token; }
 
@@ -253,8 +253,7 @@ var InfringAPI = (function() {
           _reconnectAttempts++;
           _reconnectAttempt = _reconnectAttempts;
           setConnectionState('reconnecting');
-          var delay = Math.min(1000 * Math.pow(2, _reconnectAttempts - 1), 10000);
-          _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, delay);
+          _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, 1000);
           return;
         }
         if (_wsAgentId && _reconnectAttempts >= MAX_RECONNECT) {

@@ -105,6 +105,19 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             },
             forward_stdin: false,
         }),
+        "task" | "tasks" => {
+            let mut args = vec!["task".to_string()];
+            if rest.is_empty() {
+                args.push("list".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://workspace-gateway-runtime".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "memory" => {
             let mut args = vec!["memory".to_string()];
             if rest.is_empty() {
