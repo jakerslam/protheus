@@ -317,10 +317,9 @@
       if (pos > text.length) pos = text.length;
       this.terminalSelectionStart = Math.floor(pos);
     },
-
     installChatMapWheelLock() {
+      var self = this;
       var maps = document.querySelectorAll('.chat-map-scroll');
-      if (!maps || !maps.length) return;
       for (var i = 0; i < maps.length; i++) {
         var map = maps[i];
         if (!map || map.__ofWheelLock) continue;
@@ -335,6 +334,21 @@
             target.scrollTop += delta;
           }
           ev.preventDefault();
+        }, { passive: false });
+      }
+      var scrollers = document.querySelectorAll('.messages#messages');
+      for (var si = 0; si < scrollers.length; si++) {
+        var scroller = scrollers[si];
+        if (!scroller || scroller.__ofBottomWheelLock) continue;
+        scroller.__ofBottomWheelLock = true;
+        scroller.addEventListener('wheel', function(ev) {
+          var target = ev.currentTarget; if (!target || Number(ev.deltaY || 0) <= 0) return;
+          var hardCapTop = resolveLatestMessageScrollTop(self, target);
+          var maxTop = Math.max(0, Number(target.scrollHeight || 0) - Math.max(0, Number(target.clientHeight || 0)));
+          if (hardCapTop >= (maxTop - 1) || Number(target.scrollTop || 0) < (hardCapTop - 2)) return;
+          if (Math.abs(Number(target.scrollTop || 0) - hardCapTop) > 0.5) target.scrollTop = hardCapTop;
+          self.showScrollDown = false; self._stickToBottom = true;
+          if (ev.cancelable) ev.preventDefault();
         }, { passive: false });
       }
     },

@@ -195,6 +195,14 @@
   isolation: isolate;
 }
 
+.chat-input-lane .prompt-queue-row,
+.chat-input-lane .prompt-queue-row *,
+.chat-input-lane .prompt-suggestions-row,
+.chat-input-lane .prompt-suggestions-row * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .sidebar + .main-content .chat-wrapper {
   --chat-column-shift: -18px;
 }
@@ -282,6 +290,22 @@
     linear-gradient(90deg, var(--border) 0%, var(--border) 50%, color-mix(in srgb, var(--accent) 50%, var(--border) 50%) 100%) border-box;
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: box-shadow 0.2s var(--ease-smooth), filter 0.2s var(--ease-smooth);
+}
+
+/* Keep decorative composer text non-copyable (model labels, path chrome, etc).
+   Only direct user-editable controls should allow text selection. */
+.input-area .composer-shell,
+.input-area .composer-shell * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.input-area .composer-shell textarea,
+.input-area .composer-shell input,
+.input-area .composer-shell [contenteditable='true'],
+.input-area .composer-shell [contenteditable='plaintext-only'] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .composer-shell:focus-within {

@@ -10,18 +10,16 @@
         );
         return true;
       } catch (error) {
-        this.messages.push({
-          id: ++msgId,
-          role: 'system',
+        this.pushSystemMessage({
           text:
             'Automatic model recovery failed: ' +
             String(error && error.message ? error.message : error),
           meta: '',
           tools: [],
           system_origin: 'model:auto-recover:error',
-          ts: Date.now()
+          ts: Date.now(),
+          dedupe_window_ms: 15000
         });
-        this.scheduleConversationPersist();
         return false;
       } finally {
         this._inflightFailoverInProgress = false;
@@ -301,16 +299,15 @@
       var stillActiveAgent = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
       if (!resolved && stillActiveAgent) {
         this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-        this.messages.push({
-          id: ++msgId,
-          role: 'system',
+        this.pushSystemMessage({
           text: 'Connection dropped before the agent reply was delivered. Please retry.',
           meta: '',
           tools: [],
           system_origin: 'transport:recovery',
-          ts: Date.now()
+          ts: Date.now(),
+          dedupe_window_ms: 15000,
+          auto_scroll: true
         });
-        this.scrollToBottom();
       }
       if (!resolved && !stillActiveAgent) {
         this._pendingWsRecovering = false;

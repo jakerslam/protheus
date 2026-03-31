@@ -428,8 +428,8 @@ function runPinToLatestOnOpenJob(page, container, options) {
 
 function resolveBottomBufferPx(page) {
   var raw = Number(page && page.scrollBottomBufferPx);
-  if (!Number.isFinite(raw) || raw < 0) raw = 28;
-  if (raw > 96) raw = 96;
+  if (!Number.isFinite(raw) || raw < 0) raw = 64;
+  if (raw > 192) raw = 192;
   return raw;
 }
 
@@ -455,13 +455,13 @@ function clampScrollToLatestMessageBottom(page, el) {
   var targetTop = resolveLatestMessageScrollTop(page, host);
   if ((page && page.showFreshArchetypeTiles) || !host.querySelector('.chat-message-block[data-msg-idx], .chat-message-block')) return targetTop;
   var top = Number(host.scrollTop || 0);
+  var clientHeight = Math.max(0, Number(host.clientHeight || 0));
+  var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
+  var hardCapTop = Math.min(maxTop, targetTop);
   var slack = Number(page && page.scrollBottomClampSlackPx);
-  if (!Number.isFinite(slack) || slack < 0) slack = 16;
-  if (top <= (targetTop + slack)) return targetTop;
-  if (page && page._bottomClampTimer) clearTimeout(page._bottomClampTimer);
-  if (page) page._bottomClampTimer = setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host)); page._bottomClampTimer = 0; }, 64);
-  else host.scrollTop = targetTop;
-  return targetTop;
+  if (!Number.isFinite(slack) || slack < 0) slack = 2;
+  if (top > (hardCapTop + slack)) host.scrollTop = hardCapTop;
+  return hardCapTop;
 }
 
 function resolveLatestMessageScrollTop(page, el) {

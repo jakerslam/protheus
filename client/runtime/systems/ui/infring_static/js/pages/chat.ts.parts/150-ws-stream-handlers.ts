@@ -387,17 +387,15 @@
                   })
                   .then(function(recovered) {
                     if (recovered) return;
-                    selfRebound.messages.push({
-                      id: ++msgId,
-                      role: 'system',
+                    selfRebound.pushSystemMessage({
                       text: 'Error: ' + rawNotFound,
                       meta: '',
                       tools: [],
                       system_origin: 'ws:error',
                       ts: Date.now(),
+                      dedupe_window_ms: 12000
                     });
                     selfRebound._inflightPayload = null;
-                    selfRebound.scheduleConversationPersist();
                   });
               })
               .catch(function() {});
@@ -412,6 +410,4 @@
             remove_last_agent_failure: false
           }).then(function(recovered) {
             if (recovered) return;
-            self2.messages.push({
-              id: ++msgId,
-              role: 'system',
+            self2.pushSystemMessage({

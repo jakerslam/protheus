@@ -30,7 +30,84 @@
           });
         }
         this.scrollToBottom();
-      } catch (_) {}
+      } catch (error) {
+        this.emitCommandFailureNotice('/alerts', error, ['/status', '/continuity']);
+      }
+    },
+
+    runSlashNextActions: async function() {
+      try {
+        var alertsPayload = await this.fetchProactiveTelemetryAlerts(false);
+        var rows = Array.isArray(alertsPayload && alertsPayload.next_actions)
+          ? alertsPayload.next_actions
+          : [];
+        if (!rows.length) {
+          this.messages.push({
+            id: ++msgId,
+            role: 'system',
+            text: 'No predicted next actions right now.',
+            meta: '',
+            tools: [],
+            system_origin: 'slash:next',
+            ts: Date.now()
+          });
+          this.scrollToBottom();
+          return;
+        }
+        var rendered = rows.slice(0, 6).map(function(row) {
+          var cmd = String((row && row.command) || '').trim();
+          var reason = String((row && row.reason) || '').trim();
+          var priority = String((row && row.priority) || 'low').toUpperCase();
+          return '- [' + priority + '] `' + cmd + '`' + (reason ? ('\n  ↳ ' + reason) : '');
+        }).join('\n');
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text: '**Predicted Next Actions**\n' + rendered,
+          meta: '',
+          tools: [],
+          system_origin: 'slash:next',
+          ts: Date.now()
+        });
+        this.scrollToBottom();
+      } catch (error) {
+        this.emitCommandFailureNotice('/next', error, ['/alerts', '/status']);
+      }
+    },
+
+    runSlashMemoryHygiene: async function() {
+      try {
+        var alertsPayload = await this.fetchProactiveTelemetryAlerts(false);
+        var hygiene = alertsPayload && alertsPayload.memory_hygiene ? alertsPayload.memory_hygiene : {};
+        var stale48 = Number(hygiene.stale_contexts_48h || 0);
+        var stale7d = Number(hygiene.stale_contexts_7d || 0);
+        var bytes = Number(hygiene.snapshot_history_bytes || 0);
+        var overCap = !!hygiene.snapshot_history_over_soft_cap;
+        var recs = Array.isArray(hygiene.recommendations) ? hygiene.recommendations : [];
+        var recText = recs.slice(0, 4).map(function(row) {
+          var cmd = String((row && row.command) || '').trim();
+          var reason = String((row && row.reason) || '').trim();
+          return '- `' + cmd + '`' + (reason ? ('\n  ↳ ' + reason) : '');
+        }).join('\n');
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text:
+            '**Memory Hygiene**\n' +
+            '- Stale contexts (48h+): ' + stale48 + '\n' +
+            '- Stale contexts (7d+): ' + stale7d + '\n' +
+            '- Snapshot history bytes: ' + bytes + '\n' +
+            '- Over soft cap: ' + (overCap ? 'yes' : 'no') +
+            (recText ? ('\n\nRecommended actions:\n' + recText) : ''),
+          meta: '',
+          tools: [],
+          system_origin: 'slash:memory',
+          ts: Date.now()
+        });
+        this.scrollToBottom();
+      } catch (error) {
+        this.emitCommandFailureNotice('/memory', error, ['/continuity', '/alerts']);
+      }
     },
 
     runSlashContinuity: async function() {
@@ -63,7 +140,9 @@
           ts: Date.now()
         });
         this.scrollToBottom();
-      } catch (_) {}
+      } catch (error) {
+        this.emitCommandFailureNotice('/continuity', error, ['/status', '/alerts']);
+      }
     },
 
     runSlashAliases: function() {
@@ -143,5 +222,7 @@
           ts: Date.now()
         });
         this.scrollToBottom();
-      } catch (_) {}
+      } catch (error) {
+        this.emitCommandFailureNotice('/opt', error, ['/status', '/continuity']);
+      }
     },

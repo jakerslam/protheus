@@ -1532,6 +1532,10 @@ if [ "${1:-}" = "gateway" ]; then
     esac
   done
   dashboard_url="${INFRING_DASHBOARD_URL:-http://${dashboard_host}:${dashboard_port}/dashboard#chat}"
+  core_opened_browser="0"
+  if printf '%s\n' "$gateway_output" | grep -Eq '"opened_browser"[[:space:]]*:[[:space:]]*true'; then
+    core_opened_browser="1"
+  fi
 
   if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
     if [ "$legacy_supervisor_mode" != "1" ]; then
@@ -1567,7 +1571,9 @@ if [ "${1:-}" = "gateway" ]; then
         fi
       fi
     fi
-    if [ "$dashboard_open" = "1" ]; then
+    # Core daemon-control is authoritative for browser launch.
+    # Only fallback-open here when core explicitly did not open a tab.
+    if [ "$dashboard_open" = "1" ] && [ "$core_opened_browser" != "1" ]; then
       if command -v open >/dev/null 2>&1; then
         open "$dashboard_url" >/dev/null 2>&1 || true
       elif command -v xdg-open >/dev/null 2>&1; then

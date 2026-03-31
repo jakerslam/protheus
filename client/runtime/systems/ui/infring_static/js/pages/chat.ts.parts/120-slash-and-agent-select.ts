@@ -32,6 +32,12 @@
         case '/alerts':
           await self.runSlashAlerts();
           break;
+        case '/next':
+          await self.runSlashNextActions();
+          break;
+        case '/memory':
+          await self.runSlashMemoryHygiene();
+          break;
         case '/continuity':
           await self.runSlashContinuity();
           break;
