@@ -1,7 +1,7 @@
 # Protheus Operations Documentation
 
 > **Classification:** Internal  
-> **Last Updated:** 2026-03-30  
+> **Last Updated:** 2026-04-01  
 > **Owner:** Platform Operations  
 
 ## Overview
@@ -15,6 +15,7 @@ This directory contains operational documentation for the Protheus platform, inc
 | Document | Purpose | Last Updated |
 |----------|---------|--------------|
 | [P1 Escalation Runbook](./runbooks/incident-response-p1-escalation.md) | Critical incident procedures | 2026-03-28 |
+| [P2 Incident Response](./runbooks/incident-response-p2.md) | High-priority incident procedures | 2026-03-30 |
 
 ### Deployment & Release
 
@@ -26,7 +27,13 @@ This directory contains operational documentation for the Protheus platform, inc
 
 | Document | Purpose |
 |----------|---------|
-| [Database Config](./database.yaml.example) | Connection pooling & SSL setup |
+| [Database Config](../config/examples/database.yaml.example) | Connection pooling & SSL setup |
+
+### Operational Scripts
+
+| Script | Purpose |
+|--------|---------|
+| Service Health Check](../../scripts/utils/service-health-check.sh) | Non-intrusive platform health checks |
 
 ## Contribution Guidelines
 
