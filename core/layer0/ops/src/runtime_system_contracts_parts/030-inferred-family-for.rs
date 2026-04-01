@@ -35,6 +35,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "receipt_batching_simd_lockfree_coordination_pgo_slab_allocation_and_throughput_regression_guards",
         ));
     }
+    if id.starts_with("V4-DUAL-CON-") || id.starts_with("V4-DUAL-MEM-") {
+        return Some((
+            "duality_resilience_stack",
+            "duality_belief_balance_toll_prediction_fractal_scaling_and_memory_tagging",
+        ));
+    }
     if id.starts_with("V6-WORKFLOW-") || id.starts_with("V6-EXECUTION-001.") {
         return Some((
             "swarm_runtime_scaling",
@@ -381,6 +387,8 @@ mod tests {
         assert!(profile_for("V5-RUST-PROD-012").is_some());
         assert!(profile_for("V10-ULTIMATE-001.6").is_some());
         assert!(profile_for("V10-PERF-001.6").is_some());
+        assert!(profile_for("V4-DUAL-CON-001").is_some());
+        assert!(profile_for("V4-DUAL-MEM-002").is_some());
         assert!(profile_for("V6-WORKFLOW-026.5").is_some());
         assert!(profile_for("V6-DASHBOARD-007.8").is_some());
         assert!(profile_for("V6-DASHBOARD-008.4").is_some());

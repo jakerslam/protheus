@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/autonomy (authoritative)
+// SRS coverage marker: V4-DUAL-PRI-001
 
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeSet, HashSet};
@@ -239,6 +240,11 @@ fn default_policy(root: &Path) -> Value {
         "support_recovery_step": 0.01,
         "max_observation_window": 200,
         "self_validation_interval_minutes": 360,
+        "toll_enabled": true,
+        "toll_trigger_negative_threshold": -0.2,
+        "toll_debt_step": 0.2,
+        "toll_recovery_step": 0.08,
+        "toll_hard_block_threshold": 1.0,
         "codex_path": root.join(DEFAULT_CODEX_REL).to_string_lossy(),
         "state": {
             "latest_path": root.join(DEFAULT_LATEST_REL).to_string_lossy(),
@@ -251,6 +257,16 @@ fn default_policy(root: &Path) -> Value {
             "task_decomposition": true,
             "weaver_arbitration": true,
             "heroic_echo_filtering": true
+        },
+        "dual_voice": {
+            "enabled": true,
+            "min_harmony": 0.42,
+            "minimum_voice_confidence": 0.3
+        },
+        "memory": {
+            "tagging_enabled": true,
+            "high_recall_threshold": 0.65,
+            "inversion_flag_threshold": 0.35
         },
         "outputs": {
             "persist_shadow_receipts": true,
@@ -290,6 +306,16 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let base_dual_voice = base_obj
+        .get("dual_voice")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let base_memory = base_obj
+        .get("memory")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
 
     let src_state = src_obj
         .get("state")
@@ -303,6 +329,16 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         .unwrap_or_default();
     let src_outputs = src_obj
         .get("outputs")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let src_dual_voice = src_obj
+        .get("dual_voice")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let src_memory = src_obj
+        .get("memory")
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
@@ -356,6 +392,31 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         "support_recovery_step": clamp_f64(as_f64(src_obj.get("support_recovery_step")).unwrap_or(as_f64(base_obj.get("support_recovery_step")).unwrap_or(0.01)), 0.0001, 1.0),
         "max_observation_window": clamp_i64(as_i64(src_obj.get("max_observation_window")).unwrap_or(as_i64(base_obj.get("max_observation_window")).unwrap_or(200)), 10, 20_000),
         "self_validation_interval_minutes": clamp_i64(as_i64(src_obj.get("self_validation_interval_minutes")).unwrap_or(as_i64(base_obj.get("self_validation_interval_minutes")).unwrap_or(360)), 5, 24 * 60),
+        "toll_enabled": as_bool(src_obj.get("toll_enabled"), as_bool(base_obj.get("toll_enabled"), true)),
+        "toll_trigger_negative_threshold": clamp_f64(
+            as_f64(src_obj.get("toll_trigger_negative_threshold"))
+                .unwrap_or(as_f64(base_obj.get("toll_trigger_negative_threshold")).unwrap_or(-0.2)),
+            -1.0,
+            1.0
+        ),
+        "toll_debt_step": clamp_f64(
+            as_f64(src_obj.get("toll_debt_step"))
+                .unwrap_or(as_f64(base_obj.get("toll_debt_step")).unwrap_or(0.2)),
+            0.0001,
+            10.0
+        ),
+        "toll_recovery_step": clamp_f64(
+            as_f64(src_obj.get("toll_recovery_step"))
+                .unwrap_or(as_f64(base_obj.get("toll_recovery_step")).unwrap_or(0.08)),
+            0.0001,
+            10.0
+        ),
+        "toll_hard_block_threshold": clamp_f64(
+            as_f64(src_obj.get("toll_hard_block_threshold"))
+                .unwrap_or(as_f64(base_obj.get("toll_hard_block_threshold")).unwrap_or(1.0)),
+            0.1,
+            100.0
+        ),
         "codex_path": resolve_path(root, &codex_path_raw, DEFAULT_CODEX_REL).to_string_lossy(),
         "state": {
             "latest_path": resolve_path(root, &latest_path_raw, DEFAULT_LATEST_REL).to_string_lossy(),
@@ -368,6 +429,36 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             "task_decomposition": as_bool(src_integration.get("task_decomposition"), as_bool(base_integration.get("task_decomposition"), true)),
             "weaver_arbitration": as_bool(src_integration.get("weaver_arbitration"), as_bool(base_integration.get("weaver_arbitration"), true)),
             "heroic_echo_filtering": as_bool(src_integration.get("heroic_echo_filtering"), as_bool(base_integration.get("heroic_echo_filtering"), true))
+        },
+        "dual_voice": {
+            "enabled": as_bool(src_dual_voice.get("enabled"), as_bool(base_dual_voice.get("enabled"), true)),
+            "min_harmony": clamp_f64(
+                as_f64(src_dual_voice.get("min_harmony"))
+                    .unwrap_or(as_f64(base_dual_voice.get("min_harmony")).unwrap_or(0.42)),
+                0.0,
+                1.0
+            ),
+            "minimum_voice_confidence": clamp_f64(
+                as_f64(src_dual_voice.get("minimum_voice_confidence"))
+                    .unwrap_or(as_f64(base_dual_voice.get("minimum_voice_confidence")).unwrap_or(0.3)),
+                0.0,
+                1.0
+            )
+        },
+        "memory": {
+            "tagging_enabled": as_bool(src_memory.get("tagging_enabled"), as_bool(base_memory.get("tagging_enabled"), true)),
+            "high_recall_threshold": clamp_f64(
+                as_f64(src_memory.get("high_recall_threshold"))
+                    .unwrap_or(as_f64(base_memory.get("high_recall_threshold")).unwrap_or(0.65)),
+                0.0,
+                1.0
+            ),
+            "inversion_flag_threshold": clamp_f64(
+                as_f64(src_memory.get("inversion_flag_threshold"))
+                    .unwrap_or(as_f64(base_memory.get("inversion_flag_threshold")).unwrap_or(0.35)),
+                0.0,
+                1.0
+            )
         },
         "outputs": {
             "persist_shadow_receipts": as_bool(src_outputs.get("persist_shadow_receipts"), as_bool(base_outputs.get("persist_shadow_receipts"), true)),
@@ -432,4 +523,3 @@ fn default_codex() -> Value {
         ]
     })
 }
-

@@ -20,6 +20,10 @@ struct RuntimeSystemContractFamily {
 }
 
 const NEW_ACTIONABLE_IDS: &[&str] = &[
+    "V4-DUAL-CON-001",
+    "V4-DUAL-CON-002",
+    "V4-DUAL-CON-003",
+    "V4-DUAL-MEM-002",
     "V10-ULTIMATE-001.1",
     "V10-ULTIMATE-001.2",
     "V10-ULTIMATE-001.3",
@@ -457,4 +461,3 @@ const NEW_ACTIONABLE_IDS: &[&str] = &[
     "V6-WORKFLOW-006.7",
     "V6-WORKFLOW-006.8",
 ];
-

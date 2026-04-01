@@ -7,6 +7,10 @@ include!("runtime_system_contracts_parts/030-inferred-family-for.rs");
 // Keep queued/in-progress IDs mirrored here even when primary catalogs are split into parts.
 #[allow(dead_code)]
 const STRATEGIC_CONTRACT_AUDIT_COVERAGE_IDS: &[&str] = &[
+    "V4-DUAL-CON-001",
+    "V4-DUAL-CON-002",
+    "V4-DUAL-CON-003",
+    "V4-DUAL-MEM-002",
     "V10-PERF-001.1",
     "V10-PERF-001.2",
     "V10-PERF-001.3",

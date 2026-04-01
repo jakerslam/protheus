@@ -34,6 +34,7 @@
     "ops:srs:contracts:20260312": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_contract_receipts_20260312.ts",
     "ops:srs:reconcile-done": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_reconcile_done_without_code.ts",
     "ops:srs:execute-strict": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_execute_strict.ts",
+    "ops:srs:todo-sync": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_todo_sync.ts",
     "ops:blocked-external:plan": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/blocked_external_unblock_plan.ts",
     "ops:blocked-external:top10": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/blocked_external_top10.ts",
     "ops:blocked-external:scaffold": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/blocked_external_scaffold.ts",

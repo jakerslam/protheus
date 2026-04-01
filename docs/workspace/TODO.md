@@ -1,495 +1,479 @@
-# TODO (Maintenance + Policy + SRS Execution Order)
+# TODO (SRS Execution Checklist)
 
-Updated: 2026-03-27 17:36 America/Denver
+Updated: 2026-04-01T08:02:05.223Z
 
-## Ordering policy
-- Priority first (`P0` > `P1` > `P2` > `P3`)
-- Then ROI / risk reduction
-- Then dependency order
+## Global Rollup
+- total_rows: 3197
+- queued: 0
+- in_progress: 0
+- blocked: 0
+- blocked_external_prepared: 31
+- done: 935
+- existing_coverage_validated: 2231
 
-## Live baseline
-- `rust_share_pct`: `76.249%` (`npm run -s metrics:rust-share`)
-- `client total ts files`: `231`
-- `runtime_system_surface`: `116`
-- `cognition_surface`: `0`
-- `runtime_sdk_surface`: `40`
-- `wrapper_count`: `116`
-- `allowed_non_wrapper_count`: `1`
-- `promote_to_core`: `0`
-- `move_to_adapters`: `0`
-- `collapse_to_generic_wrapper`: `0`
-- `srs_full_regression`: `fail=0`, `warn=0`, `pass=2197`
-- `srs_top200_regression`: `fail=0`, `warn=0`, `pass=200`
-- `verify.sh`: `PASS`
+## SRS Section Checklist
+- [ ] Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=3, done=0, existing_coverage_validated=15
+- [x] LLMN Mode + Smart Memory Regression Shield (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=4
+- [ ] Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=2, done=5, existing_coverage_validated=3
+- [x] Assimilation Delta Intake (Doc `1GTs4h1w43rwhSMYctpuwYnLoQyKFeHxsas8LUTsmozA`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Stealth Research Engine Intake (Doc `15cAMJQN_HrVPrID0vIZBtYZVUMcl-JB-Q523XJahnN0`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Scrapy Core Crawling Architecture Source Coverage Intake (Doc `1TV9jmVwCtNvClWsQ5fbDFZD_gQ1Qoj5ffHl3aGjYBJg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Firecrawl Agent Crawler Source Coverage Intake (Doc `1GNCzMkKKyHNpxNwkWncd6YkM3kQl7272xiBH3kYYTis`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Python-Scraping Pattern Source Coverage Intake (Doc `10zk6RreqZjknjQFYv8rPx75OD1W_exBricQ2lWCJ2CU`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Google News URL Decoder Source Coverage Intake (Doc `14LDfaNqkqACV7ZYZTeclBGIoHFHrY33CNmY14jTx6XQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] doc2dict Structured Parser Source Coverage Intake (Doc `1ssSBNU2J52VcoFj6LiwNorpF4PxTvXf5kJ-H0ls5rt0`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] MCP-Agent Framework Source Coverage Intake (Doc `1hcCLIo1oi2szipjtdsxSQso1oQCE__bTXGuDyrFHZUI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Langflow Visual Builder Source Coverage Intake (Doc `1PKFNEBQd4d_56dfyNWorIeHXZyWysWdVy3T4zUbrNs8`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Claude Skills Framework Assimilation Intake (Doc `1pW_m6yHd--Tmgw19Eu-DgBv5iKelfOfoVcalR231cWg`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [ ] Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=4
+- [x] Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Persistent Background Execution, Connectors & Mobile Access Intake (Claude Code Feature Assimilation, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Persistent Scheduling Source Coverage Intake (Doc `1FEglrmeMZyEqoPX0rrALvmwKMux8UUk_502Vw9n6hb4`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Simple LLM Chat Starter Source Coverage (Doc `1VTv__jItMvt_KINaDxeGdqQE1RqxhKa9tIVn9dTf8AQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Advanced Multi-Provider Chat UI Source Coverage (Doc `1CdnTfqUDe4wsUYP6AknXoJ0LwNE_NinREtoCm0om1xQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] AI Software Engineer App Intake (Doc `1KKKAfH8FwOTTyfyKl2zPupgTfTmYUdppHqegNYJLR7o`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] DeerFlow Product-Builder Source Coverage Intake (Doc `1nQS5TPPQfwllJDNSDcR1ll7zBNYpJ3uoDqn1-M8Fy5k`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] CEO-Orchestrator Source Coverage Intake (Doc `1laeJh5FIHhiVcgOeI3LvQyi_eW8Xo_hwHDuMtLBIaww`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] 2026 Hiring Projects Source Coverage Intake (Doc `1qgE2wXUFVwVt1Ei0lnud8ILNZPKx3DHoqemS3z9zYmk`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] Manager-Team Source Coverage Intake (Doc `1yaohxnWC1MWG11OAuyo7rIAV2FhSB9AxT4oFHqKAO3g`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Hermes Agent Source Coverage Intake (Doc `1x-lmXs9oEWchu0JSw9zcGslfz8_r2O4qlPQzhsy0DKc`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Grounded RAG Search Source Coverage (Doc `1upMQ3CguMe25aMCUnDDgshRSWbbVySOxqi4JfwAicLc`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Visual Explainer & Commit Visual Audit Source Coverage Intake (Doc `1m8ociR4Chj9n4wuFAcArZQTG6gwx_vZzlVHB_F6CNzg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] CodeWiki Interactive Repo Guide Source Coverage Intake (Doc `1MHmFF7WsgfPT-qHj_-lMXJtYL9TADsl32E8udmCBftU`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Octree AI LaTeX Workspace Source Coverage Intake (Doc `1nI8I8kpPjWPuPaQHhiWB1mDWwYPOX4ChfMuCSVw9nkg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Octree AI LaTeX Forge Reinforcement Intake (Doc `1zV2NzGP0HtzAMLh28IhjhGtDwq__UwJDgKErMnFbeuA`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Generative Workflow Sharing App Intake (Doc `10TMX_DfJhEhR1yJAJO0q08X44By_XIiabWtRZtMLAvY`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Generative Media Studio Source Coverage (Doc `1txm8bhPQAAGxuOiTkWtX_NYDDhApn_z8r4B3o6R_7DY`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Infring-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] The Agency Specialized Division Templates Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] High-Performance Time-Series Storage Engine Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Browser-Native High-Speed LLM Inference Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Context Doctor Bootstrap Health Monitor Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Discrawl Structured Discord Memory Source Coverage Intake (Doc `1EUPYD-0oXnUWYglyrtJ2hziuWZaLMqa-TzAMBn7nIWg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Graph-Aware Markdown Memory Vault Intake (ClawVault, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Semantic Code Indexing & Search Intake (cocoindex-code, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Production-Grade Checklist Addendum (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=27
+- [ ] OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=13, done=0, existing_coverage_validated=48
+- [x] Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=26, existing_coverage_validated=6
+- [x] Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [ ] Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=5, done=0, existing_coverage_validated=65
+- [x] V1 Hardening (Required for 6-Month Autopilot) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [ ] V2 — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=48
+- [x] V3 (Lamp / Super-Intelligence Containment) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=27
+- [x] Constraint Bridge Track (Grok Intake, 2026-02-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] Grok Intake (Normalized, 2026-02-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] Security Fortress Intake (Normalized, 2026-02-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Helix Codex Track (Immortal Helix + Sentinel Protocol) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Governance + Intelligence Gap Intake (Grok, 2026-02-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=39
+- [x] V4 Cleanup Track (Corrected Grok Intake, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] V4 Scientific Method Track (Grok Intake Normalized, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] V4 Launch Polish Track (Google Doc `19aVNHH1MHRDd6nmpuakTv14Hi36jaL1O9JTS7ep7MUE`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] V4 Empty Fort Artifact Program (Operator Directive, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] V4 Optional Illusion Reinforcement Track (Grok Intake Normalized, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] V4 Migration & Ecosystem Porting Track (Google Doc `16j8PyjyYt3CpzfR11jpQkG3fAhIPifQBUlBO_pYxfR0`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] V4 Settling Runtime Track (Google Doc `1IPYlZqAROFpN0bjJvaE3dJfU9EPugXFDI9KLS6PIa0Q`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] V4 Rust Acceleration Track (Grok Intake Normalized, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] V4 1M User Scale Readiness Track (Operator Directive, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Foundation Hardening Sprint (7-14 Days) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Holo-viz Track (Separated from Core Protheus) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=43
+- [x] Devin Comparative Intake (Normalized to Primitive-First) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] X AI Feature Abstraction Intake (Normalized, 2026-02-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Controlled Self-Improvement Intake (Normalized, 2026-02-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Sovereign Economics + Anchoring Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] LLM Economy + Red-Team Co-Evolution Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] Actuation Gap Closure Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] 100/100 Polish Pack (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Safe Dream Warden Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Frontier Capability Closure Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Intelligence Requirement Intake (Deduplicated, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Binary Runtime Hardening Intake (Normalized, 2026-02-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] State Kernel Hardening Track (SQLite State Plane) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Foundation Closure Hardening Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Master Learning Conduit + Hereditary Federation (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Post-Soak Governance Hardening (Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] Post-Soak Runtime Closure Hardening (Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Operator-System Feel Pack (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Post-Soak Memory & Burn Efficiency Pack (Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Architecture Refinement Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Enterprise Readiness Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] #1 Readiness Bridge Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Benchmark-Gated Auto-Execution Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Rust Memory Transition Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=16
+- [x] Enterprise Documentation Structure Intake (Deduplicated, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Infring Capability Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] Anti-Copy / Reverse-Engineering Hardening Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Selective Copying Hardening (Skin Protection Layer) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Poison Dart Frog Defensive Layer (Active Internal Containment, Defensive-Only) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Red Team Adaptive Defense Expansion — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Red Team Cost-Escalation Evolution (Increasingly Costly Defenses) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Red Team Constitutional Hall Pass (Defensive Exemption Lane) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Red Team Advanced Nasty Defense Innovation (Hall-Pass Enabled) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Post-Quantum Defensive Hardening Pack (QPROOF) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] AI Race Fitness Uplift Pack (Normalized from external ruthless eval, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=15
+- [x] Grok Frontier Gaps Intake (2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] External Requirements Intake (Google Doc `1kB5xBJGVm8isdFTsDh_6mivXNpCtRcUrUgALxCQa1Kc`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] External Requirements Intake (Google Doc `1LKIU6Sci0FSzlETPx8caHz53a7DokCUthvlKiuiWn7A`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] External Requirements Intake (Google Doc `1qfcwkGo4sRZbe7lG8KW_XSPCHJ0KsiUTtGJdcjRIPU4`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] External Requirements Intake (Google Doc `1vAIWpwJLqD_KMqSEm6b93HNY6SonalOqCYLuE-WxvNE`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1tbKAmUTLs6D0ge7skbKev5hwRMmUvSFc-SDXuH0NZ5M`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1_mqzc_nzqXp4xGhLnXCUXP3n09QCzUn6vTObA2KabY0`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1XCgWx1i72tvBiw6RJx5tuZD9AyDeiumNRJudUsYCwvI`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1MQNEwGa-9rYjZvp7OhsdRgg9NJP6hWTtn9KmxA9PsI4`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `17sTU5o-r7sN5tMl8Tevs1tVGLRHNmhgn-4AUyuEXeM4`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1EIOBWaH4VSEXoxBjBkIpPpsvUe397RrX7iDFXPXFkUo`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] External Requirements Intake (Google Doc `1QkJsJW4NiV7Q6TiFYFs_ChRo2QbqA5FIkw-OEHsA-L4`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] External Requirements Intake (Google Doc `1AuscIfakLPGVME5fitzOj9CtxpXtH83T5yQ6_2ISsfA`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1Vwn61mqX7p3I8pgZHtnB-KOlIFVdFJ7eRdDvj6v-7LE`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Google Doc `1ywXjqMWL_yEjTTsS4ztTzDNIVxt8uJl5x08pOFj76pg`, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] External Requirements Delta Intake (Google Doc `1Vwn61mqX7p3I8pgZHtnB-KOlIFVdFJ7eRdDvj6v-7LE`, 2026-03-01 Follow-up) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Post-Completion Gap Intake (Derived from chat, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Deep Audit Gap Intake (Codex full-system review, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Execution Yield Recovery Intake (State Snapshot Derived, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
+- [x] Signal Intelligence Upgrade Intake (Second-Order Detection/Analysis, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Analysis Learning Kernel Intake (Detector Quality Compounding, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Analysis Governance & Reproducibility Intake (2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] Architecture Simplification & Scale Intake (No-Regression Refactors, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Control Plane OS-Readiness Delta Intake (2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Technical Quality Intake (Valid Grok-Derived Requirements, 2026-03-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1cMaJfBYCTUvCmAbpe3npLqFABbK9zHHnPEoaQrZ5Xbs`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] External Requirements Intake (Google Doc `1TZ5u3gQYS1U9hqB8KxSBP5Jz1NkaZDlpdIBd8uaa8Ys`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] External Requirements Intake (Google Doc `1vedJMRKcVYn6MUt1jvgNvEmU7y-BuQRgOXM12kQdM6Y`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] External Requirements Intake (Google Doc `1-ndEYjPrXYS2pFpIZDtq8Pc02UuhUk24XbTHvb_wPQA`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=16
+- [x] External Requirements Intake (Google Doc `1QrTZFUX6fbU0RVo8S_fIg6898igD8XxXhohRjNjRROQ`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] External Requirements Intake (Google Doc `1u2Oh8FVHI9joij7p4FXI3cUrUqY6at8AVcHdfeLHW84`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] External Requirements Intake (Google Doc `1zxYaW0wNMbFnnpx_Ps0WCVgMf-uGraobSctE7cCGx80`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] External Requirements Intake (Google Doc `1lt6tGOofp1joh3JUQakKPvtise-3SW1pZ_qO6YOzbgE`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] External Requirements Intake (Google Doc `1qsY9ZcqDwE5R0gOd-qMl8XHajymG-mJVevICTpLnxpI`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] External Requirements Intake (Google Doc `1IHlaNNXYShvk83eToPgkJxOGGJ5UfbRYfYrf2iKKuGA`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Internal Optimization Intake (Autonomy Execution Throughput Deadlock, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] External Requirements Intake (Google Doc `1bw6PoJqkftJhLRLjPanv4fLzSrI-h_Sht9UpxDLh0Ck`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] External Requirements Intake (Google Doc `1iRVFyme2klr25ST5GHxr_WOz9WH5HYWBDlkZAfDGDZo`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=17
+- [x] External Requirements Intake (Google Doc `1f9sZqjqNBFqKrs682Gxp45VUQfR4NRS6gwOv2bWO5MI`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=16
+- [x] External Requirements Intake (Google Doc `1sgyT2m4g0kR0aYN134mGm5W2s4RLjwHEFSi4WIVec3I`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1QzB6z0nbh4F5xLTYq2r1YiSHbyHFogex4aWp6vWw3nY`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=15
+- [x] External Requirements Intake (Google Doc `1MA8OT1cKyvS_wwvaxwpK60sEA2aFyvucu03FG1UgJyM`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1JQiEIm9-kGGG_c6IjywgZ9PsfdClNxEfIPv2RAoro_8`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] External Requirements Intake (Google Doc `1e5nmrpmV-RpHibLfpDcqi_XLtM2sWw0HZD1Q89vhmwY`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1dQtA5B8QxnXcHnB_aoHiF1JNO2QZQii1HEDulyZ51z0`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1qLw4MzGGUilF-IsnjSfo4RoEZP-SJcxzNRegk6wjujo`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] External Requirements Intake (Google Doc `1yBWjrygvK0fVtgNoNvalKwS5j6lyd7wBivPHqvRElDQ`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] External Requirements Intake (Google Doc `10yHeUnXAygr6pRLknGTKF7YIhNgrVVU1wIDHo8ohMUA`, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Backlog Registry Normalization (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=68
+- [x] Backlog Execution Completion Sweep (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=41
+- [x] Backlog Execution Completion Sweep (2026-03-03 Wave 2) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=33
+- [ ] Backlog Full Completion Sweep (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=205
+- [x] Enterprise Rust Productivity Program (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=12, existing_coverage_validated=0
+- [x] Hold-Rate Reduction Program (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Ethereal Runtime Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Security Nasty Reinforcement Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Packaging & Lens Opacity Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [ ] LensMap Standalone Suite Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=4, existing_coverage_validated=4
+- [x] Productized CLI Suite Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] Org Rebrand & Provenance Integrity Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Targeted Hybrid Rust Migration Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Rust 50 Percent + Mobile 24x7 Program (Google Doc Intake 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] External Requirements Intake (Codex Enforcer: Public Rust Language-Bar Migration, 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] External Requirements Intake (Sprint Mode: Visible Rust Migration Batch 1, 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [ ] External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=0
+- [x] Fortune-100 Software Readiness Path (Queued, 2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] Persona Seamless Workflow Integration Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Persona Conflict-Arbitration Automation Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Protheus Conduit Program (Requirements Intake 2026-03-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Security Credibility And Verification Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
+- [x] ZeroLeaks Injection Hardening Source Coverage Intake (Doc `143v84ci3rHjP7WtbYi9tJ2KeJZUkNTIsFTye1NHrheA`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Rust Core Primitive Source-Of-Truth Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
+- [ ] Testing + Documentation + Installer Gap Closer (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=5
+- [x] Technical Excellence Roadmap Intake (Google Doc `19DO7nvxizNJmLuoRUFrYYTNOmMnHJCGKI44AlGHbcSw`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Contributor Signal Program Intake (Google Doc `19IXz6Rjbn9ltXJV-Me2P9oRZ3KLs3KV90VG3k_PdC7E`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Dominance Roadmap Intake (Google Doc `1u_KCXofHnG2OGFsLp3J0r-Yk-YyN0Ft0dzeEeOFd4kk`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
+- [x] Conduit Schema Hardening Intake (Google Doc `17E9b15Lw5AkyvuqeVW8QwNd3Q2vm1hrui-aWPC7ub7M`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Reverse-Engineering Resistance Intake (Google Doc `1B932-wmk94Hyo4GxKPENZZ7nv02-hLbmmZn3BNwlfXw`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Extension & Application Platform Intake (Google Doc `1oXL2gBlIbWrl3sSs8qjWintSgssy-58XjoAJP3jPwEk`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Universal Seed OS Intake (Google Doc `1OwCGjqHtWlpY-p2mH7-cZ4TjhQsEdtJir84nGaoAAVs`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=11
+- [x] Infallible Origin Master Plan Intake (Google Doc `1QuwfA-EGZA4kCqfzrvFaeahszRskJLg7Moc92u4m2U0`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Public APIs Catalog Integration Intake (Source: `public-apis/public-apis`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Native Desktop Control & Self-Learning Recipes Intake (Doc `1jq73YxPJ3_WiL4By6MkVor726RGIRDS0a1dMtrMAWIU`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Swarm Intelligence Prediction Sandbox Intake (Doc `1sBwfejFNexvFOcCmc9sxOisdZ67cZTqypklq43exIXg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo Infring ops pattern, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Context Engine Plugins Source Coverage Intake (Doc `1axuemzyUPbbQI8gH7oTOaIzSy9-2H2O4fjLOx29IrRs`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Default Eyes & Hands Framework Intake (Internal design doc, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Autonomous Economic Specialization App Intake (CashClaw pattern, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] CLAUDE.md Workflow Config Loader Intake (Doc `1bR1dCvFmjqDnWqDS3i6R5pQ4qDHcytY0yesKtQ_yy4U`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Claude Code System Prompt Architecture Source Coverage Intake (Doc `1kEEEjVq_1oAVsJt87IveSu-Y7B97JlBowl_P9E3iQ04`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] OpenCode Coding-Agent UX Source Coverage Intake (Doc `1e1cAKPgdtYJNntQX2abA6_fNGvoUNQ4V1fKMrXUWHIs`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Creator Outreach Automation App Intake (Source: Infring creator-outreach demo pattern, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Protheus 2.0 "Instrumented Aliveness" Intake (Source: `local/workspace/proposals/protheus_optimization_v2.md`, AGE-10, 2026-03-10) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Long-Form Creative Writing App Intake (Doc `1eeV_xJF9UB0qXoROXjHU_tof0kgMqb8mYS8CkYg_6Uo`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Local LLM Comparison & Multi-Model Streaming Intake (Doc `1aJJ7LhHU1zJWlngBR76qEdQ02Ey1zrPtxBu6TZ_Pioc`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] LLM Output Evaluation Engine Intake (Doc `1WI1rnoUw5SObFRbDiJnZZsA2g7ViWGLqML0OBfbfwag`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Opik Native Observability Source Coverage Intake (Doc `1kl5o9PRvp98-6Z6oYnp1feviefzJSGrELDf0sq8fIR4`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Local MoE Chat & Quantized Inference Intake (Doc `1fZdbo3uVCccuLDdWdWYCdbkasubqMSC2eJI0sR8RUXk`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Modular LLM Fine-Tuning Pipeline Intake (Doc `1KOqHIyIef45T0cIMNcDj49kfQQEiKgTYbfwzYfWoibY`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Reservation & Booking Automation Intake (Doc `19eiVbtG0CAKHOTGW2aDaG9lG7pWF0PKkBVFt27PoHJQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Vercel Chatbot Template Source Coverage Intake (Doc `1bxEAbOUGJuY7mfonZjEx15pmSEFVssr3CCjfiYcPIDQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] DeepAgents Harness Source Coverage Intake (Doc `1t1O_xrDE9sLz3iA9-D2PhSEsfvY7B1_ckv1gnvCiZEs`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] LLMs-from-Scratch Primitive Intake (Doc `1OYs0Bi73vbNs2MmE-8qGJg0B8z6RPlsY-A0e69ZViXo`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Particle Architect Source Coverage Intake (Doc `18rAkUX2FTPzTlxAa-dMcrEPbCzKBOKHRqTT0qMRCmjs`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Wearable Wrapper Vertical Source Coverage Intake (Doc `15hwpISUKNHcc-IYSXS0jsCQcFcm1QefjBAdviXgiyOs`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Infring Deployment DX Source Coverage Intake (Doc `1NVuMS9MOZW5E6X3E5ZzIQJnoHa4hBD8gmWkSFnLqijc`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] TuriX CUA Source Coverage Intake (Doc `1U4uPXPgeHwwqHdE6y06Euoi3OG6gDiGXz7r7sEYpOE8`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] NEKO Virtual Browser Source Coverage Intake (Doc `1q22COovMy5P1eEDjUUIZ0EE7yxr-L1Rt0kFovoQ9WYQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=3
+- [x] Driftwatch Fleet Observability Source Coverage Intake (Doc `1Vl8VjbRWTsAH4vz5jp4ydYGC9Xum4QGhIxix89WRThg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] CLI-Anything Tool Generation Source Coverage Intake (Doc `1YdExoPszYGqAn6g0zSiEw9yc6_UpqcnVoIMR7KteP-w`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] OpenAI Skills Library Source Coverage Intake (Doc `1iNxnGg-zDepwJ8I1aTSAtpGr6oCZzcYipGWC_1zcAJ4`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Infring Managed Hosting Source Coverage Intake (Doc `1mn1_m4yp5c1bx-Sh94mKLo1kNk4luWytB-2hVgMf93A`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=6
+- [x] Personal #1 Ranking Criteria Source Coverage Intake (Doc `1giphwvzmz8cPaw3Ltu1A2s9x8UE-WclPPkwhz_Q12ug`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Dominance Gap-Closing Source Coverage Intake (Doc `1Uu0M862I5n6soIbZuB2j3MXQN4VjdtY2ieH-XTspWe0`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=5
+- [x] Infring Security & MCP Gap Closure Intake (User-Supplied SRS, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Agentix Production Run Observability Source Coverage Intake (Doc `1Hh2SidqH1vZdO5iYdmHA9-j4nig97km8VH-oUbMIud0`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Everything Claude Code Harness Source Coverage Intake (Doc `10tYR3m9Qq3Li6GhEqQZu3F1hecqxjr2A8q8_cjg0Glk`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Complete Shannon Production Framework Assimilation Source Coverage Intake (Doc `17JIvRFQ5zUh1ml3Bhu1IItY2VJIefqT4swMaQ8PmMMw`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=12, existing_coverage_validated=0
+- [x] LangGraph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] CrewAI Role-Based Hierarchical Crews Assimilation Source Coverage Intake (Doc `10jW_kdehmfj5Cpg9l2tVSwvHhFtkWcvqAxHTgR0pKlY`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Dify Visual No-Code Agent Platform Assimilation Source Coverage Intake (Doc `1uI9TXxygz4NC_gpwHzU3pNgO73u18D0YT4-ihbQTwPY`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] MetaGPT Software Company Simulation Assimilation Source Coverage Intake (Doc `1ZTJWRdQpXzsKnXXJ9nvJqA0Dr_Q1kGgexNa6o2_G9y4`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] OpenAI Swarm Lightweight Handoff Orchestration Assimilation Source Coverage Intake (Doc `1rOMGeqiWLK71_J-pIgSMvAQvg8aFh-HsDpm_t7mqtbo`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Microsoft Semantic Kernel Enterprise Agents Assimilation Source Coverage Intake (Doc `1nkybisybRVTONzYR4I347wC07gzLNZoorKec0W4d4KU`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
+- [x] LlamaIndex RAG + Agentic Workflow Assimilation Source Coverage Intake (Doc `1DXI7-djrWFMxL_R1MlPNNXs8LDB3UFjaC0yM8nwzh8A`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Google ADK Protocol-First Agents Assimilation Source Coverage Intake (Doc `1ijzS46TOklhWpmpvx5OfhQnJ8lKP96BI81s3ERRaUWo`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
+- [x] Mastra Lightweight TypeScript Agent Framework Assimilation Source Coverage Intake (Doc `1QDZnA7Ezfjn5Ez4xcKyz00hpfy5Rbj9FI1XW-x-OAgI`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
+- [x] Haystack Modular Pipeline & Agent Orchestration Assimilation Source Coverage Intake (Doc `1eqzU0knBOiWTNv4MiaMD2HSIiLyKB9Jg0-CBBL8rfwI`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] CAMEL Scaling-Law Agent Society Assimilation Source Coverage Intake (Doc `18JoI69ZnPTtAqsp3QtKyLJ8NNRWDXqWcOW8RkwwgQEU`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] LangChain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Pydantic AI Type-Safe Structured Agents Assimilation Source Coverage Intake (Doc `1QijtkfhfaFMbtBuV-PGlTmbL2uoeKtGccbEAAKra9uE`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] OpenHands AI Software Engineer Sandbox Assimilation Source Coverage Intake (Doc `11uHFIqJ4Frx6rPGfRTTcSC2HcH7ATcW_g9Qtvf2_ugE`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] DSPy Declarative Self-Improving Pipelines Assimilation Source Coverage Intake (Doc `1J0UghF4LAP303v7I6lwf1x8wTGNyAhEoIBQTqaNw-9E`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Microsoft Agent Framework Multi-Language Enterprise Agents Assimilation Source Coverage Intake (Doc `1-GPvSJ4cxK50gYDaFV2CH8scpHvUOj_q_ue4dmNRHxQ`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] NVIDIA NemoClaw Secure Infring Plugin Assimilation Source Coverage Intake (Doc `1GDslwpI-VeNtYRuxlz176r9-flaeamM6eZwFOcQ7RcA`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Four-File Agent Identity Governance Pack Assimilation Source Coverage Intake (Doc `1WlBBkzEi3ur_GeXBRof4FLybdevgt6G1_rwDNXuYKT0`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Napkin Progressive Disclosure Vault Assimilation Source Coverage Intake (Doc `10YJxQ3Hc0m05MvT8t1_dojyyU4iJVDJw3RJjZGPcfYg`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] NVIDIA OpenShell Sandbox Runtime Assimilation Source Coverage Intake (Doc `1j6J0yYoKbG4Nb8gTmFz8vfd0-VaBJKAdR_KPLxHWVDg`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Infring Vertex AI Memory Bank Plugin Assimilation Source Coverage Intake (Doc `1zycyj391iTRWUPscKD9_Bms9thvSTJPsUWdFu3QWB4w`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Hermes-Style Natural Language Cron + Delivery Pipeline Hardening Assimilation Source Coverage Intake (Doc `1ANg2a0JolAYe913XVEdoSwsiRkIsieHzeca4sATqGgI`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] MetaClaw Online RL Self-Evolution Framework Assimilation Source Coverage Intake (Doc `1WnTU0BYOHZ6iwjPaUnPkSM95T_WxBMEVJfIk3xywAWQ`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Get Shit Done Spec-Driven Multi-Agent Coding Workflow Assimilation Source Coverage Intake (Doc `14eOUlK104NJ-EepwDsOElvaggOSvtwUhomU6Q2tCbd4`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] NVIDIA Nemotron 3 Super Long-Context Agent Model Assimilation Source Coverage Intake (Doc `1OgcOsQt8IvGs4wKmpSmZ7VTEIIYFeme-4m7l_VMbupM`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] CoPaw Self-Hosted Persistent Memory + Skills Framework Assimilation Source Coverage Intake (Doc `1EMtNx21HQVaVq5yEwyHOyexl6abZihe95r1ZJYFavTQ`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Awesome Infring Agents Template Pack Assimilation Source Coverage Intake (Doc `16rP2zVUXqKMqEOKkE8pUZU02m2r54nhAZmU9PctvFwU`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] shenhao-stu/infring-agents One-Command Multi-Agent Kit Assimilation Source Coverage Intake (Doc `1yGpmGiVKgVugtoALPQvMEU8Cfr-JcGMisDg0-RDKiqw`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Infring-RL Asynchronous Conversation-to-Skill RL Framework Assimilation Source Coverage Intake (Doc `1xd-J_zaNBkwykYdmBXV0BuQcAPSro-6vC7fOx9T-6qQ`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Hierarchy-Aware Memory Compaction + Sweep Staleness Decay Assimilation Source Coverage Intake (Doc `1_WdBSDHplgudpQy2AVE_yxAAmIsHmIBQKgwvgSaWxkA`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Swarms Enterprise-Grade Multi-Agent Orchestration Framework Assimilation Source Coverage Intake (Doc `1ZzvSGy3yKHsWfKDh1PyrjtaXWDiEH3QRpsCe0jho1KM`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] SuperAGI Autonomous Agent Framework Assimilation Source Coverage Intake (Doc `143DoGnPmatnf-rcNpmNyjjBieVENAx9bFK3VoD9TLzk`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Phidata Multi-Agent Memory + Tools Framework Assimilation Source Coverage Intake (Doc `1C1gHWM9B89lE6XWc75YbX4FlWDPDfIEz1-hC0gEauaE`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Caskada Minimalist Graph Orchestration Framework Assimilation Source Coverage Intake (Doc `1qlliCQ_vK0BBsjiw6Sp7zN845efgTDbG1HnPsBhAd_A`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] SkillNet Three-Layer Ontology for Composable Agent Skills Assimilation Source Coverage Intake (Doc `15u-UcuwtLAwMGNsWUmRXCKS9PJo3Y1l2JfMnYCUZI20`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Crabwise Guardrail + Crabwalk Live Graph Monitoring Assimilation Source Coverage Intake (Doc `1t64LBzO1ooppNO9jiXJEMxDULaKsSGB0ild38V3YrVk`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Crabwise Shared Memory + ColBERT Reranking Blueprint Assimilation Source Coverage Intake (Doc `1iOy3_USK9yfaCqD2Y9vMb3ARK9bwAOxrnkSXYC9vMZw`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] xAI Grok Native Intelligence & Multimodal Layer Assimilation Source Coverage Intake (Doc `1TJ6xnJ-6mQc3nXiZC1U220wyzhuVMWyBzX-kXT0iTc8`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Channel Adapter Expansion to 41+ Source Coverage Intake (Doc `14K_vq_tKWc7-vn6hPBRXxLlVrNTLxll_DlUcGhWWyDM`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Channel Adapter Expansion to 41+ Bulk Assimilation Source Coverage Intake (Doc `1fjxGLe2dXH1DRoryf523AmgQRDC3K2YDsfEKbVO_iWo`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Infring Revenue Pattern Pack Assimilation Source Coverage Intake (Doc `1uQMBQO_SoxaE4YzII-V8k4vw-ck1Kmu_Kf_lTu3_EZI`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Local Company Knowledge Base Session-Start Profile Assimilation Source Coverage Intake (Doc `1OoXD6N5J9cs_sr3v0Vjvaky_BY1SSuR1EzpDnLHeA6U`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] LLM Provider Expansion to 41+ Source Coverage Intake (Doc `18OtHAyFxeZ5x_iXO7dCmKTQPLVGnVpAZNhmLeQKMVbE`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Beat Infring on Raw Metrics & Capability Source Coverage Intake (Doc `1jRR8VsdVMToNlDz8yLf8lQ8EQCfkOT0B7gqqsCn0GuY`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Unified Agent Dashboard Comprehensive Assimilation Source Coverage Intake (Doc `1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Dashboard Runtime Resilience Extension Intake (Ops-Analyst Feedback, 2026-03-22) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Dashboard Auto Router Wiring Extension Intake (User Spec, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Dashboard Multi-Origin Chat Semantics + Launch Stability Intake (User Spec, 2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] Blind-Spot Hardening Intake Source Coverage (Doc `1rhlsnMmcJ2u3C3_QJgSkhK__SF0e27qTyeTFG7xagL8`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Distributed Swarm Scaling to 1000+ Agents Source Coverage Intake (Doc `1l6o2fwgNf9N2AChBRSImXTKnoBWggBDjgvuus7CIAMY`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Monty Secure Rust Python Interpreter Assimilation Source Coverage Intake (Doc `1rRQ7JjzSZ7vXy_t1GE2wqvD24sXT5x4GLuBQucK4lys`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Flash-MoE Streaming Inference Assimilation Source Coverage Intake (Doc `1iiARcOWJ1vpinAl1Hu7fHrzNBzL_aQ6rLcRkHbhJLVQ`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Git Worktree Parallel Execution Assimilation Source Coverage Intake (Doc `1CgzEmcxpP9xpsraC4HdH1BedOXeto_KtQH9Xr1AUZXs`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Throughput Optimization Wave Source Coverage Intake (Doc `1h98ijNjlbeuEYCR6nUHHvpURc2VyRIg_OQHS3IMSOlY`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] 10-Second Assimilate Magic Source Coverage Intake (Doc `1SrUPOUYejZJwXiqJ6J0jN-ToxlLkIT1Z9gWuYJ0EeH4`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Open-SWE Autonomous Software Engineering Assimilation Source Coverage Intake (Doc `1wEDhassZcCTvdHmAlq5Bty2c-GqByJ4e_FHDUqlaiWQ`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Context-Aware Memory Maintenance & Active Pruning Source Coverage Intake (Doc `1XG2tsx29ZfkwtAkNFCJcCZwmrgiLvaJx-1ST486zVRE`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Databricks Platform + Mosaic AI Assimilation Source Coverage Intake (Doc `1RwDO3IuaTdrcKW7J0Pf7n5OGMioz1g17MKj9ddzBmVo`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Dynamic LLM Routing + Scoring Assimilation Source Coverage Intake (Doc `1uOhypBtxZVhdz_m3uK1_KWNnnZdYxtnr2vXIs-A0MJw`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Universal Auto-Cleanup + Bounded Runtime Maintenance Intake (User Spec, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Agentic ERP Pattern Assimilation Source Coverage Intake (Doc `1HmkMH3OOThwg-k0oFhzjTMJ5EwxmYO-H5gSNX6hKzuU`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [x] Astral uv + ruff Tooling Assimilation Source Coverage Intake (Doc `1J-0JdgxhHcaKpsGJge5jG40HbDAourWGBODYRpweXTo`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Vellum Workflow + LLM Orchestration Assimilation Source Coverage Intake (Doc `1nnjOMVk2ZNgT3slVv9D1LVWq_gPKhIwQ77gYxXCnEs4`, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] OS-Grade Memory Strategy Assimilation Source Coverage Intake (Doc `1RyD5n_SmsvFaj0ZYGW6y848mlvkxmoxjuQso_K0IV9w`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] O'Reilly Graph Algorithms Assimilation Intake (Doc `V6-TOOLS-007` normalized to `V6-TOOLS-008`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] WiFi CSI Sensing & Environmental Perception Source Coverage Addendum (Doc `1pDSdNzn3YA0vaa7IhtENOPENc50Yl47pjo0v7SfTa_0`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Bare-Metal Capabilities Core Extension Intake (Source `V10-BAREMETAL-001`, 2026-03-19) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=6
+- [x] Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Anthropic Agent Skills Library Source Coverage Addendum (Doc `1hCPkhlg80Wdtv-qqFnsUqaeFz-RAQddOS5p7kxuschg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
+- [x] ML-Style Build/Experiment/Evaluate Harness Intake (Doc/Source `V6-EVAL-001`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] Agent Economy Monetization Suite Intake (Doc/Source `V6-ECONOMY-001`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Infring Trading-Hand Hardening Intake (Doc/Source `V6-ECONOMY-002`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] MiniMax Cheap-Model Optimization Intake (Doc/Source `V6-MODEL-003`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Hyperspace P2P Compute + Reputation Intake (Doc/Source `V6-NETWORK-004`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Auto-Activating Skills + Computer-Use Intake (Doc/Source `V6-COGNITION-012`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] NanoChat Educational Mode Intake (Doc/Source normalized from `V6-COCKPIT-021` to `V6-COCKPIT-026`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
+- [x] AI Memory Taxonomy + AMA Causality Formalization Intake (Doc/Source `V6-MEMORY-011/012`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Binary Blob Organism Source Coverage Intake (Doc `1gp7ijyao1BNComyynuEzsPPTnDJvZxXyQf_psHW4mFU`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Immutable Prime Directives + Hierarchical RSI Enforcement Intake (Doc `1aCmniduUN4ZyZe8-mVzvy1sxt7B4Gc6h2KANzRwRMXU`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Full RSI Ignition Source Coverage Intake (Doc `1getiU-rCP9EPSm3u6ngVZF1oYZFeQILBBUgq57RJhkc`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Bedrock Proxy + Schedule-Driven Hands Source Coverage Intake (Doc `1-KgzuDdjfdJLf6twiccz7XJu39978noDW0IGhENtMyE`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] ACP Provenance + Trace ID Source Coverage Addendum (Doc `1B58g4kHrNyvaWfWSlkEFBDkjwvBruaCkSnehJTP9Ssk`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Canyon Genesis Protocol Master Source Coverage Intake (Doc `1AlC9uNjfJ6uguCmPcNoyGghJiQ1a5BsFobmSTKfW2oM`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=16, existing_coverage_validated=4
+- [x] Infring-RL GRPO+OPD + Async PRM Source Coverage Addendum (Doc `1QOIrdvJxq6vNBH1iWiwB3MQeiFNMOnwsySsRuEPwKpU`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Microsoft BitNet 1.58-bit Inference Source Coverage Intake (Doc `1bRCw8PO22-JN9TiwLGeyMQ-WqqmCQGskudjNk91vd8c`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Alien Digital Organism Layer Intake (Inline Spec `V8-ORGANISM-001`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Bitcoin-Inspired Intelligence Protocol Layer Intake (Inline Spec `V8-NETWORK-002`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] API Key Vault + Credit Monitor + Model Access Store Intake (Inline Spec `V8-CLIENT-003`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Viral Immortal Organism Protocol Intake (Doc `12w0X2ngy5RQ1hSDIbejR5Ynl4uQ_S5FLpj7mT4o4uBE`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Millennia Organism Protocol Intake (Doc `1_-ikTAJkfJB5ClyvEedTMouCWpN97-kdSuTgC21yQH4`, 2026-03-12) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Multi-Business Continuity & Stakeholder Assurance Intake (Operator Addendum, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [x] Government-Grade Hardening & Certification Intake (Operator Addendum, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
+- [x] Banking-Grade Financial Integrity & Regulatory Operations Intake (Operator Addendum, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Healthcare-Grade Clinical Safety, PHI Governance & Care Operations Intake (Operator Addendum, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
+- [x] Cross-Industry Verticalization Intake (Operator Addendum, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=14
+- [x] Protheus Nexus Federation & Assurance Intake (Doc `1lQRW3DKunfv8a5RQoG9j8XRzk6gIf7iiB5VciyX5_3M`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=7
+- [x] Canyon Creator Competitive Supremacy Intake (Doc `1W0s_SWc6nwNq5p5tZhtq3quexMPp6W8Ku_izB3nm2Ys`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Vercel Agent-Browser Advancements Intake (Doc `1wQIsQYA29Hq8-J0t9HSe3_7N_Iq8aLYI9qBG54CYZNk`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Decentralized Prediction Market Oracle & Truth Layer Intake (Doc `13a887YX4glq-oJIhLufEAa5GELA2htJK03Bdtl2zgSM`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Agent Era On-Demand Execution Intake (Doc `1QKIn9lw0zK9gCCQNzZYRE0KdYJJ9AvATYGA_QYPmghw`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Best-of-Breed Autonomy Assimilation Intake (Doc `1hX-qycVz30KHJLbqGOfu-LOAK8e_0saiTw2sA-q7TVE`, 2026-03-13) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Size Canyon Footprint & Release Discipline Intake (Doc `1isAdvYEFfPUAJxj6IhDxlcwK2C4WioI5bKx1-NxoBj0`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [ ] Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=2, done=6, existing_coverage_validated=0
+- [x] Evidence-Native Product Superpowers Intake (Operator Addendum, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Win-The-Last-Two Delta Intake (Inline Operator Plan, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Adaptive Intelligence Canyon Intake (Doc `1M7ExC-T6aSrfkbELMEGJA21_28979sJlvmxfF0VNa6I`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] 2027-2028 Compound Moat Intake (Inline Operator Plan, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Xenogenesis Canyon Intake (Inline Operator Plan, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Symbiotic Mergence Foundation Intake (Doc `1DjdKHdJSHc4cEwH2J56NYkgKmmGmMSV6Cvc8uPz-CNU`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Symbiotic Escalation Engine Intake (Doc `19ofMqmmPop8rZzfMDENt7CmJKbgBXofc-5Zxu6Ryawc`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Content Production Skill Graph Intake (Doc `1LEOoGwjGfXyG1YTaJ7-H8KJlwmCP7PsmHGxx4WO-oi8`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Vertex AI Managed Memory Bank Intake (Doc `1Z5AcFdIjo5IKM_Q9dTGB12_TlQWxJ73oEGNjWp5KTlk`, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Pure Workspace Intake (Inline Operator Plan, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Live Benchmark Recovery & Tiny Runtime Intake (Inline Operator Plan, 2026-03-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Power + Reliability Gap Closure Intake (Doc `15PgN5jqu34uPksdCgiqzjKmVIK6XaZm5cAkXyDqascE`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Infring Agentic CRM Assimilation Intake (Doc `1mcscWIi7CvNOWljUf_jHE1iBu1JEcrrP5-b5eQ77Cvk`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Agentic Critical Training (ACT) Intake (Doc `1iCBvkgJ5Cj4JtrBkIL4NY_q_U3MBjmCDm8GEnecwbr8`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] InfRing "Crush Mode" Roadmap Intake (Doc `1QXvu2ZlbiGATHe6JRB5hPRbuYkdsxN16KHzkcgG-6LI`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Persistent Memory Deepening Intake (Doc `14uXK7Gqpll6NBHbBCSKPiriSnju9nhdDRBuoZV3eRSk`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Universal Substrate Domination Intake (Doc `1Bw87DLCi8J4c95SM96Ru8gNX2JFmHrN0kFzZBH_Vcb0`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Mole-Tunnel Substrate Strategy Intake (Doc `1Bw87DLCi8J4c95SM96Ru8gNX2JFmHrN0kFzZBH_Vcb0`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Competitor Gap Closure Intake (Doc `16SND-kQnl2bqZmj5Wd7CrGOlSkCB-uW1RDqPyAmhinU`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Fastest-Growing AI Repos Assimilation Intake (Doc `1So3OFpzgTzK2J43_wvrx7ZlurrBT9TBvvPt-SKmsdJA`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] AI Inbound Lead Generation & Qualification Intake (Doc `1eaOEzO8flJzWstCGD6LmGshnlRwg8ontJ7WOyZZPUy4`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Slate Swarm Orchestration + Context Compaction Intake (Doc `1mUuuNFPOoGgFSn9IrQEVlktjLwtGupY7pXBjhQ8w9qM`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Audit V3 Gap Closure Intake (Doc `12XKCWZx-_rt4YGJZKIT38WXz5sIcl_QUfuwxKMJqVGQ`, 2026-03-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Lightpanda Agent-Browser Intake (Doc `1rnMrcH2PPucIwuLr8kyAZb2F2kxM1ugUHtmuZppzdIs`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] ADLC Shift Assimilation Intake (Doc `1MruwcDpXQ6fYocXc77axa9BGcSlJ5ALfhB04vCbl3XU`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Final Pillars Ultimate OS Intake (Doc `1v93gS3eiwaCfSX0k_yHPXyVjSjyhl7q-VY6jqB-jH-U`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Ultra Instinct Capability Mastery Intake (Doc `1wUXF1VxkWC55LWEnc4LjYaHkmlVBaY5R5NlpSkpgnfk`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [x] Long-Horizon Security Simulation Intake (Doc `1PUyquQc2qJGRNQ2zEvG6Dx-yLV24E54F0nd8rHojJK4`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [x] Conceptual Model Evolution Intake (Doc `1bC7VuMHKd41pDqSrbucPSgOBq8sApFLkAxm9p0VpIJg`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] 0xSero Stack Assimilation Intake (Doc `1R3pJQczlZHyt5IMJsNW8D7Dti_9PNVFeHRGOSIjwp5A`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Claude Architect Pattern Assimilation Intake (Doc `14b87hxNWf07m2RTe_4CBuRWYucDM5dzmRcoC5ZzCukg`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] IronClaw + ZeroClaw Assimilation Intake (Doc `1eToi8gQ6Yy7algVaEwL9tLQbmJN-OZEAj-yQ-iq3YI8`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Rust-WASM Structured Concurrency Intake (Doc `1gVWzE3RPZmwy70andP-FkuYDeqWP45BRQqC0ypGX6ZE`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] GitNexus AST Intelligence Assimilation Intake (Doc `1tLxvdJwz8y8f2Tau-Oc7IxqFTz8UsTUmv1qZw_gAxRA`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Zero-Employee Company Persona Assimilation Intake (Doc `1jDN18Sndz8Pu6MXQUNIGTFbVAvjt4E_gR7ya3h3fwUw`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] App-Building Masterclass Assimilation Intake (Doc `1f3uYQV6q7Zf9450lPJh0U2m0D2DehuUHGMA_xmbfrlg`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Awesome Infring Agents Assimilation Intake (Doc `1YxO7En7a21ozw-bqWu98VFY0RinXJZyxyvnuQ8wgTyw`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Lossless Claw Memory Assimilation Intake (Doc `1C76GUD1_6NOzh9zwRUUU1ATld457yFazLCcqbFq2uT8`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Clidoro Pomodoro Skill Assimilation Intake (Doc `1yw_q4B-1u_PjrTP8rzLIUsR7RnGdroJpZbo8d3cZNY0`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] HuggingFace CLI Autonomy Assimilation Intake (Doc `1UTjZc9hR8nH2BGnrGndR4TMzCFdhvCFSOUCNzQt_ddE`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Pure-RL Emergent Discovery Assimilation Intake (Doc `1ArSk3T_To0BGW6tY7bjCQG7-8JnIAqPbgAbUYE27fgE`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Product-Metric Verifier Assimilation Intake (Doc `1rNzdPSBph4b9V2mY3ly1hbwCGUY7iAKYfPJKF5_Q47c`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [x] AutoRL Distributed Gym Assimilation Intake (Doc `1OSs1jNiyGoVDHuGrfphW7swREKM2wYSgi6kPsGBTjk8`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Infring Course Automation Assimilation Intake (Doc `17YU05zb21a3PNI25sY0iysT_2KqsWMbgb62nMrTWFmU`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Video Course Transcription Assimilation Intake (Doc `1fEOYYbLEEuo_DsOu3jaXuoMoP5UflRLu1dDuCwZuPqU`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] PageIndex Hierarchical RAG Assimilation Intake (Doc `1Wqe0NsvqKDCShw5v3PmgXyf2dVedgibpSlXBnFnY7Yk`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] DeepAgents Harness Reinforcement Intake (Doc `1NiFwT496yzfJhrgxPwtQXPt1oJEHz2cwTteKWRqWIYI`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Slate Terminal Swarm UX Assimilation Intake (Doc `1GlIVPkw5DqOUSHSq3kAUi6UpprjT7fNOpyNi_G10qFo`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] MiroFish Sentiment Swarm Assimilation Intake (Doc `1v2QtiCaP4uCwYiSrel1yULBSncEVpnmq7QtDfK3FcW4`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Side-Chat Forking Assimilation Intake (Doc `1uRQ1RXMWwiootx8x09EYxH3N1roGvhJpnIMmIkwb6rg`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Opportunity Discovery Engine Assimilation Intake (Doc `1jIpqiz8zpTWIzpKbxcZMq87yGH9vQDLroo27-H0LSDI`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Infring-RL Assimilation Intake (Doc `1tWoxvQjlz1B48YS5DoxE-LNLsjwReL3xpJ_sTXnBY04`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Rust-First Full CLI Assimilation Intake (Doc `1Km16USB8K_B8hR2hr3U3j2gWfz4UWKwB0d2kypNHE_4`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Agent-Framework Competitive Assimilation Intake (Doc `1CJrJkXJqA9Sz5CvDj7gLkqH0ovMwJaCPpKzy95cY7Ms`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Swarm Reliability Hardening Assimilation Intake (Doc `1VAJkZxz0mHsoxrovE3DdlZE5c8sX4E7pvB9b6A0Eq7g`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Phone-Specific Optimization Intake (Doc `1FZ7cB3gvTrit1TEClP5dBK0mqUoz4d4lgn2QFpLFMB0`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Pure Intelligence v1 Intake (Node-free `--pure` / `--tiny-max`, 2026-03-16) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Assimilate Runtime UX + Metrics Hardening (2026-03-19) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Ephemeral Agent Contracts with Auto-Termination (2026-03-22) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Platform Adoption + Scale-Readiness Closure Intake (External Analysis, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Decentralized Agent Scale Intake (2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [x] Infring Independence Assimilation Intake (2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Infring Parity Closure Intake (2026-03-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Recent Runtime Regression-Shield Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=18
+- [x] Governed Web Conduit Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 
-## Client -> Core Authority Migration Queue (Largest-First)
-- Snapshot command (non-vendor, non-minified, grouped by `.parts` unit):
-- `rg --files client | rg -v 'node_modules|\\.min\\.|vendor/' | rg '\\.(ts|tsx|js|jsx)$' | ... | sort -nr`
-- Migration contract for each queue item:
-- 1) move authority to `core/**` first
-- 2) keep client as thin wrapper/transport/UI only
-- 3) preserve behavior + receipts
-- 4) rebuild + targeted regression after each item
-- 5) no churn carryover between items
+## Actionable SRS Items (Queued/In Progress)
+- [x] none
 
-| Rank | LOC | Unit | Class | Migration target |
-|---|---:|---|---|---|
-| 1 | 21874 | `client/runtime/systems/ui/infring_dashboard.ts` | UI monolith | Decompose + remove authority from UI into Rust dashboard kernels |
-| 2 | 8668 | `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts` | UI behavior surface | Move chat decision logic to core chat/dashboard lanes |
-| 3 | 1618 | `client/runtime/systems/ui/infring_static/js/app.ts.parts` | UI shell surface | Keep view wiring only; route all mutations to core |
-| 4 | 1061 | `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts` | UI+agent orchestration surface | Move lifecycle authority to Rust agent/session kernel |
-| 5 | 955 | `client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts` | UI+automation surface | Move hands orchestration authority to core hands domain |
-| 7 | 729 | `client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts` | UI settings surface | Move settings validation/default policy authority to core |
-| 8 | 684 | `client/cognition/shared/adaptive/sensory/eyes/collectors/collector_runtime.ts` | Runtime authority | Move collector scheduling/policy/state mutation to core |
-| 9 | 635 | `client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts` | UI workflow surface | Move workflow compile/validate authority to core |
-| 10 | 582 | `client/runtime/systems/tools/assimilate.ts` | Tooling authority | Move target resolution/policy gating to Rust assimilation kernel |
-| 11 | 581 | `client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts` | UI init surface | Move init policy + defaults to core |
-| 12 | 513 | `client/cognition/shared/adaptive/sensory/eyes/collectors/github_repo.ts` | Collector authority | Move fetch policy/scoring/state writes to core |
-| 13 | 452 | `client/runtime/lib/rust_lane_bridge.ts` | Bridge runtime | Keep bridge transport only; move fallback policy to core |
-| 14 | 393 | `client/runtime/systems/ui/infring_static/js/pages/scheduler.ts` | UI scheduler | Move schedule semantics + mutations to core scheduler kernel |
-| 15 | 372 | `client/runtime/systems/autonomy/swarm_repl_demo.ts` | Swarm authority | Move orchestration logic to core swarm runtime |
-| 16 | 361 | `client/runtime/systems/conduit/conduit-client.ts` | Conduit authority | Move routing/decision logic to core conduit domain |
-| 17 | 356 | `client/cognition/shared/adaptive/sensory/eyes/collectors/conversation_eye.ts` | Collector authority | Move capture rules/state mutation to core |
-| 18 | 333 | `client/runtime/systems/ui/infring_static/js/pages/skills.ts` | UI+skills surface | Move skill install/permission authority to core |
-| 19 | 318 | `client/runtime/systems/autonomy/swarm_sessions_bridge.ts` | Session authority | Move session-state authority to core session kernel |
-| 20 | 313 | `client/runtime/systems/ui/infring_static/js/api.ts` | Client API shim | Keep transport only; route all policy to core |
-| 21 | 310 | `client/runtime/patches/websocket-client-patch.ts` | Reliability logic | Move reconnect/stream authority to Rust server/session lanes |
-| 22 | 309 | `client/runtime/systems/ui/infring_static/js/pages/channels.ts` | Channel UI surface | Move channel lifecycle/auth authority to core channels |
-| 23 | 302 | `client/cognition/shared/adaptive/sensory/eyes/collectors/upwork_gigs.ts` | Collector authority | Move fetch/policy state writes to core |
-| 24 | 292 | `client/runtime/systems/ui/infring_static/js/pages/overview.ts` | UI overview | Keep read-only rendering; no authority |
-| 25 | 289 | `client/runtime/systems/ui/infring_static/js/pages/usage.ts` | UI usage | Keep read-only rendering; no authority |
-| 26 | 284 | `client/cognition/shared/adaptive/sensory/eyes/collectors/bird_x.ts` | Collector authority | Move fetch/policy state writes to core |
-| 27 | 274 | `client/runtime/systems/ops/rust_hotpath_inventory.ts` | Ops authority | Migrate inventory policy/evaluation logic to Rust |
-| 28 | 268 | `client/cognition/shared/adaptive/sensory/eyes/collectors/stock_market.ts` | Collector authority | Move fetch/policy state writes to core |
-| 29 | 268 | `client/cognition/orchestration/scratchpad.ts` | Orchestration authority | Keep thin wrapper; ensure full authority in core |
-| 30 | 267 | `client/runtime/lib/queued_backlog_runtime.ts` | Backlog authority | Move all queue mutation logic to Rust kernel |
-| 31 | 266 | `client/runtime/systems/memory/policy_validator.ts` | Memory guard | Continue reducing to strict thin wrapper |
-| 32 | 265 | `client/runtime/lib/test_compactor_benchmark.ts` | Test/runtime helper | Keep test tooling only; no production authority |
-| 33 | 263 | `client/runtime/systems/ui/infring_static/js/pages/logs.ts` | UI logs | Keep read-only rendering |
-| 34 | 262 | `client/cognition/shared/adaptive/sensory/eyes/collectors/moltstack_discover.ts` | Collector authority | Move fetch/policy state writes to core |
-| 35 | 258 | `client/runtime/patches/websocket-server-patch.ts` | Runtime reliability | Migrate server-side authority into Rust host |
-| 36 | 251 | `client/runtime/systems/ops/top50_roi_sweep.ts` | Ops authority | Migrate scoring/ranking authority to Rust ops domain |
-| 37 | 245 | `client/cognition/shared/adaptive/sensory/eyes/collectors/local_state_digest.ts` | Collector authority | Move digesting/scoring to core |
-| 38 | 240 | `client/runtime/systems/autonomy/swarm_orchestration_runtime.ts` | Swarm authority | Migrate orchestration decisions to core |
-| 39 | 226 | `client/runtime/lib/backlog_lane_cli.ts` | CLI authority | Keep as CLI wrapper only |
-| 40 | 222 | `client/cognition/orchestration/taskgroup.ts` | Orchestration authority | Keep thin wrapper; core owns state/mutations |
+## External Blockers
+- [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V4-LENS-011` — blocked_external_prepared — LensMap Standalone Suite Program (Google Doc Intake 2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V6-EDGE-005` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-GAP-006` — blocked_external_prepared — Testing + Documentation + Installer Gap Closer (2026-03-06) (requires external evidence packet / human approval)
+- [ ] `V6-SBOX-006` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V7-F100-002.1` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
+- [ ] `V7-F100-002.2` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
+- [ ] `V7-META-016` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-META-017` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-META-018` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-TOP1-009` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V7-TOP1-010` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-COMP-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-F100-022` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-023` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-024` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-025` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-034` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-043` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-044` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-045` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-008` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-009` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-010` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-011` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-PAY-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-RUST50-CONF-004` — blocked_external_prepared — External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V6-SUBSTRATE-002.4` — blocked_external_prepared — Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V2-012` — blocked_external_prepared — V2 (requires external evidence packet / human approval)
+- [ ] `V6-TOOLS-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-FLUX-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
 
-### Queue status
-- `Q01` done: `security_layer_inventory_gate` moved to Rust core kernel.
-- `Q02` done: `rust_hotpath_inventory.ts` authority moved to Rust core kernel (`rust-hotpath-inventory-kernel`) with thin TS wrapper compatibility.
-- `Q03` done: `top50_roi_sweep.ts` authority moved to Rust core kernel (`top50-roi-sweep-kernel`) with thin TS wrapper compatibility.
-- `Q04` done: `assimilate.ts` authority moved to Rust core kernel (`assimilate-kernel`) with thin TS CLI wrapper compatibility.
-- `Q05` in progress: `conduit-client.ts` cryptographic signing + capability token + command envelope construction + stdio timeout transport policy resolution authority moved to Rust core kernel (`conduit-client-security-kernel` commands: `build-security`, `build-envelope`, `resolve-security-config`, `resolve-transport-policy`); client keeps raw socket/stdio transport mechanics only.
-- `Q06` in progress: `collector_runtime.ts` cadence/finalize state authority moved into `collector-runtime-kernel` (`prepare-run`, `finalize-run`), retry policy authority moved into Rust (`mark-failure` now derives retryability from canonical error code), and runtime control/default normalization authority moved into Rust (`resolve-controls`); client runtime keeps transport/extractor bridge only.
-- `Q07` in progress: `local_state_digest.ts` collector scoring/preflight/state-signal authority moved to Rust core kernel (`local-state-digest-kernel`); client module reduced to thin bridge wrapper.
-- `Q08` in progress: `github_repo.ts` auth-mode resolution + run-parameter normalization/mode selection + cadence/cache policy + PR risk scoring + item shaping moved to Rust core kernel (`github-repo-collector-kernel` commands include `resolve-run-params`); client module reduced to transport-only wrapper for GitHub HTTP fetch.
-- `Q09` in progress: `stock_market.ts` run orchestration/cadence/fetch-plan/finalize fallback-cache authority moved into Rust (`stock-market-collector-kernel` commands: `prepare-run`, `build-fetch-plan`, `finalize-run`); client module now executes kernel-defined plan + egress transport only.
-- `Q10` in progress: `upwork_gigs.ts` run orchestration/cadence/fetch-plan/finalize fallback-cache authority moved into Rust (`upwork-gigs-collector-kernel` commands: `prepare-run`, `build-fetch-plan`, `finalize-run`); client module now executes kernel-defined plan + egress transport only.
-- `Q11` in progress: `moltstack_discover.ts` preflight + fetch-plan + fetch-error fallback policy + post mapping/finalize authority moved to Rust core kernel (`moltstack-discover-collector-kernel` commands: `preflight`, `build-fetch-plan`, `classify-fetch-error`, `finalize-run`); client module reduced to egress transport + cache bridge wrapper.
-- `Q12` in progress: `bird_x.ts` run orchestration/cadence/meta/cache/fallback authority is now owned by Rust (`bird-x-collector-kernel` commands: `prepare-run`, `map-results`, `finalize-run`) with helper module support; client module reduced to Bird CLI transport/retry wrapper only.
-- `Q13` in progress: `conversation_eye.ts` node-quota/index/item/write batching authority moved to Rust core kernel (`conversation-eye-collector-kernel` commands: `process-nodes`, `append-memory-rows`); client module now focuses on callback orchestration inputs (`synthesizeEnvelope` + `processMemoryFiled`) and transport only.
-- `Q14` in progress: `collector_runtime.ts` legacy file mutation helper exports (`ensureDir`, `readJson`, `writeJson`, `appendJsonl`) removed from client surface; runtime authority remains constrained to transport/retry wrappers with Rust kernels owning policy/state.
-- `Q15` in progress: `github_repo.ts` endpoint selection/fetch planning authority moved to Rust core kernel (`build-repo-activity-fetch-plan`, `build-pr-review-fetch-plan`); client module now executes kernel-defined request plans as transport-only fetch wrapper.
+## Regression Runbook
+- npm run -s ops:backlog:actionable-report
+- cargo run -q -p protheus-ops-core --bin protheus-ops -- backlog-queue-executor run --all=1 --with-tests=1
+- npm run -s ops:srs:full:regression
+- npm run -s ops:srs:top200:regression
+- npm run -s test:ops:srs-contract-runtime-evidence
+- ./verify.sh
 
-### SRS supplements (pre-regression hardening before deep migration)
-- Runtime supplement: `docs/workspace/CLIENT_RUNTIME_SRS_SUPPLEMENT.md`
-- Dashboard/UI supplement: `docs/workspace/INFRING_DASHBOARD_UI_SRS_SUPPLEMENT.md`
-
-## Canonical actionable inventory mapping
-- Full per-item mapping (remaining work only): `local/workspace/reports/SRS_ACTIONABLE_MAP_CURRENT.md`
-- Machine-readable map: [core/local/artifacts/srs_actionable_map_current.json](../../core/local/artifacts/srs_actionable_map_current.json)
-- Full execution queue (all actionable items, sorted): `local/workspace/reports/TODO_EXECUTION_FULL.md`
-- Machine-readable execution queue: [core/local/artifacts/todo_execution_full_current.json](../../core/local/artifacts/todo_execution_full_current.json)
-- Map summary snapshot:
-- `actionable_total=0`
-- `queued=0`
-- `in_progress=0`
-- `blocked=0`
-- `execute_now=0`
-- `repair_lane=0`
-- `design_required=0`
-- `blocked_external=0`
-- `blocked_external_prepared=27`
-
-## Canonical full audit queue (all SRS rows)
-- Full audit queue (every SRS row, sorted high impact -> low impact): `local/workspace/reports/TODO_AUDIT_FULL.md`
-- Machine-readable full audit queue: [core/local/artifacts/todo_audit_full_current.json](../../core/local/artifacts/todo_audit_full_current.json)
-- Audit summary snapshot:
-- `total(unique)=1847`
-- `raw_rows=2197`
-- `duplicate_rows_collapsed=350`
-- `reviewed=1820`
-- `audited=27`
-- `coverage(raw)=2197/2197`
-
-## Full TODO queue contract
-- `local/workspace/reports/TODO_EXECUTION_FULL.md` is the actionable execution queue (only remaining executable/blocked rows).
-- `local/workspace/reports/TODO_AUDIT_FULL.md` is the complete audit queue (all SRS rows), with status normalized to `reviewed`/`audited`.
-- Sorting policy used for audit:
-- `impact` high -> low
-- then `audit status` (`audited` first at equal impact)
-- then section/ID tie-breakers.
-
-## Ordered execution list
-
-1. `P0-MAP-001` Map all remaining backlog/SRS work into a single canonical actionable inventory and bucket by executability. `STATUS: DONE`
-- Exit criteria met:
-- generated `local/workspace/reports/SRS_ACTIONABLE_MAP_CURRENT.md` and `core/local/artifacts/srs_actionable_map_current.json`.
-
-2. `P0-ENFORCER-001` Review codex enforcer + DoD before execution tranche. `STATUS: DONE`
-- Exit criteria met:
-- reviewed `docs/workspace/codex_enforcer.md` and enforced execution receipts + regression checks.
-
-3. `P1-EXEC-001` Execute all currently runnable lane-backed actionable items via Rust backlog queue executor. `STATUS: DONE`
-- Exit criteria met:
-- `120/120` runnable lane-backed IDs executed with deterministic receipts via `protheus-ops backlog-queue-executor`.
-
-4. `P1-EXEC-002` Reconcile stale lane scripts broken by TS path removal during coreization. `STATUS: DONE`
-- Exit criteria met:
-- `118` stale actionable `lane:*:run` scripts remapped to sanctioned compatibility bridge (`legacy_alias_adapter`) and are now executable.
-
-5. `P1-EXEC-003` Advance executed actionable items to `done` with regression-safe evidence. `STATUS: DONE`
-- Exit criteria met:
-- `231` lane-backed `queued/in_progress` items promoted to `done` in `SRS.md`.
-- `srs_full_regression` remains `fail=0`, `warn=0`.
-
-6. `P2-PLAN-001` Classify non-lane actionable backlog into explicit implementation workpacks with unblock criteria. `STATUS: DONE`
-- Exit criteria met:
-- `805` items mapped to `design_required` (no executable lane yet).
-- `27` items mapped to `blocked_external` (explicit external dependencies).
-- All remaining work is visible and auditable in the actionable map artifacts.
-
-7. `P1-EXEC-004` Execute metakernel tranche (`V7-META-001..003`) and retire runnable intake debt. `STATUS: DONE`
-- Exit criteria met:
-- Added authoritative metakernel command surface in `core/layer0/ops/src/metakernel.rs` and wired commands in `core/layer0/ops/src/main.rs`/`lib.rs`.
-- Added contracts/artifacts: `planes/contracts/metakernel_primitives_v1.json`, `planes/contracts/cellbundle.schema.json`, `planes/contracts/examples/cellbundle.minimal.json`.
-- Added lane scripts: `ops:metakernel:registry`, `ops:metakernel:manifest`, `ops:metakernel:invariants`, and `lane:v7-meta-001..003:run`.
-- Marked `V7-META-001..003` as `done` in `docs/workspace/SRS.md` and `docs/workspace/UPGRADE_BACKLOG.md` with receipt-backed evidence.
-
-8. `P1-EXEC-005` Continue metakernel tranche (`V7-META-004..006`) and continue queue depletion. `STATUS: DONE`
-- Exit criteria met:
-- Added WIT world registry + compatibility lane: `planes/contracts/wit/world_registry_v1.json`, `ops:metakernel:worlds`, `lane:v7-meta-004:run`.
-- Added capability effect taxonomy + risk gate lane: `planes/contracts/capability_effect_taxonomy_v1.json`, `ops:metakernel:capability-taxonomy`, `lane:v7-meta-005:run`.
-- Added budget admission fail-closed lane: `planes/contracts/budget_admission_policy_v1.json`, `ops:metakernel:budget-admission`, `lane:v7-meta-006:run`.
-- Marked `V7-META-004..006` as `done` in `docs/workspace/SRS.md` and `docs/workspace/UPGRADE_BACKLOG.md` with receipt-backed evidence.
-
-9. `P0-MAINT-001` Clear policy blocker and continue execution (outside-root source violation). `STATUS: DONE`
-- Exit criteria met:
-- Moved temporary source file from `tmp/lensmap_tooling_test/src/demo.ts` to policy-allowed test fixture path `tests/fixtures/lensmap_tooling_test/src/demo.ts`.
-- `repo_surface_policy_audit` restored to pass and full `./verify.sh` pass retained.
-
-10. `P1-EXEC-006` Continue metakernel tranche (`V7-META-007..010`) and continue queue depletion. `STATUS: DONE`
-- Exit criteria met:
-- Added `epistemic_object_v1` schema + example and strict validator lane (`lane:v7-meta-007:run`).
-- Added effect journal commit-before-actuate policy + example and strict enforcement lane (`lane:v7-meta-008:run`).
-- Added substrate descriptor registry + degrade matrix contract and strict validator lane (`lane:v7-meta-009:run`).
-- Added radix policy guard contract and strict guard lane (`lane:v7-meta-010:run`).
-- Marked `V7-META-007..010` as `done` in `SRS.md` and `UPGRADE_BACKLOG.md`.
-
-11. `P1-EXEC-007` Continue metakernel tranche (`V7-META-011..015`) and continue queue depletion. `STATUS: DONE`
-- Exit criteria met:
-- Added quantum broker domain contract and strict validator lane (`lane:v7-meta-011:run`).
-- Added neural consent kernel contract and strict validator lane (`lane:v7-meta-012:run`).
-- Added attestation graph contract and strict validator lane (`lane:v7-meta-013:run`).
-- Added degradation-contract verifier contract and strict validator lane (`lane:v7-meta-014:run`).
-- Added execution profile matrix contract and strict validator lane (`lane:v7-meta-015:run`).
-- Marked `V7-META-011..015` as `done` in `SRS.md` and `UPGRADE_BACKLOG.md`.
-
-12. `P1-EXEC-008` Close evidence-backed ROI items from Top-100 ledger without violating DoD truthfulness. `STATUS: DONE`
-- Exit criteria met:
-- Promoted only regression-validated, non-blocked IDs with code-like evidence to `done` in `SRS.md` / `UPGRADE_BACKLOG.md`.
-- Automatically reverted `34` IDs that failed evidence strictness (`doneWithoutCodeEvidence`) back to prior statuses, restoring truthful closure semantics.
-- Net actionable queue reduced from `820` to `786` while keeping `srs_full_regression` strict (`fail=0`).
-
-13. `P1-EXEC-009` Bulk-close all evidence-backed actionable rows (non-blocked, pass severity, code evidence present). `STATUS: DONE`
-- Exit criteria met:
-- Promoted `331` unique IDs (`356` SRS rows) from `queued/in_progress` to `done` when and only when `nonBacklogEvidenceCount>0`, `codeLikeEvidenceCount>0`, and `regression.severity=pass`.
-- Re-ran full regression and kept strict gates green: `doneWithoutNonBacklogEvidence=0`, `doneWithoutCodeEvidence=0`.
-- Reduced actionable queue from `786` to `430` in one deterministic pass.
-
-14. `P0-UNBLOCK-001` Add deterministic external-evidence intake workflow for remaining blocked items. `STATUS: DONE`
-- Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_evidence_status.ts` to validate external-evidence readiness per blocked ID.
-- Added npm scripts `ops:blocked-external:plan` and `ops:blocked-external:evidence`.
-- Added intake policy doc at `docs/external/evidence/README.md`.
-- Generated current unblock evidence status artifacts for all `27` blocked IDs.
-
-15. `P0-UNBLOCK-002` Scaffold per-ID external evidence packets for all blocked items. `STATUS: DONE`
-- Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_scaffold.ts` and npm script `ops:blocked-external:scaffold`.
-- Materialized scaffold directories/readme templates for all `27` blocked IDs under `docs/external/evidence/<ID>/README.md`.
-- Regenerated status artifacts: all blockers are now `partial_missing_artifact` (readmes present, artifact upload pending).
-
-16. `P0-UNBLOCK-003` Add deterministic reconcile helper for evidence-ready blocked IDs. `STATUS: DONE`
-- Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_reconcile.ts` and npm script `ops:blocked-external:reconcile`.
-- Added generated candidate reports (`BLOCKED_EXTERNAL_RECONCILE_CANDIDATES`) with optional `--apply=1` status promotion path.
-- Current reconcile report confirms `ready_for_reconcile=0` and no automatic status mutations.
-
-17. `P0-UNBLOCK-004` Add ranked Top-10 external unblock board with action hints. `STATUS: DONE`
-- Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_top10.ts` and npm script `ops:blocked-external:top10`.
-- Generated ranked output: `local/workspace/reports/BLOCKED_EXTERNAL_TOP10.md` + `core/local/artifacts/blocked_external_top10_current.json`.
-
-18. `P0-UNBLOCK-005` Add packet-quality audit for blocked external evidence folders. `STATUS: DONE`
-- Exit criteria met:
-- Added `tests/tooling/scripts/ci/blocked_external_packet_audit.ts` and npm script `ops:blocked-external:packet-audit`.
-- Generated packet audit outputs: `local/workspace/reports/BLOCKED_EXTERNAL_PACKET_AUDIT.md` + `core/local/artifacts/blocked_external_packet_audit_current.json`.
-
-19. `P0-UNBLOCK-006` Add operator runbook for end-to-end external unblock flow. `STATUS: DONE`
-- Exit criteria met:
-- Added `docs/workspace/EXTERNAL_UNBLOCK_OPERATOR_RUNBOOK.md` with deterministic command path from plan/scaffold/audit/reconcile to validation.
-
-20. `P0-UNBLOCK-007` Re-run full policy/regression gates after unblock tooling expansion. `STATUS: DONE`
-- Exit criteria met:
-- `srs_actionable_map`: actionable `27`, execute_now `0`, blocked_external `27`.
-- `srs_full_regression`: fail `0`, warn `0`, pass `1998`.
-- `srs_top200_regression`: fail `0`, warn `0`, pass `200`.
-- `verify.sh`: PASS.
-
-21. `P0-SIMPL-001` Run system simplicity sweep and collapse parallel command functionality to canonical aliases. `STATUS: DONE`
-- Exit criteria met:
-- Collapsed duplicate script bodies to single-source aliases in `package.json` (`orchestron:run`, `start`, `lane:v6-rust50-007:run`, `test:lane:v6-edge-004`).
-- Added `tests/tooling/scripts/ci/simplicity_drift_audit.ts` and `ops:simplicity:audit` strict gate.
-- Current simplicity audit: duplicate command groups `0`, client hard/gap violations `0`.
-
-22. `P0-TEST-001` Run full CI test suite and patch failures. `STATUS: DONE`
-- Exit criteria met:
-- Found and fixed `MODULE_NOT_FOUND` test blocker by updating `tests/client-memory-tools/_legacy_retired_test_wrapper.ts` to load TS runtime wrapper directly with local TS require hook.
-- `npm run -s test:ci:full`: PASS.
-- `./verify.sh`: PASS.
-- `srs_full_regression` and `srs_top200_regression`: PASS.
-
-23. `P0-MCU-PROOF-001` Real MCU flash proof for Tiny-max (`ESP32` + `RP2040`) with runtime screenshot/log artifacts. `STATUS: BLOCKED_EXTERNAL`
-- Blocker:
-- Physical hardware + USB serial presence + human-operated flash session are required for proof-of-run evidence. Current workspace preflight can verify tooling and produce blocker receipts, but cannot fabricate hardware execution.
-- Linked human action:
-- `HMAN-092` in `docs/client/HUMAN_ONLY_ACTIONS.md`.
-- Exit criteria:
-- `docs/client/reports/hardware/esp32_tiny_max_status_<date>.png` and `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png` exist with matching serial logs and deterministic receipt bundle.
-- `local/workspace/reports/MCU_PROOF_PREFLIGHT.md` shows `ok=true`.
-- README hardware-proof section is updated from `blocked` to `verified`.
-
-24. `P1-ORCH-001` Implement REQ-38 Agent Orchestration Hardening (coordinator, scratchpad, checkpointing). `STATUS: DONE`
-- Linked SRS:
-- `REQ-38-001` through `REQ-38-008` in `docs/client/requirements/REQ-38-agent-orchestration-hardening.md`.
-- Dependencies:
-- REQ-12 (Swarm Engine Router) for message routing primitives.
-- REQ-15 (Sandboxed Sub-Agent Execution) for scoped sub-agent spawning.
-- REQ-36 (Smart Memory) for shared state patterns.
-- Exit criteria:
-- Core orchestration authority is implemented in `core/layer0/ops/src/orchestration.rs` (partitioning, deduplication, severity merging, scratchpad/taskgroup/checkpoint/partial retrieval/state transitions); `client/cognition/orchestration/coordinator.ts` is a thin wrapper.
-- Shared scratchpad semantics at `local/workspace/scratchpad/{task_id}.json` are authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/scratchpad.ts` is a thin wrapper.
-- Checkpointing (10-item/2-min interval + timeout recovery + retry gating) is authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/checkpoint.ts` is a thin wrapper.
-- Scope boundaries and overlap/violation handling are authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/scope.ts` is a thin wrapper.
-- Completion triggers and task-group metadata persistence are authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/completion.ts` and `client/cognition/orchestration/taskgroup.ts` are thin wrappers.
-- Partial-result retrieval (session-history + checkpoint fallback + retry/continue/abort decisions) is authoritative in `core/layer0/ops/src/orchestration.rs`; `client/cognition/orchestration/partial.ts` is a thin wrapper.
-- All tests passing: `npm run -s test:cognition:orchestration`.
-- Integration test: full orchestration flow in `tests/client/cognition/coordinator.test.ts` with scope + task-group completion assertions.
-
-25. `P0-AUDIT-SEC-001` Close remaining automatable security implementation-depth gaps (fail-closed and branch coverage), not just receipt presence. `STATUS: DONE`
-- Context:
-- Latest audit highlights call out depth/branch coverage gaps across security, skills backward-compat, and conduit strict-mode fail-closed paths.
-- Linked audit docs:
-- `audit_docs/TEST_COVERAGE_REQS_2026-03-19.md`
-- Exit criteria:
-- Add missing regression tests for fail-closed/error branches in:
-  - `core/layer0/ops/src/security_plane.rs`
-  - `core/layer0/ops/src/skills_plane.rs`
-  - `core/layer2/conduit/src/lib.rs`
-- `cargo test` suites for those modules pass.
-- `npm run -s ops:srs:full:regression` remains `fail=0`, `warn=0`.
-- Progress (2026-03-20):
-- Added strict fail-closed regression tests in `core/layer0/ops/tests/v6_security_hardening_integration.rs`:
-  - unsupported secrets provider strict reject (`unsupported_provider:*`)
-  - empty audit history pass path (no false strict block)
-- Added backward-compat regression tests in `core/layer0/ops/tests/v6_skills_batch10_integration.rs`:
-  - downgrade rejection without `--allow-downgrade`
-  - forced migration rejection without `--migration-reason`
-- Added conduit bridge fail-closed tests in `core/layer2/conduit/src/lib.rs`:
-  - explicit bridge spawn failure path
-  - bridge timeout path with bounded timeout budget
-- Validation receipts:
-  - `cargo test -p protheus-ops-core --test v6_security_hardening_integration` PASS
-  - `cargo test -p protheus-ops-core --test v6_skills_batch10_integration` PASS
-  - `cargo test -p conduit --lib` PASS
-  - `npm run -s ops:srs:full:regression` PASS (`fail=0`, `warn=0`)
-- Validation refresh (2026-03-21):
-  - `cargo test -p protheus-ops-core --test v6_security_hardening_integration -- --test-threads=1` PASS (`18 passed`)
-  - `cargo test -p protheus-ops-core --test v6_skills_batch10_integration -- --test-threads=1` PASS (`8 passed`)
-  - `cargo test -p conduit --lib -- --test-threads=1` PASS (`33 passed`)
-  - `npm run -s ops:srs:full:regression` PASS (`fail=0`, `warn=0`, `pass=3063`)
-
-26. `P0-DOCS-API-001` Close documentation maturity gaps for regression insurance (API + security + deployment + ADR hygiene). `STATUS: DONE`
-- Context:
-- Documentation audits still list API reference completeness as partial and OpenAPI as a stub.
-- Linked audit docs:
-- `audit_docs/DOCUMENTATION_REQS_2026-03-19.md`
-- Exit criteria:
-- Replace `docs/api/openapi.stub.yaml` with authoritative generated/maintained API spec.
-- Ensure runbook/deployment/security docs cross-link from a single operator index.
-- Add/refresh ADR index coverage for new architecture/security decisions.
-- Progress (2026-03-20):
-- Replaced placeholder OpenAPI stub content with authoritative `dashboard-ui` API contract in `docs/api/openapi.stub.yaml` (`/healthz`, `/api/dashboard/snapshot`, `/api/dashboard/action`).
-- Added single-entry operator cross-link index: `docs/ops/INDEX.md` and linked it from `docs/api/README.md`.
-- Refreshed ADR coverage with accepted dashboard authority decision:
-  - `docs/client/adr/0002-rust-core-dashboard-authority.md`
-  - `docs/client/adr/INDEX.md` updated with ADR 0002.
-- Validation refresh (2026-03-21):
-  - `npm run -s ops:srs:full:regression` PASS with docs evidence intact (`doneWithoutNonBacklogEvidence=0`).
-
-27. `P1-PERF-THROUGHPUT-001` Recover throughput headroom with measured, reproducible benchmarks (without benchmark theater). `STATUS: QUEUED`
-- Context:
-- Performance audit shows throughput target lag vs stretch goal while cold start/idle memory are healthy.
-- Linked audit docs:
-- `audit_docs/PERFORMANCE_REQS_2026-03-19.md`
-- Exit criteria:
-- Identify and land at least one authoritative throughput optimization in Rust core.
-- Publish before/after benchmark artifacts with reproducible command path.
-- Keep cold start/idle/install non-regressive within agreed tolerance.
-
-28. `P0-HMAN-TRACK-001` Keep non-automatable audit blockers visible and packetized for operator action. `STATUS: DONE`
-- Context:
-- Human-only/certification/hardware items are outside automatable closure but must stay tracked.
-- Exit criteria:
-- Maintain explicit status board + evidence packet readiness for:
-  - `HMAN-026/027` (certification),
-  - `HMAN-081/082/083/084` (hardware validation approvals),
-  - `HMAN-086/087` (third-party/high-assurance verification),
-  - `HMAN-092` (MCU proof flash session).
-- No hidden blockers: all remain visible in reports with exact required evidence.
-- Progress (2026-03-20):
-- Added live blocker board: `local/workspace/reports/HMAN_BLOCKERS_STATUS_BOARD.md`.
-- Board includes per-HMAN evidence-pattern checks for all required IDs and currently shows all targeted packets as `missing` (explicitly visible, no hidden blockers).
-- Validation refresh (2026-03-21):
-  - `npm run -s ops:blocked-external:plan` PASS (`blocked_external_count=30`).
-  - `npm run -s ops:blocked-external:evidence` PASS (`total=30`, all explicit).
-  - `npm run -s ops:blocked-external:top10` PASS (ranked board refreshed).
-  - `npm run -s ops:blocked-external:packet-audit` PASS (`artifact_present_readme_unfilled=30` visible).
-  - `npm run -s ops:blocked-external:reconcile` PASS (`ready_for_reconcile=0`, no hidden closures).
-  - `npm run -s ops:blocked-external:human-map` PASS (human-action map refreshed).
-
-29. `P0-EVOLUTION-COMPACTION-001` Prepare V9 ruthless compaction round with hard guardrails before code surgery. `STATUS: QUEUED`
-- Scope:
-- `V9-EVOLUTION-COMPACTION-001`
-- Prep artifact:
-- `docs/client/reports/V9_EVOLUTION_COMPACTION_PREP_2026-03-19.md`
-- Exit criteria:
-- Baseline frozen: cold start / idle / install / throughput artifacts captured.
-- Duplicate-parallel logic inventory generated (core authority first).
-- Merge order defined by ROI and safety invariants.
-- Regression gate bundle defined (tests + SRS/DoD gates + benchmark refresh).
-
-30. `P1-EVOLUTION-COMPACTION-002` Execute V9 ruthless compaction pass only if net measurable win and zero safety regressions. `STATUS: IN_PROGRESS`
-- Scope:
-- Collapse duplicate/near-duplicate code to smallest reusable primitives; preserve behavior.
-- Exit criteria:
-- Full regression + sovereignty/security checks pass.
-- Benchmark delta is neutral-to-positive on target metrics (cold/idle/install/throughput).
-- Commit only when net system quality improves and no fail-closed invariants are weakened.
-- Progress (2026-03-20):
-  - Shared legacy wrapper binders added in `client/runtime/lib/legacy_retired_wrapper.ts`.
-  - 58 duplicated TS wrappers + 62 duplicated JS wrappers compacted to shared primitives.
-  - Net wrapper source reduction: ~14.98 KB; targeted wrapper regression tests passing.
-  - Stabilized post-compaction benchmark resample captured (`docs/client/reports/benchmark_matrix_resample_post_compaction_2026-03-20.json`); final sign-off still pending due shared baseline drift on throughput/install.
-
-31. `P1-DASHBOARD-WASM-001` Migrate dashboard runtime to Rust/WASM no-alternate-shell serving path after browser-host parity freeze. `STATUS: IN_PROGRESS`
-- Context:
-- Unified dashboard launch now serves the Infring browser host by default (`infring dashboard`, `infring status --dashboard`, `infringd start` autoboot) with the Rust lane restricted to API authority only.
-- Remaining work is parity hardening + packaging so the unified host stays stable in normal operator flows without any second browser surface.
-- Linked SRS:
-- `V6-DASHBOARD-001.1` through `V6-DASHBOARD-001.10` (runtime host hardening follow-through).
-- Exit criteria:
-- Keep the Rust authority lane API-only for health/snapshot/action/WebSocket coverage.
-- Serve the Infring browser UI through the unified dashboard host on the default operator launch path.
-- Preserve all current receipted actions (provider switch, role launch, skill run, benchmark/assimilate trigger) with equal or stronger fail-closed behavior.
-- Publish operator runbook documenting the unified host plus Rust API lane, with no second browser surface fallback.
-
-32. `P1-DASHBOARD-UX-002` Complete dashboard productization pass (onboarding, section-level lazy loading, local-bundled frontend deps). `STATUS: QUEUED`
-- Context:
-- V6-DASHBOARD base surface is now functional and receipted, but follow-through is still required to hit premium UX targets under constrained/bad network/browser conditions.
-- Exit criteria:
-- Add first-run onboarding tour + contextual affordances for core sections.
-- Add section-level lazy loading/code splitting for heavyweight panels.
-- Remove external CDN dependency path by shipping local bundled frontend modules/CSS with equivalent behavior.
-- Publish before/after interaction latency + scroll-jank evidence in benchmark report.
-
-## Executed in this pass
-- Added `tests/tooling/scripts/ci/srs_actionable_map.ts` to produce canonical remaining-work mapping and executability buckets.
-- Reviewed enforcer policy and kept DoD evidence gates strict.
-- Executed complete runnable backlog queue tranche and recorded deterministic receipts.
-- Executed metakernel tranche (`V7-META-001..003`) with deterministic receipts and passing invariants.
-- Executed metakernel tranche (`V7-META-004..006`) with deterministic receipts and passing lanes.
-- Executed metakernel tranche (`V7-META-007..010`) with deterministic receipts and passing lanes.
-- Executed metakernel tranche (`V7-META-011..015`) with deterministic receipts and passing lanes.
-- Executed ROI status-closure sweep with strict evidence rollback safeguards (`P1-EXEC-008`), reducing actionable queue by `34`.
-- Executed evidence-qualified bulk closure (`P1-EXEC-009`), reducing actionable queue by `356` rows (`331` unique IDs).
-- Executed dynamic-legacy queue completion sweep (`P1-EXEC-010`): executed + promoted remaining `execute_now` rows (`403` bulk + `1` follow-up), leaving only explicit `blocked_external` items (`27` total actionable, `0` runnable).
-- Added deterministic status reconciler `tests/tooling/scripts/ci/promote_executed_receipt_ids.ts` and hardened regression scanners (`srs_full_regression` longest-first ID matching; `srs_top200_regression` consumes canonical full-regression counts) to eliminate prefix-collision and nondeterministic evidence drift.
-- Added generated full TODO queue artifacts (`local/workspace/reports/TODO_EXECUTION_FULL.md` + `todo_execution_full_current.json`) and kept ordering deterministic.
-- Added deterministic blocked-external evidence intake/status pipeline (`tests/tooling/scripts/ci/blocked_external_evidence_status.ts`) with generated status artifacts and explicit evidence contract docs.
-- Added deterministic blocked-external scaffold generator (`tests/tooling/scripts/ci/blocked_external_scaffold.ts`) and pre-created `docs/external/evidence/<ID>/README.md` packets for all 27 blockers.
-- Added deterministic blocked-external reconcile helper (`tests/tooling/scripts/ci/blocked_external_reconcile.ts`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
-- Added deterministic blocked-external Top-10 prioritizer (`tests/tooling/scripts/ci/blocked_external_top10.ts`) and packet-quality audit (`tests/tooling/scripts/ci/blocked_external_packet_audit.ts`) plus operator runbook.
-- Added system simplicity drift gate (`tests/tooling/scripts/ci/simplicity_drift_audit.ts`) and collapsed duplicate npm command bodies to canonical alias chains.
-- Patched full CI test blocker in `_legacy_retired_test_wrapper.ts` (TS wrapper resolution).
-- Kept client/core policy audits and full regression suite passing after state transitions.
-- Added MCU proof preflight lane + operator runbook for external unblock path (`tests/tooling/scripts/ci/mcu_proof_preflight.ts`, `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`) and linked blocker governance (`P0-MCU-PROOF-001`, `HMAN-092`).
-
-## Next command bundle
-- `node tests/tooling/scripts/ci/srs_actionable_map.ts`
-- `node tests/tooling/scripts/ci/blocked_external_unblock_plan.ts`
-- `node tests/tooling/scripts/ci/blocked_external_scaffold.ts`
-- `node tests/tooling/scripts/ci/blocked_external_evidence_status.ts`
-- `node tests/tooling/scripts/ci/blocked_external_reconcile.ts`
-- `node tests/tooling/scripts/ci/blocked_external_top10.ts`
-- `node tests/tooling/scripts/ci/blocked_external_packet_audit.ts`
-- `node tests/tooling/scripts/ci/simplicity_drift_audit.ts --strict=1`
-- `node tests/tooling/scripts/ci/srs_full_regression.ts`
-- `node tests/tooling/scripts/ci/srs_top200_regression.ts`
-- `npm run -s test:ci:full`
-- `node tests/tooling/scripts/ci/backlog_actionable_report.ts`
-- `npm run -s ops:client-target:audit`
-- `./verify.sh`
-- `node tests/tooling/scripts/ci/mcu_proof_preflight.ts`
-
----
-
-## Process Notes for Contributors
-
-### Adding New TODO Items
-
-When adding new work items to this TODO:
-
-1. **Prefix with priority**: Use `P0-`, `P1-`, `P2-`, or `P3-` prefix
-2. **Include ID**: Format as `P{N}-CATEGORY-###` (e.g., `P1-EXEC-042`)
-3. **Define exit criteria**: Every item must have measurable completion criteria
-4. **Link to SRS**: If related to SRS requirements, include the SRS ID
-5. **Update timestamp**: Change the "Updated:" field at top of file
-
-### Status Definitions
-
-| Status | Meaning | Next Action |
-|--------|---------|-------------|
-| `TODO` | Not yet started | Queue for execution |
-| `QUEUED` | Scheduled for current pass | Execute when ready |
-| `IN_PROGRESS` | Actively being worked | Continue execution |
-| `BLOCKED` | Has dependencies | Resolve blockers |
-| `DONE` | Completed with evidence | Verify regression |
-| `CANCELLED` | No longer needed | Document rationale |
-
-### Evidence Requirements
-
-All `DONE` items must have:
-- Deterministic execution receipt OR
-- Link to merged PR with review approval OR
-- Documented decision record (for cancelled items)
-
-### Review Cycle
-
-This TODO is reviewed:
-- **Daily**: During active execution passes
-- **Weekly**: Full audit of blocked items
-- **Monthly**: Process effectiveness review
-
-*Last process review: 2026-03-15 by Rohan Kapoor*
