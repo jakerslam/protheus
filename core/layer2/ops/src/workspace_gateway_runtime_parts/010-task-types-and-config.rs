@@ -44,7 +44,6 @@ const DEFAULT_WORKER_IDLE_HIBERNATE_MS: u64 = 15_000;
 const DEFAULT_WORKER_MIN_POLL_MS: u64 = 125;
 const DEFAULT_WORKER_MAX_POLL_MS: u64 = 900;
 
-// TEMPORARY SCAFFOLDING — NATS JetStream. To be replaced with native InfRing task ions built from baryons later.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskTicket {
     pub id: String,
@@ -53,7 +52,6 @@ pub struct TaskTicket {
     pub bus_mode: String,
 }
 
-// TEMPORARY SCAFFOLDING — NATS JetStream. To be replaced with native InfRing task ions built from baryons later.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TaskPayload {
     id: String,
@@ -63,6 +61,12 @@ struct TaskPayload {
     steps: u64,
     created_at_ms: u64,
     metadata: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TaskCancelEnvelope {
+    task_id: String,
+    ts_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,7 +174,12 @@ fn parse_non_empty(flags: &BTreeMap<String, String>, key: &str) -> Option<String
 fn parse_bool_flag(flags: &BTreeMap<String, String>, key: &str, fallback: bool) -> bool {
     flags
         .get(key)
-        .map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|raw| {
+            matches!(
+                raw.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(fallback)
 }
 

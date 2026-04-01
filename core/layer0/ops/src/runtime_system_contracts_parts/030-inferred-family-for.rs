@@ -47,6 +47,12 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "code_review_automation_orchestration_and_recovery_controls",
         ));
     }
+    if id.starts_with("V6-COLLAB-002.") {
+        return Some((
+            "swarm_runtime_scaling",
+            "collaboration_handoff_and_inter_agent_coordination_controls",
+        ));
+    }
     if id.starts_with("V6-SCHEDULER-002.") || id.starts_with("V6-DASHBOARD-001.") {
         return Some((
             "automation_mission_stack",

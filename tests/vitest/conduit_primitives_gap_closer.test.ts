@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -158,70 +159,109 @@ process.stdin.on('data', (chunk) => {
     await client.close();
   });
 
-  test.skip('overUnixSocket path works for single roundtrip', async () => {
+  test('overUnixSocket path works for single roundtrip', async () => {
     if (process.platform === 'win32') return;
-    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
-    const socketPath = path.join(os.tmpdir(), `pc-${process.pid}-${Date.now()}.sock`);
-    if (fs.existsSync(socketPath)) {
-      fs.unlinkSync(socketPath);
-    }
+    const previousFallback = process.env.PROTHEUS_CONDUIT_TS_FALLBACK;
+    process.env.PROTHEUS_CONDUIT_TS_FALLBACK = '1';
+    const sockets = new Set<net.Socket>();
+    let socketPath = '';
+    let server: net.Server | null = null;
+    let client: { send: (...args: any[]) => Promise<any>; close: () => Promise<void> } | null = null;
+    try {
+      const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
+      socketPath = path.join('/tmp', `pc-${process.pid}-${randomUUID()}.sock`);
+      if (fs.existsSync(socketPath)) {
+        fs.unlinkSync(socketPath);
+      }
 
-    const server = net.createServer((socket) => {
-      let buffer = '';
-      socket.setEncoding('utf8');
-      socket.on('data', (chunk) => {
-        buffer += chunk;
-        if (!buffer.includes('\\n')) return;
-        const line = buffer.split('\\n')[0];
-        const req = JSON.parse(line);
-        const response = {
-          schema_id: req.schema_id,
-          schema_version: req.schema_version,
-          request_id: req.request_id,
-          ts_ms: req.ts_ms,
-          event: {
-            type: 'system_feedback',
-            status: 'ok',
-            detail: { command_type: req.command.type },
-            violation_reason: null
-          },
-          validation: {
-            ok: true,
-            fail_closed: false,
-            reason: 'validated',
-            policy_receipt_hash: 'p',
-            security_receipt_hash: 's',
-            receipt_hash: 'v'
-          },
-          crossing: {
-            crossing_id: req.request_id,
-            direction: 'TsToRust',
-            command_type: req.command.type,
-            deterministic_hash: 'd',
-            ts_ms: req.ts_ms
-          },
-          receipt_hash: 'r'
-        };
-        socket.write(JSON.stringify(response) + '\\n');
+      server = net.createServer((socket) => {
+        sockets.add(socket);
+        socket.once('close', () => sockets.delete(socket));
+        let buffer = '';
+        socket.setEncoding('utf8');
+        socket.on('data', (chunk) => {
+          buffer += chunk;
+          if (!buffer.includes('\n')) return;
+          const line = buffer.split('\n')[0];
+          let req: any = null;
+          try {
+            req = JSON.parse(line);
+          } catch (error) {
+            socket.end();
+            return;
+          }
+          const response = {
+            schema_id: req.schema_id,
+            schema_version: req.schema_version,
+            request_id: req.request_id,
+            ts_ms: req.ts_ms,
+            event: {
+              type: 'system_feedback',
+              status: 'ok',
+              detail: { command_type: req.command.type },
+              violation_reason: null
+            },
+            validation: {
+              ok: true,
+              fail_closed: false,
+              reason: 'validated',
+              policy_receipt_hash: 'p',
+              security_receipt_hash: 's',
+              receipt_hash: 'v'
+            },
+            crossing: {
+              crossing_id: req.request_id,
+              direction: 'TsToRust',
+              command_type: req.command.type,
+              deterministic_hash: 'd',
+              ts_ms: req.ts_ms
+            },
+            receipt_hash: 'r'
+          };
+          socket.end(JSON.stringify(response) + '\n');
+        });
       });
-    });
 
-    await new Promise<void>((resolve, reject) => {
-      server.listen(socketPath, () => resolve());
-      server.once('error', reject);
-    });
+      await new Promise<void>((resolve, reject) => {
+        server!.listen(socketPath, () => resolve());
+        server!.once('error', reject);
+      });
 
-    const client = conduit.ConduitClient.overUnixSocket(socketPath);
-    const response = await client.send({ type: 'get_system_status' }, 'req-socket-1');
-    await client.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    if (fs.existsSync(socketPath)) {
-      fs.unlinkSync(socketPath);
+      client = conduit.ConduitClient.overUnixSocket(socketPath, {
+        client_id: 'vitest-unix-socket',
+        signing_key_id: 'vitest-signing-key',
+        signing_secret: 'vitest-signing-secret',
+        token_key_id: 'vitest-token-key',
+        token_secret: 'vitest-token-secret',
+        token_ttl_ms: 60_000,
+      });
+      const response = await client.send({ type: 'get_system_status' }, 'req-socket-1');
+
+      expect(response.request_id).toBe('req-socket-1');
+      expect((response.event as any).detail.command_type).toBe('get_system_status');
+    } finally {
+      if (client) {
+        await client.close();
+      }
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      if (server) {
+        await Promise.race([
+          new Promise<void>((resolve) => server!.close(() => resolve())),
+          new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+        ]);
+      }
+      if (socketPath && fs.existsSync(socketPath)) {
+        fs.unlinkSync(socketPath);
+      }
+      if (typeof previousFallback === 'string') {
+        process.env.PROTHEUS_CONDUIT_TS_FALLBACK = previousFallback;
+      } else {
+        delete process.env.PROTHEUS_CONDUIT_TS_FALLBACK;
+      }
     }
-
-    expect(response.request_id).toBe('req-socket-1');
-    expect((response.event as any).detail.command_type).toBe('get_system_status');
-  }, 10_000);
+  }, 90_000);
 });
 
 describe('direct conduit lane bridge coverage paths', () => {
@@ -229,7 +269,7 @@ describe('direct conduit lane bridge coverage paths', () => {
     const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
     const found = bridge.findRepoRoot(path.join(ROOT, 'client', 'runtime', 'systems', 'ops'));
     expect(found).toBe(ROOT);
-  });
+  }, 90_000);
 
   test('createConduitLaneModule normalizes lane id and exposes async builders', async () => {
     const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);

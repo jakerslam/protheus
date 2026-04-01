@@ -84,6 +84,14 @@ mod tests {
         parsed.tasks.into_iter().map(|row| row.id).collect()
     }
 
+    fn read_jsonl(path: &Path) -> Vec<Value> {
+        fs::read_to_string(path)
+            .expect("jsonl readable")
+            .lines()
+            .filter_map(|line| serde_json::from_str::<Value>(line.trim()).ok())
+            .collect::<Vec<_>>()
+    }
+
     #[test]
     fn task_submit_and_worker_complete_generates_verity_receipt() {
         let _guard = test_guard();
@@ -112,8 +120,18 @@ mod tests {
         let paths = task_paths(root);
         let ids = list_registry_ids(&paths.registry_json);
         assert_eq!(ids.len(), 1);
-        let receipts = fs::read_to_string(paths.receipts_jsonl).expect("receipts readable");
-        assert!(receipts.contains("\"type\":\"task_verity_receipt\""));
+        let receipts = read_jsonl(&paths.receipts_jsonl);
+        assert!(receipts.iter().any(|row| {
+            row.get("type").and_then(Value::as_str) == Some("task_verity_receipt")
+                && row
+                    .get("timestamp_drift_ms")
+                    .and_then(Value::as_u64)
+                    .is_some()
+                && row
+                    .get("parent_receipt_hash")
+                    .and_then(Value::as_str)
+                    .is_some()
+        }));
         clear_test_state_env();
     }
 
@@ -146,6 +164,70 @@ mod tests {
         let raw_after = fs::read_to_string(&paths.registry_json).expect("registry after");
         let parsed_after: TaskRegistry = serde_json::from_str(&raw_after).expect("registry parse");
         let record = parsed_after.tasks.first().expect("record exists");
+        assert!(record.cancelled);
+        assert_eq!(record.status, "cancelled");
+        clear_test_state_env();
+    }
+
+    #[test]
+    fn worker_applies_cancel_sync_from_bus_before_processing() {
+        struct CancelOnlyBus {
+            ids: Vec<String>,
+        }
+        impl TaskBus for CancelOnlyBus {
+            fn mode(&self) -> &'static str {
+                "test_bus"
+            }
+            fn enqueue(&self, _payload: &TaskPayload) -> Result<(), String> {
+                Ok(())
+            }
+            fn dequeue(
+                &self,
+                _max_messages: usize,
+                _wait_ms: u64,
+            ) -> Result<Vec<TaskPayload>, String> {
+                Ok(Vec::new())
+            }
+            fn publish_cancel(&self, _task_id: &str) -> Result<(), String> {
+                Ok(())
+            }
+            fn pull_cancelled(
+                &self,
+                _max_messages: usize,
+                _wait_ms: u64,
+            ) -> Result<Vec<String>, String> {
+                Ok(self.ids.clone())
+            }
+        }
+
+        let _guard = test_guard();
+        let temp = tempdir().expect("tempdir");
+        let state_root = state_root_for(temp.path());
+        set_test_state_env(&state_root);
+        let root = temp.path();
+        let submit = vec![
+            "task".to_string(),
+            "submit".to_string(),
+            "--estimated-seconds=2".to_string(),
+            "--steps=2".to_string(),
+            "--kind=sync-cancel-test".to_string(),
+        ];
+        assert_eq!(run(root, &submit), 0);
+        let paths = task_paths(root);
+        let raw = fs::read_to_string(&paths.registry_json).expect("registry");
+        let parsed: TaskRegistry = serde_json::from_str(&raw).expect("registry parse");
+        let id = parsed.tasks.first().expect("task exists").id.clone();
+        let bus = CancelOnlyBus {
+            ids: vec![id.clone()],
+        };
+        let synced = apply_bus_cancellations(&paths, &bus, 10).expect("cancel sync");
+        assert_eq!(synced, 1);
+        let registry_after = load_registry(&paths).expect("registry after");
+        let record = registry_after
+            .tasks
+            .into_iter()
+            .find(|row| row.id == id)
+            .expect("record exists");
         assert!(record.cancelled);
         assert_eq!(record.status, "cancelled");
         clear_test_state_env();
