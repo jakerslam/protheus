@@ -16,90 +16,96 @@
       return out;
     },
 
-    derivePromptSuggestionFallback(agent, hint, gateContext) {
-      var rows = [];
-      var compact = function(value) {
-        var text = String(value == null ? '' : value)
+	    derivePromptSuggestionFallback(agent, hint, gateContext) {
+	      var rows = [];
+	      var compact = function(value, maxLen) {
+	        var cap = Number(maxLen || 180);
+	        var text = String(value == null ? '' : value)
           .replace(/^\s*(?:agent|assistant|system|user|jarvis)\s*:\s*/i, '')
           .replace(/\s+/g, ' ')
           .trim();
-        if (!text) return '';
-        if (text.length > 180) return text.substring(0, 177) + '...';
-        return text;
-      };
-      var sanitizeHint = function(value) {
-        var text = compact(value || '');
-        if (!text) return '';
-        var lowered = text.toLowerCase();
-        if (
-          lowered === 'post-response' ||
-          lowered === 'post-silent' ||
-          lowered === 'post-error' ||
-          lowered === 'post-terminal' ||
-          lowered === 'init' ||
-          lowered === 'refresh'
-        ) return '';
-        if (/^post-[a-z0-9_-]+$/i.test(text)) return '';
-        return text;
-      };
-      var role = compact(agent && agent.role ? agent.role : '') || 'assistant';
-      var context = this.collectPromptSuggestionContext();
-      var lastUser = compact(context.lastUser || '');
-      var lastAgent = compact(context.lastAgent || '');
-      var cleanHint = sanitizeHint(hint || '');
-      var topic = compact(cleanHint || lastUser || lastAgent || '');
-      var topicWords = String(topic || '')
-        .toLowerCase()
-        .split(/[^a-z0-9_:-]+/g)
-        .filter(function(word) {
-        return word && word.length >= 4 && ['that', 'with', 'from', 'this', 'your', 'have', 'will', 'into'].indexOf(word) === -1;
-      })
-        .slice(0, 3);
-      var topicLabel = topicWords.length ? topicWords.join(' ') : 'current task';
-      var combinedLower = [cleanHint, lastUser, lastAgent].join(' ').toLowerCase();
-      var rotateSeed = topicLabel + '|' + String(context.signature || '') + '|' + cleanHint;
-      var rotate = 0;
-      for (var ridx = 0; ridx < rotateSeed.length; ridx++) {
-        rotate = (rotate + rotateSeed.charCodeAt(ridx)) % 97;
-      }
+	        if (!text) return '';
+	        if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
+	        return text;
+	      };
+	      var clampWords = function(value, maxWords) {
+	        var cap = Number(maxWords || 5);
+	        if (!Number.isFinite(cap) || cap < 2) cap = 5;
+	        var words = String(value == null ? '' : value).trim().split(/\s+/g).filter(Boolean);
+	        if (!words.length) return '';
+	        if (words.length <= cap) return words.join(' ');
+	        return words.slice(0, cap).join(' ');
+	      };
+	      var stopWords = {
+	        a: true, an: true, and: true, are: true, as: true, at: true, be: true, can: true, could: true,
+	        do: true, for: true, from: true, how: true, i: true, in: true, into: true, is: true, it: true,
+	        me: true, my: true, now: true, of: true, on: true, or: true, please: true, should: true, that: true,
+	        the: true, then: true, this: true, to: true, we: true, what: true, when: true, where: true, why: true,
+	        with: true, would: true, you: true, your: true
+	      };
+	      var compactTopic = function(value, maxWords) {
+	        var tokens = String(value == null ? '' : value)
+	          .toLowerCase()
+	          .replace(/[^a-z0-9_:-]+/g, ' ')
+	          .split(/\s+/g)
+	          .filter(function(token) {
+	            return !!(token && token.length >= 3 && !stopWords[token]);
+	          })
+	          .slice(0, Number(maxWords || 3));
+	        return tokens.join(' ');
+	      };
+	      var styleSuggestion = function(body) {
+	        var text = clampWords(compact(body || '', 240), 5);
+	        if (!text) return '';
+	        return text.charAt(0).toUpperCase() + text.slice(1);
+	      };
+	      var _hint = hint;
 
-      if (/\bcouldn'?t reach|failed to|timeout|lane_timeout|backend unavailable|provider-sync\b/i.test(combinedLower)) {
-        rows.push('Can you auto-switch models and retry the same request');
-        rows.push('What failed first, provider sync or app-plane lane');
-      }
-      if (/\bqueue|cockpit|conduit|latency|backpressure|reconnect|stale\b/i.test(combinedLower)) {
-        rows.push('Can you reclaim stale blocks and verify queue depth after');
-        rows.push('Can you scale conduit and report before and after metrics');
-      }
-      if (/\bupload|file|attachment\b/i.test(combinedLower)) {
-        rows.push('Can you retry upload and show the failing endpoint');
-      }
-      if (/\bdiff|patch|commit|branch|git\b/i.test(combinedLower)) {
-        rows.push('Can you show the exact diff for that change');
-      }
-      if (cleanHint) rows.push('Can you take the next step on ' + topicLabel);
-      if (lastAgent && !/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(lastAgent)) {
-        rows.push('Can you turn that into a concrete checklist');
-        rows.push('Can you show the first command to run now');
-      }
-      if (lastUser) {
-        rows.push('Can you continue this and keep the same direction');
-        rows.push('Can you summarize progress in three concrete bullets');
-      }
-      rows.push('Can you propose the best next move from here');
-      rows.push('Can you verify the latest change and report result');
+	      var context = this.collectPromptSuggestionContext();
+	      var history = Array.isArray(context.history) ? context.history.slice(-7) : [];
 
-      if (rows.length > 1) {
-        rotate = rotate % rows.length;
-        rows = rows.slice(rotate).concat(rows.slice(0, rotate));
-      }
+	      var userRows = history
+	        .filter(function(entry) { return String(entry && entry.role || '').toLowerCase() === 'user'; })
+	        .map(function(entry) { return compact(entry && entry.text || '', 220); })
+	        .filter(Boolean)
+	        .slice(-5);
+	      var keywordCounts = {};
+	      history.forEach(function(entry) {
+	        var text = compact(entry && entry.text || '', 320).toLowerCase();
+	        text.split(/[^a-z0-9_-]+/g).forEach(function(word) {
+	          if (!word || word.length < 4 || stopWords[word]) return;
+	          keywordCounts[word] = (keywordCounts[word] || 0) + 1;
+	        });
+	      });
+	      var keywords = Object.keys(keywordCounts).sort(function(a, b) {
+	        var dc = Number(keywordCounts[b] || 0) - Number(keywordCounts[a] || 0);
+	        if (dc !== 0) return dc;
+	        return a.localeCompare(b);
+	      }).slice(0, 4);
+	      var topicLabel = '';
+	      if (userRows.length) {
+	        topicLabel = compactTopic(userRows[userRows.length - 1], 3);
+	      }
+	      if (!topicLabel && keywords.length) {
+	        topicLabel = keywords.slice(0, 3).join(' ');
+	      }
+	      if (!topicLabel && history.length) {
+	        topicLabel = compactTopic((history[history.length - 1] && history[history.length - 1].text) || '', 3);
+	      }
+	      if (!topicLabel) return [];
+	      rows.push('finish ' + topicLabel);
+	      rows.push('verify ' + topicLabel);
+	      rows.push('test ' + topicLabel);
+	      rows.push('continue ' + topicLabel);
+	      if (keywords.length >= 2) rows.push('compare ' + keywords[0] + ' ' + keywords[1]);
 
-      var normalized = this.normalizePromptSuggestions(
-        rows,
-        String(gateContext || [cleanHint, lastUser, lastAgent, String(context.signature || '')].join(' | '))
-      );
-      return normalized.slice(0, 3);
-    },
+	      var styledRows = rows.map(styleSuggestion).filter(Boolean);
+	      var normalized = this.normalizePromptSuggestions(
+	        styledRows,
+	        String(gateContext || String(context.signature || ''))
+	      );
+	      return normalized.slice(0, 3);
+	    },
 
     collectPromptSuggestionContext() {
       var out = { lastUser: '', lastAgent: '', history: [], signature: '' };
@@ -111,31 +117,36 @@
         if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
         return text;
       };
-      for (var i = history.length - 1; i >= 0; i--) {
-        var row = history[i];
-        if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
-        var text = compact(row.text, 240);
-        if (!text) continue;
-        if (/^\[runtime-task\]/i.test(text)) continue;
-        if (/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(text)) continue;
-        if (/the user wants exactly 3 actionable next user prompts/i.test(text)) continue;
-        if (String(text || '').toLowerCase() === 'heartbeat_ok') continue;
-        if (out.history.length < 8) {
-          out.history.unshift({
-            role: compact(row.role || '', 16).toLowerCase() || (row.user ? 'user' : row.assistant ? 'agent' : 'agent'),
-            text: text
-          });
-        }
-        if (!out.lastUser && row.role === 'user') {
-          out.lastUser = text;
-          continue;
-        }
-        if (!out.lastAgent && row.role === 'agent') {
-          out.lastAgent = text;
-        }
-        if (out.lastUser && out.lastAgent && out.history.length >= 8) break;
-      }
-      if (out.history.length > 8) out.history = out.history.slice(-8);
+	      for (var i = history.length - 1; i >= 0; i--) {
+	        var row = history[i];
+	        if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
+	        var normalizedRole = compact(row.role || '', 16).toLowerCase();
+	        if (!normalizedRole) {
+	          normalizedRole = row.user ? 'user' : row.assistant ? 'agent' : 'agent';
+	        }
+	        if (normalizedRole === 'system') continue;
+	        var text = compact(row.text, 240);
+	        if (!text) continue;
+	        if (/^\[runtime-task\]/i.test(text)) continue;
+	        if (/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(text)) continue;
+	        if (/the user wants exactly 3 actionable next user prompts/i.test(text)) continue;
+	        if (String(text || '').toLowerCase() === 'heartbeat_ok') continue;
+	        if (out.history.length < 7) {
+	          out.history.unshift({
+	            role: normalizedRole,
+	            text: text
+	          });
+	        }
+	        if (!out.lastUser && normalizedRole === 'user') {
+	          out.lastUser = text;
+	          continue;
+	        }
+	        if (!out.lastAgent && (normalizedRole === 'agent' || normalizedRole === 'assistant')) {
+	          out.lastAgent = text;
+	        }
+	        if (out.lastUser && out.lastAgent && out.history.length >= 7) break;
+	      }
+      if (out.history.length > 7) out.history = out.history.slice(-7);
       out.signature = compact(
         out.history
           .map(function(entry) {
@@ -158,13 +169,15 @@
         var text = String(row.text == null ? '' : row.text).replace(/\s+/g, ' ').trim();
         if (!text) continue;
         out.unshift(text);
-        if (out.length >= 8) break;
+        if (out.length >= 7) break;
       }
       return out;
     },
 
     hasConversationSuggestionSeed() {
-      return this.recentUserSuggestionSamples().length > 0;
+      var context = this.collectPromptSuggestionContext();
+      var count = Array.isArray(context && context.history) ? context.history.length : 0;
+      return count >= 7;
     },
 
     nextPromptQueueId() {

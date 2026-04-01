@@ -96,51 +96,39 @@
       var seq = Number(this._suggestionFetchSeq || 0) + 1;
       this._suggestionFetchSeq = seq;
       this.suggestionsLoading = true;
-      try {
-        var payload = {};
-        var cleanHint = String(hint || '').trim();
-        if (/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)) cleanHint = '';
-        if (cleanHint) payload.hint = cleanHint;
-        var context = this.collectPromptSuggestionContext();
-        if (context.signature) payload.recent_context = String(context.signature).trim();
-        var activeModel = String(agent && (agent.runtime_model || agent.model_name) ? (agent.runtime_model || agent.model_name) : '').trim();
-        if (activeModel) payload.current_model = activeModel;
-        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
-        if (this._suggestionFetchSeq !== seq) return;
-        var gatingContext = [cleanHint, String(context.signature || '')].join(' | ');
-        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
-        var telemetryNext = Array.isArray(this.telemetryNextActions) ? this.telemetryNextActions : [];
-        var nextCommandSuggestions = telemetryNext
-          .map(function(row) {
-            return String((row && row.command) || '').trim();
-          })
-          .filter(Boolean);
-        if ((!Array.isArray(baseSuggestions) || !baseSuggestions.length) && typeof this.derivePromptSuggestionFallback === 'function') {
-          baseSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint, gatingContext);
-        }
-        var suggestions = this.normalizePromptSuggestions(
-          (Array.isArray(baseSuggestions) ? baseSuggestions : []).concat(nextCommandSuggestions),
-          gatingContext,
-          this.recentUserSuggestionSamples()
-        );
+	      try {
+	        var payload = {};
+	        var cleanHint = String(hint || '').trim();
+	        if (/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)) cleanHint = '';
+	        var context = this.collectPromptSuggestionContext();
+	        if (context.signature) payload.recent_context = String(context.signature).trim();
+	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
+	        if (this._suggestionFetchSeq !== seq) return;
+	        var gatingContext = String(context.signature || '');
+	        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
+	        if ((!Array.isArray(baseSuggestions) || !baseSuggestions.length) && typeof this.derivePromptSuggestionFallback === 'function') {
+	          baseSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint, gatingContext);
+	        }
+	        var suggestions = this.normalizePromptSuggestions(
+	          Array.isArray(baseSuggestions) ? baseSuggestions : [],
+	          gatingContext,
+	          this.recentUserSuggestionSamples()
+	        );
         this.promptSuggestions = suggestions;
         this._lastSuggestionsAt = Date.now();
         this._lastSuggestionsAgentId = agentId;
-      } catch (_) {
-        if (this._suggestionFetchSeq === seq) {
-          var fallbackContext = this.collectPromptSuggestionContext();
-          var fallbackRows = [];
-          if (typeof this.derivePromptSuggestionFallback === 'function') {
-            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
-          }
-          var fallbackTelemetry = (Array.isArray(this.telemetryNextActions) ? this.telemetryNextActions : [])
-            .map(function(row) { return String((row && row.command) || '').trim(); })
-            .filter(Boolean);
-          this.promptSuggestions = this.normalizePromptSuggestions(
-            (Array.isArray(fallbackRows) ? fallbackRows : []).concat(fallbackTelemetry),
-            String(fallbackContext.signature || ''),
-            this.recentUserSuggestionSamples()
-          );
+	      } catch (_) {
+	        if (this._suggestionFetchSeq === seq) {
+	          var fallbackContext = this.collectPromptSuggestionContext();
+	          var fallbackRows = [];
+	          if (typeof this.derivePromptSuggestionFallback === 'function') {
+	            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
+	          }
+	          this.promptSuggestions = this.normalizePromptSuggestions(
+	            Array.isArray(fallbackRows) ? fallbackRows : [],
+	            String(fallbackContext.signature || ''),
+	            this.recentUserSuggestionSamples()
+	          );
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = agentId;
         }
@@ -151,20 +139,17 @@
 
     resetFreshInitStateForAgent: function(agentRef) {
       var agent = agentRef && typeof agentRef === 'object' ? agentRef : {};
-      var resolvedName = String(agent.name || agent.id || '').trim() || String(agent.id || '').trim();
-      var resolvedEmoji = String(
-        (agent.identity && agent.identity.emoji) ||
-        this.defaultFreshEmojiForAgent(agentRef)
-      ).trim() || this.defaultFreshEmojiForAgent(agentRef);
+      var seedName = String(agent.name || agent.id || '').trim() || String(agent.id || '').trim();
+      var seedEmoji = String((agent.identity && agent.identity.emoji) || '').trim();
       this.showFreshArchetypeTiles = false;
       this.freshInitRevealMenu = false;
       this.freshInitTemplateDef = null;
       this.freshInitTemplateName = '';
       this.freshInitLaunching = false;
-      this.freshInitName = resolvedName;
-      this.freshInitEmoji = resolvedEmoji;
-      this.freshInitDefaultName = resolvedName;
-      this.freshInitDefaultEmoji = resolvedEmoji;
+      this.freshInitName = '';
+      this.freshInitEmoji = '';
+      this.freshInitDefaultName = seedName;
+      this.freshInitDefaultEmoji = seedEmoji;
       this.freshInitAvatarUrl = String(agent.avatar_url || '').trim();
       this.freshInitAvatarUploading = false;
       this.freshInitAvatarUploadError = '';
