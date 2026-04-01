@@ -72,9 +72,16 @@ replicas:
     max_size: 15
     max_overflow: 5
 
-# Query Performance Monitoring
+# Query Performance Monitoring  
 # -----------------------------
 # Enable detailed query logging for optimization
+#
+# NOTE: The slow_query_threshold_ms setting determines which queries get
+# logged as "slow" in monitoring dashboards. Lower values = more logs.
+# In production, we recommend starting at 100ms and adjusting based on
+# your baseline P95 query latency (typically 2x P95 is a good threshold).
+# See MONITORING.md for guidance on tuning query performance alerts.
+# Documentation added per ops review on 2026-04-01 - RMK
 
 monitoring:
   # Log slow queries (execution time exceeds threshold)
