@@ -67,6 +67,7 @@
       var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id || ''); }));
       var pool = (this.agents || []).filter(function(agent) {
         if (!agent || !agent.id) return false;
+        if (self.isSystemSidebarThread && self.isSystemSidebarThread(agent)) return false;
         return !archivedSet.has(String(agent.id));
       });
       pool.sort(function(a, b) {
@@ -112,12 +113,33 @@
 
     chatSidebarPreview(agent) {
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
+      if (agent._sidebar_search_result) {
+        var snippet = String(agent._sidebar_preview_text || '').trim();
+        return {
+          text: snippet || 'No matching text',
+          ts: this.sidebarAgentSortTs(agent),
+          role: 'agent',
+          has_tools: false,
+          tool_state: '',
+          tool_label: '',
+          unread_response: false
+        };
+      }
       var store = this.getAppStore();
       var preview = store && typeof store.getAgentChatPreview === 'function'
         ? store.getAgentChatPreview(agent.id)
         : null;
       if (!preview || !preview.text) return { text: 'No messages yet', ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       return preview;
+    },
+
+    sidebarDisplayEmoji(agent) {
+      if (!agent) return '';
+      var isSystem = this.isSystemSidebarThread && this.isSystemSidebarThread(agent);
+      if (isSystem) return '\u2699\ufe0f';
+      var emoji = String((agent.identity && agent.identity.emoji) || '').trim();
+      if (this.isReservedSystemEmoji && this.isReservedSystemEmoji(emoji)) return '';
+      return emoji;
     },
 
     persistArchivedAgentIds() {
@@ -217,7 +239,6 @@
       if (this.sidebarSpawningAgent) return;
       this.confirmArchiveAgentId = '';
       this.sidebarSpawningAgent = true;
-      var requestedName = '';
       try {
         var res = await InfringAPI.post('/api/agents', {
           role: 'analyst',
@@ -233,7 +254,8 @@
         if (!createdId) throw new Error('spawn_failed');
         var created = {
           id: createdId,
-          name: String((res && res.name) || requestedName || createdId),
+          name: createdId,
+          identity: { emoji: '∞' },
           state: String((res && res.state) || 'running'),
           model_name: String((res && (res.model_name || res.runtime_model || '')) || ''),
           model_provider: String((res && res.model_provider) || ''),
@@ -242,20 +264,6 @@
         };
         var store = this.getAppStore();
         if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
-
-        var currentAgents = Array.isArray(store.agents) ? store.agents.slice() : [];
-        var existingIdx = currentAgents.findIndex(function(agent) {
-          return !!(agent && String(agent.id || '') === createdId);
-        });
-        if (existingIdx >= 0) {
-          currentAgents[existingIdx] = Object.assign({}, currentAgents[existingIdx], created);
-        } else {
-          currentAgents.unshift(created);
-        }
-        store.agents = currentAgents;
-        store.agentCount = currentAgents.length;
-        store.agentsHydrated = true;
-        store.agentsLoading = false;
 
         this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
         this.persistArchivedAgentIds();
@@ -266,7 +274,7 @@
         else store.activeAgentId = created.id;
         this.navigate('chat');
         this.closeAgentChatsSidebar();
-        InfringToast.success('Agent "' + (created.name || created.id || 'agent') + '" created');
+        InfringToast.success('Agent draft created. Complete initialization to launch.');
         this.scheduleSidebarScrollIndicators();
 
         var preferredModel = this.mostRecentModelFromUsageCache();
@@ -280,11 +288,7 @@
               // Keep default server model if model handoff fails.
             }
           }
-          try {
-            await store.refreshAgents({ force: true });
-          } catch(_) {
-            // Keep optimistic local state if refresh fails.
-          }
+          // Keep draft agent hidden from rosters until launch completes.
         })();
       } catch(e) {
         InfringToast.error('Failed to create agent: ' + (e && e.message ? e.message : 'unknown error'));
@@ -296,6 +300,20 @@
       if (!agent || !agent.id) return;
       this.confirmArchiveAgentId = '';
       var store = this.getAppStore();
+      var archived = agent.archived === true;
+      if (store && archived) {
+        var pending = {
+          id: String(agent.id),
+          name: String(agent.name || agent.id),
+          state: String(agent.state || 'archived'),
+          archived: true,
+          avatar_url: String(agent.avatar_url || '').trim(),
+          identity: { emoji: String((agent.identity && agent.identity.emoji) || '') },
+          role: String(agent.role || 'analyst')
+        };
+        store.pendingAgent = pending;
+        store.pendingFreshAgentId = null;
+      }
       if (store && typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agent.id);
       else if (store) store.activeAgentId = agent.id;
       this.navigate('chat');

@@ -156,8 +156,15 @@
     filteredDrawerEmojiCatalog: function() {
       var source = Array.isArray(this.drawerEmojiCatalog) ? this.drawerEmojiCatalog : [];
       var query = String(this.drawerEmojiSearch || '').trim().toLowerCase();
-      if (!query) return source.slice(0, 24);
-      return source.filter(function(row) {
+      var self = this;
+      var allowSystemReserved = this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent);
+      var rows = source.filter(function(row) {
+        var emoji = String((row && row.emoji) || '');
+        if (!allowSystemReserved && self.isReservedSystemEmoji && self.isReservedSystemEmoji(emoji)) return false;
+        return true;
+      });
+      if (!query) return rows.slice(0, 24);
+      return rows.filter(function(row) {
         var emoji = String((row && row.emoji) || '');
         var name = String((row && row.name) || '').toLowerCase();
         return emoji.indexOf(query) >= 0 || name.indexOf(query) >= 0;
@@ -165,21 +172,8 @@
     },
 
     defaultFreshEmojiForAgent: function(agentRef) {
-      var source = Array.isArray(this.drawerEmojiCatalog) ? this.drawerEmojiCatalog : [];
-      if (!source.length) return '🤖';
-      var key = '';
-      if (agentRef && typeof agentRef === 'object') {
-        key = String(agentRef.id || agentRef.name || '').trim();
-      } else {
-        key = String(agentRef || '').trim();
-      }
-      if (!key) return String((source[0] && source[0].emoji) || '🤖');
-      var hash = 0;
-      for (var idx = 0; idx < key.length; idx += 1) {
-        hash = ((hash * 33) ^ key.charCodeAt(idx)) >>> 0;
-      }
-      var bucket = hash % source.length;
-      return String((source[bucket] && source[bucket].emoji) || '🤖');
+      void agentRef;
+      return '∞';
     },
 
     suggestedFreshIdentityForAgent: function(agentRef, templateDef) {
@@ -197,9 +191,11 @@
         else if (category.indexOf('operations') >= 0 || category.indexOf('ops') >= 0) emoji = '🛠️';
         else if (category.indexOf('writing') >= 0) emoji = '📝';
       }
+      emoji = this.sanitizeAgentEmojiForDisplay ? this.sanitizeAgentEmojiForDisplay(agent, emoji) : emoji;
+      if (!emoji) emoji = '∞';
       return {
         name: name || String(id || '').trim(),
-        emoji: String(emoji || '🤖').trim() || '🤖',
+        emoji: String(emoji || '∞').trim() || '∞',
       };
     },
 
@@ -266,10 +262,17 @@
     selectDrawerEmoji: function(choice) {
       var emoji = String(choice && choice.emoji ? choice.emoji : choice || '').trim();
       if (!emoji) return;
+      var sanitized = this.sanitizeAgentEmojiForDisplay
+        ? this.sanitizeAgentEmojiForDisplay(this.agentDrawer || this.currentAgent, emoji)
+        : emoji;
+      if (!sanitized) {
+        InfringToast.info('The gear icon is reserved for the System thread.');
+        return;
+      }
       if (!this.drawerConfigForm || typeof this.drawerConfigForm !== 'object') {
         this.drawerConfigForm = {};
       }
-      this.drawerConfigForm.emoji = emoji;
+      this.drawerConfigForm.emoji = sanitized;
       // Choosing emoji explicitly switches away from image avatar mode.
       this.drawerConfigForm.avatar_url = '';
       if (this.agentDrawer && typeof this.agentDrawer === 'object') {
@@ -347,6 +350,8 @@
 
     async openAgentDrawer() {
       if (!this.currentAgent || !this.currentAgent.id) return;
+      if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) return;
+      if (this.isCurrentAgentArchived && this.isCurrentAgentArchived()) return;
       this.showAgentDrawer = true;
       this.agentDrawerLoading = true;
       this.drawerTab = 'info';
@@ -373,7 +378,9 @@
       this.drawerConfigForm = {
         name: this.agentDrawer.name || '',
         system_prompt: this.agentDrawer.system_prompt || '',
-        emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+        emoji: this.sanitizeAgentEmojiForDisplay
+          ? this.sanitizeAgentEmojiForDisplay(this.agentDrawer, (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '')
+          : ((this.agentDrawer.identity && this.agentDrawer.identity.emoji) || ''),
         avatar_url: this.agentDrawer.avatar_url || '',
         color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
         archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
@@ -387,7 +394,9 @@
         this.drawerConfigForm = {
           name: this.agentDrawer.name || '',
           system_prompt: this.agentDrawer.system_prompt || '',
-          emoji: (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '',
+          emoji: this.sanitizeAgentEmojiForDisplay
+            ? this.sanitizeAgentEmojiForDisplay(this.agentDrawer, (this.agentDrawer.identity && this.agentDrawer.identity.emoji) || '')
+            : ((this.agentDrawer.identity && this.agentDrawer.identity.emoji) || ''),
           avatar_url: this.agentDrawer.avatar_url || '',
           color: (this.agentDrawer.identity && this.agentDrawer.identity.color) || '#2563EB',
           archetype: (this.agentDrawer.identity && this.agentDrawer.identity.archetype) || '',
@@ -412,11 +421,49 @@
     },
 
     toggleAgentDrawer() {
+      if (this.isCurrentAgentArchived && this.isCurrentAgentArchived()) return;
       if (this.showAgentDrawer) {
         this.closeAgentDrawer();
         return;
       }
       this.openAgentDrawer();
+    },
+
+    async reviveCurrentArchivedAgent() {
+      var agent = this.currentAgent && typeof this.currentAgent === 'object' ? this.currentAgent : null;
+      if (!agent || !agent.id) return;
+      if (!(this.isArchivedAgentRecord && this.isArchivedAgentRecord(agent))) return;
+      var agentId = String(agent.id || '').trim();
+      if (!agentId) return;
+      try {
+        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+          role: String(agent.role || 'analyst')
+        });
+        var store = Alpine.store('app');
+        if (store) {
+          if (store.pendingAgent && String((store.pendingAgent && store.pendingAgent.id) || '') === agentId) {
+            store.pendingAgent = null;
+            store.pendingFreshAgentId = null;
+          }
+          if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agentId);
+          else store.activeAgentId = agentId;
+          if (typeof store.refreshAgents === 'function') {
+            await store.refreshAgents({ force: true });
+          }
+        }
+        var resolved = this.resolveAgent(agentId);
+        if (resolved) {
+          this.currentAgent = resolved;
+        }
+        this.showAgentDrawer = false;
+        this.showFreshArchetypeTiles = false;
+        await this.loadSessions(agentId);
+        await this.loadSession(agentId, false);
+        this.requestContextTelemetry(true);
+        InfringToast.success('Revived ' + (resolved && (resolved.name || resolved.id) ? (resolved.name || resolved.id) : agentId));
+      } catch (e) {
+        InfringToast.error('Failed to revive archived agent: ' + (e && e.message ? e.message : 'unknown_error'));
+      }
     },
 
     async syncDrawerAgentAfterChange() {
