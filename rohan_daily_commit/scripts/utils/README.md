@@ -2,29 +2,14 @@
 
 This directory contains operational utility scripts for the Protheus platform.
 
-## Available Scripts
+## Script Location
 
-### log-rotation.sh
+Shell utilities were migrated into policy-approved tooling roots:
 
-Automates log rotation to manage disk space and comply with retention policies.
+- `tests/tooling/scripts/utils/root_legacy/log-rotation.sh`
+- `tests/tooling/scripts/utils/root_legacy/health-check.sh`
 
-**Features:**
-- Age-based rotation (compress after 7 days, delete after 90 days)
-- Dry-run mode for safe testing
-- Per-service log directory handling
-- Configurable via environment variables
-
-**Usage:**
-```bash
-# Standard run
-./log-rotation.sh
-
-# Dry run (preview changes)
-./log-rotation.sh --dry-run
-
-# With custom config
-./log-rotation.sh --config=/etc/protheus/log-rotation.conf
-```
+This directory now keeps documentation only.
 
 ## Security Notes
 
@@ -34,8 +19,7 @@ Automates log rotation to manage disk space and comply with retention policies.
 
 ## TODO Items
 
-- [ ] Add health check script for service monitoring
-- [ ] Create backup verification utility
+- [ ] Add backup verification utility
 - [ ] Add script for emergency service restarts
 
 ---

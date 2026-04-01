@@ -10,6 +10,7 @@ trait TaskBus {
     fn enqueue(&self, payload: &TaskPayload) -> Result<(), String>;
     fn dequeue(&self, max_messages: usize, wait_ms: u64) -> Result<Vec<TaskPayload>, String>;
     fn publish_cancel(&self, task_id: &str) -> Result<(), String>;
+    fn pull_cancelled(&self, max_messages: usize, wait_ms: u64) -> Result<Vec<String>, String>;
 }
 
 struct LocalFileTaskBus {
@@ -50,6 +51,10 @@ impl TaskBus for LocalFileTaskBus {
     fn publish_cancel(&self, _task_id: &str) -> Result<(), String> {
         Ok(())
     }
+
+    fn pull_cancelled(&self, _max_messages: usize, _wait_ms: u64) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
 }
 
 struct NatsTaskBus {
@@ -59,6 +64,7 @@ struct NatsTaskBus {
     task_subject: String,
     cancel_subject: String,
     durable_name: String,
+    cancel_durable_name: String,
 }
 
 impl NatsTaskBus {
@@ -70,6 +76,7 @@ impl NatsTaskBus {
         durable_name: String,
     ) -> Result<Self, String> {
         let runtime = Runtime::new().map_err(|err| format!("tokio_runtime_create_failed:{err}"))?;
+        let cancel_durable_name = format!("{durable_name}-cancel");
         let bus = Self {
             runtime,
             nats_url,
@@ -77,6 +84,7 @@ impl NatsTaskBus {
             task_subject,
             cancel_subject,
             durable_name,
+            cancel_durable_name,
         };
         bus.ensure_stream()?;
         Ok(bus)
@@ -114,7 +122,8 @@ impl TaskBus for NatsTaskBus {
     }
 
     fn enqueue(&self, payload: &TaskPayload) -> Result<(), String> {
-        let raw = serde_json::to_vec(payload).map_err(|err| format!("nats_enqueue_encode:{err}"))?;
+        let raw =
+            serde_json::to_vec(payload).map_err(|err| format!("nats_enqueue_encode:{err}"))?;
         let nats_url = self.nats_url.clone();
         let subject = self.task_subject.clone();
         self.runtime.block_on(async move {
@@ -136,6 +145,7 @@ impl TaskBus for NatsTaskBus {
         let nats_url = self.nats_url.clone();
         let stream_name = self.stream_name.clone();
         let durable_name = self.durable_name.clone();
+        let task_subject = self.task_subject.clone();
         self.runtime.block_on(async move {
             let client = async_nats::connect(nats_url)
                 .await
@@ -150,6 +160,7 @@ impl TaskBus for NatsTaskBus {
                     durable_name.as_str(),
                     pull::Config {
                         durable_name: Some(durable_name.clone()),
+                        filter_subject: task_subject,
                         ..Default::default()
                     },
                 )
@@ -180,8 +191,12 @@ impl TaskBus for NatsTaskBus {
     fn publish_cancel(&self, task_id: &str) -> Result<(), String> {
         let nats_url = self.nats_url.clone();
         let subject = self.cancel_subject.clone();
-        let payload = json!({ "task_id": task_id, "ts_ms": now_epoch_ms() });
-        let raw = serde_json::to_vec(&payload).map_err(|err| format!("nats_cancel_encode:{err}"))?;
+        let payload = TaskCancelEnvelope {
+            task_id: clean_id(task_id),
+            ts_ms: now_epoch_ms(),
+        };
+        let raw =
+            serde_json::to_vec(&payload).map_err(|err| format!("nats_cancel_encode:{err}"))?;
         self.runtime.block_on(async move {
             let client = async_nats::connect(nats_url)
                 .await
@@ -196,9 +211,62 @@ impl TaskBus for NatsTaskBus {
             Ok::<(), String>(())
         })
     }
+
+    fn pull_cancelled(&self, max_messages: usize, wait_ms: u64) -> Result<Vec<String>, String> {
+        let nats_url = self.nats_url.clone();
+        let stream_name = self.stream_name.clone();
+        let durable_name = self.cancel_durable_name.clone();
+        let cancel_subject = self.cancel_subject.clone();
+        self.runtime.block_on(async move {
+            let client = async_nats::connect(nats_url)
+                .await
+                .map_err(|err| format!("nats_connect_failed:{err}"))?;
+            let context = jetstream::new(client);
+            let stream = context
+                .get_stream(stream_name)
+                .await
+                .map_err(|err| format!("nats_get_stream_failed:{err}"))?;
+            let consumer = stream
+                .get_or_create_consumer(
+                    durable_name.as_str(),
+                    pull::Config {
+                        durable_name: Some(durable_name.clone()),
+                        filter_subject: cancel_subject,
+                        ..Default::default()
+                    },
+                )
+                .await
+                .map_err(|err| format!("nats_cancel_consumer_create_failed:{err}"))?;
+            let mut messages = consumer
+                .fetch()
+                .max_messages(max_messages)
+                .expires(Duration::from_millis(wait_ms))
+                .messages()
+                .await
+                .map_err(|err| format!("nats_cancel_fetch_failed:{err}"))?;
+            let mut ids = Vec::<String>::new();
+            while let Some(next) = messages.next().await {
+                let message = next.map_err(|err| format!("nats_cancel_message_failed:{err}"))?;
+                if let Ok(parsed) = serde_json::from_slice::<TaskCancelEnvelope>(&message.payload) {
+                    let clean = clean_id(&parsed.task_id);
+                    if !clean.is_empty() && !ids.iter().any(|row| row == &clean) {
+                        ids.push(clean);
+                    }
+                }
+                message
+                    .ack()
+                    .await
+                    .map_err(|err| format!("nats_cancel_ack_failed:{err}"))?;
+            }
+            Ok::<Vec<String>, String>(ids)
+        })
+    }
 }
 
-fn build_task_bus(root: &Path, flags: &BTreeMap<String, String>) -> (Box<dyn TaskBus>, Vec<String>) {
+fn build_task_bus(
+    root: &Path,
+    flags: &BTreeMap<String, String>,
+) -> (Box<dyn TaskBus>, Vec<String>) {
     let paths = task_paths(root);
     let mut notes = Vec::<String>::new();
     let explicit_bus = parse_non_empty(flags, "bus")
@@ -209,7 +277,8 @@ fn build_task_bus(root: &Path, flags: &BTreeMap<String, String>) -> (Box<dyn Tas
         return (Box::new(LocalFileTaskBus::new(paths)), notes);
     }
 
-    let nats_url = std::env::var(TASK_NATS_URL_ENV).unwrap_or_else(|_| DEFAULT_NATS_URL.to_string());
+    let nats_url =
+        std::env::var(TASK_NATS_URL_ENV).unwrap_or_else(|_| DEFAULT_NATS_URL.to_string());
     let stream_name =
         std::env::var(TASK_NATS_STREAM_ENV).unwrap_or_else(|_| DEFAULT_NATS_STREAM.to_string());
     let task_subject =

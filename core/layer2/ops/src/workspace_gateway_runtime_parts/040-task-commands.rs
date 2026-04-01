@@ -100,7 +100,10 @@ fn list_tasks(root: &Path, parsed: &ParsedCli) -> i32 {
     let registry = match load_registry(&paths) {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "type": "task_list_error", "error": err }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "type": "task_list_error", "error": err })
+            );
             return 1;
         }
     };
@@ -126,7 +129,10 @@ fn status_task(root: &Path, parsed: &ParsedCli) -> i32 {
     let registry = match load_registry(&paths) {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "type": "task_status_error", "error": err }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "type": "task_status_error", "error": err })
+            );
             return 1;
         }
     };
@@ -139,7 +145,10 @@ fn status_task(root: &Path, parsed: &ParsedCli) -> i32 {
         let found = registry.tasks.into_iter().find(|row| row.id == ticket_id);
         match found {
             Some(task) => {
-                println!("{}", json!({ "ok": true, "type": "task_status", "task": task }));
+                println!(
+                    "{}",
+                    json!({ "ok": true, "type": "task_status", "task": task })
+                );
                 0
             }
             None => {
@@ -201,7 +210,10 @@ fn cancel_task(root: &Path, parsed: &ParsedCli) -> i32 {
     let mut registry = match load_registry(&paths) {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("{}", json!({ "ok": false, "type": "task_cancel_error", "error": err }));
+            eprintln!(
+                "{}",
+                json!({ "ok": false, "type": "task_cancel_error", "error": err })
+            );
             return 1;
         }
     };
@@ -213,11 +225,17 @@ fn cancel_task(root: &Path, parsed: &ParsedCli) -> i32 {
         row.updated_at_ms = now_epoch_ms();
     }
     if let Err(err) = save_registry(&paths, &registry) {
-        eprintln!("{}", json!({ "ok": false, "type": "task_cancel_error", "error": err }));
+        eprintln!(
+            "{}",
+            json!({ "ok": false, "type": "task_cancel_error", "error": err })
+        );
         return 1;
     }
     if let Err(err) = save_cancelled_set(&paths, &cancelled) {
-        eprintln!("{}", json!({ "ok": false, "type": "task_cancel_error", "error": err }));
+        eprintln!(
+            "{}",
+            json!({ "ok": false, "type": "task_cancel_error", "error": err })
+        );
         return 1;
     }
     let (bus, notes) = build_task_bus(root, &parsed.flags);
@@ -239,7 +257,12 @@ fn cancel_task(root: &Path, parsed: &ParsedCli) -> i32 {
     0
 }
 
-fn set_record_status(paths: &TaskPaths, task_id: &str, status: &str, progress: u8) -> Result<(), String> {
+fn set_record_status(
+    paths: &TaskPaths,
+    task_id: &str,
+    status: &str,
+    progress: u8,
+) -> Result<(), String> {
     let mut registry = load_registry(paths)?;
     let now = now_epoch_ms();
     if let Some(record) = find_record_mut(&mut registry, task_id) {
@@ -262,6 +285,47 @@ fn complete_record(paths: &TaskPaths, task_id: &str, result: TaskResult) -> Resu
         record.result = Some(result);
     }
     save_registry(paths, &registry)
+}
+
+fn apply_bus_cancellations(
+    paths: &TaskPaths,
+    bus: &dyn TaskBus,
+    wait_ms: u64,
+) -> Result<usize, String> {
+    let received = bus.pull_cancelled(64, wait_ms)?;
+    if received.is_empty() {
+        return Ok(0);
+    }
+    let mut registry = load_registry(paths)?;
+    let mut cancelled = load_cancelled_set(paths)?;
+    let mut applied = 0usize;
+    let now = now_epoch_ms();
+    for task_id in received {
+        let clean = clean_id(&task_id);
+        if clean.is_empty() || !cancelled.insert(clean.clone()) {
+            continue;
+        }
+        if let Some(record) = find_record_mut(&mut registry, &clean) {
+            record.status = "cancelled".to_string();
+            record.cancelled = true;
+            record.updated_at_ms = now;
+        }
+        applied = applied.saturating_add(1);
+    }
+    if applied > 0 {
+        save_cancelled_set(paths, &cancelled)?;
+        save_registry(paths, &registry)?;
+        let _ = emit_event(
+            paths,
+            "task_cancel_sync",
+            json!({
+                "cancelled_count": applied,
+                "bus_mode": bus.mode(),
+                "ts_ms": now
+            }),
+        );
+    }
+    Ok(applied)
 }
 
 fn process_task(paths: &TaskPaths, payload: &TaskPayload) -> Result<(), String> {
@@ -314,143 +378,4 @@ fn process_task(paths: &TaskPaths, payload: &TaskPayload) -> Result<(), String> 
     complete_record(paths, &payload.id, result.clone())?;
     emit_final_result(paths, &result)?;
     Ok(())
-}
-
-fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
-    let paths = task_paths(root);
-    if let Err(err) = ensure_task_state(&paths) {
-        eprintln!("{}", json!({ "ok": false, "type": "task_worker_error", "error": err }));
-        return 1;
-    }
-    let max_tasks = parse_u64_flag(&parsed.flags, "max-tasks", 0) as usize;
-    let wait_ms = parse_u64_flag(&parsed.flags, "wait-ms", DEFAULT_WORKER_MIN_POLL_MS)
-        .clamp(DEFAULT_WORKER_MIN_POLL_MS, DEFAULT_WORKER_MAX_POLL_MS);
-    let idle_hibernate_ms = parse_u64_flag(
-        &parsed.flags,
-        "idle-hibernate-ms",
-        DEFAULT_WORKER_IDLE_HIBERNATE_MS,
-    )
-    .clamp(1_000, 900_000);
-    let service_mode = parse_bool_flag(&parsed.flags, "service", max_tasks == 0);
-    let (bus, notes) = build_task_bus(root, &parsed.flags);
-    let worker_id = Uuid::new_v4().to_string();
-    let _ = mark_worker_started(&paths, &worker_id, bus.mode(), service_mode);
-    let mut processed = 0usize;
-    let mut polls = 0usize;
-    let mut hibernated = false;
-    let mut idle_since_ms = now_epoch_ms();
-    let mut poll_wait_ms = wait_ms;
-    loop {
-        if max_tasks > 0 && processed >= max_tasks {
-            break;
-        }
-        let batch = match bus.dequeue(1, poll_wait_ms) {
-            Ok(rows) => rows,
-            Err(err) => {
-                eprintln!(
-                    "{}",
-                    json!({ "ok": false, "type": "task_worker_error", "error": err, "bus_mode": bus.mode() })
-                );
-                return 1;
-            }
-        };
-        if batch.is_empty() {
-            polls += 1;
-            let now = now_epoch_ms();
-            let idle_ms = now.saturating_sub(idle_since_ms);
-            let _ = mark_worker_poll(&paths, &worker_id, true, poll_wait_ms);
-            if service_mode {
-                if idle_ms >= idle_hibernate_ms {
-                    hibernated = true;
-                    let _ = mark_worker_hibernated(&paths, &worker_id, idle_ms, processed);
-                    break;
-                }
-                poll_wait_ms = poll_wait_ms
-                    .saturating_mul(2)
-                    .clamp(DEFAULT_WORKER_MIN_POLL_MS, DEFAULT_WORKER_MAX_POLL_MS);
-                continue;
-            }
-            break;
-        }
-        idle_since_ms = now_epoch_ms();
-        poll_wait_ms = wait_ms;
-        let _ = mark_worker_poll(&paths, &worker_id, false, poll_wait_ms);
-        for payload in batch {
-            if let Err(err) = process_task(&paths, &payload) {
-                eprintln!(
-                    "{}",
-                    json!({
-                        "ok": false,
-                        "type": "task_worker_task_error",
-                        "error": err,
-                        "task_id": payload.id
-                    })
-                );
-                return 1;
-            }
-            processed += 1;
-        }
-    }
-    if !hibernated {
-        let _ = mark_worker_stopped(&paths, &worker_id, processed);
-    }
-    println!(
-        "{}",
-        json!({
-            "ok": true,
-            "type": "task_worker",
-            "processed": processed,
-            "polls": polls,
-            "hibernated": hibernated,
-            "service_mode": service_mode,
-            "idle_hibernate_ms": idle_hibernate_ms,
-            "bus_mode": bus.mode(),
-            "notes": notes
-        })
-    );
-    0
-}
-
-fn run_slow_test(root: &Path, parsed: &ParsedCli) -> i32 {
-    let paths = task_paths(root);
-    let _ = ensure_task_state(&paths);
-    let _ = write_queue_rows(&paths.queue_jsonl, &[]);
-
-    let seconds = parse_u64_flag(&parsed.flags, "seconds", 30);
-    let interval_seconds = parse_u64_flag(&parsed.flags, "progress-interval-seconds", 5).max(1);
-    let mut submit_flags = parsed.flags.clone();
-    submit_flags
-        .entry("kind".to_string())
-        .or_insert_with(|| "slow-analysis".to_string());
-    submit_flags.insert("estimated-seconds".to_string(), seconds.to_string());
-    submit_flags.insert(
-        "steps".to_string(),
-        ((seconds / interval_seconds).max(1)).to_string(),
-    );
-    let submit = ParsedCli {
-        positional: Vec::new(),
-        flags: submit_flags,
-    };
-    let submit_exit = submit_task(root, &submit);
-    if submit_exit != 0 {
-        return submit_exit;
-    }
-    let worker_flags = BTreeMap::from([
-        ("max-tasks".to_string(), "1".to_string()),
-        (
-            "wait-ms".to_string(),
-            (interval_seconds.saturating_mul(1000)).to_string(),
-        ),
-        (
-            "bus".to_string(),
-            parse_non_empty(&parsed.flags, "bus").unwrap_or_else(|| "auto".to_string()),
-        ),
-    ]);
-    run_worker(
-        root,
-        &ParsedCli {
-            positional: Vec::new(),
-            flags: worker_flags,
-        },
-    )
 }

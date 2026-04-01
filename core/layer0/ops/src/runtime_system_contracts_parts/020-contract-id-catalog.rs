@@ -226,6 +226,46 @@ const V6_INFRING_DETACH_001_IDS: &[&str] = &[
     "V6-INFRING-DETACH-001.4",
 ];
 
+const V6_DASHBOARD_007_IDS: &[&str] = &[
+    "V6-DASHBOARD-007.1",
+    "V6-DASHBOARD-007.2",
+    "V6-DASHBOARD-007.3",
+    "V6-DASHBOARD-007.4",
+    "V6-DASHBOARD-007.5",
+    "V6-DASHBOARD-007.6",
+    "V6-DASHBOARD-007.7",
+    "V6-DASHBOARD-007.8",
+];
+
+const V6_DASHBOARD_008_IDS: &[&str] = &[
+    "V6-DASHBOARD-008.1",
+    "V6-DASHBOARD-008.2",
+    "V6-DASHBOARD-008.3",
+    "V6-DASHBOARD-008.4",
+];
+
+const V6_DASHBOARD_009_IDS: &[&str] = &[
+    "V6-DASHBOARD-009.1",
+    "V6-DASHBOARD-009.2",
+];
+
+const V6_INFRING_GAP_001_IDS: &[&str] = &[
+    "V6-INFRING-GAP-001.1",
+    "V6-INFRING-GAP-001.2",
+    "V6-INFRING-GAP-001.3",
+    "V6-INFRING-GAP-001.4",
+    "V6-INFRING-GAP-001.5",
+];
+
+const V10_PERF_001_IDS: &[&str] = &[
+    "V10-PERF-001.1",
+    "V10-PERF-001.2",
+    "V10-PERF-001.3",
+    "V10-PERF-001.4",
+    "V10-PERF-001.5",
+    "V10-PERF-001.6",
+];
+
 const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
     RuntimeSystemContractFamily {
         ids: ACT_IDS,
@@ -357,5 +397,29 @@ const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
         family: "infring_detachment_stack",
         objective: "assimilate_infring_nursery_and_operator_state_into_infring_owned_runtime_surfaces_with_no_external_dependency",
     },
+    RuntimeSystemContractFamily {
+        ids: V6_DASHBOARD_007_IDS,
+        family: "dashboard_runtime_resilience",
+        objective: "stabilize attention_queue_conduit_and_cockpit_with_predictive_backpressure_and_autoheal",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_DASHBOARD_008_IDS,
+        family: "dashboard_auto_route_contracts",
+        objective: "wire_per_turn_auto_routing_with_visible_metadata_and_receipt_coupling",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_DASHBOARD_009_IDS,
+        family: "dashboard_render_boot_contracts",
+        objective: "harden_message_grouping_and_boot_retry_status_for_operator_trust",
+    },
+    RuntimeSystemContractFamily {
+        ids: V6_INFRING_GAP_001_IDS,
+        family: "openclaw_parity_gap_closure",
+        objective: "close_runtime_http_channel_security_and_hands_parity_gaps_in_rust_authority",
+    },
+    RuntimeSystemContractFamily {
+        ids: V10_PERF_001_IDS,
+        family: "performance_engine_contracts",
+        objective: "protect_throughput_with_batching_simd_lockfree_pgo_allocator_and_regression_guardrails",
+    },
 ];
-

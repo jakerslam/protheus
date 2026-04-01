@@ -11,17 +11,18 @@ const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
 const DASHBOARD_DIR = __dirname;
 const CANONICAL_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'infring_static');
-const LEGACY_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'legacy_dashboard');
 const SVELTEKIT_MODULE_DIR = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit');
 const SVELTEKIT_BUILD_DIR = path.resolve(SVELTEKIT_MODULE_DIR, 'build');
 const SVELTEKIT_INDEX_PATH = path.resolve(SVELTEKIT_BUILD_DIR, 'index.html');
-const STATIC_DIR = resolvePrimaryStaticDir();
+const STATIC_DIR = CANONICAL_STATIC_DIR;
 const FORBIDDEN_ALT_DASHBOARD_DIRS = [
-  LEGACY_STATIC_DIR,
+  path.resolve(DASHBOARD_DIR, 'legacy_dashboard'),
+  path.resolve(DASHBOARD_DIR, 'openfang_dashboard'),
+  path.resolve(DASHBOARD_DIR, 'openclaw_dashboard'),
   path.resolve(DASHBOARD_DIR, 'dashboard_legacy'),
   path.resolve(DASHBOARD_DIR, 'deprecated_dashboard'),
 ];
-const SIBLING_ALT_DASHBOARD_PATTERN = /(dashboard|legacy|infring|svelte)/i;
+const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|openfang|openclaw|deprecated)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
@@ -32,13 +33,6 @@ const DEFAULT_BACKEND_READY_TIMEOUT_MS = 120000;
 const BACKEND_PORT_OFFSET = 1000;
 const HOP_BY_HOP = new Set(['connection', 'host', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']);
 
-function resolvePrimaryStaticDir() {
-  const candidates = [CANONICAL_STATIC_DIR, LEGACY_STATIC_DIR];
-  for (const dirPath of candidates) {
-    if (hasPrimaryDashboardUi(dirPath)) return dirPath;
-  }
-  return CANONICAL_STATIC_DIR;
-}
 function hasSvelteKitBuild() {
   try {
     return fs.statSync(SVELTEKIT_INDEX_PATH).isFile();

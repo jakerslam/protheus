@@ -41,25 +41,45 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .flags
                 .get("title")
                 .map(|v| clean_text(v, 180))
-                .or_else(|| payload.get("title").and_then(Value::as_str).map(|v| clean_text(v, 180)))
+                .or_else(|| {
+                    payload
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .map(|v| clean_text(v, 180))
+                })
                 .unwrap_or_else(|| "Decision".to_string());
             let reason = parsed
                 .flags
                 .get("reason")
                 .map(|v| clean_text(v, 260))
-                .or_else(|| payload.get("reason").and_then(Value::as_str).map(|v| clean_text(v, 260)))
+                .or_else(|| {
+                    payload
+                        .get("reason")
+                        .and_then(Value::as_str)
+                        .map(|v| clean_text(v, 260))
+                })
                 .unwrap_or_default();
             let verify = parsed
                 .flags
                 .get("verify")
                 .map(|v| clean_text(v, 260))
-                .or_else(|| payload.get("verify").and_then(Value::as_str).map(|v| clean_text(v, 260)))
+                .or_else(|| {
+                    payload
+                        .get("verify")
+                        .and_then(Value::as_str)
+                        .map(|v| clean_text(v, 260))
+                })
                 .unwrap_or_default();
             let rollback = parsed
                 .flags
                 .get("rollback")
                 .map(|v| clean_text(v, 260))
-                .or_else(|| payload.get("rollback").and_then(Value::as_str).map(|v| clean_text(v, 260)))
+                .or_else(|| {
+                    payload
+                        .get("rollback")
+                        .and_then(Value::as_str)
+                        .map(|v| clean_text(v, 260))
+                })
                 .unwrap_or_default();
             let details = details_from_flag_or_payload(&parsed, &payload);
             let path = decision_log_path(&openclaw_root, &parsed);
@@ -134,7 +154,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Ok(run_trace_find(&openclaw_root, &trace_id, limit))
             }
         }
-        "sync-allowed-models" | "sync-allowlist" => run_sync_allowed_models(&openclaw_root, &parsed),
+        "sync-allowed-models" | "sync-allowlist" => {
+            run_sync_allowed_models(&openclaw_root, &parsed)
+        }
         "smoke-routing" => Ok(run_smoke_routing(&openclaw_root, &parsed)),
         "spawn-safe" => {
             let require_plan = bool_flag(&parsed.flags, "require-plan", false);
@@ -145,7 +167,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "auto-spawn" => run_auto_spawn(&openclaw_root, &parsed, &payload),
         "execute-handoff" => run_execute_handoff(&openclaw_root, &parsed, &payload),
         "safe-run" | "openclaw-safe" | "watch-exec" => run_safe_run(root, &openclaw_root, &parsed),
-        "openclaw-health" | "safe-health" | "health" => Ok(run_openclaw_health(&openclaw_root, &parsed)),
+        "openclaw-health" | "safe-health" | "health" => {
+            Ok(run_openclaw_health(&openclaw_root, &parsed))
+        }
         "cron-drift" => {
             let workspace_root = workspace_root(root, &parsed);
             Ok(run_cron_drift(&openclaw_root, &workspace_root))
@@ -271,7 +295,10 @@ mod tests {
         });
         let result = run_plan_validate(&plan);
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap_or_default(), "plan_high_risk_requires_rollback");
+        assert_eq!(
+            result.err().unwrap_or_default(),
+            "plan_high_risk_requires_rollback"
+        );
     }
 
     #[test]
@@ -314,10 +341,7 @@ mod tests {
         });
         let out = build_spawn_packet(temp.path(), &parsed, &payload, false, false);
         assert!(out.is_err());
-        assert_eq!(
-            out.err().unwrap_or_default(),
-            "tags_len_out_of_range:3-6"
-        );
+        assert_eq!(out.err().unwrap_or_default(), "tags_len_out_of_range:3-6");
     }
 
     #[test]
@@ -334,5 +358,33 @@ mod tests {
             out.err().unwrap_or_default(),
             "plan_required_for_high_risk_tags"
         );
+    }
+
+    #[test]
+    fn safe_apply_backup_paths_preserve_directory_structure() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path();
+        let backup_dir = root.join("backups").join("snapshot");
+        let a = root.join("dir-a/config.json");
+        let b = root.join("dir-b/config.json");
+        let pa = safe_apply_backup_path(root, &backup_dir, &a);
+        let pb = safe_apply_backup_path(root, &backup_dir, &b);
+        assert_ne!(pa, pb);
+        assert!(pa.ends_with(Path::new("dir-a/config.json")));
+        assert!(pb.ends_with(Path::new("dir-b/config.json")));
+    }
+
+    #[test]
+    fn safe_run_command_key_tracks_multiple_args() {
+        let domain = "models";
+        let args = vec![
+            "list".to_string(),
+            "--provider=openrouter".to_string(),
+            "--region=us".to_string(),
+        ];
+        let key = safe_run_command_key(domain, &args);
+        assert!(key.starts_with("models list"));
+        assert!(key.contains("--provider=openrouter"));
+        assert!(key.contains("--region=us"));
     }
 }

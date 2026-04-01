@@ -102,14 +102,88 @@ fn sorted_tasks_desc(tasks: &[TaskRecord]) -> Vec<TaskRecord> {
     rows
 }
 
-fn verity_receipt(event_type: &str, payload: &Value) -> Value {
-    // TEMPORARY SCAFFOLDING — NATS JetStream. To be replaced with native InfRing task ions built from baryons later.
+fn receipt_round4(value: f64) -> f64 {
+    (value * 10_000.0).round() / 10_000.0
+}
+
+fn payload_timestamp_ms(payload: &Value) -> u64 {
+    payload
+        .get("ts_ms")
+        .and_then(Value::as_u64)
+        .or_else(|| payload.get("completed_at_ms").and_then(Value::as_u64))
+        .or_else(|| payload.get("created_at_ms").and_then(Value::as_u64))
+        .unwrap_or_else(now_epoch_ms)
+}
+
+fn read_last_receipt_state(path: &Path) -> Option<(String, f64)> {
+    let raw = fs::read_to_string(path).ok()?;
+    for line in raw.lines().rev() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(row) = serde_json::from_str::<Value>(trimmed) {
+            let hash = row
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .map(clean_id)
+                .unwrap_or_default();
+            if hash.is_empty() {
+                continue;
+            }
+            let fidelity = row
+                .get("fidelity_score")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0);
+            return Some((hash, fidelity.clamp(0.0, 1.0)));
+        }
+    }
+    None
+}
+
+fn target_fidelity_for_event(event_type: &str, payload: &Value) -> f64 {
+    match event_type {
+        "task_progress" => {
+            let progress = payload
+                .get("progress_percent")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                .min(100) as f64;
+            receipt_round4((0.85 + (progress / 100.0) * 0.15).clamp(0.0, 1.0))
+        }
+        "task_result" => {
+            let status = payload
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if status == "done" {
+                1.0
+            } else if status == "cancelled" {
+                0.95
+            } else {
+                0.8
+            }
+        }
+        _ => 0.9,
+    }
+}
+
+fn verity_receipt(paths: &TaskPaths, event_type: &str, payload: &Value) -> Value {
+    let now = now_epoch_ms();
+    let (parent_hash, previous_fidelity) = read_last_receipt_state(&paths.receipts_jsonl)
+        .unwrap_or_else(|| ("genesis".to_string(), 1.0));
+    let fidelity_score = target_fidelity_for_event(event_type, payload);
+    let drift_delta = receipt_round4(fidelity_score - previous_fidelity);
+    let timestamp_drift_ms = now.abs_diff(payload_timestamp_ms(payload));
     let mut receipt = json!({
         "type": "task_verity_receipt",
         "event_type": event_type,
-        "ts_ms": now_epoch_ms(),
-        "fidelity_score": 1.0,
-        "drift_delta": 0.0,
+        "ts_ms": now,
+        "parent_receipt_hash": parent_hash,
+        "fidelity_score": fidelity_score,
+        "drift_delta": drift_delta,
+        "timestamp_drift_ms": timestamp_drift_ms,
         "payload": payload
     });
     receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
@@ -139,7 +213,7 @@ fn emit_conduit_update(paths: &TaskPaths, update: &ProgressUpdate) -> Result<(),
         "ts_ms": update.ts_ms
     });
     append_jsonl(&paths.conduit_jsonl, &payload)?;
-    let receipt = verity_receipt("task_progress", &payload);
+    let receipt = verity_receipt(paths, "task_progress", &payload);
     append_jsonl(&paths.receipts_jsonl, &receipt)?;
     println!("{}", payload);
     println!("{}", receipt);
@@ -157,7 +231,7 @@ fn emit_final_result(paths: &TaskPaths, result: &TaskResult) -> Result<(), Strin
         "duration_ms": result.duration_ms
     });
     append_jsonl(&paths.conduit_jsonl, &payload)?;
-    let receipt = verity_receipt("task_result", &payload);
+    let receipt = verity_receipt(paths, "task_result", &payload);
     append_jsonl(&paths.receipts_jsonl, &receipt)?;
     println!("{}", payload);
     println!("{}", receipt);
@@ -182,7 +256,11 @@ fn mark_worker_started(
     service_mode: bool,
 ) -> Result<(), String> {
     let mut state = load_worker_state(paths)?;
-    if !state.get("active_workers").map(Value::is_object).unwrap_or(false) {
+    if !state
+        .get("active_workers")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         state["active_workers"] = json!({});
     }
     let now = now_epoch_ms();
@@ -234,7 +312,10 @@ fn mark_worker_hibernated(
 ) -> Result<(), String> {
     let mut state = load_worker_state(paths)?;
     let now = now_epoch_ms();
-    if let Some(active) = state.get_mut("active_workers").and_then(Value::as_object_mut) {
+    if let Some(active) = state
+        .get_mut("active_workers")
+        .and_then(Value::as_object_mut)
+    {
         active.remove(worker_id);
     } else {
         state["active_workers"] = json!({});
@@ -265,7 +346,10 @@ fn mark_worker_hibernated(
 fn mark_worker_stopped(paths: &TaskPaths, worker_id: &str, processed: usize) -> Result<(), String> {
     let mut state = load_worker_state(paths)?;
     let now = now_epoch_ms();
-    if let Some(active) = state.get_mut("active_workers").and_then(Value::as_object_mut) {
+    if let Some(active) = state
+        .get_mut("active_workers")
+        .and_then(Value::as_object_mut)
+    {
         active.remove(worker_id);
     } else {
         state["active_workers"] = json!({});

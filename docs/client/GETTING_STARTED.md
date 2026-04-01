@@ -7,6 +7,20 @@ InfRing runs with a Rust core and a thin TypeScript surface routed through condu
 ### macOS / Linux
 
 ```bash
+curl -fsSL https://get.protheus.ai/install | sh
+infring --help
+```
+
+Direct script path:
+
+```bash
+curl -fsSL https://get.protheus.ai/install.sh | sh
+infring --help
+```
+
+Canonical source mirror:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh && . "$HOME/.infring/env.sh" && infring gateway
 ```
 

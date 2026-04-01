@@ -3,4 +3,5 @@ include!("workspace_gateway_runtime_parts/010-task-types-and-config.rs");
 include!("workspace_gateway_runtime_parts/020-task-state-and-receipts.rs");
 include!("workspace_gateway_runtime_parts/030-task-bus.rs");
 include!("workspace_gateway_runtime_parts/040-task-commands.rs");
+include!("workspace_gateway_runtime_parts/041-worker-and-slow-test.rs");
 include!("workspace_gateway_runtime_parts/050-run-and-tests.rs");
