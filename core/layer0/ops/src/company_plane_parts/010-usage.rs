@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops::company_plane (authoritative)
+// SRS coverage marker: V4-DUAL-GOV-003
 
 use crate::v8_kernel::{
     append_jsonl, attach_conduit, build_plane_conduit_enforcement, conduit_bypass_requested,
@@ -269,6 +270,126 @@ fn heartbeat_state_path(root: &Path, team: &str) -> PathBuf {
 
 fn heartbeat_remote_feed_path(root: &Path) -> PathBuf {
     state_root(root).join("heartbeat").join("remote_feed.json")
+}
+
+fn as_f64(value: Option<&Value>, fallback: f64) -> f64 {
+    value.and_then(Value::as_f64).unwrap_or(fallback)
+}
+
+fn company_duality_clearance_tier(toll: &Value, harmony: f64) -> i64 {
+    let hard_block = toll
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if hard_block {
+        return 1;
+    }
+    let debt_after = as_f64(toll.get("debt_after"), 0.0).clamp(0.0, 100.0);
+    if debt_after >= 0.75 {
+        2
+    } else if debt_after <= 0.2 && harmony >= 0.85 {
+        4
+    } else {
+        3
+    }
+}
+
+fn load_duality_state_snapshot(root: &Path) -> Value {
+    crate::duality_seed::invoke(root, "loadDualityState", None).unwrap_or_else(|_| json!({}))
+}
+
+fn company_heartbeat_duality_snapshot(
+    root: &Path,
+    team: &str,
+    sequence: u64,
+    status: &str,
+    agents_online: u64,
+    queue_depth: u64,
+    persist: bool,
+) -> Value {
+    let run_id = format!("company-heartbeat-{team}-{sequence}");
+    let context = json!({
+        "lane": "weaver_arbitration",
+        "source": "company_heartbeat",
+        "run_id": run_id,
+        "team": team,
+        "status": status,
+        "agents_online": agents_online,
+        "queue_depth": queue_depth
+    });
+
+    let evaluation = match crate::duality_seed::invoke(
+        root,
+        "duality_evaluate",
+        Some(&json!({
+            "context": context,
+            "opts": {
+                "persist": persist,
+                "source": "company_heartbeat",
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "company_heartbeat_duality",
+                "error": format!("duality_evaluate_failed:{err}")
+            });
+        }
+    };
+
+    let toll_update = match crate::duality_seed::invoke(
+        root,
+        "duality_toll_update",
+        Some(&json!({
+            "context": {
+                "lane": "weaver_arbitration",
+                "source": "company_heartbeat",
+                "run_id": run_id,
+                "team": team,
+                "status": status
+            },
+            "signal": evaluation.clone(),
+            "opts": {
+                "persist": persist,
+                "source": "company_heartbeat",
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "company_heartbeat_duality",
+                "evaluation": evaluation,
+                "error": format!("duality_toll_update_failed:{err}")
+            });
+        }
+    };
+
+    let toll = toll_update.get("toll").cloned().unwrap_or_else(|| json!({}));
+    let harmony = as_f64(evaluation.get("zero_point_harmony_potential"), 0.0).clamp(0.0, 1.0);
+    let debt_after = as_f64(toll.get("debt_after"), 0.0).clamp(0.0, 100.0);
+    let recommended_clearance_tier = company_duality_clearance_tier(&toll, harmony);
+    let hard_block = toll
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    json!({
+        "ok": true,
+        "type": "company_heartbeat_duality",
+        "run_id": run_id,
+        "evaluation": evaluation,
+        "toll": toll,
+        "state": toll_update.get("state").cloned().unwrap_or(Value::Null),
+        "hard_block": hard_block,
+        "recommended_clearance_tier": recommended_clearance_tier,
+        "fractal_balance_score": ((harmony * (1.0 - debt_after.min(1.0))) * 1_000_000.0).round() / 1_000_000.0
+    })
 }
 
 fn ensure_ticket_ledger_shape(v: &mut Value) {

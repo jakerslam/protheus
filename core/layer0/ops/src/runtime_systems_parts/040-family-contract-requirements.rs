@@ -41,6 +41,17 @@ fn family_contract_requirements(family: &str) -> FamilyContractRequirements {
                 ("checkpoint_interval_minutes", 2.0),
             ],
         },
+        "duality_resilience_stack" => FamilyContractRequirements {
+            required_true: &[
+                "duality_bundle_emitted",
+                "toll_prediction_enabled",
+                "macro_composition_enabled",
+                "dual_memory_tagging_enabled",
+                "inversion_candidate_tagging_enabled",
+            ],
+            min_values: &[("harmony_score", 0.5), ("fractal_balance_score", 0.5)],
+            max_values: &[("harmony_score", 1.0), ("fractal_balance_score", 1.0)],
+        },
         "autonomy_opportunity_engine" => FamilyContractRequirements {
             required_true: &[
                 "opportunity_discovery_engine",
@@ -397,6 +408,25 @@ fn family_contract_requirements(family: &str) -> FamilyContractRequirements {
             ],
             min_values: &[("cold_start_guard_ms", 1.0)],
             max_values: &[("cold_start_guard_ms", 120000.0)],
+        },
+        "infring_assimilation_stack" => FamilyContractRequirements {
+            required_true: &[
+                "provider_agnostic_driver_enabled",
+                "context_budget_compaction_enabled",
+                "websocket_streaming_enabled",
+                "taint_tracking_enabled",
+                "merkle_audit_chain_enabled",
+                "manifest_signing_enabled",
+                "ssrf_deny_paths_enabled",
+                "hands_registry_enabled",
+                "skills_promotion_pipeline_enabled",
+                "hands_fail_closed_enabled",
+            ],
+            min_values: &[
+                ("llm_driver_registry_count", 1.0),
+                ("http_api_endpoints_count", 1.0),
+            ],
+            max_values: EMPTY_NUM_GATES,
         },
         "infring_detachment_stack" => FamilyContractRequirements {
             required_true: &[
