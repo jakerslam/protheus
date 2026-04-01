@@ -495,8 +495,75 @@ fn memory_kv_pairs_from_state(state: &Value) -> Vec<Value> {
     out
 }
 
+fn memory_value_timestamp(value: &Value) -> Option<DateTime<Utc>> {
+    if let Some(raw) = value
+        .get("captured_at")
+        .or_else(|| value.get("updated_at"))
+        .or_else(|| value.get("ts"))
+    {
+        if let Some(text) = raw.as_str() {
+            if let Some(parsed) = parse_rfc3339_utc(text) {
+                return Some(parsed);
+            }
+        } else if let Some(ms) = raw.as_i64() {
+            if let Some(parsed) = DateTime::<Utc>::from_timestamp_millis(ms) {
+                return Some(parsed);
+            }
+        }
+    }
+    None
+}
+
+fn memory_bucket_for_kv(key: &str, value: &Value) -> (&'static str, bool) {
+    let key_lc = clean_text(key, 200).to_ascii_lowercase();
+    let mut pinned = key_lc.starts_with("pin.")
+        || key_lc.contains(".pin.")
+        || key_lc.contains(".pinned")
+        || key_lc.starts_with("fact.")
+        || key_lc.starts_with("profile.")
+        || key_lc.starts_with("preference.")
+        || key_lc.starts_with("identity.")
+        || key_lc.starts_with("user.");
+
+    let mut memory_type = String::new();
+    if let Some(obj) = value.as_object() {
+        if obj.get("pinned").and_then(Value::as_bool).unwrap_or(false) {
+            pinned = true;
+        }
+        memory_type = clean_text(
+            obj.get("memory_type")
+                .or_else(|| obj.get("kind"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            60,
+        );
+        if memory_type.eq_ignore_ascii_case("semantic") {
+            pinned = true;
+        }
+    }
+
+    let bucket = if pinned || memory_type.eq_ignore_ascii_case("semantic") {
+        "semantic"
+    } else {
+        "episodic"
+    };
+    (bucket, pinned)
+}
+
+fn episodic_memory_is_stale(value: &Value, max_age_days: i64) -> bool {
+    let Some(captured_at) = memory_value_timestamp(value) else {
+        return false;
+    };
+    let age_days = Utc::now()
+        .signed_duration_since(captured_at)
+        .num_days()
+        .max(0);
+    age_days > max_age_days.max(1)
+}
+
 fn memory_kv_prompt_context(state: &Value, max_entries: usize) -> String {
-    let mut lines = Vec::<String>::new();
+    let mut semantic_lines = Vec::<String>::new();
+    let mut episodic_lines = Vec::<String>::new();
     let kv_pairs = memory_kv_pairs_from_state(state);
     for row in kv_pairs.into_iter().take(max_entries.max(1)) {
         let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 120);
@@ -512,15 +579,40 @@ fn memory_kv_prompt_context(state: &Value, max_entries: usize) -> String {
         if rendered.is_empty() {
             continue;
         }
-        lines.push(format!("- {key}: {rendered}"));
+        if internal_context_metadata_phrase(&rendered)
+            || persistent_memory_denied_phrase(&rendered)
+            || runtime_access_denied_phrase(&rendered)
+        {
+            continue;
+        }
+        let (bucket, pinned) = memory_bucket_for_kv(&key, &value);
+        if bucket == "episodic" && !pinned && episodic_memory_is_stale(&value, 14) {
+            continue;
+        }
+        let line = format!("- {key}: {rendered}");
+        if bucket == "semantic" {
+            semantic_lines.push(line);
+        } else {
+            episodic_lines.push(line);
+        }
     }
-    if lines.is_empty() {
-        return String::new();
+    semantic_lines.truncate(16);
+    episodic_lines.truncate(8);
+
+    let mut sections = Vec::<String>::new();
+    if !semantic_lines.is_empty() {
+        sections.push(format!(
+            "Pinned semantic memory (stable facts/preferences):\n{}",
+            semantic_lines.join("\n")
+        ));
     }
-    format!(
-        "Persistent memory KV (authoritative):\n{}",
-        lines.join("\n")
-    )
+    if !episodic_lines.is_empty() {
+        sections.push(format!(
+            "Recent episodic memory (working context):\n{}",
+            episodic_lines.join("\n")
+        ));
+    }
+    sections.join("\n\n")
 }
 
 fn session_rows_payload(state: &Value) -> Vec<Value> {
@@ -1377,6 +1469,155 @@ fn append_turn_message(
     receipt
 }
 
+fn rollback_last_turn(root: &Path, agent_id: &str) -> Value {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return json!({"ok": false, "error": "agent_id_required"});
+    }
+    let mut state = load_session_state(root, &id);
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    let mut removed = Vec::<Value>::new();
+    let mut before_messages = 0usize;
+    let mut after_messages = 0usize;
+    let mut rollback_id = String::new();
+    if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
+        for row in rows.iter_mut() {
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            if sid != active_id {
+                continue;
+            }
+            if !row.get("messages").map(Value::is_array).unwrap_or(false) {
+                row["messages"] = Value::Array(Vec::new());
+            }
+            let messages = row
+                .get_mut("messages")
+                .and_then(Value::as_array_mut)
+                .expect("messages");
+            before_messages = messages.len();
+
+            while messages
+                .last()
+                .map(|entry| {
+                    clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                        .eq_ignore_ascii_case("system")
+                })
+                .unwrap_or(false)
+            {
+                if let Some(last) = messages.pop() {
+                    removed.push(last);
+                }
+            }
+
+            if messages
+                .last()
+                .map(|entry| {
+                    let role =
+                        clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                            .to_ascii_lowercase();
+                    role == "assistant" || role == "agent"
+                })
+                .unwrap_or(false)
+            {
+                if let Some(last) = messages.pop() {
+                    removed.push(last);
+                }
+            }
+
+            if messages
+                .last()
+                .map(|entry| {
+                    clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                        .eq_ignore_ascii_case("user")
+                })
+                .unwrap_or(false)
+            {
+                if let Some(last) = messages.pop() {
+                    removed.push(last);
+                }
+            }
+
+            if removed.is_empty() {
+                if let Some(last) = messages.pop() {
+                    removed.push(last);
+                }
+            }
+
+            after_messages = messages.len();
+            let removed_excerpt = removed
+                .iter()
+                .rev()
+                .map(|entry| {
+                    json!({
+                        "role": clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24),
+                        "text": clean_text(&message_text(entry), 220),
+                        "ts": entry.get("ts").cloned().unwrap_or(Value::Null)
+                    })
+                })
+                .collect::<Vec<_>>();
+            rollback_id = format!(
+                "rbk-{}",
+                &crate::deterministic_receipt_hash(&json!({
+                    "agent_id": id.as_str(),
+                    "removed_count": removed.len(),
+                    "before": before_messages,
+                    "after": after_messages,
+                    "at": crate::now_iso()
+                }))[..12]
+            );
+            if !row
+                .get("rollback_archives")
+                .map(Value::is_array)
+                .unwrap_or(false)
+            {
+                row["rollback_archives"] = Value::Array(Vec::new());
+            }
+            if let Some(archives) = row
+                .get_mut("rollback_archives")
+                .and_then(Value::as_array_mut)
+            {
+                archives.push(json!({
+                    "rollback_id": rollback_id.clone(),
+                    "captured_at": crate::now_iso(),
+                    "removed_count": removed.len(),
+                    "removed_messages": removed_excerpt
+                }));
+                if archives.len() > 24 {
+                    let trim = archives.len().saturating_sub(24);
+                    archives.drain(0..trim);
+                }
+            }
+            row["updated_at"] = Value::String(crate::now_iso());
+            break;
+        }
+    }
+    save_session_state(root, &id, &state);
+    json!({
+        "ok": !removed.is_empty(),
+        "type": "dashboard_agent_session_rollback",
+        "agent_id": id,
+        "rollback_id": rollback_id,
+        "removed_count": removed.len(),
+        "before_messages": before_messages,
+        "after_messages": after_messages,
+        "removed_excerpt": removed
+            .iter()
+            .rev()
+            .map(|entry| clean_text(&message_text(entry), 160))
+            .filter(|text| !text.is_empty())
+            .take(3)
+            .collect::<Vec<_>>()
+    })
+}
+
 fn reset_active_session(root: &Path, agent_id: &str) -> Value {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
@@ -1417,7 +1658,10 @@ fn compaction_message_text(row: &Value) -> String {
     if !text.is_empty() {
         return clean_text(&text, 4000);
     }
-    clean_text(row.get("summary").and_then(Value::as_str).unwrap_or(""), 4000)
+    clean_text(
+        row.get("summary").and_then(Value::as_str).unwrap_or(""),
+        4000,
+    )
 }
 
 fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize) -> Vec<Value> {
@@ -1450,7 +1694,11 @@ fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize)
             }
         }
         let summary = if highlights.is_empty() {
-            format!("Compaction batch {} summarized {} older turns.", idx + 1, chunk.len())
+            format!(
+                "Compaction batch {} summarized {} older turns.",
+                idx + 1,
+                chunk.len()
+            )
         } else {
             highlights.join(" | ")
         };
@@ -1572,17 +1820,28 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                 })
                 .sum::<i64>();
             emitted_keyframes = build_context_keyframes_from_removed(&removed_messages, 8);
-            if !row.get("context_keyframes").map(Value::is_array).unwrap_or(false) {
+            if !row
+                .get("context_keyframes")
+                .map(Value::is_array)
+                .unwrap_or(false)
+            {
                 row["context_keyframes"] = Value::Array(Vec::new());
             }
-            if let Some(keyframes) = row.get_mut("context_keyframes").and_then(Value::as_array_mut) {
+            if let Some(keyframes) = row
+                .get_mut("context_keyframes")
+                .and_then(Value::as_array_mut)
+            {
                 keyframes.extend(emitted_keyframes.clone());
                 if keyframes.len() > 48 {
                     let trim = keyframes.len().saturating_sub(48);
                     keyframes.drain(0..trim);
                 }
             }
-            if !row.get("compaction_archives").map(Value::is_array).unwrap_or(false) {
+            if !row
+                .get("compaction_archives")
+                .map(Value::is_array)
+                .unwrap_or(false)
+            {
                 row["compaction_archives"] = Value::Array(Vec::new());
             }
             let archive_messages = removed_messages
@@ -1611,7 +1870,10 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                 "removed_messages": archive_messages,
                 "keyframes": emitted_keyframes
             });
-            if let Some(archives) = row.get_mut("compaction_archives").and_then(Value::as_array_mut) {
+            if let Some(archives) = row
+                .get_mut("compaction_archives")
+                .and_then(Value::as_array_mut)
+            {
                 archives.push(archive);
                 if archives.len() > 12 {
                     let trim = archives.len().saturating_sub(12);
@@ -1806,6 +2068,336 @@ fn resolve_workspace_path(base: &Path, requested_path: &str) -> Option<PathBuf> 
     Some(candidate_norm)
 }
 
+fn workspace_hint_tokens(message: &str, limit: usize) -> Vec<String> {
+    let mut tokens = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for raw in clean_text(message, 600)
+        .to_ascii_lowercase()
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+    {
+        let token = raw.trim();
+        if token.len() < 3 {
+            continue;
+        }
+        if matches!(
+            token,
+            "the"
+                | "and"
+                | "for"
+                | "with"
+                | "that"
+                | "this"
+                | "from"
+                | "have"
+                | "your"
+                | "you"
+                | "are"
+                | "was"
+                | "were"
+                | "will"
+                | "into"
+                | "about"
+                | "what"
+                | "when"
+                | "then"
+                | "than"
+                | "just"
+                | "they"
+                | "them"
+                | "able"
+                | "make"
+                | "made"
+                | "need"
+                | "want"
+                | "does"
+                | "did"
+                | "done"
+                | "not"
+                | "too"
+                | "very"
+                | "also"
+                | "like"
+                | "been"
+                | "being"
+                | "each"
+                | "more"
+                | "most"
+                | "over"
+                | "under"
+                | "after"
+                | "before"
+                | "because"
+                | "while"
+                | "where"
+                | "which"
+                | "would"
+                | "could"
+                | "should"
+        ) {
+            continue;
+        }
+        if seen.insert(token.to_string()) {
+            tokens.push(token.to_string());
+            if tokens.len() >= limit.max(1) {
+                break;
+            }
+        }
+    }
+    tokens
+}
+
+fn should_infer_workspace_hints(message: &str) -> bool {
+    let lowered = clean_text(message, 600).to_ascii_lowercase();
+    [
+        "file",
+        "files",
+        "module",
+        "code",
+        "api",
+        "function",
+        "class",
+        "refactor",
+        "patch",
+        "update",
+        "fix",
+        "test",
+        "workspace",
+        "repo",
+        "project",
+        "notes",
+        "docs",
+        "meeting",
+    ]
+    .iter()
+    .any(|token| lowered.contains(token))
+}
+
+fn should_skip_workspace_hint_entry(entry: &walkdir::DirEntry) -> bool {
+    let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+    let ignored = [
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".cache",
+        "artifacts",
+        "backups",
+        "tmp",
+    ];
+    ignored.iter().any(|value| *value == name)
+}
+
+fn workspace_file_hints_for_message(
+    root: &Path,
+    row: Option<&Value>,
+    message: &str,
+    limit: usize,
+) -> Vec<Value> {
+    if !should_infer_workspace_hints(message) {
+        return Vec::new();
+    }
+    let tokens = workspace_hint_tokens(message, 8);
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+    let workspace_base = workspace_base_for_agent(root, row);
+    if !workspace_base.exists() {
+        return Vec::new();
+    }
+    let lowered_message = clean_text(message, 600).to_ascii_lowercase();
+    let code_focus = lowered_message.contains("code")
+        || lowered_message.contains("api")
+        || lowered_message.contains("function")
+        || lowered_message.contains("test")
+        || lowered_message.contains("module")
+        || lowered_message.contains("refactor");
+    let mut scored = Vec::<(i64, String, Vec<String>)>::new();
+    let mut scanned = 0usize;
+    let max_scan = 2200usize;
+    for entry in WalkDir::new(&workspace_base)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| !should_skip_workspace_hint_entry(entry))
+        .flatten()
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        scanned += 1;
+        if scanned > max_scan {
+            break;
+        }
+        let path = entry.path();
+        let rel = path.strip_prefix(&workspace_base).unwrap_or(path);
+        let rel_text = rel.to_string_lossy().replace('\\', "/");
+        let rel_lc = rel_text.to_ascii_lowercase();
+        let mut score = 0i64;
+        let mut matches = Vec::<String>::new();
+        for token in &tokens {
+            if rel_lc.contains(token) {
+                score += 5;
+                matches.push(token.clone());
+            } else if rel_lc
+                .rsplit('/')
+                .next()
+                .map(|tail| tail.starts_with(token))
+                .unwrap_or(false)
+            {
+                score += 3;
+                matches.push(token.clone());
+            }
+        }
+        if score <= 0 {
+            continue;
+        }
+        if code_focus {
+            let ext = path
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if matches!(
+                ext.as_str(),
+                "rs" | "ts" | "tsx" | "py" | "go" | "java" | "kt" | "cpp" | "c" | "h"
+            ) {
+                score += 2;
+            }
+        }
+        scored.push((score, rel_text, matches));
+    }
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.len().cmp(&b.1.len())));
+    scored
+        .into_iter()
+        .take(limit.clamp(1, 8))
+        .map(|(score, path, matches)| {
+            let match_count = matches.len();
+            json!({
+                "path": path,
+                "score": score,
+                "matches": matches,
+                "reason": format!("matched {} workspace keywords", match_count)
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
+fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) -> Vec<Value> {
+    let lowered = clean_text(message, 1400).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::<Value>::new();
+    let mut seen = HashSet::<String>::new();
+    let mut push_candidate = |tool: &str, label: &str, reason: &str, proposed_input: Value| {
+        let normalized = normalize_tool_name(tool);
+        if normalized.is_empty() || seen.contains(&normalized) {
+            return;
+        }
+        seen.insert(normalized.clone());
+        let receipt = crate::deterministic_receipt_hash(&json!({
+            "tool": normalized,
+            "label": label,
+            "reason": reason,
+            "message": lowered.as_str(),
+            "input": proposed_input.clone()
+        }));
+        out.push(json!({
+            "tool": normalized,
+            "label": clean_text(label, 80),
+            "reason": clean_text(reason, 240),
+            "requires_confirmation": true,
+            "proposed_input": proposed_input,
+            "discovery_receipt": receipt
+        }));
+    };
+
+    let security_request = (lowered.contains("security")
+        || lowered.contains("vulnerability")
+        || lowered.contains("exploit")
+        || lowered.contains("audit"))
+        && (lowered.contains("code")
+            || lowered.contains("api")
+            || lowered.contains("module")
+            || lowered.contains("file"));
+    if security_request {
+        push_candidate(
+            "terminal_exec",
+            "run security checks",
+            "Security concern detected for code-path request.",
+            json!({"command": "cargo test --workspace --tests"}),
+        );
+    }
+
+    if let Some(path) = workspace_hints
+        .first()
+        .and_then(|row| row.get("path").and_then(Value::as_str))
+    {
+        if lowered.contains("file")
+            || lowered.contains("module")
+            || lowered.contains("api")
+            || lowered.contains("update")
+            || lowered.contains("change")
+            || lowered.contains("patch")
+            || lowered.contains("refactor")
+        {
+            push_candidate(
+                "file_read",
+                "open likely file",
+                "Workspace file inference found a likely target.",
+                json!({"path": path, "full": true}),
+            );
+        }
+    }
+
+    if lowered.contains("search")
+        || lowered.contains("latest")
+        || lowered.contains("news")
+        || lowered.contains("internet")
+        || lowered.contains("online")
+        || lowered.contains("look up")
+    {
+        push_candidate(
+            "web_search",
+            "search web",
+            "Message implies live web research intent.",
+            json!({"query": clean_text(message, 600), "summary_only": true}),
+        );
+    }
+
+    if lowered.contains("schedule")
+        || lowered.contains("remind")
+        || lowered.contains("every ")
+        || lowered.contains("daily")
+        || lowered.contains("cron")
+    {
+        push_candidate(
+            "cron_schedule",
+            "schedule follow-up",
+            "Message implies recurring follow-up intent.",
+            json!({"interval_minutes": 60, "message": clean_text(message, 400)}),
+        );
+    }
+
+    if lowered.contains("swarm")
+        || lowered.contains("parallel")
+        || lowered.contains("subagent")
+        || lowered.contains("multi-agent")
+    {
+        push_candidate(
+            "spawn_subagents",
+            "parallel subagents",
+            "Message implies parallel execution intent.",
+            json!({"count": infer_subagent_count_from_message(message), "objective": clean_text(message, 600)}),
+        );
+    }
+
+    out.truncate(3);
+    out
+}
+
 fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
     if bytes.len() <= max_bytes {
         return (String::from_utf8_lossy(bytes).to_string(), false);
@@ -1894,6 +2486,12 @@ fn passive_attention_context_for_message(
         if summary.is_empty() {
             continue;
         }
+        if internal_context_metadata_phrase(&summary)
+            || persistent_memory_denied_phrase(&summary)
+            || runtime_access_denied_phrase(&summary)
+        {
+            continue;
+        }
         let terms = row
             .pointer("/raw_event/terms")
             .and_then(Value::as_array)
@@ -1931,12 +2529,173 @@ fn passive_attention_context_for_message(
     }
 }
 
+fn context_keyframes_prompt_context(
+    state: &Value,
+    max_keyframes: usize,
+    max_chars: usize,
+) -> String {
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut keyframes = Vec::<String>::new();
+    for session in sessions {
+        let sid = clean_text(
+            session
+                .get("session_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if sid != active_id {
+            continue;
+        }
+        let entries = session
+            .get("context_keyframes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for entry in entries.iter().rev().take(max_keyframes.max(1)) {
+            let summary = clean_text(
+                entry
+                    .get("summary")
+                    .and_then(Value::as_str)
+                    .or_else(|| entry.get("text").and_then(Value::as_str))
+                    .unwrap_or(""),
+                260,
+            );
+            if summary.is_empty() {
+                continue;
+            }
+            if internal_context_metadata_phrase(&summary)
+                || persistent_memory_denied_phrase(&summary)
+                || runtime_access_denied_phrase(&summary)
+            {
+                continue;
+            }
+            keyframes.push(summary);
+        }
+        break;
+    }
+    if keyframes.is_empty() {
+        String::new()
+    } else {
+        let joined = keyframes.into_iter().rev().collect::<Vec<_>>().join(" | ");
+        trim_text(
+            &format!(
+                "Compacted thread keyframes:\n- {}",
+                clean_text(&joined, max_chars)
+            ),
+            max_chars,
+        )
+    }
+}
+
+fn first_sentence(raw: &str, max_len: usize) -> String {
+    let cleaned = clean_text(raw, max_len.saturating_mul(4).max(200));
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    let mut sentence_end = cleaned.len();
+    for (idx, ch) in cleaned.char_indices() {
+        if ch == '.' || ch == '!' || ch == '?' {
+            sentence_end = idx + ch.len_utf8();
+            break;
+        }
+    }
+    clean_text(&cleaned[..sentence_end], max_len)
+}
+
+fn agent_identity_hydration_prompt(row: &Value) -> String {
+    let agent_id = clean_text(
+        row.get("agent_id")
+            .or_else(|| row.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    );
+    let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+    let resolved_name = if !name.is_empty() {
+        name
+    } else if !agent_id.is_empty() {
+        humanize_agent_name(&agent_id)
+    } else {
+        "Agent".to_string()
+    };
+    let role = clean_text(
+        row.get("role")
+            .and_then(Value::as_str)
+            .unwrap_or("assistant"),
+        80,
+    );
+    let archetype = clean_text(
+        row.pointer("/identity/archetype")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let vibe = clean_text(
+        row.pointer("/identity/vibe")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let personality = first_sentence(
+        row.get("system_prompt")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        220,
+    );
+
+    let mut profile_parts = vec![format!("name={resolved_name}"), format!("role={role}")];
+    if !archetype.is_empty() {
+        profile_parts.push(format!("archetype={archetype}"));
+    }
+    if !vibe.is_empty() {
+        profile_parts.push(format!("vibe={vibe}"));
+    }
+    let mut lines = vec![format!(
+        "Agent identity hydration: {}.",
+        profile_parts.join(", ")
+    )];
+    if !personality.is_empty() {
+        lines.push(format!("Personality directive: {personality}"));
+    }
+    lines.push(
+        "When asked who you are, your name, or your role, reply using this profile in first person. Do not deny this identity unless profile metadata is changed later."
+            .to_string(),
+    );
+    clean_text(&lines.join(" "), 1_600)
+}
+
 fn message_token_cost(row: &Value) -> i64 {
     estimate_tokens(&message_text(row))
 }
 
 fn total_message_tokens(rows: &[Value]) -> i64 {
     rows.iter().map(message_token_cost).sum::<i64>().max(0)
+}
+
+fn context_pressure_label(ratio: f64) -> &'static str {
+    if !ratio.is_finite() || ratio <= 0.0 {
+        "low"
+    } else if ratio >= 0.96 {
+        "critical"
+    } else if ratio >= 0.82 {
+        "high"
+    } else if ratio >= 0.55 {
+        "medium"
+    } else {
+        "low"
+    }
 }
 
 fn trim_context_pool(messages: &[Value], limit_tokens: i64) -> Vec<Value> {
@@ -1990,6 +2749,103 @@ fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
             break;
         }
     }
+}
+
+fn context_command_payload(
+    root: &Path,
+    agent_id: &str,
+    row: &Value,
+    request: &Value,
+    silent: bool,
+) -> Value {
+    let state = load_session_state(root, agent_id);
+    let sessions_total = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    let messages = all_session_messages(&state);
+    let row_system_context_limit = row
+        .get("system_context_tokens")
+        .or_else(|| row.get("context_pool_limit_tokens"))
+        .and_then(Value::as_i64)
+        .unwrap_or(1_000_000);
+    let context_pool_limit_tokens = request
+        .get("context_pool_limit_tokens")
+        .and_then(Value::as_i64)
+        .unwrap_or(row_system_context_limit)
+        .clamp(32_000, 2_000_000);
+    let pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
+    let pre_generation_pruned = pooled_messages.len() != messages.len();
+    let row_context_window = row
+        .get("context_window_tokens")
+        .or_else(|| row.get("context_window"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let context_window = if row_context_window > 0 {
+        row_context_window
+    } else {
+        128_000
+    };
+    let active_context_target_tokens = request
+        .get("active_context_target_tokens")
+        .or_else(|| request.get("target_context_window"))
+        .and_then(Value::as_i64)
+        .unwrap_or_else(|| ((context_window as f64) * 0.68).round() as i64)
+        .clamp(4_096, 512_000);
+    let active_context_min_recent = request
+        .get("active_context_min_recent_messages")
+        .or_else(|| request.get("min_recent_messages"))
+        .and_then(Value::as_u64)
+        .unwrap_or(16)
+        .clamp(4, 128) as usize;
+    let active_messages = select_active_context_window(
+        &pooled_messages,
+        active_context_target_tokens,
+        active_context_min_recent,
+    );
+    let context_pool_tokens = total_message_tokens(&pooled_messages);
+    let context_tokens = total_message_tokens(&active_messages);
+    let context_ratio = if context_window > 0 {
+        (context_tokens as f64 / context_window as f64).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let context_pressure = context_pressure_label(context_ratio);
+    json!({
+        "ok": true,
+        "agent_id": agent_id,
+        "command": "context",
+        "silent": silent,
+        "context_window": context_window,
+        "context_tokens": context_tokens,
+        "context_used_tokens": context_tokens,
+        "context_ratio": context_ratio,
+        "context_pressure": context_pressure,
+        "context_pool": {
+            "pool_limit_tokens": context_pool_limit_tokens,
+            "pool_tokens": context_pool_tokens,
+            "pool_messages": pooled_messages.len(),
+            "session_count": sessions_total,
+            "system_context_enabled": true,
+            "system_context_limit_tokens": context_pool_limit_tokens,
+            "llm_context_window_tokens": context_window,
+            "active_target_tokens": active_context_target_tokens,
+            "active_tokens": context_tokens,
+            "active_messages": active_messages.len(),
+            "min_recent_messages": active_context_min_recent,
+            "pre_generation_pruning_enabled": true,
+            "pre_generation_pruned": pre_generation_pruned,
+            "emergency_compact_enabled": true
+        },
+        "message": format!(
+            "Context window: {} tokens | Active: {} tokens ({}%) | Pressure: {}",
+            context_window.max(0),
+            context_tokens.max(0),
+            ((context_ratio * 100.0).round() as i64).max(0),
+            context_pressure
+        )
+    })
 }
 
 fn data_url_from_bytes(bytes: &[u8], content_type: &str) -> String {
@@ -2325,6 +3181,279 @@ fn execute_tool_call_by_name(
                 .map(|response| response.payload)
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
+        "web_fetch" | "browse" | "web_conduit_fetch" => {
+            let body = if input.is_object() {
+                input.clone()
+            } else {
+                json!({"url": clean_text(input.as_str().unwrap_or(""), 2200)})
+            };
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            handle_with_headers(
+                root,
+                "POST",
+                "/api/web/fetch",
+                &body_bytes,
+                &headers,
+                snapshot,
+            )
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "web_search" | "search_web" | "search" | "web_query" => {
+            let body = if input.is_object() {
+                input.clone()
+            } else {
+                json!({"query": clean_text(input.as_str().unwrap_or(""), 600)})
+            };
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            handle_with_headers(
+                root,
+                "POST",
+                "/api/web/search",
+                &body_bytes,
+                &headers,
+                snapshot,
+            )
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "cron_list" | "schedule_list" | "cron_jobs" => {
+            handle_with_headers(root, "GET", "/api/cron/jobs", &[], &headers, snapshot)
+                .map(|response| response.payload)
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "cron_schedule" | "schedule_task" | "cron_create" => {
+            let interval_minutes =
+                parse_non_negative_i64(input.get("interval_minutes"), 60).clamp(1, 10_080);
+            let default_name = format!("{}-{}m-checkin", actor, interval_minutes);
+            let job_name = clean_text(
+                input
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or(default_name.as_str()),
+                180,
+            );
+            let action_message = clean_text(
+                input
+                    .get("message")
+                    .or_else(|| input.get("task"))
+                    .or_else(|| input.get("objective"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("Scheduled follow-up check."),
+                2_000,
+            );
+            let mut request_body = json!({
+                "name": if job_name.is_empty() { default_name } else { job_name },
+                "agent_id": actor,
+                "enabled": input.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+                "schedule": {
+                    "kind": "every",
+                    "every_secs": interval_minutes.saturating_mul(60)
+                },
+                "action": {
+                    "kind": "agent_turn",
+                    "message": if action_message.is_empty() {
+                        "Scheduled follow-up check."
+                    } else {
+                        action_message.as_str()
+                    }
+                }
+            });
+            if let Some(custom_schedule) = input.get("schedule").cloned() {
+                request_body["schedule"] = custom_schedule;
+            }
+            let body_bytes = serde_json::to_vec(&request_body).unwrap_or_default();
+            handle_with_headers(
+                root,
+                "POST",
+                "/api/cron/jobs",
+                &body_bytes,
+                &headers,
+                snapshot,
+            )
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "cron_cancel" | "cron_delete" | "schedule_cancel" => {
+            let job_id = clean_text(
+                input
+                    .get("job_id")
+                    .or_else(|| input.get("id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                140,
+            );
+            if job_id.is_empty() {
+                return json!({"ok": false, "error": "job_id_required"});
+            }
+            let path = format!("/api/cron/jobs/{job_id}");
+            handle_with_headers(root, "DELETE", &path, &[], &headers, snapshot)
+                .map(|response| response.payload)
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "cron_run" | "schedule_run" | "cron_trigger" => {
+            let job_id = clean_text(
+                input
+                    .get("job_id")
+                    .or_else(|| input.get("id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                140,
+            );
+            if job_id.is_empty() {
+                return json!({"ok": false, "error": "job_id_required"});
+            }
+            let path = format!("/api/schedules/{job_id}/run");
+            handle_with_headers(root, "POST", &path, &[], &headers, snapshot)
+                .map(|response| response.payload)
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
+        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
+            let requested_count = input
+                .get("count")
+                .or_else(|| input.get("team_size"))
+                .or_else(|| input.get("agents"))
+                .and_then(Value::as_i64)
+                .unwrap_or(3)
+                .clamp(1, 8) as usize;
+            let expiry_seconds = input
+                .get("expiry_seconds")
+                .or_else(|| input.get("lifespan_sec"))
+                .and_then(Value::as_i64)
+                .unwrap_or(3600)
+                .clamp(60, 172_800);
+            let objective = clean_text(
+                input
+                    .get("objective")
+                    .or_else(|| input.get("task"))
+                    .or_else(|| input.get("message"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("Parallel child task requested by parent directive."),
+                800,
+            );
+            let mut role_plan = input
+                .get("roles")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .filter_map(Value::as_str)
+                        .map(|row| clean_text(row, 60))
+                        .filter(|row| !row.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let role_hint = clean_text(
+                input
+                    .get("role")
+                    .or_else(|| input.get("default_role"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                60,
+            );
+            if !role_hint.is_empty() && role_plan.is_empty() {
+                role_plan.push(role_hint);
+            }
+            if role_plan.is_empty() {
+                role_plan = vec![
+                    "analyst".to_string(),
+                    "researcher".to_string(),
+                    "builder".to_string(),
+                    "reviewer".to_string(),
+                ];
+            }
+            let base_name = clean_text(
+                input
+                    .get("base_name")
+                    .or_else(|| input.get("name_prefix"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            );
+            let directive_receipt = crate::deterministic_receipt_hash(&json!({
+                "type": "agent_spawn_directive",
+                "actor_agent_id": actor,
+                "requested_count": requested_count,
+                "objective": objective,
+                "requested_at": crate::now_iso()
+            }));
+
+            let mut created = Vec::<Value>::new();
+            let mut errors = Vec::<Value>::new();
+            for idx in 0..requested_count {
+                let role = role_plan
+                    .get(idx % role_plan.len())
+                    .cloned()
+                    .unwrap_or_else(|| "analyst".to_string());
+                let mut request_body = json!({
+                    "role": role,
+                    "parent_agent_id": actor,
+                    "contract": {
+                        "owner": "descendant_auto_spawn",
+                        "mission": if objective.is_empty() {
+                            format!("Parallel subtask for parent {}", actor)
+                        } else {
+                            format!("Parallel subtask for parent {}: {}", actor, objective)
+                        },
+                        "termination_condition": "task_or_timeout",
+                        "expiry_seconds": expiry_seconds,
+                        "auto_terminate_allowed": true,
+                        "source_user_directive": objective,
+                        "source_user_directive_receipt": directive_receipt
+                    }
+                });
+                if !base_name.is_empty() {
+                    request_body["name"] = json!(format!("{base_name}-{}", idx + 1));
+                }
+                let body_bytes = serde_json::to_vec(&request_body).unwrap_or_default();
+                let spawned = handle_with_headers(
+                    root,
+                    "POST",
+                    "/api/agents",
+                    &body_bytes,
+                    &headers,
+                    snapshot,
+                )
+                .map(|response| response.payload)
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}));
+                if spawned.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    created.push(json!({
+                        "agent_id": clean_agent_id(
+                            spawned
+                                .get("agent_id")
+                                .or_else(|| spawned.get("id"))
+                                .and_then(Value::as_str)
+                                .unwrap_or("")
+                        ),
+                        "name": clean_text(spawned.get("name").and_then(Value::as_str).unwrap_or(""), 120),
+                        "role": role
+                    }));
+                } else {
+                    errors.push(json!({
+                        "role": role,
+                        "error": clean_text(spawned.get("error").and_then(Value::as_str).unwrap_or("spawn_failed"), 160)
+                    }));
+                }
+            }
+            let mut out = json!({
+                "ok": !created.is_empty(),
+                "type": "spawn_subagents",
+                "parent_agent_id": actor,
+                "requested_count": requested_count,
+                "created_count": created.len(),
+                "failed_count": errors.len(),
+                "directive": {
+                    "objective": objective,
+                    "receipt": directive_receipt
+                },
+                "children": created,
+                "errors": errors
+            });
+            out["receipt_hash"] = json!(crate::deterministic_receipt_hash(&out));
+            out
+        }
+        "session_rollback_last_turn" | "undo_last_turn" | "rewind_turn" => {
+            rollback_last_turn(root, &actor)
+        }
         "memory_kv_get" => {
             let key = clean_text(input.get("key").and_then(Value::as_str).unwrap_or(""), 180);
             if key.is_empty() {
@@ -2372,6 +3501,22 @@ fn execute_tool_call_by_name(
                     format!("/api/agents/{target}/message"),
                     json!({"message": clean_text(input.get("message").and_then(Value::as_str).unwrap_or(""), 8000)}),
                 ),
+                "spawn" | "spawn_subagent" => (
+                    "POST",
+                    "/api/agents".to_string(),
+                    json!({
+                        "name": clean_text(input.get("name").and_then(Value::as_str).unwrap_or(""), 120),
+                        "role": clean_text(input.get("role").and_then(Value::as_str).unwrap_or("analyst"), 60),
+                        "parent_agent_id": target,
+                        "contract": {
+                            "owner": clean_text(input.get("owner").and_then(Value::as_str).unwrap_or("manage_agent_spawn"), 80),
+                            "mission": clean_text(input.get("mission").and_then(Value::as_str).unwrap_or("Assist parent mission"), 200),
+                            "termination_condition": "task_or_timeout",
+                            "expiry_seconds": input.get("expiry_seconds").and_then(Value::as_i64).unwrap_or(3600).clamp(60, 172_800),
+                            "auto_terminate_allowed": input.get("auto_terminate_allowed").and_then(Value::as_bool).unwrap_or(true)
+                        }
+                    }),
+                ),
                 _ => {
                     return json!({
                         "ok": false,
@@ -2416,6 +3561,153 @@ fn execute_tool_call_by_name(
 
 fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     let normalized = normalize_tool_name(tool_name);
+    if normalized == "spawn_subagents"
+        || normalized == "spawn_swarm"
+        || normalized == "agent_spawn"
+        || normalized == "sessions_spawn"
+    {
+        let created_count = payload
+            .get("created_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let requested_count = payload
+            .get("requested_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(created_count);
+        let receipt = clean_text(
+            payload
+                .pointer("/directive/receipt")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        let ids = payload
+            .get("children")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|row| row.get("agent_id").and_then(Value::as_str))
+                    .map(|row| clean_text(row, 60))
+                    .filter(|row| !row.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let mut summary = format!("Spawned {created_count}/{requested_count} descendant agents.");
+        if !ids.is_empty() {
+            summary.push_str(&format!(" IDs: {}.", ids.join(", ")));
+        }
+        if !receipt.is_empty() {
+            summary.push_str(&format!(" Directive receipt: {receipt}."));
+        }
+        return trim_text(&summary, 24_000);
+    }
+    if normalized == "cron_schedule" || normalized == "schedule_task" || normalized == "cron_create"
+    {
+        let job_id = clean_text(
+            payload
+                .pointer("/job/id")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("job_id").and_then(Value::as_str))
+                .unwrap_or(""),
+            140,
+        );
+        let name = clean_text(
+            payload
+                .pointer("/job/name")
+                .and_then(Value::as_str)
+                .unwrap_or("scheduled-job"),
+            180,
+        );
+        let next_run = clean_text(
+            payload
+                .pointer("/job/next_run")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let mut summary = format!("Scheduled cron job `{}`.", name);
+        if !job_id.is_empty() {
+            summary.push_str(&format!(" ID: {job_id}."));
+        }
+        if !next_run.is_empty() {
+            summary.push_str(&format!(" Next run: {next_run}."));
+        }
+        return trim_text(&summary, 24_000);
+    }
+    if normalized == "cron_cancel" || normalized == "cron_delete" || normalized == "schedule_cancel"
+    {
+        if payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
+            && payload
+                .get("deleted")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        {
+            let job_id = clean_text(
+                payload.get("job_id").and_then(Value::as_str).unwrap_or(""),
+                140,
+            );
+            if job_id.is_empty() {
+                return "Deleted cron job.".to_string();
+            }
+            return format!("Deleted cron job `{job_id}`.");
+        }
+    }
+    if normalized == "cron_run" || normalized == "schedule_run" || normalized == "cron_trigger" {
+        if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            let job_id = clean_text(
+                payload.get("job_id").and_then(Value::as_str).unwrap_or(""),
+                140,
+            );
+            if job_id.is_empty() {
+                return "Ran scheduled job successfully.".to_string();
+            }
+            return format!("Ran scheduled job `{job_id}`.");
+        }
+    }
+    if normalized == "cron_list" || normalized == "schedule_list" || normalized == "cron_jobs" {
+        let jobs = payload
+            .get("jobs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut names = jobs
+            .iter()
+            .take(4)
+            .filter_map(|row| row.get("name").and_then(Value::as_str))
+            .map(|name| clean_text(name, 80))
+            .filter(|name| !name.is_empty())
+            .collect::<Vec<_>>();
+        names.dedup();
+        let mut summary = format!("Cron jobs available: {}.", jobs.len());
+        if !names.is_empty() {
+            summary.push_str(&format!(" {}", names.join(", ")));
+        }
+        return trim_text(&summary, 24_000);
+    }
+    if normalized == "session_rollback_last_turn"
+        || normalized == "undo_last_turn"
+        || normalized == "rewind_turn"
+    {
+        let removed = payload
+            .get("removed_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        if removed == 0 {
+            return "No recent turn available to undo.".to_string();
+        }
+        let rollback_id = clean_text(
+            payload
+                .get("rollback_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let mut summary = format!("Undid the most recent turn (removed {removed} messages).");
+        if !rollback_id.is_empty() {
+            summary.push_str(&format!(" Rollback receipt: {rollback_id}."));
+        }
+        return trim_text(&summary, 24_000);
+    }
     if normalized == "file_read" || normalized == "read_file" || normalized == "file" {
         let content = payload
             .pointer("/file/content")
@@ -2454,6 +3746,32 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         };
         if !merged.trim().is_empty() {
             return trim_text(&merged, 24_000);
+        }
+    }
+    if normalized == "web_fetch" || normalized == "browse" || normalized == "web_conduit_fetch" {
+        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
+        let content = payload.get("content").and_then(Value::as_str).unwrap_or("");
+        let body = if !summary.trim().is_empty() {
+            summary
+        } else {
+            content
+        };
+        if !body.trim().is_empty() {
+            return trim_text(body, 24_000);
+        }
+    }
+    if normalized == "web_search"
+        || normalized == "search_web"
+        || normalized == "search"
+        || normalized == "web_query"
+    {
+        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
+        if !summary.trim().is_empty() {
+            return trim_text(summary, 24_000);
+        }
+        let error = payload.get("error").and_then(Value::as_str).unwrap_or("");
+        if !error.is_empty() {
+            return trim_text(&format!("Web search failed: {error}"), 24_000);
         }
     }
     if let Ok(raw) = serde_json::to_string_pretty(payload) {
@@ -2508,9 +3826,175 @@ fn execute_inline_tool_calls(
     (response, cards)
 }
 
+fn first_http_url_in_text(text: &str) -> String {
+    let cleaned = clean_text(text, 2200);
+    for token in cleaned.split_whitespace() {
+        if token.starts_with("http://") || token.starts_with("https://") {
+            return clean_text(
+                token.trim_matches(|ch| matches!(ch, ')' | ']' | '>' | ',')),
+                2200,
+            );
+        }
+    }
+    String::new()
+}
+
+fn parse_cron_interval_minutes(token: &str) -> Option<i64> {
+    let raw = clean_text(token, 40).to_ascii_lowercase();
+    if raw.is_empty() {
+        return None;
+    }
+    let (number_part, multiplier) = if raw.ends_with('m') {
+        (&raw[..raw.len().saturating_sub(1)], 1i64)
+    } else if raw.ends_with('h') {
+        (&raw[..raw.len().saturating_sub(1)], 60i64)
+    } else if raw.ends_with('d') {
+        (&raw[..raw.len().saturating_sub(1)], 1440i64)
+    } else {
+        (raw.as_str(), 1i64)
+    };
+    let parsed = number_part.trim().parse::<i64>().ok()?;
+    if parsed <= 0 {
+        return None;
+    }
+    Some((parsed * multiplier).clamp(1, 10_080))
+}
+
+fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
+    let trimmed = clean_text(args, 1_200);
+    if trimmed.trim().is_empty() {
+        return Some(("cron_list".to_string(), json!({})));
+    }
+    let mut parts = trimmed.splitn(2, char::is_whitespace);
+    let action = parts
+        .next()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let rest = parts.next().map(str::trim).unwrap_or("");
+    match action.as_str() {
+        "list" | "ls" | "status" | "jobs" => Some(("cron_list".to_string(), json!({}))),
+        "cancel" | "delete" | "remove" | "rm" => {
+            let job_id = clean_text(rest, 140);
+            if job_id.is_empty() {
+                None
+            } else {
+                Some(("cron_cancel".to_string(), json!({"job_id": job_id})))
+            }
+        }
+        "run" | "trigger" => {
+            let job_id = clean_text(rest, 140);
+            if job_id.is_empty() {
+                None
+            } else {
+                Some(("cron_run".to_string(), json!({"job_id": job_id})))
+            }
+        }
+        "schedule" | "every" | "in" => {
+            let mut schedule_parts = rest.splitn(2, char::is_whitespace);
+            let interval_token = schedule_parts.next().map(str::trim).unwrap_or("");
+            let mut message = schedule_parts.next().map(str::trim).unwrap_or("");
+            let mut interval_minutes = parse_cron_interval_minutes(interval_token);
+            if interval_minutes.is_none() {
+                if action == "schedule" && !rest.is_empty() {
+                    interval_minutes = Some(60);
+                    message = rest;
+                } else {
+                    return None;
+                }
+            }
+            let minutes = interval_minutes.unwrap_or(60);
+            let text = clean_text(message, 2_000);
+            Some((
+                "cron_schedule".to_string(),
+                json!({
+                    "interval_minutes": minutes,
+                    "message": if text.is_empty() {
+                        "Scheduled follow-up check."
+                    } else {
+                        text.as_str()
+                    }
+                }),
+            ))
+        }
+        _ => {
+            if let Some(minutes) = parse_cron_interval_minutes(&action) {
+                let text = clean_text(rest, 2_000);
+                return Some((
+                    "cron_schedule".to_string(),
+                    json!({
+                        "interval_minutes": minutes,
+                        "message": if text.is_empty() {
+                            "Scheduled follow-up check."
+                        } else {
+                            text.as_str()
+                        }
+                    }),
+                ));
+            }
+            None
+        }
+    }
+}
+
+fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)> {
+    let trimmed = message.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
+    let url = first_http_url_in_text(trimmed);
+    if !url.is_empty() {
+        let asks_browse = lowered.contains("browse")
+            || lowered.contains("fetch")
+            || lowered.contains("read this")
+            || lowered.contains("summarize")
+            || lowered.contains("look at")
+            || lowered.contains("open")
+            || lowered.contains("web");
+        if asks_browse {
+            return Some((
+                "web_fetch".to_string(),
+                json!({"url": url, "summary_only": true}),
+            ));
+        }
+    }
+
+    let prefixes = [
+        "search the web for ",
+        "search web for ",
+        "search for ",
+        "web search for ",
+        "look up ",
+        "find online ",
+    ];
+    for prefix in prefixes {
+        if lowered.starts_with(prefix) {
+            let query = clean_text(&trimmed[prefix.len()..], 600);
+            if !query.is_empty() {
+                return Some((
+                    "web_search".to_string(),
+                    json!({"query": query, "summary_only": true}),
+                ));
+            }
+        }
+    }
+    None
+}
+
 fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)> {
     let trimmed = message.trim();
     if !trimmed.starts_with('/') {
+        if let Some(route) = natural_web_intent_from_user_message(trimmed) {
+            return Some(route);
+        }
+        let lowered = clean_text(trimmed, 120).to_ascii_lowercase();
+        let undo_like = lowered == "undo"
+            || lowered == "undo that"
+            || lowered == "undo last"
+            || lowered == "rewind";
+        if undo_like {
+            return Some(("session_rollback_last_turn".to_string(), json!({})));
+        }
         return None;
     }
     let mut split = trimmed.splitn(2, char::is_whitespace);
@@ -2544,6 +4028,48 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 Some(("terminal_exec".to_string(), json!({"command": arg})))
             }
         }
+        "/browse" | "/web" => {
+            if arg.is_empty() {
+                None
+            } else {
+                Some((
+                    "web_fetch".to_string(),
+                    json!({"url": arg, "summary_only": true}),
+                ))
+            }
+        }
+        "/search" => {
+            if arg.is_empty() {
+                None
+            } else {
+                Some((
+                    "web_search".to_string(),
+                    json!({"query": arg, "summary_only": true}),
+                ))
+            }
+        }
+        "/swarm" | "/spawn" | "/subagents" => {
+            let mut count = 3usize;
+            let mut objective = arg;
+            let mut tokens = arg.splitn(2, char::is_whitespace);
+            if let Some(first) = tokens.next() {
+                let parsed = first.trim().parse::<usize>().ok();
+                if let Some(value) = parsed {
+                    count = value.clamp(1, 8);
+                    objective = tokens.next().map(str::trim).unwrap_or("");
+                }
+            }
+            if objective.is_empty() {
+                objective = "Parallel descendant task requested by user directive.";
+            }
+            Some((
+                "spawn_subagents".to_string(),
+                json!({"count": count, "objective": clean_text(objective, 800)}),
+            ))
+        }
+        "/undo" | "/rewind" | "/rollback" => {
+            Some(("session_rollback_last_turn".to_string(), json!({})))
+        }
         "/memory" => {
             let mut memory_parts = arg.splitn(3, char::is_whitespace);
             let action = memory_parts
@@ -2576,6 +4102,7 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 None
             }
         }
+        "/cron" | "/schedule" => cron_tool_request_from_args(arg),
         _ => None,
     }
 }
@@ -2891,6 +4418,39 @@ pub fn handle_with_headers(
         });
     }
 
+    if method == "GET" && path_only == "/api/search/conversations" {
+        let query = query_value(path, "q")
+            .or_else(|| query_value(path, "query"))
+            .unwrap_or_default();
+        let limit = query_value(path, "limit")
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(40);
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_internal_search::search_conversations(root, &query, limit),
+        });
+    }
+    if method == "POST" && path_only == "/api/search/conversations" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let query = clean_text(
+            request
+                .get("q")
+                .or_else(|| request.get("query"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            260,
+        );
+        let limit = request
+            .get("limit")
+            .and_then(Value::as_u64)
+            .map(|value| value as usize)
+            .unwrap_or(40);
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: crate::dashboard_internal_search::search_conversations(root, &query, limit),
+        });
+    }
+
     if method == "GET" && path_only == "/api/agents/terminated" {
         return Some(CompatApiResponse {
             status: 200,
@@ -2998,6 +4558,21 @@ pub fn handle_with_headers(
         } else {
             requested_parent
         };
+        if !requester_agent.is_empty()
+            && !parent_agent_id.is_empty()
+            && parent_agent_id != requester_agent
+            && !actor_can_manage_target(root, snapshot, &requester_agent, &parent_agent_id)
+        {
+            return Some(CompatApiResponse {
+                status: 403,
+                payload: json!({
+                    "ok": false,
+                    "error": "agent_manage_forbidden",
+                    "actor_agent_id": requester_agent.clone(),
+                    "target_agent_id": parent_agent_id
+                }),
+            });
+        }
         let manifest = clean_text(
             request
                 .get("manifest_toml")
@@ -3027,9 +4602,19 @@ pub fn handle_with_headers(
         } else {
             requested_role
         };
-        let name =
+        let resolved_requested_name =
             dashboard_compat_api_agent_identity::resolve_agent_name(root, &requested_name, &role);
-        let agent_id = make_agent_id(root, &name);
+        let agent_id_seed = if resolved_requested_name.is_empty() {
+            "agent".to_string()
+        } else {
+            resolved_requested_name.clone()
+        };
+        let agent_id = make_agent_id(root, &agent_id_seed);
+        let name = if resolved_requested_name.is_empty() {
+            dashboard_compat_api_agent_identity::default_agent_name(&agent_id)
+        } else {
+            resolved_requested_name
+        };
         let (default_provider, default_model) = effective_app_settings(root, snapshot);
         let model_provider = clean_text(
             request
@@ -3101,7 +4686,9 @@ pub fn handle_with_headers(
             "auto_terminate_allowed": auto_terminate_allowed,
             "parent_agent_id": if parent_agent_id.is_empty() { Value::Null } else { Value::String(parent_agent_id) },
             "conversation_hold": contract_obj.get("conversation_hold").and_then(Value::as_bool).unwrap_or(false),
-            "expires_at": clean_text(contract_obj.get("expires_at").and_then(Value::as_str).unwrap_or(""), 80)
+            "expires_at": clean_text(contract_obj.get("expires_at").and_then(Value::as_str).unwrap_or(""), 80),
+            "source_user_directive": clean_text(contract_obj.get("source_user_directive").and_then(Value::as_str).unwrap_or(""), 800),
+            "source_user_directive_receipt": clean_text(contract_obj.get("source_user_directive_receipt").and_then(Value::as_str).unwrap_or(""), 120)
         });
         let _ = upsert_contract_patch(root, &agent_id, &contract_patch);
         append_turn_message(root, &agent_id, "", "");
@@ -3419,6 +5006,9 @@ pub fn handle_with_headers(
                     }),
                 });
             }
+            let workspace_hints = workspace_file_hints_for_message(root, Some(&row), &message, 5);
+            let latent_tool_candidates =
+                latent_tool_candidates_for_message(&message, &workspace_hints);
             if let Some((tool_name, tool_input)) = direct_tool_intent_from_user_message(&message) {
                 let tool_payload = execute_tool_call_by_name(
                     root,
@@ -3479,6 +5069,8 @@ pub fn handle_with_headers(
                                 "is_error": !ok
                             }
                         ],
+                        "workspace_hints": workspace_hints,
+                        "latent_tool_candidates": latent_tool_candidates,
                         "attention_queue": turn_receipt.get("attention_queue").cloned().unwrap_or_else(|| json!({})),
                         "memory_capture": turn_receipt.get("memory_capture").cloned().unwrap_or_else(|| json!({}))
                     }),
@@ -3599,17 +5191,6 @@ pub fn handle_with_headers(
                 .and_then(Value::as_array)
                 .map(|rows| rows.len())
                 .unwrap_or(0);
-            let messages = all_session_messages(&state);
-            let context_pool_limit_tokens = request
-                .get("context_pool_limit_tokens")
-                .and_then(Value::as_i64)
-                .unwrap_or(1_000_000)
-                .clamp(32_000, 2_000_000);
-            let pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
-            if pooled_messages.len() != messages.len() {
-                set_active_session_messages(&mut state, &pooled_messages);
-                save_session_state(root, &agent_id, &state);
-            }
             let row_context_window = row
                 .get("context_window_tokens")
                 .or_else(|| row.get("context_window"))
@@ -3632,30 +5213,158 @@ pub fn handle_with_headers(
                 .and_then(Value::as_u64)
                 .unwrap_or(16)
                 .clamp(4, 128) as usize;
-            let active_messages = select_active_context_window(
+            let row_system_context_limit = row
+                .get("system_context_tokens")
+                .or_else(|| row.get("context_pool_limit_tokens"))
+                .and_then(Value::as_i64)
+                .unwrap_or(1_000_000);
+            let row_auto_compact_threshold_ratio = row
+                .get("auto_compact_threshold_ratio")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.95);
+            let row_auto_compact_target_ratio = row
+                .get("auto_compact_target_ratio")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.72);
+            let context_pool_limit_tokens = request
+                .get("context_pool_limit_tokens")
+                .and_then(Value::as_i64)
+                .unwrap_or(row_system_context_limit)
+                .clamp(32_000, 2_000_000);
+            let auto_compact_threshold_ratio = request
+                .get("auto_compact_threshold_ratio")
+                .and_then(Value::as_f64)
+                .unwrap_or(row_auto_compact_threshold_ratio)
+                .clamp(0.75, 0.99);
+            let auto_compact_target_ratio = request
+                .get("auto_compact_target_ratio")
+                .and_then(Value::as_f64)
+                .unwrap_or(row_auto_compact_target_ratio)
+                .clamp(0.40, 0.90);
+            let persist_system_prune = request
+                .get("persist_system_prune")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let persist_auto_compact = request
+                .get("persist_auto_compact")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let mut messages = all_session_messages(&state);
+            let mut pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
+            let pre_generation_pruned = pooled_messages.len() != messages.len();
+            if pre_generation_pruned && persist_system_prune {
+                set_active_session_messages(&mut state, &pooled_messages);
+                save_session_state(root, &agent_id, &state);
+                state = load_session_state(root, &agent_id);
+                messages = all_session_messages(&state);
+                pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
+            }
+            let mut active_messages = select_active_context_window(
                 &pooled_messages,
                 active_context_target_tokens,
                 active_context_min_recent,
             );
-            let context_pool_tokens = total_message_tokens(&pooled_messages);
-            let context_active_tokens = total_message_tokens(&active_messages);
+            let mut context_pool_tokens = total_message_tokens(&pooled_messages);
+            let mut context_active_tokens = total_message_tokens(&active_messages);
+            let mut context_ratio = if fallback_window > 0 {
+                (context_active_tokens as f64 / fallback_window as f64).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let mut context_pressure = context_pressure_label(context_ratio).to_string();
+            let mut emergency_compact = json!({
+                "triggered": false,
+                "threshold_ratio": auto_compact_threshold_ratio,
+                "target_ratio": auto_compact_target_ratio,
+                "removed_messages": 0
+            });
+            if context_ratio >= auto_compact_threshold_ratio && fallback_window > 0 {
+                let emergency_target_tokens =
+                    ((fallback_window as f64) * auto_compact_target_ratio).round() as i64;
+                let emergency_min_recent = request
+                    .get("emergency_min_recent_messages")
+                    .or_else(|| request.get("min_recent_messages"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(active_context_min_recent.min(4) as u64)
+                    .clamp(2, 128) as usize;
+                let emergency_messages = select_active_context_window(
+                    &pooled_messages,
+                    emergency_target_tokens,
+                    emergency_min_recent,
+                );
+                let emergency_tokens = total_message_tokens(&emergency_messages);
+                let removed_messages = pooled_messages
+                    .len()
+                    .saturating_sub(emergency_messages.len())
+                    as u64;
+                emergency_compact = json!({
+                    "triggered": true,
+                    "threshold_ratio": auto_compact_threshold_ratio,
+                    "target_ratio": auto_compact_target_ratio,
+                    "removed_messages": removed_messages,
+                    "before_tokens": context_active_tokens,
+                    "after_tokens": emergency_tokens,
+                    "persisted_to_history": false
+                });
+                if removed_messages > 0 {
+                    active_messages = emergency_messages;
+                    context_pool_tokens = total_message_tokens(&pooled_messages);
+                    context_active_tokens = emergency_tokens;
+                    context_ratio = if fallback_window > 0 {
+                        (context_active_tokens as f64 / fallback_window as f64).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+                    context_pressure = context_pressure_label(context_ratio).to_string();
+                    if persist_auto_compact {
+                        let compact_request = json!({
+                            "target_context_window": fallback_window,
+                            "target_ratio": auto_compact_target_ratio,
+                            "min_recent_messages": emergency_min_recent,
+                            "max_messages": request
+                                .get("max_messages")
+                                .and_then(Value::as_u64)
+                                .unwrap_or(220)
+                                .clamp(20, 800)
+                        });
+                        let compact_result =
+                            compact_active_session(root, &agent_id, &compact_request);
+                        emergency_compact["persisted_to_history"] = json!(true);
+                        emergency_compact["persist_result"] = compact_result;
+                    }
+                }
+            }
             let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
             let memory_prompt_context = memory_kv_prompt_context(&state, 24);
             let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
+            let plugin_prompt_context =
+                dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);
             let passive_memory_context =
                 passive_attention_context_for_message(root, &agent_id, &message, 6);
+            let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
+            let identity_hydration_prompt = agent_identity_hydration_prompt(&row);
             let custom_system_prompt = clean_text(
                 row.get("system_prompt")
                     .and_then(Value::as_str)
                     .unwrap_or(""),
                 12_000,
             );
-            let mut prompt_parts = vec![AGENT_RUNTIME_SYSTEM_PROMPT.to_string()];
+            let mut prompt_parts = Vec::<String>::new();
+            if !identity_hydration_prompt.is_empty() {
+                prompt_parts.push(identity_hydration_prompt);
+            }
+            prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
             if !instinct_prompt_context.is_empty() {
                 prompt_parts.push(instinct_prompt_context);
             }
+            if !plugin_prompt_context.is_empty() {
+                prompt_parts.push(plugin_prompt_context);
+            }
             if !passive_memory_context.is_empty() {
                 prompt_parts.push(passive_memory_context);
+            }
+            if !keyframe_context.is_empty() {
+                prompt_parts.push(keyframe_context);
             }
             if !custom_system_prompt.is_empty() {
                 prompt_parts.push(custom_system_prompt);
@@ -3677,11 +5386,21 @@ pub fn handle_with_headers(
                         result.get("response").and_then(Value::as_str).unwrap_or(""),
                         32_000,
                     );
+                    let response_had_context_meta =
+                        internal_context_metadata_phrase(&response_text);
+                    response_text = strip_internal_context_metadata_prefix(&response_text);
+                    if response_text.is_empty() && response_had_context_meta {
+                        response_text = "I have relevant prior context loaded and can keep going from here. Tell me what you want to do next.".to_string();
+                    }
                     let runtime_summary = runtime_sync_summary(snapshot);
-                    if runtime_access_denied_phrase(&response_text)
-                        || runtime_probe_requested(&message)
-                    {
-                        response_text = runtime_access_summary_text(&runtime_summary);
+                    let runtime_probe = runtime_probe_requested(&message);
+                    let runtime_denial = runtime_access_denied_phrase(&response_text);
+                    if runtime_probe || runtime_denial {
+                        response_text = if runtime_probe {
+                            runtime_access_summary_text(&runtime_summary)
+                        } else {
+                            "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session. Tell me what you want me to check and I will run it now.".to_string()
+                        };
                     }
                     if memory_recall_requested(&message)
                         || persistent_memory_denied_phrase(&response_text)
@@ -3733,16 +5452,38 @@ pub fn handle_with_headers(
                                 .collect::<Vec<_>>();
                         }
                         if remembered.is_empty() {
-                            response_text = format!(
-                                "Persistent memory is enabled for this agent across {sessions_total} session(s), but no earlier stored turns were found yet."
-                            );
+                            response_text = "I don't have enough earlier context to reference yet. Share what you want me to track, and I'll carry it forward.".to_string();
                         } else {
                             response_text = format!(
-                                "Persistent memory is enabled for this agent across {sessions_total} session(s) with {} stored messages. Recalled context: {}",
-                                pooled_messages.len(),
+                                "Here's what I remember from earlier: {}",
                                 remembered.join(" | ")
                             );
                         }
+                    }
+                    let explicit_parallel_directive = swarm_intent_requested(&message)
+                        || message.to_ascii_lowercase().contains("multi-agent")
+                        || message.to_ascii_lowercase().contains("multi agent");
+                    let response_denied_spawn = spawn_surface_denied_phrase(&response_text);
+                    let response_has_tool_call = response_text.contains("<function=");
+                    if explicit_parallel_directive
+                        && (response_denied_spawn || !response_has_tool_call)
+                    {
+                        let auto_count = infer_subagent_count_from_message(&message);
+                        let directive_hint_receipt = crate::deterministic_receipt_hash(&json!({
+                            "agent_id": agent_id,
+                            "message": message,
+                            "requested_at": crate::now_iso()
+                        }));
+                        response_text = format!(
+                            "<function=spawn_subagents>{}</function>",
+                            json!({
+                                "count": auto_count,
+                                "objective": message,
+                                "reason": "user_directive_parallelization",
+                                "directive_receipt_hint": directive_hint_receipt
+                            })
+                            .to_string()
+                        );
                     }
                     let (tool_adjusted_response, response_tools) = execute_inline_tool_calls(
                         root,
@@ -3791,6 +5532,11 @@ pub fn handle_with_headers(
                     payload["response"] = json!(response_text);
                     payload["runtime_sync"] = runtime_summary;
                     payload["tools"] = Value::Array(response_tools);
+                    payload["context_window"] = json!(fallback_window.max(0));
+                    payload["context_tokens"] = json!(context_active_tokens.max(0));
+                    payload["context_used_tokens"] = json!(context_active_tokens.max(0));
+                    payload["context_ratio"] = json!(context_ratio);
+                    payload["context_pressure"] = json!(context_pressure.clone());
                     payload["attention_queue"] = turn_receipt
                         .get("attention_queue")
                         .cloned()
@@ -3804,13 +5550,25 @@ pub fn handle_with_headers(
                         "pool_tokens": context_pool_tokens,
                         "pool_messages": pooled_messages.len(),
                         "session_count": sessions_total,
+                        "system_context_enabled": true,
+                        "system_context_limit_tokens": context_pool_limit_tokens,
+                        "llm_context_window_tokens": fallback_window.max(0),
                         "cross_session_memory_enabled": true,
                         "memory_kv_entries": memory_kv_entries,
                         "active_target_tokens": active_context_target_tokens,
                         "active_tokens": context_active_tokens,
                         "active_messages": active_messages.len(),
-                        "min_recent_messages": active_context_min_recent
+                        "min_recent_messages": active_context_min_recent,
+                        "context_window": fallback_window.max(0),
+                        "context_ratio": context_ratio,
+                        "context_pressure": context_pressure,
+                        "pre_generation_pruning_enabled": true,
+                        "pre_generation_pruned": pre_generation_pruned,
+                        "emergency_compact_enabled": true,
+                        "emergency_compact": emergency_compact
                     });
+                    payload["workspace_hints"] = json!(workspace_hints);
+                    payload["latent_tool_candidates"] = json!(latent_tool_candidates);
                     if let Some(route) = auto_route {
                         payload["auto_route"] =
                             route.get("route").cloned().unwrap_or_else(|| route.clone());
@@ -3880,21 +5638,9 @@ pub fn handle_with_headers(
                 .unwrap_or(false);
             if command == "context" {
                 let row = existing.clone().unwrap_or_else(|| json!({}));
-                let context_window = row
-                    .get("context_window")
-                    .or_else(|| row.get("context_window_tokens"))
-                    .and_then(Value::as_i64)
-                    .unwrap_or(0);
                 return Some(CompatApiResponse {
                     status: 200,
-                    payload: json!({
-                        "ok": true,
-                        "agent_id": agent_id,
-                        "command": command,
-                        "silent": silent,
-                        "context_window": context_window,
-                        "message": format!("Context window: {} tokens", context_window.max(0))
-                    }),
+                    payload: context_command_payload(root, &agent_id, &row, &request, silent),
                 });
             }
             if command == "queue" {
@@ -3925,6 +5671,61 @@ pub fn handle_with_headers(
                     }),
                 });
             }
+            if command == "cron" || command == "schedule" {
+                let args = clean_text(
+                    request
+                        .get("args")
+                        .and_then(Value::as_str)
+                        .or_else(|| request.get("input").and_then(Value::as_str))
+                        .or_else(|| request.get("query").and_then(Value::as_str))
+                        .unwrap_or(""),
+                    1_200,
+                );
+                let Some((tool_name, tool_input)) = cron_tool_request_from_args(&args) else {
+                    return Some(CompatApiResponse {
+                        status: 400,
+                        payload: json!({
+                            "ok": false,
+                            "agent_id": agent_id,
+                            "command": command,
+                            "silent": silent,
+                            "error": "cron_usage_required",
+                            "usage": "/cron list | /cron schedule <interval> <message> | /cron run <job_id> | /cron cancel <job_id>"
+                        }),
+                    });
+                };
+                let row = existing.clone().unwrap_or_else(|| json!({}));
+                let tool_payload = execute_tool_call_by_name(
+                    root,
+                    snapshot,
+                    &agent_id,
+                    Some(&row),
+                    &tool_name,
+                    &tool_input,
+                );
+                let ok = tool_payload
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let message = summarize_tool_payload(&tool_name, &tool_payload);
+                return Some(CompatApiResponse {
+                    status: if ok { 200 } else { 400 },
+                    payload: json!({
+                        "ok": ok,
+                        "agent_id": agent_id,
+                        "command": command,
+                        "silent": silent,
+                        "tool": tool_name,
+                        "input": tool_input,
+                        "message": if message.trim().is_empty() {
+                            format!("Cron command '{}' processed.", command)
+                        } else {
+                            message
+                        },
+                        "result": tool_payload
+                    }),
+                });
+            }
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
@@ -3943,28 +5744,108 @@ pub fn handle_with_headers(
             if !patch.is_object() {
                 patch = json!({});
             }
-            if !patch.get("identity").map(Value::is_object).unwrap_or(false) {
-                let emoji =
-                    clean_text(patch.get("emoji").and_then(Value::as_str).unwrap_or(""), 16);
-                let color =
-                    clean_text(patch.get("color").and_then(Value::as_str).unwrap_or(""), 32);
-                let archetype = clean_text(
-                    patch.get("archetype").and_then(Value::as_str).unwrap_or(""),
-                    80,
-                );
-                let vibe = clean_text(patch.get("vibe").and_then(Value::as_str).unwrap_or(""), 80);
-                if !emoji.is_empty()
-                    || !color.is_empty()
-                    || !archetype.is_empty()
-                    || !vibe.is_empty()
-                {
-                    patch["identity"] = json!({
-                        "emoji": emoji,
-                        "color": color,
-                        "archetype": archetype,
-                        "vibe": vibe
-                    });
+            let should_seed_intro = patch.get("contract").is_some()
+                || patch.get("system_prompt").is_some()
+                || patch.get("archetype").is_some()
+                || patch.get("profile").is_some();
+            let role = clean_text(
+                patch
+                    .get("role")
+                    .and_then(Value::as_str)
+                    .or_else(|| {
+                        existing
+                            .as_ref()
+                            .and_then(|row| row.get("role").and_then(Value::as_str))
+                    })
+                    .unwrap_or("analyst"),
+                60,
+            );
+            let resolved_role = if role.is_empty() {
+                "analyst".to_string()
+            } else {
+                role
+            };
+            if patch.get("name").is_some() {
+                let requested_name =
+                    clean_text(patch.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+                if requested_name.is_empty() {
+                    if let Some(map) = patch.as_object_mut() {
+                        map.remove("name");
+                    }
+                } else {
+                    patch["name"] =
+                        Value::String(dashboard_compat_api_agent_identity::resolve_agent_name(
+                            root,
+                            &requested_name,
+                            &resolved_role,
+                        ));
                 }
+            }
+            let patch_touches_identity = patch.get("identity").is_some()
+                || patch.get("emoji").is_some()
+                || patch.get("color").is_some()
+                || patch.get("archetype").is_some()
+                || patch.get("vibe").is_some();
+            if patch_touches_identity {
+                if !patch.get("identity").map(Value::is_object).unwrap_or(false) {
+                    let emoji =
+                        clean_text(patch.get("emoji").and_then(Value::as_str).unwrap_or(""), 16);
+                    let color =
+                        clean_text(patch.get("color").and_then(Value::as_str).unwrap_or(""), 32);
+                    let archetype = clean_text(
+                        patch.get("archetype").and_then(Value::as_str).unwrap_or(""),
+                        80,
+                    );
+                    let vibe =
+                        clean_text(patch.get("vibe").and_then(Value::as_str).unwrap_or(""), 80);
+                    if !emoji.is_empty()
+                        || !color.is_empty()
+                        || !archetype.is_empty()
+                        || !vibe.is_empty()
+                    {
+                        patch["identity"] = json!({
+                            "emoji": emoji,
+                            "color": color,
+                            "archetype": archetype,
+                            "vibe": vibe
+                        });
+                    }
+                }
+                let mut identity_request = existing.clone().unwrap_or_else(|| json!({}));
+                if !identity_request.is_object() {
+                    identity_request = json!({});
+                }
+                if let Some(identity_patch) = patch.get("identity").and_then(Value::as_object) {
+                    let mut merged_identity = identity_request
+                        .get("identity")
+                        .and_then(Value::as_object)
+                        .cloned()
+                        .unwrap_or_default();
+                    for (key, value) in identity_patch {
+                        if let Some(raw) = value.as_str() {
+                            if clean_text(raw, 120).is_empty() {
+                                continue;
+                            }
+                        }
+                        merged_identity.insert(key.clone(), value.clone());
+                    }
+                    identity_request["identity"] = Value::Object(merged_identity);
+                }
+                for key in ["emoji", "color", "archetype", "vibe"] {
+                    if let Some(value) = patch.get(key) {
+                        if let Some(raw) = value.as_str() {
+                            if clean_text(raw, 120).is_empty() {
+                                continue;
+                            }
+                        }
+                        identity_request[key] = value.clone();
+                    }
+                }
+                patch["identity"] = dashboard_compat_api_agent_identity::resolve_agent_identity(
+                    root,
+                    &identity_request,
+                    &resolved_role,
+                );
             }
             let _ = update_profile_patch(root, &agent_id, &patch);
             if patch.get("contract").map(Value::is_object).unwrap_or(false) {
@@ -3978,6 +5859,26 @@ pub fn handle_with_headers(
                 || patch.get("auto_terminate_allowed").is_some()
             {
                 let _ = upsert_contract_patch(root, &agent_id, &patch);
+            }
+            if should_seed_intro {
+                let intro_name = clean_text(
+                    patch
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .or_else(|| {
+                            existing
+                                .as_ref()
+                                .and_then(|row| row.get("name").and_then(Value::as_str))
+                        })
+                        .unwrap_or(&agent_id),
+                    120,
+                );
+                let _ = crate::dashboard_agent_state::seed_intro_message(
+                    root,
+                    &agent_id,
+                    &resolved_role,
+                    &intro_name,
+                );
             }
             let row = agent_row_by_id(root, snapshot, &agent_id)
                 .unwrap_or_else(|| json!({"id": agent_id}));
@@ -4622,12 +6523,22 @@ pub fn handle_with_headers(
                     .unwrap_or("analyst"),
                 60,
             );
-            let new_name = if requested_new_name.is_empty() {
+            let resolved_requested_name = if requested_new_name.is_empty() {
                 dashboard_compat_api_agent_identity::resolve_agent_name(root, "", &source_role)
             } else {
                 requested_new_name.clone()
             };
-            let new_id = make_agent_id(root, &new_name);
+            let new_id_seed = if resolved_requested_name.is_empty() {
+                "agent".to_string()
+            } else {
+                resolved_requested_name.clone()
+            };
+            let new_id = make_agent_id(root, &new_id_seed);
+            let new_name = if resolved_requested_name.is_empty() {
+                dashboard_compat_api_agent_identity::default_agent_name(&new_id)
+            } else {
+                resolved_requested_name
+            };
             let mut profile_patch = source.clone();
             profile_patch["name"] = Value::String(new_name.clone());
             profile_patch["agent_id"] = Value::String(new_id.clone());
@@ -4730,6 +6641,24 @@ pub fn handle_with_headers(
                 "first_event_date": usage["first_event_date"].clone()
             }),
             "/api/status" => status_payload(root, snapshot, &request_host),
+            "/api/web/status" => crate::web_conduit::api_status(root),
+            "/api/web/receipts" => {
+                let limit = query_value(path, "limit")
+                    .and_then(|raw| raw.parse::<usize>().ok())
+                    .unwrap_or(20)
+                    .clamp(1, 200);
+                crate::web_conduit::api_receipts(root, limit)
+            }
+            "/api/web/search" => {
+                let query = clean_text(
+                    query_value(path, "q")
+                        .or_else(|| query_value(path, "query"))
+                        .as_deref()
+                        .unwrap_or(""),
+                    600,
+                );
+                crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}))
+            }
             "/api/telemetry/alerts" => proactive_telemetry_alerts_payload(root, snapshot),
             "/api/continuity" | "/api/continuity/pending" => {
                 continuity_pending_payload(root, snapshot)
@@ -4795,6 +6724,7 @@ pub fn handle_with_headers(
                 "tools": [
                     {"name": "protheus-ops", "category": "runtime"},
                     {"name": "infringd", "category": "runtime"},
+                    {"name": "web_conduit", "category": "runtime"},
                     {"name": "git", "category": "cli"},
                     {"name": "rg", "category": "cli"}
                 ],
@@ -4811,6 +6741,10 @@ pub fn handle_with_headers(
                     {"cmd": "/folder <path>", "command": "/folder <path>", "desc": "Render folder tree + downloadable archive in chat", "description": "Render folder tree + downloadable archive in chat"},
                     {"cmd": "/alerts", "command": "/alerts", "desc": "Show proactive telemetry alerts", "description": "Show proactive telemetry alerts"},
                     {"cmd": "/continuity", "command": "/continuity", "desc": "Show pending actions across sessions/channels/tasks", "description": "Show pending actions across sessions/channels/tasks"},
+                    {"cmd": "/browse <url>", "command": "/browse <url>", "desc": "Fetch and summarize a web URL via governed web conduit", "description": "Fetch and summarize a web URL via governed web conduit"},
+                    {"cmd": "/search <query>", "command": "/search <query>", "desc": "Search the web with governed web conduit and summarize results", "description": "Search the web with governed web conduit and summarize results"},
+                    {"cmd": "/cron", "command": "/cron list | /cron schedule <interval> <message> | /cron run <job_id> | /cron cancel <job_id>", "desc": "Manage agent-owned scheduled jobs", "description": "Manage agent-owned scheduled jobs"},
+                    {"cmd": "/undo", "command": "/undo", "desc": "Undo the last conversational turn with receipted rollback", "description": "Undo the last conversational turn with receipted rollback"},
                     {"cmd": "/aliases", "command": "/aliases", "desc": "List active slash command aliases", "description": "List active slash command aliases"},
                     {"cmd": "/alias", "command": "/alias <shortcut> <target>", "desc": "Create a custom slash alias", "description": "Create a custom slash alias"}
                 ]
@@ -4874,6 +6808,30 @@ pub fn handle_with_headers(
                 payload,
             });
         }
+        if path_only == "/api/web/fetch" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = crate::web_conduit::api_fetch(root, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/web/search" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = crate::web_conduit::api_search(root, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
         if path_only == "/api/route/auto" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             return Some(CompatApiResponse {
@@ -4919,4 +6877,8 @@ mod tests {
     include!("config_payload_tests_parts/030-memory-kv-http-routes-round-trip-and-feed-context.rs");
     include!("config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.rs");
     include!("config_payload_tests_parts/050-compact-session-keyframes.rs");
+    include!("config_payload_tests_parts/060-context-telemetry-and-auto-compact.rs");
+    include!("config_payload_tests_parts/070-cron-command-routing.rs");
+    include!("config_payload_tests_parts/080-conversation-search-includes-archived.rs");
+    include!("config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs");
 }

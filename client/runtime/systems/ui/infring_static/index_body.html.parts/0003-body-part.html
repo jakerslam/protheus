@@ -245,12 +245,35 @@
                             x-text="messageActorLabel(msg)"
                           ></div>
                           <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
+                            <div class="thinking-orb-link" aria-hidden="true">
+                              <span class="thinking-orb-link-dot thinking-orb-link-dot-1"></span>
+                              <span class="thinking-orb-link-dot thinking-orb-link-dot-2"></span>
+                              <span class="thinking-orb-link-dot thinking-orb-link-dot-3"></span>
+                            </div>
                             <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
                             <div class="thinking-status-line" x-show="thinkingStatusText(msg)" x-text="thinkingStatusText(msg)"></div>
+                            <div class="thinking-trace-list" x-show="thinkingTraceRows(msg).length">
+                              <template x-for="trace in thinkingTraceRows(msg)" :key="trace.id">
+                                <div class="thinking-trace-row" :class="'state-' + trace.state">
+                                  <span class="thinking-trace-dot" aria-hidden="true"></span>
+                                  <span class="thinking-trace-label" x-text="trace.label"></span>
+                                  <span class="thinking-trace-state" x-text="trace.state_label"></span>
+                                </div>
+                              </template>
+                            </div>
                             <div class="typing-dots"><span></span><span></span><span></span></div>
                           </div>
                           <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, messages)">
-                            <div class="terminal-toolbox" :class="terminalToolboxSideClass(msg)">
+                            <div
+                              class="terminal-toolbox"
+                              :class="terminalToolboxSideClass(msg)"
+                              role="button"
+                              tabindex="0"
+                              title="Click to expand full output"
+                              @click="expandTerminalMessage(msg, idx, messages)"
+                              @keydown.enter.prevent="expandTerminalMessage(msg, idx, messages)"
+                              @keydown.space.prevent="expandTerminalMessage(msg, idx, messages)"
+                            >
                               <span class="terminal-toolbox-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" focusable="false">
                                   <path d="m4 6 6 6-6 6"></path>
@@ -404,7 +427,7 @@
                 <div class="chat-init-panel" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
                   <div class="chat-archetype-title">Initialize Agent</div>
                   <div class="chat-archetype-subtitle">Pick role and lifespan, then launch. Optional tuning lives under advanced setup.</div>
-                  <div class="chat-init-identity-row">
+                  <div class="chat-init-avatar-row" data-init-anchor="identity">
                     <div class="chat-agent-identity-avatar-wrap chat-init-avatar-wrap" @click.outside="freshInitEmojiPickerOpen = false">
                       <span class="chat-init-avatar-preview" aria-hidden="true">
                         <img
@@ -413,7 +436,7 @@
                           :alt="currentAgent ? ((currentAgent.name || currentAgent.id || 'agent') + ' avatar') : 'agent avatar'"
                           loading="lazy"
                         />
-                        <span x-show="!freshInitAvatarUrl" x-text="freshInitEmoji || ((currentAgent && currentAgent.identity && currentAgent.identity.emoji) || '🤖')"></span>
+                        <span x-show="!freshInitAvatarUrl" x-text="freshInitEmoji || freshInitDefaultEmoji || '∞'"></span>
                       </span>
                       <input
                         type="file"

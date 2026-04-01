@@ -41,8 +41,14 @@
     filteredFreshInitEmojiCatalog: function() {
       var source = Array.isArray(this.drawerEmojiCatalog) ? this.drawerEmojiCatalog : [];
       var query = String(this.freshInitEmojiSearch || '').trim().toLowerCase();
-      if (!query) return source.slice(0, 24);
-      return source.filter(function(row) {
+      var self = this;
+      var rows = source.filter(function(row) {
+        var emoji = String((row && row.emoji) || '');
+        if (self.isReservedSystemEmoji && self.isReservedSystemEmoji(emoji)) return false;
+        return true;
+      });
+      if (!query) return rows.slice(0, 24);
+      return rows.filter(function(row) {
         var emoji = String((row && row.emoji) || '');
         var name = String((row && row.name) || '').toLowerCase();
         return emoji.indexOf(query) >= 0 || name.indexOf(query) >= 0;
@@ -59,7 +65,14 @@
     selectFreshInitEmoji: function(choice) {
       var emoji = String(choice && choice.emoji ? choice.emoji : choice || '').trim();
       if (!emoji) return;
-      this.freshInitEmoji = emoji;
+      var sanitized = this.sanitizeAgentEmojiForDisplay
+        ? this.sanitizeAgentEmojiForDisplay(this.currentAgent, emoji)
+        : emoji;
+      if (!sanitized) {
+        InfringToast.info('The gear icon is reserved for the System thread.');
+        return;
+      }
+      this.freshInitEmoji = sanitized;
       this.freshInitAvatarUrl = '';
       this.freshInitEmojiPickerOpen = false;
       this.freshInitEmojiSearch = '';
@@ -132,6 +145,7 @@
     selectFreshInitPersonality: function(card) {
       var id = String(card && card.id ? card.id : 'none').trim() || 'none';
       this.freshInitPersonalityId = id;
+      if (typeof this.scheduleFreshInitProgressAnchor === 'function') this.scheduleFreshInitProgressAnchor();
     },
 
     selectedFreshInitPersonality: function() {
@@ -151,6 +165,7 @@
     selectFreshInitLifespan: function(card) {
       var id = String(card && card.id ? card.id : '1h').trim() || '1h';
       this.freshInitLifespanId = id;
+      if (typeof this.scheduleFreshInitProgressAnchor === 'function') this.scheduleFreshInitProgressAnchor();
     },
 
     selectedFreshInitLifespan: function() {
@@ -178,6 +193,7 @@
       } else {
         this.freshInitAwaitingOtherPrompt = false;
       }
+      if (typeof this.scheduleFreshInitProgressAnchor === 'function') this.scheduleFreshInitProgressAnchor();
     },
 
     captureFreshInitOtherPrompt: function() {
@@ -197,6 +213,7 @@
       this.inputText = '';
       var ta = document.getElementById('msg-input');
       if (ta) ta.style.height = '';
+      if (typeof this.scheduleFreshInitProgressAnchor === 'function') this.scheduleFreshInitProgressAnchor('lifespan');
       return true;
     },
 
@@ -269,19 +286,9 @@
       }
       var resolvedModelRef = selectedModelRef;
       if (!resolvedModelRef && provider && model) resolvedModelRef = provider.toLowerCase() + '/' + model;
-      var agentName = String(this.freshInitName || '').trim() || String(this.currentAgent.name || this.currentAgent.id || '').trim() || String(agentId);
-      var agentEmoji = String(this.freshInitEmoji || '').trim() || this.defaultFreshEmojiForAgent(agentId);
-      var defaultName = String(this.freshInitDefaultName || '').trim();
-      var defaultEmoji = String(this.freshInitDefaultEmoji || '').trim();
-      if (!agentName) {
-        agentName = String(this.currentAgent.name || this.currentAgent.id || agentId).trim();
-      }
-      var existingAgentEmoji = String(
-        (this.currentAgent && this.currentAgent.identity && this.currentAgent.identity.emoji) || ''
-      ).trim();
-      if (!agentEmoji) {
-        agentEmoji = existingAgentEmoji || this.defaultFreshEmojiForAgent(agentId);
-      }
+      var requestedName = String(this.freshInitName || '').trim();
+      var requestedEmoji = String(this.freshInitEmoji || '').trim();
+      var launchName = requestedName || 'agent';
       if (templateDef.is_other && !String(this.freshInitOtherPrompt || '').trim()) {
         InfringToast.info('Describe the special purpose for Other before launch.');
         this.freshInitAwaitingOtherPrompt = true;
@@ -290,10 +297,8 @@
       }
       var selectedPersonality = this.selectedFreshInitPersonality();
       var selectedVibe = this.selectedFreshInitVibe();
-      var resolvedSystemPrompt = this.resolveFreshInitSystemPrompt(templateDef, agentName, selectedPersonality, selectedVibe);
-      var resolvedContract = this.resolveFreshInitContractPayload(agentName);
-      this.freshInitName = agentName;
-      this.freshInitEmoji = agentEmoji;
+      var resolvedSystemPrompt = this.resolveFreshInitSystemPrompt(templateDef, launchName, selectedPersonality, selectedVibe);
+      var resolvedContract = this.resolveFreshInitContractPayload(launchName);
       this.freshInitLaunching = true;
       try {
         if (resolvedModelRef) {
@@ -301,18 +306,17 @@
             model: resolvedModelRef
           });
         }
+        var sanitizedRequestedEmoji = this.sanitizeAgentEmojiForDisplay
+          ? this.sanitizeAgentEmojiForDisplay(this.currentAgent, requestedEmoji || '')
+          : (requestedEmoji || '');
         var identityPayload = {};
-        if (!defaultEmoji || agentEmoji !== defaultEmoji) {
-          identityPayload.emoji = agentEmoji;
+        if (String(sanitizedRequestedEmoji || '').trim()) {
+          identityPayload.emoji = String(sanitizedRequestedEmoji || '').trim();
         }
         var vibeValue = String(selectedVibe && selectedVibe.id ? selectedVibe.id : '').trim();
-        var personalityVibe = String(selectedPersonality && selectedPersonality.vibe ? selectedPersonality.vibe : '').trim();
-        if (vibeValue && vibeValue !== 'none') {
-          identityPayload.vibe = vibeValue;
-        } else if (personalityVibe && personalityVibe !== 'none') {
-          identityPayload.vibe = personalityVibe;
-        }
+        if (vibeValue && vibeValue !== 'none') identityPayload.vibe = vibeValue;
         var configPayload = {
+          identity: identityPayload,
           system_prompt: resolvedSystemPrompt,
           archetype: String(templateDef.archetype || '').trim(),
           profile: String(templateDef.profile || '').trim(),
@@ -321,11 +325,11 @@
           expiry_seconds: resolvedContract.expiry_seconds,
           indefinite: resolvedContract.indefinite === true,
         };
-        if (!defaultName || agentName !== defaultName) {
-          configPayload.name = agentName;
+        if (requestedName) {
+          configPayload.name = requestedName;
         }
-        if (Object.keys(identityPayload).length > 0) {
-          configPayload.identity = identityPayload;
+        if (!Object.keys(identityPayload).length) {
+          delete configPayload.identity;
         }
         if (this.freshInitAvatarUrl) {
           configPayload.avatar_url = String(this.freshInitAvatarUrl || '').trim();
@@ -333,8 +337,9 @@
         await InfringAPI.patch('/api/agents/' + agentId + '/config', {
           ...configPayload
         });
+        var appliedAgentName = requestedName || String(this.currentAgent.name || this.currentAgent.id || agentId).trim() || 'agent';
         this.addNoticeEvent({
-          notice_label: 'Initialized ' + agentName + ' as ' + String(templateDef.name || 'template'),
+          notice_label: 'Initialized ' + appliedAgentName + ' as ' + String(templateDef.name || 'template'),
           notice_type: 'info',
           ts: Date.now()
         });
@@ -348,6 +353,7 @@
           var store = Alpine.store('app');
           if (store) {
             store.pendingFreshAgentId = null;
+            store.pendingAgent = null;
             if (typeof store.refreshAgents === 'function') {
               await store.refreshAgents();
             }
@@ -361,6 +367,93 @@
         this.freshInitLaunching = false;
         InfringToast.error('Failed to initialize agent: ' + e.message);
       }
+    },
+
+    extractTerminalCommandsFromHistoryText: function(rawText) {
+      var text = String(rawText || '');
+      if (!text.trim()) return [];
+      var lines = text.split('\n');
+      var out = [];
+      for (var i = 0; i < lines.length; i++) {
+        var line = String(lines[i] || '').trim();
+        if (!line) continue;
+        var marker = line.indexOf(' % ');
+        if (marker <= 0) continue;
+        var cmd = line.slice(marker + 3).trim();
+        if (cmd) out.push(cmd);
+      }
+      return out;
+    },
+
+    rebuildInputHistoryFromSessionPayload: function(data) {
+      var payload = data && typeof data === 'object' ? data : {};
+      var state = payload && payload.session && typeof payload.session === 'object' ? payload.session : {};
+      var sessions = Array.isArray(state.sessions) ? state.sessions : [];
+      var sourceRows = [];
+      for (var i = 0; i < sessions.length; i++) {
+        var session = sessions[i] || {};
+        var messages = Array.isArray(session.messages) ? session.messages : [];
+        for (var j = 0; j < messages.length; j++) sourceRows.push(messages[j]);
+      }
+      if (Array.isArray(payload.messages)) {
+        for (var m = 0; m < payload.messages.length; m++) sourceRows.push(payload.messages[m]);
+      }
+      if (!sourceRows.length) {
+        this.chatInputHistory = [];
+        this.terminalInputHistory = [];
+        this.hydrateInputHistoryFromCache('chat');
+        this.hydrateInputHistoryFromCache('terminal');
+        this.resetInputHistoryNavigation('chat');
+        this.resetInputHistoryNavigation('terminal');
+        return;
+      }
+
+      var normalized = this.normalizeSessionMessages({ messages: sourceRows });
+      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
+      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
+      var chatRows = [];
+      var terminalRows = [];
+      for (var k = 0; k < normalized.length; k++) {
+        var row = normalized[k] || {};
+        var role = String(row.role || '').toLowerCase();
+        var text = String(row.text || '').trim();
+        if (!text) continue;
+        if (role === 'user') {
+          chatRows.push(text);
+          continue;
+        }
+        var isTerminal = !!row.terminal || role === 'terminal';
+        if (!isTerminal) continue;
+        var source = String(row.terminal_source || '').toLowerCase();
+        if (source && source !== 'user') continue;
+        var commands = this.extractTerminalCommandsFromHistoryText(text);
+        for (var c = 0; c < commands.length; c++) {
+          var command = String(commands[c] || '').trim();
+          if (command) terminalRows.push(command);
+        }
+      }
+      if (!chatRows.length && !terminalRows.length) {
+        this.chatInputHistory = [];
+        this.terminalInputHistory = [];
+        this.hydrateInputHistoryFromCache('chat');
+        this.hydrateInputHistoryFromCache('terminal');
+        this.resetInputHistoryNavigation('chat');
+        this.resetInputHistoryNavigation('terminal');
+        return;
+      }
+      chatRows = chatRows.filter(function(text, idx, arr) { return idx === 0 || text !== arr[idx - 1]; });
+      terminalRows = terminalRows.filter(function(text, idx, arr) { return idx === 0 || text !== arr[idx - 1]; });
+      if (chatRows.length > maxEntries) chatRows = chatRows.slice(chatRows.length - maxEntries);
+      if (terminalRows.length > maxEntries) terminalRows = terminalRows.slice(terminalRows.length - maxEntries);
+
+      this.chatInputHistory = chatRows;
+      this.terminalInputHistory = terminalRows;
+      this.hydrateInputHistoryFromCache('chat');
+      this.hydrateInputHistoryFromCache('terminal');
+      this.syncInputHistoryToCache('chat');
+      this.syncInputHistoryToCache('terminal');
+      this.resetInputHistoryNavigation('chat');
+      this.resetInputHistoryNavigation('terminal');
     },
 
     async loadSession(agentId, keepCurrent) {
@@ -377,6 +470,7 @@
         var preserveFreshInit = self.isFreshInitInProgressFor(agentId);
         var data = await InfringAPI.get('/api/agents/' + agentId + '/session');
         if (!loadStillCurrent()) return;
+        self.rebuildInputHistoryFromSessionPayload(data);
         if (self.currentAgent && String(self.currentAgent.id || '') === String(agentId || '')) {
           self.applyAgentGitTreeState(self.currentAgent, data || {});
         }

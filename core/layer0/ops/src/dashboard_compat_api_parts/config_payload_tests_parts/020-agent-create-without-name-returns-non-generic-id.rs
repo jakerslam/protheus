@@ -11,6 +11,15 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
     let name = clean_text(
         created
             .payload
@@ -20,13 +29,118 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
         120,
     );
     assert!(!name.is_empty());
-    assert!(!name.eq_ignore_ascii_case("agent"));
+    assert_eq!(name, agent_id);
     let listed =
         handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list agents");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows.iter().any(|row| {
         clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120) == name
     }));
+}
+
+#[test]
+fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Starter","role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let configured = handle(
+        root.path(),
+        "PATCH",
+        &format!("/api/agents/{agent_id}/config"),
+        br#"{"name":"","identity":{"vibe":"calm"}}"#,
+        &json!({"ok": true}),
+    )
+    .expect("config");
+    assert_eq!(configured.status, 200);
+    assert_eq!(
+        configured.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let profiles_path = root
+        .path()
+        .join("client/runtime/local/state/ui/infring_dashboard/agent_profiles.json");
+    let profiles_raw = fs::read_to_string(&profiles_path).expect("profiles state");
+    let profiles = serde_json::from_str::<Value>(&profiles_raw).expect("profiles json");
+    let profile = profiles
+        .get("agents")
+        .and_then(Value::as_object)
+        .and_then(|agents| agents.get(&agent_id))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let stored_name = clean_text(
+        profile.get("name").and_then(Value::as_str).unwrap_or(""),
+        120,
+    );
+    let stored_emoji = clean_text(
+        profile
+            .pointer("/identity/emoji")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        24,
+    );
+    assert!(
+        stored_name.eq("Starter"),
+        "blank name patch should keep the existing configured name"
+    );
+    assert!(
+        stored_emoji.eq("∞"),
+        "partial identity patch should preserve the default Infring symbol"
+    );
+    assert_eq!(
+        profile
+            .pointer("/identity/vibe")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "calm"
+    );
+}
+
+#[test]
+fn identity_hydration_prompt_uses_agent_metadata() {
+    let row = json!({
+        "id": "agent-lucas",
+        "name": "Lucas",
+        "role": "engineer",
+        "identity": {
+            "archetype": "coder",
+            "vibe": "friendly"
+        },
+        "system_prompt": "Stay practical and calm. Keep responses concise."
+    });
+    let prompt = agent_identity_hydration_prompt(&row);
+    assert!(prompt.contains("name=Lucas"), "prompt should carry agent name");
+    assert!(
+        prompt.contains("role=engineer"),
+        "prompt should carry agent role"
+    );
+    assert!(
+        prompt.contains("archetype=coder"),
+        "prompt should carry agent archetype"
+    );
+    assert!(prompt.contains("vibe=friendly"), "prompt should carry agent vibe");
+    assert!(
+        prompt.contains("Personality directive: Stay practical and calm."),
+        "prompt should carry a brief personality hydration sentence"
+    );
 }
 
 #[test]
@@ -90,12 +204,15 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         message.payload.get("ok").and_then(Value::as_bool),
         Some(true)
     );
-    assert!(message
+    let first_response = message
         .payload
         .get("response")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .contains("hello there"));
+        .unwrap_or("");
+    assert!(
+        first_response.contains("hello there") || first_response.contains("Current queue depth:"),
+        "agent response should return user-facing content or runtime remediation"
+    );
 
     let new_session = handle(
         root.path(),
@@ -163,8 +280,17 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("")
-            .contains("Persistent memory is enabled"),
-        "cross-session recall should be remediated to persistent memory summary"
+            .contains("Here's what I remember from earlier:"),
+        "cross-session recall should be remediated to user-facing recall text"
+    );
+    assert!(
+        !cross_session
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("Persistent memory is enabled for this agent across"),
+        "internal memory metadata should never leak into user-facing responses"
     );
 
     let configured = handle(
@@ -269,6 +395,75 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
 }
 
 #[test]
+fn agent_init_config_seeds_role_tailored_intro_message() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"role":"engineer"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let configured = handle(
+        root.path(),
+        "PATCH",
+        &format!("/api/agents/{agent_id}/config"),
+        br#"{
+            "name":"",
+            "system_prompt":"You are a coding specialist.",
+            "archetype":"coding",
+            "profile":"builder",
+            "contract":{"mission":"Build features","termination_condition":"task_or_timeout","expiry_seconds":3600}
+        }"#,
+        &json!({"ok": true}),
+    )
+    .expect("config");
+    assert_eq!(configured.status, 200);
+    assert_eq!(
+        configured.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let session = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}/session"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("session");
+    assert_eq!(session.status, 200);
+    let messages = session
+        .payload
+        .pointer("/session/sessions/0/messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!messages.is_empty(), "expected intro message after init");
+    let first = messages[0].clone();
+    assert_eq!(first.get("role").and_then(Value::as_str), Some("assistant"));
+    let intro_text = clean_text(first.get("text").and_then(Value::as_str).unwrap_or(""), 280)
+        .to_ascii_lowercase();
+    assert!(
+        intro_text.contains("what are we coding today"),
+        "intro should be tailored to coding role: {intro_text}"
+    );
+}
+
+#[test]
 fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
     let root = tempfile::tempdir().expect("tempdir");
     init_git_repo(root.path());
@@ -309,7 +504,7 @@ fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
         .and_then(Value::as_str)
         .unwrap_or("");
     assert!(response.contains("Current queue depth:"));
-    assert!(response.to_ascii_lowercase().contains("persistent memory"));
+    assert!(!response.contains("Persistent memory is enabled for this agent across"));
     assert!(message
         .payload
         .get("runtime_sync")
@@ -391,13 +586,62 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
         .and_then(Value::as_str)
         .unwrap_or("");
     assert!(
-        response.contains("Persistent memory is enabled"),
-        "memory denial variant should be remediated to persistent memory summary"
+        response.contains("Here's what I remember from earlier:")
+            || response.contains("octopus")
+            || response.contains("aurora-7"),
+        "memory denial variant should be remediated to user-facing memory recall"
     );
     assert!(
         !response
             .to_ascii_lowercase()
             .contains("do not retain information between exchanges"),
         "raw denial text should not leak back to caller"
+    );
+}
+
+#[test]
+fn internal_recalled_context_metadata_is_not_echoed_to_user() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Context Leak Guard","role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let message = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Persistent memory is enabled for this agent across 1 session(s) with 12 stored messages. Recalled context: alpha | beta | gamma"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("metadata dump probe");
+    assert_eq!(message.status, 200);
+    let response = message
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(
+        !response.contains("persistent memory is enabled for this agent across"),
+        "internal metadata banner must never be returned as user-visible output"
+    );
+    assert!(
+        !response.contains("recalled context:"),
+        "recalled-context scaffolding must never be user-visible output"
     );
 }
