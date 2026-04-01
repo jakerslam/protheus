@@ -1,12 +1,16 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Map, Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const AGENT_SESSIONS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
+const AGENT_SESSIONS_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
 const MAX_MESSAGES: usize = 4000;
+const PROMPT_SUGGESTION_CONTEXT_WINDOW: usize = 7;
+const PROMPT_SUGGESTION_MAX_WORDS: usize = 5;
+const PROMPT_SUGGESTION_MAX_COUNT: usize = 3;
 
 fn now_iso() -> String {
     crate::now_iso()
@@ -192,14 +196,324 @@ fn sanitize_suggestion(value: &str) -> String {
     if cleaned.is_empty() {
         return String::new();
     }
-    let mut words = cleaned
+    cleaned
         .split(' ')
         .filter(|row| !row.is_empty())
-        .collect::<Vec<_>>();
-    if words.len() > 12 {
-        words.truncate(12);
+        .take(PROMPT_SUGGESTION_MAX_WORDS)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn is_focus_stop_word(word: &str) -> bool {
+    matches!(
+        word,
+        "a"
+            | "an"
+            | "and"
+            | "are"
+            | "as"
+            | "at"
+            | "be"
+            | "can"
+            | "could"
+            | "do"
+            | "for"
+            | "from"
+            | "how"
+            | "i"
+            | "in"
+            | "into"
+            | "is"
+            | "it"
+            | "me"
+            | "my"
+            | "now"
+            | "of"
+            | "on"
+            | "or"
+            | "please"
+            | "should"
+            | "that"
+            | "the"
+            | "then"
+            | "this"
+            | "to"
+            | "we"
+            | "what"
+            | "when"
+            | "where"
+            | "why"
+            | "with"
+            | "would"
+            | "you"
+            | "your"
+    )
+}
+
+fn extract_focus_tokens(value: &str, max_tokens: usize) -> Vec<String> {
+    let cap = max_tokens.clamp(1, PROMPT_SUGGESTION_MAX_WORDS);
+    let mut out = Vec::<String>::new();
+    for raw in clean_text(value, 320)
+        .to_ascii_lowercase()
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+    {
+        let token = raw.trim();
+        if token.len() < 3 || is_focus_stop_word(token) {
+            continue;
+        }
+        out.push(token.to_string());
+        if out.len() >= cap {
+            break;
+        }
     }
-    words.join(" ")
+    out
+}
+
+fn compact_topic_phrase(thread: &[(String, String)], keywords: &[String]) -> String {
+    for (role, text) in thread.iter().rev() {
+        if role != "user" {
+            continue;
+        }
+        let tokens = extract_focus_tokens(text, 3);
+        if !tokens.is_empty() {
+            return tokens.join(" ");
+        }
+    }
+    if !keywords.is_empty() {
+        return keywords
+            .iter()
+            .take(3)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" ");
+    }
+    for (_, text) in thread.iter().rev() {
+        let tokens = extract_focus_tokens(text, 3);
+        if !tokens.is_empty() {
+            return tokens.join(" ");
+        }
+    }
+    String::new()
+}
+
+fn normalize_message_role(row: &Value) -> String {
+    let raw = clean_text(
+        row.get("role")
+            .or_else(|| row.get("type"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        32,
+    )
+    .to_ascii_lowercase();
+    if raw.contains("user") {
+        return "user".to_string();
+    }
+    if raw.contains("agent") || raw.contains("assistant") {
+        return "assistant".to_string();
+    }
+    if raw.contains("system") {
+        return "system".to_string();
+    }
+    "assistant".to_string()
+}
+
+fn is_suggestion_noise(text: &str) -> bool {
+    let lowered = clean_text(text, 320).to_ascii_lowercase();
+    lowered.is_empty()
+        || lowered == "heartbeat_ok"
+        || lowered.starts_with("[runtime-task]")
+        || lowered
+            .contains("task accepted. report findings in this thread with receipt-backed evidence")
+        || lowered.contains("the user wants exactly 3 actionable next user prompts")
+}
+
+fn collect_recent_thread_context(messages: &[Value], limit: usize) -> Vec<(String, String)> {
+    let mut out = Vec::<(String, String)>::new();
+    for row in messages.iter().rev() {
+        let role = normalize_message_role(row);
+        if role == "system" {
+            continue;
+        }
+        let text = text_from_message(row);
+        if is_suggestion_noise(&text) {
+            continue;
+        }
+        out.push((role, text));
+        if out.len() >= limit {
+            break;
+        }
+    }
+    out.reverse();
+    out
+}
+
+#[derive(Default)]
+struct SuggestionStyle {
+    prefer_can_you: bool,
+    prefer_question_mark: bool,
+    prefer_lowercase: bool,
+}
+
+fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
+    let mut user_rows = Vec::<String>::new();
+    for (role, text) in thread.iter().rev() {
+        if role == "user" {
+            user_rows.push(clean_text(text, 240));
+        }
+        if user_rows.len() >= 5 {
+            break;
+        }
+    }
+    if user_rows.is_empty() {
+        return SuggestionStyle {
+            prefer_can_you: true,
+            prefer_question_mark: true,
+            prefer_lowercase: true,
+        };
+    }
+    let mut can_you = 0usize;
+    let mut question = 0usize;
+    let mut lowercase = 0usize;
+    for row in user_rows {
+        let lowered = row.to_ascii_lowercase();
+        if lowered.starts_with("can you")
+            || lowered.starts_with("could you")
+            || lowered.starts_with("would you")
+        {
+            can_you += 1;
+        }
+        if lowered.ends_with('?') {
+            question += 1;
+        }
+        if row
+            .chars()
+            .next()
+            .map(|ch| ch.is_ascii_lowercase())
+            .unwrap_or(false)
+        {
+            lowercase += 1;
+        }
+    }
+    let n = 5usize.min(
+        thread
+            .iter()
+            .rev()
+            .filter(|(role, _)| role == "user")
+            .count()
+            .max(1),
+    );
+    SuggestionStyle {
+        prefer_can_you: (can_you * 2) >= n,
+        prefer_question_mark: (question * 2) >= n || can_you > 0,
+        prefer_lowercase: (lowercase * 2) >= n,
+    }
+}
+
+fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<String> {
+    let stop = [
+        "this",
+        "that",
+        "with",
+        "from",
+        "your",
+        "have",
+        "will",
+        "into",
+        "about",
+        "after",
+        "before",
+        "where",
+        "when",
+        "which",
+        "what",
+        "please",
+        "could",
+        "would",
+        "should",
+        "there",
+        "their",
+        "them",
+        "just",
+        "also",
+        "same",
+        "thread",
+        "message",
+        "messages",
+        "agent",
+        "assistant",
+        "system",
+        "chat",
+        "next",
+        "step",
+        "report",
+        "runtime",
+        "update",
+    ];
+    let stop_set = stop.into_iter().collect::<HashSet<_>>();
+    let mut counts = HashMap::<String, usize>::new();
+    for (_, text) in thread {
+        let lowered = clean_text(text, 320).to_ascii_lowercase();
+        for token in
+            lowered.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+        {
+            let word = token.trim();
+            if word.len() < 4 || stop_set.contains(word) {
+                continue;
+            }
+            *counts.entry(word.to_string()).or_insert(0) += 1;
+        }
+    }
+    let mut ranked = counts.into_iter().collect::<Vec<_>>();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    ranked.truncate(limit.max(1));
+    ranked.into_iter().map(|(word, _)| word).collect()
+}
+
+fn apply_suggestion_style(style: &SuggestionStyle, body: &str) -> String {
+    let mut text = clean_text(body, 240);
+    if text.is_empty() {
+        return String::new();
+    }
+    let lowered = text.to_ascii_lowercase();
+    if style.prefer_can_you
+        && !lowered.starts_with("can you")
+        && !lowered.starts_with("could you")
+        && !lowered.starts_with("would you")
+    {
+        text = format!("can you {text}");
+    }
+    text = clean_text(&text, 240);
+    if style.prefer_lowercase {
+        if let Some(first) = text.chars().next() {
+            if first.is_ascii_uppercase() {
+                let mut chars = text.chars();
+                let _ = chars.next();
+                text = format!(
+                    "{}{}",
+                    first.to_ascii_lowercase(),
+                    chars.collect::<String>()
+                );
+            }
+        }
+    } else if let Some(first) = text.chars().next() {
+        if first.is_ascii_lowercase() {
+            let mut chars = text.chars();
+            let _ = chars.next();
+            text = format!(
+                "{}{}",
+                first.to_ascii_uppercase(),
+                chars.collect::<String>()
+            );
+        }
+    }
+    if style.prefer_question_mark {
+        if !text.ends_with('?') {
+            text.push('?');
+        }
+    } else {
+        text = text.trim_end_matches('?').trim().to_string();
+    }
+    sanitize_suggestion(&text)
 }
 
 pub fn append_turn(root: &Path, agent_id: &str, user_text: &str, assistant_text: &str) -> Value {
@@ -238,7 +552,11 @@ pub fn append_turn(root: &Path, agent_id: &str, user_text: &str, assistant_text:
             target_idx = 0;
         }
         let session = &mut sessions[target_idx];
-        if !session.get("messages").map(Value::is_array).unwrap_or(false) {
+        if !session
+            .get("messages")
+            .map(Value::is_array)
+            .unwrap_or(false)
+        {
             session["messages"] = Value::Array(Vec::new());
         }
         let messages = session
@@ -273,7 +591,7 @@ pub fn load_session(root: &Path, agent_id: &str) -> Value {
     json!({"ok": true, "type": "dashboard_agent_session", "agent_id": id, "session": state})
 }
 
-pub fn suggestions(root: &Path, agent_id: &str, user_hint: &str) -> Value {
+pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
     let id = normalize_agent_id(agent_id);
     if id.is_empty() {
         return json!({"ok": false, "error": "agent_id_required", "suggestions": []});
@@ -307,36 +625,44 @@ pub fn suggestions(root: &Path, agent_id: &str, user_hint: &str) -> Value {
         .cloned()
         .unwrap_or_default();
 
-    let recent_user = messages
-        .iter()
-        .rev()
-        .filter(|row| {
-            row.get("role")
-                .and_then(Value::as_str)
-                .map(|v| v == "user")
-                .unwrap_or(false)
-        })
-        .map(text_from_message)
-        .filter(|row| !row.is_empty())
-        .take(8)
-        .collect::<Vec<_>>();
+    let recent_thread = collect_recent_thread_context(&messages, PROMPT_SUGGESTION_CONTEXT_WINDOW);
+    if recent_thread.is_empty() {
+        return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
+    }
 
+    let recent_user = recent_thread
+        .iter()
+        .filter(|(role, _)| role == "user")
+        .map(|(_, text)| text.clone())
+        .collect::<Vec<_>>();
     if recent_user.is_empty() {
         return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
     }
 
+    let style = derive_suggestion_style(&recent_thread);
+    let keywords = extract_thread_keywords(&recent_thread, 6);
+    let topic = compact_topic_phrase(&recent_thread, &keywords);
+    if topic.is_empty() {
+        return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
+    }
+    let last_user = recent_thread
+        .iter()
+        .rev()
+        .find(|(role, _)| role == "user")
+        .map(|(_, text)| sanitize_suggestion(text))
+        .unwrap_or_default();
+
     let mut candidates = Vec::<String>::new();
-    let hint = sanitize_suggestion(user_hint);
-    if !hint.is_empty() {
-        candidates.push(hint);
+    candidates.push(format!("finish {topic}"));
+    candidates.push(format!("verify {topic}"));
+    candidates.push(format!("test {topic}"));
+    candidates.push(format!("continue {topic}"));
+    if keywords.len() >= 2 {
+        candidates.push(format!("compare {} {}", keywords[0], keywords[1]));
     }
-    let last = recent_user.first().cloned().unwrap_or_default();
-    if last.to_ascii_lowercase().contains("queue") {
-        candidates.push("Can you reduce queue depth and report exact changes?".to_string());
+    if !last_user.is_empty() {
+        candidates.push(format!("finish {last_user}"));
     }
-    candidates.push("What changed since the last runtime update?".to_string());
-    candidates.push("Give me the highest ROI next action now.".to_string());
-    candidates.push("Run the safest fix and report receipts.".to_string());
 
     let recent_set = recent_user
         .iter()
@@ -344,7 +670,7 @@ pub fn suggestions(root: &Path, agent_id: &str, user_hint: &str) -> Value {
         .collect::<HashSet<_>>();
     let mut out = Vec::<String>::new();
     for raw in candidates {
-        let row = sanitize_suggestion(&raw);
+        let row = apply_suggestion_style(&style, &raw);
         if row.is_empty() {
             continue;
         }
@@ -356,7 +682,7 @@ pub fn suggestions(root: &Path, agent_id: &str, user_hint: &str) -> Value {
             continue;
         }
         out.push(row);
-        if out.len() >= 3 {
+        if out.len() >= PROMPT_SUGGESTION_MAX_COUNT {
             break;
         }
     }
@@ -374,8 +700,10 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
                 continue;
             }
             if let Some(state) = read_json_file(&path) {
-                let agent_id =
-                    clean_text(state.get("agent_id").and_then(Value::as_str).unwrap_or(""), 140);
+                let agent_id = clean_text(
+                    state.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+                    140,
+                );
                 let active = clean_text(
                     state
                         .get("active_session_id")
@@ -404,7 +732,10 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
                     .cloned()
                     .unwrap_or_default();
                 let updated_at = clean_text(
-                    current.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+                    current
+                        .get("updated_at")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
                     80,
                 );
                 rows.push(json!({
@@ -455,5 +786,91 @@ mod tests {
             assert!(!text.contains('"'));
             assert!(!text.contains('\''));
         }
+    }
+
+    #[test]
+    fn suggestions_follow_recent_thread_context_window() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-b",
+            "neon trail still drifts while scrolling",
+            "I can inspect pointer math and scrolling anchors.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-b",
+            "fix neon trail anchor now",
+            "I patched the anchor but we should verify it.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-b",
+            "the neon trail still jitters at chat bottom",
+            "I see jitter around scroll bounds and bottom padding.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-b",
+            "make neon trail stay pinned to cursor while scrolling",
+            "I'll run one more pass and verify smoothness.",
+        );
+
+        let value = suggestions(root.path(), "agent-b", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        assert!(rows.len() <= 3);
+        let mut joined = String::new();
+        for row in rows {
+            let text = row.as_str().unwrap_or("");
+            assert!(!text.is_empty());
+            assert!(text.split_whitespace().count() <= PROMPT_SUGGESTION_MAX_WORDS);
+            if let Some(first) = text.chars().next() {
+                assert!(!first.is_ascii_uppercase());
+            }
+            joined.push_str(&text.to_ascii_lowercase());
+            joined.push(' ');
+        }
+        assert!(
+            joined.contains("neon")
+                || joined.contains("trail")
+                || joined.contains("scroll")
+                || joined.contains("cursor")
+        );
+    }
+
+    #[test]
+    fn suggestions_ignore_hint_and_use_recent_messages_only() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-c",
+            "fix chat scroll bounce jitter",
+            "I will patch bottom lock logic.",
+        );
+        let value = suggestions(
+            root.path(),
+            "agent-c",
+            "run system diagnostic full scan",
+        );
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(joined.contains("scroll") || joined.contains("bounce") || joined.contains("jitter"));
+        assert!(!joined.contains("diagnostic"));
+        assert!(!joined.contains("scan"));
     }
 }

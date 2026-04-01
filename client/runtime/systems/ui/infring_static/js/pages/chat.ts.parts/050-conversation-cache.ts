@@ -44,9 +44,22 @@
 
     applyContextTelemetry(data) {
       if (!data || typeof data !== 'object') return;
-      var approx = Number(data.context_tokens || data.context_used_tokens || data.context_total_tokens || 0);
-      if (Number.isFinite(approx) && approx > 0) {
-        this.contextApproxTokens = approx;
+      var pool = data.context_pool && typeof data.context_pool === 'object' ? data.context_pool : null;
+      var hasApproxField =
+        Object.prototype.hasOwnProperty.call(data, 'context_tokens') ||
+        Object.prototype.hasOwnProperty.call(data, 'context_used_tokens') ||
+        Object.prototype.hasOwnProperty.call(data, 'context_total_tokens') ||
+        (pool && Object.prototype.hasOwnProperty.call(pool, 'active_tokens')) ||
+        (pool && Object.prototype.hasOwnProperty.call(pool, 'pool_tokens'));
+      var approx = Number(
+        data.context_tokens != null ? data.context_tokens :
+        (data.context_used_tokens != null ? data.context_used_tokens :
+        (data.context_total_tokens != null ? data.context_total_tokens :
+        (pool && pool.active_tokens != null ? pool.active_tokens :
+        (pool && pool.pool_tokens != null ? pool.pool_tokens : 0))))
+      );
+      if (hasApproxField && Number.isFinite(approx) && approx >= 0) {
+        this.contextApproxTokens = Math.max(0, Math.round(approx));
       } else if (typeof data.message === 'string') {
         var tokenMatch = data.message.match(/~?\s*([0-9,]+)\s+tokens/i);
         if (tokenMatch && tokenMatch[1]) {
@@ -54,16 +67,27 @@
           if (Number.isFinite(parsed) && parsed > 0) this.contextApproxTokens = parsed;
         }
       }
-      var windowSize = Number(data.context_window || data.context_window_tokens || 0);
+      var windowSize = Number(
+        data.context_window != null ? data.context_window :
+        (data.context_window_tokens != null ? data.context_window_tokens :
+        (pool && pool.context_window != null ? pool.context_window : 0))
+      );
       if (Number.isFinite(windowSize) && windowSize > 0) {
         this.contextWindow = windowSize;
       }
-      var ratio = Number(data.context_ratio || 0);
+      var ratio = Number(
+        data.context_ratio != null ? data.context_ratio :
+        (pool && pool.context_ratio != null ? pool.context_ratio : 0)
+      );
       if ((!Number.isFinite(approx) || approx <= 0) && Number.isFinite(ratio) && ratio > 0 && this.contextWindow > 0) {
         this.contextApproxTokens = Math.round(this.contextWindow * ratio);
       }
-      if (data.context_pressure) {
-        this.contextPressure = data.context_pressure;
+      var pressure = String(
+        data.context_pressure != null ? data.context_pressure :
+        (pool && pool.context_pressure != null ? pool.context_pressure : '')
+      ).trim();
+      if (pressure) {
+        this.contextPressure = pressure;
       } else {
         this.refreshContextPressure();
       }
@@ -303,14 +327,14 @@
         if (left.indexOf(right) >= 0 || right.indexOf(left) >= 0) return true;
         return tokenSimilarity(left, right) >= 0.72;
       };
-      var clampWords = function(text, maxWords) {
-        var cap = Number(maxWords || 12);
-        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
-        if (!words.length) return '';
-        if (!Number.isFinite(cap) || cap < 4) cap = 12;
-        if (words.length <= cap) return words.join(' ');
-        return words.slice(0, cap).join(' ');
-      };
+	      var clampWords = function(text, maxWords) {
+	        var cap = Number(maxWords || 5);
+	        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
+	        if (!words.length) return '';
+	        if (!Number.isFinite(cap) || cap < 2) cap = 5;
+	        if (words.length <= cap) return words.join(' ');
+	        return words.slice(0, cap).join(' ');
+	      };
       var normalizeVoice = function(value) {
         var row = String(value == null ? '' : value)
           .replace(/\s+/g, ' ')
@@ -329,7 +353,7 @@
           .replace(/^show me\s+/i, 'Can you show ')
           .replace(/\s+/g, ' ')
           .trim();
-        row = clampWords(row, 12);
+	        row = clampWords(row, 5);
         row = row.replace(/[.!?]+$/g, '').trim();
         if (!row) return '';
         if (/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) row = row + '?';
@@ -358,7 +382,7 @@
         if (/[\"“”]/.test(text) && text.length > 120) return true;
         if (/^(give me|request|ask for)\b/i.test(text)) return true;
         var words = wordCount(text);
-        if (words < 3 || words > 14) return true;
+	        if (words < 2 || words > 5) return true;
         var actionableStart =
           /^(can|could|would|should|what|why|how|when|where|who|show|fix|check|run|retry|switch|clear|drain|scale|continue|compare|explain|validate|review|open|trace)\b/i.test(text);
         if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
