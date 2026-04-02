@@ -209,8 +209,8 @@ fn enforce_jsonl_tail_limit(path: &Path, max_bytes: u64) -> Result<bool, String>
         return Ok(false);
     }
 
-    let mut file =
-        fs::File::open(path).map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
+    let mut file = fs::File::open(path)
+        .map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
     let read_len = current.min(max_bytes.saturating_add(RETENTION_TAIL_SLACK_BYTES));
     if current > read_len {
         file.seek(SeekFrom::End(-(read_len as i64)))
@@ -263,8 +263,9 @@ fn rebuild_binary_queue_from_jsonl(
     let rows = read_jsonl(history_jsonl_path);
     if rows.is_empty() {
         if queue_path.exists() {
-            fs::remove_file(queue_path)
-                .map_err(|err| format!("remove_binary_queue_failed:{}:{err}", queue_path.display()))?;
+            fs::remove_file(queue_path).map_err(|err| {
+                format!("remove_binary_queue_failed:{}:{err}", queue_path.display())
+            })?;
         }
         return Ok(());
     }
@@ -272,8 +273,12 @@ fn rebuild_binary_queue_from_jsonl(
     let mut frames = Vec::<Vec<u8>>::with_capacity(rows.len());
     let mut total = 0u64;
     for row in rows {
-        let encoded = serde_json::to_vec(&row)
-            .map_err(|err| format!("encode_binary_receipt_failed:{}:{err}", queue_path.display()))?;
+        let encoded = serde_json::to_vec(&row).map_err(|err| {
+            format!(
+                "encode_binary_receipt_failed:{}:{err}",
+                queue_path.display()
+            )
+        })?;
         let mut frame = Vec::<u8>::with_capacity(4 + encoded.len());
         frame.extend_from_slice(&(encoded.len() as u32).to_le_bytes());
         frame.extend_from_slice(&encoded);
@@ -805,12 +810,9 @@ mod tests {
         let mut out = Vec::<Value>::new();
         let mut idx = 0usize;
         while idx + 4 <= bytes.len() {
-            let len = u32::from_le_bytes([
-                bytes[idx],
-                bytes[idx + 1],
-                bytes[idx + 2],
-                bytes[idx + 3],
-            ]) as usize;
+            let len =
+                u32::from_le_bytes([bytes[idx], bytes[idx + 1], bytes[idx + 2], bytes[idx + 3]])
+                    as usize;
             idx += 4;
             if idx + len > bytes.len() {
                 break;

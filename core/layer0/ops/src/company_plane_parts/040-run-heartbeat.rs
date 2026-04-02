@@ -87,6 +87,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     }
 
     if op == "status" {
+        let duality_state = load_duality_state_snapshot(root);
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -95,6 +96,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             "team": team,
             "op": op,
             "state": state,
+            "duality_state": duality_state,
             "remote_feed_path": heartbeat_remote_feed_path(root).display().to_string(),
             "claim_evidence": [
                 {
@@ -111,6 +113,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     }
 
     if op == "remote-feed" {
+        let duality_state = load_duality_state_snapshot(root);
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -119,6 +122,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             "team": team,
             "op": op,
             "remote_feed": remote_feed,
+            "duality_state": duality_state,
             "artifact": {
                 "path": heartbeat_remote_feed_path(root).display().to_string()
             },
@@ -176,15 +180,43 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         .get("max_queue_depth_warn")
         .and_then(Value::as_u64)
         .unwrap_or(50);
-    let degraded = status == "degraded" || status == "critical" || queue_depth > warn_queue;
+    let duality = company_heartbeat_duality_snapshot(
+        root,
+        &team,
+        sequence,
+        &status,
+        agents_online,
+        queue_depth,
+        true,
+    );
+    let duality_hard_block = duality
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let mut effective_status = status.clone();
+    if duality_hard_block {
+        effective_status = "critical".to_string();
+    }
+    let degraded = effective_status == "degraded"
+        || effective_status == "critical"
+        || queue_depth > warn_queue
+        || duality_hard_block;
+    let recommended_clearance_tier = duality
+        .get("recommended_clearance_tier")
+        .and_then(Value::as_i64)
+        .unwrap_or(3);
 
     state["version"] = Value::String("v1".to_string());
     state["team"] = Value::String(team.clone());
     state["sequence"] = Value::Number(serde_json::Number::from(sequence));
-    state["status"] = Value::String(status.clone());
+    state["status"] = Value::String(effective_status.clone());
     state["agents_online"] = Value::Number(serde_json::Number::from(agents_online));
     state["queue_depth"] = Value::Number(serde_json::Number::from(queue_depth));
     state["degraded"] = Value::Bool(degraded);
+    state["duality"] = duality.clone();
+    state["recommended_clearance_tier"] = Value::Number(serde_json::Number::from(
+        recommended_clearance_tier.clamp(1, 5),
+    ));
     state["interval_seconds"] = Value::Number(serde_json::Number::from(
         contract
             .get("default_interval_seconds")
@@ -196,12 +228,17 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
 
     remote_feed["version"] = Value::String("v1".to_string());
     remote_feed["teams"][&team] = json!({
-        "status": status,
+        "status": effective_status,
         "agents_online": agents_online,
         "queue_depth": queue_depth,
         "degraded": degraded,
         "sequence": sequence,
-        "last_beat_ts": state.get("last_beat_ts").cloned().unwrap_or(Value::Null)
+        "last_beat_ts": state.get("last_beat_ts").cloned().unwrap_or(Value::Null),
+        "duality": {
+            "hard_block": duality_hard_block,
+            "recommended_clearance_tier": recommended_clearance_tier,
+            "fractal_balance_score": duality.get("fractal_balance_score").cloned().unwrap_or(Value::Null)
+        }
     });
     remote_feed["updated_at"] = Value::String(crate::now_iso());
     let feed_path = heartbeat_remote_feed_path(root);
@@ -211,10 +248,12 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         "version": "v1",
         "team": team,
         "sequence": sequence,
-        "status": status,
+        "status": effective_status,
         "agents_online": agents_online,
         "queue_depth": queue_depth,
         "degraded": degraded,
+        "duality": duality,
+        "recommended_clearance_tier": recommended_clearance_tier,
         "ts": crate::now_iso()
     });
     let _ = append_jsonl(
@@ -312,6 +351,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn conduit_rejects_bypass() {
@@ -319,5 +359,61 @@ mod tests {
         let parsed = crate::parse_args(&["orchestrate".to_string(), "--bypass=1".to_string()]);
         let out = conduit_enforcement(root.path(), &parsed, true, "orchestrate-agency");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn heartbeat_tick_emits_duality_snapshot_and_clearance_hint() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let config_dir = root.path().join("client/runtime/config");
+        fs::create_dir_all(&config_dir).expect("config dir");
+        fs::write(
+            config_dir.join("duality_codex.txt"),
+            "order/chaos harmonization\nzero point\n",
+        )
+        .expect("codex");
+        fs::write(
+            config_dir.join("duality_seed_policy.json"),
+            serde_json::to_string_pretty(&json!({
+                "enabled": true,
+                "shadow_only": true,
+                "advisory_only": true,
+                "codex_path": "client/runtime/config/duality_codex.txt",
+                "state": {
+                    "latest_path": "local/state/autonomy/duality/latest.json",
+                    "history_path": "local/state/autonomy/duality/history.jsonl"
+                },
+                "outputs": {"persist_shadow_receipts": true, "persist_observations": true}
+            }))
+            .expect("policy encode"),
+        )
+        .expect("policy");
+
+        let parsed = crate::parse_args(&[
+            "heartbeat".to_string(),
+            "--op=tick".to_string(),
+            "--team=ops".to_string(),
+            "--status=healthy".to_string(),
+            "--agents-online=2".to_string(),
+            "--queue-depth=1".to_string(),
+        ]);
+        let out = run_heartbeat(root.path(), &parsed, false);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(out.pointer("/heartbeat/duality").is_some());
+        assert!(out
+            .pointer("/heartbeat/recommended_clearance_tier")
+            .is_some());
+    }
+
+    #[test]
+    fn heartbeat_status_surfaces_duality_state_snapshot() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "heartbeat".to_string(),
+            "--op=status".to_string(),
+            "--team=ops".to_string(),
+        ]);
+        let out = run_heartbeat(root.path(), &parsed, false);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert!(out.get("duality_state").is_some());
     }
 }

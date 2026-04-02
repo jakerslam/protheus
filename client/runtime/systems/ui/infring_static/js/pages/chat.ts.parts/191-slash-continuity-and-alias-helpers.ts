@@ -3,7 +3,7 @@
         var alertsPayload = await this.fetchProactiveTelemetryAlerts(false);
         var alertsRows = Array.isArray(alertsPayload && alertsPayload.alerts) ? alertsPayload.alerts : [];
         if (!alertsRows.length) {
-          this.messages.push({
+          this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
             text: 'No proactive telemetry alerts right now.',
@@ -19,7 +19,7 @@
             var cmd = String((row && row.recommended_command) || '').trim();
             return '- [' + sev + '] ' + msg + (cmd ? ('\n  ↳ `' + cmd + '`') : '');
           }).join('\n');
-          this.messages.push({
+          this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
             text: '**Telemetry Alerts**\n' + alertText,
@@ -29,7 +29,6 @@
             ts: Date.now()
           });
         }
-        this.scrollToBottom();
       } catch (error) {
         this.emitCommandFailureNotice('/alerts', error, ['/status', '/continuity']);
       }
@@ -42,7 +41,7 @@
           ? alertsPayload.next_actions
           : [];
         if (!rows.length) {
-          this.messages.push({
+          this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
             text: 'No predicted next actions right now.',
@@ -51,7 +50,6 @@
             system_origin: 'slash:next',
             ts: Date.now()
           });
-          this.scrollToBottom();
           return;
         }
         var rendered = rows.slice(0, 6).map(function(row) {
@@ -60,7 +58,7 @@
           var priority = String((row && row.priority) || 'low').toUpperCase();
           return '- [' + priority + '] `' + cmd + '`' + (reason ? ('\n  ↳ ' + reason) : '');
         }).join('\n');
-        this.messages.push({
+        this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
           text: '**Predicted Next Actions**\n' + rendered,
@@ -69,7 +67,6 @@
           system_origin: 'slash:next',
           ts: Date.now()
         });
-        this.scrollToBottom();
       } catch (error) {
         this.emitCommandFailureNotice('/next', error, ['/alerts', '/status']);
       }
@@ -89,7 +86,7 @@
           var reason = String((row && row.reason) || '').trim();
           return '- `' + cmd + '`' + (reason ? ('\n  ↳ ' + reason) : '');
         }).join('\n');
-        this.messages.push({
+        this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
           text:
@@ -104,7 +101,6 @@
           system_origin: 'slash:memory',
           ts: Date.now()
         });
-        this.scrollToBottom();
       } catch (error) {
         this.emitCommandFailureNotice('/memory', error, ['/continuity', '/alerts']);
       }
@@ -121,6 +117,19 @@
         continuityRows.push('- Pending tasks: ' + taskPending);
         continuityRows.push('- Stale sessions (48h+): ' + staleSessions);
         continuityRows.push('- Channel attention needed: ' + channelAttention);
+        var activeAgentRows = ((((continuity || {}).active_agents) || {}).rows) || [];
+        if (Array.isArray(activeAgentRows) && activeAgentRows.length) {
+          continuityRows.push('');
+          continuityRows.push('Active agent markers:');
+          var markers = activeAgentRows.slice(0, 4).map(function(row) {
+            var id = String((row && row.agent_id) || '?');
+            var objective = String((row && row.objective) || '').trim();
+            if (objective.length > 70) objective = objective.slice(0, 67) + '...';
+            var completion = Number((row && row.completion_percent) || 0);
+            return '- `' + id + '` — ' + objective + ' (' + completion + '%)';
+          });
+          continuityRows = continuityRows.concat(markers);
+        }
         var stale = (((continuity || {}).sessions) || {}).stale_48h || [];
         if (Array.isArray(stale) && stale.length) {
           var stalePreview = stale.slice(0, 3).map(function(row) {
@@ -130,7 +139,7 @@
           continuityRows.push('Stale session previews:');
           continuityRows = continuityRows.concat(stalePreview);
         }
-        this.messages.push({
+        this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
           text: continuityRows.join('\n'),
@@ -139,7 +148,6 @@
           system_origin: 'slash:continuity',
           ts: Date.now()
         });
-        this.scrollToBottom();
       } catch (error) {
         this.emitCommandFailureNotice('/continuity', error, ['/status', '/alerts']);
       }
@@ -212,7 +220,7 @@
         var recommendation = pending > 0
           ? 'Queue has pending tasks. Keep workers in service mode:\n`infring task worker --service=1 --wait-ms=125 --idle-hibernate-ms=15000`'
           : 'Queue is empty. Workers can hibernate safely:\n`infring task worker --service=1 --idle-hibernate-ms=15000`';
-        this.messages.push({
+        this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
           text: '**Worker Optimization**\n- Pending tasks: ' + pending + '\n- Active workers: ' + activeWorkers + '\n\n' + recommendation,
@@ -221,7 +229,6 @@
           system_origin: 'slash:opt',
           ts: Date.now()
         });
-        this.scrollToBottom();
       } catch (error) {
         this.emitCommandFailureNotice('/opt', error, ['/status', '/continuity']);
       }

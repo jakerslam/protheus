@@ -24,9 +24,15 @@ pub(super) fn render_csv(rows: &[Value]) -> String {
             row.get("path").and_then(Value::as_str).unwrap_or(""),
             row.get("loc").and_then(Value::as_u64).unwrap_or(0),
             row.get("weight").and_then(Value::as_f64).unwrap_or(0.0),
-            row.get("impact_score").and_then(Value::as_f64).unwrap_or(0.0),
-            row.get("cumulative_migrated_ts_lines").and_then(Value::as_u64).unwrap_or(0),
-            row.get("projected_rust_percent_after_lane").and_then(Value::as_f64).unwrap_or(0.0)
+            row.get("impact_score")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+            row.get("cumulative_migrated_ts_lines")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            row.get("projected_rust_percent_after_lane")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
         ));
     }
     format!("{}\n", lines.join("\n"))
@@ -47,9 +53,15 @@ pub(super) fn render_md(title: &str, rows: &[Value]) -> String {
             row.get("rank").and_then(Value::as_u64).unwrap_or(0),
             row.get("path").and_then(Value::as_str).unwrap_or(""),
             row.get("loc").and_then(Value::as_u64).unwrap_or(0),
-            row.get("impact_score").and_then(Value::as_f64).unwrap_or(0.0),
-            row.get("cumulative_migrated_ts_lines").and_then(Value::as_u64).unwrap_or(0),
-            row.get("projected_rust_percent_after_lane").and_then(Value::as_f64).unwrap_or(0.0)
+            row.get("impact_score")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+            row.get("cumulative_migrated_ts_lines")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            row.get("projected_rust_percent_after_lane")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
         ));
     }
     out.push(String::new());
@@ -83,8 +95,11 @@ pub(super) fn write_outputs(root: &Path, queue: &Value) -> Result<(), String> {
 
     write_text(&hotpath_csv, &render_csv(&hotpaths))
         .map_err(|err| format!("write_hotpath_csv_failed:{err}"))?;
-    write_text(&hotpath_md, &render_md("RUST60 Live TS Hotpaths", &hotpaths))
-        .map_err(|err| format!("write_hotpath_md_failed:{err}"))?;
+    write_text(
+        &hotpath_md,
+        &render_md("RUST60 Live TS Hotpaths", &hotpaths),
+    )
+    .map_err(|err| format!("write_hotpath_md_failed:{err}"))?;
     lane_utils::write_json(&queue_json, queue)
         .map_err(|err| format!("write_queue_json_failed:{err}"))?;
     write_text(&queue_md, &render_md("RUST60 Live Execution Queue", &lanes))

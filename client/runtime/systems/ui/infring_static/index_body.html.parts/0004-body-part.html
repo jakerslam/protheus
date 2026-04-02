@@ -11,12 +11,14 @@
                         </div>
                       </div>
                     </div>
-                    <input class="form-input chat-init-name-input" x-model="freshInitName" maxlength="100" placeholder="Agent name" title="Agent name">
+                  </div>
+                  <div class="chat-init-name-row" data-init-anchor="identity-name">
+                    <input class="form-input chat-init-name-input" x-model="freshInitName" maxlength="100" placeholder="Agent name (optional)" title="Agent name">
                   </div>
                   <div class="text-xs text-dim" x-show="freshInitAvatarUploading">Uploading avatar...</div>
                   <div class="text-xs text-danger" x-show="freshInitAvatarUploadError" x-text="freshInitAvatarUploadError"></div>
 
-                  <div class="chat-init-section-title">Role <span class="chat-init-section-required">required</span></div>
+                  <div class="chat-init-section-title" data-init-anchor="role">Role <span class="chat-init-section-required">required</span></div>
                   <div class="chat-archetype-grid chat-init-grid">
                     <template x-for="t in chatArchetypeTemplates" :key="'chat-arch-' + t.name">
                       <button class="chat-archetype-tile" :class="{ selected: isFreshInitTemplateSelected(t) }" @click="applyChatArchetypeTemplate(t)">
@@ -30,7 +32,7 @@
                   </div>
                   <div class="chat-archetype-subtitle chat-init-other-note" x-show="freshInitTemplateDef && freshInitTemplateDef.is_other && freshInitAwaitingOtherPrompt" x-text="freshInitOtherInputPlaceholder()"></div>
 
-                  <div class="chat-init-section-title">Lifespan <span class="chat-init-section-required">required</span></div>
+                  <div class="chat-init-section-title" data-init-anchor="lifespan">Lifespan <span class="chat-init-section-required">required</span></div>
                   <div class="chat-archetype-grid chat-init-grid chat-init-lifespan-grid">
                     <template x-for="l in freshInitLifespanCards" :key="'chat-lifespan-' + l.id">
                       <button class="chat-archetype-tile" :class="{ selected: isFreshInitLifespanSelected(l) }" @click="selectFreshInitLifespan(l)">
@@ -102,8 +104,8 @@
                     </div>
                   </div>
 
-                  <div class="chat-init-launch-row">
-                    <button class="btn btn-primary chat-init-launch-btn" @click="launchFreshAgentInitialization()" :disabled="!freshInitCanLaunch">
+                  <div class="chat-init-launch-row" data-init-anchor="launch">
+                    <button class="btn btn-primary chat-init-launch-btn" :class="{ 'chat-init-launch-pulse': freshInitCanLaunch && !freshInitLaunching }" @click="launchFreshAgentInitialization()" :disabled="!freshInitCanLaunch">
                       <span x-show="!freshInitLaunching">Launch</span>
                       <span x-show="freshInitLaunching">Launching...</span>
                     </button>
@@ -175,9 +177,9 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
           </button>
         </div>
-        <div class="input-area" x-show="currentAgent" :class="{ 'terminal-mode': terminalMode }">
+        <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" :class="{ 'terminal-mode': terminalMode }">
           <div class="chat-input-lane">
-            <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
+            <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom({ buttonAnimated: true, force: true })" title="Scroll to latest" aria-label="Scroll to latest">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
             </button>
             <template x-if="!terminalMode && attachments && attachments.length">
@@ -217,12 +219,13 @@
               <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
                   <button
-                    class="prompt-suggestion-chip"
+                    class="prompt-suggestion-chip prompt-suggestion-chip-rise"
                     type="button"
                     @click="applyPromptSuggestion(suggestion)"
                     @mouseenter="onPromptSuggestionHoverIn($event)"
                     @mouseleave="onPromptSuggestionHoverOut($event)"
                     :title="suggestion"
+                    :style="'--prompt-suggestion-entry-delay:' + (sidx * 16) + 'ms'"
                     x-transition:enter="transition ease-out duration-120"
                     x-transition:enter-start="opacity-0"
                     x-transition:enter-end="opacity-100"
@@ -236,7 +239,7 @@
               </div>
               <div class="input-row">
               <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="addFiles($event.target.files); $event.target.value = ''" style="display:none">
-              <div class="composer-shell" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
+              <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked() }" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
                 <div class="composer-plus-wrap composer-icon-left" @click.outside="showAttachMenu = false">
                   <button class="composer-icon-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
@@ -247,11 +250,16 @@
                       <span>Add files</span>
                       <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+F</span>
                     </button>
-                    <button class="composer-plus-menu-item composer-plus-menu-item-toggle" @click="toggleTerminalMode()">
+                    <button
+                      class="composer-plus-menu-item composer-plus-menu-item-toggle"
+                      @click="if(!(isSystemThreadAgent && isSystemThreadAgent(currentAgent))){toggleTerminalMode()}"
+                      :disabled="isSystemThreadAgent && isSystemThreadAgent(currentAgent)"
+                      :title="(isSystemThreadAgent && isSystemThreadAgent(currentAgent)) ? 'System thread is terminal-only' : 'Switch compose mode'"
+                    >
                       <span class="composer-plus-toggle-label">
                         <svg x-show="terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <svg x-show="!terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
-                        <span x-text="terminalMode ? 'chat mode' : 'terminal mode'"></span>
+                        <span x-text="(isSystemThreadAgent && isSystemThreadAgent(currentAgent)) ? 'terminal locked' : (terminalMode ? 'chat mode' : 'terminal mode')"></span>
                       </span>
                       <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span>
                       <span class="composer-plus-vtoggle" :class="{ active: terminalMode }" aria-hidden="true">
@@ -270,17 +278,23 @@
                   x-model="inputText"
                   :disabled="isFreshInitComposerLocked()"
                   :placeholder="composerPlaceholder(false)"
-                  :class="{ 'streaming-active': sending, 'terminal-textarea': terminalMode }"
+                  :class="{ 'streaming-active': sending, 'terminal-textarea': terminalMode, 'composer-input-disabled': isFreshInitComposerLocked() }"
                   @focus="if(terminalMode){setTerminalCursorFocus(true, $event)}"
                   @blur="if(terminalMode){setTerminalCursorFocus(false, $event)}"
                   @click="if(terminalMode){updateTerminalCursor($event)}"
                   @keyup="if(terminalMode){updateTerminalCursor($event)}"
                   @select="if(terminalMode){updateTerminalCursor($event)}"
                   @keydown.enter.prevent="if(!$event.shiftKey && !$event.isComposing && $event.keyCode !== 229){ sendMessage(); }"
+                  @keydown.arrow-up.prevent="if(!terminalMode && showModelPicker){modelPickerIdx = Math.max(0, modelPickerIdx - 1)}else if(!terminalMode && showSlashMenu){slashIdx = Math.max(0, slashIdx - 1)}else{navigateInputHistory(-1, $event)}"
+                  @keydown.arrow-down.prevent="if(!terminalMode && showModelPicker){modelPickerIdx = Math.min(filteredModelPicker.length - 1, modelPickerIdx + 1)}else if(!terminalMode && showSlashMenu){slashIdx = Math.min(filteredSlashCommands.length - 1, slashIdx + 1)}else{navigateInputHistory(1, $event)}"
                   @input="$el.style.height='auto';$el.style.height=Math.min($el.scrollHeight,150)+'px'; if(terminalMode){updateTerminalCursor($event)}"
                 ></textarea>
                 <div class="composer-actions-right">
-                  <span class="model-inline-label" x-show="currentAgent && !terminalMode" x-text="modelDisplayName"></span>
+                  <span
+                    class="model-inline-label"
+                    x-show="currentAgent && !terminalMode && String(inputText || '').trim().length === 0"
+                    x-text="modelDisplayName"
+                  ></span>
                   <div class="model-switcher-inline" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                     <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" :disabled="sending" title="Switch model (Ctrl+M)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -391,6 +405,10 @@
               </div>
               </div>
             </div>
-            <div class="context-ring-row">
+            <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+              <span class="chat-archived-banner-text">This agent is archived</span>
+              <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
+            </div>
+            <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())">
               <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
                 <button

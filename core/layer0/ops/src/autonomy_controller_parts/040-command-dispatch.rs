@@ -17,6 +17,40 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "run" => {
             let strict = parse_bool(parse_flag(argv, "strict").as_deref(), false);
             let mut receipt = native_receipt(root, &cmd, argv);
+            let run_id = receipt
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    clean_id(
+                        Some(format!(
+                            "run-{}",
+                            now_iso().chars().filter(|c| c.is_ascii_digit()).take(16).collect::<String>()
+                        )),
+                        "run-duality",
+                    )
+                });
+            let duality = autonomy_duality_bundle(
+                root,
+                "weaver_arbitration",
+                "autonomy_controller_run",
+                &run_id,
+                &json!({
+                    "objective": parse_flag(argv, "objective").unwrap_or_else(|| "default".to_string()),
+                    "max_actions": parse_flag(argv, "max-actions")
+                        .and_then(|v| v.parse::<i64>().ok())
+                        .unwrap_or(1)
+                }),
+                true,
+            );
+            if strict && autonomy_duality_hard_block(&duality) {
+                let mut denied = cli_error_receipt(argv, "duality_toll_hard_block", 2);
+                denied["type"] = Value::String("autonomy_controller_duality_gate".to_string());
+                denied["duality"] = duality;
+                print_json_line(&denied);
+                return 2;
+            }
+            receipt["duality"] = duality;
             match persist_autonomy_run_row(root, argv, &receipt) {
                 Ok(row) => {
                     receipt["run_telemetry"] = json!({
@@ -115,6 +149,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
@@ -169,6 +204,9 @@ mod tests {
             last.get("objective_id").and_then(Value::as_str),
             Some("t1_harness_seed")
         );
+        assert!(last.get("duality").is_some());
+        assert!(last.pointer("/duality/toll").is_some());
+        assert!(last.pointer("/duality/dual_voice").is_some());
     }
 
     #[test]
@@ -293,5 +331,56 @@ mod tests {
             1
         );
     }
-}
 
+    #[test]
+    fn run_strict_fails_closed_when_duality_toll_hard_blocks() {
+        let root = tempdir().expect("tmp");
+        let config_dir = root.path().join("client/runtime/config");
+        let state_dir = root.path().join("local/state/autonomy/duality");
+        fs::create_dir_all(&config_dir).expect("config dir");
+        fs::create_dir_all(&state_dir).expect("state dir");
+        fs::write(
+            config_dir.join("duality_codex.txt"),
+            "order/chaos harmonization\nzero point\n",
+        )
+        .expect("codex");
+        fs::write(
+            config_dir.join("duality_seed_policy.json"),
+            serde_json::to_string_pretty(&json!({
+                "enabled": true,
+                "shadow_only": true,
+                "advisory_only": true,
+                "toll_enabled": true,
+                "toll_hard_block_threshold": 0.5,
+                "codex_path": "client/runtime/config/duality_codex.txt",
+                "state": {
+                    "latest_path": "local/state/autonomy/duality/latest.json",
+                    "history_path": "local/state/autonomy/duality/history.jsonl"
+                },
+                "outputs": {"persist_shadow_receipts": true, "persist_observations": true}
+            }))
+            .expect("policy encode"),
+        )
+        .expect("policy");
+        fs::write(
+            state_dir.join("latest.json"),
+            serde_json::to_string_pretty(&json!({
+                "version": "v1",
+                "seed_confidence": 1.0,
+                "toll_debt": 5.0
+            }))
+            .expect("state encode"),
+        )
+        .expect("state");
+
+        let code = run(
+            root.path(),
+            &[
+                "run".to_string(),
+                "--objective=hard_block_probe".to_string(),
+                "--strict=1".to_string(),
+            ],
+        );
+        assert_eq!(code, 2);
+    }
+}

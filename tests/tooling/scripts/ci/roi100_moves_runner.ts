@@ -175,6 +175,16 @@ function buildMoves(options = {}) {
     cmd: 'node',
     args: [...protheusOpsBridgeArgs, 'swarm-runtime', ...args, `--state-path=${STATE}`],
   });
+  const swarmWrapper = (...args) => ({
+    kind: 'cmd',
+    cmd: 'node',
+    args: [
+      'client/runtime/lib/ts_entrypoint.ts',
+      'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts',
+      ...args,
+      `--state-path=${STATE}`,
+    ],
+  });
 
   if (!laneOnly) {
     // Baseline runtime health
@@ -287,40 +297,24 @@ function buildMoves(options = {}) {
     for (const team of [2, 3, 4, 5]) {
       push({
         title: `Wrapper run objective=generic team=${team}`,
-        kind: 'cmd',
-        cmd: 'node',
-        args: [
-          'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts',
-          'run',
-          '--objective=generic',
-          `--team_size=${team}`,
-          `--state-path=${STATE}`,
-        ],
+        ...swarmWrapper('run', '--objective=generic', `--team_size=${team}`),
       });
     }
     push({
       title: 'Wrapper test id=2',
-      kind: 'cmd',
-      cmd: 'node',
-      args: ['client/runtime/systems/autonomy/swarm_orchestration_runtime.ts', 'test', '--id=2', `--state-path=${STATE}`],
+      ...swarmWrapper('test', '--id=2'),
     });
     push({
       title: 'Wrapper test id=3',
-      kind: 'cmd',
-      cmd: 'node',
-      args: ['client/runtime/systems/autonomy/swarm_orchestration_runtime.ts', 'test', '--id=3', `--state-path=${STATE}`],
+      ...swarmWrapper('test', '--id=3'),
     });
     push({
       title: 'Wrapper test id=6',
-      kind: 'cmd',
-      cmd: 'node',
-      args: ['client/runtime/systems/autonomy/swarm_orchestration_runtime.ts', 'test', '--id=6', `--state-path=${STATE}`],
+      ...swarmWrapper('test', '--id=6'),
     });
     push({
       title: 'Wrapper test id=all',
-      kind: 'cmd',
-      cmd: 'node',
-      args: ['client/runtime/systems/autonomy/swarm_orchestration_runtime.ts', 'test', '--id=all', `--state-path=${STATE}`],
+      ...swarmWrapper('test', '--id=all'),
     });
 
     // Regression suites

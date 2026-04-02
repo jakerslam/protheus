@@ -143,8 +143,10 @@ fn command_collect(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
                     break;
                 }
                 Err(err_payload) => {
-                    let code = support::clean_text(err_payload.get("code").and_then(Value::as_str), 80);
-                    let retryable = code == "timeout" || code == "parse_failed" || code == "collector_error";
+                    let code =
+                        support::clean_text(err_payload.get("code").and_then(Value::as_str), 80);
+                    let retryable =
+                        code == "timeout" || code == "parse_failed" || code == "collector_error";
                     attempt_error = Some(err_payload);
                     if !retryable || attempt + 1 >= retry_attempts as usize {
                         break;
@@ -197,8 +199,8 @@ fn command_prepare_run(root: &Path, payload: &Map<String, Value>) -> Value {
         .get("last_run")
         .and_then(Value::as_str)
         .and_then(support::parse_iso_ms);
-    let hours_since_last =
-        last_run_ms.map(|ms| ((chrono::Utc::now().timestamp_millis() - ms) as f64 / 3_600_000.0).max(0.0));
+    let hours_since_last = last_run_ms
+        .map(|ms| ((chrono::Utc::now().timestamp_millis() - ms) as f64 / 3_600_000.0).max(0.0));
     let skipped = !force && hours_since_last.map(|h| h < min_hours).unwrap_or(false);
     json!({
         "ok": true,
@@ -336,7 +338,10 @@ fn finalize_success(
     meta["last_run"] = Value::String(support::now_iso());
     if !items.is_empty() {
         meta["last_success"] = Value::String(support::now_iso());
-        support::write_json_atomic(&support::cache_path_for(root, payload), &json!({ "items": items }))?;
+        support::write_json_atomic(
+            &support::cache_path_for(root, payload),
+            &json!({ "items": items }),
+        )?;
     }
     support::write_json_atomic(&support::meta_path_for(root, payload), &meta)?;
 
@@ -492,7 +497,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             0
         }
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("bird_x_collector_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "bird_x_collector_kernel_error",
+                &err,
+            ));
             1
         }
     }
@@ -530,7 +538,12 @@ mod tests {
             ]
         });
         let out = command_map_results(lane_utils::payload_obj(&payload));
-        assert_eq!(out.get("items").and_then(Value::as_array).map(|rows| rows.len()), Some(1));
+        assert_eq!(
+            out.get("items")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
     }
 
     #[test]
@@ -538,8 +551,11 @@ mod tests {
         let root = temp_root("cadence");
         let payload = json!({"force":false,"min_hours":4.0});
         let meta_path = support::meta_path_for(&root, lane_utils::payload_obj(&payload));
-        support::write_json_atomic(&meta_path, &json!({"last_run": support::now_iso(), "seen_ids": []}))
-            .expect("write meta");
+        support::write_json_atomic(
+            &meta_path,
+            &json!({"last_run": support::now_iso(), "seen_ids": []}),
+        )
+        .expect("write meta");
         let out = command_prepare_run(&root, lane_utils::payload_obj(&payload));
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("skipped").and_then(Value::as_bool), Some(true));
@@ -569,7 +585,12 @@ mod tests {
         .expect("finalize");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("cache_hit").and_then(Value::as_bool), Some(true));
-        assert_eq!(out.get("items").and_then(Value::as_array).map(|rows| rows.len()), Some(1));
+        assert_eq!(
+            out.get("items")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
     }
 
     #[test]

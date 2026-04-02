@@ -53,8 +53,130 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(|session| session.depth)
                 .max()
                 .unwrap_or(0),
+            "scale": evaluate_scale_policy_readiness(
+                &state,
+                state.scale_policy.target_ready_agents,
+                recommended_manager_fanout_for_target(state.scale_policy.target_ready_agents)
+                    .min(state.scale_policy.max_children_per_parent.max(2)),
+            ),
             "state_path": state_file,
         })),
+        "scale" => {
+            let sub = argv
+                .get(1)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            match sub.as_str() {
+                "status" => {
+                    let target_agents = parse_u64_flag(
+                        argv,
+                        "agents",
+                        state.scale_policy.target_ready_agents as u64,
+                    )
+                    .max(1) as usize;
+                    let default_fanout = recommended_manager_fanout_for_target(target_agents)
+                        .min(state.scale_policy.max_children_per_parent.max(2));
+                    let fanout = parse_u64_flag(argv, "fanout", default_fanout as u64).max(2)
+                        as usize;
+                    Ok(json!({
+                        "ok": true,
+                        "type": "swarm_runtime_scale_status",
+                        "scale": evaluate_scale_policy_readiness(&state, target_agents, fanout),
+                    }))
+                }
+                "plan" => {
+                    let target_agents = parse_u64_flag(
+                        argv,
+                        "agents",
+                        state.scale_policy.target_ready_agents as u64,
+                    )
+                    .max(1) as usize;
+                    let default_fanout = recommended_manager_fanout_for_target(target_agents)
+                        .min(state.scale_policy.max_children_per_parent.max(2));
+                    let fanout = parse_u64_flag(argv, "fanout", default_fanout as u64).max(2)
+                        as usize;
+                    Ok(json!({
+                        "ok": true,
+                        "type": "swarm_runtime_scale_plan",
+                        "scale": evaluate_scale_policy_readiness(&state, target_agents, fanout),
+                    }))
+                }
+                "set" => {
+                    let parse_bool = |raw: &str| -> Result<bool, String> {
+                        match raw.trim().to_ascii_lowercase().as_str() {
+                            "1" | "true" | "yes" | "on" => Ok(true),
+                            "0" | "false" | "no" | "off" => Ok(false),
+                            _ => Err(format!("invalid_bool:{raw}")),
+                        }
+                    };
+                    let mut apply_set = || -> Result<(), String> {
+                        if let Some(raw) = parse_flag(argv, "max-sessions") {
+                            let value = raw
+                                .trim()
+                                .parse::<usize>()
+                                .map_err(|_| format!("invalid_max_sessions:{raw}"))?;
+                            if value == 0 {
+                                return Err("max_sessions_must_be_positive".to_string());
+                            }
+                            state.scale_policy.max_sessions_hard = value;
+                        }
+                        if let Some(raw) = parse_flag(argv, "max-children-per-parent") {
+                            let value = raw
+                                .trim()
+                                .parse::<usize>()
+                                .map_err(|_| format!("invalid_max_children_per_parent:{raw}"))?;
+                            if value < 2 {
+                                return Err(
+                                    "max_children_per_parent_must_be_at_least_2".to_string(),
+                                );
+                            }
+                            state.scale_policy.max_children_per_parent = value;
+                        }
+                        if let Some(raw) = parse_flag(argv, "max-depth-hard") {
+                            let value = raw
+                                .trim()
+                                .parse::<u8>()
+                                .map_err(|_| format!("invalid_max_depth_hard:{raw}"))?;
+                            if value < 2 {
+                                return Err("max_depth_hard_must_be_at_least_2".to_string());
+                            }
+                            state.scale_policy.max_depth_hard = value;
+                        }
+                        if let Some(raw) = parse_flag(argv, "target-ready-agents") {
+                            let value = raw
+                                .trim()
+                                .parse::<usize>()
+                                .map_err(|_| format!("invalid_target_ready_agents:{raw}"))?;
+                            if value == 0 {
+                                return Err("target_ready_agents_must_be_positive".to_string());
+                            }
+                            state.scale_policy.target_ready_agents = value;
+                        }
+                        if let Some(raw) = parse_flag(argv, "enforce-session-cap") {
+                            state.scale_policy.enforce_session_cap = parse_bool(&raw)?;
+                        }
+                        if let Some(raw) = parse_flag(argv, "enforce-parent-capacity") {
+                            state.scale_policy.enforce_parent_capacity = parse_bool(&raw)?;
+                        }
+                        Ok(())
+                    };
+                    match apply_set() {
+                        Ok(()) => {
+                            let target_agents = state.scale_policy.target_ready_agents;
+                            let fanout = recommended_manager_fanout_for_target(target_agents)
+                                .min(state.scale_policy.max_children_per_parent.max(2));
+                            Ok(json!({
+                                "ok": true,
+                                "type": "swarm_runtime_scale_set",
+                                "scale": evaluate_scale_policy_readiness(&state, target_agents, fanout),
+                            }))
+                        }
+                        Err(err) => Err(err),
+                    }
+                }
+                _ => Err(format!("unknown_scale_subcommand:{sub}")),
+            }
+        }
         "spawn" => {
             let task = parse_flag(argv, "task").unwrap_or_else(|| "swarm-task".to_string());
             let parent_id = parse_flag(argv, "session-id");
@@ -913,6 +1035,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "recursive" => run_test_recursive(&mut state, argv),
                 "byzantine" => run_test_byzantine(&mut state, argv),
                 "concurrency" => run_test_concurrency(&mut state, argv),
+                "hierarchy" => run_test_hierarchy(&mut state, argv),
                 "budget" => run_test_budget(&mut state, argv),
                 "persistent" => run_test_persistent(&mut state, argv),
                 "communication" => run_test_communication(&mut state, argv),

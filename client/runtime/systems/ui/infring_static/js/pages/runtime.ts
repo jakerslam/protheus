@@ -14,6 +14,12 @@ document.addEventListener('alpine:init', function() {
       logLevel: '-',
       networkEnabled: false,
       providers: [],
+      webConduitEnabled: false,
+      webConduitRateLimit: '-',
+      webConduitReceiptsTotal: 0,
+      webConduitRecentDenied: 0,
+      webConduitLastUrl: '-',
+      webConduitRecentReceipts: [],
 
       async loadData() {
         this.loading = true;
@@ -22,12 +28,16 @@ document.addEventListener('alpine:init', function() {
             InfringAPI.get('/api/status'),
             InfringAPI.get('/api/version'),
             InfringAPI.get('/api/providers'),
-            InfringAPI.get('/api/agents')
+            InfringAPI.get('/api/agents'),
+            InfringAPI.get('/api/web/status').catch(function() { return {}; }),
+            InfringAPI.get('/api/web/receipts?limit=5').catch(function() { return { receipts: [] }; })
           ]);
           var status = results[0];
           var ver = results[1];
           var prov = results[2];
           var agents = results[3];
+          var webStatus = results[4] || {};
+          var webReceipts = results[5] || { receipts: [] };
 
           this.version = ver.version || '-';
           this.platform = ver.platform || '-';
@@ -38,6 +48,14 @@ document.addEventListener('alpine:init', function() {
           this.homeDir = status.home_dir || '-';
           this.logLevel = status.log_level || '-';
           this.networkEnabled = !!status.network_enabled;
+          this.webConduitEnabled = !!webStatus.enabled;
+          this.webConduitRateLimit = (webStatus.policy && webStatus.policy.web_conduit && webStatus.policy.web_conduit.rate_limit_per_minute)
+            ? String(webStatus.policy.web_conduit.rate_limit_per_minute) + '/min'
+            : '-';
+          this.webConduitReceiptsTotal = Number(webStatus.receipts_total || 0);
+          this.webConduitRecentDenied = Number(webStatus.recent_denied || 0);
+          this.webConduitLastUrl = (webStatus.last_receipt && webStatus.last_receipt.requested_url) || '-';
+          this.webConduitRecentReceipts = Array.isArray(webReceipts.receipts) ? webReceipts.receipts : [];
 
           // Compute uptime from uptime_seconds
           var diff = status.uptime_seconds || 0;

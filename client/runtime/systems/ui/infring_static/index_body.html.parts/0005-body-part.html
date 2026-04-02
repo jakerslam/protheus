@@ -57,14 +57,14 @@
 
         <!-- MODE 1: Inline Chat (agent selected) -->
         <template x-if="activeChatAgent">
-          <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive }">
+          <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive, 'chat-wrapper-archived-thread': isCurrentAgentArchived && isCurrentAgentArchived() }">
             <!-- Chat header with back button -->
             <div class="page-header" x-show="currentAgent">
               <div class="flex items-center gap-2" style="min-width:0">
                 <button class="btn btn-ghost btn-sm" @click="$dispatch('close-chat')" title="Back to Agents" style="padding:4px 8px;margin-right:4px">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
                 </button>
-                <span x-show="currentAgent && currentAgent.identity && currentAgent.identity.emoji" x-text="currentAgent && currentAgent.identity && currentAgent.identity.emoji" style="font-size:20px;line-height:1"></span>
+                <span x-show="currentAgent && !!displayAgentEmoji(currentAgent)" x-text="displayAgentEmoji(currentAgent)" style="font-size:20px;line-height:1"></span>
                 <div style="min-width:0">
                   <div class="font-bold" x-text="currentAgent ? currentAgent.name : ''"></div>
                   <div class="text-xs text-dim truncate" style="font-family:var(--font-mono);font-size:11px" x-text="currentAgent ? currentAgent.model_provider + ':' + currentAgent.model_name : ''"></div>
@@ -179,17 +179,37 @@
                         <div class="message-body">
                         <div
                           class="message-agent-name"
+                          :class="messageTitleClass(msg)"
                           x-show="showMessageTitle(msg, idx, filteredMessages)"
-                          x-text="messageActorLabel(msg)"
-                        ></div>
+                        >
+                          <span class="message-agent-name-bracket" aria-hidden="true">[</span><span class="message-agent-name-label" x-text="messageTitleLabel(msg)"></span><span class="message-agent-name-bracket" aria-hidden="true">]</span>
+                        </div>
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
                           <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
                           <div class="thinking-status-line" x-show="thinkingStatusText(msg)" x-text="thinkingStatusText(msg)"></div>
+                          <div class="thinking-trace-list" x-show="thinkingTraceRows(msg).length">
+                            <template x-for="trace in thinkingTraceRows(msg)" :key="trace.id">
+                              <div class="thinking-trace-row" :class="'state-' + trace.state">
+                                <span class="thinking-trace-dot" aria-hidden="true"></span>
+                                <span class="thinking-trace-label" x-text="trace.label"></span>
+                                <span class="thinking-trace-state" x-text="trace.state_label"></span>
+                              </div>
+                            </template>
+                          </div>
                           <div class="typing-dots"><span></span><span></span><span></span></div>
                         </div>
                         <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)">
-                          <div class="terminal-toolbox" :class="terminalToolboxSideClass(msg)">
+                          <div
+                            class="terminal-toolbox"
+                            :class="terminalToolboxSideClass(msg)"
+                            role="button"
+                            tabindex="0"
+                            title="Click to expand full output"
+                            @click="expandTerminalMessage(msg, idx, filteredMessages)"
+                            @keydown.enter.prevent="expandTerminalMessage(msg, idx, filteredMessages)"
+                            @keydown.space.prevent="expandTerminalMessage(msg, idx, filteredMessages)"
+                          >
                             <span class="terminal-toolbox-icon" aria-hidden="true">
                               <svg viewBox="0 0 24 24" focusable="false">
                                 <path d="m4 6 6 6-6 6"></path>
@@ -404,9 +424,9 @@
               </button>
             </div>
             <!-- Input area -->
-            <div class="input-area" x-show="currentAgent" style="position:relative" :class="{ 'terminal-mode': terminalMode }">
+            <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" style="position:relative" :class="{ 'terminal-mode': terminalMode }">
               <div class="chat-input-lane">
-              <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom()" title="Scroll to latest" aria-label="Scroll to latest">
+              <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom({ buttonAnimated: true, force: true })" title="Scroll to latest" aria-label="Scroll to latest">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
               </button>
               <!-- Attachment previews -->

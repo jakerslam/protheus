@@ -115,14 +115,14 @@ body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.46), 6px 0 12px -14px rgba(0, 0, 0, 0.46), 0 10px 18px -18px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(149, 255, 99, 0.36), 0 0 0 1px rgba(149, 255, 99, 0.28) inset, 0 0 18px rgba(114, 255, 92, 0.34);
 }
 
-body[data-theme='dark'] .chat-pointer-trail-dot {
+body[data-theme='dark'] .chat-pointer-trail-dot:not(.chat-pointer-agent) {
   --trail-size: 6.8;
   --trail-opacity: 0.72;
   background: color-mix(in srgb, #00d4ff 68%, var(--accent) 32%);
   box-shadow: 0 0 9px rgba(0, 212, 255, 0.74), 0 0 18px rgba(0, 212, 255, 0.4);
 }
 
-body[data-theme='dark'] .chat-pointer-trail-segment {
+body[data-theme='dark'] .chat-pointer-trail-segment:not(.chat-pointer-agent) {
   --trail-seg-thickness: 3.9;
   --trail-seg-opacity: 0.64;
   background: linear-gradient(90deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 212, 255, 0.86) 52%, rgba(0, 212, 255, 0.2) 100%);
@@ -334,6 +334,10 @@ body:not([data-theme='dark']) .chat-pointer-trail-segment {
 
 .sidebar.collapsed .chat-sidebar-item-avatar-wrap,
 .sidebar.collapsed .nav-agent-avatar-wrap {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   --agent-pulse-inset: -2px;
   --agent-pulse-border: 1px;
   --agent-pulse-glow: 8px;

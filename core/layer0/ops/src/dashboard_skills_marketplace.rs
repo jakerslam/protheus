@@ -117,6 +117,88 @@ fn save_dashboard_state(root: &Path, mut state: Value) {
     write_json(&state_path(root, DASHBOARD_SKILLS_STATE_REL), &state);
 }
 
+fn load_core_registry(root: &Path) -> Value {
+    read_json(&state_path(root, CORE_SKILLS_REGISTRY_REL)).unwrap_or_else(|| {
+        json!({
+            "kind": "skills_registry",
+            "installed": {}
+        })
+    })
+}
+
+fn save_core_registry(root: &Path, mut state: Value) {
+    if !state.get("kind").map(Value::is_string).unwrap_or(false) {
+        state["kind"] = Value::String("skills_registry".to_string());
+    }
+    write_json(&state_path(root, CORE_SKILLS_REGISTRY_REL), &state);
+}
+
+fn core_record_from_skill_row(skill_id: &str, row: &Value) -> Value {
+    let source = row
+        .get("source")
+        .cloned()
+        .unwrap_or_else(|| json!({"type":"local"}));
+    let source_type = clean_text(
+        source
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("local"),
+        40,
+    );
+    let source_slug = clean_text(
+        source
+            .get("slug")
+            .and_then(Value::as_str)
+            .unwrap_or(skill_id),
+        120,
+    );
+    let fallback_path = if source_type.eq_ignore_ascii_case("clawhub") {
+        format!("clawhub://{source_slug}")
+    } else {
+        format!("dashboard://{skill_id}")
+    };
+    json!({
+        "name": clean_text(row.get("name").and_then(Value::as_str).unwrap_or(skill_id), 120),
+        "description": clean_text(row.get("description").and_then(Value::as_str).unwrap_or(""), 300),
+        "version": clean_text(row.get("version").and_then(Value::as_str).unwrap_or("v1"), 40),
+        "author": clean_text(row.get("author").and_then(Value::as_str).unwrap_or("Unknown"), 120),
+        "runtime": clean_text(row.get("runtime").and_then(Value::as_str).unwrap_or("prompt_only"), 40),
+        "tools_count": parse_u64(row.get("tools_count"), 0),
+        "tags": row.get("tags").cloned().filter(|v| v.is_array()).unwrap_or_else(|| Value::Array(default_tags())),
+        "enabled": row.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        "has_prompt_context": row.get("has_prompt_context").and_then(Value::as_bool).unwrap_or(false),
+        "prompt_context": clean_text(row.get("prompt_context").and_then(Value::as_str).unwrap_or(""), 4000),
+        "source": source,
+        "path": clean_text(row.get("path").and_then(Value::as_str).unwrap_or(&fallback_path), 512),
+        "installed_at": row
+            .get("installed_at")
+            .cloned()
+            .unwrap_or_else(|| Value::String(crate::now_iso())),
+    })
+}
+
+fn upsert_core_installed_skill(root: &Path, skill_id: &str, row: &Value) {
+    let key = normalize_name(skill_id);
+    if key.is_empty() {
+        return;
+    }
+    let mut state = load_core_registry(root);
+    let installed = as_object_mut(&mut state, "installed");
+    installed.insert(key.clone(), core_record_from_skill_row(&key, row));
+    save_core_registry(root, state);
+}
+
+fn remove_core_installed_skill(root: &Path, skill_id: &str) {
+    let key = normalize_name(skill_id);
+    if key.is_empty() {
+        return;
+    }
+    let mut state = load_core_registry(root);
+    let installed = as_object_mut(&mut state, "installed");
+    installed.remove(&key);
+    save_core_registry(root, state);
+}
+
 fn default_tags() -> Vec<Value> {
     vec![Value::String("general".to_string())]
 }
@@ -222,6 +304,43 @@ fn merged_installed_rows(root: &Path) -> Vec<Value> {
     }
 
     by_name.values().cloned().collect::<Vec<_>>()
+}
+
+pub(super) fn skills_prompt_context(root: &Path, max_skills: usize, max_chars: usize) -> String {
+    let mut rows = merged_installed_rows(root);
+    rows.sort_by(|a, b| {
+        clean_text(a.get("name").and_then(Value::as_str).unwrap_or(""), 120).cmp(&clean_text(
+            b.get("name").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ))
+    });
+    let mut lines = Vec::<String>::new();
+    for row in rows {
+        if lines.len() >= max_skills {
+            break;
+        }
+        let enabled = row.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+        if !enabled {
+            continue;
+        }
+        let context = clean_text(
+            row.get("prompt_context").and_then(Value::as_str).unwrap_or(""),
+            1200,
+        );
+        if context.is_empty() {
+            continue;
+        }
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or("plugin"), 120);
+        lines.push(format!("- {name}: {context}"));
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    let text = format!(
+        "Installed plugin context (apply naturally when relevant):\n{}",
+        lines.join("\n")
+    );
+    text.chars().take(max_chars).collect::<String>()
 }
 
 fn marketplace_catalog() -> Vec<Value> {
@@ -481,31 +600,42 @@ fn install_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
         };
     };
 
-    let mut state = load_dashboard_state(root);
-    let installed = as_object_mut(&mut state, "installed");
-    if installed.contains_key(&slug) {
+    let installed_already = merged_installed_rows(root).into_iter().any(|row| {
+        normalize_name(row.get("name").and_then(Value::as_str).unwrap_or("")) == slug
+            || row
+                .get("source")
+                .and_then(Value::as_object)
+                .and_then(|src| src.get("slug"))
+                .and_then(Value::as_str)
+                .map(|v| normalize_name(v) == slug)
+                .unwrap_or(false)
+    });
+    if installed_already {
         return CompatApiResponse {
             status: 409,
             payload: json!({"ok": false, "error": "already_installed"}),
         };
     }
-    installed.insert(
-        slug.clone(),
-        json!({
-            "name": skill.get("name").cloned().unwrap_or_else(|| Value::String(slug.clone())),
-            "description": skill.get("description").cloned().unwrap_or_else(|| Value::String(String::new())),
-            "version": "v1",
-            "author": skill.get("author").cloned().unwrap_or_else(|| Value::String("Infring".to_string())),
-            "runtime": skill.get("runtime").cloned().unwrap_or_else(|| Value::String("prompt_only".to_string())),
-            "tools_count": 0,
-            "tags": skill.get("tags").cloned().unwrap_or_else(|| Value::Array(default_tags())),
-            "enabled": true,
-            "has_prompt_context": true,
-            "source": {"type":"clawhub","slug": slug},
-            "installed_at": crate::now_iso()
-        }),
-    );
+    let installed_row = json!({
+        "name": skill.get("name").cloned().unwrap_or_else(|| Value::String(slug.clone())),
+        "description": skill.get("description").cloned().unwrap_or_else(|| Value::String(String::new())),
+        "version": clean_text(skill.get("version").and_then(Value::as_str).unwrap_or("v1"), 40),
+        "author": skill.get("author").cloned().unwrap_or_else(|| Value::String("Infring".to_string())),
+        "runtime": skill.get("runtime").cloned().unwrap_or_else(|| Value::String("prompt_only".to_string())),
+        "tools_count": 0,
+        "tags": skill.get("tags").cloned().unwrap_or_else(|| Value::Array(default_tags())),
+        "enabled": true,
+        "has_prompt_context": true,
+        "prompt_context": clean_text(skill.get("prompt_context").and_then(Value::as_str).unwrap_or(""), 4000),
+        "source": {"type":"clawhub","slug": slug.clone()},
+        "installed_at": crate::now_iso()
+    });
+
+    let mut state = load_dashboard_state(root);
+    let installed = as_object_mut(&mut state, "installed");
+    installed.insert(slug.clone(), installed_row.clone());
     save_dashboard_state(root, state);
+    upsert_core_installed_skill(root, &slug, &installed_row);
     CompatApiResponse {
         status: 200,
         payload: json!({"ok": true, "name": skill.get("name").cloned().unwrap_or_else(|| Value::String(slug)), "warnings": []}),
@@ -531,6 +661,7 @@ fn uninstall_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
         created.remove(&name);
     }
     save_dashboard_state(root, state);
+    remove_core_installed_skill(root, &name);
     CompatApiResponse {
         status: 200,
         payload: json!({"ok": true}),
@@ -547,26 +678,25 @@ fn create_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
             payload: json!({"ok": false, "error": "name_required"}),
         };
     }
+    let created_row = json!({
+        "name": name.clone(),
+        "description": clean_text(request.get("description").and_then(Value::as_str).unwrap_or("User-created prompt skill"), 300),
+        "version": "v1",
+        "author": "User",
+        "runtime": clean_text(request.get("runtime").and_then(Value::as_str).unwrap_or("prompt_only"), 40),
+        "tools_count": 0,
+        "tags": request.get("tags").cloned().filter(|v| v.is_array()).unwrap_or_else(|| Value::Array(default_tags())),
+        "enabled": true,
+        "has_prompt_context": true,
+        "source": {"type":"local"},
+        "prompt_context": clean_text(request.get("prompt_context").and_then(Value::as_str).unwrap_or(""), 4000),
+        "created_at": crate::now_iso()
+    });
     let mut state = load_dashboard_state(root);
     let created = as_object_mut(&mut state, "created");
-    created.insert(
-        name.clone(),
-        json!({
-            "name": name,
-            "description": clean_text(request.get("description").and_then(Value::as_str).unwrap_or("User-created prompt skill"), 300),
-            "version": "v1",
-            "author": "User",
-            "runtime": clean_text(request.get("runtime").and_then(Value::as_str).unwrap_or("prompt_only"), 40),
-            "tools_count": 0,
-            "tags": request.get("tags").cloned().filter(|v| v.is_array()).unwrap_or_else(|| Value::Array(default_tags())),
-            "enabled": true,
-            "has_prompt_context": true,
-            "source": {"type":"local"},
-            "prompt_context": clean_text(request.get("prompt_context").and_then(Value::as_str).unwrap_or(""), 4000),
-            "created_at": crate::now_iso()
-        }),
-    );
+    created.insert(name.clone(), created_row.clone());
     save_dashboard_state(root, state);
+    upsert_core_installed_skill(root, &name, &created_row);
     CompatApiResponse {
         status: 200,
         payload: json!({"ok": true}),
@@ -696,6 +826,16 @@ mod tests {
                 .map(|v| v == "model-router-pro")
                 .unwrap_or(false)
         }));
+        let core_registry = read_json(&root.path().join(CORE_SKILLS_REGISTRY_REL))
+            .expect("core registry after install");
+        let core_prompt = core_registry
+            .get("installed")
+            .and_then(Value::as_object)
+            .and_then(|rows| rows.get("model-router-pro"))
+            .and_then(|row| row.get("prompt_context"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(!core_prompt.is_empty(), "core registry should persist prompt context");
 
         let created = handle(
             root.path(),
@@ -706,6 +846,13 @@ mod tests {
         )
         .expect("create");
         assert_eq!(created.status, 200);
+        let core_registry_after_create = read_json(&root.path().join(CORE_SKILLS_REGISTRY_REL))
+            .expect("core registry after create");
+        assert!(core_registry_after_create
+            .get("installed")
+            .and_then(Value::as_object)
+            .and_then(|rows| rows.get("my-demo-skill"))
+            .is_some());
         let removed = handle(
             root.path(),
             "POST",
@@ -715,6 +862,13 @@ mod tests {
         )
         .expect("uninstall");
         assert_eq!(removed.status, 200);
+        let core_registry_after_remove = read_json(&root.path().join(CORE_SKILLS_REGISTRY_REL))
+            .expect("core registry after remove");
+        assert!(core_registry_after_remove
+            .get("installed")
+            .and_then(Value::as_object)
+            .and_then(|rows| rows.get("my-demo-skill"))
+            .is_none());
     }
 
     #[test]
@@ -746,5 +900,33 @@ mod tests {
                 .map(|rows| rows.len()),
             Some(2)
         );
+    }
+
+    #[test]
+    fn prompt_context_emits_only_enabled_rows_with_context() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_json(
+            &root.path().join(DASHBOARD_SKILLS_STATE_REL),
+            &json!({
+                "installed": {
+                    "alpha": {
+                        "name": "alpha",
+                        "enabled": true,
+                        "has_prompt_context": true,
+                        "prompt_context": "alpha context"
+                    },
+                    "beta": {
+                        "name": "beta",
+                        "enabled": false,
+                        "has_prompt_context": true,
+                        "prompt_context": "beta context"
+                    }
+                },
+                "created": {}
+            }),
+        );
+        let out = skills_prompt_context(root.path(), 8, 2000);
+        assert!(out.contains("alpha context"));
+        assert!(!out.contains("beta context"));
     }
 }

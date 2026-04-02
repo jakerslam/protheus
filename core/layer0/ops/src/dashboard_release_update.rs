@@ -44,20 +44,19 @@ fn semver_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     let pa = parse_semver_parts(a);
     let pb = parse_semver_parts(b);
     match (pa, pb) {
-        (Some((am, an, ap, apre)), Some((bm, bn, bp, bpre))) => {
-            am.cmp(&bm)
-                .then(an.cmp(&bn))
-                .then(ap.cmp(&bp))
-                .then_with(|| {
-                    if apre.is_empty() && !bpre.is_empty() {
-                        std::cmp::Ordering::Greater
-                    } else if !apre.is_empty() && bpre.is_empty() {
-                        std::cmp::Ordering::Less
-                    } else {
-                        apre.cmp(&bpre)
-                    }
-                })
-        }
+        (Some((am, an, ap, apre)), Some((bm, bn, bp, bpre))) => am
+            .cmp(&bm)
+            .then(an.cmp(&bn))
+            .then(ap.cmp(&bp))
+            .then_with(|| {
+                if apre.is_empty() && !bpre.is_empty() {
+                    std::cmp::Ordering::Greater
+                } else if !apre.is_empty() && bpre.is_empty() {
+                    std::cmp::Ordering::Less
+                } else {
+                    apre.cmp(&bpre)
+                }
+            }),
         (Some(_), None) => std::cmp::Ordering::Greater,
         (None, Some(_)) => std::cmp::Ordering::Less,
         (None, None) => a.cmp(b),

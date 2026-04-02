@@ -1,4 +1,14 @@
 // FILE_SIZE_EXCEPTION: reason=Single action-dispatch function with dense branch graph; split deferred pending semantic extraction; owner=jay; expires=2026-04-12
+fn clean_chat_text_preserve_layout(value: &str, max_len: usize) -> String {
+    value
+        .replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .chars()
+        .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
+        .take(max_len)
+        .collect::<String>()
+}
+
 fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
     let normalized = clean_text(action, 80);
     match normalized.as_str() {
@@ -935,13 +945,13 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 .get("user")
                 .and_then(Value::as_str)
                 .or_else(|| payload.get("input").and_then(Value::as_str))
-                .map(|v| clean_text(v, 2000))
+                .map(|v| clean_chat_text_preserve_layout(v, 2000))
                 .unwrap_or_default();
             let assistant_text = payload
                 .get("assistant")
                 .and_then(Value::as_str)
                 .or_else(|| payload.get("response").and_then(Value::as_str))
-                .map(|v| clean_text(v, 4000))
+                .map(|v| clean_chat_text_preserve_layout(v, 4000))
                 .unwrap_or_default();
             let result =
                 dashboard_agent_state::append_turn(root, &agent_id, &user_text, &assistant_text);

@@ -254,6 +254,46 @@
                 <button class="btn btn-ghost btn-sm btn-block" @click="autoLayout()">Auto Layout</button>
                 <button class="btn btn-ghost btn-sm btn-block" @click="clearCanvas()">Clear</button>
               </div>
+
+              <div class="wf-trace-panel">
+                <div class="wf-trace-head">
+                  <span>Execution Trace</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 6px" @click="refreshTraceCatalog(true)" :disabled="traceLoading">↻</button>
+                </div>
+                <select class="form-select" style="font-size:11px" x-model="traceWorkflowId" @change="selectTraceWorkflow(traceWorkflowId)">
+                  <option value="">Select workflow...</option>
+                  <template x-for="wf in traceWorkflows" :key="'wf-trace-opt-' + wf.id">
+                    <option :value="wf.id" x-text="wf.name || wf.id"></option>
+                  </template>
+                </select>
+                <div class="wf-trace-status" x-show="traceLoading">Loading traces…</div>
+                <div class="wf-trace-status wf-trace-error" x-show="!traceLoading && traceError" x-text="traceError"></div>
+                <div class="wf-trace-empty" x-show="!traceLoading && !traceError && traceWorkflowId && !traceCards().length">No runs yet.</div>
+                <div class="wf-trace-list" x-show="!traceLoading && !traceError && traceCards().length">
+                  <template x-for="run in traceCards()" :key="'wf-trace-run-' + run.run_id">
+                    <div class="wf-trace-card">
+                      <div class="wf-trace-card-head">
+                        <span class="wf-trace-run-id" x-text="run.run_id || 'run'"></span>
+                        <span class="wf-trace-run-status" x-text="traceStatusLabel(run)"></span>
+                      </div>
+                      <div class="wf-trace-card-meta">
+                        <span x-text="traceDurationLabel(run)"></span>
+                        <span x-show="run.finished_at || run.started_at" x-text="new Date(run.finished_at || run.started_at).toLocaleString()"></span>
+                      </div>
+                      <template x-if="run.steps && run.steps.length">
+                        <div class="wf-trace-step-list">
+                          <template x-for="(step, sidx) in run.steps.slice(0, 4)" :key="'wf-trace-step-' + (run.run_id || 'run') + '-' + sidx">
+                            <div class="wf-trace-step-row">
+                              <span class="wf-trace-step-name" x-text="step.step || ('step-' + (sidx + 1))"></span>
+                              <span class="wf-trace-step-preview" x-text="traceStepPreview(step)"></span>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
             </div>
 
             <!-- Canvas -->

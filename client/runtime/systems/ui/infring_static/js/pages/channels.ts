@@ -4,6 +4,7 @@
 function channelsPage() {
   return {
     allChannels: [],
+    showTemplateChannels: false,
     categoryFilter: 'all',
     searchQuery: '',
     setupModal: null,
@@ -43,9 +44,20 @@ function channelsPage() {
       { key: 'notifications', label: 'Notifications' }
     ],
 
+    get activeChannels() {
+      var includeTemplates = !!this.showTemplateChannels;
+      return this.allChannels.filter(function(ch) {
+        var tier = String((ch && ch.channel_tier) || '').toLowerCase();
+        var real = ch && Object.prototype.hasOwnProperty.call(ch, 'real_channel')
+          ? !!ch.real_channel
+          : (tier ? tier === 'native' : true);
+        return includeTemplates || real;
+      });
+    },
+
     get filteredChannels() {
       var self = this;
-      return this.allChannels.filter(function(ch) {
+      return this.activeChannels.filter(function(ch) {
         if (self.categoryFilter !== 'all' && ch.category !== self.categoryFilter) return false;
         if (self.searchQuery) {
           var q = self.searchQuery.toLowerCase();
@@ -58,11 +70,27 @@ function channelsPage() {
     },
 
     get configuredCount() {
-      return this.allChannels.filter(function(ch) { return ch.configured; }).length;
+      return this.activeChannels.filter(function(ch) { return ch.configured; }).length;
+    },
+
+    get nativeChannelCount() {
+      return this.allChannels.filter(function(ch) {
+        var tier = String((ch && ch.channel_tier) || '').toLowerCase();
+        return !!(ch && ch.real_channel) || tier === 'native';
+      }).length;
+    },
+
+    get templateChannelCount() {
+      var nativeCount = Number(this.nativeChannelCount || 0);
+      return Math.max(0, this.allChannels.length - nativeCount);
+    },
+
+    get visibleChannelCount() {
+      return this.activeChannels.length;
     },
 
     categoryCount(cat) {
-      var all = this.allChannels.filter(function(ch) { return cat === 'all' || ch.category === cat; });
+      var all = this.activeChannels.filter(function(ch) { return cat === 'all' || ch.category === cat; });
       var configured = all.filter(function(ch) { return ch.configured; });
       return configured.length + '/' + all.length;
     },
@@ -131,6 +159,14 @@ function channelsPage() {
       if (!ch.has_token) return { text: 'Missing Token', cls: 'badge-warn' };
       if (ch.connected) return { text: 'Ready', cls: 'badge-success' };
       return { text: 'Configured', cls: 'badge-info' };
+    },
+
+    tierBadge(ch) {
+      var tier = String((ch && ch.channel_tier) || '').toLowerCase();
+      var isNative = !!(ch && ch.real_channel) || tier === 'native';
+      return isNative
+        ? { text: 'Native', cls: 'badge-success' }
+        : { text: 'Template', cls: 'badge-muted' };
     },
 
     difficultyClass(d) {
@@ -236,7 +272,7 @@ function channelsPage() {
         this.setupStep = 2;
         // Auto-test after save
         try {
-          var testResult = await InfringAPI.post('/api/channels/' + name + '/test', {});
+          var testResult = await InfringAPI.post('/api/channels/' + name + '/test', { force_live: true });
           if (testResult.status === 'ok') {
             this.testPassed = true;
             this.setupStep = 3;
@@ -276,7 +312,7 @@ function channelsPage() {
       var name = this.setupModal.name;
       this.testing[name] = true;
       try {
-        var result = await InfringAPI.post('/api/channels/' + name + '/test', {});
+        var result = await InfringAPI.post('/api/channels/' + name + '/test', { force_live: true });
         if (result.status === 'ok') {
           this.testPassed = true;
           this.setupStep = 3;

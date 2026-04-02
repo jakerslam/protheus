@@ -276,3 +276,184 @@ fn stress_role_fanout_burst_keeps_mailboxes_consistent() {
         "fanout burst should not dead-letter reachable sessions"
     );
 }
+
+#[test]
+fn stress_hierarchy_256_agents_preserves_parent_lineage_and_fanout_bounds() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let args = vec![
+        "test".to_string(),
+        "hierarchy".to_string(),
+        "--agents=256".to_string(),
+        "--fanout=8".to_string(),
+        "--metrics=detailed".to_string(),
+        "--task-prefix=hierarchy-regression".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &args), 0);
+
+    let state = read_state(&state_path);
+    let sessions = sessions_map(&state);
+    assert!(
+        sessions.len() >= 256,
+        "expected at least 256 sessions, got {}",
+        sessions.len()
+    );
+
+    let root_session_id = sessions
+        .iter()
+        .find_map(|(session_id, row)| {
+            (row.get("parent_id").is_some() && row.get("parent_id") == Some(&Value::Null))
+                .then(|| session_id.clone())
+        })
+        .or_else(|| {
+            sessions.iter().find_map(|(session_id, row)| {
+                (row.get("task").and_then(Value::as_str) == Some("hierarchy-regression-root"))
+                    .then(|| session_id.clone())
+            })
+        })
+        .expect("hierarchy root session id");
+
+    let mut child_counts = std::collections::BTreeMap::new();
+    let mut orphan_count = 0usize;
+    let mut missing_parent_count = 0usize;
+    for (session_id, row) in sessions {
+        if session_id == &root_session_id {
+            continue;
+        }
+        let parent_id = row.get("parent_id").and_then(Value::as_str);
+        match parent_id {
+            Some(parent) => {
+                if !sessions.contains_key(parent) {
+                    missing_parent_count += 1;
+                } else {
+                    *child_counts.entry(parent.to_string()).or_insert(0usize) += 1;
+                }
+            }
+            None => orphan_count += 1,
+        }
+    }
+
+    assert_eq!(
+        orphan_count, 0,
+        "hierarchy should not contain orphan children"
+    );
+    assert_eq!(
+        missing_parent_count, 0,
+        "hierarchy should not contain missing-parent links"
+    );
+    let fanout_violations = child_counts.values().filter(|count| **count > 8).count();
+    assert_eq!(
+        fanout_violations, 0,
+        "hierarchy should respect configured fanout"
+    );
+}
+
+#[test]
+fn stress_scale_policy_plan_and_set_support_100k_readiness() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let plan_args = vec![
+        "scale".to_string(),
+        "plan".to_string(),
+        "--agents=100000".to_string(),
+        "--fanout=32".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &plan_args), 0);
+
+    let set_args = vec![
+        "scale".to_string(),
+        "set".to_string(),
+        "--max-sessions=250000".to_string(),
+        "--max-children-per-parent=64".to_string(),
+        "--max-depth-hard=96".to_string(),
+        "--target-ready-agents=100000".to_string(),
+        "--enforce-session-cap=1".to_string(),
+        "--enforce-parent-capacity=1".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &set_args), 0);
+
+    let status_args = vec![
+        "scale".to_string(),
+        "status".to_string(),
+        "--agents=100000".to_string(),
+        "--fanout=32".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &status_args), 0);
+
+    let state = read_state(&state_path);
+    let policy = state
+        .get("scale_policy")
+        .and_then(Value::as_object)
+        .expect("scale policy");
+    assert_eq!(
+        policy.get("max_sessions_hard").and_then(Value::as_u64),
+        Some(250_000)
+    );
+    assert_eq!(
+        policy
+            .get("max_children_per_parent")
+            .and_then(Value::as_u64),
+        Some(64)
+    );
+    assert_eq!(
+        policy.get("target_ready_agents").and_then(Value::as_u64),
+        Some(100_000)
+    );
+}
+
+#[test]
+fn stress_scale_parent_capacity_guard_blocks_overloaded_manager() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let set_args = vec![
+        "scale".to_string(),
+        "set".to_string(),
+        "--max-children-per-parent=2".to_string(),
+        "--enforce-parent-capacity=1".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &set_args), 0);
+
+    let root_spawn = vec![
+        "spawn".to_string(),
+        "--task=root".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &root_spawn), 0);
+
+    let state = read_state(&state_path);
+    let root_id = sessions_map(&state)
+        .keys()
+        .next()
+        .cloned()
+        .expect("root id");
+
+    for idx in 0..2 {
+        let child_spawn = vec![
+            "spawn".to_string(),
+            format!("--task=child-{idx}"),
+            format!("--session-id={root_id}"),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &child_spawn), 0);
+    }
+
+    let third_child = vec![
+        "spawn".to_string(),
+        "--task=child-2".to_string(),
+        format!("--session-id={root_id}"),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(
+        run_swarm(root.path(), &third_child),
+        2,
+        "expected parent-capacity guard to fail the third child spawn"
+    );
+}

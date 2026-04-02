@@ -9,12 +9,82 @@
   "refresh": true,
   "runtime_efficiency_source": {
     "enforce_hold_streak_strict": false,
-    "history_count": 0,
+    "history_count": 23,
     "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
     "hold_streak_days": 0,
-    "latest": null,
+    "latest": {
+      "cold_start": {
+        "build_attempted": false,
+        "build_error": null,
+        "build_ok": null,
+        "command": [
+          "node",
+          "client/lib/conduit_full_lifecycle_probe.ts"
+        ],
+        "dist_target": null,
+        "engine": "core-lazy",
+        "engine_start_p50_ms": 207.391,
+        "engine_start_p95_ms": 410.825,
+        "gateway_supervisor_orchestration_p50_ms": 2317.486,
+        "gateway_supervisor_orchestration_p95_ms": 10252.504,
+        "max_ms": 500.0,
+        "p50_ms": 2524.877,
+        "p95_ms": 10663.329,
+        "runtime_mode": "source",
+        "samples": 5
+      },
+      "enforce_hold_streak_strict": false,
+      "full_install": {
+        "paths": {
+          "client/runtime": 16.158,
+          "core/layer0/ops": 9.802,
+          "dist": 25.84,
+          "target/release/protheusd": 2.072
+        },
+        "sum_mb": 53.872
+      },
+      "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
+      "hold_streak_days": 0,
+      "idle_rss": {
+        "max_mb": 120.0,
+        "measurement_mode": "process",
+        "p50_mb": 6.859,
+        "p95_mb": 6.859,
+        "required_modules": [],
+        "samples": 3
+      },
+      "install_artifact": {
+        "max_mb": 60.0,
+        "paths": {
+          "dist": 25.84
+        },
+        "sum_mb": 25.84
+      },
+      "metrics": {
+        "cold_start_p50_ms": 2524.877,
+        "cold_start_p95_ms": 10663.329,
+        "engine_start_p50_ms": 207.391,
+        "engine_start_p95_ms": 410.825,
+        "full_install_total_mb": 53.872,
+        "gateway_supervisor_orchestration_p50_ms": 2317.486,
+        "gateway_supervisor_orchestration_p95_ms": 10252.504,
+        "idle_rss_p50_mb": 6.859,
+        "idle_rss_p95_mb": 6.859,
+        "install_artifact_total_mb": 25.84
+      },
+      "ok": false,
+      "pass": false,
+      "policy_path": "client/runtime/config/runtime_efficiency_floor_policy.json",
+      "policy_version": "1.0",
+      "state_path": "local/state/ops/runtime_efficiency_floor.json",
+      "strict": false,
+      "strict_hold_ok": true,
+      "target_hold_days": 7,
+      "ts": "2026-04-02T04:50:33.311Z",
+      "type": "runtime_efficiency_floor"
+    },
     "ok": true,
-    "policy_path": "client/runtime/config/runtime_efficiency_floor.json",
+    "policy_path": "client/runtime/config/runtime_efficiency_floor_policy.json",
     "policy_version": "1.0",
     "state_path": "local/state/ops/runtime_efficiency_floor.json",
     "target_hold_days": 7,
@@ -22,6 +92,6 @@
   },
   "sample_ms": 800,
   "source_path": "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
-  "ts": "2026-03-14T22:07:49.816Z",
+  "ts": "2026-04-02T05:05:24.111Z",
   "type": "top1_benchmark_metrics"
 }

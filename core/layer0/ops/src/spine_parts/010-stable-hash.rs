@@ -118,6 +118,162 @@ fn receipt_hash(v: &Value) -> String {
     deterministic_receipt_hash(v)
 }
 
+fn value_f64(value: Option<&Value>, fallback: f64) -> f64 {
+    value.and_then(Value::as_f64).unwrap_or(fallback)
+}
+
+fn parse_clearance_level(raw: Option<String>, fallback: i64) -> i64 {
+    raw.and_then(|v| v.trim().parse::<i64>().ok())
+        .unwrap_or(fallback)
+        .clamp(1, 5)
+}
+
+fn derive_duality_clearance(base: i64, debt_after: f64, harmony: f64, hard_block: bool) -> (i64, String) {
+    if hard_block {
+        return (1, "duality_toll_hard_block".to_string());
+    }
+    if debt_after >= 0.75 {
+        return ((base - 1).max(1), "duality_toll_pressure".to_string());
+    }
+    if debt_after <= 0.2 && harmony >= 0.85 {
+        return ((base + 1).min(5), "duality_harmony_boost".to_string());
+    }
+    (base, "duality_clearance_hold".to_string())
+}
+
+fn run_spine_duality_gate(
+    root: &Path,
+    run_id: &str,
+    mode: &str,
+    date: &str,
+    run_context: &str,
+) -> Value {
+    // V4-DUAL-SPI-004: spine orchestration 0-point enforcer before major lane execution.
+    let context = json!({
+        "lane": "weaver_arbitration",
+        "source": "spine_orchestration",
+        "run_id": run_id,
+        "mode": mode,
+        "date": date,
+        "run_context": run_context
+    });
+
+    let evaluation = match crate::duality_seed::invoke(
+        root,
+        "duality_evaluate",
+        Some(&json!({
+            "context": context,
+            "opts": {
+                "persist": true,
+                "lane": "weaver_arbitration",
+                "source": "spine_orchestration",
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "spine_duality_gate",
+                "error": format!("duality_evaluate_failed:{err}")
+            });
+        }
+    };
+
+    let dual_voice = crate::duality_seed::invoke(
+        root,
+        "dual_voice_evaluate",
+        Some(&json!({
+            "context": {
+                "lane": "weaver_arbitration",
+                "source": "spine_orchestration",
+                "run_id": run_id,
+                "mode": mode,
+                "date": date
+            },
+            "left": {
+                "policy_lens": "guardian",
+                "focus": "safety_and_order"
+            },
+            "right": {
+                "policy_lens": "strategist",
+                "focus": "adaptation_and_inversion"
+            },
+            "opts": {
+                "persist": true,
+                "source": "spine_orchestration",
+                "run_id": run_id
+            }
+        })),
+    )
+    .unwrap_or_else(|_| json!({"ok": false, "type": "duality_dual_voice_evaluation"}));
+
+    let toll_update = match crate::duality_seed::invoke(
+        root,
+        "duality_toll_update",
+        Some(&json!({
+            "context": {
+                "lane": "weaver_arbitration",
+                "source": "spine_orchestration",
+                "run_id": run_id,
+                "mode": mode,
+                "date": date
+            },
+            "signal": evaluation.clone(),
+            "opts": {
+                "persist": true,
+                "source": "spine_orchestration",
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "spine_duality_gate",
+                "evaluation": evaluation,
+                "dual_voice": dual_voice,
+                "error": format!("duality_toll_update_failed:{err}")
+            });
+        }
+    };
+
+    let toll = toll_update.get("toll").cloned().unwrap_or_else(|| json!({}));
+    let debt_after = value_f64(toll.get("debt_after"), 0.0);
+    let hard_block = toll
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let harmony = value_f64(
+        dual_voice.get("harmony"),
+        value_f64(evaluation.get("zero_point_harmony_potential"), 0.0),
+    )
+    .clamp(0.0, 1.0);
+    let clearance_before = parse_clearance_level(std::env::var("CLEARANCE").ok(), 3);
+    let (clearance_after, clearance_reason) =
+        derive_duality_clearance(clearance_before, debt_after, harmony, hard_block);
+    std::env::set_var("CLEARANCE", clearance_after.to_string());
+
+    json!({
+        "ok": true,
+        "type": "spine_duality_gate",
+        "run_id": run_id,
+        "evaluation": evaluation,
+        "dual_voice": dual_voice,
+        "toll": toll,
+        "state": toll_update.get("state").cloned().unwrap_or(Value::Null),
+        "hard_block": hard_block,
+        "clearance": {
+            "before": clearance_before,
+            "after": clearance_after,
+            "reason": clearance_reason
+        },
+        "fractal_balance_score": ((harmony * (1.0 - debt_after.min(1.0))) * 1_000_000.0).round() / 1_000_000.0
+    })
+}
+
 fn receipt_ledger_io_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -445,4 +601,3 @@ fn enqueue_spine_attention(root: &Path, source_type: &str, severity: &str, summa
         .stderr(Stdio::null())
         .status();
 }
-

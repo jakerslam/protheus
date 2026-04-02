@@ -45,8 +45,15 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
             let (subcommand, passthrough_start_idx) = match first.as_deref() {
                 Some(
-                    "start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick"
-                    | "diagnostics",
+                    "start"
+                        | "stop"
+                        | "restart"
+                        | "status"
+                        | "heal"
+                        | "attach"
+                        | "subscribe"
+                        | "tick"
+                        | "diagnostics",
                 ) => (first.unwrap_or_else(|| "start".to_string()), 1usize),
                 Some("boot") => ("start".to_string(), 1usize),
                 _ => ("start".to_string(), 0usize),
@@ -118,6 +125,19 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             }
             Some(Route {
                 script_rel: "core://workspace-gateway-runtime".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "web" | "browse" => {
+            let mut args = Vec::<String>::new();
+            if rest.is_empty() {
+                args.push("status".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://web-conduit".to_string(),
                 args,
                 forward_stdin: false,
             })

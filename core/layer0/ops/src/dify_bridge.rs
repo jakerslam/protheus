@@ -69,7 +69,14 @@ fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) 
 }
 
 fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(root, argv, payload, "trace-path", "trace_path", DEFAULT_TRACE_REL)
+    path_flag(
+        root,
+        argv,
+        payload,
+        "trace-path",
+        "trace_path",
+        DEFAULT_TRACE_REL,
+    )
 }
 
 fn dashboard_dir(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {

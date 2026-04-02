@@ -84,6 +84,7 @@
 
 .chat-init-avatar-wrap {
   justify-self: center;
+  display: inline-flex;
 }
 
 .chat-init-avatar-actions {
@@ -122,6 +123,21 @@
 
 .chat-init-launch-btn {
   min-width: 116px;
+}
+
+.chat-init-launch-btn.chat-init-launch-pulse {
+  animation: chat-init-launch-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes chat-init-launch-pulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+  50% {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm), 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
 }
 
 .chat-archetype-title {

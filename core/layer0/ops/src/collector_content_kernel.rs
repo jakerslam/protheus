@@ -447,17 +447,18 @@ fn extract_json_rows_huggingface(
             if title.is_empty() || id.is_empty() {
                 return None;
             }
-            let url = format!(
-                "https://huggingface.co/papers/{}",
-                urlencoding::encode(&id)
-            );
+            let url = format!("https://huggingface.co/papers/{}", urlencoding::encode(&id));
             let summary = clean_text(
                 obj.get("summary")
                     .and_then(Value::as_str)
                     .or_else(|| obj.get("ai_summary").and_then(Value::as_str)),
                 420,
             );
-            let upvotes = obj.get("upvotes").and_then(Value::as_i64).unwrap_or(0).max(0) as u64;
+            let upvotes = obj
+                .get("upvotes")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0) as u64;
             let github_repo = clean_text(obj.get("githubRepo").and_then(Value::as_str), 500);
             let (signal, signal_type, tags) = if collector_id == "papers_with_code" {
                 let mut tags = vec![Value::String("papers_with_code_mirror".to_string())];
@@ -529,10 +530,7 @@ fn extract_json_rows_ollama(payload_value: &Value, topics: &[Value]) -> Vec<Valu
                 return None;
             }
             let base = name.split(':').next().unwrap_or(name.as_str());
-            let url = format!(
-                "https://ollama.com/library/{}",
-                urlencoding::encode(base)
-            );
+            let url = format!("https://ollama.com/library/{}", urlencoding::encode(base));
             let modified = clean_text(obj.get("modified_at").and_then(Value::as_str), 120);
             let size = obj.get("size").and_then(Value::as_u64).unwrap_or(0);
             let size_text = format_size_bytes(size);
@@ -540,7 +538,11 @@ fn extract_json_rows_ollama(payload_value: &Value, topics: &[Value]) -> Vec<Valu
                 "Model {} ({}) updated {}",
                 name,
                 size_text,
-                if modified.is_empty() { "unknown" } else { modified.as_str() }
+                if modified.is_empty() {
+                    "unknown"
+                } else {
+                    modified.as_str()
+                }
             );
             let signal = Regex::new(r"(?i)(coder|reasoning|instruct|vision|multimodal|agent)")
                 .ok()
@@ -621,12 +623,11 @@ fn extract_json_rows_openreview(payload_value: &Value, topics: &[Value]) -> Vec<
                 })
                 .unwrap_or_default();
             let combined = format!("{title} {abstract_text}");
-            let signal = Regex::new(
-                r"(?i)(agent|llm|reasoning|retrieval|safety|alignment|benchmark)",
-            )
-            .ok()
-            .map(|re| re.is_match(&combined))
-            .unwrap_or(false);
+            let signal =
+                Regex::new(r"(?i)(agent|llm|reasoning|retrieval|safety|alignment|benchmark)")
+                    .ok()
+                    .map(|re| re.is_match(&combined))
+                    .unwrap_or(false);
             let published_at = value_text(
                 note_obj
                     .get("pdate")
@@ -704,7 +705,10 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
     let payload = match lane_utils::payload_json(&argv[1..], "collector_content_kernel") {
         Ok(value) => value,
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_content_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_content_kernel_error",
+                &err,
+            ));
             return 1;
         }
     };
@@ -716,7 +720,10 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             0
         }
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_content_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_content_kernel_error",
+                &err,
+            ));
             1
         }
     }
@@ -780,7 +787,10 @@ mod tests {
                 { "id": "abc", "title": "A paper", "summary": "sum", "upvotes": 25, "publishedAt": "2026-03-01" }
             ]
         })));
-        assert_eq!(hf.get("rows").and_then(Value::as_array).map(|v| v.len()), Some(1));
+        assert_eq!(
+            hf.get("rows").and_then(Value::as_array).map(|v| v.len()),
+            Some(1)
+        );
 
         let ollama = extract_json_rows(lane_utils::payload_obj(&json!({
             "collector_id": "ollama_search",

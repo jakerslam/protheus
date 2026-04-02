@@ -13,11 +13,17 @@ use crate::contract_lane_utils as lane_utils;
 fn usage() {
     println!("moltstack-discover-collector-kernel commands:");
     println!("  protheus-ops moltstack-discover-collector-kernel run --payload-base64=<json>");
-    println!("  protheus-ops moltstack-discover-collector-kernel preflight --payload-base64=<json>");
+    println!(
+        "  protheus-ops moltstack-discover-collector-kernel preflight --payload-base64=<json>"
+    );
     println!("  protheus-ops moltstack-discover-collector-kernel build-fetch-plan --payload-base64=<json>");
     println!("  protheus-ops moltstack-discover-collector-kernel classify-fetch-error --payload-base64=<json>");
-    println!("  protheus-ops moltstack-discover-collector-kernel finalize-run --payload-base64=<json>");
-    println!("  protheus-ops moltstack-discover-collector-kernel map-posts --payload-base64=<json>");
+    println!(
+        "  protheus-ops moltstack-discover-collector-kernel finalize-run --payload-base64=<json>"
+    );
+    println!(
+        "  protheus-ops moltstack-discover-collector-kernel map-posts --payload-base64=<json>"
+    );
     println!("  protheus-ops moltstack-discover-collector-kernel collect --payload-base64=<json>");
 }
 
@@ -168,7 +174,11 @@ fn http_status_to_code(status: u64) -> &'static str {
     }
 }
 
-fn curl_fetch_with_status(url: &str, timeout_ms: u64, accept: &str) -> Result<(u64, String, u64), String> {
+fn curl_fetch_with_status(
+    url: &str,
+    timeout_ms: u64,
+    accept: &str,
+) -> Result<(u64, String, u64), String> {
     let timeout_secs = ((timeout_ms.max(1_000) as f64) / 1_000.0).ceil() as u64;
     let output = Command::new("curl")
         .arg("--silent")
@@ -249,7 +259,9 @@ fn preflight(payload: &Map<String, Value>) -> Value {
             let allowed = if allowlist.is_empty() {
                 host == "moltstack.net" || host.ends_with(".moltstack.net")
             } else {
-                allowlist.iter().any(|d| host == *d || host.ends_with(&format!(".{d}")))
+                allowlist
+                    .iter()
+                    .any(|d| host == *d || host.ends_with(&format!(".{d}")))
             };
             if !allowed {
                 failures.push(json!({
@@ -405,7 +417,8 @@ fn build_fetch_plan(payload: &Map<String, Value>) -> Value {
 }
 
 fn classify_fetch_error(payload: &Map<String, Value>) -> Value {
-    let code = clean_text(payload.get("error_code").and_then(Value::as_str), 80).to_ascii_lowercase();
+    let code =
+        clean_text(payload.get("error_code").and_then(Value::as_str), 80).to_ascii_lowercase();
     let fallback_codes = [
         "dns_unreachable",
         "connection_refused",
@@ -531,27 +544,37 @@ fn command_run(payload: &Map<String, Value>) -> Result<Value, String> {
     let timeout_ms = payload
         .get("timeout_ms")
         .and_then(Value::as_u64)
-        .unwrap_or_else(|| plan.get("timeout_ms").and_then(Value::as_u64).unwrap_or(10_000))
+        .unwrap_or_else(|| {
+            plan.get("timeout_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(10_000)
+        })
         .clamp(1_000, 30_000);
 
-    let (posts_json, bytes, requests, fetch_error) = match curl_fetch_with_status(&fetch_url, timeout_ms, &accept) {
-        Ok((status, body, _)) => {
-            if status >= 400 {
-                (Value::Null, 0_u64, 0_u64, Some(http_status_to_code(status).to_string()))
-            } else {
-                let b = body.as_bytes().len() as u64;
-                (parse_json_or_null(&body), b, 1_u64, None)
+    let (posts_json, bytes, requests, fetch_error) =
+        match curl_fetch_with_status(&fetch_url, timeout_ms, &accept) {
+            Ok((status, body, _)) => {
+                if status >= 400 {
+                    (
+                        Value::Null,
+                        0_u64,
+                        0_u64,
+                        Some(http_status_to_code(status).to_string()),
+                    )
+                } else {
+                    let b = body.as_bytes().len() as u64;
+                    (parse_json_or_null(&body), b, 1_u64, None)
+                }
             }
-        }
-        Err(err) => {
-            let code = clean_text(Some(&err), 120)
-                .split(':')
-                .next()
-                .unwrap_or("collector_error")
-                .to_string();
-            (Value::Null, 0_u64, 0_u64, Some(code))
-        }
-    };
+            Err(err) => {
+                let code = clean_text(Some(&err), 120)
+                    .split(':')
+                    .next()
+                    .unwrap_or("collector_error")
+                    .to_string();
+                (Value::Null, 0_u64, 0_u64, Some(code))
+            }
+        };
 
     let duration_ms = Utc::now()
         .timestamp_millis()
@@ -600,7 +623,8 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
     let command = argv[0].trim().to_ascii_lowercase();
-    let payload = match lane_utils::payload_json(&argv[1..], "moltstack_discover_collector_kernel") {
+    let payload = match lane_utils::payload_json(&argv[1..], "moltstack_discover_collector_kernel")
+    {
         Ok(v) => v,
         Err(err) => {
             lane_utils::print_json_line(&lane_utils::cli_error(
@@ -658,7 +682,9 @@ mod tests {
         });
         let out = map_posts(lane_utils::payload_obj(&payload));
         assert_eq!(
-            out.get("items").and_then(Value::as_array).map(|rows| rows.len()),
+            out.get("items")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
             Some(1)
         );
     }
@@ -681,7 +707,10 @@ mod tests {
         let out = classify_fetch_error(lane_utils::payload_obj(&json!({
             "error_code": "rate_limited"
         })));
-        assert_eq!(out.get("fallback_allowed").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("fallback_allowed").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -695,6 +724,9 @@ mod tests {
         })))
         .expect("collect");
         assert_eq!(out.get("success").and_then(Value::as_bool), Some(false));
-        assert_eq!(out.get("fallback_allowed").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("fallback_allowed").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 }

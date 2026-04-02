@@ -19,7 +19,10 @@ fn prepare_attempt_and_circuit_flow() {
     let obj = payload_obj(&payload);
 
     let pre = handle_prepare_attempt(root, obj).expect("prepare");
-    assert_eq!(pre.get("circuit_open").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        pre.get("circuit_open").and_then(Value::as_bool),
+        Some(false)
+    );
 
     let fail = handle_mark_failure(root, obj).expect("fail");
     let streak = fail
@@ -30,7 +33,10 @@ fn prepare_attempt_and_circuit_flow() {
     assert_eq!(streak, 1);
 
     let blocked = handle_prepare_attempt(root, obj).expect("blocked");
-    assert_eq!(blocked.get("circuit_open").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        blocked.get("circuit_open").and_then(Value::as_bool),
+        Some(true)
+    );
     assert!(
         blocked
             .get("retry_after_ms")
@@ -113,8 +119,12 @@ fn mark_failure_derives_retryable_from_code() {
         "rate_state_path": root.join("collector_rate_state.json").display().to_string(),
         "code": "timeout"
     });
-    let out_retry = handle_mark_failure(root, payload_obj(&payload_retry)).expect("mark-failure-timeout");
-    assert_eq!(out_retry.get("retryable").and_then(Value::as_bool), Some(true));
+    let out_retry =
+        handle_mark_failure(root, payload_obj(&payload_retry)).expect("mark-failure-timeout");
+    assert_eq!(
+        out_retry.get("retryable").and_then(Value::as_bool),
+        Some(true)
+    );
 }
 
 #[test]
@@ -122,13 +132,25 @@ fn classify_error_maps_http_404_and_dns() {
     let http_out = handle_classify_error(payload_obj(&json!({
         "message": "HTTP 404 for https://example.invalid"
     })));
-    assert_eq!(http_out.get("code").and_then(Value::as_str), Some("http_404"));
-    assert_eq!(http_out.get("retryable").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        http_out.get("code").and_then(Value::as_str),
+        Some("http_404")
+    );
+    assert_eq!(
+        http_out.get("retryable").and_then(Value::as_bool),
+        Some(false)
+    );
 
     let dns_out = handle_classify_error(payload_obj(&json!({
         "code": "ENOTFOUND",
         "message": "getaddrinfo ENOTFOUND example.invalid"
     })));
-    assert_eq!(dns_out.get("code").and_then(Value::as_str), Some("dns_unreachable"));
-    assert_eq!(dns_out.get("retryable").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        dns_out.get("code").and_then(Value::as_str),
+        Some("dns_unreachable")
+    );
+    assert_eq!(
+        dns_out.get("retryable").and_then(Value::as_bool),
+        Some(true)
+    );
 }

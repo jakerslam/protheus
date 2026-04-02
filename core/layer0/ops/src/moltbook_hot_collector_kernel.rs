@@ -16,7 +16,9 @@ fn usage() {
     println!("moltbook-hot-collector-kernel commands:");
     println!("  protheus-ops moltbook-hot-collector-kernel run --payload-base64=<json>");
     println!("  protheus-ops moltbook-hot-collector-kernel preflight --payload-base64=<json>");
-    println!("  protheus-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>");
+    println!(
+        "  protheus-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>"
+    );
     println!("  protheus-ops moltbook-hot-collector-kernel map-posts --payload-base64=<json>");
     println!("  protheus-ops moltbook-hot-collector-kernel collect --payload-base64=<json>");
 }
@@ -180,7 +182,10 @@ fn auth_headers(payload: &Map<String, Value>) -> Vec<(String, String)> {
         256,
     );
     if !direct_api_key.is_empty() {
-        out.push(("Authorization".to_string(), format!("Bearer {direct_api_key}")));
+        out.push((
+            "Authorization".to_string(),
+            format!("Bearer {direct_api_key}"),
+        ));
     }
     let api_key_handle = clean_text(payload.get("api_key_handle").and_then(Value::as_str), 256);
     if !api_key_handle.is_empty() {
@@ -304,7 +309,8 @@ fn preflight(payload: &Map<String, Value>) -> Value {
 }
 
 fn classify_fetch_error(payload: &Map<String, Value>) -> Value {
-    let code = clean_text(payload.get("error_code").and_then(Value::as_str), 80).to_ascii_lowercase();
+    let code =
+        clean_text(payload.get("error_code").and_then(Value::as_str), 80).to_ascii_lowercase();
     let fallback_codes = [
         "dns_unreachable",
         "connection_refused",
@@ -561,7 +567,10 @@ mod tests {
         let out = classify_fetch_error(lane_utils::payload_obj(&json!({
             "error_code": "timeout"
         })));
-        assert_eq!(out.get("fallback_allowed").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("fallback_allowed").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -575,7 +584,9 @@ mod tests {
         })));
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            out.get("items").and_then(Value::as_array).map(|rows| rows.len()),
+            out.get("items")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
             Some(1)
         );
     }
@@ -591,6 +602,9 @@ mod tests {
         })))
         .expect("collect");
         assert_eq!(out.get("success").and_then(Value::as_bool), Some(false));
-        assert_eq!(out.get("fallback_allowed").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("fallback_allowed").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 }

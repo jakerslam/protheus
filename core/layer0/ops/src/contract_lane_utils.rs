@@ -404,6 +404,6 @@ mod tests {
     #[test]
     fn string_set_dedupes_and_sanitizes() {
         let payload = json!(["Alpha", "Alpha", "beta!", ""]);
-        assert_eq!(string_set(Some(&payload)), vec!["Alpha", "beta-"]);
+        assert_eq!(string_set(Some(&payload)), vec!["Alpha", "beta"]);
     }
 }

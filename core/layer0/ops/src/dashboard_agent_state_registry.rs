@@ -354,6 +354,7 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
     if !current.is_object() {
         current = json!({});
     }
+    let mut model_patch_seen = false;
     if let Some(obj) = patch.as_object() {
         for (key, value) in obj {
             if matches!(
@@ -388,6 +389,12 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "mode"
             ) {
                 current[key] = value.clone();
+                if matches!(
+                    key.as_str(),
+                    "model_override" | "model_provider" | "model_name" | "runtime_model"
+                ) {
+                    model_patch_seen = true;
+                }
             }
         }
     }
@@ -400,6 +407,41 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
         current["created_at"] = Value::String(now_iso());
     }
     current["updated_at"] = Value::String(now_iso());
+    if model_patch_seen {
+        let mut provider = clean_text(
+            current
+                .get("model_provider")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        let mut model = clean_text(
+            current
+                .get("model_name")
+                .or_else(|| current.get("runtime_model"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        if provider.is_empty() || model.is_empty() {
+            if let Some(raw) = current.get("model_override").and_then(Value::as_str) {
+                let cleaned_override = clean_text(raw, 280);
+                if let Some((left, right)) = cleaned_override.split_once('/') {
+                    if provider.is_empty() {
+                        provider = clean_text(left, 80).to_ascii_lowercase();
+                    }
+                    if model.is_empty() {
+                        model = clean_text(right, 240);
+                    }
+                }
+            }
+        }
+        if !provider.is_empty() && !model.is_empty() {
+            let _ =
+                crate::dashboard_provider_runtime::ensure_model_profile(root, &provider, &model);
+        }
+    }
     agents.insert(id.clone(), current.clone());
     save_profiles_state(root, state);
     json!({"ok": true, "type": "dashboard_agent_profile", "agent_id": id, "profile": current})

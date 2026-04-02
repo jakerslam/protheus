@@ -13,7 +13,7 @@ use crate::now_iso;
 mod render;
 use render::{summary_payload, write_outputs, QUEUE_JSON_REL};
 
-const DEFAULT_MAX: usize = 100;
+const DEFAULT_MAX: usize = 200;
 const DEFAULT_TARGET_RUST_PERCENT: usize = 60;
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/rust_hotpath_inventory_policy.json";
 
@@ -26,7 +26,12 @@ struct Record {
 
 fn usage() {
     println!("top50-roi-sweep-kernel commands:");
-    println!("  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]");
+    println!(
+        "  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+    );
+    println!(
+        "  protheus-ops top200-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+    );
 }
 
 fn print_json_line(value: &Value) {
@@ -146,14 +151,13 @@ fn read_records(root: &Path, files: &[String]) -> Vec<Record> {
 }
 
 fn runtime_rel_path(rel_path: &str) -> &str {
-    rel_path
-        .strip_prefix("client/runtime/")
-        .unwrap_or(rel_path)
+    rel_path.strip_prefix("client/runtime/").unwrap_or(rel_path)
 }
 
 fn in_scan_roots(rel_path: &str, roots: &[String]) -> bool {
     let runtime = runtime_rel_path(rel_path);
-    roots.iter()
+    roots
+        .iter()
         .map(|row| row.trim())
         .filter(|row| !row.is_empty())
         .any(|root| runtime == root || runtime.starts_with(&format!("{root}/")))
@@ -275,7 +279,8 @@ fn should_exclude(record: &Record) -> bool {
     if rel.starts_with("client/lib/") && !has_authority_marker(record) {
         return true;
     }
-    if (base.contains("benchmark") || rel.contains("/benchmarks/")) && !has_authority_marker(record) {
+    if (base.contains("benchmark") || rel.contains("/benchmarks/")) && !has_authority_marker(record)
+    {
         return true;
     }
     if rel.starts_with("client/runtime/systems/ui/") {
@@ -371,7 +376,11 @@ fn build_queue(root: &Path, max: usize, policy_path: &Path) -> Result<Value, Str
 
     let extension_surfaces_excluded = records
         .iter()
-        .filter(|record| record.path.ends_with(".ts") && is_extension_surface(record) && !has_authority_marker(record))
+        .filter(|record| {
+            record.path.ends_with(".ts")
+                && is_extension_surface(record)
+                && !has_authority_marker(record)
+        })
         .count();
 
     let mut candidates = records
@@ -392,7 +401,8 @@ fn build_queue(root: &Path, max: usize, policy_path: &Path) -> Result<Value, Str
 
     let rust_percent = ((tracked_rs_lines as f64)
         / ((tracked_rs_lines + tracked_ts_lines + tracked_js_lines).max(1) as f64)
-        * 100.0 * 100.0)
+        * 100.0
+        * 100.0)
         .round()
         / 100.0;
 

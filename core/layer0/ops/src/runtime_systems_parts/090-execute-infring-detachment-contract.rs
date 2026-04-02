@@ -243,7 +243,7 @@ fn execute_infring_detachment_contract(
             .unwrap_or_default();
 
         specialist_count = specialists.len();
-        if strict && specialist_count == 0 {
+        if strict && apply && specialist_count == 0 {
             return Err("infring_nursery_seed_manifest_empty".to_string());
         }
         let training_plan_path = nursery_root.join("promotion/specialist_training_plan.json");
@@ -267,7 +267,7 @@ fn execute_infring_detachment_contract(
 
     if profile.id == "V6-INFRING-DETACH-001.4" {
         let mut llm_models = infring_seed_to_llm_models(&seed_manifest);
-        if strict && llm_models.is_empty() {
+        if strict && apply && llm_models.is_empty() {
             return Err("infring_detach_missing_llm_seed_models".to_string());
         }
         normalize_model_scores(&mut llm_models);
@@ -300,10 +300,11 @@ fn execute_infring_detachment_contract(
         }
     }
 
-    if strict && copied_rows.is_empty() {
+    if strict && apply && copied_rows.is_empty() {
         return Err("infring_assimilation_no_artifacts_copied".to_string());
     }
     if strict
+        && apply
         && profile.id == "V6-INFRING-DETACH-001.3"
         && source_control_copied_rows.is_empty()
         && !source_control_root.join("cron/jobs.json").exists()

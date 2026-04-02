@@ -108,6 +108,22 @@
   border-radius: inherit;
 }
 
+.chat-thread-profile-avatar.chat-thread-profile-avatar-archived-mask::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #ffffff 64%, transparent) 0%,
+      color-mix(in srgb, #b8c0cd 34%, transparent) 50%,
+      color-mix(in srgb, #000000 60%, transparent) 100%
+    );
+  pointer-events: none;
+  z-index: 2;
+}
+
 .chat-thread-profile-avatar span {
   font-size: 16px;
   line-height: 1;
@@ -290,6 +306,24 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
 .message.user {
   flex-direction: row-reverse;
   justify-content: flex-start;
+  animation: messageUserRiseFromComposer 0.26s var(--ease-smooth);
+}
+
+@keyframes messageUserRiseFromComposer {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(2px);
+  }
+  70% {
+    opacity: 0.95;
+    filter: blur(0.6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
 }
 
 .message-avatar {
@@ -348,6 +382,21 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   white-space: nowrap;
 }
 
+.message-agent-name-label {
+  color: inherit;
+}
+
+.message-agent-name-bracket {
+  color: transparent;
+}
+
+.message-agent-name.message-agent-name-user-ghost,
+.message-agent-name.message-agent-name-user-ghost .message-agent-name-label,
+.message-agent-name.message-agent-name-user-ghost .message-agent-name-bracket {
+  color: transparent;
+  text-shadow: none;
+}
+
 .message-bubble {
   padding: 10px 14px;
   border-radius: var(--radius-lg);
@@ -377,6 +426,15 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
   z-index: 1;
+}
+
+.chat-wrapper.chat-wrapper-archived-thread .message.user .message-bubble {
+  --message-tail-fill-color: color-mix(in srgb, var(--surface2) 96%, transparent);
+  --message-tail-border-color: color-mix(in srgb, var(--border) 95%, transparent);
+  background: color-mix(in srgb, var(--surface2) 96%, transparent);
+  border-color: color-mix(in srgb, var(--border) 95%, transparent);
+  border-top-color: color-mix(in srgb, var(--border) 95%, transparent);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.26), 6px 0 12px -14px rgba(0, 0, 0, 0.26), 0 10px 18px -18px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
 .message.user .message-bubble::after {

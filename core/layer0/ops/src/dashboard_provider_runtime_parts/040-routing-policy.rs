@@ -340,6 +340,11 @@ fn fallback_routes(
         if provider.is_empty() || model.is_empty() {
             continue;
         }
+        // Fail closed on stale local fallback entries: do not route to local models
+        // that are not present in the authoritative model profile registry.
+        if provider_is_local(&provider) && model_profile_for(root, &provider, &model).is_none() {
+            continue;
+        }
         if routes.iter().any(|(existing_provider, existing_model)| {
             existing_provider == &provider && existing_model == &model
         }) {
@@ -379,6 +384,10 @@ fn append_routing_event(root: &Path, event: &Value) {
 fn is_retryable_model_error(error: &str) -> bool {
     let lower = error.to_ascii_lowercase();
     if lower.contains("provider key missing") || lower.contains("message_required") {
+        return false;
+    }
+    // Missing model variants are deterministic configuration issues, not transient.
+    if lower.contains("not found") || lower.contains("no such model") {
         return false;
     }
     lower.contains("timeout")

@@ -222,13 +222,15 @@
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           };
+          var renderedFinalMessage = finalMessage;
           var lastStable = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!usedFallback && lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {
             this.messages[this.messages.length - 1] = finalMessage;
+            renderedFinalMessage = finalMessage;
           } else {
-            this.messages.push(finalMessage);
+            renderedFinalMessage = this.pushAgentMessageDeduped(finalMessage, { dedupe_window_ms: 90000 }) || finalMessage;
           }
-          this.markAgentMessageComplete(finalMessage);
+          this.markAgentMessageComplete(renderedFinalMessage);
           var wsFailure = this.extractRecoverableBackendFailure(finalText);
           this.sending = false;
           this._responseStartedAt = 0;
@@ -271,6 +273,32 @@
           this._clearStreamingTypewriters();
           this._inflightPayload = null;
           this._pendingAutoModelSwitchBaseline = '';
+          var nowTs = Date.now();
+          var hasRecentSubstantiveAgentReply = false;
+          for (var si = this.messages.length - 1; si >= 0; si--) {
+            var stable = this.messages[si];
+            if (!stable) continue;
+            if (stable.thinking || stable.streaming) continue;
+            if (String(stable.role || '').toLowerCase() !== 'agent') continue;
+            var stableText = String(stable.text || '').trim();
+            if (!stableText) continue;
+            if (stable._auto_fallback) continue;
+            var stableAge = Math.max(0, nowTs - Number(stable.ts || nowTs));
+            if (stableAge <= 20000) {
+              hasRecentSubstantiveAgentReply = true;
+            }
+            break;
+          }
+          if (hasRecentSubstantiveAgentReply) {
+            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            this.sending = false;
+            this._responseStartedAt = 0;
+            this.tokenCount = 0;
+            var selfSilentSkip = this;
+            this.$nextTick(function() { selfSilentSkip._processQueue(); });
+            this.refreshPromptSuggestions(true, 'post-silent-skip');
+            break;
+          }
           var silentEnvelope = this.collectStreamedAssistantEnvelope();
           var silentThought = String(silentEnvelope.thought || '').trim();
           var silentTools = silentEnvelope.tools || [];

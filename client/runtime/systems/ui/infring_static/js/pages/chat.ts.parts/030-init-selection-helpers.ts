@@ -12,6 +12,30 @@
     selectFreshInitVibe: function(card) {
       var id = String(card && card.id ? card.id : 'none').trim() || 'none';
       this.freshInitVibeId = id;
+      this.scheduleFreshInitProgressAnchor();
+    },
+
+    scheduleFreshInitProgressAnchor: function(forcedAnchor) {
+      var anchor = String(forcedAnchor || '').trim();
+      if (!anchor) {
+        if (this.freshInitCanLaunch) anchor = 'launch';
+        else if (this.freshInitTemplateDef) anchor = 'lifespan';
+        else anchor = 'role';
+      }
+      var self = this;
+      this.$nextTick(function() {
+        var scroller = typeof self.resolveMessagesScroller === 'function' ? self.resolveMessagesScroller(null) : null;
+        if (!scroller || typeof scroller.getBoundingClientRect !== 'function') return;
+        var panel = scroller.querySelector('.chat-init-panel');
+        if (!panel) return;
+        var target = panel.querySelector('[data-init-anchor=\"' + anchor + '\"]');
+        if (!target || typeof target.getBoundingClientRect !== 'function') return;
+        var hostRect = scroller.getBoundingClientRect();
+        var targetRect = target.getBoundingClientRect();
+        var delta = (targetRect.bottom + 92) - hostRect.bottom;
+        if (Math.abs(delta) < 2) return;
+        scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + delta), behavior: 'smooth' });
+      });
     },
 
     selectedFreshInitVibe: function() {

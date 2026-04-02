@@ -21,7 +21,8 @@
                   <div class="flex justify-between items-center mb-1" style="gap:10px">
                     <div class="font-bold truncate" style="font-size:13px;max-width:220px" :title="entry.agent_id" x-text="entry.agent_id"></div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-                      <button class="btn btn-primary btn-sm" @click="reviveTerminated(entry)">Revive</button>
+                      <button class="btn btn-ghost btn-sm" @click="viewTerminated(entry)">View</button>
+                      <button class="btn btn-sm btn-revive-user" @click="reviveTerminated(entry)">Revive</button>
                       <button
                         class="btn btn-danger btn-sm"
                         x-show="confirmDeleteTerminatedKey !== terminatedEntryKey(entry)"

@@ -581,6 +581,100 @@ fn direct_slash_tool_routes_through_agent_message() {
 }
 
 #[test]
+fn direct_search_slash_routes_through_web_search_tool() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Search Agent","role":"researcher"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"/search infringing runtime architecture"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("search slash tool");
+    assert!(matches!(out.status, 200 | 400));
+    assert!(out
+        .payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter().any(|row| {
+                row.get("name")
+                    .and_then(Value::as_str)
+                    .map(|name| name == "web_search")
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false));
+}
+
+#[test]
+fn natural_language_web_search_intent_routes_without_slash() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Search Agent 2","role":"researcher"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"search the web for robust websocket reconnect patterns"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("natural search tool");
+    assert!(matches!(out.status, 200 | 400));
+    assert!(out
+        .payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter().any(|row| {
+                row.get("name")
+                    .and_then(Value::as_str)
+                    .map(|name| name == "web_search")
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false));
+}
+
+#[test]
 fn message_turns_capture_memory_and_attention_receipt() {
     let root = tempfile::tempdir().expect("tempdir");
     init_git_repo(root.path());

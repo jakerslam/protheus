@@ -234,6 +234,163 @@ fn run_test_concurrency(state: &mut SwarmState, argv: &[String]) -> Result<Value
     }))
 }
 
+fn run_test_hierarchy(state: &mut SwarmState, argv: &[String]) -> Result<Value, String> {
+    let requested_agents = parse_u64_flag(argv, "agents", 10).max(1) as usize;
+    let fanout = parse_u64_flag(argv, "fanout", 8).max(2).min(64) as usize;
+    let max_depth = parse_u8_flag(argv, "max-depth", 64).max(2);
+    let metrics_detailed = parse_flag(argv, "metrics")
+        .map(|value| value.eq_ignore_ascii_case("detailed"))
+        .unwrap_or(true);
+    let timeout_ms = parse_u64_flag(argv, "timeout-ms", 1_000);
+    let task_prefix =
+        parse_flag(argv, "task-prefix").unwrap_or_else(|| "hierarchy-test".to_string());
+
+    let options = SpawnOptions {
+        verify: true,
+        timeout_ms,
+        metrics_detailed,
+        simulate_unreachable: false,
+        byzantine: false,
+        corruption_type: "data_falsification".to_string(),
+        token_budget: None,
+        token_warning_threshold: 0.8,
+        budget_exhaustion_action: BudgetAction::FailHard,
+        adaptive_complexity: false,
+        execution_mode: ExecutionMode::TaskOriented,
+        role: Some("manager".to_string()),
+        capabilities: Vec::new(),
+        auto_publish_results: false,
+        agent_label: None,
+        result_value: None,
+        result_text: None,
+        result_confidence: 1.0,
+        verification_status: "not_verified".to_string(),
+    };
+
+    let root_payload = spawn_single(
+        state,
+        None,
+        &format!("{task_prefix}-root"),
+        max_depth,
+        &options,
+    )?;
+    let root_id = root_payload
+        .get("session_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "hierarchy_missing_root_session_id".to_string())?
+        .to_string();
+
+    let mut frontier = std::collections::VecDeque::new();
+    frontier.push_back((root_id.clone(), 0u16));
+
+    let mut spawned_agents = 1usize;
+    let mut parent_child_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut depth_distribution: BTreeMap<String, usize> = BTreeMap::new();
+    depth_distribution.insert("0".to_string(), 1);
+    let mut max_observed_depth = 0u16;
+
+    while spawned_agents < requested_agents {
+        let Some((parent_id, parent_depth)) = frontier.pop_front() else {
+            return Err("hierarchy_frontier_exhausted_before_target".to_string());
+        };
+
+        let remaining = requested_agents.saturating_sub(spawned_agents);
+        if remaining == 0 {
+            break;
+        }
+
+        let children_to_spawn = fanout.min(remaining);
+        for offset in 0..children_to_spawn {
+            let child_depth = parent_depth.saturating_add(1);
+            let child_task = format!(
+                "{task_prefix}-d{child_depth}-n{}",
+                spawned_agents.saturating_add(offset).saturating_add(1)
+            );
+            let child_payload = spawn_single(
+                state,
+                Some(parent_id.as_str()),
+                &child_task,
+                max_depth,
+                &options,
+            )?;
+            let child_id = child_payload
+                .get("session_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "hierarchy_missing_child_session_id".to_string())?
+                .to_string();
+
+            frontier.push_back((child_id, child_depth));
+            spawned_agents = spawned_agents.saturating_add(1);
+            *parent_child_counts.entry(parent_id.clone()).or_insert(0) += 1;
+            *depth_distribution
+                .entry(child_depth.to_string())
+                .or_insert(0) += 1;
+            max_observed_depth = max_observed_depth.max(child_depth);
+
+            if spawned_agents >= requested_agents {
+                break;
+            }
+        }
+    }
+
+    let mut orphan_children = 0usize;
+    let mut missing_parent_refs = 0usize;
+    let mut fanout_overflow = 0usize;
+    for (session_id, session) in &state.sessions {
+        if session_id == &root_id {
+            continue;
+        }
+        match session.parent_id.as_deref() {
+            Some(parent_id) if state.sessions.contains_key(parent_id) => {}
+            Some(_) => missing_parent_refs = missing_parent_refs.saturating_add(1),
+            None => orphan_children = orphan_children.saturating_add(1),
+        }
+    }
+
+    for child_count in parent_child_counts.values() {
+        if *child_count > fanout {
+            fanout_overflow = fanout_overflow.saturating_add(1);
+        }
+    }
+
+    let manager_count = parent_child_counts.len();
+    let leaf_count = spawned_agents.saturating_sub(manager_count);
+    let recommended_manager_fanout = recommended_manager_fanout_for_target(requested_agents);
+    let queue_metrics = queue_metrics_snapshot(state);
+
+    Ok(json!({
+        "ok": spawned_agents == requested_agents
+            && orphan_children == 0
+            && missing_parent_refs == 0
+            && fanout_overflow == 0,
+        "test": "hierarchy",
+        "agents_requested": requested_agents,
+        "agents_spawned": spawned_agents,
+        "fanout": fanout,
+        "max_depth": max_observed_depth,
+        "manager_count": manager_count,
+        "leaf_count": leaf_count,
+        "manager_ratio": if spawned_agents == 0 {
+            0.0
+        } else {
+            manager_count as f64 / spawned_agents as f64
+        },
+        "depth_distribution": depth_distribution,
+        "lineage_validation": {
+            "orphan_children": orphan_children,
+            "missing_parent_refs": missing_parent_refs,
+            "fanout_overflow": fanout_overflow,
+            "lineage_ok": orphan_children == 0 && missing_parent_refs == 0 && fanout_overflow == 0,
+        },
+        "recommended_manager_fanout_for_scale": recommended_manager_fanout,
+        "queue_metrics": {
+            "queue_wait_avg_ms": queue_metrics.get("queue_wait_ms").and_then(|row| row.get("avg")).cloned().unwrap_or(json!(0.0)),
+            "execution_avg_ms": queue_metrics.get("execution_ms").and_then(|row| row.get("avg")).cloned().unwrap_or(json!(0.0)),
+            "total_latency_avg_ms": queue_metrics.get("total_latency_ms").and_then(|row| row.get("avg")).cloned().unwrap_or(json!(0.0)),
+        },
+    }))
+}
+
 fn run_test_budget(state: &mut SwarmState, argv: &[String]) -> Result<Value, String> {
     let budget = parse_u64_flag(argv, "budget", 120).max(1) as u32;
     let warning_at = parse_f64_flag(argv, "warning-at", 0.8).clamp(0.0, 1.0) as f32;

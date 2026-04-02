@@ -212,7 +212,7 @@ fn local_provider_reachable(provider_id: &str, row: &Value) -> bool {
         _ => row
             .get("reachable")
             .and_then(Value::as_bool)
-            .unwrap_or(false),
+            .unwrap_or(true),
     }
 }
 

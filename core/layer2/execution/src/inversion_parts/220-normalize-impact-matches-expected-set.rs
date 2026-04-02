@@ -2256,7 +2256,7 @@ if mode == "alpha" {
         let ts_inversion = read_optional_autonomy_surface(
             "../../../client/runtime/systems/autonomy/inversion_controller.ts",
         );
-        let rust_src = include_str!("inversion.rs");
+        let rust_src = include_str!("../inversion.rs");
         let mut called = extract_mode_literals(&ts_inversion, "runInversionPrimitive");
         called.extend(extract_mode_literals(&ts_autonomy, "runInversionPrimitive"));
         if !(ts_autonomy.is_empty() && ts_inversion.is_empty()) {
@@ -2280,7 +2280,7 @@ if mode == "alpha" {
         let bridge = read_optional_autonomy_surface(
             "../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts",
         );
-        let rust_src = include_str!("inversion.rs");
+        let rust_src = include_str!("../inversion.rs");
         if bridge.is_empty() {
             return;
         }

@@ -1,4 +1,3 @@
-
 fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     let team = if flags.team.trim().is_empty() {
         DEFAULT_TEAM.to_string()
@@ -264,7 +263,7 @@ fn trim_snapshot_history_with_policy(
         return;
     }
 
-    let byte_cap = max_bytes.max(1024);
+    let byte_cap = max_bytes.max(1);
     let line_cap = max_lines.max(1);
     let cutoff = Utc::now() - chrono::Duration::days(max_age_days.max(0));
     let mut file = match fs::File::open(path) {

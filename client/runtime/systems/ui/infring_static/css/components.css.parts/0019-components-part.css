@@ -138,6 +138,90 @@
   max-height: 400px;
   overflow-y: auto;
 }
+.wf-trace-panel {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wf-trace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.wf-trace-status,
+.wf-trace-empty {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.wf-trace-error {
+  color: var(--error);
+}
+.wf-trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.wf-trace-card {
+  border: 1px solid color-mix(in srgb, var(--border) 94%, transparent);
+  border-radius: 8px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+.wf-trace-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.wf-trace-run-id {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.wf-trace-run-status {
+  font-size: 10px;
+  color: var(--accent);
+  text-transform: capitalize;
+}
+.wf-trace-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.wf-trace-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wf-trace-step-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wf-trace-step-name {
+  font-size: 10px;
+  color: var(--text);
+  font-weight: 600;
+}
+.wf-trace-step-preview {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
 /* Comms page */
 .comms-topo-tree { padding: 4px 0 4px 8px; }
 .comms-topo-child { padding: 0 0 0 20px; display: flex; align-items: center; gap: 4px; }

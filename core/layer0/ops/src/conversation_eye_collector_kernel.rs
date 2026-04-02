@@ -6,8 +6,9 @@ use std::path::Path;
 
 use crate::contract_lane_utils as lane_utils;
 use crate::conversation_eye_collector_kernel_support::{
-    append_jsonl, clamp_u64, clean_edges, clean_tags, clean_text, normalize_index, normalize_topics,
-    now_iso, read_json, read_jsonl_tail, resolve_path, sha16, to_iso_week, write_json_atomic,
+    append_jsonl, clamp_u64, clean_edges, clean_tags, clean_text, normalize_index,
+    normalize_topics, now_iso, read_json, read_jsonl_tail, resolve_path, sha16, to_iso_week,
+    write_json_atomic,
 };
 
 const DEFAULT_HISTORY_REL: &str = "local/state/cockpit/inbox/history.jsonl";
@@ -16,7 +17,9 @@ const DEFAULT_MEMORY_DIR_REL: &str = "local/state/memory/conversation_eye";
 
 fn usage() {
     println!("conversation-eye-collector-kernel commands:");
-    println!("  protheus-ops conversation-eye-collector-kernel begin-collection --payload-base64=<json>");
+    println!(
+        "  protheus-ops conversation-eye-collector-kernel begin-collection --payload-base64=<json>"
+    );
     println!("  protheus-ops conversation-eye-collector-kernel preflight --payload-base64=<json>");
     println!(
         "  protheus-ops conversation-eye-collector-kernel load-source-rows --payload-base64=<json>"
@@ -26,7 +29,9 @@ fn usage() {
     );
     println!("  protheus-ops conversation-eye-collector-kernel load-index --payload-base64=<json>");
     println!("  protheus-ops conversation-eye-collector-kernel apply-node --payload-base64=<json>");
-    println!("  protheus-ops conversation-eye-collector-kernel process-nodes --payload-base64=<json>");
+    println!(
+        "  protheus-ops conversation-eye-collector-kernel process-nodes --payload-base64=<json>"
+    );
     println!(
         "  protheus-ops conversation-eye-collector-kernel append-memory-row --payload-base64=<json>"
     );
@@ -78,7 +83,12 @@ fn command_begin_collection(root: &Path, payload: &Map<String, Value>) -> Value 
     let eye_topics = nested_obj(payload, "eye_config")
         .and_then(|cfg| cfg.get("topics"))
         .cloned()
-        .unwrap_or_else(|| payload.get("topics").cloned().unwrap_or(Value::Array(Vec::new())));
+        .unwrap_or_else(|| {
+            payload
+                .get("topics")
+                .cloned()
+                .unwrap_or(Value::Array(Vec::new()))
+        });
     let history_path = resolve_path(root, payload, "history_path", DEFAULT_HISTORY_REL);
     let latest_path = resolve_path(root, payload, "latest_path", DEFAULT_LATEST_REL);
     let memory_jsonl_path = resolve_path(
@@ -161,7 +171,10 @@ fn command_begin_collection(root: &Path, payload: &Map<String, Value>) -> Value 
 }
 
 fn command_preflight(root: &Path, payload: &Map<String, Value>) -> Value {
-    let max_items = payload.get("max_items").and_then(Value::as_f64).unwrap_or(0.0);
+    let max_items = payload
+        .get("max_items")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
     let history_path = resolve_path(root, payload, "history_path", DEFAULT_HISTORY_REL);
     let latest_path = resolve_path(root, payload, "latest_path", DEFAULT_LATEST_REL);
     let history_exists = history_path.exists();
@@ -587,7 +600,10 @@ fn command_append_memory_row(root: &Path, payload: &Map<String, Value>) -> Resul
         "jsonl_path",
         &format!("{}/nodes.jsonl", DEFAULT_MEMORY_DIR_REL),
     );
-    let row = payload.get("row").cloned().unwrap_or(Value::Object(Map::new()));
+    let row = payload
+        .get("row")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     append_jsonl(&jsonl_path, &row)?;
     Ok(json!({
         "ok": true,
@@ -703,7 +719,9 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(topics.iter().any(|row| row.as_str() == Some("conversation")));
+        assert!(topics
+            .iter()
+            .any(|row| row.as_str() == Some("conversation")));
         assert!(topics.iter().any(|row| row.as_str() == Some("alpha")));
     }
 
@@ -738,7 +756,9 @@ mod tests {
         let out = command_process_nodes(lane_utils::payload_obj(&payload));
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            out.get("items").and_then(Value::as_array).map(|rows| rows.len()),
+            out.get("items")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
             Some(1)
         );
         assert_eq!(out.get("node_writes").and_then(Value::as_u64), Some(1));
@@ -758,9 +778,12 @@ mod tests {
         )
         .expect("write history jsonl");
 
-        let out = command_begin_collection(root, lane_utils::payload_obj(&json!({
-            "budgets": { "max_items": 3 }
-        })));
+        let out = command_begin_collection(
+            root,
+            lane_utils::payload_obj(&json!({
+                "budgets": { "max_items": 3 }
+            })),
+        );
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("success").and_then(Value::as_bool), Some(true));
         assert!(out

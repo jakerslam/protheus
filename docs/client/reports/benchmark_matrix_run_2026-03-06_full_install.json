@@ -2,80 +2,180 @@
   "ascii_report": [
     "Benchmarks: Measured, Not Marketed",
     "Cold Start Time (lower is better)",
-    "InfRing (tiny-max) ############################################  2 ms",
-    "InfRing (pure) ############################################  2 ms",
-    "OpenClaw   ############################################  4 ms",
-    "OpenFang   ##########################################--  180 ms",
+    "InfRing (pure) ############################################  11 ms",
+    "InfRing (tiny-max) ############################################  13 ms",
+    "Infring    ##########################################--  207 ms",
     "OpenHands  ##############################--------------  1.30 sec",
     "LangGraph  #################---------------------------  2.50 sec",
     "CrewAI     ###########---------------------------------  3.00 sec",
     "AutoGen    #-------------------------------------------  4.00 sec",
     "",
     "Idle Memory Usage (lower is better)",
-    "InfRing (pure) ############################################  1.4 MB",
-    "InfRing (tiny-max) ############################################  1.4 MB",
-    "OpenClaw   ###########################################-  8.2 MB",
-    "OpenFang   #####################################-------  40.0 MB",
+    "InfRing (pure) ############################################  1.3 MB",
+    "InfRing (tiny-max) ############################################  1.3 MB",
+    "Infring    ###########################################-  6.9 MB",
     "OpenHands  ##################--------------------------  150.0 MB",
     "LangGraph  ############--------------------------------  180.0 MB",
     "CrewAI     #########-----------------------------------  200.0 MB",
     "AutoGen    #-------------------------------------------  250.0 MB",
     "",
     "Install Size (lower is better)",
-    "InfRing (tiny-max) ############################################  0.5 MB",
-    "InfRing (pure) ############################################  0.7 MB",
-    "OpenClaw   #########################################---  14.2 MB",
-    "OpenFang   #####################################-------  32.0 MB",
+    "InfRing (tiny-max) ############################################  0.6 MB",
+    "InfRing (pure) ############################################  2.4 MB",
+    "Infring    ######################################------  25.8 MB",
     "OpenHands  #######################---------------------  95.5 MB",
     "CrewAI     ######################----------------------  100.0 MB",
     "LangGraph  ###########---------------------------------  150.0 MB",
     "AutoGen    #-------------------------------------------  200.0 MB",
     "",
     "Throughput (ops/sec, higher is better)",
-    "InfRing (pure) ############################################  145188.2 ops/sec",
-    "InfRing (tiny-max) ############################################  145188.2 ops/sec",
-    "OpenClaw   ############################################  145188.2 ops/sec",
+    "InfRing (pure) ############################################  4223.4 ops/sec",
+    "InfRing (tiny-max) ############################################  4223.4 ops/sec",
+    "Infring    ############################################  4223.4 ops/sec",
     "",
-    "Security Systems (higher is better)",
+    "Security Checks (merge guard, higher is better)",
     "InfRing (pure) ############################################  83",
     "InfRing (tiny-max) ############################################  83",
-    "OpenClaw   ############################################  83",
-    "OpenFang   ########------------------------------------  16",
+    "Infring    ############################################  83",
     "OpenHands  ###-----------------------------------------  7",
     "AutoGen    #-------------------------------------------  2",
     "LangGraph  #-------------------------------------------  2",
     "CrewAI     #-------------------------------------------  1",
     "",
-    "Channel Adapters (higher is better)",
-    "OpenFang   ############################################  40",
-    "OpenHands  #################---------------------------  15",
-    "OpenClaw   #######-------------------------------------  6",
-    "AutoGen    ####----------------------------------------  4",
-    "LangGraph  ####----------------------------------------  4",
-    "CrewAI     ###-----------------------------------------  3",
+    "Platform Adapters (higher is better)",
+    "OpenHands  ############################################  15",
+    "Infring    ##################--------------------------  6",
+    "AutoGen    ############--------------------------------  4",
+    "LangGraph  ############--------------------------------  4",
+    "CrewAI     #########-----------------------------------  3",
     "InfRing (pure) #-------------------------------------------  0",
     "InfRing (tiny-max) #-------------------------------------------  0",
     "",
-    "LLM Providers (higher is better)",
-    "OpenFang   ############################################  27",
-    "LangGraph  ########################--------------------  15",
-    "CrewAI     ################----------------------------  10",
-    "AutoGen    #############-------------------------------  8",
-    "OpenHands  ########------------------------------------  5",
-    "OpenClaw   #####---------------------------------------  3",
+    "LLM Providers (onboarded, higher is better)",
+    "LangGraph  ############################################  15",
+    "CrewAI     #############################---------------  10",
+    "AutoGen    #######################---------------------  8",
+    "OpenHands  ###############-----------------------------  5",
+    "Infring    #########-----------------------------------  3",
     "InfRing (pure) #-------------------------------------------  0",
     "InfRing (tiny-max) #-------------------------------------------  0",
     ""
   ],
   "bar_width": 44,
+  "benchmark_preflight": {
+    "blockers": [],
+    "cpu_parallelism": 8,
+    "enabled": true,
+    "load_average_fifteen": 26.891,
+    "load_average_five": 25.55,
+    "load_average_one": 26.019,
+    "load_per_core_five": 3.194,
+    "load_per_core_one": 3.252,
+    "load_per_core_peak": 3.252,
+    "max_load_per_core": 8,
+    "max_noise_cv_pct": 100,
+    "noise_cv_pct": 0,
+    "noise_mean_ops_per_sec": 53067.08,
+    "noise_rounds": 1,
+    "noise_sample_ms": 100,
+    "noise_samples_ops_per_sec": [
+      53067.08
+    ],
+    "noise_stddev_ops_per_sec": 0,
+    "ok": true,
+    "throughput_uncached": false
+  },
+  "benchmark_validation": {
+    "checks": [
+      {
+        "detail": {
+          "tasks_per_sec": 4223.41
+        },
+        "id": "shared_throughput_positive",
+        "ok": true
+      },
+      {
+        "detail": {
+          "actual_rounds": 5,
+          "expected_rounds": 5
+        },
+        "id": "shared_sample_count_matches_rounds",
+        "ok": true
+      },
+      {
+        "detail": {
+          "sample_cv_pct": 219.37,
+          "tolerance_pct": 150
+        },
+        "id": "shared_cv_within_tolerance",
+        "ok": false
+      },
+      {
+        "detail": {
+          "delta_pct": 0,
+          "shared_tasks_per_sec": 4223.41,
+          "tasks_per_sec": 4223.41
+        },
+        "id": "infring_throughput_near_shared_baseline",
+        "ok": true
+      },
+      {
+        "detail": {
+          "cold_start_ms": 207.391,
+          "idle_memory_mb": 6.859,
+          "install_size_mb": 25.84
+        },
+        "id": "infring_core_metrics_present",
+        "ok": true
+      },
+      {
+        "detail": {
+          "delta_pct": 0,
+          "shared_tasks_per_sec": 4223.41,
+          "tasks_per_sec": 4223.41
+        },
+        "id": "pure_throughput_near_shared_baseline",
+        "ok": true
+      },
+      {
+        "detail": {
+          "cold_start_ms": 11.250207999999999,
+          "idle_memory_mb": 1.34375,
+          "install_size_mb": 2.443
+        },
+        "id": "pure_core_metrics_present",
+        "ok": true
+      },
+      {
+        "detail": {
+          "delta_pct": 0,
+          "shared_tasks_per_sec": 4223.41,
+          "tasks_per_sec": 4223.41
+        },
+        "id": "tiny_max_throughput_near_shared_baseline",
+        "ok": true
+      },
+      {
+        "detail": {
+          "cold_start_ms": 12.919333,
+          "idle_memory_mb": 1.34375,
+          "install_size_mb": 0.617
+        },
+        "id": "tiny_max_core_metrics_present",
+        "ok": true
+      }
+    ],
+    "failed_checks": 1,
+    "ok": false,
+    "sample_cv_pct": 219.37
+  },
   "categories": [
     {
       "ascii_lines": [
         "Cold Start Time (lower is better)",
-        "InfRing (tiny-max) ############################################  2 ms",
-        "InfRing (pure) ############################################  2 ms",
-        "OpenClaw   ############################################  4 ms",
-        "OpenFang   ##########################################--  180 ms",
+        "InfRing (pure) ############################################  11 ms",
+        "InfRing (tiny-max) ############################################  13 ms",
+        "Infring    ##########################################--  207 ms",
         "OpenHands  ##############################--------------  1.30 sec",
         "LangGraph  #################---------------------------  2.50 sec",
         "CrewAI     ###########---------------------------------  3.00 sec",
@@ -89,66 +189,58 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "InfRing (tiny-max)",
-          "rank": 1,
-          "score": "2 ms",
-          "value": 1.62825
-        },
-        {
-          "bar": "############################################",
-          "highlight": false,
           "project": "InfRing (pure)",
-          "rank": 2,
-          "score": "2 ms",
-          "value": 1.762084
+          "rank": 1,
+          "score": "11 ms",
+          "value": 11.250207999999999
         },
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
-          "rank": 3,
-          "score": "4 ms",
-          "value": 4.454
+          "project": "InfRing (tiny-max)",
+          "rank": 2,
+          "score": "13 ms",
+          "value": 12.919333
         },
         {
           "bar": "##########################################--",
           "highlight": false,
-          "project": "OpenFang",
-          "rank": 4,
-          "score": "180 ms",
-          "value": 180.0
+          "project": "Infring",
+          "rank": 3,
+          "score": "207 ms",
+          "value": 207.391
         },
         {
           "bar": "##############################--------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 5,
+          "rank": 4,
           "score": "1.30 sec",
-          "value": 1300.0
+          "value": 1300
         },
         {
           "bar": "#################---------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 6,
+          "rank": 5,
           "score": "2.50 sec",
-          "value": 2500.0
+          "value": 2500
         },
         {
           "bar": "###########---------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 7,
+          "rank": 6,
           "score": "3.00 sec",
-          "value": 3000.0
+          "value": 3000
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 8,
+          "rank": 7,
           "score": "4.00 sec",
-          "value": 4000.0
+          "value": 4000
         }
       ],
       "unit": "ms"
@@ -156,10 +248,9 @@
     {
       "ascii_lines": [
         "Idle Memory Usage (lower is better)",
-        "InfRing (pure) ############################################  1.4 MB",
-        "InfRing (tiny-max) ############################################  1.4 MB",
-        "OpenClaw   ###########################################-  8.2 MB",
-        "OpenFang   #####################################-------  40.0 MB",
+        "InfRing (pure) ############################################  1.3 MB",
+        "InfRing (tiny-max) ############################################  1.3 MB",
+        "Infring    ###########################################-  6.9 MB",
         "OpenHands  ##################--------------------------  150.0 MB",
         "LangGraph  ############--------------------------------  180.0 MB",
         "CrewAI     #########-----------------------------------  200.0 MB",
@@ -175,64 +266,56 @@
           "highlight": false,
           "project": "InfRing (pure)",
           "rank": 1,
-          "score": "1.4 MB",
-          "value": 1.359375
+          "score": "1.3 MB",
+          "value": 1.34375
         },
         {
           "bar": "############################################",
           "highlight": false,
           "project": "InfRing (tiny-max)",
           "rank": 2,
-          "score": "1.4 MB",
-          "value": 1.359375
+          "score": "1.3 MB",
+          "value": 1.34375
         },
         {
           "bar": "###########################################-",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Infring",
           "rank": 3,
-          "score": "8.2 MB",
-          "value": 8.188
-        },
-        {
-          "bar": "#####################################-------",
-          "highlight": false,
-          "project": "OpenFang",
-          "rank": 4,
-          "score": "40.0 MB",
-          "value": 40.0
+          "score": "6.9 MB",
+          "value": 6.859
         },
         {
           "bar": "##################--------------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 5,
+          "rank": 4,
           "score": "150.0 MB",
-          "value": 150.0
+          "value": 150
         },
         {
           "bar": "############--------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 6,
+          "rank": 5,
           "score": "180.0 MB",
-          "value": 180.0
+          "value": 180
         },
         {
           "bar": "#########-----------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 7,
+          "rank": 6,
           "score": "200.0 MB",
-          "value": 200.0
+          "value": 200
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 8,
+          "rank": 7,
           "score": "250.0 MB",
-          "value": 250.0
+          "value": 250
         }
       ],
       "unit": "MB"
@@ -240,10 +323,9 @@
     {
       "ascii_lines": [
         "Install Size (lower is better)",
-        "InfRing (tiny-max) ############################################  0.5 MB",
-        "InfRing (pure) ############################################  0.7 MB",
-        "OpenClaw   #########################################---  14.2 MB",
-        "OpenFang   #####################################-------  32.0 MB",
+        "InfRing (tiny-max) ############################################  0.6 MB",
+        "InfRing (pure) ############################################  2.4 MB",
+        "Infring    ######################################------  25.8 MB",
         "OpenHands  #######################---------------------  95.5 MB",
         "CrewAI     ######################----------------------  100.0 MB",
         "LangGraph  ###########---------------------------------  150.0 MB",
@@ -259,38 +341,30 @@
           "highlight": false,
           "project": "InfRing (tiny-max)",
           "rank": 1,
-          "score": "0.5 MB",
-          "value": 0.483
+          "score": "0.6 MB",
+          "value": 0.617
         },
         {
           "bar": "############################################",
           "highlight": false,
           "project": "InfRing (pure)",
           "rank": 2,
-          "score": "0.7 MB",
-          "value": 0.67
+          "score": "2.4 MB",
+          "value": 2.443
         },
         {
-          "bar": "#########################################---",
+          "bar": "######################################------",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Infring",
           "rank": 3,
-          "score": "14.2 MB",
-          "value": 14.249
-        },
-        {
-          "bar": "#####################################-------",
-          "highlight": false,
-          "project": "OpenFang",
-          "rank": 4,
-          "score": "32.0 MB",
-          "value": 32.0
+          "score": "25.8 MB",
+          "value": 25.84
         },
         {
           "bar": "#######################---------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 5,
+          "rank": 4,
           "score": "95.5 MB",
           "value": 95.5
         },
@@ -298,25 +372,25 @@
           "bar": "######################----------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 6,
+          "rank": 5,
           "score": "100.0 MB",
-          "value": 100.0
+          "value": 100
         },
         {
           "bar": "###########---------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 7,
+          "rank": 6,
           "score": "150.0 MB",
-          "value": 150.0
+          "value": 150
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 8,
+          "rank": 7,
           "score": "200.0 MB",
-          "value": 200.0
+          "value": 200
         }
       ],
       "unit": "MB"
@@ -324,9 +398,9 @@
     {
       "ascii_lines": [
         "Throughput (ops/sec, higher is better)",
-        "InfRing (pure) ############################################  145188.2 ops/sec",
-        "InfRing (tiny-max) ############################################  145188.2 ops/sec",
-        "OpenClaw   ############################################  145188.2 ops/sec"
+        "InfRing (pure) ############################################  4223.4 ops/sec",
+        "InfRing (tiny-max) ############################################  4223.4 ops/sec",
+        "Infring    ############################################  4223.4 ops/sec"
       ],
       "bar_width": 44,
       "key": "tasks_per_sec",
@@ -338,35 +412,34 @@
           "highlight": false,
           "project": "InfRing (pure)",
           "rank": 1,
-          "score": "145188.2 ops/sec",
-          "value": 145188.2
+          "score": "4223.4 ops/sec",
+          "value": 4223.41
         },
         {
           "bar": "############################################",
           "highlight": false,
           "project": "InfRing (tiny-max)",
           "rank": 2,
-          "score": "145188.2 ops/sec",
-          "value": 145188.2
+          "score": "4223.4 ops/sec",
+          "value": 4223.41
         },
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Infring",
           "rank": 3,
-          "score": "145188.2 ops/sec",
-          "value": 145188.2
+          "score": "4223.4 ops/sec",
+          "value": 4223.41
         }
       ],
       "unit": "ops/sec"
     },
     {
       "ascii_lines": [
-        "Security Systems (higher is better)",
+        "Security Checks (merge guard, higher is better)",
         "InfRing (pure) ############################################  83",
         "InfRing (tiny-max) ############################################  83",
-        "OpenClaw   ############################################  83",
-        "OpenFang   ########------------------------------------  16",
+        "Infring    ############################################  83",
         "OpenHands  ###-----------------------------------------  7",
         "AutoGen    #-------------------------------------------  2",
         "LangGraph  #-------------------------------------------  2",
@@ -374,7 +447,7 @@
       ],
       "bar_width": 44,
       "key": "security_systems",
-      "label": "Security Systems (higher is better)",
+      "label": "Security Checks (merge guard, higher is better)",
       "lower_is_better": false,
       "rows": [
         {
@@ -383,7 +456,7 @@
           "project": "InfRing (pure)",
           "rank": 1,
           "score": "83",
-          "value": 83.0
+          "value": 83
         },
         {
           "bar": "############################################",
@@ -391,223 +464,197 @@
           "project": "InfRing (tiny-max)",
           "rank": 2,
           "score": "83",
-          "value": 83.0
+          "value": 83
         },
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Infring",
           "rank": 3,
           "score": "83",
-          "value": 83.0
-        },
-        {
-          "bar": "########------------------------------------",
-          "highlight": false,
-          "project": "OpenFang",
-          "rank": 4,
-          "score": "16",
-          "value": 16.0
+          "value": 83
         },
         {
           "bar": "###-----------------------------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 5,
+          "rank": 4,
           "score": "7",
-          "value": 7.0
+          "value": 7
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 6,
+          "rank": 5,
           "score": "2",
-          "value": 2.0
+          "value": 2
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 7,
+          "rank": 6,
           "score": "2",
-          "value": 2.0
+          "value": 2
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 8,
+          "rank": 7,
           "score": "1",
-          "value": 1.0
+          "value": 1
         }
       ],
       "unit": "count"
     },
     {
       "ascii_lines": [
-        "Channel Adapters (higher is better)",
-        "OpenFang   ############################################  40",
-        "OpenHands  #################---------------------------  15",
-        "OpenClaw   #######-------------------------------------  6",
-        "AutoGen    ####----------------------------------------  4",
-        "LangGraph  ####----------------------------------------  4",
-        "CrewAI     ###-----------------------------------------  3",
+        "Platform Adapters (higher is better)",
+        "OpenHands  ############################################  15",
+        "Infring    ##################--------------------------  6",
+        "AutoGen    ############--------------------------------  4",
+        "LangGraph  ############--------------------------------  4",
+        "CrewAI     #########-----------------------------------  3",
         "InfRing (pure) #-------------------------------------------  0",
         "InfRing (tiny-max) #-------------------------------------------  0"
       ],
       "bar_width": 44,
       "key": "channel_adapters",
-      "label": "Channel Adapters (higher is better)",
+      "label": "Platform Adapters (higher is better)",
       "lower_is_better": false,
       "rows": [
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenFang",
-          "rank": 1,
-          "score": "40",
-          "value": 40.0
-        },
-        {
-          "bar": "#################---------------------------",
-          "highlight": false,
           "project": "OpenHands",
-          "rank": 2,
+          "rank": 1,
           "score": "15",
-          "value": 15.0
+          "value": 15
         },
         {
-          "bar": "#######-------------------------------------",
+          "bar": "##################--------------------------",
           "highlight": false,
-          "project": "OpenClaw",
-          "rank": 3,
+          "project": "Infring",
+          "rank": 2,
           "score": "6",
-          "value": 6.0
+          "value": 6
         },
         {
-          "bar": "####----------------------------------------",
+          "bar": "############--------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 4,
+          "rank": 3,
           "score": "4",
-          "value": 4.0
+          "value": 4
         },
         {
-          "bar": "####----------------------------------------",
+          "bar": "############--------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 5,
+          "rank": 4,
           "score": "4",
-          "value": 4.0
+          "value": 4
         },
         {
-          "bar": "###-----------------------------------------",
+          "bar": "#########-----------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 6,
+          "rank": 5,
           "score": "3",
-          "value": 3.0
+          "value": 3
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "InfRing (pure)",
-          "rank": 7,
+          "rank": 6,
           "score": "0",
-          "value": 0.0
+          "value": 0
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "InfRing (tiny-max)",
-          "rank": 8,
+          "rank": 7,
           "score": "0",
-          "value": 0.0
+          "value": 0
         }
       ],
       "unit": "count"
     },
     {
       "ascii_lines": [
-        "LLM Providers (higher is better)",
-        "OpenFang   ############################################  27",
-        "LangGraph  ########################--------------------  15",
-        "CrewAI     ################----------------------------  10",
-        "AutoGen    #############-------------------------------  8",
-        "OpenHands  ########------------------------------------  5",
-        "OpenClaw   #####---------------------------------------  3",
+        "LLM Providers (onboarded, higher is better)",
+        "LangGraph  ############################################  15",
+        "CrewAI     #############################---------------  10",
+        "AutoGen    #######################---------------------  8",
+        "OpenHands  ###############-----------------------------  5",
+        "Infring    #########-----------------------------------  3",
         "InfRing (pure) #-------------------------------------------  0",
         "InfRing (tiny-max) #-------------------------------------------  0"
       ],
       "bar_width": 44,
       "key": "llm_providers",
-      "label": "LLM Providers (higher is better)",
+      "label": "LLM Providers (onboarded, higher is better)",
       "lower_is_better": false,
       "rows": [
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenFang",
-          "rank": 1,
-          "score": "27",
-          "value": 27.0
-        },
-        {
-          "bar": "########################--------------------",
-          "highlight": false,
           "project": "LangGraph",
-          "rank": 2,
+          "rank": 1,
           "score": "15",
-          "value": 15.0
+          "value": 15
         },
         {
-          "bar": "################----------------------------",
+          "bar": "#############################---------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 3,
+          "rank": 2,
           "score": "10",
-          "value": 10.0
+          "value": 10
         },
         {
-          "bar": "#############-------------------------------",
+          "bar": "#######################---------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 4,
+          "rank": 3,
           "score": "8",
-          "value": 8.0
+          "value": 8
         },
         {
-          "bar": "########------------------------------------",
+          "bar": "###############-----------------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 5,
+          "rank": 4,
           "score": "5",
-          "value": 5.0
+          "value": 5
         },
         {
-          "bar": "#####---------------------------------------",
+          "bar": "#########-----------------------------------",
           "highlight": false,
-          "project": "OpenClaw",
-          "rank": 6,
+          "project": "Infring",
+          "rank": 5,
           "score": "3",
-          "value": 3.0
+          "value": 3
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "InfRing (pure)",
-          "rank": 7,
+          "rank": 6,
           "score": "0",
-          "value": 0.0
+          "value": 0
         },
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "InfRing (tiny-max)",
-          "rank": 8,
+          "rank": 7,
           "score": "0",
-          "value": 0.0
+          "value": 0
         }
       ],
       "unit": "count"
@@ -615,17 +662,19 @@
   ],
   "claim_evidence": [
     {
-      "claim": "openclaw_metrics_are_measured_from_runtime_and_policy_counters",
+      "claim": "infring_metrics_are_measured_from_runtime_and_policy_counters",
       "evidence": {
         "counter_sources": [
           "client/runtime/config/guard_check_registry.json",
           "client/runtime/config/platform_adaptation_channels.json",
           "client/runtime/config/provider_onboarding_manifest.json",
-          "client/runtime/config/model_health_auto_recovery_policy.json"
+          "client/runtime/config/model_health_auto_recovery_policy.json",
+          "client/runtime/config/data_channels_policy.json",
+          "client/runtime/config/signed_plugin_trust_marketplace_policy.json"
         ],
         "runtime_source": "runtime_efficiency_floor"
       },
-      "id": "competitive_benchmark_matrix_live_openclaw"
+      "id": "competitive_benchmark_matrix_live_infring"
     },
     {
       "claim": "competitor_metrics_are_loaded_from_reference_snapshot",
@@ -655,28 +704,216 @@
         "environment_fingerprint_present": true
       },
       "id": "competitive_benchmark_matrix_environment_fingerprint"
+    },
+    {
+      "claim": "shared_throughput_baseline_runs optional uncached pre-sample cache-bust and exposes round-level spread",
+      "evidence": {
+        "throughput_rounds": 5,
+        "throughput_uncached": false,
+        "throughput_warmup_rounds": 2
+      },
+      "id": "competitive_benchmark_matrix_uncached_throughput_sampling"
+    },
+    {
+      "claim": "benchmark publication fails closed when host load or throughput jitter exceed bounded preflight thresholds",
+      "evidence": {
+        "max_load_per_core": 8,
+        "max_noise_cv_pct": 100,
+        "noise_rounds": 1,
+        "noise_sample_ms": 100,
+        "preflight_enabled": true
+      },
+      "id": "competitive_benchmark_matrix_preflight_gate"
+    },
+    {
+      "claim": "benchmark output includes deterministic trust checks over throughput spread and profile metric sanity",
+      "evidence": {
+        "checks": [
+          {
+            "detail": {
+              "tasks_per_sec": 4223.41
+            },
+            "id": "shared_throughput_positive",
+            "ok": true
+          },
+          {
+            "detail": {
+              "actual_rounds": 5,
+              "expected_rounds": 5
+            },
+            "id": "shared_sample_count_matches_rounds",
+            "ok": true
+          },
+          {
+            "detail": {
+              "sample_cv_pct": 219.37,
+              "tolerance_pct": 150
+            },
+            "id": "shared_cv_within_tolerance",
+            "ok": false
+          },
+          {
+            "detail": {
+              "delta_pct": 0,
+              "shared_tasks_per_sec": 4223.41,
+              "tasks_per_sec": 4223.41
+            },
+            "id": "infring_throughput_near_shared_baseline",
+            "ok": true
+          },
+          {
+            "detail": {
+              "cold_start_ms": 207.391,
+              "idle_memory_mb": 6.859,
+              "install_size_mb": 25.84
+            },
+            "id": "infring_core_metrics_present",
+            "ok": true
+          },
+          {
+            "detail": {
+              "delta_pct": 0,
+              "shared_tasks_per_sec": 4223.41,
+              "tasks_per_sec": 4223.41
+            },
+            "id": "pure_throughput_near_shared_baseline",
+            "ok": true
+          },
+          {
+            "detail": {
+              "cold_start_ms": 11.250207999999999,
+              "idle_memory_mb": 1.34375,
+              "install_size_mb": 2.443
+            },
+            "id": "pure_core_metrics_present",
+            "ok": true
+          },
+          {
+            "detail": {
+              "delta_pct": 0,
+              "shared_tasks_per_sec": 4223.41,
+              "tasks_per_sec": 4223.41
+            },
+            "id": "tiny_max_throughput_near_shared_baseline",
+            "ok": true
+          },
+          {
+            "detail": {
+              "cold_start_ms": 12.919333,
+              "idle_memory_mb": 1.34375,
+              "install_size_mb": 0.617
+            },
+            "id": "tiny_max_core_metrics_present",
+            "ok": true
+          }
+        ],
+        "failed_checks": 1,
+        "ok": false,
+        "sample_cv_pct": 219.37
+      },
+      "id": "competitive_benchmark_matrix_validation"
     }
   ],
+  "counter_definitions": {
+    "channel_adapters": {
+      "label": "platform_adapters",
+      "path": "channels.length",
+      "source": "client/runtime/config/platform_adaptation_channels.json"
+    },
+    "data_channels": {
+      "label": "runtime_data_channels",
+      "path": "channels.keys.length",
+      "source": "client/runtime/config/data_channels_policy.json"
+    },
+    "llm_providers": {
+      "label": "onboarded_llm_providers",
+      "path": "union(provider_onboarding_manifest.providers.*.provider_key, model_health_auto_recovery_policy.providers[])",
+      "sources": [
+        "client/runtime/config/provider_onboarding_manifest.json",
+        "client/runtime/config/model_health_auto_recovery_policy.json"
+      ]
+    },
+    "plugin_marketplace_checks": {
+      "label": "plugin_marketplace_guard_checks",
+      "path": "checks.length",
+      "source": "client/runtime/config/signed_plugin_trust_marketplace_policy.json"
+    },
+    "security_policy_checks_total": {
+      "label": "total_policy_checks",
+      "path": "sum(top_level.checks.length)",
+      "source_glob": "client/runtime/config/*.json"
+    },
+    "security_systems": {
+      "label": "security_merge_guard_checks",
+      "path": "merge_guard.checks.length",
+      "source": "client/runtime/config/guard_check_registry.json"
+    }
+  },
   "environment_fingerprint": {
     "arch": "aarch64",
     "cpu_parallelism": 8,
-    "git_revision": "d5b3afa9649fda11769dc4962845f36f353a4590",
+    "git_revision": "256c788b3ab755acbff755a47e3fbfcaf4d4ee94",
     "os": "macos",
     "rustc_version": "rustc 1.93.1 (01f6ddf75 2026-02-11)",
     "workload_id": "live_hash_workload_v1"
   },
-  "lane": "benchmark_matrix",
-  "mode": "run",
-  "ok": true,
-  "openclaw_measured": {
-    "channel_adapters": 6.0,
-    "cold_start_ms": 4.454,
+  "infring_measured": {
+    "channel_adapters": 6,
+    "cold_start_ms": 207.391,
+    "counter_definitions": {
+      "channel_adapters": {
+        "label": "platform_adapters",
+        "path": "channels.length",
+        "source": "client/runtime/config/platform_adaptation_channels.json"
+      },
+      "data_channels": {
+        "label": "runtime_data_channels",
+        "path": "channels.keys.length",
+        "source": "client/runtime/config/data_channels_policy.json"
+      },
+      "llm_providers": {
+        "label": "onboarded_llm_providers",
+        "path": "union(provider_onboarding_manifest.providers.*.provider_key, model_health_auto_recovery_policy.providers[])",
+        "sources": [
+          "client/runtime/config/provider_onboarding_manifest.json",
+          "client/runtime/config/model_health_auto_recovery_policy.json"
+        ]
+      },
+      "plugin_marketplace_checks": {
+        "label": "plugin_marketplace_guard_checks",
+        "path": "checks.length",
+        "source": "client/runtime/config/signed_plugin_trust_marketplace_policy.json"
+      },
+      "security_policy_checks_total": {
+        "label": "total_policy_checks",
+        "path": "sum(top_level.checks.length)",
+        "source_glob": "client/runtime/config/*.json"
+      },
+      "security_systems": {
+        "label": "security_merge_guard_checks",
+        "path": "merge_guard.checks.length",
+        "source": "client/runtime/config/guard_check_registry.json"
+      }
+    },
+    "data_channels": 4,
     "data_source": "runtime_efficiency_floor + policy counters",
-    "idle_memory_mb": 8.188,
-    "install_size_mb": 14.249,
-    "llm_providers": 3.0,
+    "effective_hash_ops_per_sec": 67574.56,
+    "engine_start_ms": 207.391,
+    "gateway_supervisor_orchestration_ms": 2317.486,
+    "idle_memory_mb": 6.859,
+    "install_size_mb": 25.84,
+    "llm_providers": 3,
     "measured": true,
+    "platform_adapters": 6,
+    "plugin_marketplace_checks": 4,
+    "rich_cold_start_total_ms": 2524.877,
     "runtime_metric_source": {
+      "cold_start_breakdown": {
+        "engine_start_ms": 207.391,
+        "gateway_supervisor_orchestration_ms": 2317.486,
+        "rich_cold_start_total_ms": 2524.877
+      },
+      "effective_hash_ops_per_sec": 67574.56,
       "fallback_reason": null,
       "mode": "run",
       "refresh_requested": true,
@@ -684,13 +921,37 @@
       "tasks_rounds": 5,
       "tasks_sample_ms": 800,
       "tasks_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+      "tasks_uncached": false,
       "tasks_warmup_rounds": 2,
-      "tasks_work_factor": 16
+      "tasks_work_factor": 16,
+      "tasks_workload_seed": "live_hash_workload_v1_cached"
     },
-    "security_systems": 83.0,
-    "tasks_per_sec": 145188.2,
-    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
+    "security_merge_guard_checks": 83,
+    "security_policy_checks_total": 176,
+    "security_systems": 83,
+    "tasks_per_sec": 4223.41,
+    "throughput_sampling_max_ops_per_sec": 27278.4,
+    "throughput_sampling_measured_ops_per_sec": [
+      27278.4,
+      8752.44,
+      3487.35,
+      4223.41,
+      2507.4
+    ],
+    "throughput_sampling_min_ops_per_sec": 2507.4,
+    "throughput_sampling_stddev_ops_per_sec": 9265.07,
+    "throughput_sampling_warmup_ops_per_sec": [
+      69285.56,
+      75998.36
+    ],
+    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+    "throughput_uncached": false,
+    "throughput_work_factor": 16,
+    "throughput_workload_seed": "live_hash_workload_v1_cached"
   },
+  "lane": "benchmark_matrix",
+  "mode": "run",
+  "ok": true,
   "projects": {
     "AutoGen": {
       "channel_adapters": 4,
@@ -709,48 +970,144 @@
       "security_systems": 1
     },
     "InfRing (pure)": {
-      "channel_adapters": 0.0,
-      "cold_start_ms": 1.762084,
-      "cold_start_p50_ms": 1.762084,
-      "cold_start_p95_ms": 2.092208,
-      "cold_start_p99_ms": 2.092208,
-      "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd",
+      "channel_adapters": 0,
+      "cold_start_ms": 11.250207999999999,
+      "cold_start_p50_ms": 11.250207999999999,
+      "cold_start_p95_ms": 31.568458,
+      "cold_start_p99_ms": 31.568458,
+      "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheusd",
       "data_source": "pure_workspace_binary_probe",
-      "idle_memory_mb": 1.359375,
-      "idle_rss_p50_mb": 1.359375,
-      "idle_rss_p95_mb": 1.359375,
-      "idle_rss_p99_mb": 1.359375,
-      "install_size_mb": 0.67,
-      "llm_providers": 0.0,
+      "effective_hash_ops_per_sec": 67574.56,
+      "idle_memory_mb": 1.34375,
+      "idle_rss_p50_mb": 1.34375,
+      "idle_rss_p95_mb": 1.34375,
+      "idle_rss_p99_mb": 1.34375,
+      "install_size_mb": 2.443,
+      "llm_providers": 0,
       "measured": true,
       "mode": "pure",
       "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
-      "security_systems": 83.0,
-      "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-      "tasks_per_sec": 145188.2,
-      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
+      "security_systems": 83,
+      "size_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+      "tasks_per_sec": 4223.41,
+      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+      "throughput_work_factor": 16
     },
     "InfRing (tiny-max)": {
-      "channel_adapters": 0.0,
-      "cold_start_ms": 1.62825,
-      "cold_start_p50_ms": 1.62825,
-      "cold_start_p95_ms": 2.076584,
-      "cold_start_p99_ms": 2.076584,
-      "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd_tiny_max",
+      "channel_adapters": 0,
+      "cold_start_ms": 12.919333,
+      "cold_start_p50_ms": 12.919333,
+      "cold_start_p95_ms": 43.351041,
+      "cold_start_p99_ms": 43.351041,
+      "daemon_binary_path": "/Users/jay/.openclaw/workspace/local/tmp/daemon-sizes/protheusd.pure",
       "data_source": "pure_workspace_binary_probe",
-      "idle_memory_mb": 1.359375,
-      "idle_rss_p50_mb": 1.359375,
+      "effective_hash_ops_per_sec": 67574.56,
+      "idle_memory_mb": 1.34375,
+      "idle_rss_p50_mb": 1.34375,
       "idle_rss_p95_mb": 1.359375,
       "idle_rss_p99_mb": 1.359375,
-      "install_size_mb": 0.483,
-      "llm_providers": 0.0,
+      "install_size_mb": 0.617,
+      "llm_providers": 0,
       "measured": true,
       "mode": "pure-tiny-max",
       "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
-      "security_systems": 83.0,
-      "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-      "tasks_per_sec": 145188.2,
-      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
+      "security_systems": 83,
+      "size_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+      "tasks_per_sec": 4223.41,
+      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+      "throughput_work_factor": 16
+    },
+    "Infring": {
+      "channel_adapters": 6,
+      "cold_start_ms": 207.391,
+      "counter_definitions": {
+        "channel_adapters": {
+          "label": "platform_adapters",
+          "path": "channels.length",
+          "source": "client/runtime/config/platform_adaptation_channels.json"
+        },
+        "data_channels": {
+          "label": "runtime_data_channels",
+          "path": "channels.keys.length",
+          "source": "client/runtime/config/data_channels_policy.json"
+        },
+        "llm_providers": {
+          "label": "onboarded_llm_providers",
+          "path": "union(provider_onboarding_manifest.providers.*.provider_key, model_health_auto_recovery_policy.providers[])",
+          "sources": [
+            "client/runtime/config/provider_onboarding_manifest.json",
+            "client/runtime/config/model_health_auto_recovery_policy.json"
+          ]
+        },
+        "plugin_marketplace_checks": {
+          "label": "plugin_marketplace_guard_checks",
+          "path": "checks.length",
+          "source": "client/runtime/config/signed_plugin_trust_marketplace_policy.json"
+        },
+        "security_policy_checks_total": {
+          "label": "total_policy_checks",
+          "path": "sum(top_level.checks.length)",
+          "source_glob": "client/runtime/config/*.json"
+        },
+        "security_systems": {
+          "label": "security_merge_guard_checks",
+          "path": "merge_guard.checks.length",
+          "source": "client/runtime/config/guard_check_registry.json"
+        }
+      },
+      "data_channels": 4,
+      "data_source": "runtime_efficiency_floor + policy counters",
+      "effective_hash_ops_per_sec": 67574.56,
+      "engine_start_ms": 207.391,
+      "gateway_supervisor_orchestration_ms": 2317.486,
+      "idle_memory_mb": 6.859,
+      "install_size_mb": 25.84,
+      "llm_providers": 3,
+      "measured": true,
+      "platform_adapters": 6,
+      "plugin_marketplace_checks": 4,
+      "rich_cold_start_total_ms": 2524.877,
+      "runtime_metric_source": {
+        "cold_start_breakdown": {
+          "engine_start_ms": 207.391,
+          "gateway_supervisor_orchestration_ms": 2317.486,
+          "rich_cold_start_total_ms": 2524.877
+        },
+        "effective_hash_ops_per_sec": 67574.56,
+        "fallback_reason": null,
+        "mode": "run",
+        "refresh_requested": true,
+        "tasks_phase": "pre_profile_sampling_shared",
+        "tasks_rounds": 5,
+        "tasks_sample_ms": 800,
+        "tasks_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+        "tasks_uncached": false,
+        "tasks_warmup_rounds": 2,
+        "tasks_work_factor": 16,
+        "tasks_workload_seed": "live_hash_workload_v1_cached"
+      },
+      "security_merge_guard_checks": 83,
+      "security_policy_checks_total": 176,
+      "security_systems": 83,
+      "tasks_per_sec": 4223.41,
+      "throughput_sampling_max_ops_per_sec": 27278.4,
+      "throughput_sampling_measured_ops_per_sec": [
+        27278.4,
+        8752.44,
+        3487.35,
+        4223.41,
+        2507.4
+      ],
+      "throughput_sampling_min_ops_per_sec": 2507.4,
+      "throughput_sampling_stddev_ops_per_sec": 9265.07,
+      "throughput_sampling_warmup_ops_per_sec": [
+        69285.56,
+        75998.36
+      ],
+      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+      "throughput_uncached": false,
+      "throughput_work_factor": 16,
+      "throughput_workload_seed": "live_hash_workload_v1_cached"
     },
     "LangGraph": {
       "channel_adapters": 4,
@@ -759,37 +1116,6 @@
       "install_size_mb": 150,
       "llm_providers": 15,
       "security_systems": 2
-    },
-    "OpenClaw": {
-      "channel_adapters": 6.0,
-      "cold_start_ms": 4.454,
-      "data_source": "runtime_efficiency_floor + policy counters",
-      "idle_memory_mb": 8.188,
-      "install_size_mb": 14.249,
-      "llm_providers": 3.0,
-      "measured": true,
-      "runtime_metric_source": {
-        "fallback_reason": null,
-        "mode": "run",
-        "refresh_requested": true,
-        "tasks_phase": "pre_profile_sampling_shared",
-        "tasks_rounds": 5,
-        "tasks_sample_ms": 800,
-        "tasks_source": "live_hash_workload_v1_shared_pre_profile_baseline",
-        "tasks_warmup_rounds": 2,
-        "tasks_work_factor": 16
-      },
-      "security_systems": 83.0,
-      "tasks_per_sec": 145188.2,
-      "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
-    },
-    "OpenFang": {
-      "channel_adapters": 40,
-      "cold_start_ms": 180,
-      "idle_memory_mb": 40,
-      "install_size_mb": 32,
-      "llm_providers": 27,
-      "security_systems": 16
     },
     "OpenHands": {
       "channel_adapters": 15,
@@ -801,50 +1127,54 @@
     }
   },
   "pure_workspace_measured": {
-    "channel_adapters": 0.0,
-    "cold_start_ms": 1.762084,
-    "cold_start_p50_ms": 1.762084,
-    "cold_start_p95_ms": 2.092208,
-    "cold_start_p99_ms": 2.092208,
-    "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd",
+    "channel_adapters": 0,
+    "cold_start_ms": 11.250207999999999,
+    "cold_start_p50_ms": 11.250207999999999,
+    "cold_start_p95_ms": 31.568458,
+    "cold_start_p99_ms": 31.568458,
+    "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheusd",
     "data_source": "pure_workspace_binary_probe",
-    "idle_memory_mb": 1.359375,
-    "idle_rss_p50_mb": 1.359375,
-    "idle_rss_p95_mb": 1.359375,
-    "idle_rss_p99_mb": 1.359375,
-    "install_size_mb": 0.67,
-    "llm_providers": 0.0,
+    "effective_hash_ops_per_sec": 67574.56,
+    "idle_memory_mb": 1.34375,
+    "idle_rss_p50_mb": 1.34375,
+    "idle_rss_p95_mb": 1.34375,
+    "idle_rss_p99_mb": 1.34375,
+    "install_size_mb": 2.443,
+    "llm_providers": 0,
     "measured": true,
     "mode": "pure",
     "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
-    "security_systems": 83.0,
-    "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-    "tasks_per_sec": 145188.2,
-    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
+    "security_systems": 83,
+    "size_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+    "tasks_per_sec": 4223.41,
+    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+    "throughput_work_factor": 16
   },
   "pure_workspace_tiny_max_measured": {
-    "channel_adapters": 0.0,
-    "cold_start_ms": 1.62825,
-    "cold_start_p50_ms": 1.62825,
-    "cold_start_p95_ms": 2.076584,
-    "cold_start_p99_ms": 2.076584,
-    "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd_tiny_max",
+    "channel_adapters": 0,
+    "cold_start_ms": 12.919333,
+    "cold_start_p50_ms": 12.919333,
+    "cold_start_p95_ms": 43.351041,
+    "cold_start_p99_ms": 43.351041,
+    "daemon_binary_path": "/Users/jay/.openclaw/workspace/local/tmp/daemon-sizes/protheusd.pure",
     "data_source": "pure_workspace_binary_probe",
-    "idle_memory_mb": 1.359375,
-    "idle_rss_p50_mb": 1.359375,
+    "effective_hash_ops_per_sec": 67574.56,
+    "idle_memory_mb": 1.34375,
+    "idle_rss_p50_mb": 1.34375,
     "idle_rss_p95_mb": 1.359375,
     "idle_rss_p99_mb": 1.359375,
-    "install_size_mb": 0.483,
-    "llm_providers": 0.0,
+    "install_size_mb": 0.617,
+    "llm_providers": 0,
     "measured": true,
     "mode": "pure-tiny-max",
     "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
-    "security_systems": 83.0,
-    "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-    "tasks_per_sec": 145188.2,
-    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline"
+    "security_systems": 83,
+    "size_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+    "tasks_per_sec": 4223.41,
+    "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
+    "throughput_work_factor": 16
   },
-  "receipt_hash": "b4da4bf65af838cf8b8684b444777532705e5bfcf86c4e89b6b671e00b8ac60b",
+  "receipt_hash": "c31b7975fe0ebd244e597459c02e5ccf0229f2b14bbc1d07edf012d514b11fd2",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "cold_start": {
@@ -857,62 +1187,100 @@
       ],
       "dist_target": null,
       "engine": "core-lazy",
-      "max_ms": 500.0,
-      "p50_ms": 4.454,
-      "p95_ms": 4.88,
+      "engine_start_p50_ms": 207.391,
+      "engine_start_p95_ms": 410.825,
+      "gateway_supervisor_orchestration_p50_ms": 2317.486,
+      "gateway_supervisor_orchestration_p95_ms": 10252.504,
+      "max_ms": 500,
+      "p50_ms": 2524.877,
+      "p95_ms": 10663.329,
       "runtime_mode": "source",
       "samples": 5
     },
     "enforce_hold_streak_strict": false,
     "full_install": {
       "paths": {
-        "client/runtime": 5.731,
-        "core/layer0/ops": 7.203,
-        "dist": 0.877,
-        "target/x86_64-unknown-linux-musl/release/protheusd": 0.438
+        "client/runtime": 16.158,
+        "core/layer0/ops": 9.802,
+        "dist": 25.84,
+        "target/release/protheusd": 2.072
       },
-      "sum_mb": 14.249
+      "sum_mb": 53.872
     },
     "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
-    "hold_streak_days": 5,
+    "hold_streak_days": 0,
     "idle_rss": {
-      "max_mb": 120.0,
+      "max_mb": 120,
       "measurement_mode": "process",
-      "p50_mb": 8.188,
-      "p95_mb": 8.203,
+      "p50_mb": 6.859,
+      "p95_mb": 6.859,
       "required_modules": [],
       "samples": 3
     },
     "install_artifact": {
-      "max_mb": 60.0,
+      "max_mb": 60,
       "paths": {
-        "dist": 0.877
+        "dist": 25.84
       },
-      "sum_mb": 0.877
+      "sum_mb": 25.84
     },
     "metrics": {
-      "cold_start_p50_ms": 4.454,
-      "cold_start_p95_ms": 4.88,
-      "full_install_total_mb": 14.249,
-      "idle_rss_p50_mb": 8.188,
-      "idle_rss_p95_mb": 8.203,
-      "install_artifact_total_mb": 0.877,
-      "tasks_per_sec": 145188.2
+      "cold_start_p50_ms": 2524.877,
+      "cold_start_p95_ms": 10663.329,
+      "effective_hash_ops_per_sec": 67574.56,
+      "engine_start_p50_ms": 207.391,
+      "engine_start_p95_ms": 410.825,
+      "full_install_total_mb": 53.872,
+      "gateway_supervisor_orchestration_p50_ms": 2317.486,
+      "gateway_supervisor_orchestration_p95_ms": 10252.504,
+      "idle_rss_p50_mb": 6.859,
+      "idle_rss_p95_mb": 6.859,
+      "install_artifact_total_mb": 25.84,
+      "tasks_per_sec": 4223.41
     },
-    "ok": true,
-    "pass": true,
+    "ok": false,
+    "pass": false,
     "policy_path": "client/runtime/config/runtime_efficiency_floor_policy.json",
     "policy_version": "1.0",
     "state_path": "local/state/ops/runtime_efficiency_floor.json",
     "strict": false,
     "strict_hold_ok": true,
     "target_hold_days": 7,
-    "ts": "2026-03-19T07:22:18.234Z",
+    "ts": "2026-04-02T04:50:33.311Z",
     "type": "runtime_efficiency_floor"
+  },
+  "shared_throughput_sampling": {
+    "max_ops_per_sec": 27278.4,
+    "measured_samples_ops_per_sec": [
+      27278.4,
+      8752.44,
+      3487.35,
+      4223.41,
+      2507.4
+    ],
+    "min_ops_per_sec": 2507.4,
+    "rounds": 5,
+    "sample_ms": 800,
+    "source": "live_hash_workload_v1_shared_pre_profile_baseline",
+    "stddev_ops_per_sec": 9265.07,
+    "tasks_per_sec": 4223.41,
+    "uncached": false,
+    "warmup_rounds": 2,
+    "warmup_samples_ops_per_sec": [
+      69285.56,
+      75998.36
+    ],
+    "workload_seed": "live_hash_workload_v1_cached"
   },
   "snapshot_generated_from": null,
   "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": null,
-  "ts": "2026-03-19T07:22:19.469Z",
-  "type": "competitive_benchmark_matrix"
+  "ts": "2026-04-02T04:50:35.450Z",
+  "type": "competitive_benchmark_matrix",
+  "benchmark_refresh_context": {
+    "build_profile": "release",
+    "refresh_script": "tests/tooling/scripts/ci/benchmark_matrix_refresh.ts",
+    "throughput_uncached": false,
+    "refresh_runtime": true
+  }
 }

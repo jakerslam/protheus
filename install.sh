@@ -1456,12 +1456,12 @@ if [ "${1:-}" = "gateway" ]; then
     "" )
       gateway_action="start"
       ;;
-    start|boot|stop|restart|status|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status)
+    start|boot|stop|restart|status|heal|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status)
       gateway_action="${1:-start}"
       shift || true
       ;;
     --help|-h|help)
-      echo "Usage: infring gateway [start|stop|restart|status|attach|subscribe|tick|diagnostics] [flags]"
+      echo "Usage: infring gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics] [flags]"
       echo "  default action is 'start'"
       echo "  add --dashboard-open=0 to skip browser auto-open on start"
       exit 0
@@ -1600,7 +1600,7 @@ if [ "${1:-}" = "gateway" ]; then
     infring_gateway_stop_dashboard_managed "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
     echo "[infring gateway] runtime stopped"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
-  elif [ "$gateway_action" = "status" ]; then
+  elif [ "$gateway_action" = "status" ] || [ "$gateway_action" = "heal" ]; then
     echo "[infring gateway] runtime status received"
     dashboard_status_healthy="0"
     if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 3; then
@@ -1633,6 +1633,9 @@ if [ "${1:-}" = "gateway" ]; then
     echo "[infring gateway] dashboard: $dashboard_url"
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
+    if [ "$gateway_action" = "heal" ]; then
+      echo "[infring gateway] heal routine executed"
+    fi
   else
     echo "[infring gateway] action complete: $gateway_action"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"

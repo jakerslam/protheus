@@ -55,6 +55,26 @@
       }
     },
 
+    viewTerminated(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      if (!agentId) return;
+      var store = Alpine.store('app');
+      if (!store) return;
+      var name = String(row.agent_name || row.name || agentId).trim();
+      store.pendingAgent = {
+        id: agentId,
+        name: name || agentId,
+        state: 'archived',
+        archived: true,
+        role: String(row.role || 'analyst')
+      };
+      store.pendingFreshAgentId = null;
+      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agentId);
+      else store.activeAgentId = agentId;
+      window.location.hash = 'chat';
+    },
+
     async deleteTerminated(entry) {
       var row = entry && typeof entry === 'object' ? entry : {};
       var agentId = String(row.agent_id || '').trim();
@@ -391,7 +411,9 @@
           this.spawnForm.name = '';
           this.spawnToml = '';
           this.spawnStep = 1;
-          InfringToast.success('Agent "' + (res.name || 'new') + '" spawned');
+          var spawnedName = String((res && (res.name || res.agent_id)) || 'agent').trim() || 'agent';
+          var spawnedRole = String((this.spawnForm && this.spawnForm.profile) || (this.spawnIdentity && this.spawnIdentity.archetype) || 'agent').trim() || 'agent';
+          InfringToast.success('Launched ' + spawnedName + ' as ' + spawnedRole);
           await Alpine.store('app').refreshAgents();
           await this.loadLifecycle();
           this.chatWithAgent({ id: res.agent_id, name: res.name, model_provider: '?', model_name: '?' });

@@ -34,8 +34,12 @@ fn print_json_line(value: &Value) {
 }
 
 fn parse_flag(argv: &[String], prefix: &str) -> Option<String> {
-    argv.iter()
-        .find_map(|token| token.strip_prefix(prefix).map(str::trim).map(ToString::to_string))
+    argv.iter().find_map(|token| {
+        token
+            .strip_prefix(prefix)
+            .map(str::trim)
+            .map(ToString::to_string)
+    })
 }
 
 fn parse_config(root: &Path, argv: &[String]) -> Config {
@@ -303,7 +307,10 @@ mod tests {
         let path = temp.path().join("summary.txt");
         fs::write(&path, "header\n87.25%\n").expect("write");
         let parsed = parse_rust_coverage(&path);
-        let pct = parsed.get("pct").and_then(serde_json::Value::as_f64).unwrap_or(0.0);
+        let pct = parsed
+            .get("pct")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(0.0);
         assert_eq!(pct, 87.25);
     }
 }

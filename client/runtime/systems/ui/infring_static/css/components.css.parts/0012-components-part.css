@@ -315,6 +315,25 @@
   100% { transform: rotate(0deg); }
 }
 
+.settings-cog-icon {
+  transform-origin: 50% 50%;
+}
+
+.sidebar-settings-item:hover .settings-cog-icon,
+.sidebar-settings-item:focus-visible .settings-cog-icon {
+  animation: settings-cog-ring 760ms ease-in-out;
+}
+
+@keyframes settings-cog-ring {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(28deg); }
+  36% { transform: rotate(-24deg); }
+  52% { transform: rotate(20deg); }
+  68% { transform: rotate(-14deg); }
+  84% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+
 .notif-badge {
   position: absolute;
   top: 2px;
@@ -392,10 +411,20 @@
 
 .notif-item {
   width: 100%;
-  border: none;
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 0;
+}
+
+.notif-item-open {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
   padding: 9px 10px;
   display: grid;
   grid-template-columns: 12px 1fr auto;
@@ -413,8 +442,34 @@
   background: var(--surface2);
 }
 
+.notif-item-open:hover {
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+}
+
 .notif-item.unread {
   background: color-mix(in srgb, var(--accent-subtle) 42%, transparent);
+}
+
+.notif-item-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  margin-right: 2px;
+}
+
+.notif-item-dismiss:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface2) 88%, transparent);
 }
 
 .notif-item-dot {
@@ -424,7 +479,20 @@
   background: var(--text-muted);
 }
 
-.notif-item-dot.type-success { background: var(--success); }
-.notif-item-dot.type-error { background: var(--error); }
-.notif-item-dot.type-warn { background: var(--warning); }
-.notif-item-dot.type-info { background: var(--info); }
+.notif-item-dot.type-completed, .notif-item-dot.type-success, .notif-item-dot.type-done,
+.notif-item-dot.type-ok, .notif-item-dot.type-resolved, .notif-item-dot.type-action_completed,
+.notif-item-dot.type-task_completed {
+  background: var(--success);
+}
+
+.notif-item-dot.type-error, .notif-item-dot.type-failed, .notif-item-dot.type-failure,
+.notif-item-dot.type-critical, .notif-item-dot.type-fatal, .notif-item-dot.type-danger,
+.notif-item-dot.type-exception, .notif-item-dot.type-aborted,
+.notif-item-dot.type-timeout {
+  background: var(--error);
+}
+
+.notif-item-dot.type-info, .notif-item-dot.type-warning, .notif-item-dot.type-warn,
+.notif-item-dot.type-notice {
+  background: var(--info);
+}

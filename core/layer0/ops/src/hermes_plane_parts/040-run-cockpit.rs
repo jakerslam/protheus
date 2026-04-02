@@ -51,7 +51,10 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         .unwrap_or(30_000);
     let stale_block_threshold_ms = parse_u64(
         parsed.flags.get("stale-threshold-ms"),
-        parse_u64(parsed.flags.get("threshold-ms"), contract_stale_threshold_ms),
+        parse_u64(
+            parsed.flags.get("threshold-ms"),
+            contract_stale_threshold_ms,
+        ),
     )
     .max(1);
     let conduit_signal_active_window_ms = parse_u64(
@@ -79,6 +82,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .unwrap_or(16),
     )
     .clamp(1, 10_000) as usize;
+    let latest_rows = collect_recent_ops_latest(root, max_blocks);
     let protected_lanes = reclaim_protected_lanes(&contract);
     let reclaim = if auto_reclaim_stale_blocks {
         reclaim_stale_latest(
@@ -103,7 +107,6 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         .get("reclaimed_count")
         .and_then(Value::as_u64)
         .unwrap_or(0) as usize;
-    let latest_rows = collect_recent_ops_latest(root, max_blocks);
 
     let mut blocks = Vec::<Value>::new();
     let mut stale_block_count: usize = 0;
@@ -341,4 +344,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
     emit(root, attach_conduit(payload, conduit.as_ref()))
 }
-

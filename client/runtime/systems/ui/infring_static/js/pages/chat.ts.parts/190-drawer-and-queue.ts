@@ -86,6 +86,14 @@
         payload.name = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       } else if (part === 'emoji') {
         payload.emoji = String((this.drawerConfigForm && this.drawerConfigForm.emoji) || '').trim();
+        if (this.sanitizeAgentEmojiForDisplay) {
+          payload.emoji = this.sanitizeAgentEmojiForDisplay(this.agentDrawer || this.currentAgent, payload.emoji);
+        }
+        if (!payload.emoji) {
+          InfringToast.info('The gear icon is reserved for the System thread.');
+          this.drawerIdentitySaving = false;
+          return;
+        }
         payload.avatar_url = '';
         if (this.drawerConfigForm && typeof this.drawerConfigForm === 'object') {
           this.drawerConfigForm.avatar_url = '';

@@ -112,6 +112,30 @@ fn run_hand_cycle(root: &Path, argv: &[String]) -> i32 {
         return emit_receipt(root, &mut out);
     }
 
+    let cycle_duality = autonomy_duality_bundle(
+        root,
+        "weaver_arbitration",
+        "autonomy_hand_cycle",
+        &format!("hand-cycle-{hand_id}"),
+        &json!({
+            "hand_id": hand_id.clone(),
+            "goal": goal.clone(),
+            "provider": selected.clone()
+        }),
+        true,
+    );
+    if strict && autonomy_duality_hard_block(&cycle_duality) {
+        let mut out = json!({
+            "ok": false,
+            "type": "autonomy_hand_cycle",
+            "lane": LANE_ID,
+            "strict": strict,
+            "error": "duality_toll_hard_block",
+            "duality": cycle_duality
+        });
+        return emit_receipt(root, &mut out);
+    }
+
     let path = hand_path(root, &hand_id);
     let mut hand = read_json(&path).unwrap_or_else(|| {
         json!({
@@ -173,6 +197,7 @@ fn run_hand_cycle(root: &Path, argv: &[String]) -> i32 {
             "merkle_root": merkle_root,
             "events_path": events_path.display().to_string()
         },
+        "duality": cycle_duality,
         "routing": {
             "selected_provider": selected,
             "allowed_providers": allowed
@@ -345,4 +370,3 @@ fn run_hand_wasm_task(root: &Path, argv: &[String]) -> i32 {
     });
     emit_receipt(root, &mut out)
 }
-

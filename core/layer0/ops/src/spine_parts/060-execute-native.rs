@@ -77,6 +77,68 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         "constitution_integrity_ok": constitution_ok
     }));
 
+    let duality_gate = run_spine_duality_gate(root, &run_id, &cli.mode, &cli.date, &run_context);
+    let duality_ok = duality_gate
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let duality_hard_block = duality_gate
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    ledger.append(json!({
+        "type": "spine_duality_gate",
+        "mode": cli.mode,
+        "date": cli.date,
+        "ok": duality_ok,
+        "hard_block": duality_hard_block,
+        "payload": duality_gate
+    }));
+
+    if !duality_ok {
+        return emit_terminal_with_closeout(
+            root,
+            &mut ledger,
+            &TerminalReceiptContext {
+                run_id: &run_id,
+                cli,
+                policy: &policy,
+                constitution_hash: &constitution_hash,
+                constitution_ok,
+                evidence_plan: &evidence_plan,
+                evidence_ok,
+                started_ms: run_started_ms,
+            },
+            false,
+            Some("duality_gate_failed"),
+        );
+    }
+
+    if duality_hard_block {
+        enqueue_spine_attention(
+            root,
+            "spine_duality_toll",
+            "critical",
+            "duality_toll_hard_block",
+        );
+        return emit_terminal_with_closeout(
+            root,
+            &mut ledger,
+            &TerminalReceiptContext {
+                run_id: &run_id,
+                cli,
+                policy: &policy,
+                constitution_hash: &constitution_hash,
+                constitution_ok,
+                evidence_plan: &evidence_plan,
+                evidence_ok,
+                started_ms: run_started_ms,
+            },
+            false,
+            Some("duality_toll_hard_block"),
+        );
+    }
+
     if !constitution_ok {
         return emit_terminal_with_closeout(
             root,
@@ -335,4 +397,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     execute_native(root, &cli)
 }
-

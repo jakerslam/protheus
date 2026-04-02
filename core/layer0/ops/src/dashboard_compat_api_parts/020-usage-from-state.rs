@@ -298,7 +298,13 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let cache_key = format!(
         "{}|{}|{}",
         clean_text(host_header, 200),
-        clean_text(snapshot.get("receipt_hash").and_then(Value::as_str).unwrap_or(""), 128),
+        clean_text(
+            snapshot
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            128
+        ),
         parse_non_negative_i64(
             snapshot
                 .pointer("/runtime_sync/uptime_seconds")
@@ -320,6 +326,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let memory_hygiene = memory_hygiene_payload(root, &continuity);
     let task_runtime = task_runtime_summary(root);
     let worker_runtime = worker_runtime_summary(root);
+    let web_conduit = crate::web_conduit::api_status(root);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version = read_json(&root.join("package.json"))
         .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
@@ -368,6 +375,12 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
         "runtime_sync": runtime,
         "task_runtime": task_runtime,
         "worker_runtime": worker_runtime,
+        "web_conduit": {
+            "enabled": web_conduit.get("enabled").cloned().unwrap_or_else(|| json!(false)),
+            "receipts_total": web_conduit.get("receipts_total").cloned().unwrap_or_else(|| json!(0)),
+            "recent_denied": web_conduit.get("recent_denied").cloned().unwrap_or_else(|| json!(0)),
+            "last_receipt": web_conduit.get("last_receipt").cloned().unwrap_or(Value::Null)
+        },
         "memory_hygiene": memory_hygiene,
         "continuity": {
             "pending_total": continuity.get("pending_total").cloned().unwrap_or_else(|| json!(0)),
@@ -439,15 +452,25 @@ fn session_pending_rows(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<V
     let now = Utc::now();
     let mut rows = Vec::<Value>::new();
     for row in session_summary_rows(root, snapshot).into_iter() {
-        let message_count = row.get("message_count").and_then(Value::as_i64).unwrap_or(0).max(0);
+        let message_count = row
+            .get("message_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0);
         if message_count <= 0 {
             continue;
         }
-        let agent_id = clean_text(row.get("agent_id").and_then(Value::as_str).unwrap_or(""), 140);
+        let agent_id = clean_text(
+            row.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+            140,
+        );
         if agent_id.is_empty() {
             continue;
         }
-        let updated_at = clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80);
+        let updated_at = clean_text(
+            row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        );
         let age_hours = parse_rfc3339_utc(&updated_at)
             .map(|ts| {
                 let delta = now.signed_duration_since(ts).num_minutes().max(0);
@@ -466,9 +489,84 @@ fn session_pending_rows(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<V
     rows.sort_by(|a, b| {
         let left = a.get("age_hours").and_then(Value::as_f64).unwrap_or(0.0);
         let right = b.get("age_hours").and_then(Value::as_f64).unwrap_or(0.0);
-        right.partial_cmp(&left).unwrap_or(std::cmp::Ordering::Equal)
+        right
+            .partial_cmp(&left)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     rows.truncate(max_rows.clamp(1, 100));
+    rows
+}
+
+fn agent_continuity_markers(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<Value> {
+    let roster = build_agent_roster(root, snapshot, false);
+    let mut rows = Vec::<Value>::new();
+    for profile in roster {
+        let agent_id = clean_agent_id(
+            profile
+                .get("agent_id")
+                .or_else(|| profile.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+        );
+        if agent_id.is_empty() {
+            continue;
+        }
+        let state = load_session_state(root, &agent_id);
+        let messages = session_messages(&state);
+        let mut latest_user_text = String::new();
+        let mut latest_user_ts = String::new();
+        let mut latest_agent_ts = String::new();
+        for row in messages.iter().rev() {
+            let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                .to_ascii_lowercase();
+            if role == "user" && latest_user_text.is_empty() {
+                latest_user_text = clean_text(&message_text(row), 180);
+                latest_user_ts = message_timestamp_iso(row);
+            }
+            if (role == "assistant" || role == "agent") && latest_agent_ts.is_empty() {
+                latest_agent_ts = message_timestamp_iso(row);
+            }
+            if !latest_user_text.is_empty() && !latest_agent_ts.is_empty() {
+                break;
+            }
+        }
+        let objective = if latest_user_text.is_empty() {
+            "No active objective.".to_string()
+        } else {
+            latest_user_text.clone()
+        };
+        let completion_percent = if latest_user_text.is_empty() {
+            100
+        } else if !latest_agent_ts.is_empty()
+            && !latest_user_ts.is_empty()
+            && latest_agent_ts >= latest_user_ts
+        {
+            100
+        } else if !latest_agent_ts.is_empty() {
+            60
+        } else {
+            20
+        };
+        rows.push(json!({
+            "agent_id": agent_id,
+            "name": clean_text(profile.get("name").and_then(Value::as_str).unwrap_or("Agent"), 120),
+            "state": clean_text(profile.get("state").and_then(Value::as_str).unwrap_or("Idle"), 40),
+            "objective": objective,
+            "completion_percent": completion_percent,
+            "updated_at": clean_text(profile.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80)
+        }));
+    }
+    rows.sort_by(|a, b| {
+        clean_text(
+            b.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        )
+        .cmp(&clean_text(
+            a.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+            80,
+        ))
+    });
+    rows.truncate(max_rows.clamp(1, 24));
     rows
 }
 
@@ -476,9 +574,14 @@ fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
     let tasks = task_runtime_summary(root);
     let workers = worker_runtime_summary(root);
     let sessions = session_pending_rows(root, snapshot, 24);
+    let continuity_agents = agent_continuity_markers(root, snapshot, 12);
     let stale_sessions = sessions
         .iter()
-        .filter(|row| row.get("stale_48h").and_then(Value::as_bool).unwrap_or(false))
+        .filter(|row| {
+            row.get("stale_48h")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .cloned()
         .collect::<Vec<_>>();
     let channel_rows = dashboard_compat_api_channels::channels_payload(root)
@@ -502,7 +605,11 @@ fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
         })
         .collect::<Vec<_>>();
 
-    let pending_total = tasks.get("pending").and_then(Value::as_i64).unwrap_or(0).max(0)
+    let pending_total = tasks
+        .get("pending")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0)
         + stale_sessions.len() as i64
         + channel_attention.len() as i64;
     json!({
@@ -515,6 +622,10 @@ fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
             "rows": sessions,
             "stale_48h_count": stale_sessions.len(),
             "stale_48h": stale_sessions
+        },
+        "active_agents": {
+            "count": continuity_agents.len(),
+            "rows": continuity_agents
         },
         "channels": {
             "attention_needed_count": channel_attention.len(),
@@ -540,9 +651,13 @@ fn memory_hygiene_payload(root: &Path, continuity: &Value) -> Value {
                 .count() as i64
         })
         .unwrap_or(0);
-    let snapshot_path =
-        state_path(root, "client/runtime/local/state/ui/infring_dashboard/snapshot_history.jsonl");
-    let snapshot_bytes_u64 = fs::metadata(&snapshot_path).map(|meta| meta.len()).unwrap_or(0);
+    let snapshot_path = state_path(
+        root,
+        "client/runtime/local/state/ui/infring_dashboard/snapshot_history.jsonl",
+    );
+    let snapshot_bytes_u64 = fs::metadata(&snapshot_path)
+        .map(|meta| meta.len())
+        .unwrap_or(0);
     let snapshot_bytes = if snapshot_bytes_u64 > i64::MAX as u64 {
         i64::MAX
     } else {
@@ -616,7 +731,10 @@ fn predicted_next_actions(
     if task_pending > 0 || queue_depth > 0 {
         push(
             "/queue",
-            format!("Queue pressure pending={} depth={}", task_pending, queue_depth),
+            format!(
+                "Queue pressure pending={} depth={}",
+                task_pending, queue_depth
+            ),
             "high",
         );
     }
@@ -804,7 +922,9 @@ mod continuity_tests {
     fn task_runtime_summary_counts_pending_and_done() {
         let temp = tempdir().expect("tempdir");
         write_json(
-            &temp.path().join("local/state/runtime/task_runtime/registry.json"),
+            &temp
+                .path()
+                .join("local/state/runtime/task_runtime/registry.json"),
             &json!({
                 "version": "v1",
                 "tasks": [
@@ -844,7 +964,8 @@ mod continuity_tests {
             }),
         );
         write_json(
-            &temp.path()
+            &temp
+                .path()
                 .join("client/runtime/local/state/ui/infring_dashboard/channel_registry.json"),
             &json!({
                 "type": "infring_dashboard_channel_registry",
@@ -861,19 +982,30 @@ mod continuity_tests {
         );
 
         let out = continuity_pending_payload(temp.path(), &json!({}));
-        assert_eq!(out.pointer("/sessions/stale_48h_count").and_then(Value::as_i64), Some(1));
+        assert_eq!(
+            out.pointer("/sessions/stale_48h_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
         assert_eq!(
             out.pointer("/channels/attention_needed_count")
                 .and_then(Value::as_i64),
             Some(1)
         );
+        assert!(out
+            .pointer("/active_agents/rows")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
     }
 
     #[test]
     fn proactive_alerts_raise_queue_pressure_signal() {
         let temp = tempdir().expect("tempdir");
         write_json(
-            &temp.path().join("local/state/runtime/task_runtime/registry.json"),
+            &temp
+                .path()
+                .join("local/state/runtime/task_runtime/registry.json"),
             &json!({
                 "version": "v1",
                 "tasks": (0..24).map(|idx| json!({"id": format!("t-{idx}"), "status": "queued"})).collect::<Vec<_>>()

@@ -16,12 +16,16 @@ fn usage() {
     println!("stock-market-collector-kernel commands:");
     println!("  protheus-ops stock-market-collector-kernel run --payload-base64=<json>");
     println!("  protheus-ops stock-market-collector-kernel prepare-run --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel build-fetch-plan --payload-base64=<json>");
+    println!(
+        "  protheus-ops stock-market-collector-kernel build-fetch-plan --payload-base64=<json>"
+    );
     println!("  protheus-ops stock-market-collector-kernel finalize-run --payload-base64=<json>");
     println!("  protheus-ops stock-market-collector-kernel collect --payload-base64=<json>");
     println!("  protheus-ops stock-market-collector-kernel extract-quotes --payload-base64=<json>");
     println!("  protheus-ops stock-market-collector-kernel map-quotes --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel fallback-indices --payload-base64=<json>");
+    println!(
+        "  protheus-ops stock-market-collector-kernel fallback-indices --payload-base64=<json>"
+    );
 }
 
 const COLLECTOR_ID: &str = "stock_market";
@@ -95,14 +99,20 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|err| format!("stock_market_collector_kernel_create_dir_failed:{err}"))?;
     }
-    let tmp = path.with_extension(format!("tmp-{}-{}", std::process::id(), Utc::now().timestamp_millis()));
+    let tmp = path.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        Utc::now().timestamp_millis()
+    ));
     let body = format!(
         "{}\n",
         serde_json::to_string_pretty(value)
             .map_err(|err| format!("stock_market_collector_kernel_encode_failed:{err}"))?
     );
-    fs::write(&tmp, body).map_err(|err| format!("stock_market_collector_kernel_write_failed:{err}"))?;
-    fs::rename(&tmp, path).map_err(|err| format!("stock_market_collector_kernel_rename_failed:{err}"))
+    fs::write(&tmp, body)
+        .map_err(|err| format!("stock_market_collector_kernel_write_failed:{err}"))?;
+    fs::rename(&tmp, path)
+        .map_err(|err| format!("stock_market_collector_kernel_rename_failed:{err}"))
 }
 
 fn clean_seen_id(raw: &str) -> String {
@@ -121,10 +131,20 @@ fn clean_seen_id(raw: &str) -> String {
 
 fn normalize_meta_value(raw: Option<&Value>) -> Value {
     let obj = raw.and_then(Value::as_object);
-    let last_run = clean_text(obj.and_then(|o| o.get("last_run")).and_then(Value::as_str), 80);
-    let last_success = clean_text(obj.and_then(|o| o.get("last_success")).and_then(Value::as_str), 80);
+    let last_run = clean_text(
+        obj.and_then(|o| o.get("last_run")).and_then(Value::as_str),
+        80,
+    );
+    let last_success = clean_text(
+        obj.and_then(|o| o.get("last_success"))
+            .and_then(Value::as_str),
+        80,
+    );
     let mut seen_ids = Vec::new();
-    if let Some(items) = obj.and_then(|o| o.get("seen_ids")).and_then(Value::as_array) {
+    if let Some(items) = obj
+        .and_then(|o| o.get("seen_ids"))
+        .and_then(Value::as_array)
+    {
         for entry in items {
             if let Some(raw_id) = entry.as_str() {
                 let cleaned = clean_seen_id(raw_id);
@@ -188,7 +208,11 @@ fn http_status_to_code(status: u64) -> &'static str {
     }
 }
 
-fn curl_fetch_with_status(url: &str, timeout_ms: u64, accept: &str) -> Result<(u64, String, u64), String> {
+fn curl_fetch_with_status(
+    url: &str,
+    timeout_ms: u64,
+    accept: &str,
+) -> Result<(u64, String, u64), String> {
     let timeout_secs = ((timeout_ms.max(1_000) as f64) / 1_000.0).ceil() as u64;
     let output = Command::new("curl")
         .arg("--silent")
@@ -294,7 +318,11 @@ fn quote_from_object(obj: &Map<String, Value>) -> Option<Quote> {
         .unwrap_or(0);
     Some(Quote {
         symbol,
-        short_name: if short_name.is_empty() { "Unknown".to_string() } else { short_name },
+        short_name: if short_name.is_empty() {
+            "Unknown".to_string()
+        } else {
+            short_name
+        },
         price,
         change,
         change_percent,
@@ -363,7 +391,11 @@ fn quote_to_value(q: &Quote) -> Value {
 
 fn date_seed(payload: &Map<String, Value>) -> String {
     let raw = clean_text(payload.get("date").and_then(Value::as_str), 32);
-    if raw.is_empty() { today_utc() } else { raw }
+    if raw.is_empty() {
+        today_utc()
+    } else {
+        raw
+    }
 }
 
 fn normalize_seen_ids(payload: &Map<String, Value>) -> Vec<String> {
@@ -398,7 +430,9 @@ fn map_quotes(payload: &Map<String, Value>) -> Value {
     };
     let date = date_seed(payload);
     let collected_at = now_iso();
-    let mut seen = normalize_seen_ids(payload).into_iter().collect::<HashSet<_>>();
+    let mut seen = normalize_seen_ids(payload)
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     let rows = payload
         .get("quotes")
@@ -411,30 +445,28 @@ fn map_quotes(payload: &Map<String, Value>) -> Value {
         if items.len() >= max_items {
             break;
         }
-        let quote = row
-            .as_object()
-            .and_then(quote_from_object)
-            .or_else(|| {
-                // Accept canonicalized quote shape from extract-quotes.
-                row.as_object().and_then(|obj| {
-                    let symbol = clean_text(obj.get("symbol").and_then(Value::as_str), 32).to_uppercase();
-                    let price = obj.get("price").and_then(Value::as_f64).unwrap_or(0.0);
-                    if symbol.is_empty() || !(price.is_finite() && price > 0.0) {
-                        return None;
-                    }
-                    Some(Quote {
-                        symbol,
-                        short_name: clean_text(obj.get("shortName").and_then(Value::as_str), 160),
-                        price,
-                        change: obj.get("change").and_then(Value::as_f64).unwrap_or(0.0),
-                        change_percent: obj
-                            .get("changePercent")
-                            .and_then(Value::as_f64)
-                            .unwrap_or(0.0),
-                        volume: obj.get("volume").and_then(Value::as_i64).unwrap_or(0),
-                    })
+        let quote = row.as_object().and_then(quote_from_object).or_else(|| {
+            // Accept canonicalized quote shape from extract-quotes.
+            row.as_object().and_then(|obj| {
+                let symbol =
+                    clean_text(obj.get("symbol").and_then(Value::as_str), 32).to_uppercase();
+                let price = obj.get("price").and_then(Value::as_f64).unwrap_or(0.0);
+                if symbol.is_empty() || !(price.is_finite() && price > 0.0) {
+                    return None;
+                }
+                Some(Quote {
+                    symbol,
+                    short_name: clean_text(obj.get("shortName").and_then(Value::as_str), 160),
+                    price,
+                    change: obj.get("change").and_then(Value::as_f64).unwrap_or(0.0),
+                    change_percent: obj
+                        .get("changePercent")
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.0),
+                    volume: obj.get("volume").and_then(Value::as_i64).unwrap_or(0),
                 })
-            });
+            })
+        });
         let q = match quote {
             Some(v) => v,
             None => continue,
@@ -508,7 +540,9 @@ fn fallback_indices(payload: &Map<String, Value>) -> Value {
     let max_items = clamp_u64(payload, "max_items", 20, 1, 200) as usize;
     let date = date_seed(payload);
     let collected_at = now_iso();
-    let mut seen = normalize_seen_ids(payload).into_iter().collect::<HashSet<_>>();
+    let mut seen = normalize_seen_ids(payload)
+        .into_iter()
+        .collect::<HashSet<_>>();
 
     let mut items = Vec::<Value>::new();
     for (symbol, name, signal_type) in indices {
@@ -614,19 +648,29 @@ fn finalize_success(
 
     let mut degraded = false;
     let mapped = if !quotes.is_empty() {
-        map_quotes(&json!({
-            "date": today,
-            "max_items": max_items,
-            "seen_ids": initial_seen,
-            "quotes": quotes
-        }).as_object().cloned().unwrap_or_default())
+        map_quotes(
+            &json!({
+                "date": today,
+                "max_items": max_items,
+                "seen_ids": initial_seen,
+                "quotes": quotes
+            })
+            .as_object()
+            .cloned()
+            .unwrap_or_default(),
+        )
     } else {
         degraded = true;
-        fallback_indices(&json!({
-            "date": today,
-            "max_items": max_items,
-            "seen_ids": initial_seen
-        }).as_object().cloned().unwrap_or_default())
+        fallback_indices(
+            &json!({
+                "date": today,
+                "max_items": max_items,
+                "seen_ids": initial_seen
+            })
+            .as_object()
+            .cloned()
+            .unwrap_or_default(),
+        )
     };
 
     let items = mapped
@@ -704,11 +748,16 @@ fn finalize_error(
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let fallback = fallback_indices(&json!({
-        "date": date_seed(payload),
-        "max_items": max_items,
-        "seen_ids": initial_seen
-    }).as_object().cloned().unwrap_or_default());
+    let fallback = fallback_indices(
+        &json!({
+            "date": date_seed(payload),
+            "max_items": max_items,
+            "seen_ids": initial_seen
+        })
+        .as_object()
+        .cloned()
+        .unwrap_or_default(),
+    );
     let fallback_items = fallback
         .get("items")
         .and_then(Value::as_array)
@@ -764,7 +813,15 @@ fn command_finalize_run(root: &Path, payload: &Map<String, Value>) -> Result<Val
             &fetch_error,
         );
     }
-    finalize_success(root, payload, min_hours, max_items, bytes, requests, duration_ms)
+    finalize_success(
+        root,
+        payload,
+        min_hours,
+        max_items,
+        bytes,
+        requests,
+        duration_ms,
+    )
 }
 
 fn command_collect(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
@@ -940,7 +997,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = match lane_utils::payload_json(&argv[1..], "stock_market_collector_kernel") {
         Ok(v) => v,
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("stock_market_collector_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "stock_market_collector_kernel_error",
+                &err,
+            ));
             return 1;
         }
     };
@@ -948,11 +1008,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     match dispatch(root, &command, payload_obj) {
         Ok(out) => {
-            lane_utils::print_json_line(&lane_utils::cli_receipt("stock_market_collector_kernel", out));
+            lane_utils::print_json_line(&lane_utils::cli_receipt(
+                "stock_market_collector_kernel",
+                out,
+            ));
             0
         }
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("stock_market_collector_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "stock_market_collector_kernel_error",
+                &err,
+            ));
             1
         }
     }

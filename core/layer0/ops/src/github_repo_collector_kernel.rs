@@ -11,15 +11,23 @@ use crate::github_repo_collector_kernel_support as support;
 fn usage() {
     println!("github-repo-collector-kernel commands:");
     println!("  protheus-ops github-repo-collector-kernel run --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel resolve-run-params --payload-base64=<json>");
+    println!(
+        "  protheus-ops github-repo-collector-kernel resolve-run-params --payload-base64=<json>"
+    );
     println!("  protheus-ops github-repo-collector-kernel resolve-auth --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel prepare-repo-activity --payload-base64=<json>");
+    println!(
+        "  protheus-ops github-repo-collector-kernel prepare-repo-activity --payload-base64=<json>"
+    );
     println!("  protheus-ops github-repo-collector-kernel build-repo-activity-fetch-plan --payload-base64=<json>");
     println!("  protheus-ops github-repo-collector-kernel finalize-repo-activity --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel collect-repo-activity --payload-base64=<json>");
+    println!(
+        "  protheus-ops github-repo-collector-kernel collect-repo-activity --payload-base64=<json>"
+    );
     println!("  protheus-ops github-repo-collector-kernel build-pr-review-fetch-plan --payload-base64=<json>");
     println!("  protheus-ops github-repo-collector-kernel build-pr-review --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel collect-pr-review --payload-base64=<json>");
+    println!(
+        "  protheus-ops github-repo-collector-kernel collect-pr-review --payload-base64=<json>"
+    );
     println!("  protheus-ops github-repo-collector-kernel file-risk-flags --payload-base64=<json>");
 }
 
@@ -143,7 +151,10 @@ fn handle_build_repo_activity_fetch_plan(payload: &Map<String, Value>) -> Value 
     })
 }
 
-fn handle_finalize_repo_activity(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+fn handle_finalize_repo_activity(
+    root: &Path,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
     let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
     if owner.is_empty() || repo.is_empty() {
@@ -152,7 +163,10 @@ fn handle_finalize_repo_activity(root: &Path, payload: &Map<String, Value>) -> R
 
     let max_items = support::as_u64(payload.get("max_items"), 10).clamp(1, 50) as usize;
     let min_hours = support::as_f64(payload.get("min_hours"), 4.0).clamp(0.0, 24.0 * 365.0);
-    let auth_mode = support::clean_token(payload.get("auth_mode").and_then(Value::as_str), "unauthenticated");
+    let auth_mode = support::clean_token(
+        payload.get("auth_mode").and_then(Value::as_str),
+        "unauthenticated",
+    );
 
     let key = support::cache_key(&owner, &repo);
     let fp = support::cache_path(root, payload, &key);
@@ -194,7 +208,11 @@ fn handle_finalize_repo_activity(root: &Path, payload: &Map<String, Value>) -> R
         .cloned()
         .unwrap_or_default();
     for item in &items {
-        if let Some(id) = item.as_object().and_then(|o| o.get("id")).and_then(Value::as_str) {
+        if let Some(id) = item
+            .as_object()
+            .and_then(|o| o.get("id"))
+            .and_then(Value::as_str)
+        {
             new_seen.push(Value::String(support::clean_text(Some(id), 64)));
         }
     }
@@ -264,7 +282,10 @@ fn handle_build_pr_review(payload: &Map<String, Value>) -> Value {
         return json!({"ok": false, "error": "missing_owner_repo_or_pr"});
     }
 
-    let auth_mode = support::clean_token(payload.get("auth_mode").and_then(Value::as_str), "unauthenticated");
+    let auth_mode = support::clean_token(
+        payload.get("auth_mode").and_then(Value::as_str),
+        "unauthenticated",
+    );
     let pr_obj = payload
         .get("pr_json")
         .and_then(Value::as_object)
@@ -331,7 +352,10 @@ fn handle_build_pr_review(payload: &Map<String, Value>) -> Value {
     })
 }
 
-fn handle_collect_repo_activity(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+fn handle_collect_repo_activity(
+    root: &Path,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
     let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
     let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
     if owner.is_empty() || repo.is_empty() {
@@ -397,7 +421,8 @@ fn handle_collect_pr_review(payload: &Map<String, Value>) -> Value {
             "error": "missing_owner_repo_or_pr"
         });
     }
-    let pr_fetch_error = support::clean_text(payload.get("pr_fetch_error").and_then(Value::as_str), 120);
+    let pr_fetch_error =
+        support::clean_text(payload.get("pr_fetch_error").and_then(Value::as_str), 120);
     if !pr_fetch_error.is_empty() {
         return json!({
             "ok": false,
@@ -410,7 +435,10 @@ fn handle_collect_pr_review(payload: &Map<String, Value>) -> Value {
             "error": format!("pr_fetch_failed:{pr_fetch_error}")
         });
     }
-    let files_fetch_error = support::clean_text(payload.get("files_fetch_error").and_then(Value::as_str), 120);
+    let files_fetch_error = support::clean_text(
+        payload.get("files_fetch_error").and_then(Value::as_str),
+        120,
+    );
     if !files_fetch_error.is_empty() {
         return json!({
             "ok": false,
@@ -425,7 +453,10 @@ fn handle_collect_pr_review(payload: &Map<String, Value>) -> Value {
     }
 
     let has_pr = payload.get("pr_json").and_then(Value::as_object).is_some();
-    let has_files = payload.get("files_json").and_then(Value::as_array).is_some();
+    let has_files = payload
+        .get("files_json")
+        .and_then(Value::as_array)
+        .is_some();
     if !has_pr || !has_files {
         return json!({
             "ok": false,
@@ -439,18 +470,16 @@ fn handle_collect_pr_review(payload: &Map<String, Value>) -> Value {
         });
     }
 
-    handle_build_pr_review(
-        payload_obj(&json!({
-            "owner": owner,
-            "repo": repo,
-            "pr": pr_number,
-            "auth_mode": payload.get("auth_mode").cloned().unwrap_or(Value::String("unauthenticated".to_string())),
-            "pr_json": payload.get("pr_json").cloned().unwrap_or(Value::Null),
-            "files_json": payload.get("files_json").cloned().unwrap_or(Value::Array(Vec::new())),
-            "pr_bytes": payload.get("pr_bytes").cloned().unwrap_or(Value::from(0)),
-            "files_bytes": payload.get("files_bytes").cloned().unwrap_or(Value::from(0))
-        })),
-    )
+    handle_build_pr_review(payload_obj(&json!({
+        "owner": owner,
+        "repo": repo,
+        "pr": pr_number,
+        "auth_mode": payload.get("auth_mode").cloned().unwrap_or(Value::String("unauthenticated".to_string())),
+        "pr_json": payload.get("pr_json").cloned().unwrap_or(Value::Null),
+        "files_json": payload.get("files_json").cloned().unwrap_or(Value::Array(Vec::new())),
+        "pr_bytes": payload.get("pr_bytes").cloned().unwrap_or(Value::from(0)),
+        "files_bytes": payload.get("files_bytes").cloned().unwrap_or(Value::from(0))
+    })))
 }
 
 fn handle_run(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
@@ -472,10 +501,12 @@ fn handle_run(root: &Path, payload: &Map<String, Value>) -> Result<Value, String
     let max_items = support::as_u64(normalized_obj.get("max_items"), 10).clamp(1, 50);
     let min_hours = support::as_f64(normalized_obj.get("min_hours"), 4.0).clamp(0.0, 24.0 * 365.0);
     let force = support::as_bool(normalized_obj.get("force"), false);
-    let timeout_ms = support::as_u64(normalized_obj.get("timeout_ms"), 15_000).clamp(1_000, 120_000);
+    let timeout_ms =
+        support::as_u64(normalized_obj.get("timeout_ms"), 15_000).clamp(1_000, 120_000);
 
     let auth = support::resolve_auth(payload);
-    let auth_mode = support::clean_token(auth.get("mode").and_then(Value::as_str), "unauthenticated");
+    let auth_mode =
+        support::clean_token(auth.get("mode").and_then(Value::as_str), "unauthenticated");
     let auth_headers = support::auth_headers_from(&auth);
 
     if pr > 0 {
@@ -507,7 +538,12 @@ fn handle_run(root: &Path, payload: &Map<String, Value>) -> Result<Value, String
             if key.is_empty() || url.is_empty() {
                 continue;
             }
-            match support::curl_fetch_with_status(&url, timeout_ms, &auth_headers, "application/vnd.github+json") {
+            match support::curl_fetch_with_status(
+                &url,
+                timeout_ms,
+                &auth_headers,
+                "application/vnd.github+json",
+            ) {
                 Ok((status, body, bytes)) => {
                     if status >= 400 {
                         let code = support::http_status_to_code(status).to_string();
@@ -599,9 +635,12 @@ fn handle_run(root: &Path, payload: &Map<String, Value>) -> Result<Value, String
         if key.is_empty() || url.is_empty() {
             continue;
         }
-        if let Ok((status, body, bytes)) =
-            support::curl_fetch_with_status(&url, timeout_ms, &auth_headers, "application/vnd.github+json")
-        {
+        if let Ok((status, body, bytes)) = support::curl_fetch_with_status(
+            &url,
+            timeout_ms,
+            &auth_headers,
+            "application/vnd.github+json",
+        ) {
             if status >= 400 {
                 continue;
             }
@@ -711,10 +750,7 @@ mod tests {
             json!({"filename": "schema/migrations/2026.sql", "changes": 20}),
         ];
         let flags = support::file_risk_flags(&rows);
-        let vals = flags
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>();
+        let vals = flags.iter().filter_map(Value::as_str).collect::<Vec<_>>();
         assert!(vals.contains(&"security_sensitive_paths"));
         assert!(vals.contains(&"schema_or_data_migration"));
     }
@@ -723,7 +759,10 @@ mod tests {
     fn resolve_run_params_validates_owner_repo_and_mode() {
         let missing = handle_resolve_run_params(payload_obj(&json!({"owner":"", "repo":"demo"})));
         assert_eq!(missing.get("ok").and_then(Value::as_bool), Some(false));
-        assert_eq!(missing.get("error").and_then(Value::as_str), Some("missing_owner_or_repo"));
+        assert_eq!(
+            missing.get("error").and_then(Value::as_str),
+            Some("missing_owner_or_repo")
+        );
 
         let pr_mode = handle_resolve_run_params(payload_obj(&json!({
             "owner":"acme",
@@ -733,9 +772,15 @@ mod tests {
             "timeout_ms": 10
         })));
         assert_eq!(pr_mode.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(pr_mode.get("mode").and_then(Value::as_str), Some("pr_review"));
+        assert_eq!(
+            pr_mode.get("mode").and_then(Value::as_str),
+            Some("pr_review")
+        );
         assert_eq!(pr_mode.get("max_items").and_then(Value::as_u64), Some(50));
-        assert_eq!(pr_mode.get("timeout_ms").and_then(Value::as_u64), Some(1000));
+        assert_eq!(
+            pr_mode.get("timeout_ms").and_then(Value::as_u64),
+            Some(1000)
+        );
     }
 
     #[test]
@@ -744,8 +789,11 @@ mod tests {
         let payload = json!({"owner":"acme","repo":"demo","min_hours":4.0,"force":false});
         let key = support::cache_key("acme", "demo");
         let fp = support::cache_path(&root, payload_obj(&payload), &key);
-        support::save_cache(&fp, &json!({"last_run": support::now_iso(), "seen_ids": []}))
-            .expect("save cache");
+        support::save_cache(
+            &fp,
+            &json!({"last_run": support::now_iso(), "seen_ids": []}),
+        )
+        .expect("save cache");
 
         let out = handle_prepare_repo_activity(&root, payload_obj(&payload));
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
@@ -798,8 +846,11 @@ mod tests {
         });
         let key = support::cache_key("acme", "demo");
         let fp = support::cache_path(&root, payload_obj(&payload), &key);
-        support::save_cache(&fp, &json!({"last_run": support::now_iso(), "seen_ids": []}))
-            .expect("save cache");
+        support::save_cache(
+            &fp,
+            &json!({"last_run": support::now_iso(), "seen_ids": []}),
+        )
+        .expect("save cache");
         let out = handle_collect_repo_activity(&root, payload_obj(&payload)).expect("collect repo");
         assert_eq!(out.get("skipped").and_then(Value::as_bool), Some(true));
     }

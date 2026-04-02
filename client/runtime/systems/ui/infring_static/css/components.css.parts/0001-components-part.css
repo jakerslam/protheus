@@ -79,6 +79,24 @@ body.theme-switching *::after {
   -webkit-backdrop-filter: blur(10px) saturate(1.08);
 }
 .btn-primary:hover { background: var(--accent-dim); box-shadow: var(--shadow-sm), var(--shadow-accent); transform: translateY(-1px); }
+
+.btn-revive-user {
+  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  border-bottom-color: color-mix(in srgb, #fff 38%, transparent);
+  border-right-color: color-mix(in srgb, #fff 38%, transparent);
+  box-shadow: var(--shadow-xs), var(--shadow-inset);
+  backdrop-filter: blur(10px) saturate(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.btn-revive-user:hover {
+  background: color-mix(in srgb, var(--user-bg) 80%, transparent);
+  box-shadow: var(--shadow-sm), var(--shadow-accent);
+  transform: translateY(-1px);
+}
 .btn-success {
   background: color-mix(in srgb, var(--success) 78%, transparent);
   color: #000;

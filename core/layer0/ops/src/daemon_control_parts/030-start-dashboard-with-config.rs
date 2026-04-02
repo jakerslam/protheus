@@ -159,6 +159,9 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
             }
         }
         let healthy = dashboard_health_ok(cfg.host.as_str(), cfg.port);
+        let dashboard_pid = read_pid_file(&dashboard_pid_path(root));
+        let listener_pids = dashboard_listener_pids(cfg.port);
+        let process_active = dashboard_pid.map(pid_running).unwrap_or(false) || !listener_pids.is_empty();
         if last_health != Some(healthy) {
             append_watchdog_log(
                 root,
@@ -168,7 +171,9 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
                     "event": "health_transition",
                     "healthy": healthy,
                     "fail_streak": fail_streak,
-                    "dashboard_pid": read_pid_file(&dashboard_pid_path(root)),
+                    "dashboard_pid": dashboard_pid,
+                    "listeners": listener_pids,
+                    "process_active": process_active,
                 }),
             );
             last_health = Some(healthy);
@@ -178,7 +183,12 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
         } else {
             fail_streak = fail_streak.saturating_add(1);
         }
-        if fail_streak >= DASHBOARD_WATCHDOG_FAIL_STREAK_THRESHOLD {
+        let restart_threshold = if !healthy && !process_active {
+            1usize
+        } else {
+            DASHBOARD_WATCHDOG_FAIL_STREAK_THRESHOLD
+        };
+        if fail_streak >= restart_threshold {
             append_watchdog_log(
                 root,
                 &json!({
@@ -186,6 +196,8 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
                     "type": "dashboard_watchdog",
                     "event": "restart_triggered",
                     "fail_streak": fail_streak,
+                    "restart_threshold": restart_threshold,
+                    "process_active": process_active,
                 }),
             );
             let restarted = restart_dashboard_for_watchdog(root, &cfg);
@@ -263,6 +275,99 @@ fn ensure_gateway_supervisor(
     supervisor.payload
 }
 
+fn heal_gateway_runtime(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
+    let desired_before = dashboard_desired_state_active(root);
+    let stop_latch_before = dashboard_stop_latch_active(root);
+    let mut actions = Vec::<Value>::new();
+
+    if desired_before && stop_latch_before {
+        clear_dashboard_stop_latch(root);
+        actions.push(json!({
+            "action": "clear_stop_latch",
+            "ok": true
+        }));
+    }
+
+    let mut supervisor = gateway_supervisor::status(root).payload;
+    let mut supervisor_active = supervisor
+        .get("active")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if cfg.persistent_supervisor && desired_before && !supervisor_active {
+        let enabled = gateway_supervisor_enable(root, cfg);
+        supervisor = enabled.payload;
+        supervisor_active = enabled.active;
+        actions.push(json!({
+            "action": "enable_supervisor",
+            "ok": supervisor.get("ok").and_then(Value::as_bool).unwrap_or(false),
+            "active": supervisor_active
+        }));
+    }
+
+    let health_before = dashboard_health_ok(cfg.host.as_str(), cfg.port);
+    let dashboard_pid = read_pid_file(&dashboard_pid_path(root));
+    let listeners = dashboard_listener_pids(cfg.port);
+    let process_active =
+        dashboard_pid.map(pid_running).unwrap_or(false) || !listeners.is_empty();
+
+    let mut restart_payload = Value::Null;
+    if desired_before && !health_before && !process_active {
+        restart_payload = restart_dashboard_for_watchdog(root, cfg);
+        actions.push(json!({
+            "action": "restart_dashboard",
+            "ok": restart_payload.get("running").and_then(Value::as_bool).unwrap_or(false)
+        }));
+    }
+
+    let watchdog_before = dashboard_watchdog_status(root);
+    let watchdog_running = watchdog_before
+        .get("running")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let mut watchdog_fallback = Value::Null;
+    if desired_before && !health_before && !watchdog_running && (!cfg.persistent_supervisor || !supervisor_active)
+    {
+        watchdog_fallback = match spawn_dashboard_watchdog(root, cfg) {
+            Ok(pid) => json!({
+                "ok": true,
+                "running": true,
+                "pid": pid,
+                "mode": "local_watchdog_fallback"
+            }),
+            Err(err) => json!({
+                "ok": false,
+                "running": false,
+                "error": err,
+                "mode": "local_watchdog_fallback"
+            }),
+        };
+        actions.push(json!({
+            "action": "spawn_watchdog_fallback",
+            "ok": watchdog_fallback.get("ok").and_then(Value::as_bool).unwrap_or(false),
+            "running": watchdog_fallback.get("running").and_then(Value::as_bool).unwrap_or(false)
+        }));
+    }
+
+    json!({
+        "ok": true,
+        "desired_before": desired_before,
+        "stop_latch_before": stop_latch_before,
+        "health_before": health_before,
+        "process_active_before": process_active,
+        "dashboard_pid_before": dashboard_pid,
+        "listener_pids_before": listeners,
+        "watchdog_before": watchdog_before,
+        "supervisor": supervisor,
+        "restart": restart_payload,
+        "watchdog_fallback": watchdog_fallback,
+        "desired_after": dashboard_desired_state_active(root),
+        "stop_latch_after": dashboard_stop_latch_active(root),
+        "health_after": dashboard_health_ok(cfg.host.as_str(), cfg.port),
+        "watchdog_after": dashboard_watchdog_status(root),
+        "actions": actions,
+    })
+}
+
 fn verity_drift_status_receipt(root: &Path, argv: &[String]) -> Value {
     let (signed, signature_valid) = load_verity_signed_config(root);
     let mode = normalize_verity_mode(&signed.mode);
@@ -304,7 +409,7 @@ fn verity_drift_status_receipt(root: &Path, argv: &[String]) -> Value {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|drift-status|watchdog> [--mode=<value>]");
+    println!("  protheus-ops daemon-control <start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|drift-status|watchdog> [--mode=<value>]");
     println!("  Optional start/restart flags:");
     println!("    --dashboard-autoboot=1|0   (default: 1)");
     println!("    --dashboard-open=1|0       (default: 1)");
@@ -398,7 +503,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
     if matches!(
         command.as_str(),
-        "start" | "stop" | "restart" | "status" | "attach" | "subscribe" | "tick" | "diagnostics"
+        "start"
+            | "stop"
+            | "restart"
+            | "status"
+            | "heal"
+            | "attach"
+            | "subscribe"
+            | "tick"
+            | "diagnostics"
     ) {
         let mut receipt = success_receipt(command.as_str(), mode.as_deref(), argv, root);
         let dashboard = match command.as_str() {
@@ -454,6 +567,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             "status" => {
                 let cfg = parse_dashboard_launch_config(argv, "start");
+                let auto_heal = parse_bool(parse_flag(argv, "auto-heal").as_deref(), true);
+                let self_heal = if auto_heal {
+                    heal_gateway_runtime(root, &cfg)
+                } else {
+                    json!({
+                        "ok": true,
+                        "auto_heal": false,
+                        "reason": "disabled_by_flag"
+                    })
+                };
                 json!({
                     "enabled": cfg.enabled,
                     "persistent_supervisor": cfg.persistent_supervisor,
@@ -464,7 +587,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "desired_active": dashboard_desired_state_active(root),
                     "watchdog": dashboard_watchdog_status(root),
                     "supervisor": gateway_supervisor::status(root).payload,
+                    "self_heal": self_heal,
                 })
+            }
+            "heal" => {
+                let cfg = parse_dashboard_launch_config(argv, "start");
+                heal_gateway_runtime(root, &cfg)
             }
             _ => json!({}),
         };
