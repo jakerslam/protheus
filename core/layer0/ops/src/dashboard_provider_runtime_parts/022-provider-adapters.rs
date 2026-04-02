@@ -12,8 +12,6 @@ const DEFAULT_TELEMETRY_BLOCKLIST: &[&str] = &[
     "newrelic.com",
 ];
 const DEFAULT_DENY_DOMAINS: &[&str] = &[
-    "127.0.0.1",
-    "localhost",
     "metadata.google.internal",
     "169.254.169.254",
 ];
@@ -38,21 +36,26 @@ fn default_provider_network_policy() -> Value {
 
 fn provider_network_policy(root: &Path) -> Value {
     let path = provider_network_policy_path(root);
+    let mut changed = false;
     if !path.exists() {
         write_json_pretty(&path, &default_provider_network_policy());
     }
     let mut policy = read_json(&path).unwrap_or_else(default_provider_network_policy);
     if !policy.is_object() {
         policy = default_provider_network_policy();
+        changed = true;
     }
     if policy.get("type").and_then(Value::as_str).unwrap_or("") != "infring_provider_network_policy" {
         policy["type"] = json!("infring_provider_network_policy");
+        changed = true;
     }
     if policy.get("version").and_then(Value::as_str).unwrap_or("").is_empty() {
         policy["version"] = json!("v1");
+        changed = true;
     }
     if policy.get("local_first_default").and_then(Value::as_bool).is_none() {
         policy["local_first_default"] = json!(true);
+        changed = true;
     }
     if policy
         .get("require_explicit_provider_consent")
@@ -60,6 +63,7 @@ fn provider_network_policy(root: &Path) -> Value {
         .is_none()
     {
         policy["require_explicit_provider_consent"] = json!(true);
+        changed = true;
     }
     if policy
         .get("telemetry_blocklist_enabled")
@@ -67,6 +71,7 @@ fn provider_network_policy(root: &Path) -> Value {
         .is_none()
     {
         policy["telemetry_blocklist_enabled"] = json!(true);
+        changed = true;
     }
     if !policy
         .get("telemetry_blocklist_domains")
@@ -74,9 +79,11 @@ fn provider_network_policy(root: &Path) -> Value {
         .unwrap_or(false)
     {
         policy["telemetry_blocklist_domains"] = json!(DEFAULT_TELEMETRY_BLOCKLIST);
+        changed = true;
     }
     if !policy.get("deny_domains").map(Value::is_array).unwrap_or(false) {
         policy["deny_domains"] = json!(DEFAULT_DENY_DOMAINS);
+        changed = true;
     }
     if !policy
         .get("allow_provider_ids")
@@ -84,6 +91,31 @@ fn provider_network_policy(root: &Path) -> Value {
         .unwrap_or(false)
     {
         policy["allow_provider_ids"] = json!([]);
+        changed = true;
+    }
+
+    let deny_domains = policy
+        .get("deny_domains")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(|v| clean_text(v, 220)))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let sanitized_deny_domains = deny_domains
+        .iter()
+        .filter(|value| !domain_is_loopback(value))
+        .cloned()
+        .collect::<Vec<_>>();
+    if sanitized_deny_domains != deny_domains {
+        policy["deny_domains"] = json!(sanitized_deny_domains);
+        changed = true;
+    }
+
+    if changed {
+        policy["updated_at"] = json!(crate::now_iso());
+        write_json_pretty(&path, &policy);
     }
     policy
 }
@@ -160,9 +192,23 @@ fn host_matches_domain(host: &str, domain: &str) -> bool {
     host_clean == domain_clean || host_clean.ends_with(&format!(".{domain_clean}"))
 }
 
+fn domain_is_loopback(raw: &str) -> bool {
+    let domain = clean_text(raw, 220).to_ascii_lowercase();
+    domain == "localhost"
+        || domain == "0.0.0.0"
+        || domain == "::1"
+        || domain == "127.0.0.1"
+        || domain.starts_with("127.")
+}
+
+fn host_is_loopback(raw: &str) -> bool {
+    domain_is_loopback(raw)
+}
+
 fn provider_network_guard(root: &Path, provider_id: &str, base_url: &str) -> Result<Value, String> {
     let provider = normalize_provider_id(provider_id);
     let host = url_host(base_url);
+    let host_loopback = host_is_loopback(&host);
     let policy = provider_network_policy(root);
     let denied = policy
         .get("deny_domains")
@@ -172,7 +218,7 @@ fn provider_network_guard(root: &Path, provider_id: &str, base_url: &str) -> Res
         .into_iter()
         .filter_map(|row| row.as_str().map(|v| clean_text(v, 220)))
         .filter(|domain| !domain.is_empty())
-        .any(|domain| host_matches_domain(&host, &domain));
+        .any(|domain| !host_loopback && host_matches_domain(&host, &domain));
     if denied {
         append_provider_outbound_guard_receipt(
             root,
@@ -250,6 +296,7 @@ fn provider_network_guard(root: &Path, provider_id: &str, base_url: &str) -> Res
         "allowed": true,
         "provider": provider,
         "host": host,
+        "host_is_loopback": host_loopback,
         "local_first_default": local_first,
         "consent_via_provider_key": has_provider_key,
         "consent_via_allowlist": provider_explicitly_allowed
@@ -548,6 +595,30 @@ mod provider_adapter_tests {
                 .map(|err| err.contains("local_first_opt_in_required"))
                 .unwrap_or(false),
             "cloud provider should be blocked until explicit consent exists"
+        );
+    }
+
+    #[test]
+    fn provider_network_guard_allows_loopback_for_local_provider() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let decision = provider_network_guard(root.path(), "ollama", "http://127.0.0.1:11434");
+        assert!(decision.is_ok(), "loopback should stay available for local providers");
+    }
+
+    #[test]
+    fn provider_network_guard_blocks_metadata_domain() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let decision = provider_network_guard(
+            root.path(),
+            "openai",
+            "https://metadata.google.internal/v1",
+        );
+        assert!(
+            decision
+                .err()
+                .map(|err| err.contains("denied_domain"))
+                .unwrap_or(false),
+            "metadata host should remain fail-closed"
         );
     }
 }

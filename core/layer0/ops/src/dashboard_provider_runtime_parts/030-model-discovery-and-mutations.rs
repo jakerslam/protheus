@@ -16,7 +16,7 @@ pub fn discover_models(root: &Path, input: &str) -> Value {
             if let Ok(entries) = fs::read_dir(&candidate_path) {
                 for entry in entries.flatten().take(128) {
                     let name = clean_text(&entry.file_name().to_string_lossy(), 140);
-                    if name.is_empty() {
+                    if name.is_empty() || model_id_is_placeholder(&name) {
                         continue;
                     }
                     let mut profile = inferred_model_profile(provider, &name, true);
@@ -93,6 +93,9 @@ pub fn add_custom_model(
     if provider.is_empty() || model.is_empty() {
         return json!({"ok": false, "error": "custom_model_invalid"});
     }
+    if model_id_is_placeholder(&model) {
+        return json!({"ok": false, "error": "custom_model_invalid"});
+    }
     let mut registry = load_registry(root);
     let row = ensure_provider_row_mut(&mut registry, &provider);
     if row.get("model_profiles").is_none()
@@ -141,6 +144,9 @@ pub fn delete_custom_model(root: &Path, model_ref: &str) -> Value {
     if cleaned.is_empty() {
         return json!({"ok": false, "error": "custom_model_ref_required"});
     }
+    if model_id_is_placeholder(&cleaned) {
+        return json!({"ok": false, "error": "custom_model_ref_required"});
+    }
     let mut registry = load_registry(root);
     let mut removed = false;
     if let Some(providers) = registry.get_mut("providers").and_then(Value::as_object_mut) {
@@ -170,6 +176,9 @@ pub fn delete_custom_model(root: &Path, model_ref: &str) -> Value {
 pub fn download_model(root: &Path, provider_id: &str, model_ref: &str) -> Value {
     let provider = normalize_provider_id(provider_id);
     let mut model = clean_text(model_ref, 240);
+    if model.is_empty() || model_id_is_placeholder(&model) {
+        return json!({"ok": false, "error": "model_download_path_missing"});
+    }
     if model.contains('/') {
         let mut parts = model.splitn(2, '/');
         let maybe_provider = normalize_provider_id(parts.next().unwrap_or(""));
@@ -180,6 +189,9 @@ pub fn download_model(root: &Path, provider_id: &str, model_ref: &str) -> Value 
         if !maybe_model.is_empty() {
             model = maybe_model;
         }
+    }
+    if model_id_is_placeholder(&model) {
+        return json!({"ok": false, "error": "model_download_path_missing"});
     }
     if provider == "ollama" {
         let output = Command::new("ollama").arg("pull").arg(&model).output();
@@ -417,7 +429,12 @@ pub fn invoke_chat(
     user_message: &str,
 ) -> Result<Value, String> {
     let requested_provider = normalize_provider_id(provider_id);
-    let requested_model = clean_text(model_name, 240);
+    let requested_model_raw = clean_text(model_name, 240);
+    let requested_model = if model_id_is_placeholder(&requested_model_raw) {
+        String::new()
+    } else {
+        requested_model_raw
+    };
     let snapshot = read_json(&PathBuf::from(root).join(
         "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json",
     ))

@@ -137,16 +137,19 @@ fn models_v1_payload(root: &Path, snapshot: &Value) -> Value {
         .and_then(Value::as_array)
         .map(|rows| {
             rows.iter()
-                .map(|row| {
+                .filter_map(|row| {
                     let provider = clean_text(
                         row.get("provider").and_then(Value::as_str).unwrap_or("auto"),
                         80,
                     );
                     let model = clean_text(
-                        row.get("model").and_then(Value::as_str).unwrap_or("model"),
+                        row.get("model").and_then(Value::as_str).unwrap_or(""),
                         160,
                     );
-                    json!({
+                    if model.is_empty() {
+                        return None;
+                    }
+                    Some(json!({
                         "id": model,
                         "object": "model",
                         "owned_by": provider,
@@ -156,7 +159,7 @@ fn models_v1_payload(root: &Path, snapshot: &Value) -> Value {
                             .get("context_window_tokens")
                             .and_then(Value::as_u64)
                             .unwrap_or(0)
-                    })
+                    }))
                 })
                 .collect::<Vec<_>>()
         })

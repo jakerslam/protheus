@@ -1,8 +1,6 @@
 {
   "allow_provider_ids": [],
   "deny_domains": [
-    "127.0.0.1",
-    "localhost",
     "metadata.google.internal",
     "169.254.169.254"
   ],
