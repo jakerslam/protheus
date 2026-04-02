@@ -759,6 +759,51 @@ pub fn terminated_entries(root: &Path) -> Value {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let archived = load_archived_state(root)
+        .get("agents")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let mut archived_candidates = archived.keys().cloned().collect::<Vec<_>>();
+    for (agent_id, profile) in &profiles {
+        let state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if state == "archived" {
+            archived_candidates.push(agent_id.clone());
+        }
+    }
+    for raw_id in archived_candidates {
+        let agent_id = normalize_agent_id(&raw_id);
+        if agent_id.is_empty() {
+            continue;
+        }
+        let exists = entries.iter().any(|row| {
+            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
+                == agent_id
+        });
+        if exists {
+            continue;
+        }
+        let archived_at = archived
+            .get(&raw_id)
+            .and_then(|row| row.get("archived_at").and_then(Value::as_str))
+            .map(|v| clean_text(v, 80))
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                profiles
+                    .get(&raw_id)
+                    .and_then(|row| row.get("updated_at").and_then(Value::as_str))
+                    .map(|v| clean_text(v, 80))
+                    .filter(|v| !v.is_empty())
+            })
+            .unwrap_or_else(now_iso);
+        entries.push(json!({
+            "agent_id": agent_id,
+            "contract_id": "",
+            "termination_reason": "archived",
+            "terminated_at": archived_at
+        }));
+    }
     entries = entries
         .into_iter()
         .map(|mut row| {

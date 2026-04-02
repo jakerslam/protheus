@@ -424,7 +424,7 @@
 
 /* ── Nav Section Collapsible ── */
 .nav-section-title {
-  cursor: pointer;
+  cursor: default;
   user-select: none;
   display: flex;
   align-items: center;

@@ -45,7 +45,7 @@
                     </template>
                   </div>
                 </div>
-                <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
+                <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0 && hasConversationSuggestionSeed() && promptSuggestions.length > 0">
                   <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-inline-' + sidx + '-' + suggestion">
                     <button class="prompt-suggestion-chip prompt-suggestion-chip-rise" type="button" @click="applyPromptSuggestion(suggestion)" @mouseenter="onPromptSuggestionHoverIn($event)" @mouseleave="onPromptSuggestionHoverOut($event)" :title="suggestion" :style="'--prompt-suggestion-entry-delay:' + (sidx * 16) + 'ms'">
                       <span class="prompt-suggestion-chip-text" x-text="suggestion"></span>

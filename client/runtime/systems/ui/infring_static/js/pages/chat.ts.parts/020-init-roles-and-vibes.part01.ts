@@ -164,7 +164,7 @@
       if (windowSize > 0 && used >= 0) {
         var ratio = Math.round((used / windowSize) * 100);
         if (ratio < 0) return 0;
-        if (ratio > 100) return 100;
+        if (ratio > 95) return 95;
         return ratio;
       }
       switch (this.contextPressure) {

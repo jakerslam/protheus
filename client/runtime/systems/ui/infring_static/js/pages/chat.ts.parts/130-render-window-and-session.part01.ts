@@ -375,12 +375,6 @@
           notice_type: 'info',
           ts: Date.now()
         });
-        this.freshInitStageToken = Number(this.freshInitStageToken || 0) + 1;
-        this.freshInitRevealMenu = false;
-        this.showFreshArchetypeTiles = false;
-        this.freshInitTemplateDef = null;
-        this.freshInitTemplateName = '';
-        this.freshInitLaunching = false;
         try {
           var store = Alpine.store('app');
           if (store) {
@@ -394,6 +388,12 @@
         await this.syncDrawerAgentAfterChange();
         await this.loadSession(agentId, false);
         this.requestContextTelemetry(true);
+        this.freshInitStageToken = Number(this.freshInitStageToken || 0) + 1;
+        this.freshInitRevealMenu = false;
+        this.showFreshArchetypeTiles = false;
+        this.freshInitTemplateDef = null;
+        this.freshInitTemplateName = '';
+        this.freshInitLaunching = false;
         var launchedRole = String(
           (templateDef && (templateDef.name || templateDef.profile || templateDef.archetype)) || 'agent'
         ).trim() || 'agent';

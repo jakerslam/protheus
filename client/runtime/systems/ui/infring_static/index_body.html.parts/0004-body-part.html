@@ -1,11 +1,11 @@
-                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" x-show="freshInitAvatarUrl" @click.stop="clearFreshInitAvatar()" title="Use emoji instead" aria-label="Use emoji instead">
+                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" x-show="freshInitAvatarUrl" @click.stop="clearFreshInitAvatar()" :disabled="freshInitLaunching" title="Use emoji instead" aria-label="Use emoji instead">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
                         </button>
                         <div class="chat-agent-emoji-menu" x-show="freshInitEmojiPickerOpen" x-transition.opacity>
-                          <input class="form-input chat-agent-emoji-search" x-model="freshInitEmojiSearch" placeholder="Search emoji...">
+                          <input class="form-input chat-agent-emoji-search" x-model="freshInitEmojiSearch" :disabled="freshInitLaunching" placeholder="Search emoji...">
                           <div class="chat-agent-emoji-grid">
                             <template x-for="item in filteredFreshInitEmojiCatalog()" :key="'fresh-init-emoji-' + item.emoji + '-' + item.name">
-                              <button class="emoji-grid-item" @click.stop="selectFreshInitEmoji(item)" :title="item.name" x-text="item.emoji"></button>
+                              <button class="emoji-grid-item" @click.stop="selectFreshInitEmoji(item)" :disabled="freshInitLaunching" :title="item.name" x-text="item.emoji"></button>
                             </template>
                           </div>
                         </div>
@@ -13,7 +13,7 @@
                     </div>
                   </div>
                   <div class="chat-init-name-row" data-init-anchor="identity-name">
-                    <input class="form-input chat-init-name-input" x-model="freshInitName" maxlength="100" placeholder="Agent name (optional)" title="Agent name">
+                    <input class="form-input chat-init-name-input" x-model="freshInitName" :disabled="freshInitLaunching" maxlength="100" placeholder="Agent name (optional)" title="Agent name">
                   </div>
                   <div class="text-xs text-dim" x-show="freshInitAvatarUploading">Uploading avatar...</div>
                   <div class="text-xs text-danger" x-show="freshInitAvatarUploadError" x-text="freshInitAvatarUploadError"></div>
@@ -21,7 +21,7 @@
                   <div class="chat-init-section-title" data-init-anchor="role">Role <span class="chat-init-section-required">required</span></div>
                   <div class="chat-archetype-grid chat-init-grid">
                     <template x-for="t in chatArchetypeTemplates" :key="'chat-arch-' + t.name">
-                      <button class="chat-archetype-tile" :class="{ selected: isFreshInitTemplateSelected(t) }" @click="applyChatArchetypeTemplate(t)">
+                      <button class="chat-archetype-tile" :class="{ selected: isFreshInitTemplateSelected(t) }" :disabled="freshInitLaunching" @click="applyChatArchetypeTemplate(t)">
                         <span class="chat-archetype-tile-head">
                           <span class="chat-archetype-name" x-text="t.name"></span>
                           <span class="badge badge-dim" x-text="t.category"></span>
@@ -35,7 +35,7 @@
                   <div class="chat-init-section-title" data-init-anchor="lifespan">Lifespan <span class="chat-init-section-required">required</span></div>
                   <div class="chat-archetype-grid chat-init-grid chat-init-lifespan-grid">
                     <template x-for="l in freshInitLifespanCards" :key="'chat-lifespan-' + l.id">
-                      <button class="chat-archetype-tile" :class="{ selected: isFreshInitLifespanSelected(l) }" @click="selectFreshInitLifespan(l)">
+                      <button class="chat-archetype-tile" :class="{ selected: isFreshInitLifespanSelected(l) }" :disabled="freshInitLaunching" @click="selectFreshInitLifespan(l)">
                         <span class="chat-archetype-tile-head">
                           <span class="chat-archetype-name" x-text="l.name"></span>
                         </span>
@@ -44,7 +44,7 @@
                     </template>
                   </div>
 
-                  <button class="chat-init-advanced-toggle" type="button" @click="toggleFreshInitAdvanced()">
+                  <button class="chat-init-advanced-toggle" type="button" :disabled="freshInitLaunching" @click="toggleFreshInitAdvanced()">
                     <span class="chat-init-advanced-title">Advanced setup <span class="chat-init-section-optional">Optional</span></span>
                     <span class="chat-init-advanced-chevron" :class="{ open: freshInitAdvancedOpen }" aria-hidden="true">▾</span>
                   </button>
@@ -57,7 +57,7 @@
                     </div>
                     <div class="chat-archetype-grid chat-init-grid chat-init-model-grid" x-show="!freshInitModelSuggestLoading">
                       <template x-for="(m, idx) in freshInitModelSuggestions" :key="'chat-init-model-' + normalizeFreshInitModelRef(m)">
-                        <button class="chat-archetype-tile chat-init-model-tile" :class="{ selected: isFreshInitModelSuggestionSelected(m) }" @click="selectFreshInitModelSuggestion(m)">
+                        <button class="chat-archetype-tile chat-init-model-tile" :class="{ selected: isFreshInitModelSuggestionSelected(m) }" :disabled="freshInitLaunching" @click="selectFreshInitModelSuggestion(m)">
                           <span class="chat-archetype-tile-head">
                             <span class="chat-archetype-name"><span class="chat-init-model-rank" x-text="'#' + (idx + 1)"></span> <span x-text="freshInitModelName(m)"></span></span>
                             <span class="badge badge-dim" x-text="String(m.provider || 'model').toUpperCase()"></span>
@@ -82,7 +82,7 @@
                     <div class="chat-init-section-title">Vibe <span class="chat-init-section-optional">Optional</span></div>
                     <div class="chat-archetype-grid chat-init-grid chat-init-vibe-grid">
                       <template x-for="v in freshInitVibeCards" :key="'chat-vibe-' + v.id">
-                        <button class="chat-archetype-tile" :class="{ selected: isFreshInitVibeSelected(v) }" @click="selectFreshInitVibe(v)">
+                        <button class="chat-archetype-tile" :class="{ selected: isFreshInitVibeSelected(v) }" :disabled="freshInitLaunching" @click="selectFreshInitVibe(v)">
                           <span class="chat-archetype-tile-head">
                             <span class="chat-archetype-name" x-text="v.name"></span>
                           </span>
@@ -94,7 +94,7 @@
                     <div class="chat-init-section-title">Personality <span class="chat-init-section-optional">Optional</span></div>
                     <div class="chat-archetype-grid chat-init-grid chat-init-personality-grid">
                       <template x-for="p in freshInitPersonalityCards" :key="'chat-personality-' + p.id">
-                        <button class="chat-archetype-tile" :class="{ selected: isFreshInitPersonalitySelected(p) }" @click="selectFreshInitPersonality(p)">
+                        <button class="chat-archetype-tile" :class="{ selected: isFreshInitPersonalitySelected(p) }" :disabled="freshInitLaunching" @click="selectFreshInitPersonality(p)">
                           <span class="chat-archetype-tile-head">
                             <span class="chat-archetype-name" x-text="p.name"></span>
                           </span>
@@ -105,7 +105,7 @@
                   </div>
 
                   <div class="chat-init-launch-row" data-init-anchor="launch">
-                    <button class="btn btn-primary chat-init-launch-btn" :class="{ 'chat-init-launch-pulse': freshInitCanLaunch && !freshInitLaunching }" @click="launchFreshAgentInitialization()" :disabled="!freshInitCanLaunch">
+                    <button class="btn btn-primary chat-init-launch-btn" :class="{ 'chat-init-launch-pulse': freshInitCanLaunch && !freshInitLaunching }" @click="launchFreshAgentInitialization()" :disabled="freshInitLaunching || !freshInitCanLaunch">
                       <span x-show="!freshInitLaunching">Launch</span>
                       <span x-show="freshInitLaunching">Launching...</span>
                     </button>
@@ -213,7 +213,7 @@
                   </template>
                 </div>
               </div>
-              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0">
+              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0 && hasConversationSuggestionSeed() && promptSuggestions.length > 0">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
                   <button
                     class="prompt-suggestion-chip prompt-suggestion-chip-rise"

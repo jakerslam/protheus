@@ -46,12 +46,10 @@
     <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideCollapsedAgentHover()">
       <!-- Agents conversations — primary action -->
       <div class="nav-section" aria-label="Agent conversations">
-        <div class="nav-section-title" @click="toggleAgentChatsSection()">
+        <div class="nav-section-title">
           <span class="nav-label">Agents</span>
-          <span class="nav-section-chevron" :style="agentChatsSectionCollapsed ? '' : 'transform:rotate(90deg)'">&rsaquo;</span>
         </div>
-        <template x-if="!agentChatsSectionCollapsed">
-          <div x-transition>
+          <div>
             <a class="nav-item" :class="{ active: page === 'chat' }" @click="navigate('chat')" :aria-current="page === 'chat' ? 'page' : false">
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -280,17 +278,14 @@
               <span class="nav-label">Approvals</span>
             </a>
           </div>
-        </template>
       </div>
 
       <!-- Automation -->
-      <div class="nav-section" x-data="{ collapsed: false }" aria-label="Automation">
-        <div class="nav-section-title" @click="collapsed = !collapsed">
+      <div class="nav-section" aria-label="Automation">
+        <div class="nav-section-title">
           <span class="nav-label">Automation</span>
-          <span class="nav-section-chevron" :style="collapsed ? '' : 'transform:rotate(90deg)'">&rsaquo;</span>
         </div>
-        <template x-if="!collapsed">
-          <div x-transition>
+          <div>
             <a class="nav-item" :class="{ active: page === 'workflows' }" @click="navigate('workflows')" :aria-current="page === 'workflows' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 3v12M18 9a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/></svg></span>
               <span class="nav-label">Workflows</span>
@@ -300,17 +295,14 @@
               <span class="nav-label">Scheduler</span>
             </a>
           </div>
-        </template>
       </div>
 
       <!-- Plugins -->
-      <div class="nav-section" x-data="{ collapsed: false }" aria-label="Plugins">
-        <div class="nav-section-title" @click="collapsed = !collapsed">
+      <div class="nav-section" aria-label="Plugins">
+        <div class="nav-section-title">
           <span class="nav-label">Plugins</span>
-          <span class="nav-section-chevron" :style="collapsed ? '' : 'transform:rotate(90deg)'">&rsaquo;</span>
         </div>
-        <template x-if="!collapsed">
-          <div x-transition>
+          <div>
             <a class="nav-item" :class="{ active: page === 'channels' }" @click="navigate('channels')" :aria-current="page === 'channels' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18"/></svg></span>
               <span class="nav-label">Channels</span>
@@ -328,17 +320,14 @@
               <span class="nav-label">Hands</span>
             </a>
           </div>
-        </template>
       </div>
 
       <!-- System -->
-      <div class="nav-section" x-data="{ collapsed: false }" aria-label="System">
-        <div class="nav-section-title" @click="collapsed = !collapsed">
+      <div class="nav-section" aria-label="System">
+        <div class="nav-section-title">
           <span class="nav-label">System</span>
-          <span class="nav-section-chevron" :style="collapsed ? '' : 'transform:rotate(90deg)'">&rsaquo;</span>
         </div>
-        <template x-if="!collapsed">
-          <div x-transition>
+          <div>
             <a class="nav-item" :class="{ active: page === 'analytics' }" @click="navigate('analytics')" :aria-current="page === 'analytics' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span>
               <span class="nav-label">Analytics</span>
@@ -352,7 +341,6 @@
               <span class="nav-label">Runtime</span>
             </a>
           </div>
-        </template>
       </div>
     </div>
       <button

@@ -126,6 +126,25 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             message: cleanText(out.message || `Command '${command || 'unknown'}' acknowledged.`, 320),
             runtime_sync: out.runtime_sync || null,
             context_window: toNum(out.context_window || 0, 0),
+            context_tokens: toNum(
+              out.context_tokens ||
+              out.context_used_tokens ||
+              (out.context_pool && out.context_pool.active_tokens) ||
+              0,
+              0
+            ),
+            context_ratio: toNum(
+              out.context_ratio ||
+              (out.context_pool && out.context_pool.context_ratio) ||
+              0,
+              0
+            ),
+            context_pressure: cleanText(
+              out.context_pressure ||
+              (out.context_pool && out.context_pool.context_pressure) ||
+              '',
+              32
+            ),
           });
           return;
         }

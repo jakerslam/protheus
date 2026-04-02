@@ -245,9 +245,8 @@
       if (!store) return;
       var pendingId = String(store.pendingFreshAgentId || '').trim();
       if (!pendingId) return;
-      var currentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
       var targetId = String(nextAgentId || '').trim();
-      if (!currentId || currentId !== pendingId || !targetId || targetId === pendingId) return;
+      if (!targetId || targetId === pendingId) return;
       store.pendingFreshAgentId = null;
       store.pendingAgent = null;
       InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
@@ -336,6 +335,9 @@
       this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
       if (store) this.setStoreActiveAgentId(resolved.id || null);
       this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
+      // Reset context meter on agent switch to avoid stale carry-over from prior threads.
+      this.contextApproxTokens = 0;
+      this.contextPressure = 'low';
       this.setContextWindowFromCurrentAgent();
       if (forceFreshSession && this.conversationCache) {
         delete this.conversationCache[String(resolved.id)];

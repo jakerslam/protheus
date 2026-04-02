@@ -318,16 +318,11 @@
         'usage': 'analytics',
         'approval': 'approvals'
       };
-      this.syncAgentChatsSectionForPage = function(nextPage) {
-        var page = String(nextPage || this.page || '').trim().toLowerCase();
-        this.agentChatsSectionCollapsed = page !== 'chat';
+      this.syncAgentChatsSectionForPage = function() {
+        this.agentChatsSectionCollapsed = false;
       };
       this.toggleAgentChatsSection = function() {
-        if (String(this.page || '').trim().toLowerCase() !== 'chat') {
-          this.navigate('chat');
-          return;
-        }
-        this.agentChatsSectionCollapsed = !this.agentChatsSectionCollapsed;
+        this.agentChatsSectionCollapsed = false;
       };
       function handleHash() {
         var hash = window.location.hash.replace('#', '') || 'chat';
@@ -437,8 +432,19 @@
         var store = this.getAppStore();
         var pendingId = String((store && store.pendingFreshAgentId) || '').trim();
         var activeId = String((store && store.activeAgentId) || '').trim();
-        if (pendingId && activeId && pendingId === activeId) {
-          if (store) { store.pendingFreshAgentId = null; store.pendingAgent = null; if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null); else store.activeAgentId = null; }
+        if (pendingId) {
+          if (store) {
+            store.pendingFreshAgentId = null;
+            store.pendingAgent = null;
+            if (pendingId === activeId) {
+              if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
+              else store.activeAgentId = null;
+            }
+          }
+          this.chatSidebarTopologyOrder = (this.chatSidebarTopologyOrder || []).filter(function(id) {
+            return String(id || '').trim() !== pendingId;
+          });
+          this.persistChatSidebarTopologyOrder();
           InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
           if (store && typeof store.refreshAgents === 'function') setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
         }

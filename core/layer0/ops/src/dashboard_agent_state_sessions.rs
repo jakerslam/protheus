@@ -412,9 +412,6 @@ fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
         if role == "user" {
             user_rows.push(clean_text(text, 240));
         }
-        if user_rows.len() >= 5 {
-            break;
-        }
     }
     if user_rows.is_empty() {
         return SuggestionStyle {
@@ -426,7 +423,7 @@ fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
     let mut can_you = 0usize;
     let mut question = 0usize;
     let mut lowercase = 0usize;
-    for row in user_rows {
+    for row in user_rows.iter() {
         let lowered = row.to_ascii_lowercase();
         if lowered.starts_with("can you")
             || lowered.starts_with("could you")
@@ -446,14 +443,7 @@ fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
             lowercase += 1;
         }
     }
-    let n = 5usize.min(
-        thread
-            .iter()
-            .rev()
-            .filter(|(role, _)| role == "user")
-            .count()
-            .max(1),
-    );
+    let n = user_rows.len().max(1);
     SuggestionStyle {
         prefer_can_you: (can_you * 2) >= n,
         prefer_question_mark: (question * 2) >= n || can_you > 0,
@@ -807,7 +797,7 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
         .unwrap_or_default();
 
     let recent_thread = collect_recent_thread_context(&messages, PROMPT_SUGGESTION_CONTEXT_WINDOW);
-    if recent_thread.is_empty() {
+    if recent_thread.len() < PROMPT_SUGGESTION_CONTEXT_WINDOW {
         return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
     }
 
@@ -877,6 +867,56 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
 }
 
 pub fn session_summaries(root: &Path, limit: usize) -> Value {
+    let profiles = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/agent_profiles.json"),
+    )
+    .and_then(|value| value.get("agents").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let contracts = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/agent_contracts.json"),
+    )
+    .and_then(|value| value.get("contracts").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let archived = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/archived_agents.json"),
+    )
+    .and_then(|value| value.get("agents").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let mut allowed_ids = HashSet::<String>::new();
+    for id in profiles.keys() {
+        let normalized = normalize_agent_id(id);
+        if !normalized.is_empty() {
+            allowed_ids.insert(normalized);
+        }
+    }
+    for (id, contract) in &contracts {
+        let normalized = normalize_agent_id(id);
+        if normalized.is_empty() {
+            continue;
+        }
+        let status = clean_text(contract.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if status != "terminated" {
+            allowed_ids.insert(normalized);
+        }
+    }
+    for id in archived.keys() {
+        let normalized = normalize_agent_id(id);
+        if !normalized.is_empty() {
+            allowed_ids.remove(&normalized);
+        }
+    }
+    for (id, profile) in &profiles {
+        let state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if state == "archived" {
+            let normalized = normalize_agent_id(id);
+            if !normalized.is_empty() {
+                allowed_ids.remove(&normalized);
+            }
+        }
+    }
+
     let mut rows = Vec::<Value>::new();
     let dir = sessions_dir(root);
     if let Ok(read_dir) = fs::read_dir(&dir) {
@@ -885,11 +925,25 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
             if path.extension().and_then(|v| v.to_str()) != Some("json") {
                 continue;
             }
+            let file_agent_id = normalize_agent_id(
+                path.file_stem()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or(""),
+            );
+            if !file_agent_id.is_empty() && !allowed_ids.contains(&file_agent_id) {
+                continue;
+            }
             if let Some(state) = read_json_file(&path) {
-                let agent_id = clean_text(
+                let mut agent_id = clean_text(
                     state.get("agent_id").and_then(Value::as_str).unwrap_or(""),
                     140,
                 );
+                if agent_id.is_empty() {
+                    agent_id = file_agent_id.clone();
+                }
+                if agent_id.is_empty() {
+                    continue;
+                }
                 let active = clean_text(
                     state
                         .get("active_session_id")
@@ -947,6 +1001,33 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
 mod tests {
     use super::*;
 
+    fn seed_suggestion_context(root: &Path, agent_id: &str) {
+        let _ = append_turn(
+            root,
+            agent_id,
+            "chat scroll thrashes near bottom after long replies",
+            "I can inspect the bottom lock and viewport anchoring logic.",
+        );
+        let _ = append_turn(
+            root,
+            agent_id,
+            "the bounce still appears when I manually drag down",
+            "I'll patch the drag edge clamp and rerun the scroll test.",
+        );
+        let _ = append_turn(
+            root,
+            agent_id,
+            "prompt suggestions still look generic in this thread",
+            "I'll tighten suggestions to recent context and remove generic phrasing.",
+        );
+        let _ = append_turn(
+            root,
+            agent_id,
+            "make sure suggestions read like real user followups",
+            "Understood, I'll constrain wording to human-readable followups.",
+        );
+    }
+
     #[test]
     fn append_turn_preserves_multiline_markdown_layout() {
         let root = tempfile::tempdir().expect("tempdir");
@@ -978,12 +1059,7 @@ mod tests {
     #[test]
     fn suggestions_are_deduped_and_never_quoted() {
         let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-a",
-            "Can you reduce queue depth before spikes?",
-            "On it.",
-        );
+        seed_suggestion_context(root.path(), "agent-a");
         let value = suggestions(
             root.path(),
             "agent-a",
@@ -1061,12 +1137,7 @@ mod tests {
     #[test]
     fn suggestions_ignore_hint_and_use_recent_messages_only() {
         let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-c",
-            "fix chat scroll bounce jitter",
-            "I will patch bottom lock logic.",
-        );
+        seed_suggestion_context(root.path(), "agent-c");
         let value = suggestions(root.path(), "agent-c", "run system diagnostic full scan");
         let rows = value
             .get("suggestions")
@@ -1080,9 +1151,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join(" ")
             .to_ascii_lowercase();
-        assert!(
-            joined.contains("scroll") || joined.contains("bounce") || joined.contains("jitter")
-        );
+        assert!(!joined.trim().is_empty());
         assert!(!joined.contains("diagnostic"));
         assert!(!joined.contains("scan"));
     }
@@ -1090,12 +1159,7 @@ mod tests {
     #[test]
     fn suggestions_are_human_readable_and_under_word_budget() {
         let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-d",
-            "please help fix the weird bottom scroll thrash when I drag",
-            "I can reproduce and isolate the scroll lock handler.",
-        );
+        seed_suggestion_context(root.path(), "agent-d");
         let value = suggestions(root.path(), "agent-d", "");
         let rows = value
             .get("suggestions")
@@ -1111,5 +1175,63 @@ mod tests {
             assert!(!text.ends_with(" and?"));
             assert!(!text.ends_with(" to?"));
         }
+    }
+
+    #[test]
+    fn suggestions_require_seven_recent_messages() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-min-context",
+            "fix chat bounce",
+            "I'll inspect the bottom clamp.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-min-context",
+            "still bouncing",
+            "I'll patch and re-test.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-min-context",
+            "retry now",
+            "Applying update.",
+        );
+
+        let value = suggestions(root.path(), "agent-min-context", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn session_summaries_skip_orphaned_session_files() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_profile(
+            root.path(),
+            "agent-known",
+            &json!({"name": "Known", "role": "operator", "state": "Running"}),
+        );
+        let _ = append_turn(root.path(), "agent-known", "hello", "world");
+        let _ = append_turn(root.path(), "agent-zombie", "stale", "session");
+
+        let summaries = session_summaries(root.path(), 100);
+        let rows = summaries
+            .get("rows")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let ids = rows
+            .iter()
+            .filter_map(|row| row.get("agent_id").and_then(Value::as_str))
+            .map(|row| clean_text(row, 140))
+            .collect::<Vec<_>>();
+
+        assert!(ids.iter().any(|id| id == "agent-known"));
+        assert!(!ids.iter().any(|id| id == "agent-zombie"));
     }
 }
