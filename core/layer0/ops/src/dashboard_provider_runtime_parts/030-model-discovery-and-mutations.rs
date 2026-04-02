@@ -1,4 +1,6 @@
 include!("035-model-metadata-research.rs");
+include!("022-provider-adapters.rs");
+include!("025-prompt-optimization.rs");
 
 pub fn discover_models(root: &Path, input: &str) -> Value {
     let cleaned = clean_text(input, 4096);
@@ -235,16 +237,21 @@ fn invoke_chat_live(
     system_prompt: &str,
     session_messages: &[Value],
     user_message: &str,
+    assistant_prefill: &str,
 ) -> Result<Value, String> {
     let provider = normalize_provider_id(provider_id);
     let model = clean_text(model_name, 240);
     let system = clean_chat_text(system_prompt, 12_000);
     let mut messages = content_from_message_rows(session_messages);
     let user = clean_chat_text(user_message, 16_000);
+    let prefill = clean_chat_text(assistant_prefill, 320);
     if user.trim().is_empty() {
         return Err("message_required".to_string());
     }
     messages.push(("user".to_string(), user.clone()));
+    if !prefill.trim().is_empty() {
+        messages.push(("assistant".to_string(), prefill.clone()));
+    }
     let base_url = clean_text(
         provider_row(root, &provider)
             .get("base_url")
@@ -254,197 +261,19 @@ fn invoke_chat_live(
     );
     let started = Instant::now();
     let context_window = model_context_window(root, &provider, &model);
-
-    let response = match provider.as_str() {
-        "ollama" => {
-            let mut rows = Vec::<Value>::new();
-            if !system.is_empty() {
-                rows.push(json!({"role":"system","content": system}));
-            }
-            for (role, text) in &messages {
-                rows.push(json!({"role": if role == "assistant" { "assistant" } else { "user" }, "content": text}));
-            }
-            let payload = json!({
-                "model": model,
-                "stream": false,
-                "messages": rows
-            });
-            let (status, value) = curl_json(
-                &format!("{base_url}/api/chat"),
-                "POST",
-                &["Content-Type: application/json".to_string()],
-                Some(&payload),
-                180,
-            )?;
-            if !(200..300).contains(&status) {
-                return Err(format!(
-                    "model backend unavailable: {}",
-                    error_text_from_value(&value)
-                ));
-            }
-            let text = clean_chat_text(
-                value
-                    .pointer("/message/content")
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                32_000,
-            );
-            json!({
-                "ok": true,
-                "provider": provider,
-                "model": model,
-                "runtime_model": model,
-                "response": text,
-                "input_tokens": value.get("prompt_eval_count").and_then(Value::as_i64).unwrap_or(((system.len() + user.len()) / 4) as i64),
-                "output_tokens": value.get("eval_count").and_then(Value::as_i64).unwrap_or((text.len() / 4) as i64),
-                "cost_usd": 0.0,
-                "context_window": context_window,
-                "latency_ms": started.elapsed().as_millis() as i64,
-                "tools": []
-            })
-        }
-        "anthropic" => {
-            let Some(key) = provider_key(root, &provider) else {
-                return Err("couldn't reach a chat model backend: provider key missing".to_string());
-            };
-            let payload = json!({
-                "model": model,
-                "system": system,
-                "max_tokens": 4096,
-                "messages": messages.iter().map(|(role, text)| {
-                    json!({
-                        "role": if role == "assistant" { "assistant" } else { "user" },
-                        "content": text
-                    })
-                }).collect::<Vec<_>>()
-            });
-            let headers = vec![
-                "Content-Type: application/json".to_string(),
-                format!("x-api-key: {key}"),
-                "anthropic-version: 2023-06-01".to_string(),
-            ];
-            let (status, value) = curl_json(
-                &format!("{base_url}/v1/messages"),
-                "POST",
-                &headers,
-                Some(&payload),
-                180,
-            )?;
-            if !(200..300).contains(&status) {
-                return Err(format!(
-                    "model backend unavailable: {}",
-                    error_text_from_value(&value)
-                ));
-            }
-            let text = extract_anthropic_text(&value);
-            json!({
-                "ok": true,
-                "provider": provider,
-                "model": model,
-                "runtime_model": model,
-                "response": text,
-                "input_tokens": value.pointer("/usage/input_tokens").and_then(Value::as_i64).unwrap_or(((system.len() + user.len()) / 4) as i64),
-                "output_tokens": value.pointer("/usage/output_tokens").and_then(Value::as_i64).unwrap_or(1.max((extract_anthropic_text(&value).len() / 4) as i64)),
-                "cost_usd": 0.0,
-                "context_window": context_window,
-                "latency_ms": started.elapsed().as_millis() as i64,
-                "tools": []
-            })
-        }
-        "google" => {
-            let Some(key) = provider_key(root, &provider) else {
-                return Err("couldn't reach a chat model backend: provider key missing".to_string());
-            };
-            let payload = json!({
-                "system_instruction": if system.is_empty() { Value::Null } else { json!({"parts":[{"text": system}]}) },
-                "contents": messages.iter().map(|(role, text)| {
-                    json!({
-                        "role": if role == "assistant" { "model" } else { "user" },
-                        "parts": [{"text": text}]
-                    })
-                }).collect::<Vec<_>>()
-            });
-            let (status, value) = curl_json(
-                &format!(
-                    "{base_url}/v1beta/models/{}:generateContent?key={}",
-                    urlencoding::encode(&model),
-                    key
-                ),
-                "POST",
-                &["Content-Type: application/json".to_string()],
-                Some(&payload),
-                180,
-            )?;
-            if !(200..300).contains(&status) {
-                return Err(format!(
-                    "model backend unavailable: {}",
-                    error_text_from_value(&value)
-                ));
-            }
-            let text = extract_google_text(&value);
-            json!({
-                "ok": true,
-                "provider": provider,
-                "model": model,
-                "runtime_model": model,
-                "response": text,
-                "input_tokens": value.pointer("/usageMetadata/promptTokenCount").and_then(Value::as_i64).unwrap_or(((system.len() + user.len()) / 4) as i64),
-                "output_tokens": value.pointer("/usageMetadata/candidatesTokenCount").and_then(Value::as_i64).unwrap_or(1.max((text.len() / 4) as i64)),
-                "cost_usd": 0.0,
-                "context_window": context_window,
-                "latency_ms": started.elapsed().as_millis() as i64,
-                "tools": []
-            })
-        }
-        _ => {
-            let Some(key) = provider_key(root, &provider) else {
-                return Err("couldn't reach a chat model backend: provider key missing".to_string());
-            };
-            let mut rows = Vec::<Value>::new();
-            if !system.is_empty() {
-                rows.push(json!({"role": "system", "content": system}));
-            }
-            for (role, text) in &messages {
-                rows.push(json!({"role": if role == "assistant" { "assistant" } else { "user" }, "content": text}));
-            }
-            let payload = json!({
-                "model": model,
-                "stream": false,
-                "messages": rows
-            });
-            let headers = vec![
-                "Content-Type: application/json".to_string(),
-                format!("Authorization: Bearer {key}"),
-            ];
-            let (status, value) = curl_json(
-                &format!("{base_url}/chat/completions"),
-                "POST",
-                &headers,
-                Some(&payload),
-                180,
-            )?;
-            if !(200..300).contains(&status) {
-                return Err(format!(
-                    "model backend unavailable: {}",
-                    error_text_from_value(&value)
-                ));
-            }
-            let text = extract_openai_text(&value);
-            json!({
-                "ok": true,
-                "provider": provider,
-                "model": model,
-                "runtime_model": model,
-                "response": text,
-                "input_tokens": value.pointer("/usage/prompt_tokens").and_then(Value::as_i64).unwrap_or(((system.len() + user.len()) / 4) as i64),
-                "output_tokens": value.pointer("/usage/completion_tokens").and_then(Value::as_i64).unwrap_or(1.max((text.len() / 4) as i64)),
-                "cost_usd": 0.0,
-                "context_window": context_window,
-                "latency_ms": started.elapsed().as_millis() as i64,
-                "tools": []
-            })
-        }
+    let input = ProviderInvokeInput {
+        root,
+        provider: &provider,
+        model: &model,
+        base_url: &base_url,
+        system: &system,
+        messages: &messages,
+        prefill: &prefill,
+        user: &user,
+        context_window,
+        started,
     };
+    let response = invoke_provider_via_adapter(&input)?;
     let text = clean_chat_text(
         response
             .get("response")
@@ -458,6 +287,69 @@ fn invoke_chat_live(
     Ok(response)
 }
 
+fn infer_auto_route_request(
+    system_prompt: &str,
+    session_messages: &[Value],
+    user_message: &str,
+) -> Value {
+    let system = clean_chat_text(system_prompt, 2_000).to_ascii_lowercase();
+    let user = clean_chat_text(user_message, 4_000).to_ascii_lowercase();
+    let transcript = content_from_message_rows(session_messages)
+        .into_iter()
+        .rev()
+        .take(6)
+        .map(|(_, text)| clean_chat_text(&text, 320))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    let merged = format!("{system} {user} {transcript}");
+    let complexity = if merged.contains("deep")
+        || merged.contains("in-depth")
+        || merged.contains("comprehensive")
+        || merged.contains("thorough")
+        || merged.contains("analyze")
+    {
+        "high"
+    } else {
+        "general"
+    };
+    let task_type = if merged.contains("code")
+        || merged.contains("bug")
+        || merged.contains("test")
+        || merged.contains("refactor")
+    {
+        "code"
+    } else if merged.contains("research")
+        || merged.contains("docs")
+        || merged.contains("cite")
+    {
+        "research"
+    } else {
+        "general"
+    };
+    let budget_mode = if merged.contains("cheap")
+        || merged.contains("low cost")
+        || merged.contains("save tokens")
+        || merged.contains("fast")
+    {
+        "cheap"
+    } else {
+        "balanced"
+    };
+    let prefer_local = merged.contains("local")
+        || merged.contains("offline")
+        || merged.contains("private")
+        || merged.contains("air-gapped");
+    let token_count = ((system.len() + user.len() + transcript.len()) / 4).max(1) as i64;
+    json!({
+        "task_type": task_type,
+        "complexity": complexity,
+        "budget_mode": budget_mode,
+        "prefer_local": prefer_local,
+        "token_count": token_count
+    })
+}
+
 #[cfg(test)]
 fn invoke_chat_impl(
     _root: &Path,
@@ -466,6 +358,7 @@ fn invoke_chat_impl(
     system_prompt: &str,
     _session_messages: &[Value],
     user_message: &str,
+    _assistant_prefill: &str,
 ) -> Result<Value, String> {
     let provider = normalize_provider_id(provider_id);
     let model = clean_text(model_name, 240);
@@ -502,6 +395,7 @@ fn invoke_chat_impl(
     system_prompt: &str,
     session_messages: &[Value],
     user_message: &str,
+    assistant_prefill: &str,
 ) -> Result<Value, String> {
     invoke_chat_live(
         root,
@@ -510,6 +404,7 @@ fn invoke_chat_impl(
         system_prompt,
         session_messages,
         user_message,
+        assistant_prefill,
     )
 }
 
@@ -521,8 +416,36 @@ pub fn invoke_chat(
     session_messages: &[Value],
     user_message: &str,
 ) -> Result<Value, String> {
-    let primary_provider = normalize_provider_id(provider_id);
-    let primary_model = clean_text(model_name, 240);
+    let requested_provider = normalize_provider_id(provider_id);
+    let requested_model = clean_text(model_name, 240);
+    let snapshot = read_json(&PathBuf::from(root).join(
+        "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json",
+    ))
+    .unwrap_or_else(|| json!({}));
+    let route_request = infer_auto_route_request(system_prompt, session_messages, user_message);
+    let (resolved_provider, resolved_model, auto_route_decision) =
+        crate::dashboard_model_catalog::resolve_model_selection(
+            root,
+            &snapshot,
+            &requested_provider,
+            &requested_model,
+            &route_request,
+        );
+    if let Some(decision) = auto_route_decision.clone() {
+        append_routing_event(
+            root,
+            &json!({
+                "ts": crate::now_iso(),
+                "ok": true,
+                "provider": clean_text(&resolved_provider, 80),
+                "model": clean_text(&resolved_model, 240),
+                "auto_route_decision": decision,
+                "route_request": route_request
+            }),
+        );
+    }
+    let primary_provider = normalize_provider_id(&resolved_provider);
+    let primary_model = clean_text(&resolved_model, 240);
     if primary_provider.is_empty() || primary_model.is_empty() {
         return Err("provider_or_model_required".to_string());
     }
@@ -532,8 +455,23 @@ pub fn invoke_chat(
     let mut attempts = Vec::<Value>::new();
     let mut total_attempts = 0usize;
     let mut last_error = "model backend unavailable".to_string();
+    let mut last_prompt_metadata = json!({});
 
     for (route_index, (provider, model)) in routes.iter().enumerate() {
+        let optimized = optimize_prompt_request(
+            root,
+            provider,
+            model,
+            system_prompt,
+            session_messages,
+            user_message,
+        );
+        let optimized_system_prompt = optimized.system_prompt.clone();
+        let optimized_session_messages = optimized.session_messages.clone();
+        let optimized_user_message = optimized.user_message.clone();
+        let optimized_prefill = optimized.assistant_prefill.clone();
+        let route_prompt_metadata = optimized.metadata.clone();
+        last_prompt_metadata = route_prompt_metadata.clone();
         let mut route_attempt_index = 0usize;
         while route_attempt_index < max_attempts_per_route && total_attempts < max_total_attempts {
             route_attempt_index += 1;
@@ -543,9 +481,10 @@ pub fn invoke_chat(
                 root,
                 provider,
                 model,
-                system_prompt,
-                session_messages,
-                user_message,
+                &optimized_system_prompt,
+                &optimized_session_messages,
+                &optimized_user_message,
+                &optimized_prefill,
             ) {
                 Ok(mut response) => {
                     let input_tokens = response
@@ -567,6 +506,16 @@ pub fn invoke_chat(
                     response["provider"] = json!(provider);
                     response["model"] = json!(model);
                     response["runtime_model"] = json!(model);
+                    let response_hash = crate::deterministic_receipt_hash(&json!({
+                        "provider": provider,
+                        "model": model,
+                        "response": response.get("response").and_then(Value::as_str).unwrap_or("")
+                    }));
+                    response["response_hash"] = json!(response_hash.clone());
+                    response["prompt_optimization"] = route_prompt_metadata.clone();
+                    if let Some(decision) = auto_route_decision.clone() {
+                        response["auto_route_decision"] = decision;
+                    }
                     let mut trace_rows = attempts.clone();
                     trace_rows.push(json!({
                         "provider": provider,
@@ -600,7 +549,20 @@ pub fn invoke_chat(
                             "total_attempts": total_attempts,
                             "input_tokens": input_tokens,
                             "output_tokens": output_tokens,
-                            "cost_usd": round_usd(estimated_cost)
+                            "cost_usd": round_usd(estimated_cost),
+                            "prompt_optimization": route_prompt_metadata.clone()
+                        }),
+                    );
+                    append_provider_inference_receipt(
+                        root,
+                        json!({
+                            "ok": true,
+                            "provider": provider,
+                            "model": model,
+                            "input_tokens": input_tokens,
+                            "output_tokens": output_tokens,
+                            "cost_usd": round_usd(estimated_cost),
+                            "response_hash": response_hash
                         }),
                     );
                     return Ok(response);
@@ -617,8 +579,19 @@ pub fn invoke_chat(
                         "ok": false,
                         "retryable": retryable,
                         "error": clean_text(&error, 240),
-                        "latency_ms": attempt_started.elapsed().as_millis() as i64
+                        "latency_ms": attempt_started.elapsed().as_millis() as i64,
+                        "prompt_optimization": route_prompt_metadata.clone()
                     }));
+                    append_provider_inference_receipt(
+                        root,
+                        json!({
+                            "ok": false,
+                            "provider": provider,
+                            "model": model,
+                            "error": clean_text(&error, 240),
+                            "response_hash": Value::Null
+                        }),
+                    );
                     if !retryable {
                         break;
                     }
@@ -648,7 +621,8 @@ pub fn invoke_chat(
             "model": primary_model,
             "error": clean_text(&last_error, 240),
             "total_attempts": total_attempts,
-            "attempts": attempts
+            "attempts": attempts,
+            "prompt_optimization": last_prompt_metadata
         }),
     );
     Err(format!(
@@ -660,6 +634,7 @@ pub fn invoke_chat(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn routing_policy_requires_signature_on_update() {
@@ -754,6 +729,70 @@ mod tests {
             .and_then(Value::as_f64)
             .map(|value| value >= 0.0)
             .unwrap_or(false));
+        assert!(out
+            .get("prompt_optimization")
+            .and_then(|row| row.get("cache_control"))
+            .and_then(|row| row.get("lane"))
+            .and_then(Value::as_str)
+            .map(|lane| !lane.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn optimize_prompt_request_tracks_cache_hits_and_context_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let mut rows = Vec::<Value>::new();
+        for idx in 0..20usize {
+            rows.push(json!({
+                "role": if idx % 2 == 0 { "user" } else { "assistant" },
+                "text": format!("long conversation turn {idx}: {}", "detail ".repeat(40))
+            }));
+        }
+        let first = optimize_prompt_request(
+            root.path(),
+            "openai",
+            "gpt-5",
+            "You are helpful.",
+            &rows,
+            "Return JSON schema for concise cache test output.",
+        );
+        let second = optimize_prompt_request(
+            root.path(),
+            "openai",
+            "gpt-5",
+            "You are helpful.",
+            &rows,
+            "Return JSON schema for concise cache test output.",
+        );
+        assert_eq!(
+            first
+                .metadata
+                .pointer("/cache_control/cache_hit")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            second
+                .metadata
+                .pointer("/cache_control/cache_hit")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            second
+                .metadata
+                .pointer("/context/summary_applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            second
+                .metadata
+                .pointer("/output_contract/type")
+                .and_then(Value::as_str),
+            Some("json")
+        );
+        assert_eq!(second.assistant_prefill, "{");
     }
 
     #[test]
@@ -816,6 +855,57 @@ mod tests {
         assert!(
             !has_missing_local,
             "unavailable local fallback models should be filtered out"
+        );
+    }
+
+    #[test]
+    fn invoke_chat_auto_route_emits_decision_and_inference_receipt() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = add_custom_model(root.path(), "openai", "gpt-4o-mini", 128_000, 4_096);
+        let _ = save_provider_key(root.path(), "openai", "sk-test-openai");
+        let out = invoke_chat(
+            root.path(),
+            "auto",
+            "auto",
+            "You are a coding assistant.",
+            &[],
+            "Write a concise code review checklist.",
+        )
+        .expect("auto route invoke");
+        assert!(
+            out.get("provider")
+                .and_then(Value::as_str)
+                .map(|row| !row.is_empty() && row != "auto")
+                .unwrap_or(false),
+            "auto route should resolve a concrete provider"
+        );
+        assert!(
+            out.get("model")
+                .and_then(Value::as_str)
+                .map(|row| !row.is_empty() && row != "auto")
+                .unwrap_or(false),
+            "auto route should resolve a concrete model"
+        );
+        assert!(
+            out.get("auto_route_decision")
+                .and_then(Value::as_object)
+                .is_some(),
+            "resolved auto route decision should be visible in response"
+        );
+        assert!(
+            out.get("response_hash")
+                .and_then(Value::as_str)
+                .map(|row| !row.is_empty())
+                .unwrap_or(false),
+            "response hash should be attached for deterministic receipts"
+        );
+        let receipts = fs::read_to_string(root.path().join(PROVIDER_INFERENCE_RECEIPTS_REL))
+            .expect("provider inference receipts");
+        assert!(
+            receipts.contains("\"type\":\"infring_provider_inference_receipt\"")
+                && receipts.contains("\"provider\"")
+                && receipts.contains("\"response_hash\""),
+            "inference receipts should be persisted with provider and response hash fields"
         );
     }
 }

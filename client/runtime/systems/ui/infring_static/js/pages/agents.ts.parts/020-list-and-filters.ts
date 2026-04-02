@@ -11,10 +11,19 @@
 
     async loadLifecycle() {
       var firstLoad = !this.terminatedHydrated;
+      var now = Date.now();
+      var recentlyLoaded = Number(this._lifecycleLoadedAt || 0);
+      if (!firstLoad && (now - recentlyLoaded) < 1200) return;
       this.lifecycleLoading = true;
       if (firstLoad) this.terminatedLoading = true;
       try {
-        var snapshot = await InfringAPI.get('/api/dashboard/snapshot');
+        var snapshot = await InfringAPI.getDashboardSnapshot(this._dashboardSnapshotHash || '');
+        var snapshotHash = String(
+          (snapshot && snapshot.sync && snapshot.sync.composite_checksum)
+            || (snapshot && snapshot.sync && snapshot.sync.previous_composite_checksum)
+            || ''
+        ).trim();
+        if (snapshotHash) this._dashboardSnapshotHash = snapshotHash;
         var lifecycle = snapshot && snapshot.agent_lifecycle && typeof snapshot.agent_lifecycle === 'object'
           ? snapshot.agent_lifecycle
           : null;
@@ -33,6 +42,7 @@
       } catch (e) {
         // keep last-known lifecycle state to avoid UI flicker
       } finally {
+        this._lifecycleLoadedAt = Date.now();
         this.terminatedHydrated = true;
         this.terminatedLoading = false;
         this.lifecycleLoading = false;
@@ -119,28 +129,58 @@
     async archiveAllAgents() {
       this.confirmArchiveAllAgents = false;
       var rows = Array.isArray(this.agents) ? this.agents.slice() : [];
-      if (!rows.length) return;
+      var targetIds = rows
+        .map(function(row) { return String((row && row.id) || '').trim(); })
+        .filter(function(id) { return !!id && id.toLowerCase() !== 'system'; });
+      if (!targetIds.length) return;
       var ok = window.confirm('Are you sure you want to archive all agents?');
       if (!ok) return;
+      var store = Alpine.store('app');
       var failures = [];
-      for (var idx = 0; idx < rows.length; idx += 1) {
-        var row = rows[idx];
-        if (!row || !row.id) continue;
-        try {
-          await InfringAPI.del('/api/agents/' + encodeURIComponent(row.id));
-        } catch (e) {
-          if (!this.isAgentMissingError(e)) {
-            failures.push(String(row.name || row.id));
+      try {
+        await InfringAPI.post('/api/agents/archive-all', { reason: 'user_archive_all' });
+      } catch (_) {
+        // Fallback path below will sweep survivors one-by-one.
+      }
+      if (store && typeof store.refreshAgents === 'function') {
+        await store.refreshAgents({ force: true });
+      }
+      await this.loadLifecycle();
+
+      var self = this;
+      var survivors = targetIds.filter(function(id) {
+        return Array.isArray(self.agents) && self.agents.some(function(row) {
+          return String((row && row.id) || '').trim() === id;
+        });
+      });
+      if (survivors.length) {
+        for (var idx = 0; idx < survivors.length; idx += 1) {
+          var survivorId = survivors[idx];
+          try {
+            await InfringAPI.del('/api/agents/' + encodeURIComponent(survivorId));
+          } catch (e) {
+            if (!this.isAgentMissingError(e)) failures.push(survivorId);
           }
         }
+        if (store && typeof store.refreshAgents === 'function') {
+          await store.refreshAgents({ force: true });
+        }
+        await this.loadLifecycle();
       }
-      await Alpine.store('app').refreshAgents();
-      await this.loadLifecycle();
-      if (failures.length) {
-        InfringToast.error('Failed to archive: ' + failures.join(', '));
-      } else {
-        InfringToast.success('Archived ' + rows.length + ' agent(s).');
+
+      var unresolved = targetIds.filter(function(id) {
+        return Array.isArray(self.agents) && self.agents.some(function(row) {
+          return String((row && row.id) || '').trim() === id;
+        });
+      });
+      for (var fi = 0; fi < failures.length; fi += 1) {
+        if (unresolved.indexOf(failures[fi]) === -1) unresolved.push(failures[fi]);
       }
+      if (unresolved.length) {
+        InfringToast.error('Failed to archive: ' + unresolved.join(', '));
+        return;
+      }
+      InfringToast.success('Archived ' + targetIds.length + ' agent(s).');
     },
 
     async init() {

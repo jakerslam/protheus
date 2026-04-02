@@ -206,6 +206,104 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
     }))
 }
 
+fn value_matches_structured_type(value: &Value, wanted: &str) -> bool {
+    match wanted {
+        "any" => true,
+        "string" => value.is_string(),
+        "number" | "float" => value.is_number(),
+        "integer" | "int" => value.as_i64().is_some() || value.as_u64().is_some(),
+        "boolean" | "bool" => value.is_boolean(),
+        "array" => value.is_array(),
+        "object" => value.is_object(),
+        "null" => value.is_null(),
+        _ => false,
+    }
+}
+
+fn parse_structured_output(
+    state: &mut Value,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let parser_name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "langchain-structured-output",
+    );
+    let schema = payload
+        .get("schema")
+        .and_then(Value::as_object)
+        .cloned()
+        .ok_or_else(|| "langchain_structured_schema_required".to_string())?;
+    let required_fields = schema
+        .get("required_fields")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    if required_fields.is_empty() {
+        return Err("langchain_structured_schema_required_fields_missing".to_string());
+    }
+    let parsed = if let Some(obj) = payload.get("output_json").and_then(Value::as_object) {
+        Value::Object(obj.clone())
+    } else {
+        let raw = clean_text(payload.get("output_text").and_then(Value::as_str), 12000);
+        if raw.is_empty() {
+            return Err("langchain_structured_output_missing".to_string());
+        }
+        serde_json::from_str::<Value>(&raw)
+            .map_err(|err| format!("langchain_structured_output_decode_failed:{err}"))?
+    };
+    let parsed_obj = parsed
+        .as_object()
+        .ok_or_else(|| "langchain_structured_output_must_be_object".to_string())?;
+    let field_types = schema
+        .get("field_types")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let mut missing_fields = Vec::new();
+    let mut invalid_fields = Vec::new();
+    for field in &required_fields {
+        let Some(value) = parsed_obj.get(field) else {
+            missing_fields.push(field.to_string());
+            continue;
+        };
+        let wanted = field_types
+            .get(field)
+            .and_then(Value::as_str)
+            .unwrap_or("any");
+        if !value_matches_structured_type(value, wanted) {
+            invalid_fields.push(format!("{field}:{wanted}"));
+        }
+    }
+    if !missing_fields.is_empty() || !invalid_fields.is_empty() {
+        return Err(format!(
+            "langchain_structured_output_validation_failed:missing={}:invalid={}",
+            missing_fields.join(","),
+            invalid_fields.join(",")
+        ));
+    }
+    let record = json!({
+        "parse_id": stable_id("langparse", &json!({"name": parser_name, "required_fields": required_fields})),
+        "name": parser_name,
+        "schema": Value::Object(schema),
+        "validated_output": Value::Object(parsed_obj.clone()),
+        "recorded_at": now_iso(),
+    });
+    let parse_id = record
+        .get("parse_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
+    as_object_mut(state, "structured_outputs").insert(parse_id, record.clone());
+    Ok(json!({
+        "ok": true,
+        "structured_output": record,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.8", langchain_claim("V6-WORKFLOW-014.8")),
+    }))
+}
+
 fn checkpoint_run(
     root: &Path,
     argv: &[String],
@@ -428,4 +526,3 @@ fn assimilate_intake(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", langchain_claim("V6-WORKFLOW-014.4")),
     }))
 }
-

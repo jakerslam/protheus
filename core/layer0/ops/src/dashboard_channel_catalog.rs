@@ -3,6 +3,14 @@
 use serde_json::{json, Value};
 
 fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Value {
+    if let Some(row) = crate::openfang_parity_catalog::channel_catalog_entry(
+        name,
+        display_name,
+        category,
+        setup_type,
+    ) {
+        return row;
+    }
     let (icon, difficulty, setup_time) = match category {
         "enterprise" => ("🏢", "Medium", "3-8 min"),
         "email" => ("✉️", "Easy", "2-4 min"),
@@ -21,7 +29,8 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
     let mut supports_send = true;
     let mut probe_method = "get";
 
-    let (description, quick_setup, fields, setup_steps, config_template) = if name == "gohighlevel" {
+    let (description, quick_setup, fields, setup_steps, config_template) = if name == "gohighlevel"
+    {
         runtime_adapter = "gohighlevel_api";
         runtime_mode = "native";
         channel_tier = "native";
@@ -116,7 +125,8 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
                 "Paste token and optional channel_id.",
                 "Run live test to verify /users/@me."
             ]),
-            "BOT_TOKEN=...\\nCHANNEL_ID=123456789012345678\\nENDPOINT=https://discord.com/api/v10".to_string(),
+            "BOT_TOKEN=...\\nCHANNEL_ID=123456789012345678\\nENDPOINT=https://discord.com/api/v10"
+                .to_string(),
         )
     } else if matches!(
         name,
@@ -135,7 +145,10 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
         requires_token = false;
         probe_method = "post";
         (
-            format!("Connect {} using an inbound webhook endpoint.", display_name),
+            format!(
+                "Connect {} using an inbound webhook endpoint.",
+                display_name
+            ),
             "Paste webhook URL and run live test ping.".to_string(),
             json!([
                 {"key": "webhook_url", "label": "Webhook URL", "type": "text", "advanced": false, "placeholder": "https://..."},
@@ -227,6 +240,15 @@ pub fn catalog() -> Vec<Value> {
         ("irc", "IRC", "community", "form"),
         ("discourse", "Discourse", "community", "form"),
         ("guilded", "Guilded", "community", "oauth"),
+        ("gitter", "Gitter", "community", "oauth"),
+        ("keybase", "Keybase", "community", "form"),
+        ("nextcloud", "Nextcloud", "community", "oauth"),
+        ("nostr", "Nostr", "community", "form"),
+        ("pumble", "Pumble", "community", "oauth"),
+        ("revolt", "Revolt", "community", "oauth"),
+        ("threema", "Threema", "community", "form"),
+        ("twist", "Twist", "community", "oauth"),
+        ("wecom", "WeCom", "community", "oauth"),
         ("skype", "Skype", "messaging", "form"),
         ("imessage", "iMessage", "messaging", "form"),
         (
@@ -235,10 +257,13 @@ pub fn catalog() -> Vec<Value> {
             "messaging",
             "oauth",
         ),
+        ("messenger", "Messenger", "messaging", "oauth"),
+        ("flock", "Flock", "enterprise", "oauth"),
         ("kakao", "KakaoTalk", "messaging", "form"),
         ("qq", "QQ", "messaging", "form"),
         ("feishu", "Feishu", "enterprise", "oauth"),
         ("dingtalk", "DingTalk", "enterprise", "oauth"),
+        ("dingtalk_stream", "DingTalk Stream", "enterprise", "oauth"),
         ("wechat", "WeChat", "messaging", "form"),
         ("line", "LINE", "messaging", "form"),
         ("viber", "Viber", "messaging", "form"),
@@ -274,10 +299,13 @@ pub fn catalog() -> Vec<Value> {
         ("rumble", "Rumble", "streaming", "oauth"),
         ("spotify", "Spotify", "streaming", "oauth"),
         ("apple_music", "Apple Music", "streaming", "oauth"),
+        ("mumble", "Mumble", "streaming", "form"),
+        ("mqtt", "MQTT", "streaming", "form"),
         ("snapchat", "Snapchat", "social", "oauth"),
         // Enterprise PM + docs + repos
         ("mattermost", "Mattermost", "enterprise", "form"),
         ("zulip", "Zulip", "enterprise", "form"),
+        ("rocketchat", "Rocket.Chat", "enterprise", "form"),
         ("rocket_chat", "Rocket.Chat", "enterprise", "form"),
         ("linear", "Linear", "enterprise", "oauth"),
         ("asana", "Asana", "enterprise", "oauth"),
@@ -336,6 +364,7 @@ pub fn catalog() -> Vec<Value> {
             "notifications",
             "form",
         ),
+        ("webhook", "Generic Webhook", "notifications", "form"),
         (
             "discord_webhook",
             "Discord Webhook",
@@ -364,13 +393,28 @@ mod tests {
         let rows = catalog();
         let native = rows
             .iter()
-            .filter(|row| row.get("real_channel").and_then(Value::as_bool).unwrap_or(false))
+            .filter(|row| {
+                row.get("real_channel")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
             .count();
         let template = rows
             .iter()
-            .filter(|row| row.get("channel_tier").and_then(Value::as_str).unwrap_or("") == "template")
+            .filter(|row| {
+                row.get("channel_tier")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    == "template"
+            })
             .count();
-        assert!(native >= 10, "expected native channels to be explicitly marked");
-        assert!(template >= 10, "expected template channels to remain available");
+        assert!(
+            native >= 10,
+            "expected native channels to be explicitly marked"
+        );
+        assert!(
+            template >= 10,
+            "expected template channels to remain available"
+        );
     }
 }

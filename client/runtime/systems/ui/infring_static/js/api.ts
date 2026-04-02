@@ -201,6 +201,11 @@ var InfringAPI = (function() {
   }
 
   function get(path) { return request('GET', path); }
+  function getDashboardSnapshot(sinceHash) {
+    var since = String(sinceHash || '').trim();
+    var suffix = since ? ('?since=' + encodeURIComponent(since)) : '';
+    return get('/api/dashboard/snapshot' + suffix);
+  }
   function post(path, body) { return request('POST', path, body); }
   function put(path, body) { return request('PUT', path, body); }
   function patch(path, body) { return request('PATCH', path, body); }
@@ -364,6 +369,7 @@ var InfringAPI = (function() {
     setAuthToken: setAuthToken,
     getToken: getToken,
     get: get,
+    getDashboardSnapshot: getDashboardSnapshot,
     post: post,
     put: put,
     patch: patch,

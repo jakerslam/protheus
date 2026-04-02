@@ -60,6 +60,7 @@ sysinfo = { version = "0.30", default-features = false }
 base64 = "0.22"
 hmac = "0.12"
 sha2 = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 hex = "0.4"
 memmap2 = "0.9"
 aes-gcm = { version = "0.10", features = ["aes"] }

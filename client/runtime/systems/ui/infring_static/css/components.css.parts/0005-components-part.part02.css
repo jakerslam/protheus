@@ -1,0 +1,153 @@
+  display: none;
+}
+
+.message.terminal .message-stats-row {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.terminal-toolbox {
+  width: auto;
+  max-width: min(90%, 760px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #6bff59 72%, #1f3f1b 28%);
+  background: color-mix(in srgb, #091108 90%, transparent);
+  color: #b8ff9f;
+  box-shadow: 0 0 0 0.5px rgba(114, 255, 92, 0.2) inset;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 120ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.terminal-toolbox:hover {
+  border-color: color-mix(in srgb, #8fff7c 76%, #1f3f1b 24%);
+  box-shadow: 0 0 0 0.5px rgba(150, 255, 130, 0.28) inset;
+}
+
+.terminal-toolbox:active {
+  transform: translateY(0.5px);
+}
+
+.terminal-toolbox:focus-visible {
+  outline: 2px solid rgba(149, 255, 126, 0.52);
+  outline-offset: 2px;
+}
+
+.terminal-toolbox.terminal-toolbox-right {
+  margin-left: auto;
+}
+
+.terminal-toolbox.terminal-toolbox-left {
+  margin-right: auto;
+}
+
+.terminal-toolbox-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #7dff67;
+}
+
+.terminal-toolbox-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.terminal-toolbox-copy {
+  min-width: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.terminal-toolbox-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #95ff7e;
+}
+
+.terminal-toolbox-preview {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.25;
+  color: #cbffba;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: min(74vw, 620px);
+}
+
+/* Streaming state keeps default bubble border styling (no special left accent). */
+.message.streaming .message-bubble {
+  animation: none;
+}
+
+.message-bubble.message-finish-bounce {
+  animation: messageFinishBounce 0.24s cubic-bezier(0.21, 0.7, 0.3, 1);
+}
+
+@keyframes messageFinishBounce {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+.chat-progress-wrap {
+  margin-top: 8px;
+  margin-bottom: 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface2) 78%, transparent);
+}
+
+.chat-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.chat-progress-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  overflow: hidden;
+}
+
+.chat-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 84%, #fff 16%) 0%, color-mix(in srgb, var(--accent) 62%, #fff 38%) 100%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: width 0.2s var(--ease-smooth);
+}
+
+.chat-artifact-card {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);

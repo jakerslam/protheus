@@ -286,6 +286,7 @@ pub fn providers_payload(root: &Path, snapshot: &Value) -> Value {
         "ok": true,
         "providers": provider_rows(root, snapshot),
         "routing": routing_policy(root),
+        "network_policy": provider_network_policy(root),
         "virtual_keys_count": virtual_keys.get("count").cloned().unwrap_or_else(|| json!(0))
     })
 }

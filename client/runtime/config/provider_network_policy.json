@@ -1,0 +1,23 @@
+{
+  "allow_provider_ids": [],
+  "deny_domains": [
+    "127.0.0.1",
+    "localhost",
+    "metadata.google.internal",
+    "169.254.169.254"
+  ],
+  "local_first_default": true,
+  "require_explicit_provider_consent": true,
+  "telemetry_blocklist_domains": [
+    "segment.io",
+    "sentry.io",
+    "mixpanel.com",
+    "amplitude.com",
+    "datadoghq.com",
+    "newrelic.com"
+  ],
+  "telemetry_blocklist_enabled": true,
+  "type": "infring_provider_network_policy",
+  "updated_at": "2026-04-02T17:53:28.924Z",
+  "version": "v1"
+}

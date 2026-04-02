@@ -256,7 +256,7 @@ fn base_catalog(root: &Path, snapshot: &Value) -> Vec<Value> {
     } else {
         model
     };
-    vec![
+    let mut rows = vec![
         json!({
             "id": "browser",
             "name": "Browser Hand",
@@ -362,7 +362,12 @@ fn base_catalog(root: &Path, snapshot: &Value) -> Vec<Value> {
                 {"memory_key": "runtime_cockpit_blocks", "label": "Cockpit Blocks", "format": "number"}
             ]
         }),
-    ]
+    ];
+    rows.extend(crate::openfang_parity_catalog::extra_hands(
+        &fallback_provider,
+        &fallback_model,
+    ));
+    rows
 }
 
 fn requirement_satisfied(requirement: &Value, config: &Map<String, Value>) -> bool {

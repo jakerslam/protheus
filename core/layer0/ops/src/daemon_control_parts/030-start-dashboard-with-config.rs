@@ -13,7 +13,7 @@ fn start_dashboard_with_config(
             "url": url
         });
     }
-    if dashboard_health_ok(cfg.host.as_str(), cfg.port) {
+    if dashboard_health_ok_fast(cfg.host.as_str(), cfg.port) {
         return json!({
             "enabled": true,
             "running": true,
@@ -245,12 +245,18 @@ fn ensure_gateway_supervisor(
     root: &Path,
     cfg: &DashboardLaunchConfig,
     dashboard: &mut Value,
+    force_refresh: bool,
 ) -> Value {
     if !cfg.persistent_supervisor {
         let _ = gateway_supervisor::disable(root);
         return gateway_supervisor::status(root).payload;
     }
-    let supervisor = gateway_supervisor_enable(root, cfg);
+    let existing = gateway_supervisor::status(root);
+    let supervisor = if should_refresh_supervisor(force_refresh, existing.active) {
+        gateway_supervisor_enable(root, cfg)
+    } else {
+        existing
+    };
     let dashboard_running = dashboard
         .get("running")
         .and_then(Value::as_bool)
@@ -273,6 +279,10 @@ fn ensure_gateway_supervisor(
         };
     }
     supervisor.payload
+}
+
+fn should_refresh_supervisor(force_refresh: bool, supervisor_active: bool) -> bool {
+    force_refresh || !supervisor_active
 }
 
 fn heal_gateway_runtime(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
@@ -528,7 +538,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
                 let mut started =
                     start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
-                started["supervisor"] = ensure_gateway_supervisor(root, &cfg, &mut started);
+                started["supervisor"] =
+                    ensure_gateway_supervisor(root, &cfg, &mut started, false);
                 started
             }
             "restart" => {
@@ -543,7 +554,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
                 let mut started =
                     start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
-                let supervisor = ensure_gateway_supervisor(root, &cfg, &mut started);
+                let supervisor = ensure_gateway_supervisor(root, &cfg, &mut started, true);
                 json!({
                     "supervisor_stopped": supervisor_stopped.payload,
                     "watchdog_stopped": watchdog_stopped,
@@ -605,4 +616,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     usage();
     print_json_line(&error_receipt("unknown_command", argv));
     2
+}
+
+#[cfg(test)]
+mod startup_compaction_tests {
+    use super::should_refresh_supervisor;
+
+    #[test]
+    fn supervisor_refresh_skips_when_already_active_for_plain_start() {
+        assert!(!should_refresh_supervisor(false, true));
+    }
+
+    #[test]
+    fn supervisor_refresh_happens_when_inactive_or_forced() {
+        assert!(should_refresh_supervisor(false, false));
+        assert!(should_refresh_supervisor(true, true));
+    }
 }

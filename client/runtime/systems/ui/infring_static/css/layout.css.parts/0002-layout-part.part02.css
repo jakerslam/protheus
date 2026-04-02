@@ -1,0 +1,121 @@
+  top: calc(100% - var(--sidebar-pulltab-cut));
+  transform: translate(-45%, -50%);
+}
+
+.sidebar-pulltab:hover {
+  color: var(--text);
+  background: var(--sidebar-bg, var(--chrome-bg));
+}
+
+.sidebar-pulltab-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+  isolation: isolate;
+  --chat-grid-x: 50%;
+  --chat-grid-y: 50%;
+  --chat-grid-active: 0;
+  --chat-grid-scroll-x: 0px;
+  --chat-grid-scroll-y: 0px;
+  --global-reflection-rgb: 255 255 255;
+}
+
+/* Page wrapper divs (rendered by x-if) must fill the column
+   and be flex containers so .page-body can scroll. */
+.main-content > div:not(.global-topbar):not(.main-pointer-fx-layer) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-pointer-fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.main-pointer-fx-layer .chat-grid-overlay {
+  position: absolute;
+  inset: 0;
+  /* Global non-chat grid mask must remain cursor-locked while page bodies scroll. */
+  translate: 0 0;
+  z-index: 2;
+}
+
+.main-pointer-fx-layer .global-reflection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  translate: 0 0;
+  z-index: 1;
+  opacity: calc(var(--chat-grid-active, 0) * 0.94);
+  mask-image: radial-gradient(
+    circle 122px at var(--chat-grid-x, 50%) var(--chat-grid-y, 50%),
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.94) 34%,
+    rgba(0, 0, 0, 0.66) 58%,
+    rgba(0, 0, 0, 0.22) 76%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle 122px at var(--chat-grid-x, 50%) var(--chat-grid-y, 50%),
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.94) 34%,
+    rgba(0, 0, 0, 0.66) 58%,
+    rgba(0, 0, 0, 0.22) 76%,
+    transparent 100%
+  );
+}
+
+.main-pointer-fx-layer .global-reflection-slab,
+.messages .chat-reflection-overlay .global-reflection-slab {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center top;
+  transform: scaleY(-1) translateY(2px);
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--reflect-rgb, var(--global-reflection-rgb, 255 255 255))) 0%,
+    color-mix(in srgb, rgb(var(--reflect-rgb, var(--global-reflection-rgb, 255 255 255))) 56%, transparent) 52%,
+    transparent 100%
+  );
+  border: none;
+  filter: none;
+  mix-blend-mode: normal;
+  opacity: var(--reflect-alpha, 0.22);
+}
+
+body:not([data-theme='dark']) .main-pointer-fx-layer .global-reflection-overlay {
+  opacity: calc(var(--chat-grid-active, 0) * 0.42);
+}
+
+/* Universal topbar should always stay standard height. */
+.main-content > .global-topbar {
+  flex: 0 0 auto;
+  min-height: 46px;
+  overflow: visible;
+}
+
+.page-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--header-height);

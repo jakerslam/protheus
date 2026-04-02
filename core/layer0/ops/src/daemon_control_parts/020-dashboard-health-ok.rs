@@ -51,22 +51,40 @@ fn dashboard_health_probe_once(host: &str, port: u16) -> bool {
     String::from_utf8_lossy(&collected).contains("200 OK")
 }
 
-fn dashboard_health_ok(host: &str, port: u16) -> bool {
-    let attempts = DASHBOARD_HEALTH_RETRY_ATTEMPTS.max(1);
+fn dashboard_health_ok_with_retry(
+    host: &str,
+    port: u16,
+    retry_attempts: usize,
+    retry_backoff_ms: u64,
+) -> bool {
+    let attempts = retry_attempts.max(1);
     for idx in 0..attempts {
         if dashboard_health_probe_once(host, port) {
             return true;
         }
-        if idx + 1 < attempts {
-            std::thread::sleep(Duration::from_millis(DASHBOARD_HEALTH_RETRY_BACKOFF_MS.max(1_000)));
+        if idx + 1 < attempts && retry_backoff_ms > 0 {
+            std::thread::sleep(Duration::from_millis(retry_backoff_ms));
         }
     }
     false
 }
 
+fn dashboard_health_ok(host: &str, port: u16) -> bool {
+    dashboard_health_ok_with_retry(
+        host,
+        port,
+        DASHBOARD_HEALTH_RETRY_ATTEMPTS,
+        DASHBOARD_HEALTH_RETRY_BACKOFF_MS.max(1_000),
+    )
+}
+
+fn dashboard_health_ok_fast(host: &str, port: u16) -> bool {
+    dashboard_health_ok_with_retry(host, port, 1, 0)
+}
+
 fn wait_for_dashboard(host: &str, port: u16, attempts: usize) -> bool {
     for _ in 0..attempts {
-        if dashboard_health_ok(host, port) {
+        if dashboard_health_ok_fast(host, port) {
             return true;
         }
         std::thread::sleep(Duration::from_millis(150));
@@ -83,7 +101,7 @@ fn wait_for_dashboard_stable(
     let needed = required_successes.max(1);
     let mut ok_streak = 0usize;
     for _ in 0..attempts {
-        if dashboard_health_ok(host, port) {
+        if dashboard_health_ok_fast(host, port) {
             ok_streak += 1;
             if ok_streak >= needed {
                 return true;

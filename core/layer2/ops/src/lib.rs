@@ -2,7 +2,6 @@
 // Layer ownership: core/layer2/ops (authoritative daemon control contracts).
 
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod adaptive_contract_version_governance;
@@ -18,6 +17,7 @@ pub mod contribution_oracle;
 pub mod decentralized_data_marketplace;
 pub mod discord_swarm_orchestration;
 pub mod gui_drift_manager;
+pub mod hot_path_allocators;
 pub mod intel_sweep_router;
 pub mod nexus_internal_comms;
 pub mod observability_automation_engine;
@@ -36,9 +36,7 @@ pub mod wifi_csi_engine;
 pub mod workspace_gateway_runtime;
 
 pub fn deterministic_receipt_hash(payload: &Value) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(serde_json::to_vec(payload).unwrap_or_default());
-    hex::encode(hasher.finalize())
+    hot_path_allocators::deterministic_hash(payload)
 }
 
 pub fn now_epoch_ms() -> u64 {

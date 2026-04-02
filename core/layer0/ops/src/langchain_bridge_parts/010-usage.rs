@@ -21,11 +21,13 @@ fn usage() {
     println!("  protheus-ops langchain-bridge status [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge register-chain [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge execute-chain [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  protheus-ops langchain-bridge register-middleware [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge run-deep-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  protheus-ops langchain-bridge register-memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge recall-memory [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge route-prompt [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops langchain-bridge parse-structured-output [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langchain-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  protheus-ops langchain-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
@@ -147,11 +149,13 @@ fn default_state() -> Value {
         "schema_version": "langchain_bridge_state_v1",
         "chains": {},
         "chain_runs": {},
+        "middleware_hooks": {},
         "agent_runs": {},
         "memory_bridges": {},
         "memory_queries": {},
         "integrations": {},
         "prompt_routes": {},
+        "structured_outputs": {},
         "traces": [],
         "checkpoints": {},
         "intakes": {},
@@ -167,11 +171,13 @@ fn ensure_state_shape(value: &mut Value) {
     for key in [
         "chains",
         "chain_runs",
+        "middleware_hooks",
         "agent_runs",
         "memory_bridges",
         "memory_queries",
         "integrations",
         "prompt_routes",
+        "structured_outputs",
         "checkpoints",
         "intakes",
     ] {
@@ -347,6 +353,12 @@ fn langchain_claim(id: &str) -> &'static str {
         "V6-WORKFLOW-014.7" => {
             "langchain_stateful_runs_checkpoint_and_replay_through_authoritative_workflow_lanes"
         }
+        "V6-WORKFLOW-014.8" => {
+            "langchain_structured_output_parsing_and_schema_validation_remain_fail_closed"
+        }
+        "V6-WORKFLOW-014.9" => {
+            "langchain_middleware_hooks_register_and_apply_with_receipted_workflow_visibility"
+        }
         _ => "langchain_bridge_claim",
     }
 }
@@ -449,4 +461,3 @@ fn doc_token_set(doc: &Value) -> BTreeSet<String> {
         .map(ToString::to_string)
         .collect()
 }
-

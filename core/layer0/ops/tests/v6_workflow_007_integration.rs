@@ -143,6 +143,24 @@ fn workflow_007_handoff_registry_and_context_propagation_are_receipted() {
             .and_then(Value::as_str),
         Some(specialist.as_str())
     );
+    assert!(
+        first_handoff
+            .get("context_isolation_receipt")
+            .and_then(|row| row.get("context_hash"))
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false),
+        "handoff receipt should include context isolation hash"
+    );
+    assert!(
+        first_handoff
+            .get("context_isolation_receipt")
+            .and_then(|row| row.get("summary"))
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false),
+        "handoff receipt should include compact context summary"
+    );
 }
 
 #[test]

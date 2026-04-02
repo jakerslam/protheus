@@ -46,6 +46,8 @@ const status = (opts = {}) => invoke('status', opts);
 const registerGraph = (payload) => invoke('register-graph', payload);
 const checkpointRun = (payload) => invoke('checkpoint-run', payload);
 const inspectState = (payload) => invoke('inspect-state', payload);
+const interruptRun = (payload) => invoke('interrupt-run', payload);
+const resumeRun = (payload) => invoke('resume-run', payload);
 const coordinateSubgraph = (payload) => invoke('coordinate-subgraph', payload);
 const recordTrace = (payload) => invoke('record-trace', payload);
 const streamGraph = (payload) => invoke('stream-graph', payload);
@@ -55,6 +57,8 @@ module.exports = {
   registerGraph,
   checkpointRun,
   inspectState,
+  interruptRun,
+  resumeRun,
   coordinateSubgraph,
   recordTrace,
   streamGraph,

@@ -121,6 +121,7 @@
 
             <!-- Messages area -->
             <div class="messages" id="messages" x-ref="messagesEl" @scroll.passive="handleMessagesScroll($event)" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="handleDrop($event); dragOver = false" @mouseenter="handleMessagesPointerMove($event)" @mousemove="handleMessagesPointerMove($event)" @mousedown="handleMessagesPointerDown($event)" @mouseup="handleMessagesPointerUp($event)" @selectstart="handleMessagesSelectStart($event)" @mouseleave="clearPointerFx($event)">
+              <div class="chat-reflection-overlay" aria-hidden="true"></div>
               <div class="chat-grid-overlay" aria-hidden="true"></div>
               <!-- Empty state: no agent selected -->
               <template x-if="!currentAgent">

@@ -225,30 +225,20 @@ fn session_exists(state: &SwarmState, session_id: &str) -> bool {
 }
 
 fn next_message_id(
-    state: &SwarmState,
+    state: &mut SwarmState,
     sender_session_id: &str,
     recipient_session_id: &str,
     payload: &str,
 ) -> String {
-    let mut salt = 0u64;
-    loop {
-        let digest = deterministic_receipt_hash(&json!({
-            "sender": sender_session_id,
-            "recipient": recipient_session_id,
-            "payload": payload,
-            "salt": salt,
-            "ts": now_epoch_ms(),
-        }));
-        let candidate = format!("msg-{}", &digest[..12]);
-        let in_mailboxes = state.mailboxes.values().any(|mailbox| {
-            mailbox.unread.iter().any(|msg| msg.message_id == candidate)
-                || mailbox.read.iter().any(|msg| msg.message_id == candidate)
-        });
-        if !in_mailboxes {
-            return candidate;
-        }
-        salt = salt.saturating_add(1);
-    }
+    state.message_sequence = state.message_sequence.saturating_add(1);
+    let digest = deterministic_receipt_hash(&json!({
+        "sender": sender_session_id,
+        "recipient": recipient_session_id,
+        "payload": payload,
+        "seq": state.message_sequence,
+        "ts": now_epoch_ms(),
+    }));
+    format!("msg-{}-{:x}", &digest[..10], state.message_sequence)
 }
 
 fn is_sibling_or_child_allowed(

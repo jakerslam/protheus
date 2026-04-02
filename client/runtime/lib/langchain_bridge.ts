@@ -44,11 +44,13 @@ function invoke(command, payload = {}, opts = {}) {
 const status = (opts = {}) => invoke('status', opts);
 const registerChain = (payload) => invoke('register-chain', payload);
 const executeChain = (payload) => invoke('execute-chain', payload);
+const registerMiddleware = (payload) => invoke('register-middleware', payload);
 const runDeepAgent = (payload) => invoke('run-deep-agent', payload);
 const registerMemoryBridge = (payload) => invoke('register-memory-bridge', payload);
 const recallMemory = (payload) => invoke('recall-memory', payload);
 const importIntegration = (payload) => invoke('import-integration', payload);
 const routePrompt = (payload) => invoke('route-prompt', payload);
+const parseStructuredOutput = (payload) => invoke('parse-structured-output', payload);
 const recordTrace = (payload) => invoke('record-trace', payload);
 const checkpointRun = (payload) => invoke('checkpoint-run', payload);
 const assimilateIntake = (payload) => invoke('assimilate-intake', payload);
@@ -57,11 +59,13 @@ module.exports = {
   status,
   registerChain,
   executeChain,
+  registerMiddleware,
   runDeepAgent,
   registerMemoryBridge,
   recallMemory,
   importIntegration,
   routePrompt,
+  parseStructuredOutput,
   recordTrace,
   checkpointRun,
   assimilateIntake,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SRS coverage: V6-WORKFLOW-002.1, V6-WORKFLOW-002.2, V6-WORKFLOW-002.3,
-// V6-WORKFLOW-002.4, V6-WORKFLOW-002.5, V6-WORKFLOW-002.6
+// V6-WORKFLOW-002.4, V6-WORKFLOW-002.5, V6-WORKFLOW-002.6, V6-WORKFLOW-002.7
 
 use protheus_ops_core::langgraph_bridge;
 use serde_json::{json, Value};
@@ -23,7 +23,8 @@ fn latest_receipt(state_path: &Path) -> Value {
 }
 
 #[test]
-fn workflow_002_langgraph_bridge_emits_receipted_graph_checkpoint_hitl_subgraph_trace_and_stream() {
+fn workflow_002_langgraph_bridge_emits_receipted_graph_checkpoint_hitl_interrupt_subgraph_trace_and_stream(
+) {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/langgraph/latest.json");
     let history_path = root.path().join("state/langgraph/history.jsonl");
@@ -127,6 +128,68 @@ fn workflow_002_langgraph_bridge_emits_receipted_graph_checkpoint_hitl_subgraph_
     assert_eq!(
         inspection_receipt["payload"]["inspection"]["change_applied"],
         json!(true)
+    );
+
+    assert_eq!(
+        run_bridge(
+            root.path(),
+            &[
+                "interrupt-run".to_string(),
+                format!(
+                    "--payload={}",
+                    json!({
+                        "checkpoint_id": checkpoint_id,
+                        "reason": "awaiting human approval",
+                        "requested_by": "human-reviewer"
+                    })
+                ),
+                format!("--state-path={}", state_path.display()),
+                format!("--history-path={}", history_path.display()),
+            ],
+        ),
+        0
+    );
+    let interrupt_receipt = latest_receipt(&state_path);
+    assert_eq!(
+        interrupt_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
+        Some("V6-WORKFLOW-002.7")
+    );
+    let interrupt_id = interrupt_receipt["payload"]["interrupt"]["interrupt_id"]
+        .as_str()
+        .expect("interrupt id")
+        .to_string();
+    assert_eq!(
+        interrupt_receipt["payload"]["interrupt"]["status"].as_str(),
+        Some("paused")
+    );
+
+    assert_eq!(
+        run_bridge(
+            root.path(),
+            &[
+                "resume-run".to_string(),
+                format!(
+                    "--payload={}",
+                    json!({
+                        "interrupt_id": interrupt_id,
+                        "resume_mode": "continue",
+                        "resume_context": {"approved": true}
+                    })
+                ),
+                format!("--state-path={}", state_path.display()),
+                format!("--history-path={}", history_path.display()),
+            ],
+        ),
+        0
+    );
+    let resume_receipt = latest_receipt(&state_path);
+    assert_eq!(
+        resume_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
+        Some("V6-WORKFLOW-002.7")
+    );
+    assert_eq!(
+        resume_receipt["payload"]["interrupt"]["status"].as_str(),
+        Some("resumed")
     );
 
     assert_eq!(

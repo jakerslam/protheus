@@ -2,7 +2,7 @@
 'use strict';
 
 // SRS coverage: V6-WORKFLOW-002.1, V6-WORKFLOW-002.2, V6-WORKFLOW-002.3,
-// V6-WORKFLOW-002.4, V6-WORKFLOW-002.5, V6-WORKFLOW-002.6
+// V6-WORKFLOW-002.4, V6-WORKFLOW-002.5, V6-WORKFLOW-002.6, V6-WORKFLOW-002.7
 
 const assert = require('assert');
 const fs = require('fs');
@@ -80,6 +80,24 @@ function run() {
   assert.strictEqual(inspection.inspection.change_applied, true);
   assert.strictEqual(inspection.inspection.inspection_mode, 'intervened');
 
+  const interrupt = bridge.interruptRun({
+    checkpoint_id: checkpoint.checkpoint.checkpoint_id,
+    reason: 'awaiting human approval',
+    requested_by: 'human-reviewer',
+    state_path: statePath,
+    history_path: historyPath,
+  });
+  assert.strictEqual(interrupt.interrupt.status, 'paused');
+
+  const resumed = bridge.resumeRun({
+    interrupt_id: interrupt.interrupt.interrupt_id,
+    resume_mode: 'continue',
+    resume_context: { approved: true },
+    state_path: statePath,
+    history_path: historyPath,
+  });
+  assert.strictEqual(resumed.interrupt.status, 'resumed');
+
   const coordination = bridge.coordinateSubgraph({
     graph_id: graph.graph.graph_id,
     profile: 'pure',
@@ -124,6 +142,7 @@ function run() {
   assert.strictEqual(status.graphs, 1);
   assert.strictEqual(status.checkpoints, 1);
   assert.strictEqual(status.inspections, 1);
+  assert.strictEqual(status.interrupts, 1);
   assert.strictEqual(status.subgraphs, 1);
   assert.strictEqual(status.traces, 1);
   assert.strictEqual(status.streams, 1);

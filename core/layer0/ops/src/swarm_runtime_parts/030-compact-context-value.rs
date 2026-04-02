@@ -66,25 +66,110 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
     fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{}:{err}", parent.display()))
 }
 
+#[derive(Debug, Clone)]
+struct StateCacheEntry {
+    modified_ms: u128,
+    byte_len: u64,
+    state: SwarmState,
+}
+
+fn state_cache() -> &'static Mutex<BTreeMap<String, StateCacheEntry>> {
+    static STATE_CACHE: OnceLock<Mutex<BTreeMap<String, StateCacheEntry>>> = OnceLock::new();
+    STATE_CACHE.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn state_file_fingerprint(path: &Path) -> Option<(u128, u64)> {
+    let metadata = fs::metadata(path).ok()?;
+    let modified_ms = metadata
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()?
+        .as_millis();
+    Some((modified_ms, metadata.len()))
+}
+
+fn load_cached_state(path: &Path, modified_ms: u128, byte_len: u64) -> Option<SwarmState> {
+    let key = path.to_string_lossy().to_string();
+    let guard = state_cache().lock().ok()?;
+    guard.get(&key).and_then(|entry| {
+        (entry.modified_ms == modified_ms && entry.byte_len == byte_len).then(|| entry.state.clone())
+    })
+}
+
+fn store_cached_state(path: &Path, modified_ms: u128, byte_len: u64, state: &SwarmState) {
+    let key = path.to_string_lossy().to_string();
+    if let Ok(mut guard) = state_cache().lock() {
+        guard.insert(
+            key,
+            StateCacheEntry {
+                modified_ms,
+                byte_len,
+                state: state.clone(),
+            },
+        );
+    }
+}
+
+fn clear_cached_state(path: &Path) {
+    let key = path.to_string_lossy().to_string();
+    if let Ok(mut guard) = state_cache().lock() {
+        guard.remove(&key);
+    }
+}
+
+fn total_mailbox_message_count(state: &SwarmState) -> usize {
+    state.mailboxes.values().fold(0usize, |acc, mailbox| {
+        acc.saturating_add(mailbox.unread.len().saturating_add(mailbox.read.len()))
+    })
+}
+
+fn should_pretty_encode_state(state: &SwarmState) -> bool {
+    state.sessions.len() <= STATE_PRETTY_MAX_SESSIONS
+        && total_mailbox_message_count(state) <= STATE_PRETTY_MAX_MAILBOX_MESSAGES
+        && state.events.len() <= STATE_PRETTY_MAX_EVENT_ROWS
+        && state.dead_letters.len() <= STATE_PRETTY_MAX_DEAD_LETTERS
+}
+
 fn load_state(path: &Path) -> Result<SwarmState, String> {
     if !path.exists() {
+        clear_cached_state(path);
         return Ok(SwarmState::default());
+    }
+    if let Some((modified_ms, byte_len)) = state_file_fingerprint(path) {
+        if let Some(state) = load_cached_state(path, modified_ms, byte_len) {
+            return Ok(state);
+        }
     }
     let raw = fs::read_to_string(path).map_err(|err| format!("state_read_failed:{err}"))?;
     if raw.trim().is_empty() {
+        if let Some((modified_ms, byte_len)) = state_file_fingerprint(path) {
+            store_cached_state(path, modified_ms, byte_len, &SwarmState::default());
+        }
         return Ok(SwarmState::default());
     }
-    serde_json::from_str::<SwarmState>(&raw).map_err(|err| format!("state_parse_failed:{err}"))
+    let parsed =
+        serde_json::from_str::<SwarmState>(&raw).map_err(|err| format!("state_parse_failed:{err}"))?;
+    if let Some((modified_ms, byte_len)) = state_file_fingerprint(path) {
+        store_cached_state(path, modified_ms, byte_len, &parsed);
+    }
+    Ok(parsed)
 }
 
 fn save_state(path: &Path, state: &SwarmState) -> Result<(), String> {
     ensure_parent(path)?;
-    let encoded = if state.sessions.len() > STATE_PRETTY_MAX_SESSIONS {
-        serde_json::to_string(state).map_err(|err| format!("state_encode_failed:{err}"))?
-    } else {
+    let encoded = if should_pretty_encode_state(state) {
         serde_json::to_string_pretty(state).map_err(|err| format!("state_encode_failed:{err}"))?
+    } else {
+        serde_json::to_string(state).map_err(|err| format!("state_encode_failed:{err}"))?
     };
-    fs::write(path, encoded).map_err(|err| format!("state_write_failed:{err}"))
+    fs::write(path, encoded).map_err(|err| format!("state_write_failed:{err}"))?;
+    if let Some((modified_ms, byte_len)) = state_file_fingerprint(path) {
+        store_cached_state(path, modified_ms, byte_len, state);
+    } else {
+        clear_cached_state(path);
+    }
+    Ok(())
 }
 
 fn effective_spawn_max_depth(state: &SwarmState, requested_max_depth: u8) -> u8 {

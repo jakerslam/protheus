@@ -6,6 +6,7 @@ use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -20,6 +21,9 @@ const DEFAULT_SCALE_MAX_DEPTH_HARD: u8 = 64;
 const DEFAULT_SCALE_TARGET_READY_AGENTS: usize = 100_000;
 const SCALE_UTILIZATION_ALERT_THRESHOLD: f64 = 0.85;
 const STATE_PRETTY_MAX_SESSIONS: usize = 2_000;
+const STATE_PRETTY_MAX_MAILBOX_MESSAGES: usize = 96;
+const STATE_PRETTY_MAX_EVENT_ROWS: usize = 128;
+const STATE_PRETTY_MAX_DEAD_LETTERS: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SwarmScalePolicy {
@@ -58,6 +62,8 @@ struct SwarmState {
     #[serde(default)]
     service_registry: BTreeMap<String, Vec<ServiceInstance>>,
     #[serde(default)]
+    role_dispatch_cursor: BTreeMap<String, usize>,
+    #[serde(default)]
     result_registry: BTreeMap<String, AgentResult>,
     #[serde(default)]
     handoff_registry: BTreeMap<String, Value>,
@@ -84,6 +90,8 @@ struct SwarmState {
     #[serde(default)]
     events: Vec<Value>,
     #[serde(default)]
+    message_sequence: u64,
+    #[serde(default)]
     scale_policy: SwarmScalePolicy,
 }
 
@@ -97,6 +105,7 @@ impl Default for SwarmState {
             mailboxes: BTreeMap::new(),
             channels: BTreeMap::new(),
             service_registry: BTreeMap::new(),
+            role_dispatch_cursor: BTreeMap::new(),
             result_registry: BTreeMap::new(),
             handoff_registry: BTreeMap::new(),
             tool_registry: BTreeMap::new(),
@@ -110,6 +119,7 @@ impl Default for SwarmState {
             dead_letters: Vec::new(),
             scheduled_tasks: BTreeMap::new(),
             events: Vec::new(),
+            message_sequence: 0,
             scale_policy: SwarmScalePolicy::default(),
         }
     }

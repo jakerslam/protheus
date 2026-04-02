@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Map, Value};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 const TERMINAL_STATE_REL: &str =
@@ -112,6 +112,23 @@ fn resolve_cwd(root: &Path, requested: &str) -> PathBuf {
     if text.is_empty() {
         return root.to_path_buf();
     }
+    if text == "/workspace" || text == "/workspace/" {
+        return root.to_path_buf();
+    }
+    if let Some(rest) = text.strip_prefix("/workspace/") {
+        let mut normalized = PathBuf::new();
+        for component in Path::new(rest).components() {
+            match component {
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    let _ = normalized.pop();
+                }
+                Component::Normal(part) => normalized.push(part),
+                Component::Prefix(_) | Component::RootDir => {}
+            }
+        }
+        return root.join(normalized);
+    }
     let candidate = PathBuf::from(&text);
     if candidate.is_absolute() {
         candidate
@@ -209,14 +226,56 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
         });
     }
 
+    if lowered == "infring"
+        || lowered == "infring help"
+        || lowered == "infring --help"
+        || lowered == "infring -h"
+    {
+        let resolved = "protheus-ops command-list-kernel --mode=help".to_string();
+        return Ok(CommandResolution {
+            requested_command: requested,
+            resolved_command: resolved.clone(),
+            translated: true,
+            translation_reason:
+                "translated_infring_help_surface_to_command_list_help".to_string(),
+            suggestions: vec![resolved],
+        });
+    }
+
+    if lowered == "protheus-ops help" || lowered == "protheus-ops --help" || lowered == "protheus-ops -h" {
+        let resolved = "protheus-ops command-list-kernel --mode=help".to_string();
+        return Ok(CommandResolution {
+            requested_command: requested,
+            resolved_command: resolved.clone(),
+            translated: true,
+            translation_reason:
+                "translated_protheus_help_surface_to_command_list_help".to_string(),
+            suggestions: vec![resolved],
+        });
+    }
+
     if lowered.starts_with("infring ") {
-        return Err(json!({
-            "ok": false,
-            "error": "unsupported_infring_cli_surface",
-            "message": "Use protheus-ops surfaces; this infring command is not executable directly here.",
-            "requested_command": requested,
-            "suggestions": default_router_suggestions()
-        }));
+        let suffix = requested
+            .split_once(' ')
+            .map(|(_, rest)| rest.trim())
+            .unwrap_or("");
+        if suffix.is_empty() {
+            return Err(json!({
+                "ok": false,
+                "error": "command_required",
+                "message": "infring command requires a subcommand",
+                "requested_command": requested,
+                "suggestions": default_router_suggestions()
+            }));
+        }
+        let translated = format!("protheus-ops {suffix}");
+        return Ok(CommandResolution {
+            requested_command: requested,
+            resolved_command: translated.clone(),
+            translated: true,
+            translation_reason: "translated_infring_cli_alias_to_protheus_ops".to_string(),
+            suggestions: vec![translated],
+        });
     }
 
     if lowered.starts_with("protheus-ops ") && lowered.contains("full-scan") {
@@ -489,6 +548,23 @@ mod tests {
     }
 
     #[test]
+    fn terminal_exec_accepts_workspace_virtual_cwd_alias() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = create_session(root.path(), &json!({"id":"term-a", "cwd": "/workspace"}));
+        let out = exec_command(
+            root.path(),
+            &json!({"session_id":"term-a","command":"pwd","cwd":"/workspace"}),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("exit_code").and_then(Value::as_i64), Some(0));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            None,
+            "workspace alias should not be rejected as outside the workspace root"
+        );
+    }
+
+    #[test]
     fn command_router_translates_diagnostic_surface() {
         let out = resolve_operator_command(
             "protheus-ops diagnostic full-scan --priority=critical --output=telemetry-now",
@@ -519,16 +595,27 @@ mod tests {
     }
 
     #[test]
-    fn command_router_rejects_unknown_infring_surface() {
-        let err = resolve_operator_command("infring daemon ping").expect_err("unsupported");
+    fn command_router_translates_infring_alias_to_core_binary() {
+        let out = resolve_operator_command("infring daemon ping").expect("translation");
+        assert!(out.translated);
+        assert_eq!(out.resolved_command, "protheus-ops daemon ping");
         assert_eq!(
-            err.get("error").and_then(Value::as_str),
-            Some("unsupported_infring_cli_surface")
+            out.translation_reason,
+            "translated_infring_cli_alias_to_protheus_ops"
         );
-        assert!(err
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .map(|rows| !rows.is_empty())
-            .unwrap_or(false));
+    }
+
+    #[test]
+    fn command_router_translates_infring_help_surface_to_usage() {
+        let out = resolve_operator_command("infring --help").expect("translation");
+        assert!(out.translated);
+        assert_eq!(
+            out.resolved_command,
+            "protheus-ops command-list-kernel --mode=help"
+        );
+        assert_eq!(
+            out.translation_reason,
+            "translated_infring_help_surface_to_command_list_help"
+        );
     }
 }

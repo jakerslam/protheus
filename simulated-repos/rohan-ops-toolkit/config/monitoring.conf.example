@@ -1,0 +1,27 @@
+# Monitoring Configuration Template
+# Copy this file to monitoring.conf and customize for your environment
+
+[prometheus]
+# Endpoint for Prometheus metrics collection
+# In production, use the internal cluster DNS name (e.g., prometheus.monitoring.svc.cluster.local)
+endpoint=http://localhost:9090
+# Number of days to retain metrics. Trade-off: longer retention = more storage cost
+# Per SRE guidelines: 15 days balances observability needs with storage efficiency
+retention_days=15
+# How frequently to scrape metrics from targets
+# 15s is appropriate for high-frequency trading workloads; adjust if needed
+scrape_interval=15s
+
+[grafana]
+enabled=true
+admin_user=admin
+# TODO: Rotate admin password quarterly
+
+[alerts]
+webhook_url=
+pagerduty_key=
+
+[log_aggregation]
+# FIXME: Add support for Loki integration
+backend=elasticsearch
+index_prefix=logs-

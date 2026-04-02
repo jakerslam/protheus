@@ -227,6 +227,16 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     hostSource,
+    'statusPayloadWithBootStage(flags)',
+    'dashboard host status endpoint must return fast boot-stage-aware fallback payloads'
+  );
+  assertContains(
+    hostSource,
+    "boot_stage: 'backend_unreachable'",
+    'dashboard host status fallback must explicitly surface backend-unreachable boot stage'
+  );
+  assertContains(
+    hostSource,
     "if (req.method === 'GET' && pathname === '/api/config')",
     'dashboard host must expose compatibility config endpoint for the unified browser UI'
   );
