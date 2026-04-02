@@ -24,7 +24,7 @@ Canonical source mirror:
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh && . "$HOME/.infring/env.sh" && infring gateway
 ```
 
-If PATH has not refreshed in the same shell, run directly: `~/.local/bin/infring gateway`.
+If PATH has not refreshed in the same shell, run directly: `~/.infring/bin/infring gateway`.
 
 ### Windows (PowerShell)
 
