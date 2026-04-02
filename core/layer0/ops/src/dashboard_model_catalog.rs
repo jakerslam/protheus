@@ -28,6 +28,13 @@ fn parse_bool(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(Value::as_bool).unwrap_or(fallback)
 }
 
+fn model_id_is_placeholder(model_id: &str) -> bool {
+    matches!(
+        clean_text(model_id, 240).to_ascii_lowercase().as_str(),
+        "model" | "<model>" | "(model)"
+    )
+}
+
 #[cfg(test)]
 fn write_json(path: &Path, value: &Value) {
     if let Some(parent) = path.parent() {
@@ -99,7 +106,7 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
 
         for (model_name, profile) in profiles {
             let model = clean_text(&model_name, 140);
-            if model.is_empty() {
+            if model.is_empty() || model_id_is_placeholder(&model) {
                 continue;
             }
             let specialty = clean_text(
@@ -218,7 +225,7 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
                 .unwrap_or(""),
             140,
         );
-        if !model.is_empty() {
+        if !model.is_empty() && !model_id_is_placeholder(&model) {
             rows.push(ModelRow {
                 provider,
                 model,
@@ -767,5 +774,36 @@ mod tests {
             Some(false)
         );
         assert_eq!(row.get("available").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn catalog_filters_placeholder_model_rows() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_json(
+            &root.path().join(PROVIDER_REGISTRY_REL),
+            &json!({
+                "providers": {
+                    "ollama": {
+                        "id": "ollama",
+                        "is_local": true,
+                        "needs_key": false,
+                        "auth_status": "configured",
+                        "reachable": true,
+                        "model_profiles": {
+                            "model": {"power_rating": 1, "cost_rating": 1, "specialty":"general"},
+                            "qwen2.5-coder:7b": {"power_rating": 2, "cost_rating": 1, "specialty":"coding"}
+                        }
+                    }
+                }
+            }),
+        );
+        let catalog = catalog_payload(root.path(), &json!({"ok": true}));
+        let rows = catalog
+            .get("models")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/qwen2.5-coder:7b")));
+        assert!(!rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/model")));
     }
 }

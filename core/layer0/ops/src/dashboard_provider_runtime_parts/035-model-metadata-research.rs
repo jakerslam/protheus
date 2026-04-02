@@ -326,6 +326,9 @@ pub fn ensure_model_profile(root: &Path, provider_id: &str, model_id: &str) -> V
     if provider.is_empty() || model.is_empty() {
         return json!({"ok": false, "error": "model_profile_ref_invalid"});
     }
+    if model_id_is_placeholder(&model) {
+        return json!({"ok": false, "error": "model_profile_ref_invalid"});
+    }
     if model.contains('/') && provider != "openrouter" {
         let mut parts = model.splitn(2, '/');
         let maybe_provider = normalize_provider_id(parts.next().unwrap_or(""));
@@ -333,6 +336,9 @@ pub fn ensure_model_profile(root: &Path, provider_id: &str, model_id: &str) -> V
         if !maybe_provider.is_empty() && !maybe_model.is_empty() {
             model = maybe_model;
         }
+    }
+    if model_id_is_placeholder(&model) {
+        return json!({"ok": false, "error": "model_profile_ref_invalid"});
     }
 
     let mut registry = load_registry(root);

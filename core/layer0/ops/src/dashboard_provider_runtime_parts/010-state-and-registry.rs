@@ -45,6 +45,13 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .collect::<String>()
 }
 
+fn model_id_is_placeholder(model_id: &str) -> bool {
+    matches!(
+        clean_text(model_id, 240).to_ascii_lowercase().as_str(),
+        "model" | "<model>" | "(model)"
+    )
+}
+
 fn read_json(path: &Path) -> Option<Value> {
     fs::read_to_string(path)
         .ok()

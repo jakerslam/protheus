@@ -153,6 +153,75 @@ fn model_context_window(root: &Path, provider_id: &str, model_name: &str) -> i64
         .unwrap_or(0)
 }
 
+fn model_ref_from_probe(provider_id: &str, raw: &str) -> String {
+    let mut model = clean_text(raw, 240);
+    if provider_id == "google" {
+        if let Some((_, tail)) = model.rsplit_once('/') {
+            model = clean_text(tail, 240);
+        }
+    }
+    if model_id_is_placeholder(&model) {
+        String::new()
+    } else {
+        model
+    }
+}
+
+fn models_from_probe_response(provider_id: &str, value: &Value) -> Vec<String> {
+    let provider = normalize_provider_id(provider_id);
+    let mut out = Vec::<String>::new();
+    let mut push = |candidate: &str| {
+        let cleaned = model_ref_from_probe(&provider, candidate);
+        if cleaned.is_empty() || out.iter().any(|row| row == &cleaned) {
+            return;
+        }
+        out.push(cleaned);
+    };
+
+    if provider == "ollama" {
+        if let Some(rows) = value.get("models").and_then(Value::as_array) {
+            for row in rows {
+                if let Some(name) = row
+                    .get("model")
+                    .and_then(Value::as_str)
+                    .or_else(|| row.get("name").and_then(Value::as_str))
+                {
+                    push(name);
+                }
+            }
+        }
+        return out;
+    }
+
+    if provider == "google" {
+        if let Some(rows) = value.get("models").and_then(Value::as_array) {
+            for row in rows {
+                if let Some(name) = row
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .or_else(|| row.get("model").and_then(Value::as_str))
+                {
+                    push(name);
+                }
+            }
+        }
+        return out;
+    }
+
+    if let Some(rows) = value.get("data").and_then(Value::as_array) {
+        for row in rows {
+            if let Some(name) = row
+                .get("id")
+                .and_then(Value::as_str)
+                .or_else(|| row.get("model").and_then(Value::as_str))
+            {
+                push(name);
+            }
+        }
+    }
+    out
+}
+
 pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
     let registry = load_registry(root);
     let mut provider_ids = DEFAULT_PROVIDER_IDS
@@ -244,27 +313,41 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default();
+        let profile_count_before = profiles.len();
+        profiles.retain(|model_name, _| {
+            let cleaned = clean_text(model_name, 240);
+            !cleaned.is_empty() && !model_id_is_placeholder(&cleaned)
+        });
+        let profiles_sanitized = profiles.len() != profile_count_before;
         let profiles_missing = profiles.is_empty();
         if profiles_missing {
             profiles = model_profiles_for_provider(&provider_id);
         }
+        profiles.retain(|model_name, _| {
+            let cleaned = clean_text(model_name, 240);
+            !cleaned.is_empty() && !model_id_is_placeholder(&cleaned)
+        });
         let profiles_enriched = enrich_model_profiles_for_provider(&provider_id, &mut profiles);
-        if profiles_missing || profiles_enriched {
+        if profiles_missing || profiles_enriched || profiles_sanitized {
             row["model_profiles"] = Value::Object(profiles);
         }
-        if row
-            .get("detected_models")
-            .and_then(Value::as_array)
-            .map(|rows| rows.is_empty())
-            .unwrap_or(true)
-        {
-            let detected = row
-                .get("model_profiles")
-                .and_then(Value::as_object)
-                .map(|obj| obj.keys().cloned().map(Value::String).collect::<Vec<_>>())
-                .unwrap_or_default();
-            row["detected_models"] = Value::Array(detected);
-        }
+        let detected = row
+            .get("model_profiles")
+            .and_then(Value::as_object)
+            .map(|obj| {
+                obj.keys()
+                    .filter_map(|model_name| {
+                        let cleaned = clean_text(model_name, 240);
+                        if cleaned.is_empty() || model_id_is_placeholder(&cleaned) {
+                            None
+                        } else {
+                            Some(Value::String(cleaned))
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        row["detected_models"] = Value::Array(detected);
         if provider_id == "google" {
             row["aliases"] = json!(["gemini"]);
         } else if provider_id == "moonshot" {
@@ -444,6 +527,34 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
             let mut registry = load_registry(root);
             let row = ensure_provider_row_mut(&mut registry, &provider);
             row["reachable"] = json!(true);
+            let discovered_models = models_from_probe_response(&provider, &value);
+            if !discovered_models.is_empty() {
+                if !row.get("model_profiles").map(Value::is_object).unwrap_or(false) {
+                    row["model_profiles"] = json!({});
+                }
+                if let Some(profiles) = row.get_mut("model_profiles").and_then(Value::as_object_mut) {
+                    profiles.retain(|model_name, _| {
+                        let cleaned = clean_text(model_name, 240);
+                        !cleaned.is_empty() && !model_id_is_placeholder(&cleaned)
+                    });
+                    for model in &discovered_models {
+                        if profiles.contains_key(model) {
+                            continue;
+                        }
+                        profiles.insert(
+                            model.clone(),
+                            inferred_model_profile(&provider, model, provider_is_local(&provider)),
+                        );
+                    }
+                }
+                row["detected_models"] = Value::Array(
+                    discovered_models
+                        .iter()
+                        .cloned()
+                        .map(Value::String)
+                        .collect::<Vec<_>>(),
+                );
+            }
             row["updated_at"] = json!(crate::now_iso());
             save_registry(root, registry);
             json!({
