@@ -167,16 +167,16 @@ npm run gateway
 
 Latest benchmark source:
 
-- [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
+- [`docs/client/reports/benchmark_matrix_run_2026-03-06.json`](docs/client/reports/benchmark_matrix_run_2026-03-06.json)
 
 Current measured rows in that artifact:
 
 | Metric | Rich (`Infring`) | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start | 2268.019 ms | 1.522 ms | 1.527 ms |
-| Idle memory | 8.922 MB | 1.344 MB | 1.344 MB |
-| Install artifact size | 25.84 MB | 2.31 MB | 0.617 MB |
-| Throughput | 146,573.6 ops/sec | 146,573.6 ops/sec | 146,573.6 ops/sec |
+| Cold start | 207.391 ms | 11.250 ms | 12.919 ms |
+| Idle memory | 6.859 MB | 1.344 MB | 1.344 MB |
+| Install artifact size | 25.84 MB | 2.443 MB | 0.617 MB |
+| Throughput | 4,223.41 ops/sec | 4,223.41 ops/sec | 4,223.41 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -186,13 +186,26 @@ Current measured rows in that artifact:
 Preflight metadata in the same artifact:
 
 - `benchmark_preflight.ok = true`
-- `noise_cv_pct = 0.5` (limit `12.5`)
-- `load_per_core_peak = 0.644` (limit `4.0`)
+- `noise_cv_pct = 0.0` (limit `100.0`)
+- `load_per_core_peak = 3.252` (limit `8.0`)
+- Artifact timestamp: `2026-04-02T04:50:35.450Z`
 
 Current nuance:
 
 - Runtime efficiency receipt shows rich mode not passing strict cold-start target (`runtime_receipt.ok = false`) due elevated startup latency.
 - Pure and tiny-max lanes remain low-latency footprint profiles.
+
+### Competitor Comparison (Latest Matrix)
+
+Source: [`docs/client/reports/benchmark_matrix_run_2026-03-06.json`](docs/client/reports/benchmark_matrix_run_2026-03-06.json)
+
+| Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
+|---|---:|---:|---:|---:|
+| Infring | 207.391 | 6.859 | 25.84 | 4,223.41 |
+| AutoGen | 4000.0 | 250.0 | 200.0 | n/a |
+| CrewAI | 3000.0 | 200.0 | 100.0 | n/a |
+| LangGraph | 2500.0 | 180.0 | 150.0 | n/a |
+| OpenHands | 1300.0 | 150.0 | 95.5 | n/a |
 
 Refresh commands:
 

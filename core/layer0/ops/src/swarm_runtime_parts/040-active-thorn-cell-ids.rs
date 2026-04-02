@@ -174,66 +174,44 @@ fn quarantine_into_thorn(
     }
     set_service_health(state, target_id, false);
 
-    let thorn = SessionMetadata {
-        session_id: thorn_id.clone(),
-        parent_id: Some(target_id.to_string()),
-        children: Vec::new(),
-        depth: target_depth.saturating_add(1),
-        task: format!("thorn quarantine for {target_id}"),
-        created_at: now_iso(),
-        status: "thorn_active".to_string(),
-        reachable: true,
-        byzantine: false,
-        corruption_type: None,
-        report: Some(json!({
-            "restricted": true,
-            "outbound_network": false,
-            "tool_execution": false,
-            "memory_access": "limited",
-        })),
-        metrics: None,
-        budget_telemetry: None,
-        scaled_task: None,
-        budget_action_taken: None,
-        role: Some("thorn_cell".to_string()),
-        agent_label: Some(format!("thorn-{target_id}")),
-        tool_access: thorn_session_tool_access(),
-        context_vars: BTreeMap::from([
-            (
-                "restricted_capabilities".to_string(),
-                json!({
-                    "outbound_network": false,
-                    "tool_execution": false,
-                    "memory_access": "limited",
-                }),
-            ),
-            ("anomaly_type".to_string(), json!(anomaly_type)),
-            ("reason".to_string(), json!(reason)),
-            (
-                "replacement_sessions".to_string(),
-                json!(replacement_sessions.clone()),
-            ),
-        ]),
-        context_mode: Some("thorn_quarantine".to_string()),
-        handoff_ids: Vec::new(),
-        registered_tool_ids: Vec::new(),
-        stream_turn_ids: Vec::new(),
-        turn_run_ids: Vec::new(),
-        network_ids: Vec::new(),
-        check_ins: Vec::new(),
-        metrics_timeline: Vec::new(),
-        anomalies: vec![anomaly_type.to_string()],
-        persistent: None,
-        background_worker: false,
-        budget_parent_session_id: None,
-        budget_reservation_tokens: 0,
-        budget_reservation_settled: false,
-        thorn_cell: true,
-        thorn_target_session_id: Some(target_id.to_string()),
-        thorn_expires_at_ms: Some(now_ms.saturating_add(60_000)),
-        quarantine_reason: Some(reason.to_string()),
-        quarantine_previous_status: None,
-    };
+    let mut thorn = session_metadata_base(
+        thorn_id.clone(),
+        Some(target_id.to_string()),
+        target_depth.saturating_add(1),
+        format!("thorn quarantine for {target_id}"),
+        "thorn_active".to_string(),
+    );
+    thorn.report = Some(json!({
+        "restricted": true,
+        "outbound_network": false,
+        "tool_execution": false,
+        "memory_access": "limited",
+    }));
+    thorn.role = Some("thorn_cell".to_string());
+    thorn.agent_label = Some(format!("thorn-{target_id}"));
+    thorn.tool_access = thorn_session_tool_access();
+    thorn.context_vars = BTreeMap::from([
+        (
+            "restricted_capabilities".to_string(),
+            json!({
+                "outbound_network": false,
+                "tool_execution": false,
+                "memory_access": "limited",
+            }),
+        ),
+        ("anomaly_type".to_string(), json!(anomaly_type)),
+        ("reason".to_string(), json!(reason)),
+        (
+            "replacement_sessions".to_string(),
+            json!(replacement_sessions.clone()),
+        ),
+    ]);
+    thorn.context_mode = Some("thorn_quarantine".to_string());
+    thorn.anomalies = vec![anomaly_type.to_string()];
+    thorn.thorn_cell = true;
+    thorn.thorn_target_session_id = Some(target_id.to_string());
+    thorn.thorn_expires_at_ms = Some(now_ms.saturating_add(60_000));
+    thorn.quarantine_reason = Some(reason.to_string());
     state.sessions.insert(thorn_id.clone(), thorn);
     state.mailboxes.insert(
         thorn_id.clone(),
