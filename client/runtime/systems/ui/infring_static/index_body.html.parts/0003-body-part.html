@@ -433,7 +433,7 @@
                     </div>
                   </div>
                 </template>
-                <div class="chat-init-panel" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
+                <div class="chat-init-panel" :class="{ 'chat-init-panel-launching': freshInitLaunching }" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
                   <div class="chat-archetype-title">Initialize Agent</div>
                   <div class="chat-archetype-subtitle">Pick role and lifespan, then launch. Optional tuning lives under advanced setup.</div>
                   <div class="chat-init-avatar-row" data-init-anchor="identity">
@@ -451,13 +451,14 @@
                         type="file"
                         x-ref="freshInitAvatarInput"
                         accept="image/*"
+                        :disabled="freshInitLaunching"
                         style="display:none"
                         @change="uploadFreshInitAvatar($event.target.files); $event.target.value = ''"
                       >
                       <div class="chat-agent-avatar-actions chat-init-avatar-actions">
-                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="toggleFreshInitEmojiPicker()" title="Pick emoji" aria-label="Pick emoji">
+                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="toggleFreshInitEmojiPicker()" :disabled="freshInitLaunching" title="Pick emoji" aria-label="Pick emoji">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 15c1 .8 2.1 1.2 4 1.2s3-.4 4-1.2"></path><circle cx="9" cy="10" r="1"></circle><circle cx="15" cy="10" r="1"></circle></svg>
                         </button>
-                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="openFreshInitAvatarPicker()" :disabled="freshInitAvatarUploading" title="Upload avatar" aria-label="Upload avatar">
+                        <button class="chat-agent-identity-pencil chat-agent-identity-pencil-avatar-action" @click.stop="openFreshInitAvatarPicker()" :disabled="freshInitLaunching || freshInitAvatarUploading" title="Upload avatar" aria-label="Upload avatar">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5-5 5 5"></path><path d="M12 5v12"></path></svg>
                         </button>

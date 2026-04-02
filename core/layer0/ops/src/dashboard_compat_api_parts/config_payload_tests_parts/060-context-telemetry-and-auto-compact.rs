@@ -272,3 +272,78 @@ fn context_command_prunes_pool_when_limit_exceeded() {
         true
     );
 }
+
+#[test]
+fn context_command_emergency_compacts_before_saturation() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let _ = update_profile_patch(
+        root.path(),
+        &agent_id,
+        &json!({"context_window": 512, "context_window_tokens": 512}),
+    );
+    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let noisy_messages = (0..120)
+        .map(|idx| {
+            json!({
+                "id": idx + 1,
+                "role": if idx % 2 == 0 { "user" } else { "agent" },
+                "text": format!("context-pressure-{idx} {}", "alpha ".repeat(80)),
+                "ts": crate::now_iso()
+            })
+        })
+        .collect::<Vec<_>>();
+    write_json(
+        &session_path,
+        &json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [
+                {
+                    "session_id": "default",
+                    "updated_at": crate::now_iso(),
+                    "messages": noisy_messages
+                }
+            ]
+        }),
+    );
+
+    let context = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/command"),
+        br#"{"command":"context","silent":true,"active_context_target_tokens":512,"active_context_min_recent_messages":4,"auto_compact_threshold_ratio":0.95,"auto_compact_target_ratio":0.45}"#,
+        &json!({"ok": true}),
+    )
+    .expect("context command");
+    assert_eq!(context.status, 200);
+    assert_eq!(
+        context
+            .payload
+            .pointer("/context_pool/emergency_compact/triggered")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        context
+            .payload
+            .pointer("/context_pool/emergency_compact/removed_messages")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0,
+        true
+    );
+    assert_eq!(
+        context
+            .payload
+            .pointer("/context_pool/emergency_compact/after_tokens")
+            .and_then(Value::as_i64)
+            .unwrap_or(i64::MAX)
+            < context
+                .payload
+                .pointer("/context_pool/emergency_compact/before_tokens")
+                .and_then(Value::as_i64)
+                .unwrap_or(i64::MIN),
+        true
+    );
+}

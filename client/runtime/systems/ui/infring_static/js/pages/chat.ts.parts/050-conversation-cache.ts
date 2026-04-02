@@ -73,6 +73,11 @@
 
     applyContextTelemetry(data) {
       if (!data || typeof data !== 'object') return;
+      var payloadAgentId = String(data.agent_id || '').trim();
+      var selectedAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
+      if (payloadAgentId && selectedAgentId && payloadAgentId !== selectedAgentId) {
+        return;
+      }
       var pool = data.context_pool && typeof data.context_pool === 'object' ? data.context_pool : null;
       var hasApproxField =
         Object.prototype.hasOwnProperty.call(data, 'context_tokens') ||
@@ -293,13 +298,20 @@
       if (Number.isFinite(inferred) && inferred > 0) {
         this.contextWindow = Math.round(inferred);
         this.refreshContextPressure();
+        return;
       }
+      // Avoid carrying stale tiny/invalid windows across agent switches.
+      this.contextWindow = 128000;
+      this.refreshContextPressure();
     },
 
     refreshContextPressure() {
       var windowSize = Number(this.contextWindow || 0);
       var used = Number(this.contextApproxTokens || 0);
-      if (!Number.isFinite(windowSize) || windowSize <= 0 || !Number.isFinite(used) || used < 0) return;
+      if (!Number.isFinite(windowSize) || windowSize <= 0 || !Number.isFinite(used) || used < 0) {
+        this.contextPressure = 'low';
+        return;
+      }
       var ratio = used / windowSize;
       if (ratio >= 0.96) this.contextPressure = 'critical';
       else if (ratio >= 0.82) this.contextPressure = 'high';

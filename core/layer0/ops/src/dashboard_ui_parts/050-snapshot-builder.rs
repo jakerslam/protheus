@@ -58,17 +58,63 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     let memory_entry_threshold = 25i64;
     let memory_ingest_paused =
         queue_depth >= memory_pause_threshold || memory_seq >= memory_entry_threshold;
-    let collab_agents = collab_payload
-        .pointer("/dashboard/agents")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let profiles = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/agent_profiles.json"),
+    )
+    .and_then(|value| value.get("agents").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let contracts = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/agent_contracts.json"),
+    )
+    .and_then(|value| value.get("contracts").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let archived = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/archived_agents.json"),
+    )
+    .and_then(|value| value.get("agents").and_then(Value::as_object).cloned())
+    .unwrap_or_default();
+    let mut roster_ids = std::collections::HashSet::<String>::new();
+    for id in profiles.keys() {
+        let normalized = clean_text(id, 140);
+        if !normalized.is_empty() {
+            roster_ids.insert(normalized);
+        }
+    }
+    for id in contracts.keys() {
+        let normalized = clean_text(id, 140);
+        if !normalized.is_empty() {
+            roster_ids.insert(normalized);
+        }
+    }
     let mut active_count = 0i64;
     let mut idle_agents = 0i64;
-    for row in &collab_agents {
-        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
-        if status == "active" || status == "running" {
+    for agent_id in roster_ids {
+        if archived.contains_key(&agent_id) {
+            continue;
+        }
+        let profile = profiles.get(&agent_id);
+        let profile_state = clean_text(
+            profile
+                .and_then(|row| row.get("state").and_then(Value::as_str))
+                .unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
+        if profile_state == "archived" {
+            continue;
+        }
+        let contract_status = clean_text(
+            contracts
+                .get(&agent_id)
+                .and_then(|row| row.get("status").and_then(Value::as_str))
+                .unwrap_or("active"),
+            40,
+        )
+        .to_ascii_lowercase();
+        if contract_status == "terminated" {
+            continue;
+        }
+        if profile_state == "running" || profile_state == "active" {
             active_count += 1;
         } else {
             idle_agents += 1;

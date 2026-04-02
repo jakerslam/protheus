@@ -267,7 +267,15 @@ function agentsPage() {
       return [];
     },
 
-    get agents() { return Alpine.store('app').agents; },
+    get agents() {
+      var store = Alpine.store('app');
+      var rows = Array.isArray(store && store.agents) ? store.agents : [];
+      var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+      if (!pendingFreshId) return rows;
+      return rows.filter(function(agent) {
+        return String((agent && agent.id) || '').trim() !== pendingFreshId;
+      });
+    },
 
     get filteredAgents() {
       var f = this.filterState;
@@ -397,4 +405,3 @@ function agentsPage() {
       if (!Number.isFinite(ms)) return '';
       return new Date(ms).toLocaleString();
     },
-

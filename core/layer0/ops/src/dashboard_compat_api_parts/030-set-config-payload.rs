@@ -900,12 +900,22 @@ fn first_string(value: Option<&Value>, key: &str) -> String {
 }
 
 fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -> Vec<Value> {
-    let archived = crate::dashboard_agent_state::archived_agent_ids(root);
+    let mut archived = crate::dashboard_agent_state::archived_agent_ids(root);
     let profiles = profiles_map(root);
     let contracts = contracts_map(root);
     let collab = collab_agents_map(snapshot);
     let session_summaries = session_summary_map(root, snapshot);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
+    for (raw_id, profile) in &profiles {
+        let profile_state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if profile_state == "archived" {
+            let id = clean_agent_id(raw_id);
+            if !id.is_empty() {
+                archived.insert(id);
+            }
+        }
+    }
     let mut all_ids = HashSet::<String>::new();
     for key in profiles.keys() {
         let id = clean_agent_id(key);
@@ -914,18 +924,6 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
         }
     }
     for key in contracts.keys() {
-        let id = clean_agent_id(key);
-        if !id.is_empty() {
-            all_ids.insert(id);
-        }
-    }
-    for key in collab.keys() {
-        let id = clean_agent_id(key);
-        if !id.is_empty() {
-            all_ids.insert(id);
-        }
-    }
-    for key in session_summaries.keys() {
         let id = clean_agent_id(key);
         if !id.is_empty() {
             all_ids.insert(id);
@@ -947,8 +945,8 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
         let collab_row = collab.get(&agent_id);
         let session_summary = session_summaries.get(&agent_id);
         let runtime_active = collab_runtime_active(collab_row);
-        let mut contract = contract_with_runtime_fields(&contract_raw);
-        let mut contract_status = clean_text(
+        let contract = contract_with_runtime_fields(&contract_raw);
+        let contract_status = clean_text(
             contract
                 .get("status")
                 .and_then(Value::as_str)
@@ -956,18 +954,6 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             40,
         )
         .to_ascii_lowercase();
-        let termination_reason = clean_text(
-            contract
-                .get("termination_reason")
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            80,
-        )
-        .to_ascii_lowercase();
-        if runtime_active && contract_status == "terminated" && termination_reason.is_empty() {
-            contract["status"] = json!("active");
-            contract_status = "active".to_string();
-        }
         if !include_terminated && contract_status == "terminated" {
             continue;
         }
@@ -2877,19 +2863,77 @@ fn context_command_payload(
         .and_then(Value::as_u64)
         .unwrap_or(16)
         .clamp(4, 128) as usize;
-    let active_messages = select_active_context_window(
+    let row_auto_compact_threshold_ratio = row
+        .get("auto_compact_threshold_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.95);
+    let row_auto_compact_target_ratio = row
+        .get("auto_compact_target_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.72);
+    let auto_compact_threshold_ratio = request
+        .get("auto_compact_threshold_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(row_auto_compact_threshold_ratio)
+        .clamp(0.75, 0.99);
+    let auto_compact_target_ratio = request
+        .get("auto_compact_target_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(row_auto_compact_target_ratio)
+        .clamp(0.40, 0.90);
+    let mut active_messages = select_active_context_window(
         &pooled_messages,
         active_context_target_tokens,
         active_context_min_recent,
     );
     let context_pool_tokens = total_message_tokens(&pooled_messages);
-    let context_tokens = total_message_tokens(&active_messages);
-    let context_ratio = if context_window > 0 {
+    let mut context_tokens = total_message_tokens(&active_messages);
+    let mut context_ratio = if context_window > 0 {
         (context_tokens as f64 / context_window as f64).clamp(0.0, 1.0)
     } else {
         0.0
     };
-    let context_pressure = context_pressure_label(context_ratio);
+    let mut context_pressure = context_pressure_label(context_ratio).to_string();
+    let mut emergency_compact = json!({
+        "triggered": false,
+        "threshold_ratio": auto_compact_threshold_ratio,
+        "target_ratio": auto_compact_target_ratio,
+        "removed_messages": 0
+    });
+    if context_ratio >= auto_compact_threshold_ratio && context_window > 0 {
+        let emergency_target_tokens = ((context_window as f64) * auto_compact_target_ratio).round() as i64;
+        let emergency_min_recent = request
+            .get("emergency_min_recent_messages")
+            .or_else(|| request.get("min_recent_messages"))
+            .and_then(Value::as_u64)
+            .unwrap_or(active_context_min_recent.min(4) as u64)
+            .clamp(2, 128) as usize;
+        let emergency_messages =
+            select_active_context_window(&pooled_messages, emergency_target_tokens, emergency_min_recent);
+        let emergency_tokens = total_message_tokens(&emergency_messages);
+        let removed_messages = active_messages
+            .len()
+            .saturating_sub(emergency_messages.len()) as u64;
+        emergency_compact = json!({
+            "triggered": true,
+            "threshold_ratio": auto_compact_threshold_ratio,
+            "target_ratio": auto_compact_target_ratio,
+            "removed_messages": removed_messages,
+            "before_tokens": context_tokens,
+            "after_tokens": emergency_tokens,
+            "persisted_to_history": false
+        });
+        if removed_messages > 0 && emergency_tokens <= context_tokens {
+            active_messages = emergency_messages;
+            context_tokens = emergency_tokens;
+            context_ratio = if context_window > 0 {
+                (context_tokens as f64 / context_window as f64).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            context_pressure = context_pressure_label(context_ratio).to_string();
+        }
+    }
     json!({
         "ok": true,
         "agent_id": agent_id,
@@ -2914,7 +2958,8 @@ fn context_command_payload(
             "min_recent_messages": active_context_min_recent,
             "pre_generation_pruning_enabled": true,
             "pre_generation_pruned": pre_generation_pruned,
-            "emergency_compact_enabled": true
+            "emergency_compact_enabled": true,
+            "emergency_compact": emergency_compact
         },
         "message": format!(
             "Context window: {} tokens | Active: {} tokens ({}%) | Pressure: {}",

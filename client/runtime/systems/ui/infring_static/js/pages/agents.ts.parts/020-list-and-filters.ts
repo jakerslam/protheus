@@ -206,12 +206,25 @@
       // If a pending agent was set (e.g. from wizard or redirect), route to
       // the primary chat page so we keep one authoritative chat render path.
       var store = Alpine.store('app');
-      if (store.pendingAgent) {
+      var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+      if (pendingFreshId) {
+        store.pendingFreshAgentId = null;
+        store.pendingAgent = null;
+        if (String(store.activeAgentId || '').trim() === pendingFreshId) {
+          if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
+          else store.activeAgentId = null;
+        }
+        InfringAPI.del('/api/agents/' + encodeURIComponent(pendingFreshId)).catch(function() {});
+        if (typeof store.refreshAgents === 'function') {
+          setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
+        }
+      } else if (store.pendingAgent) {
         this.chatWithAgent(store.pendingAgent);
       }
       // Watch for future pendingAgent changes
       this.$watch('$store.app.pendingAgent', function(agent) {
-        if (agent) {
+        var pendingId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+        if (!pendingId && agent) {
           self.chatWithAgent(agent);
         }
       });
@@ -251,10 +264,6 @@
       var store = Alpine.store('app');
       store.pendingAgent = agent;
       store.activeAgentId = agent.id || null;
-      var messageCount = Number(agent && agent.message_count != null ? agent.message_count : 0);
-      if (agent.id && Number.isFinite(messageCount) && messageCount <= 0) {
-        store.pendingFreshAgentId = String(agent.id);
-      }
       this.activeChatAgent = null;
       window.location.hash = 'chat';
     },

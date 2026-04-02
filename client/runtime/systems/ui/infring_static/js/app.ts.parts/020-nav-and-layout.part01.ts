@@ -428,7 +428,7 @@ function app() {
     chatSidebarSearchError: '',
     chatSidebarSearchSeq: 0,
     _chatSidebarSearchTimer: 0,
-    agentChatsSectionCollapsed: true,
+    agentChatsSectionCollapsed: false,
     chatSidebarSortMode: (() => {
       try {
         var saved = String(localStorage.getItem('infring-chat-sidebar-sort-mode') || '').trim().toLowerCase();

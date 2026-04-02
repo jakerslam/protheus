@@ -121,6 +121,20 @@
   margin-top: 10px;
 }
 
+.chat-init-panel.chat-init-panel-launching {
+  opacity: 0.62;
+  filter: saturate(0.2);
+}
+
+.chat-init-panel.chat-init-panel-launching .chat-archetype-tile,
+.chat-init-panel.chat-init-panel-launching .chat-init-advanced-toggle,
+.chat-init-panel.chat-init-panel-launching .chat-agent-identity-pencil,
+.chat-init-panel.chat-init-panel-launching .chat-init-name-input,
+.chat-init-panel.chat-init-panel-launching .chat-agent-emoji-search,
+.chat-init-panel.chat-init-panel-launching .emoji-grid-item {
+  cursor: not-allowed;
+}
+
 .chat-init-launch-btn {
   min-width: 116px;
 }

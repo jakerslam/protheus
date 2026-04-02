@@ -206,6 +206,111 @@ fn archive_all_agents_endpoint_rejects_actor_scoped_requests() {
 }
 
 #[test]
+fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let _ = crate::dashboard_agent_state::upsert_profile(
+        root.path(),
+        "agent-live",
+        &json!({
+            "name": "Live",
+            "role": "operator",
+            "state": "Running"
+        }),
+    );
+    let _ = crate::dashboard_agent_state::upsert_contract(
+        root.path(),
+        "agent-live",
+        &json!({
+            "status": "active",
+            "created_at": "2099-01-01T00:00:00Z",
+            "updated_at": "2099-01-01T00:00:00Z",
+            "expires_at": "2099-12-31T00:00:00Z",
+            "auto_terminate_allowed": false
+        }),
+    );
+    let _ = crate::dashboard_agent_state::upsert_profile(
+        root.path(),
+        "agent-archived",
+        &json!({
+            "name": "Archived",
+            "role": "analyst",
+            "state": "Archived",
+            "updated_at": "2026-01-02T00:00:00Z"
+        }),
+    );
+    let _ = crate::dashboard_agent_state::upsert_contract(
+        root.path(),
+        "agent-archived",
+        &json!({
+            "status": "active",
+            "created_at": "2099-01-01T00:00:00Z",
+            "updated_at": "2099-01-01T00:00:00Z",
+            "expires_at": "2099-12-31T00:00:00Z",
+            "auto_terminate_allowed": false
+        }),
+    );
+    let _ = crate::dashboard_agent_state::append_turn(
+        root.path(),
+        "agent-zombie",
+        "zombie input",
+        "zombie output",
+    );
+    let snapshot = json!({
+        "ok": true,
+        "collab": {
+            "dashboard": {
+                "agents": [
+                    {
+                        "shadow": "agent-zombie",
+                        "role": "analyst",
+                        "status": "running",
+                        "activated_at": "2026-01-01T00:00:00Z"
+                    }
+                ]
+            }
+        },
+        "agents": {
+            "session_summaries": {
+                "rows": [
+                    {
+                        "agent_id": "agent-zombie",
+                        "message_count": 99,
+                        "updated_at": "2026-01-03T00:00:00Z"
+                    }
+                ]
+            }
+        }
+    });
+
+    let listed = handle(root.path(), "GET", "/api/agents", &[], &snapshot).expect("agents");
+    let rows = listed.payload.as_array().cloned().unwrap_or_default();
+    let ids = rows
+        .iter()
+        .filter_map(|row| row.get("id").and_then(Value::as_str))
+        .map(|value| clean_text(value, 180))
+        .collect::<Vec<_>>();
+    assert!(ids.iter().any(|id| id == "agent-live"));
+    assert!(!ids.iter().any(|id| id == "agent-zombie"));
+    assert!(!ids.iter().any(|id| id == "agent-archived"));
+
+    let status = handle(root.path(), "GET", "/api/status", &[], &snapshot).expect("status");
+    assert_eq!(status.payload.get("agent_count").and_then(Value::as_u64), Some(1));
+
+    let terminated =
+        handle(root.path(), "GET", "/api/agents/terminated", &[], &snapshot).expect("terminated");
+    let terminated_rows = terminated
+        .payload
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(terminated_rows.iter().any(|row| {
+        clean_text(row.get("agent_id").and_then(Value::as_str).unwrap_or(""), 180)
+            == "agent-archived"
+    }));
+}
+
+#[test]
 fn terminal_endpoints_round_trip() {
     let root = tempfile::tempdir().expect("tempdir");
     let created = handle(

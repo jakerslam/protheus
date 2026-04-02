@@ -380,8 +380,31 @@
     },
     anchorAgentTrailToThinking(host, hostRect, now, pad, w, h) {
       if (!host || typeof host.querySelectorAll !== 'function') return false;
+      var self = this;
+      var pinToLastThinkingAnchor = function() {
+        var s = self._agentTrailState || null;
+        if (!self.freshInitLaunching || !s || String(s.anchorMode || '') !== 'thinking') return false;
+        var x = Number(s.anchorTargetX);
+        var y = Number(s.anchorTargetY);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          x = Number(s.x);
+          y = Number(s.y);
+        }
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+        x = Math.max(pad + 1, Math.min(w - (pad + 1), x));
+        y = Math.max(pad + 1, Math.min(h - (pad + 1), y));
+        s.x = x; s.y = y; s.vx = 0; s.vy = 0; s.trailX = x; s.trailY = y; s.anchorLastAt = now;
+        self._agentTrailState = s;
+        self.ensureAgentTrailOrb(host, x, y);
+        if (self._agentTrailOrbEl && self._agentTrailOrbEl.classList) self._agentTrailOrbEl.classList.add('agent-listening');
+        host.style.setProperty('--chat-agent-grid-active', '1');
+        host.style.setProperty('--chat-agent-grid-x', Math.round(x) + 'px');
+        host.style.setProperty('--chat-agent-grid-y', Math.round(y) + 'px');
+        return true;
+      };
       var bubbles = host.querySelectorAll('.message.thinking .message-bubble.message-bubble-thinking');
       if (!bubbles || !bubbles.length) {
+        if (pinToLastThinkingAnchor()) return true;
         if (this._agentTrailOrbEl && this._agentTrailOrbEl.classList && !this._agentTrailListening) this._agentTrailOrbEl.classList.remove('agent-listening');
         return false;
       }
@@ -409,6 +432,7 @@
         break;
       }
       if (!anchor) {
+        if (pinToLastThinkingAnchor()) return true;
         if (this._agentTrailOrbEl && this._agentTrailOrbEl.classList && !this._agentTrailListening) this._agentTrailOrbEl.classList.remove('agent-listening');
         return false;
       }

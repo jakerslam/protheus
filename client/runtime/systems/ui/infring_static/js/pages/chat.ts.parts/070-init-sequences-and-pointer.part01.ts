@@ -106,6 +106,14 @@
 	        if (context.signature) payload.recent_context = String(context.signature).trim();
 	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
 	        if (this._suggestionFetchSeq !== seq) return;
+	        var freshContext = this.collectPromptSuggestionContext();
+	        var freshHistoryCount = Array.isArray(freshContext.history) ? freshContext.history.length : 0;
+	        if (freshHistoryCount < 7) {
+	          this.promptSuggestions = [];
+	          this._lastSuggestionsAt = Date.now();
+	          this._lastSuggestionsAgentId = agentId;
+	          return;
+	        }
 	        var gatingContext = String(context.signature || '');
 	        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
 	        if ((!Array.isArray(baseSuggestions) || !baseSuggestions.length) && typeof this.derivePromptSuggestionFallback === 'function') {
@@ -120,11 +128,18 @@
         this._lastSuggestionsAt = Date.now();
         this._lastSuggestionsAgentId = agentId;
 	      } catch (_) {
-	        if (this._suggestionFetchSeq === seq) {
-	          var fallbackContext = this.collectPromptSuggestionContext();
-	          var fallbackRows = [];
-	          if (typeof this.derivePromptSuggestionFallback === 'function') {
-	            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
+		        if (this._suggestionFetchSeq === seq) {
+		          var fallbackContext = this.collectPromptSuggestionContext();
+		          var fallbackHistoryCount = Array.isArray(fallbackContext.history) ? fallbackContext.history.length : 0;
+		          if (fallbackHistoryCount < 7) {
+		            this.promptSuggestions = [];
+		            this._lastSuggestionsAt = Date.now();
+		            this._lastSuggestionsAgentId = agentId;
+		            return;
+		          }
+		          var fallbackRows = [];
+		          if (typeof this.derivePromptSuggestionFallback === 'function') {
+		            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
 	          }
 	          this.promptSuggestions = this.normalizePromptSuggestions(
 	            Array.isArray(fallbackRows) ? fallbackRows : [],
@@ -249,11 +264,9 @@
           self.freshInitRevealMenu = true;
           self.showFreshArchetypeTiles = true;
           self.$nextTick(function() {
-            self.scrollToBottomImmediate();
             self.stabilizeBottomScroll();
-            self.pinToLatestOnOpen(null, { maxFrames: 20 });
           });
-        }, 500);
+        }, 900);
       }, 500);
     },
 
