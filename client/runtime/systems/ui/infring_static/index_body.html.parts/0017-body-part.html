@@ -368,6 +368,17 @@
     '.page-body [class*=\"card\"]'
   ].join(',');
 
+  var reflectionFallbackSelectors = [
+    '.page-body > *',
+    '.page-body [class*=\"panel\"]',
+    '.page-body [class*=\"tile\"]',
+    '.page-body [class*=\"box\"]',
+    '.page-body [class*=\"row\"]',
+    '.page-body [class*=\"item\"]',
+    '.page-body [class*=\"wrap\"]',
+    '.page-body [style*=\"background\"]'
+  ].join(',');
+
   var chatReflectionSelectors = [
     '.chat-thread .message-bubble',
     '.chat-thread .tool-card',
