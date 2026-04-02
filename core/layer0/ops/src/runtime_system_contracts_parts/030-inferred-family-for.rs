@@ -23,6 +23,18 @@ fn inferred_family_for(id: &str) -> Option<(&'static str, &'static str)> {
             "phone_surface_runtime_integration_and_operator_control_plane",
         ));
     }
+    if id.starts_with("V10-WEB-CONDUIT-001.") {
+        return Some((
+            "security_sandbox_redteam",
+            "governed_web_conduit_policy_receipts_hitl_and_untrusted_content_controls",
+        ));
+    }
+    if id.starts_with("V10-EXT-AGENT-001.") {
+        return Some((
+            "swarm_runtime_scaling",
+            "agent_framework_parity_static_validation_hitl_interrupts_and_context_artifactization",
+        ));
+    }
     if id.starts_with("V10-SWARM-INF-001.") {
         return Some((
             "swarm_runtime_scaling",
