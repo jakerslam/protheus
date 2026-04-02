@@ -263,14 +263,15 @@
   0% {
     left: calc(var(--thinking-link-start) - var(--dot-half, 3px));
     bottom: calc(var(--thinking-link-start) + var(--dot-half, 3px));
-    opacity: 0;
+    opacity: 0.46;
     transform: scale(0.66);
   }
-  16% { opacity: 0.95; }
+  16% { opacity: 1; }
+  72% { opacity: 1; }
   100% {
     left: calc(var(--thinking-link-end-x) - var(--dot-half, 3px));
     bottom: var(--thinking-link-end-y);
-    opacity: 0;
+    opacity: 0.44;
     transform: scale(1.5);
   }
 }
