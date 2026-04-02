@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SRS coverage: V6-WORKFLOW-014.1, V6-WORKFLOW-014.2, V6-WORKFLOW-014.3,
-// V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7
+// V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7,
+// V6-WORKFLOW-014.8, V6-WORKFLOW-014.9
 
 use protheus_ops_core::langchain_bridge;
 use serde_json::{json, Value};
@@ -65,6 +66,33 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
         run_bridge(
             root.path(),
             &[
+                "register-middleware".to_string(),
+                format!(
+                    "--payload={}",
+                    json!({
+                        "name": "incident-before-chain",
+                        "chain_id": chain_id.clone(),
+                        "hook": "before_chain",
+                        "action": "attach_replay_metadata",
+                        "fail_closed": true
+                    })
+                ),
+                format!("--state-path={}", state_path.display()),
+                format!("--history-path={}", history_path.display()),
+            ],
+        ),
+        0
+    );
+    let middleware_receipt = latest_receipt(&state_path);
+    assert_eq!(
+        middleware_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
+        Some("V6-WORKFLOW-014.9")
+    );
+
+    assert_eq!(
+        run_bridge(
+            root.path(),
+            &[
                 "execute-chain".to_string(),
                 format!(
                     "--payload={}",
@@ -81,6 +109,10 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
     assert_eq!(
         run_receipt["payload"]["run"]["degraded"].as_bool(),
         Some(true)
+    );
+    assert_eq!(
+        run_receipt["payload"]["run"]["middleware_count"].as_u64(),
+        Some(1)
     );
     assert_eq!(
         run_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
@@ -241,6 +273,38 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
     assert_eq!(
         prompt_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-014.5")
+    );
+
+    assert_eq!(
+        run_bridge(
+            root.path(),
+            &[
+                "parse-structured-output".to_string(),
+                format!(
+                    "--payload={}",
+                    json!({
+                        "name": "incident-json",
+                        "schema": {
+                            "required_fields": ["answer", "confidence"],
+                            "field_types": {"answer": "string", "confidence": "number"}
+                        },
+                        "output_json": {"answer": "Billing service degraded", "confidence": 0.91}
+                    })
+                ),
+                format!("--state-path={}", state_path.display()),
+                format!("--history-path={}", history_path.display()),
+            ],
+        ),
+        0
+    );
+    let parsed_receipt = latest_receipt(&state_path);
+    assert_eq!(
+        parsed_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
+        Some("V6-WORKFLOW-014.8")
+    );
+    assert_eq!(
+        parsed_receipt["payload"]["structured_output"]["validated_output"]["answer"].as_str(),
+        Some("Billing service degraded")
     );
 
     assert_eq!(

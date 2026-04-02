@@ -25,7 +25,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     clean_id(
                         Some(format!(
                             "run-{}",
-                            now_iso().chars().filter(|c| c.is_ascii_digit()).take(16).collect::<String>()
+                            now_iso()
+                                .chars()
+                                .filter(|c| c.is_ascii_digit())
+                                .take(16)
+                                .collect::<String>()
                         )),
                         "run-duality",
                     )
@@ -87,6 +91,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "hand-status" => run_hand_status(root, argv),
         "hand-memory-page" => run_hand_memory_page(root, argv),
         "hand-wasm-task" => run_hand_wasm_task(root, argv),
+        "compact" => run_tiered_compaction(root, argv),
+        "dream" => run_dream_consolidation(root, argv),
+        "kairos" => run_kairos_daemon(root, argv),
+        "speculate" | "speculation" => run_speculation_overlay(root, argv),
+        "autoreason" => run_autoreason(root, argv),
         "ephemeral-run" => run_ephemeral(root, argv),
         "trunk-status" => run_trunk_status(root, argv),
         "pain-signal" => {
@@ -382,5 +391,54 @@ mod tests {
             ],
         );
         assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn new_memory_autonomy_and_speculation_commands_dispatch() {
+        let root = tempdir().expect("tmp");
+        assert_eq!(
+            run(
+                root.path(),
+                &[
+                    "compact".to_string(),
+                    "--hand-id=alpha".to_string(),
+                    "--mode=micro".to_string()
+                ],
+            ),
+            0
+        );
+        assert_eq!(
+            run(
+                root.path(),
+                &["dream".to_string(), "--hand-id=alpha".to_string()]
+            ),
+            0
+        );
+        assert_eq!(
+            run(root.path(), &["kairos".to_string(), "status".to_string()]),
+            0
+        );
+        assert_eq!(
+            run(
+                root.path(),
+                &[
+                    "speculate".to_string(),
+                    "run".to_string(),
+                    "--spec-id=alpha-spec".to_string()
+                ],
+            ),
+            0
+        );
+        assert_eq!(
+            run(
+                root.path(),
+                &[
+                    "autoreason".to_string(),
+                    "status".to_string(),
+                    "--strict=1".to_string(),
+                ],
+            ),
+            0
+        );
     }
 }

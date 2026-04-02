@@ -2,7 +2,8 @@
 'use strict';
 
 // SRS coverage: V6-WORKFLOW-014.1, V6-WORKFLOW-014.2, V6-WORKFLOW-014.3,
-// V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7
+// V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7,
+// V6-WORKFLOW-014.8, V6-WORKFLOW-014.9
 
 const assert = require('assert');
 const fs = require('fs');
@@ -50,6 +51,17 @@ function run() {
   });
   assert.strictEqual(Boolean(chain.chain.chain_id), true);
 
+  const middleware = bridge.registerMiddleware({
+    name: 'incident-before-chain',
+    chain_id: chain.chain.chain_id,
+    hook: 'before_chain',
+    action: 'attach_replay_metadata',
+    fail_closed: true,
+    state_path: statePath,
+    history_path: historyPath,
+  });
+  assert.strictEqual(Boolean(middleware.middleware.middleware_id), true);
+
   const chainRun = bridge.executeChain({
     chain_id: chain.chain.chain_id,
     profile: 'pure',
@@ -58,6 +70,7 @@ function run() {
     swarm_state_path: swarmStatePath
   });
   assert.strictEqual(chainRun.run.degraded, true);
+  assert.strictEqual(chainRun.run.middleware_count, 1);
 
   const agent = bridge.runDeepAgent({
     name: 'incident-deep-agent',
@@ -120,6 +133,18 @@ function run() {
   assert.strictEqual(prompt.route.selected_provider, 'openai-compatible');
   assert.strictEqual(prompt.route.rendered_prompt, 'Answer What happened? with billing service degraded');
 
+  const parsed = bridge.parseStructuredOutput({
+    name: 'incident-json',
+    schema: {
+      required_fields: ['answer', 'confidence'],
+      field_types: { answer: 'string', confidence: 'number' }
+    },
+    output_json: { answer: 'Billing service degraded', confidence: 0.91 },
+    state_path: statePath,
+    history_path: historyPath
+  });
+  assert.strictEqual(parsed.structured_output.validated_output.answer, 'Billing service degraded');
+
   const trace = bridge.recordTrace({
     trace_id: 'incident-trace',
     steps: [
@@ -155,11 +180,13 @@ function run() {
   const status = bridge.status({ state_path: statePath, history_path: historyPath });
   assert.strictEqual(status.chains, 1);
   assert.strictEqual(status.chain_runs, 1);
+  assert.strictEqual(status.middleware_hooks, 1);
   assert.strictEqual(status.agent_runs, 1);
   assert.strictEqual(status.memory_bridges, 1);
   assert.strictEqual(status.memory_queries, 1);
   assert.strictEqual(status.integrations, 1);
   assert.strictEqual(status.prompt_routes, 1);
+  assert.strictEqual(status.structured_outputs, 1);
   assert.strictEqual(status.traces, 1);
   assert.strictEqual(status.checkpoints, 1);
   assert.strictEqual(status.intakes, 1);

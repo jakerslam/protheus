@@ -54,6 +54,10 @@ pub fn usage() {
     println!("Usage: infring <command> [flags]");
     println!("Try:");
     println!("  infring gateway");
+    println!("  infring dream");
+    println!("  infring compact");
+    println!("  infring kairos");
+    println!("  infring speculate");
     println!("  infring dashboard");
     println!("  infring task list");
     println!("  infring list");

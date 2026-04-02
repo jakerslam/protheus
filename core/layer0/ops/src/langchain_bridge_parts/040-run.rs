@@ -23,11 +23,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "history_path": rel(root, &history_path),
             "chains": as_object_mut(&mut state, "chains").len(),
             "chain_runs": as_object_mut(&mut state, "chain_runs").len(),
+            "middleware_hooks": as_object_mut(&mut state, "middleware_hooks").len(),
             "agent_runs": as_object_mut(&mut state, "agent_runs").len(),
             "memory_bridges": as_object_mut(&mut state, "memory_bridges").len(),
             "memory_queries": as_object_mut(&mut state, "memory_queries").len(),
             "integrations": as_object_mut(&mut state, "integrations").len(),
             "prompt_routes": as_object_mut(&mut state, "prompt_routes").len(),
+            "structured_outputs": as_object_mut(&mut state, "structured_outputs").len(),
             "traces": as_array_mut(&mut state, "traces").len(),
             "checkpoints": as_object_mut(&mut state, "checkpoints").len(),
             "intakes": as_object_mut(&mut state, "intakes").len(),
@@ -35,11 +37,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         })),
         "register-chain" => register_chain(&mut state, input),
         "execute-chain" => execute_chain(root, argv, &mut state, input),
+        "register-middleware" => register_middleware(&mut state, input),
         "run-deep-agent" => run_deep_agent(root, argv, &mut state, input),
         "register-memory-bridge" => register_memory_bridge(root, &mut state, input),
         "recall-memory" => recall_memory(&mut state, input),
         "import-integration" => import_integration(root, &mut state, input),
         "route-prompt" => route_prompt(&mut state, input),
+        "parse-structured-output" => parse_structured_output(&mut state, input),
         "record-trace" => record_trace(root, &mut state, input),
         "checkpoint-run" => checkpoint_run(root, argv, &mut state, input),
         "assimilate-intake" => assimilate_intake(root, &mut state, input),
@@ -137,5 +141,46 @@ mod tests {
             Some("billing policy doc")
         );
     }
-}
 
+    #[test]
+    fn parse_structured_output_accepts_valid_payload() {
+        let mut state = default_state();
+        let out = parse_structured_output(
+            &mut state,
+            json!({
+                "name": "incident-json",
+                "schema": {
+                    "required_fields": ["answer", "confidence"],
+                    "field_types": {"answer": "string", "confidence": "number"}
+                },
+                "output_json": {"answer": "ok", "confidence": 0.91}
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("parse");
+        assert_eq!(
+            out["structured_output"]["validated_output"]["answer"].as_str(),
+            Some("ok")
+        );
+    }
+
+    #[test]
+    fn parse_structured_output_rejects_mismatched_type() {
+        let mut state = default_state();
+        let err = parse_structured_output(
+            &mut state,
+            json!({
+                "schema": {
+                    "required_fields": ["answer", "confidence"],
+                    "field_types": {"answer": "string", "confidence": "number"}
+                },
+                "output_json": {"answer": "ok", "confidence": "high"}
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect_err("expected fail-closed validation error");
+        assert!(err.contains("langchain_structured_output_validation_failed"));
+    }
+}

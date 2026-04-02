@@ -115,6 +115,62 @@ fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
 }
 
 #[test]
+fn repeated_default_agent_creation_avoids_double_agent_prefix() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let first = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create first agent");
+    assert_eq!(first.status, 200);
+
+    let second = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create second agent");
+    assert_eq!(second.status, 200);
+
+    let second_agent_id = clean_text(
+        second
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let second_name = clean_text(
+        second
+            .payload
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    assert!(
+        !second_agent_id.starts_with("agent-agent-"),
+        "agent_id should not duplicate the agent prefix: {second_agent_id}"
+    );
+    assert!(
+        !second_name.starts_with("agent-agent-"),
+        "display name should not duplicate the agent prefix: {second_name}"
+    );
+    assert!(
+        second_agent_id.starts_with("agent-"),
+        "agent_id should keep the default agent prefix: {second_agent_id}"
+    );
+    assert_eq!(second_name, second_agent_id);
+}
+
+#[test]
 fn identity_hydration_prompt_uses_agent_metadata() {
     let row = json!({
         "id": "agent-lucas",
@@ -436,6 +492,27 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
         configured.payload.get("ok").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        configured
+            .payload
+            .pointer("/rename_notice/auto_generated")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let resolved_name = clean_text(
+        configured
+            .payload
+            .pointer("/agent/name")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    assert!(!resolved_name.is_empty(), "post-init should resolve a concrete name");
+    assert_ne!(
+        resolved_name.to_ascii_lowercase(),
+        agent_id.to_ascii_lowercase(),
+        "post-init should replace default agent-id display name when user leaves name blank"
+    );
 
     let session = handle(
         root.path(),
@@ -460,6 +537,176 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
     assert!(
         intro_text.contains("what are we coding today"),
         "intro should be tailored to coding role: {intro_text}"
+    );
+}
+
+#[test]
+fn agent_init_config_infers_role_from_template_when_role_omitted() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let configured = handle(
+        root.path(),
+        "PATCH",
+        &format!("/api/agents/{agent_id}/config"),
+        br#"{
+            "system_prompt":"You are a coding specialist.",
+            "archetype":"coder",
+            "profile":"coding",
+            "contract":{"mission":"Build features","termination_condition":"task_or_timeout","expiry_seconds":3600}
+        }"#,
+        &json!({"ok": true}),
+    )
+    .expect("config");
+    assert_eq!(configured.status, 200);
+    assert_eq!(
+        configured.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let agent_row = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("agent row");
+    assert_eq!(
+        agent_row.payload.get("role").and_then(Value::as_str),
+        Some("engineer"),
+        "init payload should infer coding role when explicit role is omitted"
+    );
+
+    let session = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}/session"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("session");
+    let messages = session
+        .payload
+        .pointer("/session/sessions/0/messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!messages.is_empty(), "expected intro message after init");
+    let intro_text = clean_text(
+        messages[0].get("text").and_then(Value::as_str).unwrap_or(""),
+        280,
+    )
+    .to_ascii_lowercase();
+    assert!(
+        intro_text.contains("what are we coding today"),
+        "intro should follow inferred coding role: {intro_text}"
+    );
+}
+
+#[test]
+fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intro() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let configured = handle(
+        root.path(),
+        "PATCH",
+        &format!("/api/agents/{agent_id}/config"),
+        format!(
+            "{{\"name\":\"{}\",\"system_prompt\":\"You are an analyst.\",\"archetype\":\"analyst\",\"profile\":\"analysis\",\"contract\":{{\"mission\":\"Analyze outcomes\",\"termination_condition\":\"task_or_timeout\",\"expiry_seconds\":3600}}}}",
+            agent_id
+        )
+        .as_bytes(),
+        &json!({"ok": true}),
+    )
+    .expect("config");
+    assert_eq!(configured.status, 200);
+    assert_eq!(
+        configured
+            .payload
+            .pointer("/rename_notice/auto_generated")
+            .and_then(Value::as_bool),
+        Some(true),
+        "default-like name should be treated as blank so post-init auto-name runs"
+    );
+
+    let agent_row = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("agent row");
+    let resolved_name = clean_text(
+        agent_row.payload.get("name").and_then(Value::as_str).unwrap_or(""),
+        120,
+    );
+    assert!(!resolved_name.is_empty());
+    assert_ne!(
+        resolved_name.to_ascii_lowercase(),
+        agent_id.to_ascii_lowercase(),
+        "post-init auto-name should replace the default id label"
+    );
+
+    let session = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}/session"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("session");
+    let messages = session
+        .payload
+        .pointer("/session/sessions/0/messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!messages.is_empty(), "expected intro message after init");
+    let intro_text = clean_text(
+        messages[0].get("text").and_then(Value::as_str).unwrap_or(""),
+        280,
+    )
+    .to_ascii_lowercase();
+    assert!(
+        intro_text.contains("what should we analyze first"),
+        "analyst intro should ask about analysis, not research: {intro_text}"
     );
 }
 

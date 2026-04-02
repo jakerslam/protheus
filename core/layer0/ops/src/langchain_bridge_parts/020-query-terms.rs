@@ -65,6 +65,35 @@ fn allowed_connector_type(kind: &str) -> bool {
     )
 }
 
+fn allowed_middleware_hook(kind: &str) -> bool {
+    matches!(
+        kind,
+        "before_model"
+            | "after_model"
+            | "before_tool"
+            | "after_tool"
+            | "before_chain"
+            | "after_chain"
+    )
+}
+
+fn collect_chain_middleware(state: &Value, chain_id: &str) -> Vec<Value> {
+    state
+        .get("middleware_hooks")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.values()
+                .filter(|row| {
+                    row.get("chain_id")
+                        .and_then(Value::as_str)
+                        .map_or(true, |scope| scope == chain_id)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
 fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
@@ -114,6 +143,46 @@ fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
     }))
 }
 
+fn register_middleware(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let name = clean_token(
+        payload.get("name").and_then(Value::as_str),
+        "langchain-middleware",
+    );
+    let hook = clean_token(payload.get("hook").and_then(Value::as_str), "");
+    if !allowed_middleware_hook(&hook) {
+        return Err(format!("langchain_middleware_hook_unsupported:{hook}"));
+    }
+    let chain_id = clean_token(payload.get("chain_id").and_then(Value::as_str), "");
+    if !chain_id.is_empty()
+        && !state
+            .get("chains")
+            .and_then(Value::as_object)
+            .is_some_and(|rows| rows.contains_key(&chain_id))
+    {
+        return Err(format!("unknown_langchain_chain:{chain_id}"));
+    }
+    let middleware = json!({
+        "middleware_id": stable_id("langmw", &json!({"name": name, "hook": hook, "chain_id": chain_id})),
+        "name": name,
+        "hook": hook,
+        "chain_id": if chain_id.is_empty() { Value::Null } else { Value::String(chain_id) },
+        "action": clean_text(payload.get("action").and_then(Value::as_str), 200),
+        "fail_closed": parse_bool_value(payload.get("fail_closed"), true),
+        "registered_at": now_iso(),
+    });
+    let middleware_id = middleware
+        .get("middleware_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
+    as_object_mut(state, "middleware_hooks").insert(middleware_id, middleware.clone());
+    Ok(json!({
+        "ok": true,
+        "middleware": middleware,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.9", langchain_claim("V6-WORKFLOW-014.9")),
+    }))
+}
+
 fn execute_chain(
     root: &Path,
     argv: &[String],
@@ -136,6 +205,8 @@ fn execute_chain(
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let applied_middleware = collect_chain_middleware(state, &chain_id);
+    let middleware_count = applied_middleware.len();
     let parallel_count = runnables
         .iter()
         .filter(|row| row.get("parallel").and_then(Value::as_bool) == Some(true))
@@ -189,6 +260,8 @@ fn execute_chain(
         "chain_id": chain_id,
         "profile": profile,
         "visited": visited,
+        "applied_middleware": applied_middleware,
+        "middleware_count": middleware_count,
         "degraded": degraded,
         "reason_code": if degraded { "parallel_chain_profile_limited" } else { "chain_ok" },
         "root_session_id": root_session_id,
@@ -368,4 +441,3 @@ fn register_memory_bridge(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", langchain_claim("V6-WORKFLOW-014.3")),
     }))
 }
-

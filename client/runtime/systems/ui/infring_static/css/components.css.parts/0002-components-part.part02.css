@@ -1,0 +1,101 @@
+  justify-content: center;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.chat-loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.chat-archetype-tiles {
+  width: min(820px, 100%);
+  margin: 0 auto 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-xs);
+}
+
+.chat-init-panel {
+  width: min(820px, 100%);
+  margin: 0 auto 10px;
+}
+
+.chat-init-avatar-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+
+.chat-init-name-row {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.chat-init-avatar-preview {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.chat-init-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chat-init-emoji-input {
+  text-align: center;
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+
+.chat-init-name-input {
+  font-size: 12px;
+  width: min(360px, 100%);
+}
+
+.chat-init-grid {
+  margin-top: 10px;
+}
+
+.chat-init-section-title {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+.chat-init-section-optional {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.chat-init-section-required {
+  font-size: 10px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent) 84%, var(--text) 16%);
+  text-transform: none;

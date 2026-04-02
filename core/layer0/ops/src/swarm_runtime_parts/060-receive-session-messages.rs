@@ -120,10 +120,35 @@ fn send_to_role(
     role: &str,
     payload: &str,
     delivery: DeliveryGuarantee,
+    ttl_ms: u64,
 ) -> Result<Value, String> {
     let services = discover_services(state, role);
-    let Some(recipient) = services.first() else {
+    if services.is_empty() {
         return Err(format!("no_healthy_instances_for_role:{role}"));
+    }
+    let cursor = state
+        .role_dispatch_cursor
+        .entry(role.to_string())
+        .or_insert(0usize);
+    let start_index = *cursor % services.len();
+    let mut selected: Option<&ServiceInstance> = None;
+    for offset in 0..services.len() {
+        let index = (start_index + offset) % services.len();
+        let candidate = &services[index];
+        let unread_depth = state
+            .mailboxes
+            .get(&candidate.session_id)
+            .map(|mailbox| mailbox.unread.len())
+            .unwrap_or(0);
+        if unread_depth < MAX_MAILBOX_UNREAD {
+            selected = Some(candidate);
+            *cursor = index.wrapping_add(1);
+            break;
+        }
+    }
+
+    let Some(recipient) = selected else {
+        return Err(format!("role_backpressure_exhausted:{role}"));
     };
     send_session_message(
         state,
@@ -132,7 +157,7 @@ fn send_to_role(
         payload,
         delivery,
         false,
-        DEFAULT_MESSAGE_TTL_MS,
+        ttl_ms.max(1),
     )
 }
 
@@ -145,6 +170,8 @@ fn session_context_json(session: &SessionMetadata) -> Value {
             .collect::<Map<String, Value>>(),
     )
 }
+
+include!("055-handoff-context-isolation.rs");
 
 fn apply_context_update(
     session: &mut SessionMetadata,
@@ -254,7 +281,9 @@ fn register_handoff(
         .unwrap_or(Value::Object(Map::new()));
     let sender_lineage = session_lineage(state, sender_session_id);
     let recipient_lineage = session_lineage(state, recipient_session_id);
-    let effective_context = context_override.unwrap_or(sender_context);
+    let requested_context = context_override.unwrap_or(sender_context);
+    let (effective_context, context_isolation_receipt) =
+        isolate_handoff_context(requested_context, reason, importance);
     let context_receipt = {
         let recipient = state
             .sessions
@@ -299,6 +328,7 @@ fn register_handoff(
             "sender": sender_lineage,
             "recipient": recipient_lineage,
         },
+        "context_isolation_receipt": context_isolation_receipt,
         "context_receipt": context_receipt,
         "message": message_result,
         "network_id": network_id,
@@ -326,6 +356,11 @@ fn register_handoff(
             "recipient_session_id": recipient_session_id,
             "reason": clean_text(reason, 240),
             "importance": importance,
+            "context_isolation_hash": receipt
+                .get("context_isolation_receipt")
+                .and_then(|row| row.get("context_hash"))
+                .cloned()
+                .unwrap_or(Value::Null),
             "timestamp": now_iso(),
         }),
     );

@@ -108,6 +108,21 @@ fn parse_request(mut stream: &TcpStream) -> Result<HttpRequest, String> {
     })
 }
 
+fn request_path_only(path: &str) -> &str {
+    path.split('?').next().unwrap_or(path)
+}
+
+fn request_query_param(path: &str, key: &str) -> Option<String> {
+    let (_, query) = path.split_once('?')?;
+    for pair in query.split('&') {
+        let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+        if name.eq_ignore_ascii_case(key) {
+            return Some(clean_text(value, 240));
+        }
+    }
+    None
+}
+
 fn status_reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
@@ -185,13 +200,14 @@ fn handle_request(
     stream: &TcpStream,
 ) -> Result<(), String> {
     let req = parse_request(stream)?;
-    if req.method == "GET" && (req.path == "/" || req.path == "/dashboard") {
+    let path_only = request_path_only(&req.path);
+    if req.method == "GET" && (path_only == "/" || path_only == "/dashboard") {
         let out = json!({
             "ok": false,
             "type": "dashboard_api_only",
             "message": "This Rust dashboard lane serves APIs only. Open the unified dashboard host port for the browser UI.",
             "ui_entrypoint": "client/runtime/systems/ui/infring_dashboard.ts",
-            "path": req.path
+            "path": path_only
         });
         let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
         return write_response(
@@ -202,13 +218,60 @@ fn handle_request(
         );
     }
 
-    if req.method == "GET" && req.path == "/api/dashboard/snapshot" {
+    if req.method == "GET" && path_only == "/api/dashboard/snapshot" {
         maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
         let snapshot = latest_snapshot
             .lock()
             .ok()
             .map(|state| state.snapshot.clone())
             .unwrap_or_else(|| build_snapshot(root, flags));
+        let since = request_query_param(&req.path, "since")
+            .or_else(|| request_query_param(&req.path, "since_hash"))
+            .unwrap_or_default();
+        let current_checksum = clean_text(
+            snapshot
+                .pointer("/sync/composite_checksum")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            160,
+        );
+        if !since.is_empty() && since == current_checksum {
+            let delta = json!({
+                "ok": true,
+                "type": "infring_dashboard_snapshot_delta",
+                "changed": false,
+                "sync": {
+                    "changed": false,
+                    "composite_checksum": current_checksum,
+                    "previous_composite_checksum": snapshot
+                        .pointer("/sync/previous_composite_checksum")
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                    "checkpoint_ts": now_iso()
+                },
+                "attention_queue": snapshot.get("attention_queue").cloned().unwrap_or_else(|| json!({})),
+                "runtime_sync": snapshot.get("runtime_sync").cloned().unwrap_or_else(|| json!({})),
+                "cockpit": snapshot.get("cockpit").cloned().unwrap_or_else(|| json!({})),
+                "agent_lifecycle": snapshot
+                    .get("agent_lifecycle")
+                    .cloned()
+                    .unwrap_or_else(|| json!({})),
+                "memory": {
+                    "stream": snapshot
+                        .pointer("/memory/stream")
+                        .cloned()
+                        .unwrap_or_else(|| json!({"enabled": true, "changed": false, "seq": 0}))
+                },
+                "receipt_hash": snapshot.get("receipt_hash").cloned().unwrap_or(Value::Null)
+            });
+            let body = serde_json::to_string_pretty(&delta).unwrap_or_else(|_| "{}".to_string());
+            return write_response(
+                stream,
+                200,
+                "application/json; charset=utf-8",
+                body.as_bytes(),
+            );
+        }
         let body = serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string());
         return write_response(
             stream,
@@ -218,7 +281,7 @@ fn handle_request(
         );
     }
 
-    if req.method == "POST" && req.path == "/api/dashboard/action" {
+    if req.method == "POST" && path_only == "/api/dashboard/action" {
         let payload =
             parse_json_loose(&String::from_utf8_lossy(&req.body)).unwrap_or_else(|| json!({}));
         let action = payload
@@ -258,7 +321,7 @@ fn handle_request(
         );
     }
 
-    if req.method == "GET" && req.path == "/healthz" {
+    if req.method == "GET" && path_only == "/healthz" {
         maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
         let hash = latest_snapshot
             .lock()
@@ -280,7 +343,7 @@ fn handle_request(
         );
     }
 
-    if req.path.starts_with("/api/") {
+    if path_only.starts_with("/api/") {
         maybe_schedule_snapshot_refresh(root, flags, latest_snapshot);
         let snapshot = latest_snapshot
             .lock()
@@ -295,7 +358,7 @@ fn handle_request(
         if let Some(response) = dashboard_compat_api::handle_with_headers(
             root,
             &req.method,
-            &req.path,
+            path_only,
             &req.body,
             &header_refs,
             &snapshot,
@@ -314,7 +377,7 @@ fn handle_request(
     let out = json!({
         "ok": false,
         "type": "infring_dashboard_not_found",
-        "path": req.path
+        "path": path_only
     });
     let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
     write_response(

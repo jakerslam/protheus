@@ -587,6 +587,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                             &role,
                             &message,
                             DeliveryGuarantee::from_flag(parse_flag(argv, "delivery")),
+                            parse_u64_flag(argv, "ttl-ms", DEFAULT_MESSAGE_TTL_MS),
                         ),
                         (None, _) => Err("role_required".to_string()),
                         (_, None) => Err("message_required".to_string()),

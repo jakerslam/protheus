@@ -3,7 +3,6 @@
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::fs;
@@ -12,6 +11,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 use walkdir::WalkDir;
+
+#[cfg(test)]
+use sha2::{Digest, Sha256};
 
 #[cfg(feature = "minimal")]
 #[path = "../../alloc.rs"]
@@ -153,6 +155,7 @@ pub mod nexus_plane;
 pub mod observability_plane;
 pub mod offline_runtime_guard;
 pub mod offsite_backup;
+pub mod openfang_parity_catalog;
 pub mod operator_tooling_kernel;
 pub mod ops_domain_conduit_runner_kernel;
 pub mod ops_lane_runtime;
@@ -440,48 +443,8 @@ fn stable_json_string(value: &Value) -> String {
     }
 }
 
-fn stable_json_hash_update(value: &Value, hasher: &mut Sha256) {
-    match value {
-        Value::Null => hasher.update(b"null"),
-        Value::Bool(true) => hasher.update(b"true"),
-        Value::Bool(false) => hasher.update(b"false"),
-        Value::Number(n) => hasher.update(n.to_string().as_bytes()),
-        Value::String(s) => {
-            let quoted = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
-            hasher.update(quoted.as_bytes());
-        }
-        Value::Array(arr) => {
-            hasher.update(b"[");
-            for (idx, item) in arr.iter().enumerate() {
-                if idx > 0 {
-                    hasher.update(b",");
-                }
-                stable_json_hash_update(item, hasher);
-            }
-            hasher.update(b"]");
-        }
-        Value::Object(map) => {
-            let mut keys = map.keys().cloned().collect::<Vec<_>>();
-            keys.sort_unstable();
-            hasher.update(b"{");
-            for (idx, key) in keys.iter().enumerate() {
-                if idx > 0 {
-                    hasher.update(b",");
-                }
-                let quoted = serde_json::to_string(key).unwrap_or_else(|_| "\"\"".to_string());
-                hasher.update(quoted.as_bytes());
-                hasher.update(b":");
-                stable_json_hash_update(map.get(key).unwrap_or(&Value::Null), hasher);
-            }
-            hasher.update(b"}");
-        }
-    }
-}
-
 pub fn deterministic_receipt_hash(value: &Value) -> String {
-    let mut hasher = Sha256::new();
-    stable_json_hash_update(value, &mut hasher);
-    hex::encode(hasher.finalize())
+    protheus_ops_core_v1::hot_path_allocators::deterministic_hash(value)
 }
 
 fn to_bool(v: Option<&str>, fallback: bool) -> bool {

@@ -67,6 +67,160 @@ mod contract_specific_gate_regression_tests {
     }
 
     #[test]
+    fn v6_infring_gap_001_1_requires_driver_registry_and_compaction_controls() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.1",
+            Some(
+                r#"{"provider_agnostic_driver_enabled":false,"context_budget_compaction_enabled":false,"llm_driver_registry_count":0}"#,
+            ),
+        )
+        .expect_err("driver + compaction + registry hard-fail should trip strict guard");
+        assert!(
+            err.contains("specific_infring_gap_driver_layer_disabled"),
+            "expected driver layer violation, got {err}"
+        );
+        assert!(
+            err.contains("specific_infring_gap_context_budget_compaction_disabled"),
+            "expected context compaction violation, got {err}"
+        );
+        assert!(
+            err.contains("specific_infring_gap_driver_registry_empty"),
+            "expected empty driver registry violation, got {err}"
+        );
+    }
+
+    #[test]
+    fn v6_infring_gap_001_1_passes_with_explicit_valid_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.1",
+            Some(
+                r#"{"provider_agnostic_driver_enabled":true,"context_budget_compaction_enabled":true,"llm_driver_registry_count":4}"#,
+            ),
+        )
+        .expect("explicit valid llm runtime payload should pass");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn v6_infring_gap_001_2_requires_http_endpoint_and_websocket_streaming() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.2",
+            Some(r#"{"http_api_endpoints_count":0,"websocket_streaming_enabled":false}"#),
+        )
+        .expect_err("missing http/ws parity should fail strict guard");
+        assert!(
+            err.contains("specific_infring_gap_http_endpoint_count_too_low"),
+            "expected http endpoint violation, got {err}"
+        );
+        assert!(
+            err.contains("specific_infring_gap_websocket_streaming_disabled"),
+            "expected websocket parity violation, got {err}"
+        );
+    }
+
+    #[test]
+    fn v6_infring_gap_001_2_passes_with_explicit_valid_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.2",
+            Some(r#"{"http_api_endpoints_count":76,"websocket_streaming_enabled":true}"#),
+        )
+        .expect("explicit valid http/ws payload should pass");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn v6_infring_gap_001_3_requires_required_channel_adapter_set() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.3",
+            Some(r#"{"channel_adapters":["slack","email"]}"#),
+        )
+        .expect_err("missing matrix/whatsapp should fail strict guard");
+        assert!(
+            err.contains("specific_infring_gap_channel_adapters_missing"),
+            "expected required adapter violation, got {err}"
+        );
+        assert!(
+            err.contains("matrix") && err.contains("whatsapp"),
+            "expected missing adapter list to include matrix and whatsapp, got {err}"
+        );
+    }
+
+    #[test]
+    fn v6_infring_gap_001_3_passes_with_explicit_valid_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.3",
+            Some(r#"{"channel_adapters":["slack","matrix","email","whatsapp"]}"#),
+        )
+        .expect("explicit valid channel adapter payload should pass");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn v6_infring_gap_001_4_passes_with_explicit_valid_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.4",
+            Some(
+                r#"{"taint_tracking_enabled":true,"merkle_audit_chain_enabled":true,"manifest_signing_enabled":true,"ssrf_deny_paths_enabled":true}"#,
+            ),
+        )
+        .expect("explicit valid security parity payload should pass");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn v6_infring_gap_001_5_requires_hands_registry_promotion_and_fail_closed() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let err = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.5",
+            Some(
+                r#"{"hands_registry_enabled":false,"skills_promotion_pipeline_enabled":false,"hands_fail_closed_enabled":false}"#,
+            ),
+        )
+        .expect_err("missing hands governance controls should fail strict guard");
+        assert!(
+            err.contains("specific_infring_gap_hands_registry_disabled"),
+            "expected hands registry violation, got {err}"
+        );
+        assert!(
+            err.contains("specific_infring_gap_skills_promotion_pipeline_disabled"),
+            "expected skills promotion violation, got {err}"
+        );
+        assert!(
+            err.contains("specific_infring_gap_hands_fail_closed_disabled"),
+            "expected hands fail-closed violation, got {err}"
+        );
+    }
+
+    #[test]
+    fn v6_infring_gap_001_5_passes_with_explicit_valid_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(
+            root.path(),
+            "V6-INFRING-GAP-001.5",
+            Some(
+                r#"{"hands_registry_enabled":true,"skills_promotion_pipeline_enabled":true,"hands_fail_closed_enabled":true}"#,
+            ),
+        )
+        .expect("explicit valid hands parity payload should pass");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
     fn v10_perf_001_1_enforces_receipt_batch_size_bounds() {
         let root = tempfile::tempdir().expect("tempdir");
         let err = run_strict_payload(
@@ -150,10 +304,26 @@ mod contract_specific_gate_regression_tests {
     }
 
     #[test]
+    fn v6_infring_gap_001_1_passes_with_default_contract_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(root.path(), "V6-INFRING-GAP-001.1", None)
+            .expect("llm runtime parity contract should pass with defaults");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
     fn v6_infring_gap_001_3_passes_with_default_contract_payload() {
         let root = tempfile::tempdir().expect("tempdir");
         let out = run_strict_payload(root.path(), "V6-INFRING-GAP-001.3", None)
             .expect("channel adapter parity contract should pass with defaults");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn v6_infring_gap_001_4_passes_with_default_contract_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = run_strict_payload(root.path(), "V6-INFRING-GAP-001.4", None)
+            .expect("security parity contract should pass with defaults");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
     }
 

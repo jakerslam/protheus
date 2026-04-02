@@ -370,7 +370,7 @@ fn usage() {
     println!("  protheus-ops swarm-runtime sessions dead-letter [--session-id=<id>] [--retryable=1|0] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions retry-dead-letter --message-id=<id> [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime sessions discover --role=<name> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions send-role --sender-id=<session|coordinator> --role=<name> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime sessions send-role --sender-id=<session|coordinator> --role=<name> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--ttl-ms=<n>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime background <start|status|stop> [flags]");
     println!("  protheus-ops swarm-runtime scheduled <add|status|run-due> [flags]");
     println!("  protheus-ops swarm-runtime channels <create|publish|poll|monitor> [flags]");

@@ -381,4 +381,33 @@ mod tests {
         let len = fs::metadata(&history_path).expect("metadata").len();
         assert!(len <= 700, "trimmed bytes should honor cap: {len}");
     }
+
+    #[test]
+    fn memory_artifacts_cache_stabilizes_repeated_snapshot_reads() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let state_path = root
+            .path()
+            .join("client/runtime/local/state/ui/infring_dashboard/latest.json");
+        if let Some(parent) = state_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir state");
+        }
+        fs::write(
+            &state_path,
+            serde_json::to_string_pretty(&json!({"ok": true, "type": "state"})).expect("json"),
+        )
+        .expect("write");
+        let first = collect_memory_artifacts(root.path());
+        let second = collect_memory_artifacts(root.path());
+        assert_eq!(first, second, "cache should return stable rows inside cache window");
+    }
+
+    #[test]
+    fn request_query_param_extracts_since_hash() {
+        let path = "/api/dashboard/snapshot?since=abc123&x=1";
+        assert_eq!(request_path_only(path), "/api/dashboard/snapshot");
+        assert_eq!(
+            request_query_param(path, "since").as_deref(),
+            Some("abc123")
+        );
+    }
 }

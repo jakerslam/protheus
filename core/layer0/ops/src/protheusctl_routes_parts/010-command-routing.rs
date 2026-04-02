@@ -142,6 +142,15 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "dream" | "compact" | "kairos" | "speculate" => {
+            let mut args = vec![cmd.to_string()];
+            args.extend(rest.iter().cloned());
+            Some(Route {
+                script_rel: "core://autonomy-controller".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "memory" => {
             let mut args = vec!["memory".to_string()];
             if rest.is_empty() {
@@ -2030,6 +2039,55 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             };
             Some(Route {
                 script_rel: "core://network-protocol".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "provider" | "providers" => {
+            let sub = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            let provider = rest
+                .iter()
+                .find_map(|v| v.trim().split_once("--provider=").map(|(_, p)| p.to_string()))
+                .or_else(|| {
+                    if matches!(sub.as_str(), "switch" | "set") {
+                        rest.get(1).map(|v| v.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+            let model = rest
+                .iter()
+                .find_map(|v| v.trim().split_once("--model=").map(|(_, m)| m.to_string()))
+                .or_else(|| {
+                    if matches!(sub.as_str(), "switch" | "set") {
+                        rest.get(2).map(|v| v.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+            let args = if matches!(sub.as_str(), "switch" | "set") {
+                let mut rows = vec![
+                    "app-plane".to_string(),
+                    "switch-provider".to_string(),
+                    "--app=chat-ui".to_string(),
+                ];
+                if !provider.is_empty() {
+                    rows.push(format!("--provider={provider}"));
+                }
+                if !model.is_empty() {
+                    rows.push(format!("--model={model}"));
+                }
+                rows
+            } else {
+                vec!["app-plane".to_string(), "status".to_string(), "--app=chat-ui".to_string()]
+            };
+            Some(Route {
+                script_rel: "core://ops-main".to_string(),
                 args,
                 forward_stdin: false,
             })

@@ -87,6 +87,125 @@ fn terminated_agent_endpoints_round_trip() {
 }
 
 #[test]
+fn archive_all_agents_endpoint_archives_visible_roster() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created_a = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Alpha","role":"operator"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create alpha");
+    let created_b = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Beta","role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create beta");
+    let alpha_id = clean_text(
+        created_a
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let beta_id = clean_text(
+        created_b
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!alpha_id.is_empty());
+    assert!(!beta_id.is_empty());
+
+    let archived = handle(
+        root.path(),
+        "POST",
+        "/api/agents/archive-all",
+        br#"{"reason":"test_archive_all"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("archive all");
+    assert_eq!(archived.status, 200);
+    assert_eq!(
+        archived.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+    let archived_ids = archived
+        .payload
+        .get("archived_agent_ids")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let archived_labels: Vec<String> = archived_ids
+        .iter()
+        .filter_map(|row| row.as_str())
+        .map(|row| row.to_string())
+        .collect();
+    assert!(archived_labels.contains(&alpha_id));
+    assert!(archived_labels.contains(&beta_id));
+
+    let listed = handle(
+        root.path(),
+        "GET",
+        "/api/agents",
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("list active");
+    let rows = listed.payload.as_array().cloned().unwrap_or_default();
+    assert!(rows
+        .iter()
+        .all(|row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != alpha_id));
+    assert!(rows
+        .iter()
+        .all(|row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != beta_id));
+}
+
+#[test]
+fn archive_all_agents_endpoint_rejects_actor_scoped_requests() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Parent","role":"operator"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create parent");
+    let actor_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!actor_id.is_empty());
+
+    let denied = handle_with_headers(
+        root.path(),
+        "POST",
+        "/api/agents/archive-all",
+        br#"{}"#,
+        &[("X-Actor-Agent-Id", actor_id.as_str())],
+        &json!({"ok": true}),
+    )
+    .expect("archive-all denied");
+    assert_eq!(denied.status, 403);
+    assert_eq!(
+        denied.payload.get("error").and_then(Value::as_str),
+        Some("agent_manage_forbidden")
+    );
+}
+
+#[test]
 fn terminal_endpoints_round_trip() {
     let root = tempfile::tempdir().expect("tempdir");
     let created = handle(
@@ -194,22 +313,39 @@ fn agent_terminal_routes_through_command_router() {
         Some(false)
     );
 
-    let blocked = handle(
+    let translated = handle(
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/terminal"),
         br#"{"command":"infring daemon ping"}"#,
         &json!({"ok": true}),
     )
-    .expect("blocked");
-    assert_eq!(blocked.status, 400);
+    .expect("translated");
+    assert_eq!(translated.status, 200);
     assert_eq!(
-        blocked.payload.get("ok").and_then(Value::as_bool),
-        Some(false)
+        translated.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
     );
     assert_eq!(
-        blocked.payload.get("error").and_then(Value::as_str),
-        Some("unsupported_infring_cli_surface")
+        translated
+            .payload
+            .get("executed_command")
+            .and_then(Value::as_str),
+        Some("protheus-ops daemon ping")
+    );
+    assert_eq!(
+        translated
+            .payload
+            .get("command_translated")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        translated
+            .payload
+            .get("translation_reason")
+            .and_then(Value::as_str),
+        Some("translated_infring_cli_alias_to_protheus_ops")
     );
 }
 

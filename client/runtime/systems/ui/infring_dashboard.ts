@@ -193,6 +193,52 @@ async function fetchBackendJson(flags, pathname, timeoutMs = 15000) {
 async function backendHealth(flags, timeoutMs = 5000) {
   try { return (await fetchBackend(flags, '/healthz', {}, timeoutMs)).ok; } catch { return false; }
 }
+async function statusPayloadWithBootStage(flags) {
+  const startedAt = Date.now();
+  const healthOk = await backendHealth(flags, 1200);
+  if (!healthOk) {
+    return {
+      ok: false,
+      error: 'backend_unreachable',
+      connected: false,
+      connection_state: 'disconnected',
+      boot_stage: 'backend_unreachable',
+      backend_health_ok: false,
+      status_latency_ms: Date.now() - startedAt,
+      retry_after_ms: 1000,
+    };
+  }
+  try {
+    const status = await fetchBackendJson(flags, '/api/status', 1800);
+    const base = (status && typeof status === 'object') ? status : {};
+    const connected = base.connected !== false;
+    const degraded = !!base.degraded || base.ok === false;
+    const out = {
+      ...base,
+      ok: connected,
+      connected,
+      degraded,
+      connection_state: connected ? 'connected' : 'disconnected',
+      boot_stage: cleanText(base.boot_stage || base.last_stage || (degraded ? 'status_degraded' : 'ready'), 60),
+      backend_health_ok: true,
+      status_latency_ms: Date.now() - startedAt,
+    };
+    if (!out.error && degraded) out.error = 'status_degraded';
+    return out;
+  } catch {
+    return {
+      ok: true,
+      degraded: true,
+      warning: 'status_unavailable',
+      connected: true,
+      connection_state: 'connected',
+      boot_stage: 'backend_ready_status_probe_timeout',
+      backend_health_ok: true,
+      status_latency_ms: Date.now() - startedAt,
+      retry_after_ms: 1000,
+    };
+  }
+}
 function spawnBackend(flags) {
   const laneArgs = ['dashboard-ui', 'serve', `--host=${flags.apiHost}`, `--port=${flags.apiPort}`, `--team=${flags.team}`, `--refresh-ms=${flags.refreshMs}`];
   const env = {
@@ -345,7 +391,7 @@ async function runServe(flags) {
         }
       }
       if (req.method === 'GET' && pathname === '/api/status') {
-        const status = await fetchBackendJson(flags, '/api/status', 8000).catch(() => ({ ok: false, error: 'status_unavailable' }));
+        const status = await statusPayloadWithBootStage(flags);
         return void sendJson(res, 200, status);
       }
       if (req.method === 'GET' && pathname === '/api/config') {

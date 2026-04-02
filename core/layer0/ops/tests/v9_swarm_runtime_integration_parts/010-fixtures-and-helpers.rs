@@ -258,6 +258,91 @@ fn service_discovery_and_send_role_route_messages() {
 }
 
 #[test]
+fn state_cache_reload_detects_external_state_mutation() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let enable_args = vec![
+        "byzantine-test".to_string(),
+        "enable".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &enable_args), 0);
+
+    let mut externally_edited = read_state(&state_path);
+    externally_edited["byzantine_test_mode"] = Value::Bool(false);
+    let encoded = serde_json::to_string_pretty(&externally_edited).expect("encode edited state");
+    fs::write(&state_path, encoded).expect("write edited state");
+
+    let status_args = vec![
+        "status".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &status_args), 0);
+
+    let state_after = read_state(&state_path);
+    let byzantine_enabled = state_after
+        .get("byzantine_test_mode")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    assert!(
+        !byzantine_enabled,
+        "cached state should refresh when state file is externally edited"
+    );
+}
+
+#[test]
+fn high_volume_mailboxes_use_compact_state_encoding() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    for task in ["compact-encoder-sender", "compact-encoder-receiver"] {
+        let spawn_args = vec![
+            "spawn".to_string(),
+            format!("--task={task}"),
+            "--role=filter".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &spawn_args), 0);
+    }
+
+    let state = read_state(&state_path);
+    let sender = find_session_id_by_task(&state, "compact-encoder-sender").expect("sender");
+    let receiver =
+        find_session_id_by_task(&state, "compact-encoder-receiver").expect("receiver");
+
+    for idx in 0..110 {
+        let send_args = vec![
+            "sessions".to_string(),
+            "send".to_string(),
+            format!("--sender-id={sender}"),
+            format!("--session-id={receiver}"),
+            format!("--message=compact-encoding-test-{idx}"),
+            "--delivery=at_least_once".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &send_args), 0);
+    }
+
+    let state_after = read_state(&state_path);
+    let dead_letter_count = state_after
+        .get("dead_letters")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    assert!(
+        dead_letter_count >= 64,
+        "expected sustained dead-letter volume from mailbox backpressure"
+    );
+
+    let raw = fs::read_to_string(&state_path).expect("raw state");
+    assert!(
+        !raw.contains('\n'),
+        "high-volume state should be compact encoded to avoid persistence overhead"
+    );
+}
+
+#[test]
 fn channels_create_publish_poll_and_communication_test_pass() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
@@ -446,4 +531,3 @@ fn results_wait_times_out_when_min_count_not_met() {
         .unwrap_or(0);
     assert_eq!(result_count, 0, "timeout path must not fabricate results");
 }
-

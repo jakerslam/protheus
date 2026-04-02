@@ -21,6 +21,8 @@ fn usage() {
     println!("  protheus-ops langgraph-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langgraph-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langgraph-bridge inspect-state [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops langgraph-bridge interrupt-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops langgraph-bridge resume-run [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langgraph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  protheus-ops langgraph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops langgraph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
@@ -80,6 +82,7 @@ fn default_state() -> Value {
         "graphs": {},
         "checkpoints": {},
         "inspections": {},
+        "interrupts": {},
         "subgraphs": {},
         "traces": [],
         "streams": [],
@@ -92,7 +95,13 @@ fn ensure_state_shape(value: &mut Value) {
         *value = default_state();
         return;
     }
-    for key in ["graphs", "checkpoints", "inspections", "subgraphs"] {
+    for key in [
+        "graphs",
+        "checkpoints",
+        "inspections",
+        "interrupts",
+        "subgraphs",
+    ] {
         if !value.get(key).map(Value::is_object).unwrap_or(false) {
             value[key] = json!({});
         }
@@ -172,6 +181,9 @@ fn semantic_claim(id: &str) -> &'static str {
         }
         "V6-WORKFLOW-002.6" => {
             "langgraph_streaming_and_conditional_edges_remain_receipted_and_fail_closed"
+        }
+        "V6-WORKFLOW-002.7" => {
+            "langgraph_interrupt_and_resume_lifecycle_stays_receipted_and_fail_closed"
         }
         _ => "langgraph_bridge_claim",
     }
@@ -403,6 +415,116 @@ fn inspect_state(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         "ok": true,
         "inspection": inspection,
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-002.3", semantic_claim("V6-WORKFLOW-002.3")),
+    }))
+}
+
+fn interrupt_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let checkpoint_id = clean_token(payload.get("checkpoint_id").and_then(Value::as_str), "");
+    if checkpoint_id.is_empty() {
+        return Err("langgraph_interrupt_checkpoint_id_required".to_string());
+    }
+    let checkpoint = state
+        .get("checkpoints")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.get(&checkpoint_id))
+        .cloned()
+        .ok_or_else(|| format!("unknown_langgraph_checkpoint:{checkpoint_id}"))?;
+    let graph_id = clean_token(
+        checkpoint.get("graph_id").and_then(Value::as_str),
+        "langgraph-graph",
+    );
+    let reason = clean_text(payload.get("reason").and_then(Value::as_str), 160);
+    let interrupt = json!({
+        "interrupt_id": stable_id("lginterrupt", &json!({"checkpoint_id": checkpoint_id, "reason": reason})),
+        "graph_id": graph_id,
+        "checkpoint_id": checkpoint_id,
+        "thread_id": checkpoint.get("thread_id").cloned().unwrap_or_else(|| json!(null)),
+        "resume_token": stable_id("lgresume", &json!({"checkpoint_id": checkpoint_id, "reason": reason})),
+        "requested_by": clean_token(payload.get("requested_by").and_then(Value::as_str), "operator"),
+        "reason": reason,
+        "snapshot": checkpoint.get("snapshot").cloned().unwrap_or_else(|| json!({})),
+        "status": "paused",
+        "created_at": now_iso(),
+    });
+    let interrupt_id = interrupt
+        .get("interrupt_id")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
+    as_object_mut(state, "interrupts").insert(interrupt_id, interrupt.clone());
+    Ok(json!({
+        "ok": true,
+        "interrupt": interrupt,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-002.7", semantic_claim("V6-WORKFLOW-002.7")),
+    }))
+}
+
+fn find_interrupt_key(
+    interrupts: &Map<String, Value>,
+    interrupt_id: &str,
+    resume_token: &str,
+) -> Option<String> {
+    if !interrupt_id.is_empty() && interrupts.contains_key(interrupt_id) {
+        return Some(interrupt_id.to_string());
+    }
+    if resume_token.is_empty() {
+        return None;
+    }
+    interrupts.iter().find_map(|(id, row)| {
+        (row.get("resume_token").and_then(Value::as_str) == Some(resume_token))
+            .then(|| id.to_string())
+    })
+}
+
+fn resume_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let interrupt_id = clean_token(payload.get("interrupt_id").and_then(Value::as_str), "");
+    let resume_token = clean_token(payload.get("resume_token").and_then(Value::as_str), "");
+    if interrupt_id.is_empty() && resume_token.is_empty() {
+        return Err("langgraph_resume_interrupt_or_token_required".to_string());
+    }
+    let key = {
+        let interrupts = state
+            .get("interrupts")
+            .and_then(Value::as_object)
+            .ok_or_else(|| "langgraph_interrupt_store_missing".to_string())?;
+        find_interrupt_key(interrupts, &interrupt_id, &resume_token)
+            .ok_or_else(|| "langgraph_interrupt_not_found".to_string())?
+    };
+    let updated = {
+        let interrupts = as_object_mut(state, "interrupts");
+        let row = interrupts
+            .get_mut(&key)
+            .and_then(Value::as_object_mut)
+            .ok_or_else(|| "langgraph_interrupt_record_invalid".to_string())?;
+        if row
+            .get("status")
+            .and_then(Value::as_str)
+            .is_some_and(|status| status != "paused")
+        {
+            return Err("langgraph_interrupt_not_paused".to_string());
+        }
+        row.insert("status".to_string(), json!("resumed"));
+        row.insert("resumed_at".to_string(), json!(now_iso()));
+        row.insert(
+            "resume_mode".to_string(),
+            json!(clean_token(
+                payload.get("resume_mode").and_then(Value::as_str),
+                "continue",
+            )),
+        );
+        row.insert(
+            "resume_context".to_string(),
+            payload
+                .get("resume_context")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+        );
+        Value::Object(row.clone())
+    };
+    Ok(json!({
+        "ok": true,
+        "interrupt": updated,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-002.7", semantic_claim("V6-WORKFLOW-002.7")),
     }))
 }
 
@@ -720,6 +842,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "graphs": state.get("graphs").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "checkpoints": state.get("checkpoints").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "inspections": state.get("inspections").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
+                "interrupts": state.get("interrupts").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "subgraphs": state.get("subgraphs").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "traces": state.get("traces").and_then(Value::as_array).map(|row| row.len()).unwrap_or(0),
                 "streams": state.get("streams").and_then(Value::as_array).map(|row| row.len()).unwrap_or(0),
@@ -736,6 +859,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "register-graph" => register_graph(&mut state, payload),
         "checkpoint-run" => checkpoint_run(&mut state, payload),
         "inspect-state" => inspect_state(&mut state, payload),
+        "interrupt-run" => interrupt_run(&mut state, payload),
+        "resume-run" => resume_run(&mut state, payload),
         "coordinate-subgraph" => coordinate_subgraph(&mut state, &swarm_path, payload),
         "record-trace" => record_trace(root, &mut state, &native_trace_path, payload),
         "stream-graph" => stream_graph(&mut state, payload),

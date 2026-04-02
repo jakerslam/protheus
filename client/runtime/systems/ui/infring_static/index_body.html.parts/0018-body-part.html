@@ -21,20 +21,175 @@
   var lastAt = 0;
   var lastHeadAt = 0;
 
-  function onMove(event) {
-    if (!event) return;
-    if (!fxEnabled()) {
-      setGridActive(false);
-      clearParticles();
-      seeded = false;
+  function clearReflections() {
+    if (globalReflectionLayer) {
+      globalReflectionLayer.innerHTML = '';
+    }
+    var chatLayer = resolveChatReflectionLayer();
+    if (chatLayer) {
+      chatLayer.innerHTML = '';
+    }
+    reflectionSignature = '';
+  }
+
+  function mirrorSlabRow(mainRect, rect) {
+    var insetX = Math.max(3, Math.min(10, Math.round(rect.width * 0.045)));
+    var width = Math.max(16, Math.round(rect.width - (insetX * 2)));
+    var height = Math.max(10, Math.min(86, Math.round(rect.height * 0.52)));
+    var left = Math.round(rect.left - mainRect.left + ((rect.width - width) * 0.5));
+    var top = Math.round(rect.bottom - mainRect.top + Math.max(6, Math.min(16, rect.height * 0.14)));
+    if (width < 24 || height < 8) return null;
+    if ((left + width) < 0 || left > mainRect.width || top > mainRect.height || (top + height) < 0) return null;
+    return { left: left, top: top, width: width, height: height };
+  }
+
+  function parseColorTriplet(raw) {
+    var value = String(raw || '').trim();
+    if (!value || value === 'transparent') return null;
+    var rgbMatch = value.match(/^rgba?\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i);
+    if (rgbMatch) {
+      var r = Math.max(0, Math.min(255, parseInt(rgbMatch[1], 10) || 0));
+      var g = Math.max(0, Math.min(255, parseInt(rgbMatch[2], 10) || 0));
+      var b = Math.max(0, Math.min(255, parseInt(rgbMatch[3], 10) || 0));
+      var a = rgbMatch[4] == null ? 1 : Math.max(0, Math.min(1, parseFloat(rgbMatch[4]) || 0));
+      if (a <= 0.04) return null;
+      return { rgb: [r, g, b].join(' '), alpha: a };
+    }
+    var hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hexMatch) {
+      var hex = hexMatch[1];
+      if (hex.length === 3) {
+        var r3 = parseInt(hex.charAt(0) + hex.charAt(0), 16);
+        var g3 = parseInt(hex.charAt(1) + hex.charAt(1), 16);
+        var b3 = parseInt(hex.charAt(2) + hex.charAt(2), 16);
+        return { rgb: [r3, g3, b3].join(' '), alpha: 1 };
+      }
+      var r6 = parseInt(hex.slice(0, 2), 16);
+      var g6 = parseInt(hex.slice(2, 4), 16);
+      var b6 = parseInt(hex.slice(4, 6), 16);
+      return { rgb: [r6, g6, b6].join(' '), alpha: 1 };
+    }
+    return null;
+  }
+
+  function resolveReflectionColorTriplet(node, computedStyle) {
+    var cs = computedStyle || null;
+    if (!cs) {
+      try { cs = window.getComputedStyle(node); } catch(_) { cs = null; }
+    }
+    if (!cs) return '';
+    var candidates = [
+      cs.backgroundColor,
+      cs.borderTopColor,
+      cs.color
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var parsed = parseColorTriplet(candidates[i]);
+      if (!parsed || !parsed.rgb) continue;
+      return parsed.rgb;
+    }
+    return '';
+  }
+
+  function syncReflections(force) {
+    var targetLayer = resolveReflectionLayer();
+    if (!targetLayer) return;
+    if (reflectionLayer !== targetLayer) {
+      reflectionLayer = targetLayer;
+      reflectionSignature = '';
+    }
+    if (!reflectionEnabled()) { clearReflections(); return; }
+    var now = Date.now();
+    if (!force && (now - Number(reflectionLastSyncAt || 0)) < 76) return;
+    reflectionLastSyncAt = now;
+    var targetRoot = resolveReflectionRoot(reflectionLayer);
+    var selector = resolveReflectionSelectors(reflectionLayer);
+    var targets = targetRoot.querySelectorAll(selector);
+    if (!targets || !targets.length) { clearReflections(); return; }
+    var mainRect = targetRoot.getBoundingClientRect();
+    var darkTheme = resolveTheme() === 'dark';
+    var rows = [];
+    for (var i = 0; i < targets.length; i++) {
+      if (rows.length >= 140) break;
+      var node = targets[i];
+      if (!node || !node.isConnected) continue;
+      var rect = node.getBoundingClientRect();
+      if (!rect || rect.width < 28 || rect.height < 16) continue;
+      var row = mirrorSlabRow(mainRect, rect);
+      if (!row) continue;
+      var radiusPx = 12;
+      var rgbTriplet = '';
+      try {
+        var cs = window.getComputedStyle(node);
+        var fromNode = parseFloat((cs && cs.borderTopLeftRadius) || '');
+        if (Number.isFinite(fromNode)) radiusPx = Math.max(6, Math.min(20, Math.round(fromNode)));
+        rgbTriplet = resolveReflectionColorTriplet(node, cs);
+      } catch(_) {}
+      var alphaBase = Math.max(0.08, Math.min(0.22, ((row.width * row.height) / 42000)));
+      var alpha = darkTheme
+        ? Math.max(0.16, Math.min(0.36, alphaBase * 1.55))
+        : alphaBase;
+      row.radius = radiusPx;
+      row.rgb = rgbTriplet;
+      row.alpha = Number(alpha.toFixed(3));
+      rows.push(row);
+    }
+    var signature = rows.map(function(row) {
+      return [row.left, row.top, row.width, row.height, row.radius, row.rgb || '', row.alpha].join(',');
+    }).join('|');
+    if (!force && signature === reflectionSignature) return;
+    reflectionSignature = signature;
+    var fragment = document.createDocumentFragment();
+    for (var j = 0; j < rows.length; j++) {
+      var slab = document.createElement('span');
+      var item = rows[j];
+      slab.className = 'global-reflection-slab';
+      slab.style.left = item.left + 'px';
+      slab.style.top = item.top + 'px';
+      slab.style.width = item.width + 'px';
+      slab.style.height = item.height + 'px';
+      slab.style.borderRadius = item.radius + 'px';
+      if (item.rgb) slab.style.setProperty('--reflect-rgb', item.rgb);
+      slab.style.setProperty('--reflect-alpha', String(item.alpha));
+      fragment.appendChild(slab);
+    }
+    reflectionLayer.innerHTML = '';
+    reflectionLayer.appendChild(fragment);
+  }
+
+  function scheduleReflectionSync(force) {
+    if (!resolveReflectionLayer()) return;
+    if (force) {
+      if (reflectionSyncRaf) {
+        try { cancelAnimationFrame(reflectionSyncRaf); } catch(_) {}
+        reflectionSyncRaf = 0;
+      }
+      syncReflections(true);
       return;
     }
+    if (reflectionSyncRaf) return;
+    reflectionSyncRaf = requestAnimationFrame(function() {
+      reflectionSyncRaf = 0;
+      syncReflections(false);
+    });
+  }
+
+  function onMove(event) {
+    if (!event) return;
+    var pointerFxOn = fxEnabled();
+    if (!pointerFxOn && !reflectionEnabled()) return;
     var rect = main.getBoundingClientRect();
     var x = event.clientX - rect.left;
     var y = event.clientY - rect.top;
     main.style.setProperty('--chat-grid-x', Math.round(x) + 'px');
     main.style.setProperty('--chat-grid-y', Math.round(y) + 'px');
     setGridActive(true);
+    if (reflectionEnabled()) scheduleReflectionSync(false);
+    if (!pointerFxOn) {
+      clearParticles();
+      seeded = false;
+      return;
+    }
     ensureOrb(x, y);
     var now = Date.now();
     if ((now - Number(lastAt || 0)) < 8) return;
@@ -95,33 +250,44 @@
   }
 
   function onLeave() {
-    if (!fxEnabled()) return;
     setGridActive(false);
     clearParticles();
+    clearReflections();
     seeded = false;
     lastHeadAt = 0;
+    resetGridScrollOffset();
   }
 
-  function onScroll(event) {
-    if (!fxEnabled()) return;
-    var target = event && event.target ? event.target : null;
-    if (!target || !(target instanceof Element)) return;
-    main.style.setProperty('--chat-grid-scroll-x', String(-Math.round(Number(target.scrollLeft || 0))) + 'px');
-    main.style.setProperty('--chat-grid-scroll-y', String(-Math.round(Number(target.scrollTop || 0))) + 'px');
+  function resetGridScrollOffset() {
+    // Keep global (non-chat) pointer mask anchored to viewport/cursor even
+    // when nested page bodies scroll.
+    main.style.setProperty('--chat-grid-scroll-x', '0px');
+    main.style.setProperty('--chat-grid-scroll-y', '0px');
+  }
+
+  function onScroll() {
+    resetGridScrollOffset();
+    if (reflectionEnabled()) scheduleReflectionSync(false);
   }
 
   function resetWhenDisabled() {
-    if (fxEnabled()) return;
-    setGridActive(false);
-    clearParticles();
-    seeded = false;
-    lastHeadAt = 0;
+    resetGridScrollOffset();
+    if (reflectionEnabled()) {
+      scheduleReflectionSync(true);
+    }
+    if (!fxEnabled()) {
+      setGridActive(false);
+      clearParticles();
+      seeded = false;
+      lastHeadAt = 0;
+    }
   }
 
   main.addEventListener('mouseenter', onMove, { passive: true });
   main.addEventListener('mousemove', onMove, { passive: true });
   main.addEventListener('mouseleave', onLeave, { passive: true });
   main.addEventListener('scroll', onScroll, { passive: true, capture: true });
+  window.addEventListener('resize', function() { scheduleReflectionSync(true); }, { passive: true });
   window.addEventListener('hashchange', resetWhenDisabled);
   var observer = new MutationObserver(resetWhenDisabled);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -138,4 +304,3 @@ if ('serviceWorker' in navigator) {
   }).catch(function() {});
 }
 </script>
-

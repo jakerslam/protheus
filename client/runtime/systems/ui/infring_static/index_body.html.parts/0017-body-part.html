@@ -344,7 +344,37 @@
   if (!main) return;
   var layer = main.querySelector('.main-pointer-fx-layer');
   if (!layer) return;
+  var globalReflectionLayer = layer.querySelector('.global-reflection-overlay');
+  var reflectionLayer = globalReflectionLayer;
+  var chatReflectionLayer = null;
   var pointerOrb = null;
+  var reflectionSyncRaf = 0;
+  var reflectionSignature = '';
+  var reflectionLastSyncAt = 0;
+  var reflectionSelectors = [
+    '.page-body .card',
+    '.page-body .stat-card',
+    '.page-body .session-card',
+    '.page-body .agent-item',
+    '.page-body .list-item',
+    '.page-body .table-wrap',
+    '.page-body .wf-node',
+    '.page-body .wf-palette',
+    '.page-body .wf-editor-panel',
+    '.page-body .wf-canvas-wrap',
+    '.page-body table',
+    '.page-body .detail-row',
+    '.page-body .security-card',
+    '.page-body [class*=\"card\"]'
+  ].join(',');
+
+  var chatReflectionSelectors = [
+    '.chat-thread .message-bubble',
+    '.chat-thread .tool-card',
+    '.chat-thread .chat-codeblock',
+    '.chat-thread .message-image',
+    '.chat-thread .message-file-link'
+  ].join(',');
 
   function resolveTheme() {
     var bodyTheme = '';
@@ -378,6 +408,39 @@
 
   function fxEnabled() {
     return resolveTheme() === 'dark' && currentPage() !== 'chat';
+  }
+
+  function reflectionEnabled() {
+    return true;
+  }
+
+  function resolveChatReflectionLayer() {
+    if (chatReflectionLayer && chatReflectionLayer.isConnected) return chatReflectionLayer;
+    var host = main.querySelector('.messages#messages') || main.querySelector('.messages');
+    if (!host) return null;
+    chatReflectionLayer = host.querySelector('.chat-reflection-overlay');
+    return chatReflectionLayer || null;
+  }
+
+  function resolveReflectionLayer() {
+    if (currentPage() === 'chat') {
+      return resolveChatReflectionLayer() || globalReflectionLayer;
+    }
+    return globalReflectionLayer;
+  }
+
+  function resolveReflectionRoot(targetLayer) {
+    if (targetLayer && targetLayer !== globalReflectionLayer) {
+      var chatHost = targetLayer.closest ? targetLayer.closest('.messages') : null;
+      if (chatHost) return chatHost;
+    }
+    return main;
+  }
+
+  function resolveReflectionSelectors(targetLayer) {
+    return (targetLayer && targetLayer !== globalReflectionLayer)
+      ? chatReflectionSelectors
+      : reflectionSelectors;
   }
 
   function setGridActive(active) {

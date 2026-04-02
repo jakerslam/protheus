@@ -161,7 +161,29 @@ fn collect_receipts(root: &Path) -> Vec<Value> {
         .collect()
 }
 
-fn collect_memory_artifacts(root: &Path) -> Vec<Value> {
+fn memory_artifact_source_fingerprint(root: &Path) -> String {
+    let roots = [
+        root.join("client/runtime/local/state"),
+        root.join("core/local/state/ops"),
+    ];
+    let mut rows = Vec::<Value>::new();
+    for base in roots {
+        let meta = fs::metadata(&base).ok();
+        rows.push(json!({
+            "path": base.to_string_lossy().to_string(),
+            "exists": meta.is_some(),
+            "len": meta.as_ref().map(|m| m.len()).unwrap_or(0),
+            "modified_ms": meta
+                .and_then(|m| m.modified().ok())
+                .and_then(|ts| ts.duration_since(UNIX_EPOCH).ok())
+                .map(|dur| dur.as_millis() as i64)
+                .unwrap_or(0)
+        }));
+    }
+    crate::deterministic_receipt_hash(&Value::Array(rows))
+}
+
+fn collect_memory_artifacts_uncached(root: &Path) -> Vec<Value> {
     let roots = [
         root.join("client/runtime/local/state"),
         root.join("core/local/state/ops"),
@@ -187,6 +209,42 @@ fn collect_memory_artifacts(root: &Path) -> Vec<Value> {
             .cmp(a.get("mtime").and_then(Value::as_str).unwrap_or(""))
     });
     rows.truncate(30);
+    rows
+}
+
+fn collect_memory_artifacts(root: &Path) -> Vec<Value> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Value>>> = OnceLock::new();
+    let key = root.to_string_lossy().to_string();
+    let fingerprint = memory_artifact_source_fingerprint(root);
+    let now_ms = Utc::now().timestamp_millis();
+    if let Ok(guard) = CACHE.get_or_init(|| Mutex::new(HashMap::new())).lock() {
+        if let Some(row) = guard.get(&key) {
+            let cached_fingerprint = clean_text(
+                row.get("fingerprint").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            let cached_ts = row.get("cached_at_ms").and_then(Value::as_i64).unwrap_or(0);
+            let within_window = now_ms.saturating_sub(cached_ts) <= 3000;
+            if cached_fingerprint == fingerprint && within_window {
+                return row
+                    .get("rows")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+            }
+        }
+    }
+    let rows = collect_memory_artifacts_uncached(root);
+    if let Ok(mut guard) = CACHE.get_or_init(|| Mutex::new(HashMap::new())).lock() {
+        guard.insert(
+            key,
+            json!({
+                "fingerprint": fingerprint,
+                "cached_at_ms": now_ms,
+                "rows": rows
+            }),
+        );
+    }
     rows
 }
 

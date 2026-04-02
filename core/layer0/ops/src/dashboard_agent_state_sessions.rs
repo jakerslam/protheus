@@ -662,11 +662,14 @@ fn intro_text_for_role(role: &str, display_name: &str) -> String {
     {
         return format!("Hi, I'm {name}. What are we coding today?");
     }
-    if role_key.contains("research")
-        || role_key.contains("analyst")
-        || role_key.contains("investig")
-    {
+    if role_key.contains("research") || role_key.contains("investig") {
         return format!("Hi, I'm {name}. What should we research first?");
+    }
+    if role_key.contains("analyst")
+        || role_key.contains("analysis")
+        || role_key.contains("data")
+    {
+        return format!("Hi, I'm {name}. What should we analyze first?");
     }
     if role_key.contains("writer") || role_key.contains("editor") || role_key.contains("content") {
         return format!("Hi, I'm {name}. What are we writing today?");

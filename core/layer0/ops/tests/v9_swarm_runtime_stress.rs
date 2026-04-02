@@ -278,6 +278,80 @@ fn stress_role_fanout_burst_keeps_mailboxes_consistent() {
 }
 
 #[test]
+fn stress_role_fanout_round_robin_prevents_single_mailbox_hotspot() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    for idx in 0..24 {
+        let args = vec![
+            "spawn".to_string(),
+            format!("--task=round-robin-filter-{idx}"),
+            "--role=filter".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &args), 0);
+    }
+
+    for idx in 0..480 {
+        let send_role_args = vec![
+            "sessions".to_string(),
+            "send-role".to_string(),
+            "--sender-id=coordinator".to_string(),
+            "--role=filter".to_string(),
+            format!("--message=round-robin-burst-{idx}"),
+            "--delivery=at_least_once".to_string(),
+            "--ttl-ms=3600000".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &send_role_args), 0);
+    }
+
+    let state = read_state(&state_path);
+    let filter_targets = state
+        .get("service_registry")
+        .and_then(|rows| rows.get("filter"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(filter_targets.len(), 24, "expected 24 filter workers");
+
+    let unread_counts = filter_targets
+        .iter()
+        .filter_map(|row| row.get("session_id").and_then(Value::as_str))
+        .map(|session_id| {
+            state
+                .get("mailboxes")
+                .and_then(|rows| rows.get(session_id))
+                .and_then(|row| row.get("unread"))
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+                .unwrap_or(0)
+        })
+        .collect::<Vec<_>>();
+
+    let active_recipients = unread_counts.iter().filter(|count| **count > 0).count();
+    let max_unread = unread_counts.into_iter().max().unwrap_or(0);
+    assert!(
+        active_recipients >= 12,
+        "role dispatch hotspot detected: active_recipients={active_recipients}"
+    );
+    assert!(
+        max_unread <= 24,
+        "single mailbox overload detected: max_unread={max_unread}"
+    );
+
+    let dead_letters = state
+        .get("dead_letters")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    assert_eq!(
+        dead_letters, 0,
+        "round-robin role dispatch should avoid dead letters for this load"
+    );
+}
+
+#[test]
 fn stress_hierarchy_256_agents_preserves_parent_lineage_and_fanout_bounds() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
@@ -347,6 +421,159 @@ fn stress_hierarchy_256_agents_preserves_parent_lineage_and_fanout_bounds() {
     assert_eq!(
         fanout_violations, 0,
         "hierarchy should respect configured fanout"
+    );
+}
+
+#[test]
+fn stress_hierarchy_4096_agents_preserves_parent_lineage_and_fanout_bounds() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let args = vec![
+        "test".to_string(),
+        "hierarchy".to_string(),
+        "--agents=4096".to_string(),
+        "--fanout=16".to_string(),
+        "--metrics=detailed".to_string(),
+        "--task-prefix=hierarchy-brutal-regression".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &args), 0);
+
+    let state = read_state(&state_path);
+    let sessions = sessions_map(&state);
+    assert!(
+        sessions.len() >= 4096,
+        "expected at least 4096 sessions, got {}",
+        sessions.len()
+    );
+
+    let root_session_id = sessions
+        .iter()
+        .find_map(|(session_id, row)| {
+            (row.get("parent_id").is_some() && row.get("parent_id") == Some(&Value::Null))
+                .then(|| session_id.clone())
+        })
+        .or_else(|| {
+            sessions.iter().find_map(|(session_id, row)| {
+                (row.get("task").and_then(Value::as_str)
+                    == Some("hierarchy-brutal-regression-root"))
+                .then(|| session_id.clone())
+            })
+        })
+        .expect("hierarchy root session id");
+
+    let mut child_counts = std::collections::BTreeMap::new();
+    let mut orphan_count = 0usize;
+    let mut missing_parent_count = 0usize;
+    for (session_id, row) in sessions {
+        if session_id == &root_session_id {
+            continue;
+        }
+        let parent_id = row.get("parent_id").and_then(Value::as_str);
+        match parent_id {
+            Some(parent) => {
+                if !sessions.contains_key(parent) {
+                    missing_parent_count += 1;
+                } else {
+                    *child_counts.entry(parent.to_string()).or_insert(0usize) += 1;
+                }
+            }
+            None => orphan_count += 1,
+        }
+    }
+
+    assert_eq!(
+        orphan_count, 0,
+        "hierarchy should not contain orphan children"
+    );
+    assert_eq!(
+        missing_parent_count, 0,
+        "hierarchy should not contain missing-parent links"
+    );
+    let fanout_violations = child_counts.values().filter(|count| **count > 16).count();
+    assert_eq!(
+        fanout_violations, 0,
+        "hierarchy should respect configured fanout under brutal load"
+    );
+}
+
+#[test]
+fn stress_role_fanout_1024_messages_stays_balanced_and_deadletter_free() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    for idx in 0..64 {
+        let args = vec![
+            "spawn".to_string(),
+            format!("--task=storm-filter-{idx}"),
+            "--role=filter".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &args), 0);
+    }
+
+    for idx in 0..1024 {
+        let send_role_args = vec![
+            "sessions".to_string(),
+            "send-role".to_string(),
+            "--sender-id=coordinator".to_string(),
+            "--role=filter".to_string(),
+            format!("--message=storm-burst-{idx}"),
+            "--delivery=at_least_once".to_string(),
+            "--ttl-ms=3600000".to_string(),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &send_role_args), 0);
+    }
+
+    let state = read_state(&state_path);
+    let filter_targets = state
+        .get("service_registry")
+        .and_then(|rows| rows.get("filter"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(filter_targets.len(), 64, "expected 64 filter workers");
+
+    let unread_counts = filter_targets
+        .iter()
+        .filter_map(|row| row.get("session_id").and_then(Value::as_str))
+        .map(|session_id| {
+            state
+                .get("mailboxes")
+                .and_then(|rows| rows.get(session_id))
+                .and_then(|row| row.get("unread"))
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+                .unwrap_or(0)
+        })
+        .collect::<Vec<_>>();
+
+    let active_recipients = unread_counts.iter().filter(|count| **count > 0).count();
+    let max_unread = unread_counts.iter().copied().max().unwrap_or(0);
+    let min_unread = unread_counts.iter().copied().min().unwrap_or(0);
+    assert!(
+        active_recipients >= 48,
+        "distribution too narrow under storm load: active_recipients={active_recipients}"
+    );
+    assert!(
+        max_unread <= 24,
+        "mailbox hotspot under storm load: max_unread={max_unread}"
+    );
+    assert!(
+        min_unread >= 8,
+        "distribution skew under storm load: min_unread={min_unread}"
+    );
+
+    let dead_letters = state
+        .get("dead_letters")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    assert_eq!(
+        dead_letters, 0,
+        "storm load should remain dead-letter free with balanced dispatch"
     );
 }
 

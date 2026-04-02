@@ -735,6 +735,14 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
     let hint = clean_text(suggested_name, 80)
         .to_ascii_lowercase()
         .replace(' ', "-");
+    let hint_suffix = if hint == "agent" {
+        String::new()
+    } else if let Some(rest) = hint.strip_prefix("agent-").or_else(|| hint.strip_prefix("agent_"))
+    {
+        clean_agent_id(rest.trim_matches(|ch| ch == '-' || ch == '_'))
+    } else {
+        clean_agent_id(&hint)
+    };
     let direct = clean_agent_id(&hint);
     if !direct.is_empty() && !used.contains(&direct) {
         return direct;
@@ -742,10 +750,10 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
     let hash_seed = json!({"hint": hint, "ts": crate::now_iso(), "nonce": Utc::now().timestamp_nanos_opt().unwrap_or_default()});
     let hash = crate::deterministic_receipt_hash(&hash_seed);
     let mut base = format!("agent-{}", hash.chars().take(12).collect::<String>());
-    if !hint.is_empty() && hint.len() <= 18 {
+    if !hint_suffix.is_empty() && hint_suffix.len() <= 18 {
         base = format!(
             "agent-{}-{}",
-            hint,
+            hint_suffix,
             hash.chars().take(5).collect::<String>()
         );
     }
@@ -1187,6 +1195,62 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
         ))
     });
     rows
+}
+
+fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Value {
+    let archive_reason = {
+        let cleaned = clean_text(reason, 120);
+        if cleaned.is_empty() {
+            "user_archive_all".to_string()
+        } else {
+            cleaned
+        }
+    };
+    let mut archived_agent_ids = Vec::<String>::new();
+    let mut failed_agent_ids = Vec::<String>::new();
+    let mut skipped_agent_ids = Vec::<String>::new();
+    for row in build_agent_roster(root, snapshot, false) {
+        let agent_id = clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""));
+        if agent_id.is_empty() {
+            continue;
+        }
+        if agent_id.eq_ignore_ascii_case("system") {
+            skipped_agent_ids.push(agent_id);
+            continue;
+        }
+        let _ = update_profile_patch(
+            root,
+            &agent_id,
+            &json!({"state": "Archived", "updated_at": crate::now_iso()}),
+        );
+        let _ = upsert_contract_patch(
+            root,
+            &agent_id,
+            &json!({
+                "status": "terminated",
+                "termination_reason": "user_archived",
+                "terminated_at": crate::now_iso(),
+                "updated_at": crate::now_iso()
+            }),
+        );
+        let archived = crate::dashboard_agent_state::archive_agent(root, &agent_id, &archive_reason);
+        if archived.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            archived_agent_ids.push(agent_id);
+        } else {
+            failed_agent_ids.push(agent_id);
+        }
+    }
+    let attempted = archived_agent_ids.len() + failed_agent_ids.len();
+    json!({
+        "ok": failed_agent_ids.is_empty(),
+        "type": "dashboard_agent_archive_all",
+        "reason": archive_reason,
+        "attempted": attempted,
+        "archived_count": archived_agent_ids.len(),
+        "archived_agent_ids": archived_agent_ids,
+        "failed_agent_ids": failed_agent_ids,
+        "skipped_agent_ids": skipped_agent_ids
+    })
 }
 
 fn agent_row_by_id(root: &Path, snapshot: &Value, agent_id: &str) -> Option<Value> {
@@ -4838,6 +4902,16 @@ pub fn handle_with_headers(
             payload,
         });
     }
+    if let Some(response) = dashboard_compat_api_openfang_gap_closure::handle(
+        root, method, path, path_only, body, snapshot,
+    ) {
+        return Some(response);
+    }
+    if let Some(response) = dashboard_compat_api_openfang_parity::handle(
+        root, method, path, path_only, headers, body, snapshot,
+    ) {
+        return Some(response);
+    }
     if let Some(response) = dashboard_compat_api_channels::handle(root, method, path_only, body) {
         return Some(response);
     }
@@ -5299,6 +5373,32 @@ pub fn handle_with_headers(
         return Some(CompatApiResponse {
             status: 200,
             payload: Value::Array(build_agent_roster(root, snapshot, include_terminated)),
+        });
+    }
+
+    if method == "POST" && path_only == "/api/agents/archive-all" {
+        if !requester_agent.is_empty() {
+            return Some(CompatApiResponse {
+                status: 403,
+                payload: json!({
+                    "ok": false,
+                    "error": "agent_manage_forbidden",
+                    "actor_agent_id": requester_agent.clone(),
+                    "target_agent_id": "*"
+                }),
+            });
+        }
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let reason = clean_text(
+            request
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("user_archive_all"),
+            120,
+        );
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: archive_all_visible_agents(root, snapshot, &reason),
         });
     }
 
@@ -6507,23 +6607,87 @@ pub fn handle_with_headers(
                 || patch.get("system_prompt").is_some()
                 || patch.get("archetype").is_some()
                 || patch.get("profile").is_some();
-            let role = clean_text(
-                patch
-                    .get("role")
-                    .and_then(Value::as_str)
-                    .or_else(|| {
-                        existing
-                            .as_ref()
-                            .and_then(|row| row.get("role").and_then(Value::as_str))
-                    })
-                    .unwrap_or("analyst"),
+            let explicit_role = clean_text(
+                patch.get("role").and_then(Value::as_str).unwrap_or(""),
                 60,
             );
-            let resolved_role = if role.is_empty() {
+            let existing_role = clean_text(
+                existing
+                    .as_ref()
+                    .and_then(|row| row.get("role").and_then(Value::as_str))
+                    .unwrap_or(""),
+                60,
+            );
+            let archetype_hint = clean_text(
+                patch.get("archetype").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
+            let profile_hint =
+                clean_text(patch.get("profile").and_then(Value::as_str).unwrap_or(""), 80)
+                    .to_ascii_lowercase();
+            let mut role_hint = format!("{archetype_hint} {profile_hint}");
+            if role_hint.trim().is_empty() {
+                role_hint = clean_text(
+                    patch.get("system_prompt").and_then(Value::as_str).unwrap_or(""),
+                    200,
+                )
+                .to_ascii_lowercase();
+            }
+            let inferred_role = if !explicit_role.is_empty() {
+                explicit_role.clone()
+            } else if role_hint.contains("teacher")
+                || role_hint.contains("tutor")
+                || role_hint.contains("mentor")
+                || role_hint.contains("coach")
+                || role_hint.contains("instructor")
+            {
+                "tutor".to_string()
+            } else if role_hint.contains("code")
+                || role_hint.contains("coder")
+                || role_hint.contains("engineer")
+                || role_hint.contains("developer")
+                || role_hint.contains("devops")
+                || role_hint.contains("api")
+                || role_hint.contains("build")
+            {
+                "engineer".to_string()
+            } else if role_hint.contains("research") || role_hint.contains("investig") {
+                "researcher".to_string()
+            } else if role_hint.contains("analyst")
+                || role_hint.contains("analysis")
+                || role_hint.contains("data")
+            {
+                "analyst".to_string()
+            } else if role_hint.contains("writer")
+                || role_hint.contains("editor")
+                || role_hint.contains("content")
+            {
+                "writer".to_string()
+            } else if role_hint.contains("design")
+                || role_hint.contains("ui")
+                || role_hint.contains("ux")
+            {
+                "designer".to_string()
+            } else if role_hint.contains("support") {
+                "support".to_string()
+            } else if !existing_role.is_empty() {
+                existing_role.clone()
+            } else {
+                "analyst".to_string()
+            };
+            let resolved_role = if inferred_role.is_empty() {
                 "analyst".to_string()
             } else {
-                role
+                inferred_role
             };
+            if should_seed_intro
+                && explicit_role.is_empty()
+                && !resolved_role.eq_ignore_ascii_case(&existing_role)
+            {
+                patch["role"] = Value::String(resolved_role.clone());
+            }
+            let mut rename_notice: Option<Value> = None;
             if patch.get("name").is_some() {
                 let requested_name =
                     clean_text(patch.get("name").and_then(Value::as_str).unwrap_or(""), 120);
@@ -6532,12 +6696,62 @@ pub fn handle_with_headers(
                         map.remove("name");
                     }
                 } else {
-                    patch["name"] =
-                        Value::String(dashboard_compat_api_agent_identity::resolve_agent_name(
+                    let requested_default_like = dashboard_compat_api_agent_identity::
+                        is_default_agent_name_for_agent(&requested_name, &agent_id);
+                    let resolved_name =
+                        dashboard_compat_api_agent_identity::resolve_agent_name(
                             root,
                             &requested_name,
                             &resolved_role,
-                        ));
+                        );
+                    let treat_as_blank_for_init = should_seed_intro
+                        && (requested_default_like
+                            || dashboard_compat_api_agent_identity::is_default_agent_name_for_agent(
+                                &resolved_name,
+                                &agent_id,
+                            ));
+                    if treat_as_blank_for_init {
+                        if let Some(map) = patch.as_object_mut() {
+                            map.remove("name");
+                        }
+                    } else {
+                        patch["name"] = Value::String(resolved_name);
+                    }
+                }
+            }
+            if should_seed_intro && patch.get("name").is_none() {
+                let existing_name = clean_text(
+                    existing
+                        .as_ref()
+                        .and_then(|row| row.get("name").and_then(Value::as_str))
+                        .unwrap_or(""),
+                    120,
+                );
+                if dashboard_compat_api_agent_identity::is_default_agent_name_for_agent(
+                    &existing_name,
+                    &agent_id,
+                ) {
+                    let previous_name = if existing_name.is_empty() {
+                        dashboard_compat_api_agent_identity::default_agent_name(&agent_id)
+                    } else {
+                        existing_name.clone()
+                    };
+                    let auto_name = dashboard_compat_api_agent_identity::resolve_post_init_agent_name(
+                        root,
+                        &agent_id,
+                        &resolved_role,
+                    );
+                    if !auto_name.is_empty()
+                        && !auto_name.eq_ignore_ascii_case(&previous_name)
+                    {
+                        patch["name"] = Value::String(auto_name.clone());
+                        rename_notice = Some(json!({
+                            "notice_label": format!("changed name from {previous_name} to {auto_name}"),
+                            "notice_type": "info",
+                            "ts": crate::now_iso(),
+                            "auto_generated": true
+                        }));
+                    }
                 }
             }
             let patch_touches_identity = patch.get("identity").is_some()
@@ -6641,9 +6855,13 @@ pub fn handle_with_headers(
             }
             let row = agent_row_by_id(root, snapshot, &agent_id)
                 .unwrap_or_else(|| json!({"id": agent_id}));
+            let mut payload = json!({"ok": true, "agent_id": agent_id, "agent": row});
+            if let Some(notice) = rename_notice {
+                payload["rename_notice"] = notice;
+            }
             return Some(CompatApiResponse {
                 status: 200,
-                payload: json!({"ok": true, "agent_id": agent_id, "agent": row}),
+                payload,
             });
         }
 
@@ -7472,12 +7690,6 @@ pub fn handle_with_headers(
                     "arch": std::env::consts::ARCH
                 })
             }
-            "/api/network/status" => {
-                json!({"ok": true, "enabled": true, "connected_peers": 0, "total_peers": 0, "runtime_sync": runtime})
-            }
-            "/api/peers" => {
-                json!({"ok": true, "peers": [], "connected": 0, "total": 0, "runtime_sync": runtime})
-            }
             "/api/security" => json!({
                 "ok": true,
                 "mode": "strict",
@@ -7552,7 +7764,6 @@ pub fn handle_with_headers(
                 "daily_limit": 0,
                 "monthly_limit": 0
             }),
-            "/api/a2a/agents" => json!({"ok": true, "agents": []}),
             "/api/sessions" => {
                 json!({"ok": true, "sessions": session_summary_rows(root, snapshot)})
             }

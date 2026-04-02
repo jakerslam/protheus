@@ -51,6 +51,10 @@ const API_STATIC_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_static/js/api.ts'
 );
+const AGENTS_PAGE_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/js/pages/agents.ts'
+);
 const STATIC_UI_JS_ROOT = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_static/js'
@@ -264,13 +268,18 @@ function assertChatSyntaxGuards() {
 
 function assertChatEnhancementFeatures() {
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
+  const agentsSource = readUtf8(AGENTS_PAGE_TS_PATH);
   const apiSource = readUtf8(API_STATIC_TS_PATH);
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
   const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/css/components.css'));
   const laneSource = readUtf8(TARGET_SOURCE);
 
-  // Fresh agent init flow ("Who am I?" + init panel)
-  assertContains(chatSource, "text: 'Who am I?'", 'fresh-init "Who am I?" seed message missing');
+  // Fresh agent init flow ("Who am I" thinking bubble + init panel)
+  assertContains(chatSource, "text: 'Who am I'", 'fresh-init "Who am I" seed message missing');
+  assert.ok(
+    /text:\s*'Who am I'[\s\S]{0,220}thinking:\s*true/.test(chatSource),
+    'fresh-init "Who am I" message should render through thinking bubble state'
+  );
   assert.ok(
     chatSource.includes('ensureFreshInitThread(resolved);') || chatSource.includes('startFreshInitSequence(resolved);'),
     'fresh-init thread bootstrap missing'
@@ -283,6 +292,16 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'refreshFreshInitModelSuggestions: async function(templateDef)', 'fresh-init role-based LLM ranking helper missing');
   assertContains(chatSource, 'scoreFreshInitModelForRole: function(model, roleKey)', 'fresh-init model scoring function missing');
   assertContains(chatSource, 'freshInitModelSelection = ranked.length ? this.normalizeFreshInitModelRef(ranked[0]) : \'\';', 'fresh-init should auto-select top-ranked model by default');
+  assertContains(
+    chatSource,
+    'if (this.anchorAgentTrailToThinking(host, rect, now, pad, w, h)) return;',
+    'thinking anchor should take priority over fresh-init anchor'
+  );
+  assertContains(
+    chatSource,
+    'if (activeThinking && activeThinking.offsetParent !== null) return false;',
+    'fresh-init anchor should not override an active thinking bubble anchor'
+  );
   assertContains(cssSource, '.chat-init-advanced-toggle', 'fresh-init advanced toggle styles missing');
   assertContains(cssSource, '.chat-init-model-meta', 'fresh-init model metadata row styles missing');
   assertContains(chatSource, 'sessionHasAnyHistory: function(data)', 'empty-session history detector missing');
@@ -305,6 +324,15 @@ function assertChatEnhancementFeatures() {
     htmlSource,
     "x-if=\"currentAgent && !sessionLoading && (!filteredMessages || filteredMessages.length === 0) && !showFreshArchetypeTiles\"",
     'inline filtered chat empty-session fallback UI missing'
+  );
+  assert.ok(
+    !htmlSource.includes('class="chat-loading-overlay" x-show="currentAgent && sessionLoading" x-cloak'),
+    'chat should not render duplicate session-loading overlay spinners'
+  );
+  assertContains(
+    agentsSource,
+    "InfringAPI.post('/api/agents/archive-all'",
+    'agents archive-all action should use bulk archive endpoint first'
   );
 
   // Prompt suggestion chips above composer

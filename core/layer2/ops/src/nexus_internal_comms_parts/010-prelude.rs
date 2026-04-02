@@ -1,6 +1,10 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::hot_path_allocators::{
+    mark_hot_path_batch, snapshot_json as hot_path_allocator_snapshot_json, with_arena_bytes,
+    with_slab_buffer,
+};
 use crate::{deterministic_receipt_hash, now_epoch_ms};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -10,14 +14,15 @@ use std::path::{Path, PathBuf};
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops nexus-internal-comms status [--limit=<n>]",
-    "  protheus-ops nexus-internal-comms validate --message='[FROM>TO|MOD] CMD k=v'",
+    "  protheus-ops nexus-internal-comms status [--limit=<n>] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  protheus-ops nexus-internal-comms validate --message='[FROM>TO|MOD] CMD k=v' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
     "  protheus-ops nexus-internal-comms compress --from=<id> --to=<id> --cmd=<key> [--module=<name>] --text='<natural text>'",
-    "  protheus-ops nexus-internal-comms decompress --message='<nexus_line>' [--module=<name>]",
-    "  protheus-ops nexus-internal-comms send --message='<nexus_line>' [--raw-text='<natural text>']",
+    "  protheus-ops nexus-internal-comms decompress --message='<nexus_line>' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  protheus-ops nexus-internal-comms send --message='<nexus_line>' [--raw-text='<natural text>'] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
     "  protheus-ops nexus-internal-comms log [--limit=<n>] [--decompressed=1|0]",
-    "  protheus-ops nexus-internal-comms agent-prompt --agent=<id> [--modules=a,b,c]",
-    "  protheus-ops nexus-internal-comms export-lexicon [--modules=a,b,c]",
+    "  protheus-ops nexus-internal-comms agent-prompt --agent=<id> [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  protheus-ops nexus-internal-comms resolve-modules [--modules=a,b,c] [--module=<name>] [--task='<text>'] [--role=<id>] [--text='<context>']",
+    "  protheus-ops nexus-internal-comms export-lexicon [--modules=a,b,c] [--task='<text>'] [--role=<id>] [--with-catalog=1|0]",
 ];
 
 const MAX_MODULES_PER_AGENT: usize = 3;
@@ -78,12 +83,7 @@ fn parse_flag(argv: &[String], key: &str) -> Option<String> {
 }
 
 fn parse_bool(raw: Option<String>, fallback: bool) -> bool {
-    match raw
-        .unwrap_or_default()
-        .trim()
-        .to_ascii_lowercase()
-        .as_str()
-    {
+    match raw.unwrap_or_default().trim().to_ascii_lowercase().as_str() {
         "1" | "true" | "yes" | "on" => true,
         "0" | "false" | "no" | "off" => false,
         _ => fallback,

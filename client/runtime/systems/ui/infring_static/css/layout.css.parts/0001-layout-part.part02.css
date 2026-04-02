@@ -1,0 +1,148 @@
+.nav-sub-search-spinner {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+  margin-left: 1px;
+}
+
+.nav-sub-sort-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nav-sub-sort-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  background: color-mix(in srgb, var(--surface2) 74%, transparent);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.nav-sub-sort-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-sub-sort-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  background: color-mix(in srgb, var(--accent-subtle) 80%, transparent);
+  transform: translateY(-0.5px);
+}
+
+.nav-sub-sort-btn.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--user-bg) 78%, transparent);
+}
+
+.nav-sub-item.nav-sub-item-action.nav-sub-item-action-right {
+  margin-left: auto;
+  width: auto;
+  min-width: 134px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.nav-sub-item.nav-sub-item-action.is-loading {
+  pointer-events: none;
+  opacity: 0.76;
+}
+
+.nav-sub-item.nav-sub-item-action:hover {
+  color: var(--accent);
+}
+
+.new-agent-plus-icon-wrap,
+.new-agent-chip-icon {
+  position: relative;
+}
+
+.new-agent-plus-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+}
+
+.new-agent-plus-icon-wrap .new-agent-plus-spinner {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  margin-top: -8px;
+}
+
+.new-agent-chip-icon .new-agent-plus-spinner {
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  margin-top: -16px;
+}
+
+.new-agent-chip.is-loading,
+.new-agent-chip:disabled {
+  cursor: wait !important;
+  opacity: 0.84;
+}
+
+.nav-agent-row {
+  margin-left: 0;
+  width: 100%;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  height: auto;
+  min-height: 56px;
+  white-space: normal;
+  overflow: visible;
+}
+
+.nav-agent-row.nav-agent-row-archived {
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--surface2) 72%, transparent);
+}
+
+.nav-agent-row .nav-icon.nav-agent-icon {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.nav-agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.nav-agent-avatar-wrap {
+  width: 32px;

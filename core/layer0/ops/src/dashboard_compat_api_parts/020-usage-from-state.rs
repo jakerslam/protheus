@@ -326,6 +326,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let memory_hygiene = memory_hygiene_payload(root, &continuity);
     let task_runtime = task_runtime_summary(root);
     let worker_runtime = worker_runtime_summary(root);
+    let hot_path_allocators = protheus_ops_core_v1::hot_path_allocators::snapshot_json();
     let web_conduit = crate::web_conduit::api_status(root);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version = read_json(&root.join("package.json"))
@@ -375,6 +376,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
         "runtime_sync": runtime,
         "task_runtime": task_runtime,
         "worker_runtime": worker_runtime,
+        "hot_path_allocators": hot_path_allocators,
         "web_conduit": {
             "enabled": web_conduit.get("enabled").cloned().unwrap_or_else(|| json!(false)),
             "receipts_total": web_conduit.get("receipts_total").cloned().unwrap_or_else(|| json!(0)),
