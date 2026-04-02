@@ -77,7 +77,7 @@ infring --help
 Fallback (direct path):
 
 ```bash
-"$HOME/.local/bin/infring" --help
+"$HOME/.infring/bin/infring" --help
 ```
 
 Installer behavior:
@@ -92,7 +92,7 @@ Installer behavior:
 | Mode | Flag | Purpose |
 |---|---|---|
 | Minimal (default) | `--minimal` | CLI + daemon wrappers |
-| Full | `--full` | Minimal plus optional published client runtime bundle |
+| Full | `--full` | Minimal plus workspace runtime bootstrap (release bundle or source fallback) |
 | Pure | `--pure` | Rust-only runtime surface (no Node/TS runtime dependency) |
 | Tiny-Max | `--tiny-max` | Lowest-footprint pure profile for constrained hardware |
 | Repair | `--repair` | Removes stale wrappers/runtime artifacts before reinstall |
