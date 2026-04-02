@@ -80,7 +80,7 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
             continue;
         }
         let is_provider_local = parse_bool(provider_row.get("is_local"), false);
-        let supports_chat = parse_bool(provider_row.get("supports_chat"), false);
+        let supports_chat = parse_bool(provider_row.get("supports_chat"), true);
         let needs_key = parse_bool(provider_row.get("needs_key"), false);
         let auth_status = clean_text(
             provider_row
@@ -89,7 +89,7 @@ fn registry_rows(root: &Path, snapshot: &Value) -> Vec<ModelRow> {
                 .unwrap_or("unknown"),
             40,
         );
-        let reachable = parse_bool(provider_row.get("reachable"), false);
+        let reachable = parse_bool(provider_row.get("reachable"), is_provider_local);
 
         let profiles = provider_row
             .get("model_profiles")
@@ -400,8 +400,8 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         .cloned()
         .unwrap_or_default();
 
-    let prefer_local = parse_bool(request.get("prefer_local"), false)
-        || parse_bool(request.get("offline_required"), false);
+    let offline_required = parse_bool(request.get("offline_required"), false);
+    let prefer_local = parse_bool(request.get("prefer_local"), false) || offline_required;
     let complexity = clean_text(
         request
             .get("complexity")
@@ -427,6 +427,26 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         40,
     )
     .to_ascii_lowercase();
+    if offline_required {
+        rows.retain(|row| parse_bool(row.get("is_local"), false));
+        let has_ollama = rows.iter().any(|row| {
+            clean_text(
+                row.get("provider").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .eq_ignore_ascii_case("ollama")
+                && parse_bool(row.get("available"), false)
+        });
+        if has_ollama {
+            rows.retain(|row| {
+                clean_text(
+                    row.get("provider").and_then(Value::as_str).unwrap_or(""),
+                    80,
+                )
+                .eq_ignore_ascii_case("ollama")
+            });
+        }
+    }
 
     rows.sort_by(|a, b| {
         let score_a = route_score(a, prefer_local, &complexity, &task_type, &budget_mode);
@@ -535,6 +555,7 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         "routing_policy": routing_policy,
         "input": {
             "prefer_local": prefer_local,
+            "offline_required": offline_required,
             "complexity": complexity,
             "task_type": task_type,
             "budget_mode": budget_mode

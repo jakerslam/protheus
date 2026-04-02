@@ -213,7 +213,10 @@ pub(crate) fn clean_tags(raw: Option<&Value>) -> Vec<Value> {
             if value.is_empty() {
                 continue;
             }
-            if !out.iter().any(|existing| existing.as_str() == Some(value.as_str())) {
+            if !out
+                .iter()
+                .any(|existing| existing.as_str() == Some(value.as_str()))
+            {
                 out.push(Value::String(value));
             }
             if out.len() >= 12 {

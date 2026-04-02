@@ -5,4 +5,6 @@ include!("metakernel_parts/030-run-budget-admission.rs");
 include!("metakernel_parts/040-run-quantum-broker.rs");
 include!("metakernel_parts/050-run-execution-profiles.rs");
 include!("metakernel_parts/055-run-microkernel-safety.rs");
+include!("metakernel_parts/057-digital-dna-foundation.rs");
+include!("metakernel_parts/058-hybrid-digital-dna-v2.rs");
 include!("metakernel_parts/060-run.rs");

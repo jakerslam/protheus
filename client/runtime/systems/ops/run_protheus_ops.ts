@@ -3,13 +3,13 @@
 
 // Layer ownership: client/runtime/systems/ops (authoritative app bridge helper)
 
-import fs from 'fs';
-import path from 'path';
-import { spawnSync, type SpawnSyncReturns } from 'child_process';
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 
-function isFile(filePath: string): boolean {
+function isFile(filePath) {
   try {
     return fs.statSync(filePath).isFile();
   } catch {
@@ -17,7 +17,7 @@ function isFile(filePath: string): boolean {
   }
 }
 
-function mtimeMs(filePath: string): number {
+function mtimeMs(filePath) {
   try {
     return fs.statSync(filePath).mtimeMs || 0;
   } catch {
@@ -25,7 +25,7 @@ function mtimeMs(filePath: string): number {
   }
 }
 
-function sourceNewestMtimeMs(): number {
+function sourceNewestMtimeMs() {
   const opsRoot = path.join(ROOT, 'core', 'layer0', 'ops');
   const srcRoot = path.join(opsRoot, 'src');
   let newest = Math.max(
@@ -33,10 +33,10 @@ function sourceNewestMtimeMs(): number {
     mtimeMs(path.join(opsRoot, 'Cargo.toml'))
   );
 
-  const stack: string[] = [srcRoot];
+  const stack = [srcRoot];
   while (stack.length > 0) {
-    const dir = stack.pop() as string;
-    let entries: fs.Dirent[] = [];
+    const dir = stack.pop();
+    let entries = [];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -56,7 +56,7 @@ function sourceNewestMtimeMs(): number {
   return newest;
 }
 
-function binaryFreshEnough(binPath: string): boolean {
+function binaryFreshEnough(binPath) {
   const binMtime = mtimeMs(binPath);
   if (!binMtime) return false;
   const srcMtime = sourceNewestMtimeMs();
@@ -64,7 +64,7 @@ function binaryFreshEnough(binPath: string): boolean {
   return binMtime >= srcMtime;
 }
 
-function allowStaleBinary(env: NodeJS.ProcessEnv = process.env): boolean {
+function allowStaleBinary(env = process.env) {
   const raw = String(
     (env && (env.PROTHEUS_OPS_ALLOW_STALE || env.PROTHEUS_NPM_ALLOW_STALE)) || ''
   )
@@ -73,15 +73,12 @@ function allowStaleBinary(env: NodeJS.ProcessEnv = process.env): boolean {
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
-type ResolveBinaryOptions = {
-  env?: NodeJS.ProcessEnv;
-};
-
-function resolveBinary(options: ResolveBinaryOptions = {}): string | null {
+function resolveBinary(options = {}) {
   const env = options && options.env ? options.env : process.env;
   const allowStale = allowStaleBinary(env);
-  const explicit = String(process.env.PROTHEUS_NPM_BINARY || '').trim();
-  if (explicit && isFile(explicit)) return explicit;
+  const explicit = String((env && env.PROTHEUS_NPM_BINARY) || process.env.PROTHEUS_NPM_BINARY || '').trim();
+  const explicitExists = explicit && isFile(explicit);
+  const explicitResolved = explicitExists ? path.resolve(explicit) : '';
 
   const release = path.join(
     ROOT,
@@ -109,35 +106,39 @@ function resolveBinary(options: ResolveBinaryOptions = {}): string | null {
     .filter((binPath) => allowStale || binaryFreshEnough(binPath))
     .map((binPath) => ({ binPath, mtime: mtimeMs(binPath) }))
     .sort((a, b) => b.mtime - a.mtime);
-  if (candidates.length > 0) return candidates[0].binPath;
+  const localBest = candidates.length > 0 ? candidates[0].binPath : null;
+
+  // Prefer workspace-local binaries when available. This prevents stale global
+  // install pins (for example ~/.local/bin/protheus-ops) from shadowing fresh
+  // core features required by the active workspace UI runtime.
+  if (explicitExists && explicitResolved.startsWith(ROOT)) return explicitResolved;
+  if (localBest) return localBest;
+  if (explicitExists) return explicitResolved;
 
   return null;
 }
 
 function spawnInvocation(
-  command: string,
-  args: string[],
-  env: NodeJS.ProcessEnv
-): SpawnSyncReturns<string> {
+  command,
+  args,
+  env
+) {
   return spawnSync(command, args, {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: 'pipe',
-    env
+    env,
+    maxBuffer: 128 * 1024 * 1024,
   });
 }
 
-function processStatus(proc: SpawnSyncReturns<string> | null | undefined): number {
+function processStatus(proc) {
   if (!proc) return 1;
   if (proc.error) return 1;
-  return Number.isFinite(proc.status as number) ? (proc.status as number) : 1;
+  return Number.isFinite(proc.status) ? proc.status : 1;
 }
 
-function processOutput(proc: SpawnSyncReturns<string> | null | undefined): {
-  stdout: string;
-  stderr: string;
-  combined: string;
-} {
+function processOutput(proc) {
   const stdout = proc && typeof proc.stdout === 'string' ? proc.stdout : '';
   const stderrBase = proc && typeof proc.stderr === 'string' ? proc.stderr : '';
   const err = proc && proc.error ? `\n${String(proc.error.message || proc.error)}` : '';
@@ -148,7 +149,7 @@ function processOutput(proc: SpawnSyncReturns<string> | null | undefined): {
   };
 }
 
-function writeAll(fd: number, text: string): void {
+function writeAll(fd, text) {
   if (!text) return;
   const buffer = Buffer.from(text, 'utf8');
   let offset = 0;
@@ -157,22 +158,17 @@ function writeAll(fd: number, text: string): void {
   }
 }
 
-function emitProcessOutput(proc: SpawnSyncReturns<string> | null | undefined): void {
+function emitProcessOutput(proc) {
   const out = processOutput(proc);
   writeAll(1, out.stdout);
   writeAll(2, out.stderr);
 }
 
-type RunOptions = {
-  env?: NodeJS.ProcessEnv;
-  unknownDomainFallback?: boolean;
-};
-
 function shouldFallbackToCargo(
-  args: string[],
-  proc: SpawnSyncReturns<string>,
-  options: RunOptions = {}
-): boolean {
+  args,
+  proc,
+  options = {}
+) {
   if (options.unknownDomainFallback === false) return false;
   if (!Array.isArray(args) || args.length === 0) return false;
   if (processStatus(proc) === 0) return false;
@@ -180,7 +176,7 @@ function shouldFallbackToCargo(
   return /\bunknown_domain\b/i.test(out.combined);
 }
 
-function runViaCargo(args: string[], env: NodeJS.ProcessEnv): SpawnSyncReturns<string> {
+function runViaCargo(args, env) {
   return spawnInvocation(
     'cargo',
     ['run', '--quiet', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--'].concat(args),
@@ -188,7 +184,7 @@ function runViaCargo(args: string[], env: NodeJS.ProcessEnv): SpawnSyncReturns<s
   );
 }
 
-function runProtheusOps(args: string[], options: RunOptions = {}): number {
+function runProtheusOps(args, options = {}) {
   const env = { ...process.env, PROTHEUS_ROOT: ROOT, ...(options.env || {}) };
   const bin = resolveBinary({ env });
   if (bin) {

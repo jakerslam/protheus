@@ -10,6 +10,11 @@
   "contradiction_decay_step": 0.04,
   "support_recovery_step": 0.01,
   "max_observation_window": 200,
+  "toll_enabled": true,
+  "toll_trigger_negative_threshold": -0.2,
+  "toll_debt_step": 0.2,
+  "toll_recovery_step": 0.08,
+  "toll_hard_block_threshold": 1.0,
   "codex_path": "client/runtime/config/duality_codex.txt",
   "state": {
     "latest_path": "local/state/autonomy/duality/latest.json",
@@ -22,6 +27,16 @@
     "task_decomposition": true,
     "weaver_arbitration": true,
     "heroic_echo_filtering": true
+  },
+  "dual_voice": {
+    "enabled": true,
+    "min_harmony": 0.42,
+    "minimum_voice_confidence": 0.3
+  },
+  "memory": {
+    "tagging_enabled": true,
+    "high_recall_threshold": 0.65,
+    "inversion_flag_threshold": 0.35
   },
   "outputs": {
     "persist_shadow_receipts": true,

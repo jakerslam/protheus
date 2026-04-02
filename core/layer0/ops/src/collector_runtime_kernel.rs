@@ -108,7 +108,6 @@ fn http_status_to_code(status: u64) -> &'static str {
     }
 }
 
-
 fn normalize_node_code(raw: &str) -> String {
     let c = raw.trim().to_ascii_lowercase();
     if c.is_empty() {
@@ -178,7 +177,11 @@ fn classify_message(msg: &str) -> String {
     if s.contains("forbidden") {
         return "auth_forbidden".to_string();
     }
-    if s.contains("enotfound") || s.contains("getaddrinfo") || s.contains("dns") || s.contains("eai_again") {
+    if s.contains("enotfound")
+        || s.contains("getaddrinfo")
+        || s.contains("dns")
+        || s.contains("eai_again")
+    {
         return "dns_unreachable".to_string();
     }
     if s.contains("operation not permitted") || s.contains("permission denied") {
@@ -280,7 +283,8 @@ fn read_json(path: &Path, fallback: Value) -> Value {
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| format!("collector_runtime_kernel_create_dir_failed:{err}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("collector_runtime_kernel_create_dir_failed:{err}"))?;
     }
     let body = format!(
         "{}\n",
@@ -311,11 +315,15 @@ fn normalize_meta_value(collector_id: &str, raw: Option<&Value>) -> Value {
         80,
     );
     let last_success = lane_utils::clean_text(
-        obj.and_then(|o| o.get("last_success")).and_then(Value::as_str),
+        obj.and_then(|o| o.get("last_success"))
+            .and_then(Value::as_str),
         80,
     );
     let mut seen_ids = Vec::new();
-    if let Some(items) = obj.and_then(|o| o.get("seen_ids")).and_then(Value::as_array) {
+    if let Some(items) = obj
+        .and_then(|o| o.get("seen_ids"))
+        .and_then(Value::as_array)
+    {
         for entry in items {
             if let Some(raw_id) = entry.as_str() {
                 let cleaned = clean_seen_id(raw_id);
@@ -359,7 +367,8 @@ fn read_state(path: &Path) -> Value {
 
 fn write_state(path: &Path, state: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| format!("collector_runtime_kernel_create_dir_failed:{err}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("collector_runtime_kernel_create_dir_failed:{err}"))?;
     }
     let pretty = serde_json::to_string_pretty(state)
         .map_err(|err| format!("collector_runtime_kernel_encode_failed:{err}"))?;
@@ -374,10 +383,22 @@ fn ensure_collectors_mut(state: &mut Value) -> Result<&mut Map<String, Value>, S
     let state_obj = state
         .as_object_mut()
         .ok_or_else(|| "collector_runtime_kernel_state_not_object".to_string())?;
-    if state_obj.get("schema_id").and_then(Value::as_str).unwrap_or("") != RATE_SCHEMA_ID {
-        state_obj.insert("schema_id".to_string(), Value::String(RATE_SCHEMA_ID.to_string()));
+    if state_obj
+        .get("schema_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        != RATE_SCHEMA_ID
+    {
+        state_obj.insert(
+            "schema_id".to_string(),
+            Value::String(RATE_SCHEMA_ID.to_string()),
+        );
     }
-    if !state_obj.get("collectors").map(Value::is_object).unwrap_or(false) {
+    if !state_obj
+        .get("collectors")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         state_obj.insert("collectors".to_string(), Value::Object(Map::new()));
     }
     state_obj
@@ -462,7 +483,10 @@ fn handle_prepare_attempt(root: &Path, payload: &Map<String, Value>) -> Result<V
 
     let last_attempt_ms = row_u64(row, "last_attempt_ms");
     let next_allowed_ms = row_u64(row, "next_allowed_ms");
-    let ready_at = max(next_allowed_ms, last_attempt_ms.saturating_add(min_interval_ms));
+    let ready_at = max(
+        next_allowed_ms,
+        last_attempt_ms.saturating_add(min_interval_ms),
+    );
     let wait_ms = ready_at.saturating_sub(now);
     if wait_ms > 0 {
         thread::sleep(Duration::from_millis(wait_ms));
@@ -519,7 +543,10 @@ fn handle_mark_success(root: &Path, payload: &Map<String, Value>) -> Result<Valu
 
 fn handle_mark_failure(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let collector_id = clean_collector_id(payload);
-    let last_error_code = lane_utils::clean_token(payload.get("code").and_then(Value::as_str), "collector_error");
+    let last_error_code = lane_utils::clean_token(
+        payload.get("code").and_then(Value::as_str),
+        "collector_error",
+    );
     let retryable = is_retryable_code(&last_error_code);
 
     let base_backoff_ms = json_u64(
@@ -563,10 +590,17 @@ fn handle_mark_failure(root: &Path, payload: &Map<String, Value>) -> Result<Valu
 
     if retryable {
         let exp = next_failure_streak.saturating_sub(1).min(16);
-        let backoff_ms = std::cmp::min(max_backoff_ms, base_backoff_ms.saturating_mul(2_u64.pow(exp as u32)));
+        let backoff_ms = std::cmp::min(
+            max_backoff_ms,
+            base_backoff_ms.saturating_mul(2_u64.pow(exp as u32)),
+        );
         set_row_u64(row, "next_allowed_ms", now.saturating_add(backoff_ms));
         if next_failure_streak >= circuit_after_failures {
-            set_row_u64(row, "circuit_open_until_ms", now.saturating_add(circuit_open_ms));
+            set_row_u64(
+                row,
+                "circuit_open_until_ms",
+                now.saturating_add(circuit_open_ms),
+            );
         }
     } else {
         set_row_u64(
@@ -576,7 +610,10 @@ fn handle_mark_failure(root: &Path, payload: &Map<String, Value>) -> Result<Valu
         );
     }
 
-    row.insert("last_error_code".to_string(), Value::String(last_error_code.clone()));
+    row.insert(
+        "last_error_code".to_string(),
+        Value::String(last_error_code.clone()),
+    );
     let row_snapshot = render_row(row);
 
     write_state(&state_path, &state)?;
@@ -597,12 +634,19 @@ fn handle_prepare_run(root: &Path, payload: &Map<String, Value>) -> Result<Value
     let min_hours = json_f64(payload, "min_hours", 4.0, 0.0, 24.0 * 365.0);
 
     let meta_path = meta_path_for(root, payload, &collector_id);
-    let meta = normalize_meta_value(&collector_id, Some(&read_json(&meta_path, normalize_meta_value(&collector_id, None))));
+    let meta = normalize_meta_value(
+        &collector_id,
+        Some(&read_json(
+            &meta_path,
+            normalize_meta_value(&collector_id, None),
+        )),
+    );
     let last_run_ms = meta
         .get("last_run")
         .and_then(Value::as_str)
         .and_then(parse_iso_ms);
-    let hours_since_last = last_run_ms.map(|ms| ((chrono::Utc::now().timestamp_millis() - ms) as f64 / 3_600_000.0).max(0.0));
+    let hours_since_last = last_run_ms
+        .map(|ms| ((chrono::Utc::now().timestamp_millis() - ms) as f64 / 3_600_000.0).max(0.0));
     let skipped = !force && hours_since_last.map(|h| h < min_hours).unwrap_or(false);
 
     Ok(json!({
@@ -729,7 +773,8 @@ fn handle_finalize_run(root: &Path, payload: &Map<String, Value>) -> Result<Valu
     let bytes = json_u64(payload, "bytes", 0, 0, u64::MAX);
     let requests = json_u64(payload, "requests", 1, 0, u64::MAX);
     let duration_ms = json_u64(payload, "duration_ms", 0, 0, u64::MAX);
-    let fetch_error_code = lane_utils::clean_text(payload.get("fetch_error_code").and_then(Value::as_str), 80);
+    let fetch_error_code =
+        lane_utils::clean_text(payload.get("fetch_error_code").and_then(Value::as_str), 80);
     let fetch_error = if fetch_error_code.is_empty() {
         String::new()
     } else {
@@ -838,11 +883,16 @@ fn handle_fetch_text(root: &Path, payload: &Map<String, Value>) -> Result<Value,
             })),
         )?;
         if prep.get("circuit_open").and_then(Value::as_bool) == Some(true) {
-            let retry_after = prep.get("retry_after_ms").and_then(Value::as_u64).unwrap_or(0);
+            let retry_after = prep
+                .get("retry_after_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
             return Err(format!("rate_limited:circuit_open:{retry_after}"));
         }
 
-        match crate::collector_runtime_kernel_support::curl_fetch_with_status(&url, timeout_ms, &headers) {
+        match crate::collector_runtime_kernel_support::curl_fetch_with_status(
+            &url, timeout_ms, &headers,
+        ) {
             Ok((status, body, bytes)) if status < 400 => {
                 let _ = handle_mark_success(
                     root,
@@ -881,19 +931,26 @@ fn handle_fetch_text(root: &Path, payload: &Map<String, Value>) -> Result<Value,
                 "circuit_after_failures": payload.get("circuit_after_failures").cloned().unwrap_or(Value::Null)
             })),
         )?;
-        let retryable = mark.get("retryable").and_then(Value::as_bool).unwrap_or(false);
+        let retryable = mark
+            .get("retryable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if !retryable || attempt >= attempts {
             break;
         }
     }
 
-    Err(format!("collector_runtime_kernel_fetch_text_failed:{last_error}"))
+    Err(format!(
+        "collector_runtime_kernel_fetch_text_failed:{last_error}"
+    ))
 }
 
 fn dispatch(root: &Path, command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
     match command {
         "classify-error" => Ok(handle_classify_error(payload)),
-        "resolve-controls" => Ok(crate::collector_runtime_kernel_support::resolve_controls(payload)),
+        "resolve-controls" => Ok(crate::collector_runtime_kernel_support::resolve_controls(
+            payload,
+        )),
         "begin-collection" => handle_begin_collection(root, payload),
         "prepare-run" => handle_prepare_run(root, payload),
         "finalize-run" => handle_finalize_run(root, payload),
@@ -915,7 +972,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = match lane_utils::payload_json(&argv[1..], "collector_runtime_kernel") {
         Ok(value) => value,
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_runtime_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_runtime_kernel_error",
+                &err,
+            ));
             return 1;
         }
     };
@@ -923,11 +983,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     match dispatch(root, &command, payload_obj) {
         Ok(value) => {
-            lane_utils::print_json_line(&lane_utils::cli_receipt("collector_runtime_kernel", value));
+            lane_utils::print_json_line(&lane_utils::cli_receipt(
+                "collector_runtime_kernel",
+                value,
+            ));
             0
         }
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_runtime_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_runtime_kernel_error",
+                &err,
+            ));
             1
         }
     }

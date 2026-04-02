@@ -32,7 +32,9 @@ fn map_quotes_dedupes_seen_ids() {
     });
     let out = map_quotes(lane_utils::payload_obj(&payload));
     assert_eq!(
-        out.get("items").and_then(Value::as_array).map(|rows| rows.len()),
+        out.get("items")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
         Some(1)
     );
 }

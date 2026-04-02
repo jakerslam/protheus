@@ -340,7 +340,7 @@
 
     <!-- Page: Chat -->
     <template x-if="page === 'chat'">
-      <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive }">
+      <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive, 'chat-wrapper-archived-thread': isCurrentAgentArchived && isCurrentAgentArchived() }">
         <!-- Keep selector wiring for later use, but hide visual control for now -->
         <div style="display:none" aria-hidden="true">
           <select
@@ -360,8 +360,17 @@
         <template x-if="currentAgent">
           <div class="chat-thread-topline">
             <div class="chat-thread-profile-center">
-              <div class="chat-thread-profile" @click="toggleAgentDrawer()" role="button" tabindex="0" title="Agent details" @keydown.enter.prevent="toggleAgentDrawer()" @keydown.space.prevent="toggleAgentDrawer()">
-                <div class="chat-thread-profile-avatar" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(currentAgent) }">
+              <div
+                class="chat-thread-profile"
+                :class="{ 'chat-thread-profile-disabled': isCurrentAgentArchived && isCurrentAgentArchived() }"
+                @click="if (!(isCurrentAgentArchived && isCurrentAgentArchived())) toggleAgentDrawer()"
+                role="button"
+                :tabindex="(isCurrentAgentArchived && isCurrentAgentArchived()) ? -1 : 0"
+                :title="(isCurrentAgentArchived && isCurrentAgentArchived()) ? 'Archived agents are read-only until revived' : 'Agent details'"
+                @keydown.enter.prevent="if (!(isCurrentAgentArchived && isCurrentAgentArchived())) toggleAgentDrawer()"
+                @keydown.space.prevent="if (!(isCurrentAgentArchived && isCurrentAgentArchived())) toggleAgentDrawer()"
+              >
+                <div class="chat-thread-profile-avatar" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(currentAgent), 'chat-thread-profile-avatar-archived-mask': isCurrentAgentArchived && isCurrentAgentArchived() }">
                   <img
                     x-show="currentAgent && currentAgent.avatar_url"
                     :src="currentAgent && currentAgent.avatar_url ? currentAgent.avatar_url : ''"
@@ -369,11 +378,11 @@
                     loading="lazy"
                   />
                   <span
-                    x-show="currentAgent && (!currentAgent.avatar_url) && currentAgent.identity && currentAgent.identity.emoji"
-                    x-text="currentAgent && currentAgent.identity ? currentAgent.identity.emoji : ''"
+                    x-show="currentAgent && (!currentAgent.avatar_url) && !!displayAgentEmoji(currentAgent)"
+                    x-text="displayAgentEmoji(currentAgent)"
                   ></span>
                   <span
-                    x-show="currentAgent && (!currentAgent.avatar_url) && (!currentAgent.identity || !currentAgent.identity.emoji)"
+                    x-show="currentAgent && (!currentAgent.avatar_url) && !displayAgentEmoji(currentAgent)"
                     aria-hidden="true"
                   >&infin;</span>
                 </div>

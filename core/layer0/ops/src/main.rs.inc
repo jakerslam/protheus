@@ -225,7 +225,7 @@ fn main() {
             let exit = protheus_ops_core::rust_hotpath_inventory_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
-        "top50-roi-sweep-kernel" => {
+        "top50-roi-sweep-kernel" | "top200-roi-sweep-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::top50_roi_sweep_kernel::run(&cwd, &rest);
             std::process::exit(exit);
@@ -243,6 +243,11 @@ fn main() {
         "egress-gateway-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::egress_gateway_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "web-conduit" | "browse" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::web_conduit::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "adaptive-layer-store-kernel" => {

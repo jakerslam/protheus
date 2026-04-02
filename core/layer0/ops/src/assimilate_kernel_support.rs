@@ -255,8 +255,8 @@ pub fn decode_injected_route(options: &Options) -> Result<Option<Route>, String>
         .decode(raw_b64.as_bytes())
         .map_err(|_| "invalid core route payload".to_string())?;
     let text = String::from_utf8(decoded).map_err(|_| "invalid core route payload".to_string())?;
-    let rows =
-        serde_json::from_str::<Vec<String>>(&text).map_err(|_| "core route args must be a string array".to_string())?;
+    let rows = serde_json::from_str::<Vec<String>>(&text)
+        .map_err(|_| "core route args must be a string array".to_string())?;
     Ok(Some(Route {
         domain: domain.to_string(),
         args: rows,
@@ -446,6 +446,8 @@ pub fn render_bar(percent: u32) -> String {
     format!(
         "[{}{}]",
         FILLED_CHAR.to_string().repeat(filled),
-        EMPTY_CHAR.to_string().repeat(BAR_WIDTH.saturating_sub(filled))
+        EMPTY_CHAR
+            .to_string()
+            .repeat(BAR_WIDTH.saturating_sub(filled))
     )
 }

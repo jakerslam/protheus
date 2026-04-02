@@ -80,7 +80,7 @@ function runSnapshot() {
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
-    maxBuffer: 16 * 1024 * 1024,
+    maxBuffer: 128 * 1024 * 1024,
   });
 }
 
@@ -290,7 +290,7 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'pinToLatestOnOpen: function(container, options)', 'chat open pin-to-latest helper missing');
   assertContains(chatSource, 'cancelPinToLatestOnOpen: function()', 'chat open pin cancel helper missing');
   assertContains(chatSource, 'self.pinToLatestOnOpen(null, { maxFrames: 24 });', 'session loader should re-pin to latest after render settles');
-  assertContains(chatSource, 'scrollBottomBufferPx: 28', 'chat bottom buffer baseline should preserve visual padding without blank over-scroll');
+  assertContains(chatSource, 'scrollBottomBufferPx: 84', 'chat bottom buffer baseline should preserve visual padding without blank over-scroll');
   assertContains(chatSource, 'scrollBottomClampSlackPx: 16', 'chat bottom clamp slack tuning missing');
   assertContains(chatSource, 'page && page.showFreshArchetypeTiles', 'fresh-init mode should bypass hard bottom clamp');
   assertContains(chatSource, 'setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host));', 'bottom clamp should defer correction to avoid scroll thrash');
@@ -313,6 +313,11 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'collectPromptSuggestionContext()', 'prompt suggestion context extractor missing');
   assertContains(chatSource, 'payload.recent_context = String(context.signature).trim();', 'prompt suggestion request should include recent context signature');
   assertContains(chatSource, '/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)', 'prompt suggestion hint sanitizer missing in chat client');
+  assertContains(chatSource, 'row = clampWords(row, 10);', 'suggestion normalizer should preserve full 10-word budget');
+  assertContains(chatSource, 'if (words < 3 || words > 10) return true;', 'suggestion normalizer word budget guard missing');
+  assertContains(chatSource, "rows.push('Tell me more about ' + seed);", 'template-driven suggestion fallback missing');
+  assertContains(chatSource, "rows.push('What are next steps for ' + seed);", 'next-step suggestion template missing');
+  assertContains(chatSource, "rows.push('Can you verify ' + seed + ' works');", 'verification suggestion template missing');
   assertContains(laneSource, 'Do not echo instructions or policy text.', 'prompt suggestion generator anti-echo guard missing');
   assertContains(laneSource, 'META_SUGGESTION_PATTERNS', 'prompt suggestion meta-pattern scrubber missing');
   assertContains(laneSource, 'function sanitizeSuggestionHint(value)', 'dashboard suggestion hint sanitizer missing');
@@ -321,7 +326,7 @@ function assertChatEnhancementFeatures() {
     'prompt suggestion fallback should not emit generic "this task" phrasing'
   );
   assertContains(htmlSource, 'class="prompt-suggestions-row"', 'prompt suggestion row missing');
-  assertContains(htmlSource, 'class="prompt-suggestion-chip"', 'prompt suggestion chip missing');
+  assertContains(htmlSource, 'prompt-suggestion-chip', 'prompt suggestion chip missing');
   assertContains(chatSource, 'appendUserChatMessage: function(finalText, msgImages, options)', 'queued prompt render helper missing');
   assertContains(chatSource, 'this.appendUserChatMessage(nextText, nextImages, { deferPersist: true });', 'queued prompts must render only when dequeued');
   assertContains(chatSource, "this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });", 'immediate dispatch should render via shared append helper');

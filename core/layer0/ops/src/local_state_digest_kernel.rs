@@ -330,7 +330,9 @@ fn collect(payload: &Map<String, Value>, state_dir: &Path) -> Value {
             .and_then(Value::as_array)
             .and_then(|rows| rows.first())
             .cloned()
-            .unwrap_or_else(|| json!({ "code": "local_state_preflight_failed", "message": "unknown" }));
+            .unwrap_or_else(
+                || json!({ "code": "local_state_preflight_failed", "message": "unknown" }),
+            );
         return json!({
             "ok": false,
             "error": first,

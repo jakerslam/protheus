@@ -24,6 +24,11 @@ function workflowBuilder() {
     showTomlPreview: false,
     tomlOutput: '',
     agents: [],
+    traceWorkflows: [],
+    traceWorkflowId: '',
+    traceRuns: [],
+    traceLoading: false,
+    traceError: '',
     _canvasEl: null,
 
     // Node types with their configs
@@ -55,6 +60,7 @@ function workflowBuilder() {
       }
       // Add default start node
       self.addNode('start', 60, 200);
+      await self.refreshTraceCatalog();
     },
 
     // ── SVG Manual Rendering ────────────────────────────

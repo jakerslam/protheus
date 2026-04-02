@@ -9,6 +9,9 @@ struct NexusMessage {
 
 fn parse_nexus_message(raw: &str) -> Result<NexusMessage, String> {
     let trimmed = raw.trim();
+    if trimmed.contains('\n') || trimmed.contains('\r') {
+        return Err("multiline_not_allowed".to_string());
+    }
     if !trimmed.starts_with('[') {
         return Err("missing_header_open".to_string());
     }
@@ -156,6 +159,5 @@ fn estimate_savings(raw_tokens: usize, nexus_tokens: usize) -> f64 {
     if raw_tokens == 0 {
         return 0.0;
     }
-    ((raw_tokens.saturating_sub(nexus_tokens) as f64 / raw_tokens as f64) * 10000.0).round()
-        / 100.0
+    ((raw_tokens.saturating_sub(nexus_tokens) as f64 / raw_tokens as f64) * 10000.0).round() / 100.0
 }

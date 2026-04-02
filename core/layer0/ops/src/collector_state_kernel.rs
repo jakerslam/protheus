@@ -156,7 +156,8 @@ fn normalize_meta_value(collector_id: &str, raw: Option<&Value>) -> Value {
         80,
     );
     let last_success = clean_text(
-        obj.and_then(|o| o.get("last_success")).and_then(Value::as_str),
+        obj.and_then(|o| o.get("last_success"))
+            .and_then(Value::as_str),
         80,
     );
 
@@ -321,7 +322,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = match lane_utils::payload_json(&argv[1..], "collector_state_kernel") {
         Ok(value) => value,
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_state_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_state_kernel_error",
+                &err,
+            ));
             return 1;
         }
     };
@@ -333,7 +337,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             0
         }
         Err(err) => {
-            lane_utils::print_json_line(&lane_utils::cli_error("collector_state_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "collector_state_kernel_error",
+                &err,
+            ));
             1
         }
     }
@@ -357,7 +364,10 @@ mod tests {
         let payload_obj = lane_utils::payload_obj(&payload);
 
         let cadence1 = command_cadence_check(root, payload_obj).expect("cadence1");
-        assert_eq!(cadence1.get("skipped").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            cadence1.get("skipped").and_then(Value::as_bool),
+            Some(false)
+        );
 
         let saved = command_meta_save(
             root,

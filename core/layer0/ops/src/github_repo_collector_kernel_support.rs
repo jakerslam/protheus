@@ -51,7 +51,10 @@ pub fn resolve_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf {
             return root.join(candidate);
         }
     }
-    root.join("local").join("state").join("sensory").join("eyes")
+    root.join("local")
+        .join("state")
+        .join("sensory")
+        .join("eyes")
 }
 
 fn sanitize_cache_key_token(raw: &str) -> String {
@@ -121,7 +124,8 @@ pub fn load_cache(path: &Path) -> Value {
 
 pub fn save_cache(path: &Path, cache: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| format!("github_repo_kernel_create_dir_failed:{err}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("github_repo_kernel_create_dir_failed:{err}"))?;
     }
     let pretty = serde_json::to_string_pretty(cache)
         .map_err(|err| format!("github_repo_kernel_encode_failed:{err}"))?;
@@ -309,7 +313,8 @@ pub fn file_risk_flags(rows: &[Value]) -> Vec<Value> {
             Some(v) => v,
             None => continue,
         };
-        total_delta = total_delta.saturating_add(obj.get("changes").and_then(Value::as_u64).unwrap_or(0));
+        total_delta =
+            total_delta.saturating_add(obj.get("changes").and_then(Value::as_u64).unwrap_or(0));
         let filename = obj
             .get("filename")
             .and_then(Value::as_str)
@@ -324,7 +329,10 @@ pub fn file_risk_flags(rows: &[Value]) -> Vec<Value> {
         {
             has_security = true;
         }
-        if filename.contains("migration") || filename.contains("schema") || filename.contains(".sql") {
+        if filename.contains("migration")
+            || filename.contains("schema")
+            || filename.contains(".sql")
+        {
             has_schema = true;
         }
     }
@@ -378,7 +386,12 @@ pub fn map_release_item(
     }))
 }
 
-pub fn map_commit_items(owner: &str, repo: &str, commits: &[Value], seen: &HashSet<String>) -> Vec<Value> {
+pub fn map_commit_items(
+    owner: &str,
+    repo: &str,
+    commits: &[Value],
+    seen: &HashSet<String>,
+) -> Vec<Value> {
     let mut out = Vec::<Value>::new();
     for commit in commits.iter().take(3) {
         let obj = match commit.as_object() {
@@ -431,7 +444,12 @@ pub fn map_commit_items(owner: &str, repo: &str, commits: &[Value], seen: &HashS
     out
 }
 
-pub fn map_pr_items(owner: &str, repo: &str, pulls: &[Value], seen: &HashSet<String>) -> Vec<Value> {
+pub fn map_pr_items(
+    owner: &str,
+    repo: &str,
+    pulls: &[Value],
+    seen: &HashSet<String>,
+) -> Vec<Value> {
     let mut out = Vec::<Value>::new();
     for pr in pulls.iter().take(3) {
         let obj = match pr.as_object() {

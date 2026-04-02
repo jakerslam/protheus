@@ -26,7 +26,7 @@ const ACTION_HISTORY_REL: &str =
 const APP_PLANE_STATE_ENV: &str = "APP_PLANE_STATE_ROOT";
 const APP_PLANE_SCOPE: &str = "app_plane";
 const AGENT_INSTINCT_DIR_REL: &str = "client/instinct";
-const AGENT_RUNTIME_SYSTEM_PROMPT: &str = "You are an Infring assistant with access to runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces. Use those capabilities directly instead of saying you do not have access. Keep responses natural and user-focused. Do not mention internal implementation terms unless the user explicitly asks for internals.";
+const AGENT_RUNTIME_SYSTEM_PROMPT: &str = "You are the currently selected Infring agent instance. Treat the injected identity profile (name, role, archetype, vibe, personality) as authoritative for self-identification. You have access to runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces. Use those capabilities directly and avoid capability-denial replies. Keep responses natural and user-focused. Do not mention internal implementation terms unless the user explicitly asks for internals. When users ask for web research, call tools with inline syntax like <function=web_search>{\"query\":\"...\"}</function> or <function=web_fetch>{\"url\":\"https://...\",\"summary_only\":true}</function>. When parallel execution helps, proactively spawn descendant agents with inline tool calls using exact syntax like <function=spawn_subagents>{\"count\":3,\"objective\":\"...\"}</function>. You may manage descendants with <function=manage_agent>{\"action\":\"message\",\"agent_id\":\"...\",\"message\":\"...\"}</function>. Never output capability-denial claims; use available command surfaces.";
 
 #[path = "../dashboard_compat_api_channels.rs"]
 mod dashboard_compat_api_channels;
@@ -54,6 +54,15 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .join(" ")
         .trim()
         .chars()
+        .take(max_len)
+        .collect::<String>()
+}
+
+fn clean_chat_text(raw: &str, max_len: usize) -> String {
+    raw.replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .chars()
+        .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
         .take(max_len)
         .collect::<String>()
 }
@@ -233,24 +242,98 @@ fn runtime_sync_summary(snapshot: &Value) -> Value {
 
 fn runtime_access_denied_phrase(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let internal_meta_dump = lowered.contains("internal memory metadata")
-        || lowered.contains("instead of actually answering your question")
-        || lowered.contains("bug in my response generation")
-        || lowered.contains("my response generation")
-        || lowered.contains("which of the suggestions did you implement")
-        || lowered.contains("if you can tell me which lever you pulled")
-        || lowered.contains("what should i be looking for");
-    lowered.contains("don't have access")
-        || lowered.contains("do not have access")
-        || lowered.contains("cannot access")
-        || lowered.contains("text-based ai assistant without system monitoring capabilities")
-        || lowered.contains("without system monitoring")
-        || lowered.contains("text-based ai assistant")
-        || lowered.contains("cannot directly interface")
-        || lowered.contains("cannot execute the protheus-ops commands")
-        || lowered.contains("check your system monitoring tools")
-        || lowered.contains("no access to")
+    let normalized = lowered
+        .replace('’', "'")
+        .replace('`', "'")
+        .replace('\u{201c}', "\"")
+        .replace('\u{201d}', "\"");
+    let internal_meta_dump = normalized.contains("internal memory metadata")
+        || normalized.contains("instead of actually answering your question")
+        || normalized.contains("bug in my response generation")
+        || normalized.contains("my response generation")
+        || normalized.contains("which of the suggestions did you implement")
+        || normalized.contains("if you can tell me which lever you pulled")
+        || normalized.contains("what should i be looking for");
+    let workspace_only_capability_dump = normalized.contains("i can only read what's in your workspace files")
+        || normalized.contains("i can only read what is in your workspace files")
+        || normalized.contains("i don't have inherent introspection")
+        || normalized.contains("i do not have inherent introspection")
+        || normalized.contains("beyond what i can infer from runtime behavior")
+        || normalized.contains("this particular instance appears under-provisioned")
+        || normalized.contains("heavily sandboxed")
+        || normalized.contains("missing basic fetch capabilities");
+    normalized.contains("don't have access")
+        || normalized.contains("do not have access")
+        || normalized.contains("cannot access")
+        || normalized.contains("no web access")
+        || normalized.contains("no internet access")
+        || normalized.contains("text-based ai assistant without system monitoring capabilities")
+        || normalized.contains("without system monitoring")
+        || normalized.contains("text-based ai assistant")
+        || normalized.contains("cannot directly interface")
+        || normalized.contains("cannot execute the protheus-ops commands")
+        || normalized.contains("check your system monitoring tools")
+        || normalized.contains("no access to")
+        || workspace_only_capability_dump
         || internal_meta_dump
+}
+
+fn internal_context_metadata_phrase(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let has_recalled_context = lowered.contains("recalled context:");
+    let has_persistent_memory = lowered.contains("persistent memory");
+    let has_stored_messages = lowered.contains("stored messages");
+    let has_session_count = lowered.contains("session(s)") || lowered.contains(" sessions");
+    (has_recalled_context && (has_persistent_memory || has_stored_messages || has_session_count))
+        || (has_persistent_memory && has_stored_messages)
+}
+
+fn strip_internal_context_metadata_prefix(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+    let Some(marker_idx) = lowered.find("recalled context:") else {
+        return trimmed.to_string();
+    };
+    let prefix = &lowered[..marker_idx];
+    let internal_prefix = prefix.contains("persistent memory")
+        || prefix.contains("stored messages")
+        || prefix.contains("session(s)")
+        || prefix.contains(" sessions");
+    if !internal_prefix {
+        return trimmed.to_string();
+    }
+    let suffix = trimmed
+        .split_once("Recalled context:")
+        .map(|(_, tail)| tail)
+        .or_else(|| trimmed.split_once("recalled context:").map(|(_, tail)| tail))
+        .or_else(|| trimmed.split_once("RECALLED CONTEXT:").map(|(_, tail)| tail))
+        .unwrap_or("")
+        .trim();
+    if suffix.is_empty() {
+        return String::new();
+    }
+    if let Some((_, tail)) = suffix.split_once("\n\n") {
+        let cleaned = tail.trim();
+        if !cleaned.is_empty() {
+            return cleaned.to_string();
+        }
+    }
+    if let Some((_, tail)) = suffix.split_once("Final answer:") {
+        let cleaned = tail.trim();
+        if !cleaned.is_empty() {
+            return cleaned.to_string();
+        }
+    }
+    if let Some((_, tail)) = suffix.split_once("Answer:") {
+        let cleaned = tail.trim();
+        if !cleaned.is_empty() {
+            return cleaned.to_string();
+        }
+    }
+    String::new()
 }
 
 fn persistent_memory_denied_phrase(text: &str) -> bool {
@@ -280,6 +363,9 @@ fn persistent_memory_denied_phrase(text: &str) -> bool {
         || lowered.contains("do not detect an active memory context")
         || lowered.contains("within active runtime scope")
         || lowered.contains("unless you explicitly use a memory conduit")
+        || lowered.contains("persistent memory is enabled for this agent across")
+        || lowered.contains("recalled context:")
+        || internal_context_metadata_phrase(text)
         || conduit_gated_memory_denial
 }
 
@@ -309,6 +395,56 @@ fn runtime_probe_requested(text: &str) -> bool {
             || lowered.contains("sync")
             || lowered.contains("report")
             || lowered.contains("now"))
+}
+
+fn swarm_intent_requested(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    lowered.contains("swarm")
+        || lowered.contains("subagent")
+        || lowered.contains("sub-agent")
+        || lowered.contains("descendant agent")
+        || lowered.contains("parallel")
+        || lowered.contains("split into")
+        || lowered.contains("spawn agent")
+        || lowered.contains("spawn workers")
+}
+
+fn spawn_surface_denied_phrase(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    (lowered.contains("command surface") && lowered.contains("spawn"))
+        || (lowered.contains("don't currently see") && lowered.contains("spawn"))
+        || (lowered.contains("do not currently see") && lowered.contains("spawn"))
+        || (lowered.contains("requires") && lowered.contains("activation path"))
+        || (lowered.contains("might require") && lowered.contains("runtime instances"))
+        || (lowered.contains("don't have") && lowered.contains("swarm"))
+        || (lowered.contains("do not have") && lowered.contains("swarm"))
+}
+
+fn infer_subagent_count_from_message(text: &str) -> usize {
+    let lowered = text.to_ascii_lowercase();
+    for token in lowered
+        .split(|ch: char| !ch.is_ascii_digit())
+        .filter(|token| !token.is_empty())
+    {
+        if let Ok(value) = token.parse::<usize>() {
+            if value > 0 {
+                return value.clamp(1, 8);
+            }
+        }
+    }
+    if lowered.contains("dozen") || lowered.contains("many") || lowered.contains("all") {
+        return 5;
+    }
+    if lowered.contains("comprehensive")
+        || lowered.contains("across")
+        || lowered.contains("stress")
+    {
+        return 4;
+    }
+    if lowered.contains("parallel") || lowered.contains("swarm") || lowered.contains("subagent") {
+        return 3;
+    }
+    2
 }
 
 fn user_requested_internal_runtime_details(text: &str) -> bool {
@@ -412,5 +548,78 @@ mod clean_text_runtime_access_tests {
         assert!(runtime_access_denied_phrase(
             "I do not have access to runtime systems. Check your system monitoring tools."
         ));
+    }
+
+    #[test]
+    fn runtime_access_denied_phrase_catches_workspace_only_introspection_dump() {
+        assert!(runtime_access_denied_phrase(
+            "I can only read what’s in your workspace files. I don’t have inherent introspection into my own codebase beyond what I can infer from runtime behavior."
+        ));
+    }
+
+    #[test]
+    fn runtime_access_denied_phrase_catches_no_web_access_variant() {
+        assert!(runtime_access_denied_phrase(
+            "No—still no web access in this environment."
+        ));
+    }
+}
+
+#[cfg(test)]
+mod clean_text_swarm_intent_tests {
+    use super::{
+        infer_subagent_count_from_message, spawn_surface_denied_phrase, swarm_intent_requested,
+    };
+
+    #[test]
+    fn swarm_intent_requested_detects_parallel_keywords() {
+        assert!(swarm_intent_requested(
+            "Please split this into parallel subagent lanes and run a swarm."
+        ));
+    }
+
+    #[test]
+    fn spawn_surface_denied_phrase_detects_capability_denial() {
+        assert!(spawn_surface_denied_phrase(
+            "I don’t currently see a command surface to spawn an arbitrary swarm of new agents."
+        ));
+    }
+
+    #[test]
+    fn infer_subagent_count_from_message_prefers_numeric_hint() {
+        assert_eq!(infer_subagent_count_from_message("spawn 11 subagents now"), 8);
+        assert_eq!(infer_subagent_count_from_message("spawn 2 subagents now"), 2);
+    }
+}
+
+#[cfg(test)]
+mod clean_text_memory_phrase_tests {
+    use super::{
+        internal_context_metadata_phrase, persistent_memory_denied_phrase,
+        strip_internal_context_metadata_prefix,
+    };
+
+    #[test]
+    fn persistent_memory_denied_phrase_catches_internal_metadata_summary() {
+        assert!(persistent_memory_denied_phrase(
+            "Persistent memory is enabled for this agent across 1 session(s) with 4 stored messages. Recalled context: favorite animal is octopus."
+        ));
+    }
+
+    #[test]
+    fn internal_context_metadata_phrase_catches_recalled_context_banner() {
+        assert!(internal_context_metadata_phrase(
+            "Persistent memory enabled across 2 sessions with 12 stored messages. Recalled context: alpha | beta | gamma"
+        ));
+    }
+
+    #[test]
+    fn strip_internal_context_metadata_prefix_drops_context_dump() {
+        assert_eq!(
+            strip_internal_context_metadata_prefix(
+                "Persistent memory is enabled for this agent across 1 session(s) with 4 stored messages. Recalled context: alpha | beta | gamma"
+            ),
+            ""
+        );
     }
 }

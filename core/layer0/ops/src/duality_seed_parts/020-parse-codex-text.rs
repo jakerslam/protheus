@@ -176,6 +176,9 @@ fn default_state() -> Value {
         "schema_version": "1.0",
         "updated_at": now_iso(),
         "seed_confidence": 1.0,
+        "toll_debt": 0.0,
+        "toll_events_total": 0,
+        "last_toll_update_ts": Value::Null,
         "observations_total": 0,
         "contradictions_total": 0,
         "supports_total": 0,
@@ -217,6 +220,18 @@ fn load_state(policy: &Value) -> Value {
             as_f64(out.get("seed_confidence")).unwrap_or(1.0),
             0.0,
             1.0,
+        )),
+    );
+    out.insert(
+        "toll_debt".to_string(),
+        json!(clamp_f64(as_f64(out.get("toll_debt")).unwrap_or(0.0), 0.0, 100.0)),
+    );
+    out.insert(
+        "toll_events_total".to_string(),
+        json!(clamp_i64(
+            as_i64(out.get("toll_events_total")).unwrap_or(0),
+            0,
+            100_000_000
         )),
     );
     out.insert(
@@ -448,4 +463,3 @@ fn recommend_adjustment(yin_hits: usize, yang_hits: usize) -> &'static str {
         "hold_balance_near_zero_point"
     }
 }
-

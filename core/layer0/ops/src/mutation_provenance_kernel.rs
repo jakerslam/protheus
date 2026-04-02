@@ -125,6 +125,23 @@ fn normalize_path_string(raw: &str) -> String {
     raw.replace('\\', "/")
 }
 
+fn strip_private_prefix(raw: &str) -> &str {
+    raw.strip_prefix("/private").unwrap_or(raw)
+}
+
+fn strip_prefix_loose<'a>(candidate: &'a str, prefix: &str) -> Option<&'a str> {
+    let candidate_norm = strip_private_prefix(candidate);
+    let prefix_norm = strip_private_prefix(prefix).trim_end_matches('/');
+    if prefix_norm.is_empty() {
+        return None;
+    }
+    if candidate_norm == prefix_norm {
+        return Some("");
+    }
+    let with_sep = format!("{prefix_norm}/");
+    candidate_norm.strip_prefix(&with_sep)
+}
+
 fn default_policy_path(root: &Path) -> PathBuf {
     let runtime_candidate = runtime_root(root)
         .join("config")
@@ -191,14 +208,25 @@ fn normalize_source(root: &Path, raw: &str) -> String {
     }
     let candidate = PathBuf::from(trimmed);
     if candidate.is_absolute() {
-        if let Ok(rel) = candidate.strip_prefix(runtime_root(root)) {
-            return normalize_path_string(&rel.to_string_lossy());
-        }
-        if let Ok(rel) = candidate.strip_prefix(client_root(root)) {
-            return normalize_path_string(&rel.to_string_lossy());
-        }
-        if let Ok(rel) = candidate.strip_prefix(workspace_root(root)) {
-            return normalize_path_string(&rel.to_string_lossy());
+        let candidate_norm = normalize_path_string(&candidate.to_string_lossy());
+        let explicit_workspace = root.to_path_buf();
+        let explicit_client = explicit_workspace.join("client");
+        let explicit_runtime = explicit_client.join("runtime");
+        for base in [
+            explicit_runtime,
+            explicit_client,
+            explicit_workspace,
+            runtime_root(root),
+            client_root(root),
+            workspace_root(root),
+        ] {
+            if let Ok(rel) = candidate.strip_prefix(&base) {
+                return normalize_path_string(&rel.to_string_lossy());
+            }
+            let base_norm = normalize_path_string(&base.to_string_lossy());
+            if let Some(rel) = strip_prefix_loose(&candidate_norm, &base_norm) {
+                return normalize_path_string(rel);
+            }
         }
     }
     normalize_path_string(trimmed)

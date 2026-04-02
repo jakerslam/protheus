@@ -85,7 +85,9 @@
         if (data.manifest_toml) {
           var res = await InfringAPI.post('/api/agents', { manifest_toml: data.manifest_toml });
           if (res.agent_id) {
-            InfringToast.success('Agent "' + (res.name || name) + '" spawned from template');
+            var launchedName = String((res && (res.name || res.agent_id)) || name || 'agent').trim() || 'agent';
+            var launchedRole = String(name || 'agent').trim() || 'agent';
+            InfringToast.success('Launched ' + launchedName + ' as ' + launchedRole);
             await Alpine.store('app').refreshAgents();
             await this.loadLifecycle();
             this.chatWithAgent({ id: res.agent_id, name: res.name || name, model_provider: '?', model_name: '?' });
@@ -247,7 +249,9 @@
       try {
         var res = await InfringAPI.post('/api/agents', { manifest_toml: toml });
         if (res.agent_id) {
-          InfringToast.success('Agent "' + t.name + '" spawned');
+          var builtinName = String((res && (res.name || res.agent_id)) || t.name || 'agent').trim() || 'agent';
+          var builtinRole = String((t && (t.profile || t.name)) || 'agent').trim() || 'agent';
+          InfringToast.success('Launched ' + builtinName + ' as ' + builtinRole);
           await Alpine.store('app').refreshAgents();
           await this.loadLifecycle();
           this.chatWithAgent({ id: res.agent_id, name: t.name, model_provider: t.provider, model_name: t.model });
@@ -258,4 +262,3 @@
     }
   };
 }
-

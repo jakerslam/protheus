@@ -16,10 +16,18 @@ pub(super) fn print_usage() {
     println!("  protheus-ops github-repo-collector-kernel <run|resolve-run-params|resolve-auth|prepare-repo-activity|build-repo-activity-fetch-plan|finalize-repo-activity|collect-repo-activity|build-pr-review-fetch-plan|build-pr-review|collect-pr-review|file-risk-flags> --payload-base64=<base64_json>");
     println!("  protheus-ops assimilate-kernel <target> [--json=1] [--showcase=1] [--duration-ms=<n>] [--scaffold-payload=1] [--target=<name>] [--core-domain=<domain>] [--core-args-base64=<base64_json_array>]");
     println!("  protheus-ops security-layer-inventory-gate-kernel <run|status> [--strict=1|0] [--write=1|0]");
-    println!("  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]");
-    println!("  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]");
+    println!(
+        "  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]"
+    );
+    println!(
+        "  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+    );
+    println!(
+        "  protheus-ops top200-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+    );
     println!("  protheus-ops passport-iteration-chain-kernel <record|status> [--payload-base64=<base64_json>]");
     println!("  protheus-ops egress-gateway-kernel <load-policy|load-state|authorize> [--payload-base64=<base64_json>]");
+    println!("  protheus-ops web-conduit|browse <status|receipts|fetch|search> [--url=<https://...>] [--query=<terms>] [--human-approved=1] [--summary-only=1] [--limit=<n>]");
     println!("  protheus-ops adaptive-layer-store-kernel <paths|is-within-root|resolve-path|read-json|ensure-json|set-json|delete-path> [--payload-base64=<base64_json>]");
     println!("  protheus-ops catalog-store-kernel <paths|default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
     println!("  protheus-ops focus-trigger-store-kernel <paths|default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");
@@ -143,7 +151,7 @@ pub(super) fn print_usage() {
     );
     println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops dashboard-ui <serve|snapshot|status|runtime-sync> [--host=<ip>] [--port=<n>] [--team=<id>] [--refresh-ms=<n>]");
-    println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics|watchdog> [flags]");
+    println!("  protheus-ops daemon-control <start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|watchdog> [flags]");
     println!("  protheus-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
     println!("  protheus-ops command-list-kernel [--mode=<list|help>] [--json]");
@@ -154,7 +162,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops offsite-backup <sync|restore-drill|status|diagnose|list> [flags]");
     println!("  protheus-ops settlement-program <list|run|run-all|settle|revert|edit-core|edit-module|status> [flags]");
     println!("  protheus-ops llm-economy-organ <run|enable|dashboard|status> [flags]");
-    println!("  protheus-ops metakernel <status|registry|manifest|worlds|capability-taxonomy|budget-admission|epistemic-object|effect-journal|substrate-registry|radix-guard|quantum-broker|neural-consent|attestation-graph|degradation-contracts|execution-profiles|variant-profiles|mpu-compartments|invariants> [flags]");
+    println!("  protheus-ops metakernel <status|registry|manifest|worlds|capability-taxonomy|budget-admission|epistemic-object|effect-journal|substrate-registry|radix-guard|quantum-broker|neural-consent|attestation-graph|degradation-contracts|execution-profiles|variant-profiles|mpu-compartments|microkernel-safety|dna-status|dna-create|dna-mutate|dna-enforce-subservience|dna-hybrid-status|dna-hybrid-commit|dna-hybrid-verify|dna-hybrid-repair-gene|dna-hybrid-worm-supersede|dna-hybrid-worm-mutate|dna-hybrid-protected-lineage|invariants> [flags]");
     println!("  protheus-ops top1-assurance <status|proof-coverage|proof-vm|size-gate|benchmark-thresholds|comparison-matrix|run-all> [flags]");
     println!("  protheus-ops backlog-queue-executor <run|status> [flags]");
     println!("  protheus-ops backlog-delivery-plane <run|status> [--id=<Vx-...>] [flags]");

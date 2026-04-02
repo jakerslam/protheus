@@ -31,8 +31,8 @@ pub mod agency_plane;
 pub mod alpha_readiness;
 pub mod app_plane;
 pub mod approval_gate_kernel;
-pub mod assimilate_kernel;
 pub mod asm_plane;
+pub mod assimilate_kernel;
 pub mod assimilation_controller;
 pub mod attention_queue;
 pub mod audit_log_export;
@@ -59,22 +59,20 @@ pub mod canyon_plane;
 pub mod catalog_store_kernel;
 pub mod child_organ_runtime;
 pub mod collab_plane;
-pub mod command_list_kernel;
-pub mod coverage_badge_kernel;
-pub mod company_plane;
-pub mod continuity_runtime;
-pub mod contract_check;
-pub mod contract_lane_utils;
-pub mod conduit_client_security_kernel;
-pub mod github_repo_collector_kernel;
-pub mod github_repo_collector_kernel_support;
+pub mod collector_content_kernel;
 pub mod collector_runtime_kernel;
 pub mod collector_runtime_kernel_support;
 pub mod collector_state_kernel;
-pub mod collector_content_kernel;
-pub mod conversation_eye_synthesizer_kernel;
+pub mod command_list_kernel;
+pub mod company_plane;
+pub mod conduit_client_security_kernel;
+pub mod continuity_runtime;
+pub mod contract_check;
+pub mod contract_lane_utils;
 pub mod conversation_eye_collector_kernel;
 pub mod conversation_eye_collector_kernel_support;
+pub mod conversation_eye_synthesizer_kernel;
+pub mod coverage_badge_kernel;
 pub mod crawl_console;
 pub mod crawl_middleware;
 pub mod crawl_pipeline;
@@ -86,6 +84,7 @@ pub mod dashboard_agent_state;
 pub mod dashboard_channel_catalog;
 pub mod dashboard_compat_api;
 pub mod dashboard_git_runtime;
+pub mod dashboard_internal_search;
 pub mod dashboard_model_catalog;
 pub mod dashboard_provider_runtime;
 pub mod dashboard_release_update;
@@ -110,9 +109,11 @@ pub mod flow_plane;
 pub mod fluxlattice_program;
 pub mod focus_trigger_store_kernel;
 pub mod foundation_contract_gate;
+pub mod gateway_supervisor;
+pub mod github_repo_collector_kernel;
+pub mod github_repo_collector_kernel_support;
 pub mod google_adk_bridge;
 pub mod government_plane;
-pub mod gateway_supervisor;
 pub mod graph_toolkit;
 pub mod habit_store_kernel;
 pub mod hardware_route_hardening;
@@ -143,14 +144,16 @@ pub mod memory_session_isolation_kernel;
 pub mod metagpt_bridge;
 pub mod metakernel;
 pub mod model_router;
+pub mod moltbook_hot_collector_kernel;
+pub mod moltstack_discover_collector_kernel;
 pub mod mutation_provenance_kernel;
 pub mod narrow_agent_parity_harness;
 pub mod network_protocol;
 pub mod nexus_plane;
 pub mod observability_plane;
-pub mod operator_tooling_kernel;
 pub mod offline_runtime_guard;
 pub mod offsite_backup;
+pub mod operator_tooling_kernel;
 pub mod ops_domain_conduit_runner_kernel;
 pub mod ops_lane_runtime;
 pub mod orchestration;
@@ -191,14 +194,14 @@ pub mod rsi_ignition;
 pub mod runtime_path_registry_kernel;
 pub mod runtime_system_contracts;
 pub mod runtime_systems;
-pub mod rust_hotpath_inventory_kernel;
 pub mod rust50_migration_program;
 pub mod rust_enterprise_productivity_program;
+pub mod rust_hotpath_inventory_kernel;
 pub mod scale_readiness;
 pub mod sdlc_change_control;
 pub mod secret_broker_kernel;
-pub mod security_layer_inventory_gate_kernel;
 pub mod security_integrity_kernel;
+pub mod security_layer_inventory_gate_kernel;
 pub mod security_plane;
 pub mod seed_protocol;
 pub mod semantic_kernel_bridge;
@@ -213,8 +216,6 @@ pub mod spine;
 pub mod spine_conduit_bridge_kernel;
 pub mod state_artifact_contract_kernel;
 pub mod state_kernel;
-pub mod moltbook_hot_collector_kernel;
-pub mod moltstack_discover_collector_kernel;
 pub mod stock_market_collector_kernel;
 pub mod strategy_campaign_scheduler_kernel;
 pub mod strategy_mode_governor;
@@ -242,9 +243,10 @@ pub mod upgrade_lane_kernel;
 pub mod upwork_gigs_collector_kernel;
 pub mod v8_kernel;
 pub mod vbrowser_plane;
-pub mod verity_plane;
 pub mod venom_containment_layer;
+pub mod verity_plane;
 pub mod vertical_plane;
+pub mod web_conduit;
 pub mod workflow_controller;
 pub mod workflow_executor;
 
@@ -950,8 +952,7 @@ fn run_core_lazy_process_cold_start_with_breakdown(
         return Ok(started.elapsed().as_secs_f64() * 1000.0);
     }
 
-    let cmd =
-        core_lazy_daemon_start_command(&current, include_gateway_supervisor_orchestration);
+    let cmd = core_lazy_daemon_start_command(&current, include_gateway_supervisor_orchestration);
     run_cmd(root, &cmd)
 }
 
@@ -1188,7 +1189,12 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
     let p50_ms = percentile(&samples, 0.50).unwrap_or(0.0);
     let p95_ms = percentile(&samples, 0.95).unwrap_or(0.0);
     let core_lazy = matches!(
-        policy.cold_start_probe.engine.trim().to_ascii_lowercase().as_str(),
+        policy
+            .cold_start_probe
+            .engine
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
         "core-lazy" | "core_lazy" | "rust-lazy" | "rust_lazy"
     );
     let mut engine_start_p50_ms = p50_ms;
@@ -1201,7 +1207,9 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         }
         let mut engine_samples = Vec::new();
         for _ in 0..policy.cold_start_probe.samples {
-            engine_samples.push(run_core_lazy_process_cold_start_with_breakdown(root, false)?);
+            engine_samples.push(run_core_lazy_process_cold_start_with_breakdown(
+                root, false,
+            )?);
         }
         engine_start_p50_ms = percentile(&engine_samples, 0.50).unwrap_or(p50_ms);
         engine_start_p95_ms = percentile(&engine_samples, 0.95).unwrap_or(p95_ms);

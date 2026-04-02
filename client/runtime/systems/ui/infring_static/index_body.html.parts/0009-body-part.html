@@ -270,7 +270,12 @@
     <template x-if="page === 'channels'">
       <div x-data="channelsPage">
         <div class="page-header">
-          <h2>Channels <span class="badge badge-muted" x-text="configuredCount + '/' + allChannels.length + ' configured'"></span></h2>
+          <h2>
+            Channels
+            <span class="badge badge-muted" x-text="configuredCount + '/' + visibleChannelCount + ' configured'"></span>
+            <span class="badge badge-success" x-text="nativeChannelCount + ' native'"></span>
+            <span class="badge badge-muted" x-show="templateChannelCount > 0" x-text="templateChannelCount + ' templates'"></span>
+          </h2>
         </div>
         <div class="page-body" x-init="loadChannels()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading channels...</span></div>
@@ -290,6 +295,13 @@
                       x-text="cat.label + ' (' + categoryCount(cat.key) + ')'">
               </button>
             </template>
+            <button
+              class="btn btn-sm"
+              :class="showTemplateChannels ? 'btn-primary' : 'btn-ghost'"
+              @click="showTemplateChannels = !showTemplateChannels"
+              :title="showTemplateChannels ? 'Hide generic templates' : 'Show generic template channels'"
+              x-text="showTemplateChannels ? 'Hide Templates' : 'Show Templates'"
+            ></button>
           </div>
 
           <!-- Search bar -->
@@ -307,7 +319,10 @@
                     <span class="channel-icon" x-text="ch.icon"></span>
                     <div class="card-header" style="margin:0" x-text="ch.display_name"></div>
                   </div>
-                  <span class="badge" :class="statusBadge(ch).cls" x-text="statusBadge(ch).text"></span>
+                  <div class="flex items-center gap-1">
+                    <span class="badge" :class="tierBadge(ch).cls" x-text="tierBadge(ch).text"></span>
+                    <span class="badge" :class="statusBadge(ch).cls" x-text="statusBadge(ch).text"></span>
+                  </div>
                 </div>
                 <div class="card-meta" x-text="ch.description"></div>
                 <div class="flex justify-between items-center mt-2">

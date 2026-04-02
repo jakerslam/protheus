@@ -54,7 +54,8 @@ fn continuity_integrity_report(
     let reconstruct_hash_match = if !reconstructed_present {
         true
     } else {
-        !reconstruct_hash_expected.is_empty() && reconstruct_hash_expected == reconstruct_hash_actual
+        !reconstruct_hash_expected.is_empty()
+            && reconstruct_hash_expected == reconstruct_hash_actual
     };
 
     let checks = vec![
@@ -198,7 +199,10 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
             &snapshot_path,
             &reconstruct_path,
         );
-        let ok = integrity.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let ok = integrity
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let errors = integrity
             .get("checks")
             .and_then(Value::as_array)

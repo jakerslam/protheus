@@ -330,6 +330,7 @@ struct ResultFilters {
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops swarm-runtime status [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime scale <status|plan|set> [flags] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime spawn [--task=<text>] [--session-id=<parent>] [--recursive=1|0] [--levels=<n>] [--max-depth=<n>] [--verify=1|0] [--timeout-sec=<seconds>] [--metrics=<none|detailed>] [--byzantine=1|0] [--corruption-type=<id>] [--token-budget=<n>|--max-tokens=<n>] [--token-warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--adaptive-complexity=1|0] [--execution-mode=<task|persistent|background>] [--role=<name>] [--capabilities=<csv>] [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--report-mode=<always|anomalies|final>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime tick [--advance-ms=<n>] [--max-check-ins=<n>] [--state-path=<path>]");
     println!(
@@ -339,6 +340,7 @@ fn usage() {
     println!("  protheus-ops swarm-runtime test recursive [--levels=<n>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime test byzantine [--agents=<n>] [--corrupt=<n>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime test concurrency [--agents=<n>] [--metrics=detailed] [--state-path=<path>]");
+    println!("  protheus-ops swarm-runtime test hierarchy [--agents=<n>] [--fanout=<n>] [--max-depth=<n>] [--metrics=detailed] [--task-prefix=<text>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime test budget [--budget=<n>] [--warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--assert-hard-enforcement=1|0] [--expect-fail=1|0] [--task=<text>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime test persistent [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--advance-ms=<n>] [--state-path=<path>]");
     println!("  protheus-ops swarm-runtime thorn <status|quarantine|release> [flags]");

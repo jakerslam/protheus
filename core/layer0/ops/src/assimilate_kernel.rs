@@ -16,7 +16,11 @@ use support::{
 };
 
 fn emit_stage_snapshot(total_ms: u64, include_final: bool) {
-    let end = if include_final { STAGES.len() } else { STAGES.len() - 1 };
+    let end = if include_final {
+        STAGES.len()
+    } else {
+        STAGES.len() - 1
+    };
     for stage in STAGES.iter().take(end) {
         let elapsed_ms = ((total_ms as f64) * (stage.percent as f64 / 100.0)).round() as u64;
         println!("{}", stage.label);
@@ -115,15 +119,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let route = match decode_injected_route(&options) {
         Ok(row) => row,
         Err(err) => {
-            eprintln!("{}", json!({"ok":false,"type":"assimilate_cli_error","error":err}));
+            eprintln!(
+                "{}",
+                json!({"ok":false,"type":"assimilate_cli_error","error":err})
+            );
             return 1;
         }
     };
 
     if options.scaffold_payload {
         let payload = payload_scaffold_for(&target);
-        let payload_base64 =
-            base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&payload).unwrap_or_default());
+        let payload_base64 = base64::engine::general_purpose::STANDARD
+            .encode(serde_json::to_vec(&payload).unwrap_or_default());
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({

@@ -22,10 +22,10 @@ const INVENTORY_CONFIG_REL: &str = "client/runtime/config/security_layer_invento
 const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
 const STATE_DIR_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate";
 const LATEST_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate/latest.json";
-const HISTORY_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate/history.jsonl";
+const HISTORY_REL: &str =
+    "client/runtime/local/state/ops/security_layer_inventory_gate/history.jsonl";
 const DOC_REL: &str = "docs/client/security/SECURITY_LAYER_INVENTORY.md";
 const REPORT_REL: &str = "local/workspace/reports/SECURITY_LAYER_INVENTORY_CURRENT.md";
-
 
 fn usage() {
     println!("security-layer-inventory-gate-kernel commands:");
@@ -189,7 +189,13 @@ fn run_runtime_check(root: &Path, spec: &RuntimeCheckSpec) -> RuntimeCheckResult
     }
 }
 
-fn render_markdown(ts: &str, ok: bool, hash: &str, summary: &InventorySummary, layers: &[LayerResult]) -> String {
+fn render_markdown(
+    ts: &str,
+    ok: bool,
+    hash: &str,
+    summary: &InventorySummary,
+    layers: &[LayerResult],
+) -> String {
     let mut out = Vec::new();
     out.push("# Security Layer Inventory".to_string());
     out.push(String::new());
@@ -270,8 +276,14 @@ fn write_outputs(
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mode = parse_mode(argv);
-    let strict = lane_utils::parse_bool(lane_utils::parse_flag(argv, "strict", true).as_deref(), false);
-    let write = lane_utils::parse_bool(lane_utils::parse_flag(argv, "write", true).as_deref(), false);
+    let strict = lane_utils::parse_bool(
+        lane_utils::parse_flag(argv, "strict", true).as_deref(),
+        false,
+    );
+    let write = lane_utils::parse_bool(
+        lane_utils::parse_flag(argv, "write", true).as_deref(),
+        false,
+    );
 
     let inventory_path = root.join(INVENTORY_CONFIG_REL);
     let guard_registry_path = root.join(GUARD_REGISTRY_REL);
@@ -368,7 +380,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .runtime_checks
             .iter()
             .map(|spec| {
-                let key = serde_json::to_string(spec).unwrap_or_else(|_| "runtime_check".to_string());
+                let key =
+                    serde_json::to_string(spec).unwrap_or_else(|_| "runtime_check".to_string());
                 if let Some(existing) = runtime_cache.get(&key) {
                     return existing.clone();
                 }
@@ -394,7 +407,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let summary = InventorySummary {
         layers_checked: layers.len(),
         missing_paths: layers.iter().map(|row| row.missing_paths.len()).sum(),
-        missing_guard_checks: layers.iter().map(|row| row.missing_guard_checks.len()).sum(),
+        missing_guard_checks: layers
+            .iter()
+            .map(|row| row.missing_guard_checks.len())
+            .sum(),
         runtime_check_failures: layers
             .iter()
             .map(|row| row.runtime_checks.iter().filter(|check| !check.ok).count())

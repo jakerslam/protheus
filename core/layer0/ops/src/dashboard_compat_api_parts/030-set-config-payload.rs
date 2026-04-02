@@ -272,13 +272,13 @@ fn latest_timestamp(values: &[String]) -> String {
 
 fn message_text(row: &Value) -> String {
     if let Some(text) = row.get("text").and_then(Value::as_str) {
-        return clean_text(text, 4000);
+        return clean_chat_text(text, 4000);
     }
     if let Some(text) = row.get("content").and_then(Value::as_str) {
-        return clean_text(text, 4000);
+        return clean_chat_text(text, 4000);
     }
     if let Some(text) = row.as_str() {
-        return clean_text(text, 4000);
+        return clean_chat_text(text, 4000);
     }
     String::new()
 }
@@ -2367,6 +2367,20 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
         );
     }
 
+    if lowered.contains("what did we decide")
+        || lowered.contains("remember")
+        || lowered.contains("recall")
+        || lowered.contains("last month")
+        || lowered.contains("previously")
+    {
+        push_candidate(
+            "memory_semantic_query",
+            "query semantic memory",
+            "Message implies historical decision recall intent.",
+            json!({"query": clean_text(message, 600), "limit": 8}),
+        );
+    }
+
     if lowered.contains("schedule")
         || lowered.contains("remind")
         || lowered.contains("every ")
@@ -3127,6 +3141,326 @@ fn trim_text(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars.max(1)).collect::<String>()
 }
 
+fn tool_governance_policy(root: &Path) -> Value {
+    let path = root.join("client/runtime/config/tool_governance_policy.json");
+    let default = json!({
+        "enabled": true,
+        "tiers": {
+            "green": {"confirm_required": false, "approval_note_min": 0},
+            "yellow": {"confirm_required": true, "approval_note_min": 0},
+            "red": {"confirm_required": true, "approval_note_min": 8}
+        }
+    });
+    let mut merged = default.clone();
+    if let Some(custom) = read_json_loose(&path) {
+        if let Some(enabled) = custom.get("enabled").and_then(Value::as_bool) {
+            merged["enabled"] = json!(enabled);
+        }
+        for tier in ["green", "yellow", "red"] {
+            if let Some(confirm_required) = custom
+                .pointer(&format!("/tiers/{tier}/confirm_required"))
+                .and_then(Value::as_bool)
+            {
+                merged["tiers"][tier]["confirm_required"] = json!(confirm_required);
+            }
+            if let Some(min_note) = custom
+                .pointer(&format!("/tiers/{tier}/approval_note_min"))
+                .and_then(Value::as_i64)
+            {
+                merged["tiers"][tier]["approval_note_min"] = json!(min_note.max(0));
+            }
+        }
+    }
+    merged
+}
+
+fn input_has_confirmation(input: &Value) -> bool {
+    input
+        .get("confirm")
+        .or_else(|| input.get("confirmed"))
+        .or_else(|| input.get("approved"))
+        .or_else(|| input.get("user_confirmed"))
+        .or_else(|| input.get("signoff"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn input_approval_note(input: &Value) -> String {
+    clean_text(
+        input
+            .get("approval_note")
+            .or_else(|| input.get("note"))
+            .or_else(|| input.get("reason"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        400,
+    )
+}
+
+fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
+    match normalized {
+        "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => "red",
+        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => "red",
+        "agent_action" | "manage_agent" => {
+            let action = clean_text(
+                input.get("action").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
+            if matches!(
+                action.as_str(),
+                "archive" | "delete" | "spawn" | "spawn_subagent"
+            ) {
+                "red"
+            } else {
+                "yellow"
+            }
+        }
+        "memory_kv_set" | "memory_kv_delete" => "yellow",
+        "cron_schedule" | "schedule_task" | "cron_create" => "yellow",
+        "cron_run" | "schedule_run" | "cron_trigger" => "yellow",
+        "cron_cancel" | "cron_delete" | "schedule_cancel" => "yellow",
+        _ => "green",
+    }
+}
+
+fn enforce_tool_capability_tier(
+    root: &Path,
+    actor_agent_id: &str,
+    normalized_tool: &str,
+    input: &Value,
+) -> Option<Value> {
+    let policy = tool_governance_policy(root);
+    if !policy
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
+        return None;
+    }
+    let tier = tool_capability_tier(normalized_tool, input);
+    let confirm_required = policy
+        .pointer(&format!("/tiers/{tier}/confirm_required"))
+        .and_then(Value::as_bool)
+        .unwrap_or(matches!(tier, "yellow" | "red"));
+    let min_note = policy
+        .pointer(&format!("/tiers/{tier}/approval_note_min"))
+        .and_then(Value::as_i64)
+        .unwrap_or(if tier == "red" { 8 } else { 0 })
+        .max(0) as usize;
+    let confirmed = input_has_confirmation(input);
+    let note = input_approval_note(input);
+    if (!confirm_required || confirmed) && note.len() >= min_note {
+        return None;
+    }
+    let next_step = if tier == "red" {
+        format!(
+            "Re-run with {{\"confirm\":true,\"approval_note\":\"why this destructive action is needed\"}} for `{}`.",
+            normalized_tool
+        )
+    } else {
+        format!(
+            "Re-run with {{\"confirm\":true}} to execute `{}`.",
+            normalized_tool
+        )
+    };
+    let receipt = crate::deterministic_receipt_hash(&json!({
+        "type": "tool_capability_tier_gate",
+        "actor_agent_id": actor_agent_id,
+        "tool": normalized_tool,
+        "tier": tier,
+        "confirmed": confirmed,
+        "approval_note_len": note.len(),
+        "ts": crate::now_iso()
+    }));
+    Some(json!({
+        "ok": false,
+        "error": if tier == "red" { "tool_explicit_signoff_required" } else { "tool_confirmation_required" },
+        "tool": normalized_tool,
+        "capability_tier": tier,
+        "confirm_required": confirm_required,
+        "approval_note_min_chars": min_note,
+        "next_step": next_step,
+        "receipt_hash": receipt
+    }))
+}
+
+fn spawn_guard_policy(root: &Path) -> Value {
+    let spawn_policy = read_json_loose(&root.join("client/runtime/config/spawn_policy.json"))
+        .unwrap_or_else(|| json!({}));
+    let child_policy =
+        read_json_loose(&root.join("client/runtime/config/child_organ_runtime_policy.json"))
+            .unwrap_or_else(|| json!({}));
+    let orchestron_policy =
+        read_json_loose(&root.join("client/runtime/config/orchestron_policy.json"))
+            .unwrap_or_else(|| json!({}));
+    let max_per_spawn = spawn_policy
+        .pointer("/pool/max_cells")
+        .and_then(Value::as_i64)
+        .unwrap_or(8)
+        .clamp(1, 64);
+    let max_descendants_per_parent = child_policy
+        .get("max_children")
+        .and_then(Value::as_i64)
+        .unwrap_or(24)
+        .clamp(1, 4096);
+    let max_depth = orchestron_policy
+        .get("max_depth")
+        .and_then(Value::as_i64)
+        .unwrap_or(4)
+        .clamp(1, 32);
+    let per_child_budget_default = child_policy
+        .pointer("/resource_envelope/token_cap_default")
+        .and_then(Value::as_i64)
+        .unwrap_or(800)
+        .clamp(64, 200_000);
+    let per_child_budget_max = child_policy
+        .pointer("/resource_envelope/token_cap_max")
+        .and_then(Value::as_i64)
+        .unwrap_or(5000)
+        .clamp(per_child_budget_default, 2_000_000);
+    let spawn_budget_cap = per_child_budget_max
+        .saturating_mul(max_per_spawn)
+        .clamp(per_child_budget_max, 20_000_000);
+    json!({
+        "max_per_spawn": max_per_spawn,
+        "max_descendants_per_parent": max_descendants_per_parent,
+        "max_depth": max_depth,
+        "per_child_budget_default": per_child_budget_default,
+        "per_child_budget_max": per_child_budget_max,
+        "spawn_budget_cap": spawn_budget_cap
+    })
+}
+
+fn descendant_count(parent_map: &HashMap<String, String>, actor: &str) -> usize {
+    let actor_id = clean_agent_id(actor);
+    if actor_id.is_empty() {
+        return 0;
+    }
+    let mut count = 0usize;
+    for candidate in parent_map.keys() {
+        let mut current = candidate.clone();
+        let mut hops = 0usize;
+        let mut seen = HashSet::<String>::new();
+        while hops < 128 && seen.insert(current.clone()) {
+            let Some(parent) = parent_map.get(&current).cloned() else {
+                break;
+            };
+            if parent == actor_id {
+                count += 1;
+                break;
+            }
+            current = parent;
+            hops += 1;
+        }
+    }
+    count
+}
+
+fn agent_depth_from_parent_map(parent_map: &HashMap<String, String>, agent_id: &str) -> usize {
+    let mut current = clean_agent_id(agent_id);
+    if current.is_empty() {
+        return 0;
+    }
+    let mut depth = 0usize;
+    let mut seen = HashSet::<String>::new();
+    while depth < 128 && seen.insert(current.clone()) {
+        let Some(parent) = parent_map.get(&current).cloned() else {
+            break;
+        };
+        current = parent;
+        depth += 1;
+    }
+    depth
+}
+
+fn subagent_context_slice(root: &Path, parent_agent_id: &str, objective: &str) -> Value {
+    let state = load_session_state(root, parent_agent_id);
+    let mut messages = session_messages(&state);
+    if messages.is_empty() {
+        return json!({
+            "strategy": "objective_scoped_recent_window",
+            "selected_messages": [],
+            "selected_count": 0
+        });
+    }
+    let objective_tokens = workspace_hint_tokens(objective, 10);
+    messages.sort_by_key(message_timestamp_iso);
+    let mut scored = Vec::<(i64, Value)>::new();
+    for (idx, row) in messages.into_iter().enumerate() {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 20)
+            .to_ascii_lowercase();
+        if role.is_empty() {
+            continue;
+        }
+        let text = message_text(&row);
+        if text.is_empty() {
+            continue;
+        }
+        let mut score = (idx as i64).min(40);
+        let lowered = text.to_ascii_lowercase();
+        for token in &objective_tokens {
+            if lowered.contains(token) {
+                score += 5;
+            }
+        }
+        if role == "user" {
+            score += 2;
+        }
+        scored.push((
+            score,
+            json!({
+                "role": role,
+                "text": trim_text(&text, 600),
+                "ts": message_timestamp_iso(&row)
+            }),
+        ));
+    }
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    let selected = scored
+        .into_iter()
+        .take(12)
+        .map(|(_, row)| row)
+        .collect::<Vec<_>>();
+    let selected_count = selected.len();
+    json!({
+        "strategy": "objective_scoped_recent_window",
+        "objective_tokens": objective_tokens,
+        "selected_messages": selected,
+        "selected_count": selected_count
+    })
+}
+
+fn tool_decision_audit_path(root: &Path) -> PathBuf {
+    root.join("client/runtime/local/state/ui/infring_dashboard/decision_audit.jsonl")
+}
+
+fn append_tool_decision_audit(
+    root: &Path,
+    actor_agent_id: &str,
+    tool_name: &str,
+    tool_input: &Value,
+    tool_output: &Value,
+    recovery_strategy: &str,
+) -> String {
+    let tier = tool_capability_tier(tool_name, tool_input);
+    let row = json!({
+        "type": "tool_decision_audit",
+        "timestamp": crate::now_iso(),
+        "actor_agent_id": clean_agent_id(actor_agent_id),
+        "tool": normalize_tool_name(tool_name),
+        "capability_tier": tier,
+        "ok": tool_output.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        "error": clean_text(tool_output.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+        "recovery_strategy": clean_text(recovery_strategy, 80),
+        "input_hash": crate::deterministic_receipt_hash(tool_input),
+        "output_hash": crate::deterministic_receipt_hash(tool_output)
+    });
+    let receipt = crate::deterministic_receipt_hash(&row);
+    append_jsonl_row(&tool_decision_audit_path(root), &row);
+    receipt
+}
+
 fn execute_tool_call_by_name(
     root: &Path,
     snapshot: &Value,
@@ -3142,6 +3476,9 @@ fn execute_tool_call_by_name(
             "ok": false,
             "error": "actor_agent_required"
         });
+    }
+    if let Some(gate_payload) = enforce_tool_capability_tier(root, &actor, &normalized, input) {
+        return gate_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
     match normalized.as_str() {
@@ -3309,19 +3646,60 @@ fn execute_tool_call_by_name(
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
         "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
-            let requested_count = input
+            let spawn_policy = spawn_guard_policy(root);
+            let max_per_spawn = spawn_policy
+                .get("max_per_spawn")
+                .and_then(Value::as_i64)
+                .unwrap_or(8)
+                .clamp(1, 64) as usize;
+            let max_descendants_per_parent = spawn_policy
+                .get("max_descendants_per_parent")
+                .and_then(Value::as_i64)
+                .unwrap_or(24)
+                .clamp(1, 4096) as usize;
+            let depth_limit = spawn_policy
+                .get("max_depth")
+                .and_then(Value::as_i64)
+                .unwrap_or(4)
+                .clamp(1, 32) as usize;
+            let per_child_budget_default = spawn_policy
+                .get("per_child_budget_default")
+                .and_then(Value::as_i64)
+                .unwrap_or(800)
+                .clamp(64, 200_000);
+            let per_child_budget_max = spawn_policy
+                .get("per_child_budget_max")
+                .and_then(Value::as_i64)
+                .unwrap_or(5000)
+                .clamp(per_child_budget_default, 2_000_000);
+            let spawn_budget_cap = spawn_policy
+                .get("spawn_budget_cap")
+                .and_then(Value::as_i64)
+                .unwrap_or(per_child_budget_max.saturating_mul(max_per_spawn as i64))
+                .clamp(per_child_budget_max, 20_000_000);
+
+            let requested_count_raw = input
                 .get("count")
                 .or_else(|| input.get("team_size"))
                 .or_else(|| input.get("agents"))
                 .and_then(Value::as_i64)
-                .unwrap_or(3)
-                .clamp(1, 8) as usize;
+                .unwrap_or(3);
+            let requested_count_raw_pos = requested_count_raw.max(1) as usize;
+            let requested_count = requested_count_raw_pos.min(max_per_spawn);
             let expiry_seconds = input
                 .get("expiry_seconds")
                 .or_else(|| input.get("lifespan_sec"))
                 .and_then(Value::as_i64)
                 .unwrap_or(3600)
                 .clamp(60, 172_800);
+            let budget_tokens_requested_raw = input
+                .get("budget_tokens")
+                .or_else(|| input.get("token_budget"))
+                .and_then(Value::as_i64)
+                .unwrap_or(per_child_budget_default);
+            let budget_tokens = budget_tokens_requested_raw.clamp(64, per_child_budget_max);
+            let budget_tokens_for_capacity =
+                budget_tokens_requested_raw.clamp(64, spawn_budget_cap);
             let objective = clean_text(
                 input
                     .get("objective")
@@ -3331,6 +3709,22 @@ fn execute_tool_call_by_name(
                     .unwrap_or("Parallel child task requested by parent directive."),
                 800,
             );
+            let merge_strategy = match clean_text(
+                input
+                    .get("merge_strategy")
+                    .or_else(|| input.get("merge"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("reduce"),
+                40,
+            )
+            .to_ascii_lowercase()
+            .as_str()
+            {
+                "voting" | "vote" => "voting",
+                "concat" | "concatenate" => "concatenate",
+                _ => "reduce",
+            }
+            .to_string();
             let mut role_plan = input
                 .get("roles")
                 .and_then(Value::as_array)
@@ -3369,17 +3763,61 @@ fn execute_tool_call_by_name(
                     .unwrap_or(""),
                 80,
             );
+            let parent_map = agent_parent_map(root, snapshot);
+            let current_depth = agent_depth_from_parent_map(&parent_map, &actor);
+            if current_depth + 1 > depth_limit {
+                return json!({
+                    "ok": false,
+                    "error": "spawn_depth_limit_exceeded",
+                    "parent_agent_id": actor,
+                    "current_depth": current_depth,
+                    "max_depth": depth_limit
+                });
+            }
+            let existing_descendants = descendant_count(&parent_map, &actor);
+            if existing_descendants >= max_descendants_per_parent {
+                return json!({
+                    "ok": false,
+                    "error": "spawn_descendant_limit_exceeded",
+                    "parent_agent_id": actor,
+                    "existing_descendants": existing_descendants,
+                    "max_descendants_per_parent": max_descendants_per_parent
+                });
+            }
+            let remaining_capacity =
+                max_descendants_per_parent.saturating_sub(existing_descendants);
+            let budget_limited_count =
+                ((spawn_budget_cap / budget_tokens_for_capacity.max(1)) as usize).max(1);
+            let effective_count = requested_count
+                .min(remaining_capacity.max(1))
+                .min(budget_limited_count.max(1));
+            if effective_count == 0 {
+                return json!({
+                    "ok": false,
+                    "error": "spawn_budget_exceeded",
+                    "parent_agent_id": actor,
+                    "spawn_budget_cap": spawn_budget_cap,
+                    "requested_budget_tokens": budget_tokens
+                });
+            }
+            let context_slice = subagent_context_slice(root, &actor, &objective);
             let directive_receipt = crate::deterministic_receipt_hash(&json!({
                 "type": "agent_spawn_directive",
                 "actor_agent_id": actor,
+                "requested_count_raw": requested_count_raw,
                 "requested_count": requested_count,
+                "effective_count": effective_count,
                 "objective": objective,
+                "merge_strategy": merge_strategy,
+                "budget_tokens": budget_tokens,
+                "budget_tokens_requested_raw": budget_tokens_requested_raw,
+                "budget_tokens_for_capacity": budget_tokens_for_capacity,
                 "requested_at": crate::now_iso()
             }));
 
             let mut created = Vec::<Value>::new();
             let mut errors = Vec::<Value>::new();
-            for idx in 0..requested_count {
+            for idx in 0..effective_count {
                 let role = role_plan
                     .get(idx % role_plan.len())
                     .cloned()
@@ -3397,8 +3835,16 @@ fn execute_tool_call_by_name(
                         "termination_condition": "task_or_timeout",
                         "expiry_seconds": expiry_seconds,
                         "auto_terminate_allowed": true,
+                        "budget_tokens": budget_tokens,
+                        "merge_strategy": merge_strategy,
+                        "context_slice": context_slice,
                         "source_user_directive": objective,
-                        "source_user_directive_receipt": directive_receipt
+                        "source_user_directive_receipt": directive_receipt,
+                        "spawn_guard": {
+                            "max_depth": depth_limit,
+                            "max_descendants_per_parent": max_descendants_per_parent,
+                            "spawn_budget_cap": spawn_budget_cap
+                        }
                     }
                 });
                 if !base_name.is_empty() {
@@ -3438,12 +3884,25 @@ fn execute_tool_call_by_name(
                 "ok": !created.is_empty(),
                 "type": "spawn_subagents",
                 "parent_agent_id": actor,
+                "requested_count_raw": requested_count_raw,
                 "requested_count": requested_count,
+                "effective_count": effective_count,
                 "created_count": created.len(),
                 "failed_count": errors.len(),
                 "directive": {
                     "objective": objective,
-                    "receipt": directive_receipt
+                    "receipt": directive_receipt,
+                    "merge_strategy": merge_strategy,
+                    "budget_tokens": budget_tokens
+                },
+                "circuit_breakers": {
+                    "max_depth": depth_limit,
+                    "current_depth": current_depth,
+                    "existing_descendants": existing_descendants,
+                    "max_descendants_per_parent": max_descendants_per_parent,
+                    "spawn_budget_cap": spawn_budget_cap,
+                    "remaining_capacity": remaining_capacity,
+                    "degraded": effective_count < requested_count_raw_pos
                 },
                 "children": created,
                 "errors": errors
@@ -3471,6 +3930,23 @@ fn execute_tool_call_by_name(
         }
         "memory_kv_list" | "memory_kv_pairs" => {
             crate::dashboard_agent_state::memory_kv_pairs(root, &actor)
+        }
+        "memory_semantic_query" | "memory_query" => {
+            let query = clean_text(
+                input
+                    .get("query")
+                    .or_else(|| input.get("q"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                600,
+            );
+            let limit = input
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map(|value| value as usize)
+                .unwrap_or(8)
+                .clamp(1, 25);
+            crate::dashboard_agent_state::memory_kv_semantic_query(root, &actor, &query, limit)
         }
         "agent_action" | "manage_agent" => {
             let action = clean_text(
@@ -3600,6 +4076,49 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             summary.push_str(&format!(" Directive receipt: {receipt}."));
         }
         return trim_text(&summary, 24_000);
+    }
+    if normalized == "memory_semantic_query" || normalized == "memory_query" {
+        let query = clean_text(
+            payload.get("query").and_then(Value::as_str).unwrap_or(""),
+            200,
+        );
+        let matches = payload
+            .get("matches")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if matches.is_empty() {
+            if query.is_empty() {
+                return "No semantic memory matches found.".to_string();
+            }
+            return trim_text(
+                &format!("No semantic memory matches for `{query}`."),
+                24_000,
+            );
+        }
+        let mut lines = Vec::<String>::new();
+        if query.is_empty() {
+            lines.push("Semantic memory matches:".to_string());
+        } else {
+            lines.push(format!("Semantic memory matches for `{query}`:"));
+        }
+        for row in matches.into_iter().take(5) {
+            let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 160);
+            let snippet = clean_text(
+                row.get("snippet").and_then(Value::as_str).unwrap_or(""),
+                180,
+            );
+            let score = row.get("score").and_then(Value::as_i64).unwrap_or(0);
+            if key.is_empty() {
+                continue;
+            }
+            if snippet.is_empty() {
+                lines.push(format!("- {key} (score {score})"));
+            } else {
+                lines.push(format!("- {key} (score {score}): {snippet}"));
+            }
+        }
+        return trim_text(&lines.join("\n"), 24_000);
     }
     if normalized == "cron_schedule" || normalized == "schedule_task" || normalized == "cron_create"
     {
@@ -3780,6 +4299,147 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     trim_text(&payload.to_string(), 24_000)
 }
 
+fn tool_error_text(payload: &Value) -> String {
+    clean_text(
+        payload
+            .get("error")
+            .or_else(|| payload.get("message"))
+            .or_else(|| payload.pointer("/result/error"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    )
+}
+
+fn transient_tool_failure(payload: &Value) -> bool {
+    if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return false;
+    }
+    let lowered = tool_error_text(payload).to_ascii_lowercase();
+    lowered.contains("aborted")
+        || lowered.contains("timeout")
+        || lowered.contains("timed out")
+        || lowered.contains("temporar")
+        || lowered.contains("unavailable")
+        || lowered.contains("network")
+        || lowered.contains("connection")
+        || lowered.contains("retry")
+        || lowered.contains("econnreset")
+}
+
+fn fallback_memory_query_payload(
+    root: &Path,
+    actor_agent_id: &str,
+    tool_name: &str,
+    input: &Value,
+) -> Option<Value> {
+    let normalized = normalize_tool_name(tool_name);
+    if normalized != "web_search"
+        && normalized != "search_web"
+        && normalized != "search"
+        && normalized != "web_query"
+        && normalized != "web_fetch"
+        && normalized != "browse"
+        && normalized != "web_conduit_fetch"
+    {
+        return None;
+    }
+    let query =
+        if normalized == "web_fetch" || normalized == "browse" || normalized == "web_conduit_fetch"
+        {
+            clean_text(
+                input
+                    .get("url")
+                    .or_else(|| input.get("query"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                600,
+            )
+        } else {
+            clean_text(
+                input
+                    .get("query")
+                    .or_else(|| input.get("q"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                600,
+            )
+        };
+    if query.is_empty() {
+        return None;
+    }
+    let fallback =
+        crate::dashboard_agent_state::memory_kv_semantic_query(root, actor_agent_id, &query, 5);
+    let matches = fallback
+        .get("matches")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if matches.is_empty() {
+        return None;
+    }
+    let summary = summarize_tool_payload("memory_semantic_query", &fallback);
+    Some(json!({
+        "ok": true,
+        "type": "tool_degraded_fallback",
+        "tool": normalized,
+        "fallback_tool": "memory_semantic_query",
+        "query": query,
+        "summary": summary,
+        "matches": matches,
+        "fallback_used": true
+    }))
+}
+
+fn execute_tool_call_with_recovery(
+    root: &Path,
+    snapshot: &Value,
+    actor_agent_id: &str,
+    existing: Option<&Value>,
+    tool_name: &str,
+    input: &Value,
+) -> Value {
+    let mut payload =
+        execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
+    let mut recovery_strategy = "none".to_string();
+    if transient_tool_failure(&payload) {
+        std::thread::sleep(std::time::Duration::from_millis(180));
+        let retry =
+            execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
+        if retry.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            payload = retry;
+            recovery_strategy = "retry_backoff".to_string();
+        } else if let Some(fallback_payload) =
+            fallback_memory_query_payload(root, &clean_agent_id(actor_agent_id), tool_name, input)
+        {
+            payload = fallback_payload;
+            recovery_strategy = "semantic_memory_fallback".to_string();
+        } else {
+            payload = retry;
+            recovery_strategy = "retry_backoff_failed".to_string();
+        }
+    }
+    let audit_receipt = append_tool_decision_audit(
+        root,
+        actor_agent_id,
+        tool_name,
+        input,
+        &payload,
+        &recovery_strategy,
+    );
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert(
+            "recovery_strategy".to_string(),
+            Value::String(recovery_strategy),
+        );
+        obj.insert(
+            "decision_audit_receipt".to_string(),
+            Value::String(audit_receipt),
+        );
+    }
+    payload
+}
+
 fn execute_inline_tool_calls(
     root: &Path,
     snapshot: &Value,
@@ -3794,8 +4454,14 @@ fn execute_inline_tool_calls(
     let mut cards = Vec::<Value>::new();
     let mut fallback_lines = Vec::<String>::new();
     for (idx, (name, input, _raw)) in calls.into_iter().enumerate() {
-        let payload =
-            execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, &name, &input);
+        let payload = execute_tool_call_with_recovery(
+            root,
+            snapshot,
+            actor_agent_id,
+            existing,
+            &name,
+            &input,
+        );
         let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let result_text = summarize_tool_payload(&name, &payload);
         cards.push(json!({
@@ -3878,7 +4544,10 @@ fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
             if job_id.is_empty() {
                 None
             } else {
-                Some(("cron_cancel".to_string(), json!({"job_id": job_id})))
+                Some((
+                    "cron_cancel".to_string(),
+                    json!({"job_id": job_id, "confirm": true}),
+                ))
             }
         }
         "run" | "trigger" => {
@@ -3886,7 +4555,10 @@ fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
             if job_id.is_empty() {
                 None
             } else {
-                Some(("cron_run".to_string(), json!({"job_id": job_id})))
+                Some((
+                    "cron_run".to_string(),
+                    json!({"job_id": job_id, "confirm": true}),
+                ))
             }
         }
         "schedule" | "every" | "in" => {
@@ -3912,7 +4584,8 @@ fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
                         "Scheduled follow-up check."
                     } else {
                         text.as_str()
-                    }
+                    },
+                    "confirm": true
                 }),
             ))
         }
@@ -3927,7 +4600,8 @@ fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
                             "Scheduled follow-up check."
                         } else {
                             text.as_str()
-                        }
+                        },
+                        "confirm": true
                     }),
                 ));
             }
@@ -3988,6 +4662,15 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
             return Some(route);
         }
         let lowered = clean_text(trimmed, 120).to_ascii_lowercase();
+        if lowered.contains("what did we decide")
+            || lowered.starts_with("recall ")
+            || lowered.starts_with("remember ")
+        {
+            return Some((
+                "memory_semantic_query".to_string(),
+                json!({"query": clean_text(trimmed, 600), "limit": 8}),
+            ));
+        }
         let undo_like = lowered == "undo"
             || lowered == "undo that"
             || lowered == "undo last"
@@ -4025,7 +4708,14 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
             if arg.is_empty() {
                 None
             } else {
-                Some(("terminal_exec".to_string(), json!({"command": arg})))
+                Some((
+                    "terminal_exec".to_string(),
+                    json!({
+                        "command": arg,
+                        "confirm": true,
+                        "approval_note": "user slash terminal invocation"
+                    }),
+                ))
             }
         }
         "/browse" | "/web" => {
@@ -4064,7 +4754,12 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
             }
             Some((
                 "spawn_subagents".to_string(),
-                json!({"count": count, "objective": clean_text(objective, 800)}),
+                json!({
+                    "count": count,
+                    "objective": clean_text(objective, 800),
+                    "confirm": true,
+                    "approval_note": "user slash spawn request"
+                }),
             ))
         }
         "/undo" | "/rewind" | "/rollback" => {
@@ -4080,6 +4775,23 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
             let raw_value = memory_parts.next().map(str::trim).unwrap_or("");
             if action == "list" || action == "ls" {
                 Some(("memory_kv_list".to_string(), json!({})))
+            } else if action == "query" || action == "search" {
+                let query_source = if key.is_empty() {
+                    raw_value.to_string()
+                } else if raw_value.is_empty() {
+                    key.to_string()
+                } else {
+                    format!("{key} {raw_value}")
+                };
+                let query = clean_text(&query_source, 600);
+                if query.is_empty() {
+                    None
+                } else {
+                    Some((
+                        "memory_semantic_query".to_string(),
+                        json!({"query": query, "limit": 8}),
+                    ))
+                }
             } else if action == "get" {
                 if key.is_empty() {
                     None
@@ -4095,7 +4807,7 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                         .unwrap_or_else(|| json!(raw_value));
                     Some((
                         "memory_kv_set".to_string(),
-                        json!({"key": key, "value": parsed_value}),
+                        json!({"key": key, "value": parsed_value, "confirm": true}),
                     ))
                 }
             } else {
@@ -4212,6 +4924,51 @@ pub fn handle_with_headers(
                         ),
                     });
                 }
+            }
+        }
+        if segments
+            .first()
+            .map(|v| v == "semantic-query" || v == "semantic_query")
+            .unwrap_or(false)
+        {
+            if method == "GET" || method == "POST" {
+                let request = if method == "POST" {
+                    serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}))
+                } else {
+                    json!({
+                        "query": query_value(path, "q")
+                            .or_else(|| query_value(path, "query"))
+                            .unwrap_or_default(),
+                        "limit": query_value(path, "limit")
+                            .and_then(|raw| raw.parse::<usize>().ok())
+                            .unwrap_or(8)
+                    })
+                };
+                let query = clean_text(
+                    request
+                        .get("query")
+                        .or_else(|| request.get("q"))
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    600,
+                );
+                let limit = request
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .map(|value| value as usize)
+                    .unwrap_or(8)
+                    .clamp(1, 25);
+                let payload = crate::dashboard_agent_state::memory_kv_semantic_query(
+                    root, &agent_id, &query, limit,
+                );
+                return Some(CompatApiResponse {
+                    status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                        200
+                    } else {
+                        400
+                    },
+                    payload,
+                });
             }
         }
     }
@@ -5010,7 +5767,7 @@ pub fn handle_with_headers(
             let latent_tool_candidates =
                 latent_tool_candidates_for_message(&message, &workspace_hints);
             if let Some((tool_name, tool_input)) = direct_tool_intent_from_user_message(&message) {
-                let tool_payload = execute_tool_call_by_name(
+                let tool_payload = execute_tool_call_with_recovery(
                     root,
                     snapshot,
                     &agent_id,
@@ -5382,7 +6139,7 @@ pub fn handle_with_headers(
                 &message,
             ) {
                 Ok(result) => {
-                    let mut response_text = clean_text(
+                    let mut response_text = clean_chat_text(
                         result.get("response").and_then(Value::as_str).unwrap_or(""),
                         32_000,
                     );
@@ -5480,7 +6237,9 @@ pub fn handle_with_headers(
                                 "count": auto_count,
                                 "objective": message,
                                 "reason": "user_directive_parallelization",
-                                "directive_receipt_hint": directive_hint_receipt
+                                "directive_receipt_hint": directive_hint_receipt,
+                                "confirm": true,
+                                "approval_note": "user requested parallelization in active turn"
                             })
                             .to_string()
                         );
@@ -5695,7 +6454,7 @@ pub fn handle_with_headers(
                     });
                 };
                 let row = existing.clone().unwrap_or_else(|| json!({}));
-                let tool_payload = execute_tool_call_by_name(
+                let tool_payload = execute_tool_call_with_recovery(
                     root,
                     snapshot,
                     &agent_id,
@@ -6074,7 +6833,7 @@ pub fn handle_with_headers(
                     .get("max_bytes")
                     .and_then(Value::as_u64)
                     .unwrap_or((256 * 1024) as u64)
-                    .clamp((4 * 1024) as u64, (8 * 1024 * 1024) as u64) as usize
+                    .clamp(1, (8 * 1024 * 1024) as u64) as usize
             };
             let (content, truncated) = truncate_utf8_lossy(&bytes, max_bytes);
             let content_type = "text/plain; charset=utf-8";
@@ -6159,7 +6918,7 @@ pub fn handle_with_headers(
                     .get("max_entries")
                     .and_then(Value::as_u64)
                     .unwrap_or(20_000)
-                    .clamp(100, 100_000) as usize
+                    .clamp(1, 100_000) as usize
             };
             let mut lines = Vec::<String>::new();
             let root_name = clean_text(
@@ -6687,6 +7446,15 @@ pub fn handle_with_headers(
                 let tip_hash = crate::deterministic_receipt_hash(&json!({"entries": entries}));
                 json!({"ok": true, "entries": entries, "tip_hash": tip_hash})
             }
+            "/api/audit/decisions" => {
+                let limit = query_value(path, "limit")
+                    .and_then(|raw| raw.parse::<usize>().ok())
+                    .unwrap_or(20)
+                    .clamp(1, 200);
+                let rows = read_jsonl_loose(&tool_decision_audit_path(root), limit);
+                let tip_hash = crate::deterministic_receipt_hash(&json!({"rows": rows}));
+                json!({"ok": true, "type": "tool_decision_audit_rows", "rows": rows, "tip_hash": tip_hash})
+            }
             "/api/audit/verify" => {
                 let entries = recent_audit_entries(root, snapshot);
                 let tip_hash = crate::deterministic_receipt_hash(&json!({"entries": entries}));
@@ -6719,6 +7487,31 @@ pub fn handle_with_headers(
                 "alerts": snapshot.pointer("/health/alerts").cloned().unwrap_or_else(|| json!({})),
                 "runtime_sync": runtime
             }),
+            "/api/capabilities/status" => {
+                let policy = tool_governance_policy(root);
+                let tiers = [
+                    ("file_read", "green"),
+                    ("folder_export", "green"),
+                    ("web_fetch", "green"),
+                    ("web_search", "green"),
+                    ("memory_kv_get", "green"),
+                    ("memory_kv_list", "green"),
+                    ("memory_semantic_query", "green"),
+                    ("memory_kv_set", "yellow"),
+                    ("cron_schedule", "yellow"),
+                    ("cron_run", "yellow"),
+                    ("cron_cancel", "yellow"),
+                    ("manage_agent", "yellow"),
+                    ("terminal_exec", "red"),
+                    ("spawn_subagents", "red"),
+                ];
+                json!({
+                    "ok": true,
+                    "type": "tool_capability_tiers",
+                    "policy": policy,
+                    "tools": tiers.iter().map(|(tool, tier)| json!({"tool": tool, "tier": tier})).collect::<Vec<_>>()
+                })
+            }
             "/api/tools" => json!({
                 "ok": true,
                 "tools": [
@@ -6744,6 +7537,7 @@ pub fn handle_with_headers(
                     {"cmd": "/browse <url>", "command": "/browse <url>", "desc": "Fetch and summarize a web URL via governed web conduit", "description": "Fetch and summarize a web URL via governed web conduit"},
                     {"cmd": "/search <query>", "command": "/search <query>", "desc": "Search the web with governed web conduit and summarize results", "description": "Search the web with governed web conduit and summarize results"},
                     {"cmd": "/cron", "command": "/cron list | /cron schedule <interval> <message> | /cron run <job_id> | /cron cancel <job_id>", "desc": "Manage agent-owned scheduled jobs", "description": "Manage agent-owned scheduled jobs"},
+                    {"cmd": "/memory query <text>", "command": "/memory query <text>", "desc": "Semantic memory lookup over persisted KV entries", "description": "Semantic memory lookup over persisted KV entries"},
                     {"cmd": "/undo", "command": "/undo", "desc": "Undo the last conversational turn with receipted rollback", "description": "Undo the last conversational turn with receipted rollback"},
                     {"cmd": "/aliases", "command": "/aliases", "desc": "List active slash command aliases", "description": "List active slash command aliases"},
                     {"cmd": "/alias", "command": "/alias <shortcut> <target>", "desc": "Create a custom slash alias", "description": "Create a custom slash alias"}
@@ -6881,4 +7675,6 @@ mod tests {
     include!("config_payload_tests_parts/070-cron-command-routing.rs");
     include!("config_payload_tests_parts/080-conversation-search-includes-archived.rs");
     include!("config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs");
+    include!("config_payload_tests_parts/100-governance-and-semantic-memory.rs");
+    include!("config_payload_tests_parts/110-agent-capability-gauntlet.rs");
 }

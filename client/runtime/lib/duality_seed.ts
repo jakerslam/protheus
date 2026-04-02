@@ -93,6 +93,49 @@ function duality_evaluate(balanceContext: AnyObj = {}, opts: AnyObj = {}) {
   return result && typeof result === 'object' ? result : {};
 }
 
+function dual_voice_evaluate(input: AnyObj = {}, opts: AnyObj = {}) {
+  const args: AnyObj = {
+    context: input && typeof input.context === 'object' ? input.context : {},
+    left: input && typeof input.left === 'object' ? input.left : {},
+    right: input && typeof input.right === 'object' ? input.right : {},
+    opts: opts && typeof opts === 'object' ? opts : {}
+  };
+  if (args.opts.policy_path || args.opts.policyPath) {
+    args.policy_path = String(args.opts.policy_path || args.opts.policyPath || '').trim();
+  }
+  const result = invokeDuality('dual_voice_evaluate', args).result;
+  return result && typeof result === 'object' ? result : {};
+}
+
+function duality_toll_update(input: AnyObj = {}, opts: AnyObj = {}) {
+  const args: AnyObj = {
+    signal: input && typeof input.signal === 'object' ? input.signal : undefined,
+    context: input && typeof input.context === 'object' ? input.context : {},
+    opts: opts && typeof opts === 'object' ? opts : {}
+  };
+  if (!args.signal) delete args.signal;
+  if (args.opts.policy_path || args.opts.policyPath) {
+    args.policy_path = String(args.opts.policy_path || args.opts.policyPath || '').trim();
+  }
+  const result = invokeDuality('duality_toll', args).result;
+  return result && typeof result === 'object' ? result : {};
+}
+
+function duality_memory_tag(input: AnyObj = {}, opts: AnyObj = {}) {
+  const args: AnyObj = {
+    key: typeof input.key === 'string' ? input.key : '',
+    value: Object.prototype.hasOwnProperty.call(input || {}, 'value') ? input.value : null,
+    nodes: Array.isArray(input && input.nodes) ? input.nodes : undefined,
+    opts: opts && typeof opts === 'object' ? opts : {}
+  };
+  if (!args.nodes) delete args.nodes;
+  if (args.opts.policy_path || args.opts.policyPath) {
+    args.policy_path = String(args.opts.policy_path || args.opts.policyPath || '').trim();
+  }
+  const result = invokeDuality('duality_memory_tag', args).result;
+  return result && typeof result === 'object' ? result : {};
+}
+
 function quarantineDualitySeed(inputRaw: AnyObj = {}, opts: AnyObj = {}) {
   const args: AnyObj = {
     input: inputRaw && typeof inputRaw === 'object' ? inputRaw : {}
@@ -119,6 +162,9 @@ module.exports = {
   evaluateDualitySignal,
   registerDualityObservation,
   duality_evaluate,
+  dual_voice_evaluate,
+  duality_toll_update,
+  duality_memory_tag,
   quarantineDualitySeed,
   maybeRunSelfValidation
 };

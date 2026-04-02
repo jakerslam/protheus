@@ -82,16 +82,25 @@ fn error_text_from_value(value: &Value) -> String {
     clean_text(&value.to_string(), 280)
 }
 
+fn clean_chat_text(raw: &str, max_len: usize) -> String {
+    raw.replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .chars()
+        .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
+        .take(max_len)
+        .collect::<String>()
+}
+
 fn extract_openai_text(value: &Value) -> String {
     value
         .pointer("/choices/0/message/content")
         .and_then(Value::as_str)
-        .map(|text| clean_text(text, 32_000))
+        .map(|text| clean_chat_text(text, 32_000))
         .or_else(|| {
             value
                 .pointer("/choices/0/text")
                 .and_then(Value::as_str)
-                .map(|text| clean_text(text, 32_000))
+                .map(|text| clean_chat_text(text, 32_000))
         })
         .unwrap_or_default()
 }
@@ -106,7 +115,7 @@ fn extract_anthropic_text(value: &Value) -> String {
         .filter_map(|row| {
             row.get("text")
                 .and_then(Value::as_str)
-                .map(|v| clean_text(v, 12_000))
+                .map(|v| clean_chat_text(v, 12_000))
         })
         .filter(|text| !text.is_empty())
         .collect::<Vec<_>>()
@@ -123,7 +132,7 @@ fn extract_google_text(value: &Value) -> String {
         .filter_map(|row| {
             row.get("text")
                 .and_then(Value::as_str)
-                .map(|v| clean_text(v, 12_000))
+                .map(|v| clean_chat_text(v, 12_000))
         })
         .filter(|text| !text.is_empty())
         .collect::<Vec<_>>()
@@ -465,5 +474,24 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
             save_registry(root, registry);
             json!({"ok": false, "status": "error", "provider": provider, "error": clean_text(&err, 280)})
         }
+    }
+}
+
+#[cfg(test)]
+mod provider_http_interop_tests {
+    use super::*;
+
+    #[test]
+    fn extract_openai_text_preserves_multiline_list_layout() {
+        let payload = json!({
+            "choices": [{
+                "message": {
+                    "content": "1. First item\n2. Second item\n   - nested detail"
+                }
+            }]
+        });
+        let text = extract_openai_text(&payload);
+        assert!(text.contains("1. First item\n2. Second item"));
+        assert!(text.contains("\n   - nested detail"));
     }
 }

@@ -119,13 +119,20 @@ pub fn clean_seen_id(raw: &str) -> String {
 
 pub fn normalize_meta_value(raw: Option<&Value>) -> Value {
     let obj = raw.and_then(Value::as_object);
-    let last_run = clean_text(obj.and_then(|o| o.get("last_run")).and_then(Value::as_str), 80);
+    let last_run = clean_text(
+        obj.and_then(|o| o.get("last_run")).and_then(Value::as_str),
+        80,
+    );
     let last_success = clean_text(
-        obj.and_then(|o| o.get("last_success")).and_then(Value::as_str),
+        obj.and_then(|o| o.get("last_success"))
+            .and_then(Value::as_str),
         80,
     );
     let mut seen_ids = Vec::new();
-    if let Some(items) = obj.and_then(|o| o.get("seen_ids")).and_then(Value::as_array) {
+    if let Some(items) = obj
+        .and_then(|o| o.get("seen_ids"))
+        .and_then(Value::as_array)
+    {
         for row in items {
             if let Some(raw_id) = row.as_str() {
                 let cleaned = clean_seen_id(raw_id);

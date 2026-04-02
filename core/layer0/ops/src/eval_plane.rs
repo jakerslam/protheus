@@ -61,9 +61,7 @@ fn rl_latest_path(root: &Path) -> PathBuf {
 }
 
 fn rl_history_path(root: &Path) -> PathBuf {
-    state_root(root)
-        .join("rl")
-        .join("infring_v2_history.jsonl")
+    state_root(root).join("rl").join("infring_v2_history.jsonl")
 }
 
 fn emit(root: &Path, payload: Value) -> i32 {

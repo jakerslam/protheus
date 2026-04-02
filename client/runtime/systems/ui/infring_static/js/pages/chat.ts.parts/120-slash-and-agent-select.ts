@@ -240,12 +240,30 @@
       this.scheduleConversationPersist();
     },
 
+    maybeDiscardPendingFreshAgent: function(nextAgentId) {
+      var store = Alpine.store('app');
+      if (!store) return;
+      var pendingId = String(store.pendingFreshAgentId || '').trim();
+      if (!pendingId) return;
+      var currentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
+      var targetId = String(nextAgentId || '').trim();
+      if (!currentId || currentId !== pendingId || !targetId || targetId === pendingId) return;
+      store.pendingFreshAgentId = null;
+      store.pendingAgent = null;
+      InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
+      if (typeof store.refreshAgents === 'function') {
+        setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
+      }
+    },
+
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
+      var selectingSystemThread = this.isSystemThreadAgent(resolved);
       this.closeGitTreeMenu();
       var currentAgentId = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
       var nextAgentId = String((resolved && resolved.id) || '');
+      this.maybeDiscardPendingFreshAgent(nextAgentId);
       if (currentAgentId !== nextAgentId) {
         var activeSearch = String(this.searchQuery || '').trim();
         if (activeSearch) {
@@ -277,10 +295,16 @@
         this.cacheAgentConversation(this.currentAgent.id);
       }
       if (this.currentAgent && this.currentAgent.id === resolved.id) {
+        if (selectingSystemThread) {
+          this.activateSystemThread({ preserve_if_empty: true });
+          return;
+        }
         this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
         this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
         if (forceFreshSession) {
           this.messages = [];
+          this.contextApproxTokens = 0;
+          this.refreshContextPressure();
           this.resetFreshInitStateForAgent(resolved);
           if (this.conversationCache) {
             delete this.conversationCache[String(resolved.id)];
@@ -305,6 +329,10 @@
         }
         return;
       }
+      if (selectingSystemThread) {
+        this.activateSystemThread({ preserve_if_empty: false });
+        return;
+      }
       this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
       if (store) this.setStoreActiveAgentId(resolved.id || null);
       this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
@@ -315,7 +343,11 @@
         InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
       }
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
-      if (!restored) this.messages = [];
+      if (!restored) {
+        this.messages = [];
+        this.contextApproxTokens = 0;
+        this.refreshContextPressure();
+      }
       this.showFreshArchetypeTiles = false;
       this.freshInitRevealMenu = false;
       if (forceFreshSession) {

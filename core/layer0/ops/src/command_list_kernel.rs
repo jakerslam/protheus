@@ -10,25 +10,47 @@ struct CommandItem {
 }
 
 const COMMANDS: &[CommandItem] = &[
-    CommandItem { name: "help", desc: "Show CLI help and command list." },
+    CommandItem {
+        name: "help",
+        desc: "Show CLI help and command list.",
+    },
     CommandItem {
         name: "gateway [start|stop|restart|status] [--gateway-persist=1|0]",
-        desc: "One-command runtime gateway (boots rich dashboard + persistent supervisor by default).",
+        desc:
+            "One-command runtime gateway (boots rich dashboard + persistent supervisor by default).",
     },
-    CommandItem { name: "status", desc: "Show daemon/control-plane status." },
-    CommandItem { name: "dashboard", desc: "Launch unified dashboard web UI (localhost)." },
-    CommandItem { name: "alpha-check", desc: "Run alpha readiness checks." },
-    CommandItem { name: "session <status|register|resume|send|list>", desc: "Manage command-center sessions." },
+    CommandItem {
+        name: "status",
+        desc: "Show daemon/control-plane status.",
+    },
+    CommandItem {
+        name: "dashboard",
+        desc: "Launch unified dashboard web UI (localhost).",
+    },
+    CommandItem {
+        name: "alpha-check",
+        desc: "Run alpha readiness checks.",
+    },
+    CommandItem {
+        name: "session <status|register|resume|send|list>",
+        desc: "Manage command-center sessions.",
+    },
     CommandItem {
         name: "orchestration",
         desc: "Rust-core orchestration invoke surface (coordinator/scratchpad/checkpoint).",
     },
-    CommandItem { name: "swarm-runtime", desc: "Core swarm runtime lanes." },
+    CommandItem {
+        name: "swarm-runtime",
+        desc: "Core swarm runtime lanes.",
+    },
     CommandItem {
         name: "capability-profile",
         desc: "Show hardware-sensed capability shedding profile.",
     },
-    CommandItem { name: "autonomy:swarm:sessions:spawn", desc: "Spawn a governed swarm session." },
+    CommandItem {
+        name: "autonomy:swarm:sessions:spawn",
+        desc: "Spawn a governed swarm session.",
+    },
     CommandItem {
         name: "autonomy:swarm:sessions:send",
         desc: "Send inter-agent message between sessions.",
@@ -101,7 +123,10 @@ const COMMANDS: &[CommandItem] = &[
         name: "autonomy:swarm:demo",
         desc: "Run the optional thin swarm REPL/demo shell over the governed bridge.",
     },
-    CommandItem { name: "version", desc: "Print runtime version and build info." },
+    CommandItem {
+        name: "version",
+        desc: "Print runtime version and build info.",
+    },
 ];
 
 fn parse_args(argv: &[String]) -> (String, bool) {
@@ -184,10 +209,7 @@ mod tests {
 
     #[test]
     fn parse_args_detects_mode_and_json() {
-        let argv = vec![
-            "--mode=help".to_string(),
-            "--json".to_string(),
-        ];
+        let argv = vec!["--mode=help".to_string(), "--json".to_string()];
         let (mode, json_out) = parse_args(&argv);
         assert_eq!(mode, "help");
         assert!(json_out);
@@ -198,7 +220,11 @@ mod tests {
         let out = commands_json();
         let rows = out.as_array().cloned().unwrap_or_default();
         assert!(!rows.is_empty());
-        let first = rows.first().and_then(Value::as_object).cloned().unwrap_or_default();
+        let first = rows
+            .first()
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
         assert_eq!(first.get("name").and_then(Value::as_str), Some("help"));
     }
 }

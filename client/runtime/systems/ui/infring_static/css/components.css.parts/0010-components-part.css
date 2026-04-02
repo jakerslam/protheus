@@ -204,6 +204,58 @@
   z-index: 3;
 }
 
+.chat-memory-warning {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 32px);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border) 66%);
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+.chat-memory-warning-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 86%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 24%, transparent);
+  flex: 0 0 auto;
+}
+
+.chat-memory-warning-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(520px, 68vw);
+}
+
+.chat-memory-warning-action {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.chat-memory-warning-action:hover {
+  text-decoration: underline;
+}
+
 .prompt-queue-row {
   display: flex;
   flex-direction: column;
@@ -351,11 +403,11 @@
   box-shadow: none;
   cursor: pointer;
   transition:
-    max-height 0.12s var(--ease-smooth),
-    padding 0.1s var(--ease-smooth),
-    border-color 0.1s var(--ease-smooth),
-    opacity 0.1s var(--ease-smooth),
-    background 0.1s var(--ease-smooth);
+    max-height 0.06s var(--ease-smooth),
+    padding 0.05s var(--ease-smooth),
+    border-color 0.05s var(--ease-smooth),
+    opacity 0.05s var(--ease-smooth),
+    background 0.05s var(--ease-smooth);
   flex: 0 0 var(--prompt-suggestion-chip-width);
   width: var(--prompt-suggestion-chip-width);
   min-width: 0;
@@ -369,9 +421,31 @@
   will-change: max-height;
 }
 
+.prompt-suggestion-chip-rise {
+  animation: promptSuggestionSpawnRise 0.12s var(--ease-smooth) both;
+  animation-delay: var(--prompt-suggestion-entry-delay, 0ms);
+}
+
+@keyframes promptSuggestionSpawnRise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(2px);
+  }
+  78% {
+    opacity: 0.96;
+    filter: blur(0.4px);
+  }
+  100% {
+    opacity: 0.9;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 .prompt-suggestion-chip-text {
   display: inline-block;
-  transition: opacity 0.1s var(--ease-smooth), filter 0.1s var(--ease-smooth);
+  transition: opacity 0.05s var(--ease-smooth), filter 0.05s var(--ease-smooth);
   filter: blur(0);
 }
 
@@ -391,7 +465,7 @@
 }
 
 .prompt-suggestion-chip.is-resizing .prompt-suggestion-chip-text {
-  animation: promptSuggestionTextHoverBlur 0.14s var(--ease-smooth) forwards;
+  animation: promptSuggestionTextHoverBlur 0.07s var(--ease-smooth) forwards;
 }
 
 .prompt-suggestion-chip:not(.is-resizing) .prompt-suggestion-chip-text {

@@ -78,7 +78,9 @@ fn default_milestones() -> Vec<f64> {
 
 fn usage() {
     println!("rust-hotpath-inventory-kernel commands:");
-    println!("  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]");
+    println!(
+        "  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]"
+    );
 }
 
 fn print_json_line(value: &Value) {
@@ -159,14 +161,13 @@ fn is_js_ext(ext: &str) -> bool {
 }
 
 fn runtime_rel_path(rel_path: &str) -> &str {
-    rel_path
-        .strip_prefix("client/runtime/")
-        .unwrap_or(rel_path)
+    rel_path.strip_prefix("client/runtime/").unwrap_or(rel_path)
 }
 
 fn in_scan_roots(rel_path: &str, roots: &[String]) -> bool {
     let runtime = runtime_rel_path(rel_path);
-    roots.iter()
+    roots
+        .iter()
         .map(|row| row.trim())
         .filter(|row| !row.is_empty())
         .any(|root| runtime == root || runtime.starts_with(&format!("{root}/")))
@@ -179,10 +180,13 @@ fn dirname_posix(rel_path: &str) -> String {
         .unwrap_or_else(|| ".".to_string())
 }
 
-fn sort_path_then_lines_desc(a_lines: usize, a_path: &str, b_lines: usize, b_path: &str) -> Ordering {
-    b_lines
-        .cmp(&a_lines)
-        .then_with(|| a_path.cmp(b_path))
+fn sort_path_then_lines_desc(
+    a_lines: usize,
+    a_path: &str,
+    b_lines: usize,
+    b_path: &str,
+) -> Ordering {
+    b_lines.cmp(&a_lines).then_with(|| a_path.cmp(b_path))
 }
 
 fn is_thin_bridge(path: &str, ext: &str, text: &str) -> bool {
@@ -308,12 +312,14 @@ fn build_inventory(root: &Path, policy_path: &Path, policy: &Policy) -> Result<V
 
     let rust_percent_code_scope = ((tracked_rs_lines as f64)
         / ((tracked_rs_lines + tracked_non_rust_code_lines).max(1) as f64)
-        * 100.0 * 100.0)
+        * 100.0
+        * 100.0)
         .round()
         / 100.0;
     let rust_percent_ts_scope = ((tracked_rs_lines as f64)
         / ((tracked_rs_lines + tracked_ts_lines).max(1) as f64)
-        * 100.0 * 100.0)
+        * 100.0
+        * 100.0)
         .round()
         / 100.0;
 
@@ -447,8 +453,14 @@ mod tests {
     #[test]
     fn in_scan_roots_handles_runtime_prefix() {
         let roots = vec!["systems".to_string(), "lib".to_string()];
-        assert!(in_scan_roots("client/runtime/systems/ui/infring_dashboard.ts", &roots));
-        assert!(in_scan_roots("client/runtime/lib/rust_lane_bridge.ts", &roots));
+        assert!(in_scan_roots(
+            "client/runtime/systems/ui/infring_dashboard.ts",
+            &roots
+        ));
+        assert!(in_scan_roots(
+            "client/runtime/lib/rust_lane_bridge.ts",
+            &roots
+        ));
         assert!(!in_scan_roots("client/cognition/foo.ts", &roots));
     }
 }

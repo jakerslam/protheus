@@ -135,7 +135,10 @@ pub fn curl_fetch_with_status(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         let code = classify_curl_transport_error(&stderr);
-        return Err(format!("{code}:{}", lane_utils::clean_text(Some(&stderr), 220)));
+        return Err(format!(
+            "{code}:{}",
+            lane_utils::clean_text(Some(&stderr), 220)
+        ));
     }
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let marker = "\n__PROTHEUS_STATUS__:";
@@ -275,8 +278,14 @@ mod tests {
             "max_items": 999,
         });
         let out = resolve_controls(payload.as_object().expect("payload object"));
-        assert_eq!(out.get("collector_id").and_then(Value::as_str), Some("feed-alpha"));
-        assert_eq!(out.get("scope").and_then(Value::as_str), Some("sensory.collector.feed_alpha"));
+        assert_eq!(
+            out.get("collector_id").and_then(Value::as_str),
+            Some("feed-alpha")
+        );
+        assert_eq!(
+            out.get("scope").and_then(Value::as_str),
+            Some("sensory.collector.feed_alpha")
+        );
         assert_eq!(out.get("attempts").and_then(Value::as_u64), Some(5));
         assert_eq!(out.get("max_items").and_then(Value::as_u64), Some(200));
         let feeds = out

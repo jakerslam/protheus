@@ -299,6 +299,26 @@ fn persist_autonomy_run_row(
         || result
             .to_ascii_lowercase()
             .starts_with("no_candidates_policy_");
+    let duality = receipt
+        .get("duality")
+        .and_then(Value::as_object)
+        .map(|bundle| {
+            json!({
+                "toll": bundle.get("toll").cloned().unwrap_or(Value::Null),
+                "dual_voice": bundle.get("dual_voice").cloned().unwrap_or(Value::Null),
+                "fractal_balance_score": bundle
+                    .get("fractal_balance_score")
+                    .cloned()
+                    .unwrap_or(Value::Null)
+            })
+        })
+        .unwrap_or_else(|| {
+            json!({
+                "toll": Value::Null,
+                "dual_voice": Value::Null,
+                "fractal_balance_score": Value::Null
+            })
+        });
     let row = json!({
         "ts": ts,
         "type": "autonomy_run",
@@ -311,7 +331,8 @@ fn persist_autonomy_run_row(
         "policy_hold": policy_hold,
         "policy_hold_reason": policy_hold_reason,
         "route_block_reason": route_block_reason,
-        "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::Null)
+        "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::Null),
+        "duality": duality
     });
     append_jsonl(&autonomy_runs_path(root, &day), &row)?;
     Ok(row)
@@ -348,6 +369,152 @@ fn load_provider_policy(root: &Path) -> Value {
             "max_cost_per_cycle_usd": 0.50
         })
     })
+}
+
+fn as_f64(value: Option<&Value>, fallback: f64) -> f64 {
+    value.and_then(Value::as_f64).unwrap_or(fallback)
+}
+
+fn autonomy_duality_clearance_tier(toll: &Value, harmony: f64) -> i64 {
+    let hard_block = toll
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if hard_block {
+        return 1;
+    }
+    let debt_after = as_f64(toll.get("debt_after"), 0.0).clamp(0.0, 100.0);
+    if debt_after >= 0.75 {
+        2
+    } else if debt_after <= 0.2 && harmony >= 0.85 {
+        4
+    } else {
+        3
+    }
+}
+
+fn autonomy_duality_bundle(
+    root: &Path,
+    lane: &str,
+    source: &str,
+    run_id: &str,
+    context: &Value,
+    persist: bool,
+) -> Value {
+    let mut base_context = serde_json::Map::new();
+    base_context.insert("lane".to_string(), Value::String(lane.to_string()));
+    base_context.insert("source".to_string(), Value::String(source.to_string()));
+    base_context.insert("run_id".to_string(), Value::String(run_id.to_string()));
+    if let Some(obj) = context.as_object() {
+        for (k, v) in obj {
+            base_context.insert(k.clone(), v.clone());
+        }
+    }
+
+    let evaluation = match crate::duality_seed::invoke(
+        root,
+        "duality_evaluate",
+        Some(&json!({
+            "context": Value::Object(base_context.clone()),
+            "opts": {
+                "persist": persist,
+                "lane": lane,
+                "source": source,
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "autonomy_duality_bundle",
+                "error": format!("duality_evaluate_failed:{err}")
+            });
+        }
+    };
+
+    let dual_voice = crate::duality_seed::invoke(
+        root,
+        "dual_voice_evaluate",
+        Some(&json!({
+            "context": Value::Object(base_context.clone()),
+            "left": {
+                "policy_lens": "guardian",
+                "focus": "structured_reasoning"
+            },
+            "right": {
+                "policy_lens": "strategist",
+                "focus": "creative_inversion"
+            },
+            "opts": {
+                "persist": persist,
+                "source": source,
+                "run_id": run_id
+            }
+        })),
+    )
+    .unwrap_or_else(|_| json!({"ok": false, "type": "duality_dual_voice_evaluation"}));
+
+    let toll_update = match crate::duality_seed::invoke(
+        root,
+        "duality_toll_update",
+        Some(&json!({
+            "context": Value::Object(base_context),
+            "signal": evaluation.clone(),
+            "opts": {
+                "persist": persist,
+                "source": source,
+                "run_id": run_id
+            }
+        })),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "type": "autonomy_duality_bundle",
+                "evaluation": evaluation,
+                "dual_voice": dual_voice,
+                "error": format!("duality_toll_update_failed:{err}")
+            });
+        }
+    };
+
+    let toll = toll_update.get("toll").cloned().unwrap_or_else(|| json!({}));
+    let harmony = as_f64(
+        dual_voice.get("harmony"),
+        as_f64(evaluation.get("zero_point_harmony_potential"), 0.0),
+    )
+    .clamp(0.0, 1.0);
+    let debt_after = as_f64(toll.get("debt_after"), 0.0).clamp(0.0, 100.0);
+    let hard_block = toll
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let recommended_clearance_tier = autonomy_duality_clearance_tier(&toll, harmony);
+
+    json!({
+        "ok": true,
+        "type": "autonomy_duality_bundle",
+        "lane": lane,
+        "source": source,
+        "run_id": run_id,
+        "evaluation": evaluation,
+        "dual_voice": dual_voice,
+        "toll": toll,
+        "state": toll_update.get("state").cloned().unwrap_or(Value::Null),
+        "hard_block": hard_block,
+        "recommended_clearance_tier": recommended_clearance_tier,
+        "fractal_balance_score": ((harmony * (1.0 - debt_after.min(1.0))) * 1_000_000.0).round() / 1_000_000.0
+    })
+}
+
+fn autonomy_duality_hard_block(duality: &Value) -> bool {
+    duality
+        .get("hard_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn conduit_guard(argv: &[String], strict: bool) -> Option<Value> {
@@ -399,4 +566,3 @@ fn emit_receipt(root: &Path, value: &mut Value) -> i32 {
         }
     }
 }
-

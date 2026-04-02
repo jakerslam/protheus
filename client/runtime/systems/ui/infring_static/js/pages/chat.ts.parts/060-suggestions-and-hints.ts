@@ -16,96 +16,127 @@
       return out;
     },
 
-	    derivePromptSuggestionFallback(agent, hint, gateContext) {
-	      var rows = [];
-	      var compact = function(value, maxLen) {
-	        var cap = Number(maxLen || 180);
-	        var text = String(value == null ? '' : value)
+    derivePromptSuggestionFallback(agent, hint, gateContext) {
+      var rows = [];
+      var compact = function(value, maxLen) {
+        var cap = Number(maxLen || 220);
+        var text = String(value == null ? '' : value)
           .replace(/^\s*(?:agent|assistant|system|user|jarvis)\s*:\s*/i, '')
           .replace(/\s+/g, ' ')
           .trim();
-	        if (!text) return '';
-	        if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
-	        return text;
-	      };
-	      var clampWords = function(value, maxWords) {
-	        var cap = Number(maxWords || 5);
-	        if (!Number.isFinite(cap) || cap < 2) cap = 5;
-	        var words = String(value == null ? '' : value).trim().split(/\s+/g).filter(Boolean);
-	        if (!words.length) return '';
-	        if (words.length <= cap) return words.join(' ');
-	        return words.slice(0, cap).join(' ');
-	      };
-	      var stopWords = {
-	        a: true, an: true, and: true, are: true, as: true, at: true, be: true, can: true, could: true,
-	        do: true, for: true, from: true, how: true, i: true, in: true, into: true, is: true, it: true,
-	        me: true, my: true, now: true, of: true, on: true, or: true, please: true, should: true, that: true,
-	        the: true, then: true, this: true, to: true, we: true, what: true, when: true, where: true, why: true,
-	        with: true, would: true, you: true, your: true
-	      };
-	      var compactTopic = function(value, maxWords) {
-	        var tokens = String(value == null ? '' : value)
-	          .toLowerCase()
-	          .replace(/[^a-z0-9_:-]+/g, ' ')
-	          .split(/\s+/g)
-	          .filter(function(token) {
-	            return !!(token && token.length >= 3 && !stopWords[token]);
-	          })
-	          .slice(0, Number(maxWords || 3));
-	        return tokens.join(' ');
-	      };
-	      var styleSuggestion = function(body) {
-	        var text = clampWords(compact(body || '', 240), 5);
-	        if (!text) return '';
-	        return text.charAt(0).toUpperCase() + text.slice(1);
-	      };
-	      var _hint = hint;
+        if (!text) return '';
+        if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
+        return text;
+      };
+      var stopWords = {
+        a: true, about: true, an: true, and: true, are: true, as: true, at: true, be: true, can: true, compare: true,
+        continue: true, could: true, do: true, explain: true, finish: true, for: true, from: true, help: true, how: true,
+        i: true, in: true, into: true, is: true, it: true, me: true, my: true, now: true, of: true, on: true, or: true,
+        please: true, respond: true, should: true, so: true, tell: true, test: true, that: true, the: true, then: true,
+        this: true, to: true, us: true, validate: true, verify: true, we: true, what: true, when: true, where: true, why: true,
+        with: true, would: true, you: true, your: true
+      };
+      var trimTrailingJoiners = function(text) {
+        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
+        while (words.length > 1) {
+          var tail = String(words[words.length - 1] || '').replace(/[^a-z0-9_-]+/gi, '').toLowerCase();
+          if (!tail || /^(and|or|to|with|for|from|via|then|than|versus|vs)$/i.test(tail)) {
+            words.pop();
+            continue;
+          }
+          break;
+        }
+        return words.join(' ');
+      };
+      var clampWords = function(value, maxWords) {
+        var cap = Number(maxWords || 10);
+        if (!Number.isFinite(cap) || cap < 3) cap = 10;
+        var words = String(value == null ? '' : value).trim().split(/\s+/g).filter(Boolean);
+        if (!words.length) return '';
+        if (words.length > cap) words = words.slice(0, cap);
+        return trimTrailingJoiners(words.join(' '));
+      };
+      var topicFromText = function(value, maxWords) {
+        var tokens = String(value == null ? '' : value)
+          .toLowerCase()
+          .replace(/[^a-z0-9_:-]+/g, ' ')
+          .split(/\s+/g)
+          .filter(function(token) {
+            return !!(token && token.length >= 3 && !stopWords[token]);
+          })
+          .slice(0, Number(maxWords || 3));
+        return trimTrailingJoiners(tokens.join(' '));
+      };
+      var styleSuggestion = function(body) {
+        var text = clampWords(compact(body || '', 240), 10);
+        if (!text) return '';
+        if (!/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(text)) {
+          text = 'Can you ' + text.replace(/^(can|could|would|should)\s+you\s+/i, '');
+        }
+        text = clampWords(text, 10);
+        if (!text) return '';
+        text = text.replace(/[.!?]+$/g, '').trim();
+        if (!text) return '';
+        text = text.charAt(0).toUpperCase() + text.slice(1);
+        if (!/[?!]$/.test(text)) text += '?';
+        return text;
+      };
+      var addTemplateRows = function(topic) {
+        var seed = topicFromText(topic, 4);
+        if (!seed) return;
+        rows.push('Tell me more about ' + seed);
+        rows.push('What are next steps for ' + seed);
+        rows.push('Can you verify ' + seed + ' works');
+        rows.push('Can you explain tradeoffs for ' + seed);
+      };
+      var _hint = hint;
 
-	      var context = this.collectPromptSuggestionContext();
-	      var history = Array.isArray(context.history) ? context.history.slice(-7) : [];
+      var context = this.collectPromptSuggestionContext();
+      var history = Array.isArray(context.history) ? context.history.slice(-7) : [];
+      var userRows = history
+        .filter(function(entry) { return String(entry && entry.role || '').toLowerCase() === 'user'; })
+        .map(function(entry) { return compact(entry && entry.text || '', 220); })
+        .filter(Boolean)
+        .slice(-5);
 
-	      var userRows = history
-	        .filter(function(entry) { return String(entry && entry.role || '').toLowerCase() === 'user'; })
-	        .map(function(entry) { return compact(entry && entry.text || '', 220); })
-	        .filter(Boolean)
-	        .slice(-5);
-	      var keywordCounts = {};
-	      history.forEach(function(entry) {
-	        var text = compact(entry && entry.text || '', 320).toLowerCase();
-	        text.split(/[^a-z0-9_-]+/g).forEach(function(word) {
-	          if (!word || word.length < 4 || stopWords[word]) return;
-	          keywordCounts[word] = (keywordCounts[word] || 0) + 1;
-	        });
-	      });
-	      var keywords = Object.keys(keywordCounts).sort(function(a, b) {
-	        var dc = Number(keywordCounts[b] || 0) - Number(keywordCounts[a] || 0);
-	        if (dc !== 0) return dc;
-	        return a.localeCompare(b);
-	      }).slice(0, 4);
-	      var topicLabel = '';
-	      if (userRows.length) {
-	        topicLabel = compactTopic(userRows[userRows.length - 1], 3);
-	      }
-	      if (!topicLabel && keywords.length) {
-	        topicLabel = keywords.slice(0, 3).join(' ');
-	      }
-	      if (!topicLabel && history.length) {
-	        topicLabel = compactTopic((history[history.length - 1] && history[history.length - 1].text) || '', 3);
-	      }
-	      if (!topicLabel) return [];
-	      rows.push('finish ' + topicLabel);
-	      rows.push('verify ' + topicLabel);
-	      rows.push('test ' + topicLabel);
-	      rows.push('continue ' + topicLabel);
-	      if (keywords.length >= 2) rows.push('compare ' + keywords[0] + ' ' + keywords[1]);
+      var keywordCounts = {};
+      history.forEach(function(entry) {
+        var text = compact(entry && entry.text || '', 320).toLowerCase();
+        text.split(/[^a-z0-9_-]+/g).forEach(function(word) {
+          if (!word || word.length < 4 || stopWords[word]) return;
+          keywordCounts[word] = (keywordCounts[word] || 0) + 1;
+        });
+      });
+      var keywords = Object.keys(keywordCounts).sort(function(a, b) {
+        var dc = Number(keywordCounts[b] || 0) - Number(keywordCounts[a] || 0);
+        if (dc !== 0) return dc;
+        return a.localeCompare(b);
+      }).slice(0, 5);
 
-	      var styledRows = rows.map(styleSuggestion).filter(Boolean);
-	      var normalized = this.normalizePromptSuggestions(
-	        styledRows,
-	        String(gateContext || String(context.signature || ''))
-	      );
-	      return normalized.slice(0, 3);
-	    },
+      var primaryTopic = '';
+      if (userRows.length) primaryTopic = topicFromText(userRows[userRows.length - 1], 4);
+      if (!primaryTopic && keywords.length) primaryTopic = topicFromText(keywords.slice(0, 3).join(' '), 4);
+      if (!primaryTopic && history.length) {
+        primaryTopic = topicFromText((history[history.length - 1] && history[history.length - 1].text) || '', 4);
+      }
+      if (!primaryTopic) return [];
+
+      addTemplateRows(primaryTopic);
+      if (keywords.length >= 2) rows.push('Compare ' + keywords[0] + ' versus ' + keywords[1]);
+      if (userRows.length >= 2) {
+        var priorTopic = topicFromText(userRows[userRows.length - 2], 4);
+        if (priorTopic && priorTopic !== primaryTopic) {
+          rows.push('Compare ' + primaryTopic + ' versus ' + priorTopic);
+        }
+      }
+
+      var styledRows = rows.map(styleSuggestion).filter(Boolean);
+      var normalized = this.normalizePromptSuggestions(
+        styledRows,
+        String(gateContext || String(context.signature || ''))
+      );
+      return normalized.slice(0, 3);
+    },
 
     collectPromptSuggestionContext() {
       var out = { lastUser: '', lastAgent: '', history: [], signature: '' };
@@ -175,6 +206,7 @@
     },
 
     hasConversationSuggestionSeed() {
+      if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) return false;
       var context = this.collectPromptSuggestionContext();
       var count = Array.isArray(context && context.history) ? context.history.length : 0;
       return count >= 7;

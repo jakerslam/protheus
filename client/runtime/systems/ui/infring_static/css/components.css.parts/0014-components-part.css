@@ -31,6 +31,26 @@
   animation: agent-expiry-pulse 0.82s ease-in-out infinite;
 }
 
+.nav-item.nav-agent-row.drop-before,
+.nav-item.nav-agent-row.drop-after {
+  position: relative;
+}
+
+.nav-item.nav-agent-row.drop-before::before,
+.nav-item.nav-agent-row.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--user-bg) 88%, var(--accent) 12%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--user-border-top, var(--accent)) 58%, transparent);
+}
+
+.nav-item.nav-agent-row.drop-before::before { top: -2px; }
+.nav-item.nav-agent-row.drop-after::after { bottom: -2px; }
+
 @keyframes agent-expiry-pulse {
   0% { opacity: 1; }
   50% { opacity: 0.42; }

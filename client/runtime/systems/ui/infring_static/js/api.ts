@@ -191,7 +191,7 @@ var InfringAPI = (function() {
           return attemptRequest(attempt + 1);
         }
         if (isFetchDisconnectError(e)) {
-          setConnectionState('disconnected');
+          setConnectionState('reconnecting');
           throw new Error('Cannot connect to daemon after 5 attempts — is infring running?');
         }
         throw e;
@@ -211,9 +211,11 @@ var InfringAPI = (function() {
   var _wsCallbacks = {};
   var _wsConnected = false;
   var _wsAgentId = null;
+  var _wsManualDisconnect = false;
   var _reconnectTimer = null;
   var _reconnectAttempts = 0;
-  var MAX_RECONNECT = 5;
+  var MAX_RECONNECT = Number.MAX_SAFE_INTEGER;
+  var WS_RECONNECT_DELAY_MS = 1000;
   var _wsLastSignal = { key: '', ts: 0 };
 
   function shouldEmitWsSignal(key, windowMs) {
@@ -226,9 +228,10 @@ var InfringAPI = (function() {
   }
 
   function wsConnect(agentId, callbacks) {
-    wsDisconnect();
+    wsDisconnect(false);
     _wsCallbacks = callbacks || {};
     _wsAgentId = agentId;
+    _wsManualDisconnect = false;
     _reconnectAttempts = 0;
     _doConnect(agentId);
   }
@@ -259,22 +262,43 @@ var InfringAPI = (function() {
       _ws.onclose = function(e) {
         _wsConnected = false;
         _ws = null;
+        if (_wsManualDisconnect) {
+          if (_wsCallbacks.onClose && shouldEmitWsSignal('close:manual:' + String(e.code || 0), 1200)) {
+            _wsCallbacks.onClose();
+          }
+          return;
+        }
         if (_wsAgentId && _reconnectAttempts < MAX_RECONNECT && e.code !== 1000) {
           _reconnectAttempts++;
           _reconnectAttempt = _reconnectAttempts;
           setConnectionState('reconnecting');
-          _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, 1000);
-          if (_wsCallbacks.onClose && shouldEmitWsSignal('close:reconnecting:' + String(e.code || 0), 900)) _wsCallbacks.onClose();
+          _reconnectTimer = setTimeout(function() { _doConnect(_wsAgentId); }, WS_RECONNECT_DELAY_MS);
+          if (_wsCallbacks.onReconnect && shouldEmitWsSignal('reconnect:' + String(e.code || 0), 900)) {
+            _wsCallbacks.onReconnect({
+              code: Number(e && e.code ? e.code : 0),
+              attempt: _reconnectAttempts
+            });
+          }
           return;
         }
         if (_wsAgentId && _reconnectAttempts >= MAX_RECONNECT) {
-          setConnectionState('disconnected');
+          setConnectionState('reconnecting');
         }
         if (_wsCallbacks.onClose && shouldEmitWsSignal('close:terminal:' + String(e.code || 0), 1200)) _wsCallbacks.onClose();
       };
 
       _ws.onerror = function() {
         _wsConnected = false;
+        if (!_wsManualDisconnect && _wsAgentId) {
+          setConnectionState('reconnecting');
+          if (_wsCallbacks.onReconnect && shouldEmitWsSignal('reconnect:error:' + String(_wsAgentId || ''), 900)) {
+            _wsCallbacks.onReconnect({
+              code: 0,
+              attempt: _reconnectAttempts
+            });
+          }
+          return;
+        }
         if (_wsCallbacks.onError && shouldEmitWsSignal('error:' + String(_wsAgentId || ''), 1200)) _wsCallbacks.onError();
       };
     } catch(e) {
@@ -282,7 +306,8 @@ var InfringAPI = (function() {
     }
   }
 
-  function wsDisconnect() {
+  function wsDisconnect(manual) {
+    _wsManualDisconnect = manual !== false;
     _wsAgentId = null;
     _reconnectAttempts = MAX_RECONNECT;
     if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }

@@ -201,8 +201,7 @@ function spawnBackend(flags) {
     PROTHEUS_OPS_ALLOW_STALE: process.env.PROTHEUS_OPS_ALLOW_STALE || '1',
     PROTHEUS_NPM_ALLOW_STALE: process.env.PROTHEUS_NPM_ALLOW_STALE || '1',
   };
-  const explicitBin = cleanText(env.PROTHEUS_NPM_BINARY || '', 600);
-  const bin = explicitBin || resolveBinary({ env });
+  const bin = resolveBinary({ env });
   if (!bin) throw new Error('dashboard_backend_binary_missing');
   const child = spawn(bin, laneArgs, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
   if (child.stdout) child.stdout.on('data', (chunk) => process.stdout.write(chunk));

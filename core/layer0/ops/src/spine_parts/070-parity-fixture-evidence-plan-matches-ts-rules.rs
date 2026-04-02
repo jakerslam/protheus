@@ -40,6 +40,76 @@ mod tests {
     }
 
     #[test]
+    fn spine_duality_gate_hard_block_sets_clearance_floor() {
+        let root = tempdir().expect("tempdir");
+        let config_dir = root.path().join("client/runtime/config");
+        let state_dir = root.path().join("local/state/autonomy/duality");
+        fs::create_dir_all(&config_dir).expect("config dir");
+        fs::create_dir_all(&state_dir).expect("state dir");
+
+        fs::write(
+            config_dir.join("duality_codex.txt"),
+            "order/chaos harmonization\nzero point\n",
+        )
+        .expect("codex");
+        fs::write(
+            config_dir.join("duality_seed_policy.json"),
+            serde_json::to_string_pretty(&json!({
+                "enabled": true,
+                "shadow_only": true,
+                "advisory_only": true,
+                "toll_enabled": true,
+                "toll_debt_step": 0.2,
+                "toll_recovery_step": 0.01,
+                "toll_hard_block_threshold": 0.5,
+                "codex_path": "client/runtime/config/duality_codex.txt",
+                "state": {
+                    "latest_path": "local/state/autonomy/duality/latest.json",
+                    "history_path": "local/state/autonomy/duality/history.jsonl"
+                },
+                "outputs": { "persist_shadow_receipts": true, "persist_observations": true }
+            }))
+            .expect("policy encode"),
+        )
+        .expect("policy");
+        fs::write(
+            state_dir.join("latest.json"),
+            serde_json::to_string_pretty(&json!({
+                "version": "v1",
+                "seed_confidence": 1.0,
+                "toll_debt": 5.0,
+                "toll_events_total": 2
+            }))
+            .expect("state encode"),
+        )
+        .expect("state");
+
+        let prior_clearance = std::env::var("CLEARANCE").ok();
+        std::env::set_var("CLEARANCE", "4");
+
+        let gate = run_spine_duality_gate(
+            root.path(),
+            "spine-run-hard-block",
+            "daily",
+            "2026-03-31",
+            "heartbeat",
+        );
+        assert_eq!(gate.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(gate.get("hard_block").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            gate.pointer("/clearance/after").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(std::env::var("CLEARANCE").ok().as_deref(), Some("1"));
+
+        if let Some(value) = prior_clearance {
+            std::env::set_var("CLEARANCE", value);
+        } else {
+            std::env::remove_var("CLEARANCE");
+        }
+    }
+
+    #[test]
     fn terminal_failure_receipt_is_emitted_with_claim_evidence_and_hash() {
         let root = tempdir().expect("tempdir");
         let cli = CliArgs {
@@ -419,5 +489,4 @@ mod tests {
         std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
     }
 }
-
 

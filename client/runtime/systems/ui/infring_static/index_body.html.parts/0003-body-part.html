@@ -187,14 +187,22 @@
             </div>
           </template>
           <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">
-            <div class="loading-state">
-              <div class="spinner"></div>
-              <span>Loading agents...</span>
+            <div class="chat-loading-overlay">
+              <div class="chat-loading-overlay-content">
+                <div class="spinner"></div>
+                <span>Loading agents...</span>
+              </div>
             </div>
           </template>
 
           <template x-if="currentAgent">
             <div class="chat-thread-shell">
+              <div class="chat-loading-overlay" x-show="sessionLoading">
+                <div class="chat-loading-overlay-content">
+                  <div class="spinner"></div>
+                  <span>Loading chat...</span>
+                </div>
+              </div>
               <div class="chat-thread" :class="{ 'chat-thread-loading': sessionLoading }">
                 <template x-for="(msg, idx) in messages" :key="messageRenderKey(msg, idx)">
                   <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">

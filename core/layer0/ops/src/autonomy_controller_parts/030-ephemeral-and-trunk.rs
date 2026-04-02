@@ -45,6 +45,29 @@ fn run_ephemeral(root: &Path, argv: &[String]) -> i32 {
         )),
         "ephemeral-run",
     );
+    let duality = autonomy_duality_bundle(
+        root,
+        "weaver_arbitration",
+        "autonomy_ephemeral_run",
+        &run_id,
+        &json!({
+            "goal": goal.clone(),
+            "domain": domain.clone(),
+            "ui_leaf": ui_leaf
+        }),
+        true,
+    );
+    if strict && autonomy_duality_hard_block(&duality) {
+        let mut out = json!({
+            "ok": false,
+            "type": "autonomy_ephemeral_run",
+            "lane": LANE_ID,
+            "strict": strict,
+            "error": "duality_toll_hard_block",
+            "duality": duality
+        });
+        return emit_receipt(root, &mut out);
+    }
     let run = json!({
         "run_id": run_id,
         "goal": goal,
@@ -111,6 +134,7 @@ fn run_ephemeral(root: &Path, argv: &[String]) -> i32 {
         "lane": LANE_ID,
         "strict": strict,
         "run": run,
+        "duality": duality,
         "trunk": trunk,
         "artifact": {
             "run_path": run_path.display().to_string()
@@ -364,6 +388,22 @@ fn run_extended_autonomy_lane(
         "root": root.to_string_lossy().to_string()
     });
 
+    let duality = autonomy_duality_bundle(
+        root,
+        "weaver_arbitration",
+        command,
+        &format!("{}-{}-{}", command, action, now_iso().chars().take(19).collect::<String>()),
+        &json!({
+            "action": action.clone(),
+            "date": date.clone(),
+            "days": days,
+            "write": write
+        }),
+        true,
+    );
+    let duality_hard_block = autonomy_duality_hard_block(&duality);
+    out["duality"] = duality;
+
     match command {
         "non-yield-ledger-backfill" => {
             out["counts"] = json!({
@@ -430,6 +470,11 @@ fn run_extended_autonomy_lane(
         _ => {}
     }
 
+    if strict && duality_hard_block {
+        out["ok"] = Value::Bool(false);
+        out["error"] = Value::String("duality_toll_hard_block".to_string());
+    }
+
     out["claim_evidence"] = json!([
         {
             "id": format!("{}_native_lane", command.replace('-', "_")),
@@ -442,6 +487,9 @@ fn run_extended_autonomy_lane(
     ]);
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     print_json_line(&out);
-    0
+    if strict && duality_hard_block {
+        2
+    } else {
+        0
+    }
 }
-

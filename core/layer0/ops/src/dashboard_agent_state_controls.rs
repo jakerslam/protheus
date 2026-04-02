@@ -4,7 +4,8 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const AGENT_SESSIONS_DIR_REL: &str = "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
+const AGENT_SESSIONS_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
 
 fn now_iso() -> String {
     crate::now_iso()
@@ -78,6 +79,65 @@ fn write_json(path: &Path, value: &Value) {
     }
 }
 
+fn value_search_text(value: &Value, max_len: usize) -> String {
+    match value {
+        Value::Null => String::new(),
+        Value::Bool(v) => {
+            if *v {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        Value::Number(v) => clean_text(&v.to_string(), max_len),
+        Value::String(v) => clean_text(v, max_len),
+        _ => clean_text(&value.to_string(), max_len),
+    }
+}
+
+fn query_tokens(query: &str, max_tokens: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = std::collections::HashSet::<String>::new();
+    for token in clean_text(query, 600)
+        .to_ascii_lowercase()
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.'))
+    {
+        let normalized = token.trim();
+        if normalized.len() < 2 {
+            continue;
+        }
+        if seen.insert(normalized.to_string()) {
+            out.push(normalized.to_string());
+        }
+        if out.len() >= max_tokens.max(1) {
+            break;
+        }
+    }
+    out
+}
+
+fn memory_semantic_score(key: &str, value_text: &str, query_tokens: &[String]) -> i64 {
+    if query_tokens.is_empty() {
+        return 0;
+    }
+    let key_lc = clean_text(key, 240).to_ascii_lowercase();
+    let value_lc = clean_text(value_text, 2000).to_ascii_lowercase();
+    let mut score = 0i64;
+    for token in query_tokens {
+        if key_lc == *token {
+            score += 8;
+            continue;
+        }
+        if key_lc.contains(token) {
+            score += 5;
+        }
+        if value_lc.contains(token) {
+            score += 3;
+        }
+    }
+    score
+}
+
 fn as_array_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     if !root.get(key).map(Value::is_array).unwrap_or(false) {
         root[key] = Value::Array(Vec::new());
@@ -94,6 +154,23 @@ fn as_object_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Map<String, Valu
     root.get_mut(key)
         .and_then(Value::as_object_mut)
         .expect("object shape")
+}
+
+fn duality_memory_tags(root: &Path, key: &str, value: &Value) -> Value {
+    let payload = json!({
+        "key": key,
+        "value": value
+    });
+    match crate::duality_seed::invoke(root, "duality_memory_tag", Some(&payload)) {
+        Ok(out) => out
+            .get("nodes")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("duality_tags"))
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        Err(_) => json!({}),
+    }
 }
 
 fn sessions_dir(root: &Path) -> PathBuf {
@@ -156,10 +233,12 @@ pub fn create_session(root: &Path, agent_id: &str, label: &str) -> Value {
     };
     let mut session_id = format!(
         "s-{}",
-        crate::deterministic_receipt_hash(&json!({"agent_id": id, "label": label_value, "ts": now_iso()}))
-            .chars()
-            .take(12)
-            .collect::<String>()
+        crate::deterministic_receipt_hash(
+            &json!({"agent_id": id, "label": label_value, "ts": now_iso()})
+        )
+        .chars()
+        .take(12)
+        .collect::<String>()
     );
     {
         let sessions = as_array_mut(&mut state, "sessions");
@@ -269,8 +348,18 @@ pub fn memory_kv_set(root: &Path, agent_id: &str, key: &str, value: &Value) -> V
     let mut state = load_session_state(root, &id);
     let memory = as_object_mut(&mut state, "memory_kv");
     memory.insert(k.clone(), value.clone());
+    let tags = duality_memory_tags(root, &k, value);
+    let memory_meta = as_object_mut(&mut state, "memory_kv_meta");
+    memory_meta.insert(k.clone(), tags.clone());
     save_session_state(root, &id, &state);
-    json!({"ok": true, "type": "dashboard_agent_memory_kv_set", "agent_id": id, "key": k, "value": value.clone()})
+    json!({
+        "ok": true,
+        "type": "dashboard_agent_memory_kv_set",
+        "agent_id": id,
+        "key": k,
+        "value": value.clone(),
+        "duality_tags": tags
+    })
 }
 
 pub fn memory_kv_pairs(root: &Path, agent_id: &str) -> Value {
@@ -285,20 +374,23 @@ pub fn memory_kv_pairs(root: &Path, agent_id: &str) -> Value {
         .map(|rows| {
             rows.iter()
                 .map(|(key, value)| {
+                    let duality_tags = state
+                        .get("memory_kv_meta")
+                        .and_then(Value::as_object)
+                        .and_then(|meta| meta.get(key))
+                        .cloned()
+                        .unwrap_or_else(|| json!({}));
                     json!({
                         "key": key,
-                        "value": value
+                        "value": value,
+                        "duality_tags": duality_tags
                     })
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    kv_pairs.sort_by_key(|row| {
-        clean_text(
-            row.get("key").and_then(Value::as_str).unwrap_or(""),
-            160,
-        )
-    });
+    kv_pairs
+        .sort_by_key(|row| clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 160));
     json!({
         "ok": true,
         "type": "dashboard_agent_memory_kv_pairs",
@@ -320,7 +412,20 @@ pub fn memory_kv_get(root: &Path, agent_id: &str, key: &str) -> Value {
         .and_then(|rows| rows.get(&k))
         .cloned()
         .unwrap_or(Value::Null);
-    json!({"ok": true, "type": "dashboard_agent_memory_kv_get", "agent_id": id, "key": k, "value": value})
+    let duality_tags = state
+        .get("memory_kv_meta")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.get(&k))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "ok": true,
+        "type": "dashboard_agent_memory_kv_get",
+        "agent_id": id,
+        "key": k,
+        "value": value,
+        "duality_tags": duality_tags
+    })
 }
 
 pub fn memory_kv_delete(root: &Path, agent_id: &str, key: &str) -> Value {
@@ -332,8 +437,67 @@ pub fn memory_kv_delete(root: &Path, agent_id: &str, key: &str) -> Value {
     let mut state = load_session_state(root, &id);
     let memory = as_object_mut(&mut state, "memory_kv");
     let removed = memory.remove(&k).is_some();
+    let memory_meta = as_object_mut(&mut state, "memory_kv_meta");
+    let _ = memory_meta.remove(&k);
     save_session_state(root, &id, &state);
     json!({"ok": true, "type": "dashboard_agent_memory_kv_delete", "agent_id": id, "key": k, "removed": removed})
+}
+
+pub fn memory_kv_semantic_query(root: &Path, agent_id: &str, query: &str, limit: usize) -> Value {
+    let id = normalize_agent_id(agent_id);
+    let cleaned_query = clean_text(query, 600);
+    if id.is_empty() || cleaned_query.is_empty() {
+        return json!({"ok": false, "error": "agent_id_and_query_required"});
+    }
+    let state = load_session_state(root, &id);
+    let query_terms = query_tokens(&cleaned_query, 10);
+    let mut matches = state
+        .get("memory_kv")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|(key, value)| {
+                    let value_text = value_search_text(value, 2000);
+                    let score = memory_semantic_score(key, &value_text, &query_terms);
+                    if score <= 0 {
+                        return None;
+                    }
+                    let duality_tags = state
+                        .get("memory_kv_meta")
+                        .and_then(Value::as_object)
+                        .and_then(|meta| meta.get(key))
+                        .cloned()
+                        .unwrap_or_else(|| json!({}));
+                    Some(json!({
+                        "key": clean_text(key, 200),
+                        "value": value,
+                        "score": score,
+                        "snippet": clean_text(&value_text, 220),
+                        "duality_tags": duality_tags
+                    }))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    matches.sort_by(|a, b| {
+        b.get("score")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .cmp(&a.get("score").and_then(Value::as_i64).unwrap_or(0))
+            .then_with(|| {
+                clean_text(a.get("key").and_then(Value::as_str).unwrap_or(""), 200).cmp(
+                    &clean_text(b.get("key").and_then(Value::as_str).unwrap_or(""), 200),
+                )
+            })
+    });
+    matches.truncate(limit.clamp(1, 25));
+    json!({
+        "ok": true,
+        "type": "dashboard_agent_memory_semantic_query",
+        "agent_id": id,
+        "query": cleaned_query,
+        "matches": matches
+    })
 }
 
 #[cfg(test)]
@@ -371,10 +535,43 @@ mod tests {
             Some(1)
         );
         let got = memory_kv_get(root.path(), "agent-z", "focus.topic");
-        assert_eq!(got.get("value").and_then(Value::as_str), Some("reliability"));
+        assert_eq!(
+            got.get("value").and_then(Value::as_str),
+            Some("reliability")
+        );
         let deleted = memory_kv_delete(root.path(), "agent-z", "focus.topic");
         assert_eq!(deleted.get("removed").and_then(Value::as_bool), Some(true));
         let missing = memory_kv_get(root.path(), "agent-z", "focus.topic");
         assert!(missing.get("value").map(Value::is_null).unwrap_or(false));
+    }
+
+    #[test]
+    fn memory_semantic_query_returns_ranked_matches() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = memory_kv_set(
+            root.path(),
+            "agent-q",
+            "fact.auth.flow",
+            &json!("OAuth callback uses PKCE and nonce binding"),
+        );
+        let _ = memory_kv_set(
+            root.path(),
+            "agent-q",
+            "fact.release.notes",
+            &json!("Dashboard blur transition was tuned for resize"),
+        );
+        let out = memory_kv_semantic_query(root.path(), "agent-q", "auth pkce", 5);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let rows = out
+            .get("matches")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let first_key = rows
+            .first()
+            .and_then(|row| row.get("key").and_then(Value::as_str))
+            .unwrap_or("");
+        assert_eq!(first_key, "fact.auth.flow");
     }
 }

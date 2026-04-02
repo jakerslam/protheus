@@ -15,9 +15,7 @@ fn usage() {
     println!(
         "  protheus-ops spine-conduit-bridge-kernel run-domain --domain=<name> [--normalize-spine=1|0] -- <args...>"
     );
-    println!(
-        "  protheus-ops spine-conduit-bridge-kernel normalize-spine-args -- <args...>"
-    );
+    println!("  protheus-ops spine-conduit-bridge-kernel normalize-spine-args -- <args...>");
 }
 
 fn normalize_spine_args(args: &[String]) -> Vec<String> {
@@ -43,10 +41,13 @@ fn normalize_spine_args(args: &[String]) -> Vec<String> {
     let mut normalized = vec![mode.to_string()];
     let date_token = rows.get(2).map(String::as_str).unwrap_or("").trim();
     let has_date = date_token.len() == 10
-        && date_token
-            .chars()
-            .enumerate()
-            .all(|(idx, ch)| if idx == 4 || idx == 7 { ch == '-' } else { ch.is_ascii_digit() });
+        && date_token.chars().enumerate().all(|(idx, ch)| {
+            if idx == 4 || idx == 7 {
+                ch == '-'
+            } else {
+                ch.is_ascii_digit()
+            }
+        });
     let rest_start = if has_date { 3usize } else { 2usize };
     if has_date {
         normalized.push(date_token.to_string());
@@ -179,8 +180,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             0
         }
         "run-domain" => {
-            let domain = lane_utils::parse_flag(argv, "domain", true)
-                .unwrap_or_else(|| "spine".to_string());
+            let domain =
+                lane_utils::parse_flag(argv, "domain", true).unwrap_or_else(|| "spine".to_string());
             match run_domain(root, &domain, &argv[1..]) {
                 Ok(status) => status,
                 Err(err) => {

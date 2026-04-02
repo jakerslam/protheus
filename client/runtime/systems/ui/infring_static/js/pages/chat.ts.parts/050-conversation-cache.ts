@@ -32,6 +32,35 @@
       return Math.max(0, Math.round(String(text || '').length / 4));
     },
 
+    shouldConvertLargePasteToAttachment(rawText) {
+      if (!this.pasteToMarkdownEnabled) return false;
+      var text = String(rawText == null ? '' : rawText);
+      if (!text.trim()) return false;
+      var chars = text.trim().length;
+      var lines = text.split(/\r?\n/g).length;
+      var charThreshold = Number(this.pasteToMarkdownCharThreshold || 2000);
+      var lineThreshold = Number(this.pasteToMarkdownLineThreshold || 40);
+      if (!Number.isFinite(charThreshold) || charThreshold < 256) charThreshold = 2000;
+      if (!Number.isFinite(lineThreshold) || lineThreshold < 8) lineThreshold = 40;
+      return chars >= charThreshold || lines >= lineThreshold;
+    },
+
+    buildLargePasteMarkdownAttachment(rawText) {
+      if (typeof File !== 'function') return null;
+      var text = String(rawText == null ? '' : rawText);
+      if (!text.trim()) return null;
+      var normalized = text.replace(/\r\n?/g, '\n');
+      try {
+        var file = new File([normalized], 'Pasted markdown.md', {
+          type: 'text/markdown;charset=utf-8',
+          lastModified: Date.now()
+        });
+        return { file: file, preview: '', uploading: false, pasted_markdown: true };
+      } catch (_) {
+        return null;
+      }
+    },
+
     recomputeContextEstimate() {
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var total = 0;
@@ -327,14 +356,28 @@
         if (left.indexOf(right) >= 0 || right.indexOf(left) >= 0) return true;
         return tokenSimilarity(left, right) >= 0.72;
       };
-	      var clampWords = function(text, maxWords) {
-	        var cap = Number(maxWords || 5);
-	        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
-	        if (!words.length) return '';
-	        if (!Number.isFinite(cap) || cap < 2) cap = 5;
-	        if (words.length <= cap) return words.join(' ');
-	        return words.slice(0, cap).join(' ');
-	      };
+      var trimTrailingJoiners = function(text) {
+        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
+        while (words.length > 1) {
+          var tail = String(words[words.length - 1] || '')
+            .replace(/[^a-z0-9_-]+/gi, '')
+            .toLowerCase();
+          if (!tail || /^(and|or|to|with|for|from|via|then|than|versus|vs)$/i.test(tail)) {
+            words.pop();
+            continue;
+          }
+          break;
+        }
+        return words.join(' ');
+      };
+      var clampWords = function(text, maxWords) {
+        var cap = Number(maxWords || 10);
+        var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
+        if (!words.length) return '';
+        if (!Number.isFinite(cap) || cap < 3) cap = 10;
+        if (words.length > cap) words = words.slice(0, cap);
+        return trimTrailingJoiners(words.join(' '));
+      };
       var normalizeVoice = function(value) {
         var row = String(value == null ? '' : value)
           .replace(/\s+/g, ' ')
@@ -353,10 +396,16 @@
           .replace(/^show me\s+/i, 'Can you show ')
           .replace(/\s+/g, ' ')
           .trim();
-	        row = clampWords(row, 5);
+        row = clampWords(row, 10);
         row = row.replace(/[.!?]+$/g, '').trim();
         if (!row) return '';
-        if (/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) row = row + '?';
+        if (!/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) row = 'Can you ' + row;
+        row = clampWords(row, 10);
+        row = row.replace(/[.!?]+$/g, '').trim();
+        if (!row) return '';
+        row = trimTrailingJoiners(row);
+        if (!row) return '';
+        row += '?';
         if (row.length) row = row.charAt(0).toUpperCase() + row.slice(1);
         if (row.length > 180) row = row.substring(0, 177) + '...';
         return row;
@@ -382,9 +431,9 @@
         if (/[\"“”]/.test(text) && text.length > 120) return true;
         if (/^(give me|request|ask for)\b/i.test(text)) return true;
         var words = wordCount(text);
-	        if (words < 2 || words > 5) return true;
+        if (words < 3 || words > 10) return true;
         var actionableStart =
-          /^(can|could|would|should|what|why|how|when|where|who|show|fix|check|run|retry|switch|clear|drain|scale|continue|compare|explain|validate|review|open|trace)\b/i.test(text);
+          /^(can|could|would|should|what|why|how|when|where|who|show|fix|check|run|retry|switch|clear|drain|scale|continue|compare|explain|validate|review|open|trace|summarize|draft|outline|tell|list)\b/i.test(text);
         if (!actionableStart && text.indexOf('?') < 0 && /^\s*(the|it|this|that)\b/i.test(text)) return true;
         return false;
       };
@@ -397,7 +446,8 @@
           lowered.indexOf('summarize progress in three concrete bullets') >= 0 ||
           lowered.indexOf('show the first command to run now') >= 0 ||
           lowered.indexOf('turn that into a concrete checklist') >= 0 ||
-          lowered.indexOf('take the next step on current task') >= 0
+          lowered.indexOf('take the next step on current task') >= 0 ||
+          lowered.indexOf('respond to the latest update') >= 0
         );
       };
       var rawContext = String(contextText == null ? '' : contextText).toLowerCase();

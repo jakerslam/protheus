@@ -300,6 +300,33 @@
               </table>
             </div>
 
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header">Web Conduit</div>
+              <table class="table" style="margin-top:8px">
+                <tbody>
+                  <tr><td style="width:180px;font-weight:500">Enabled</td><td x-text="webConduitEnabled ? 'Yes' : 'No'"></td></tr>
+                  <tr><td style="font-weight:500">Rate Limit</td><td x-text="webConduitRateLimit"></td></tr>
+                  <tr><td style="font-weight:500">Receipts</td><td x-text="webConduitReceiptsTotal"></td></tr>
+                  <tr><td style="font-weight:500">Recent Denied</td><td x-text="webConduitRecentDenied"></td></tr>
+                  <tr><td style="font-weight:500">Last URL</td><td x-text="webConduitLastUrl"></td></tr>
+                </tbody>
+              </table>
+              <table class="table" style="margin-top:12px">
+                <thead><tr><th>Decision</th><th>Domain</th><th>Status</th></tr></thead>
+                <tbody>
+                  <template x-for="(r, idx) in webConduitRecentReceipts" :key="'web-receipt-' + idx">
+                    <tr>
+                      <td>
+                        <span class="badge" :class="r.policy_decision === 'allow' ? 'badge-success' : 'badge-warn'" x-text="r.policy_decision || '-'"></span>
+                      </td>
+                      <td x-text="r.domain || '-'"></td>
+                      <td x-text="r.status_code || 0"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
             <div class="flex gap-2">
               <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
             </div>

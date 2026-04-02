@@ -9,8 +9,12 @@ use crate::now_iso;
 
 fn usage() {
     println!("conduit-client-security-kernel commands:");
-    println!("  protheus-ops conduit-client-security-kernel build-security --payload-base64=<json>");
-    println!("  protheus-ops conduit-client-security-kernel build-envelope --payload-base64=<json>");
+    println!(
+        "  protheus-ops conduit-client-security-kernel build-security --payload-base64=<json>"
+    );
+    println!(
+        "  protheus-ops conduit-client-security-kernel build-envelope --payload-base64=<json>"
+    );
     println!("  protheus-ops conduit-client-security-kernel resolve-security-config --payload-base64=<json>");
     println!("  protheus-ops conduit-client-security-kernel resolve-transport-policy --payload-base64=<json>");
 }
@@ -171,7 +175,11 @@ fn resolve_security_config(payload: &Map<String, Value>) -> Value {
 
 fn build_security(payload: &Map<String, Value>) -> Result<Value, String> {
     let request_id = field_string(payload, "request_id", "ts-request");
-    let ts_ms = field_u64(payload, "ts_ms", chrono::Utc::now().timestamp_millis().max(0) as u64);
+    let ts_ms = field_u64(
+        payload,
+        "ts_ms",
+        chrono::Utc::now().timestamp_millis().max(0) as u64,
+    );
     let command_type = payload
         .get("command")
         .and_then(Value::as_object)
@@ -369,7 +377,8 @@ mod tests {
                 "token_ttl_ms": 60_000u64
             }
         });
-        let out = build_security(payload.as_object().expect("payload object")).expect("build security");
+        let out =
+            build_security(payload.as_object().expect("payload object")).expect("build security");
         let scopes = out
             .get("capability_token")
             .and_then(Value::as_object)
@@ -377,7 +386,10 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert_eq!(scopes.first().and_then(Value::as_str), Some("agent.lifecycle"));
+        assert_eq!(
+            scopes.first().and_then(Value::as_str),
+            Some("agent.lifecycle")
+        );
         assert!(out
             .get("signature")
             .and_then(Value::as_str)
@@ -400,9 +412,16 @@ mod tests {
                 "token_ttl_ms": 120_000u64
             }
         });
-        let out = build_envelope(payload.as_object().expect("payload object")).expect("build envelope");
-        assert_eq!(out.get("schema_id").and_then(Value::as_str), Some("protheus_conduit"));
-        assert_eq!(out.get("schema_version").and_then(Value::as_str), Some("1.0"));
+        let out =
+            build_envelope(payload.as_object().expect("payload object")).expect("build envelope");
+        assert_eq!(
+            out.get("schema_id").and_then(Value::as_str),
+            Some("protheus_conduit")
+        );
+        assert_eq!(
+            out.get("schema_version").and_then(Value::as_str),
+            Some("1.0")
+        );
         assert_eq!(out.get("request_id").and_then(Value::as_str), Some("req-2"));
         assert_eq!(
             out.get("security")
@@ -419,6 +438,9 @@ mod tests {
             "timeout_ms": 999_999u64
         });
         let out = resolve_transport_policy(payload.as_object().expect("payload object"));
-        assert_eq!(out.get("stdio_timeout_ms").and_then(Value::as_u64), Some(300_000));
+        assert_eq!(
+            out.get("stdio_timeout_ms").and_then(Value::as_u64),
+            Some(300_000)
+        );
     }
 }

@@ -327,50 +327,42 @@ fn sessions_retry_dead_letter(state: &mut SwarmState, message_id: &str) -> Resul
     }))
 }
 fn queue_metrics_snapshot(state: &SwarmState) -> Value {
-    let mut queue_wait_values = Vec::new();
-    let mut execution_values = Vec::new();
-    let mut total_latency_values = Vec::new();
+    fn p95(values: &mut [u64]) -> u64 {
+        if values.is_empty() {
+            return 0;
+        }
+        let idx = (((values.len() as f64) * 0.95).ceil() as usize).saturating_sub(1);
+        let (_, nth, _) = values.select_nth_unstable(idx);
+        *nth
+    }
+
+    let mut queue_wait_values = Vec::with_capacity(state.sessions.len());
+    let mut execution_values = Vec::with_capacity(state.sessions.len());
+    let mut total_latency_values = Vec::with_capacity(state.sessions.len());
+    let mut queue_wait_sum = 0u64;
+    let mut execution_sum = 0u64;
+    let mut total_latency_sum = 0u64;
 
     for session in state.sessions.values() {
         if let Some(metrics) = session.metrics.as_ref() {
-            queue_wait_values.push(metrics.queue_wait_ms);
-            execution_values.push(metrics.execution_time_ms());
-            total_latency_values.push(metrics.total_latency_ms());
+            let queue_wait = metrics.queue_wait_ms;
+            let execution = metrics.execution_time_ms();
+            let total_latency = metrics.total_latency_ms();
+            queue_wait_values.push(queue_wait);
+            execution_values.push(execution);
+            total_latency_values.push(total_latency);
+            queue_wait_sum = queue_wait_sum.saturating_add(queue_wait);
+            execution_sum = execution_sum.saturating_add(execution);
+            total_latency_sum = total_latency_sum.saturating_add(total_latency);
         }
     }
 
-    let queue_wait_sum: u64 = queue_wait_values.iter().copied().sum();
-    let execution_sum: u64 = execution_values.iter().copied().sum();
-    let total_latency_sum: u64 = total_latency_values.iter().copied().sum();
     let sample_count = queue_wait_values.len() as u64;
     let denom = sample_count.max(1) as f64;
 
-    let mut queue_wait_sorted = queue_wait_values.clone();
-    let mut execution_sorted = execution_values.clone();
-    let mut total_latency_sorted = total_latency_values.clone();
-    queue_wait_sorted.sort_unstable();
-    execution_sorted.sort_unstable();
-    total_latency_sorted.sort_unstable();
-
-    let p95_idx = |len: usize| -> usize {
-        if len == 0 {
-            return 0;
-        }
-        (((len as f64) * 0.95).ceil() as usize).saturating_sub(1)
-    };
-
-    let queue_wait_p95 = queue_wait_sorted
-        .get(p95_idx(queue_wait_sorted.len()))
-        .copied()
-        .unwrap_or(0);
-    let execution_p95 = execution_sorted
-        .get(p95_idx(execution_sorted.len()))
-        .copied()
-        .unwrap_or(0);
-    let total_latency_p95 = total_latency_sorted
-        .get(p95_idx(total_latency_sorted.len()))
-        .copied()
-        .unwrap_or(0);
+    let queue_wait_p95 = p95(&mut queue_wait_values);
+    let execution_p95 = p95(&mut execution_values);
+    let total_latency_p95 = p95(&mut total_latency_values);
 
     let unread_messages: usize = state
         .mailboxes

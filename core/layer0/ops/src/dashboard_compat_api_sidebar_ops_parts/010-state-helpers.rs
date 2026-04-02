@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use chrono::{Duration, Utc};
 use serde_json::{json, Map, Value};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -147,6 +148,30 @@ fn normalize_workflow_step(step: &Value, idx: usize) -> Value {
             .unwrap_or("{{input}}"),
         4000,
     );
+    let normalize_target = |value: Option<&Value>| -> String {
+        clean_id(value.and_then(Value::as_str).unwrap_or(""), 120)
+    };
+    let normalize_targets = |value: Option<&Value>| -> Vec<String> {
+        let mut out = Vec::<String>::new();
+        if let Some(rows) = value.and_then(Value::as_array) {
+            for row in rows {
+                let target = clean_id(row.as_str().unwrap_or(""), 120);
+                if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
+                    out.push(target);
+                }
+            }
+            return out;
+        }
+        if let Some(raw) = value.and_then(Value::as_str) {
+            for piece in raw.split(',') {
+                let target = clean_id(piece, 120);
+                if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
+                    out.push(target);
+                }
+            }
+        }
+        out
+    };
     json!({
         "id": clean_id(
             step.get("id")
@@ -159,7 +184,11 @@ fn normalize_workflow_step(step: &Value, idx: usize) -> Value {
             "name": agent_name
         },
         "mode": mode,
-        "prompt_template": if prompt_template.is_empty() { "{{input}}" } else { &prompt_template }
+        "prompt_template": if prompt_template.is_empty() { "{{input}}" } else { &prompt_template },
+        "next": normalize_target(step.get("next")),
+        "next_true": normalize_target(step.get("next_true")),
+        "next_false": normalize_target(step.get("next_false")),
+        "fan_targets": normalize_targets(step.get("fan_targets"))
     })
 }
 
@@ -223,6 +252,322 @@ fn normalize_workflow(workflow: &Value) -> Value {
     })
 }
 
+fn workflow_step_ids(steps: &[Value]) -> BTreeMap<String, usize> {
+    let mut ids = BTreeMap::<String, usize>::new();
+    for (idx, step) in steps.iter().enumerate() {
+        let step_id = clean_id(
+            step.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or(&format!("step-{}", idx + 1)),
+            120,
+        );
+        if step_id.is_empty() {
+            continue;
+        }
+        ids.insert(step_id, idx);
+    }
+    ids
+}
+
+fn workflow_reference_index(steps: &[Value]) -> BTreeMap<String, String> {
+    let mut refs = BTreeMap::<String, String>::new();
+    for (idx, step) in steps.iter().enumerate() {
+        let step_id = clean_id(
+            step.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or(&format!("step-{}", idx + 1)),
+            120,
+        );
+        if step_id.is_empty() {
+            continue;
+        }
+        refs.insert(step_id.clone(), step_id.clone());
+        let by_name = clean_id(step.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+        if !by_name.is_empty() {
+            refs.insert(by_name, step_id);
+        }
+    }
+    refs
+}
+
+fn resolve_workflow_target_id(raw_target: &str, refs: &BTreeMap<String, String>) -> Option<String> {
+    let cleaned = clean_id(raw_target, 120);
+    if cleaned.is_empty() {
+        return None;
+    }
+    refs.get(&cleaned).cloned()
+}
+
+pub fn validate_workflow_graph(workflow: &Value) -> Value {
+    let steps = workflow
+        .get("steps")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if steps.is_empty() {
+        return json!({
+            "ok": true,
+            "valid": false,
+            "errors": ["workflow_steps_required"],
+            "warnings": [],
+            "stats": {
+                "steps": 0,
+                "edges": 0,
+                "roots": [],
+                "terminal_nodes": [],
+                "cycles": 0,
+                "unreachable_nodes": []
+            },
+            "topological_order": []
+        });
+    }
+
+    let ids = workflow_step_ids(&steps);
+    let refs = workflow_reference_index(&steps);
+    let mut errors = Vec::<String>::new();
+    let mut warnings = Vec::<String>::new();
+    let mut adjacency = BTreeMap::<String, Vec<String>>::new();
+    let mut indegree = BTreeMap::<String, usize>::new();
+    let mut modes = BTreeMap::<String, String>::new();
+    let mut terminals = Vec::<String>::new();
+    let mut edges = Vec::<(String, String)>::new();
+
+    for (idx, step) in steps.iter().enumerate() {
+        let step_id = clean_id(
+            step.get("id")
+                .and_then(Value::as_str)
+                .unwrap_or(&format!("step-{}", idx + 1)),
+            120,
+        );
+        if step_id.is_empty() {
+            continue;
+        }
+        let mode = clean_text(
+            step.get("mode").and_then(Value::as_str).unwrap_or("sequential"),
+            40,
+        )
+        .to_ascii_lowercase();
+        modes.insert(step_id.clone(), mode.clone());
+        indegree.entry(step_id.clone()).or_insert(0);
+
+        let mut raw_targets = Vec::<String>::new();
+        match mode.as_str() {
+            "conditional" => {
+                let next_true = clean_id(
+                    step.get("next_true").and_then(Value::as_str).unwrap_or(""),
+                    120,
+                );
+                let next_false = clean_id(
+                    step.get("next_false").and_then(Value::as_str).unwrap_or(""),
+                    120,
+                );
+                if !next_true.is_empty() {
+                    raw_targets.push(next_true);
+                }
+                if !next_false.is_empty() {
+                    raw_targets.push(next_false);
+                }
+            }
+            "fan_out" => {
+                if let Some(rows) = step.get("fan_targets").and_then(Value::as_array) {
+                    for row in rows {
+                        let target = clean_id(row.as_str().unwrap_or(""), 120);
+                        if !target.is_empty() {
+                            raw_targets.push(target);
+                        }
+                    }
+                }
+                let next = clean_id(step.get("next").and_then(Value::as_str).unwrap_or(""), 120);
+                if !next.is_empty() {
+                    raw_targets.push(next);
+                }
+            }
+            _ => {
+                let next = clean_id(step.get("next").and_then(Value::as_str).unwrap_or(""), 120);
+                if !next.is_empty() {
+                    raw_targets.push(next);
+                } else if let Some(next_step) = steps.get(idx + 1) {
+                    let fallback = clean_id(next_step.get("id").and_then(Value::as_str).unwrap_or(""), 120);
+                    if !fallback.is_empty() {
+                        raw_targets.push(fallback);
+                    }
+                }
+            }
+        }
+        raw_targets.dedup();
+        if raw_targets.is_empty() {
+            terminals.push(step_id.clone());
+            adjacency.insert(step_id.clone(), Vec::new());
+            continue;
+        }
+        let mut resolved = Vec::<String>::new();
+        for target in raw_targets {
+            let Some(target_id) = resolve_workflow_target_id(&target, &refs) else {
+                errors.push(format!("unknown_target:{}->{}", step_id, target));
+                continue;
+            };
+            if !ids.contains_key(&target_id) {
+                errors.push(format!("target_not_found:{}->{}", step_id, target_id));
+                continue;
+            }
+            if !resolved.iter().any(|existing| existing == &target_id) {
+                resolved.push(target_id.clone());
+                edges.push((step_id.clone(), target_id.clone()));
+                *indegree.entry(target_id).or_insert(0) += 1;
+            }
+        }
+        adjacency.insert(step_id, resolved);
+    }
+
+    if terminals.is_empty() {
+        warnings.push("no_terminal_step_detected".to_string());
+    }
+
+    let mut roots = indegree
+        .iter()
+        .filter_map(|(id, degree)| if *degree == 0 { Some(id.clone()) } else { None })
+        .collect::<Vec<_>>();
+    if roots.is_empty() {
+        roots.push(
+            clean_id(
+                steps[0]
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("step-1"),
+                120,
+            ),
+        );
+    }
+
+    let mut visited = BTreeSet::<String>::new();
+    let mut stack = roots.clone();
+    while let Some(current) = stack.pop() {
+        if current.is_empty() || !visited.insert(current.clone()) {
+            continue;
+        }
+        if let Some(children) = adjacency.get(&current) {
+            for child in children {
+                stack.push(child.clone());
+            }
+        }
+    }
+    let mut unreachable = ids
+        .keys()
+        .filter_map(|id| if visited.contains(id) { None } else { Some(id.clone()) })
+        .collect::<Vec<_>>();
+    unreachable.sort();
+    if !unreachable.is_empty() {
+        errors.push(format!("unreachable_steps:{}", unreachable.join(",")));
+    }
+
+    let mut visiting = BTreeSet::<String>::new();
+    let mut visited_cycle = BTreeSet::<String>::new();
+    let mut cycle_edges = Vec::<(String, String)>::new();
+
+    fn dfs_cycle(
+        node: &str,
+        adjacency: &BTreeMap<String, Vec<String>>,
+        visiting: &mut BTreeSet<String>,
+        visited: &mut BTreeSet<String>,
+        cycle_edges: &mut Vec<(String, String)>,
+    ) {
+        if visited.contains(node) {
+            return;
+        }
+        visiting.insert(node.to_string());
+        if let Some(children) = adjacency.get(node) {
+            for child in children {
+                if visiting.contains(child) {
+                    cycle_edges.push((node.to_string(), child.to_string()));
+                    continue;
+                }
+                dfs_cycle(child, adjacency, visiting, visited, cycle_edges);
+            }
+        }
+        visiting.remove(node);
+        visited.insert(node.to_string());
+    }
+
+    for id in ids.keys() {
+        dfs_cycle(id, &adjacency, &mut visiting, &mut visited_cycle, &mut cycle_edges);
+    }
+    cycle_edges.sort();
+    cycle_edges.dedup();
+    for (from, to) in &cycle_edges {
+        let from_mode = modes.get(from).cloned().unwrap_or_else(|| "sequential".to_string());
+        if from_mode != "loop" {
+            errors.push(format!("cycle_without_loop:{}->{}", from, to));
+        } else {
+            warnings.push(format!("loop_cycle:{}->{}", from, to));
+        }
+    }
+
+    let mut topo_indegree = indegree.clone();
+    for (from, to) in &cycle_edges {
+        let from_mode = modes.get(from).cloned().unwrap_or_else(|| "sequential".to_string());
+        if from_mode == "loop" {
+            if let Some(degree) = topo_indegree.get_mut(to) {
+                *degree = degree.saturating_sub(1);
+            }
+        }
+    }
+    let mut topo_queue = topo_indegree
+        .iter()
+        .filter_map(|(id, degree)| if *degree == 0 { Some(id.clone()) } else { None })
+        .collect::<Vec<_>>();
+    topo_queue.sort();
+    let mut topo = Vec::<String>::new();
+    while let Some(current) = topo_queue.pop() {
+        topo.push(current.clone());
+        if let Some(children) = adjacency.get(&current) {
+            for child in children {
+                let is_loop_edge = cycle_edges
+                    .iter()
+                    .any(|(from, to)| from == &current && to == child)
+                    && modes
+                        .get(&current)
+                        .map(|mode| mode == "loop")
+                        .unwrap_or(false);
+                if is_loop_edge {
+                    continue;
+                }
+                if let Some(degree) = topo_indegree.get_mut(child) {
+                    *degree = degree.saturating_sub(1);
+                    if *degree == 0 {
+                        topo_queue.push(child.clone());
+                    }
+                }
+            }
+        }
+    }
+    if topo.len() != ids.len() {
+        warnings.push("topological_order_partial_due_to_cycle".to_string());
+    }
+
+    errors.sort();
+    errors.dedup();
+    warnings.sort();
+    warnings.dedup();
+    terminals.sort();
+    terminals.dedup();
+
+    json!({
+        "ok": true,
+        "valid": errors.is_empty(),
+        "errors": errors,
+        "warnings": warnings,
+        "stats": {
+            "steps": ids.len(),
+            "edges": edges.len(),
+            "roots": roots,
+            "terminal_nodes": terminals,
+            "cycles": cycle_edges.len(),
+            "unreachable_nodes": unreachable
+        },
+        "topological_order": topo
+    })
+}
+
 fn load_workflows(root: &Path) -> Vec<Value> {
     let path = state_path(root, WORKFLOWS_REL);
     let raw = read_json(&path).unwrap_or_else(|| json!({"workflows": []}));
@@ -273,7 +618,51 @@ fn runs_for_workflow(state: &Value, workflow_id: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-fn set_runs_for_workflow(state: &mut Value, workflow_id: &str, runs: Vec<Value>) {
+fn summarize_evicted_runs(evicted: &[Value]) -> Value {
+    if evicted.is_empty() {
+        return Value::Null;
+    }
+    let mut status_counts = BTreeMap::<String, i64>::new();
+    let mut duration_total = 0i64;
+    let mut duration_count = 0i64;
+    let mut samples = Vec::<String>::new();
+    for row in evicted {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or("unknown"), 40);
+        *status_counts.entry(status).or_insert(0) += 1;
+        if let Some(ms) = row.get("duration_ms").and_then(Value::as_i64) {
+            if ms > 0 {
+                duration_total += ms;
+                duration_count += 1;
+            }
+        }
+        if samples.len() < 2 {
+            let sample = clean_text(row.get("output").and_then(Value::as_str).unwrap_or(""), 220);
+            if !sample.is_empty() {
+                samples.push(sample);
+            }
+        }
+    }
+    let status_json = status_counts
+        .into_iter()
+        .map(|(status, count)| (status, json!(count)))
+        .collect::<Map<String, Value>>();
+    json!({
+        "keyframe_id": make_id("wf-kf", &json!({"ts": crate::now_iso(), "size": evicted.len()})),
+        "created_at": crate::now_iso(),
+        "evicted_runs": evicted.len(),
+        "status_counts": Value::Object(status_json),
+        "avg_duration_ms": if duration_count > 0 { duration_total / duration_count } else { 0 },
+        "sample_outputs": samples
+    })
+}
+
+fn set_runs_for_workflow(state: &mut Value, workflow_id: &str, mut runs: Vec<Value>) {
+    let mut evicted = Vec::<Value>::new();
+    if runs.len() > 200 {
+        let keep_from = runs.len().saturating_sub(200);
+        evicted = runs.iter().take(keep_from).cloned().collect::<Vec<_>>();
+        runs = runs.into_iter().skip(keep_from).collect::<Vec<_>>();
+    }
     if !state
         .get("runs_by_workflow")
         .map(Value::is_object)
@@ -286,6 +675,35 @@ fn set_runs_for_workflow(state: &mut Value, workflow_id: &str, runs: Vec<Value>)
         .and_then(Value::as_object_mut)
     {
         map.insert(clean_id(workflow_id, 120), Value::Array(runs));
+    }
+
+    let keyframe = summarize_evicted_runs(&evicted);
+    if keyframe.is_null() {
+        return;
+    }
+    if !state
+        .get("keyframes_by_workflow")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
+        state["keyframes_by_workflow"] = Value::Object(Map::new());
+    }
+    if let Some(map) = state
+        .get_mut("keyframes_by_workflow")
+        .and_then(Value::as_object_mut)
+    {
+        let key = clean_id(workflow_id, 120);
+        let mut rows = map
+            .get(&key)
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        rows.push(keyframe);
+        if rows.len() > 50 {
+            let keep_from = rows.len().saturating_sub(50);
+            rows = rows.into_iter().skip(keep_from).collect::<Vec<_>>();
+        }
+        map.insert(key, Value::Array(rows));
     }
 }
 

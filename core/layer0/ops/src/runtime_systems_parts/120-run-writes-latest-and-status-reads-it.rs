@@ -80,8 +80,13 @@ mod tests {
     fn actionable_contract_ids_emit_profile_and_receipts() {
         let root = tempfile::tempdir().expect("tempdir");
         for &id in actionable_ids() {
-            let out = run_payload(root.path(), id, "run", &["--strict=1".to_string()])
-                .expect("contract run should succeed");
+            let out = run_payload(
+                root.path(),
+                id,
+                "run",
+                &["--strict=1".to_string(), "--apply=0".to_string()],
+            )
+            .expect("contract run should succeed");
             assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
             assert_eq!(
                 out.get("contract_profile")
@@ -626,10 +631,16 @@ mod tests {
         fs::write(source.join("subagents/runs.json"), "{\"runs\":[]}")
             .expect("write subagent runs");
         fs::write(source.join("memory/main.sqlite"), "sqlite-bytes").expect("write memory sqlite");
-        fs::write(source.join("agents/main/agent/state.json"), "{\"status\":\"ready\"}")
-            .expect("write agent state");
-        fs::write(source.join("agents/main/agent/models.json"), "{\"provider\":\"ollama\"}")
-            .expect("write agent models");
+        fs::write(
+            source.join("agents/main/agent/state.json"),
+            "{\"status\":\"ready\"}",
+        )
+        .expect("write agent state");
+        fs::write(
+            source.join("agents/main/agent/models.json"),
+            "{\"provider\":\"ollama\"}",
+        )
+        .expect("write agent models");
         fs::write(
             source.join("agents/main/agent/routing-policy.json"),
             "{\"default\":\"local\"}",

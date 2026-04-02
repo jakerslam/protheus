@@ -1,3 +1,5 @@
+include!("035-model-metadata-research.rs");
+
 pub fn discover_models(root: &Path, input: &str) -> Value {
     let cleaned = clean_text(input, 4096);
     if cleaned.is_empty() {
@@ -78,7 +80,7 @@ pub fn add_custom_model(
 ) -> Value {
     let provider = normalize_provider_id(provider_id);
     let mut model = clean_text(model_id, 240);
-    if model.contains('/') {
+    if model.contains('/') && provider != "openrouter" {
         let mut parts = model.splitn(2, '/');
         let maybe_provider = normalize_provider_id(parts.next().unwrap_or(""));
         let maybe_model = clean_text(parts.next().unwrap_or(""), 200);
@@ -119,7 +121,17 @@ pub fn add_custom_model(
     row["model_profiles"][model.clone()] = profile;
     row["updated_at"] = json!(crate::now_iso());
     save_registry(root, registry);
-    json!({"ok": true, "provider": provider, "model": model})
+    let ensured = ensure_model_profile(root, &provider, &model);
+    json!({
+        "ok": true,
+        "provider": provider,
+        "model": model,
+        "metadata_researched": ensured
+            .get("metadata_researched")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "profile": ensured.get("profile").cloned().unwrap_or_else(|| json!({}))
+    })
 }
 
 pub fn delete_custom_model(root: &Path, model_ref: &str) -> Value {
@@ -226,10 +238,10 @@ fn invoke_chat_live(
 ) -> Result<Value, String> {
     let provider = normalize_provider_id(provider_id);
     let model = clean_text(model_name, 240);
-    let system = clean_text(system_prompt, 12_000);
+    let system = clean_chat_text(system_prompt, 12_000);
     let mut messages = content_from_message_rows(session_messages);
-    let user = clean_text(user_message, 16_000);
-    if user.is_empty() {
+    let user = clean_chat_text(user_message, 16_000);
+    if user.trim().is_empty() {
         return Err("message_required".to_string());
     }
     messages.push(("user".to_string(), user.clone()));
@@ -270,7 +282,7 @@ fn invoke_chat_live(
                     error_text_from_value(&value)
                 ));
             }
-            let text = clean_text(
+            let text = clean_chat_text(
                 value
                     .pointer("/message/content")
                     .and_then(Value::as_str)
@@ -433,14 +445,14 @@ fn invoke_chat_live(
             })
         }
     };
-    let text = clean_text(
+    let text = clean_chat_text(
         response
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or(""),
         32_000,
     );
-    if text.is_empty() {
+    if text.trim().is_empty() {
         return Err("model backend unavailable: empty_response".to_string());
     }
     Ok(response)
@@ -613,14 +625,14 @@ pub fn invoke_chat(
                     if route_attempt_index < max_attempts_per_route
                         && total_attempts < max_total_attempts
                     {
-                        let backoff_ms = backoff_for_attempt(
+                        let _backoff_ms = backoff_for_attempt(
                             base_backoff_ms,
                             max_backoff_ms,
                             factor,
                             route_attempt_index,
                         );
                         #[cfg(not(test))]
-                        std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
+                        std::thread::sleep(std::time::Duration::from_millis(_backoff_ms));
                     }
                 }
             }
@@ -742,5 +754,68 @@ mod tests {
             .and_then(Value::as_f64)
             .map(|value| value >= 0.0)
             .unwrap_or(false));
+    }
+
+    #[test]
+    fn ensure_model_profile_backfills_metadata_for_new_model_ref() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = ensure_model_profile(root.path(), "moonshot", "kimi-k2.5-preview");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let profile = out.get("profile").cloned().unwrap_or_else(|| json!({}));
+        assert!(
+            profile
+                .get("context_window")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 131_072
+        );
+        assert!(
+            profile
+                .get("max_output_tokens")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+    }
+
+    #[test]
+    fn ensure_model_profile_keeps_openrouter_namespaced_model_ids() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = ensure_model_profile(root.path(), "openrouter", "moonshotai/kimi-k2.5");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("model").and_then(Value::as_str), Some("moonshotai/kimi-k2.5"));
+    }
+
+    #[test]
+    fn missing_model_errors_are_not_retryable() {
+        assert!(!is_retryable_model_error(
+            "model backend unavailable: model 'llama3.2:latest' not found"
+        ));
+        assert!(!is_retryable_model_error("ollama: no such model"));
+    }
+
+    #[test]
+    fn fallback_chain_skips_unavailable_local_models() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let updated = update_routing_policy(
+            root.path(),
+            &json!({
+                "signature": "sig:test-local-fallback-skip",
+                "fallback_chain": [
+                    {"provider":"ollama","model":"definitely-missing-local-model-xyz"}
+                ]
+            }),
+        );
+        assert_eq!(updated.get("ok").and_then(Value::as_bool), Some(true));
+        let chain = routing_fallback_chain(root.path(), "openai", "gpt-5");
+        let has_missing_local = chain.iter().any(|row| {
+            row.get("provider").and_then(Value::as_str) == Some("ollama")
+                && row.get("model").and_then(Value::as_str)
+                    == Some("definitely-missing-local-model-xyz")
+        });
+        assert!(
+            !has_missing_local,
+            "unavailable local fallback models should be filtered out"
+        );
     }
 }

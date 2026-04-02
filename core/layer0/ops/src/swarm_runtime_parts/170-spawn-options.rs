@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,5 +383,57 @@ mod tests {
         assert!(exported.contains("swarm_runtime_queue_wait_ms_avg"));
         assert!(exported.contains("swarm_runtime_execution_ms_p95"));
         assert!(exported.contains("swarm_runtime_sessions_total"));
+    }
+
+    #[test]
+    fn scale_plan_reports_100k_ready_topology_under_default_policy() {
+        let state = SwarmState::default();
+        let fanout = recommended_manager_fanout_for_target(100_000);
+        let readiness = evaluate_scale_policy_readiness(&state, 100_000, fanout);
+        assert_eq!(
+            readiness
+                .get("readiness")
+                .and_then(|row| row.get("within_session_cap"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            readiness
+                .get("readiness")
+                .and_then(|row| row.get("within_depth_cap"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            readiness
+                .get("topology")
+                .and_then(|row| row.get("target_agents"))
+                .and_then(Value::as_u64),
+            Some(100_000)
+        );
+    }
+
+    #[test]
+    fn spawn_enforces_parent_capacity_when_policy_enabled() {
+        let mut state = SwarmState::default();
+        state.scale_policy.max_children_per_parent = 2;
+        state.scale_policy.enforce_parent_capacity = true;
+
+        let root = spawn_single(&mut state, None, "root", 8, &spawn_options())
+            .expect("root spawn")
+            .get("session_id")
+            .and_then(Value::as_str)
+            .expect("root id")
+            .to_string();
+
+        spawn_single(&mut state, Some(&root), "child-1", 8, &spawn_options()).expect("child 1");
+        spawn_single(&mut state, Some(&root), "child-2", 8, &spawn_options()).expect("child 2");
+
+        let err = spawn_single(&mut state, Some(&root), "child-3", 8, &spawn_options())
+            .expect_err("third child should exceed capacity");
+        assert!(
+            err.contains("parent_capacity_exceeded"),
+            "unexpected error: {err}"
+        );
     }
 }

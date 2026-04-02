@@ -51,11 +51,51 @@ pub fn handle(
                     }),
                 });
             }
+            if method == "GET" && segments.len() == 2 && segments[1] == "validate" {
+                if let Some(found) = workflows
+                    .iter()
+                    .find(|row| {
+                        clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
+                            == workflow_id
+                    })
+                    .cloned()
+                {
+                    let validation = validate_workflow_graph(&found);
+                    return Some(CompatApiResponse {
+                        status: 200,
+                        payload: json!({
+                            "ok": true,
+                            "workflow_id": workflow_id,
+                            "validation": validation
+                        }),
+                    });
+                }
+                return Some(CompatApiResponse {
+                    status: 404,
+                    payload: json!({"ok": false, "error": "workflow_not_found"}),
+                });
+            }
             if method == "POST" && segments.len() == 2 && segments[1] == "run" {
                 if let Some(idx) = workflows.iter().position(|row| {
                     clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
                         == workflow_id
                 }) {
+                    let validation = validate_workflow_graph(&workflows[idx]);
+                    if !validation
+                        .get("valid")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                    {
+                        return Some(CompatApiResponse {
+                            status: 400,
+                            payload: json!({
+                                "ok": false,
+                                "error": "workflow_validation_failed",
+                                "workflow_id": workflow_id,
+                                "validation": validation
+                            }),
+                        });
+                    }
                     let request = parse_json(body);
                     let input = clean_text(
                         request.get("input").and_then(Value::as_str).unwrap_or(""),
@@ -66,6 +106,7 @@ pub fn handle(
                     let finished = Utc::now();
                     workflows[idx]["updated_at"] = Value::String(crate::now_iso());
                     workflows[idx]["last_run"] = Value::String(crate::now_iso());
+                    workflows[idx]["validation"] = validation.clone();
                     save_workflows(root, &workflows);
                     let mut runs_state = load_workflow_runs(root);
                     let mut runs = runs_for_workflow(&runs_state, &workflow_id);
@@ -85,10 +126,6 @@ pub fn handle(
                         "duration_ms": (finished - started).num_milliseconds().max(1)
                     });
                     runs.push(run.clone());
-                    if runs.len() > 200 {
-                        let keep_from = runs.len().saturating_sub(200);
-                        runs = runs.into_iter().skip(keep_from).collect::<Vec<_>>();
-                    }
                     set_runs_for_workflow(&mut runs_state, &workflow_id, runs);
                     save_workflow_runs(root, runs_state);
                     return Some(CompatApiResponse {
@@ -99,7 +136,8 @@ pub fn handle(
                             "workflow_id": workflow_id,
                             "run_id": run["run_id"].clone(),
                             "output": run["output"].clone(),
-                            "run": run
+                            "run": run,
+                            "validation": validation
                         }),
                     });
                 }
@@ -144,7 +182,25 @@ pub fn handle(
                     }
                     merged["id"] = Value::String(workflow_id.clone());
                     merged["updated_at"] = Value::String(crate::now_iso());
-                    workflows[idx] = normalize_workflow(&merged);
+                    let mut normalized = normalize_workflow(&merged);
+                    let validation = validate_workflow_graph(&normalized);
+                    if !validation
+                        .get("valid")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                    {
+                        return Some(CompatApiResponse {
+                            status: 400,
+                            payload: json!({
+                                "ok": false,
+                                "error": "workflow_validation_failed",
+                                "workflow_id": workflow_id,
+                                "validation": validation
+                            }),
+                        });
+                    }
+                    normalized["validation"] = validation;
+                    workflows[idx] = normalized;
                     save_workflows(root, &workflows);
                     return Some(CompatApiResponse {
                         status: 200,
@@ -181,6 +237,21 @@ pub fn handle(
         if method == "POST" && segments.is_empty() {
             let request = parse_json(body);
             let mut workflow = normalize_workflow(&request);
+            let validation = validate_workflow_graph(&workflow);
+            if !validation
+                .get("valid")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({
+                        "ok": false,
+                        "error": "workflow_validation_failed",
+                        "validation": validation
+                    }),
+                });
+            }
             if workflow
                 .get("id")
                 .and_then(Value::as_str)
@@ -194,6 +265,7 @@ pub fn handle(
             }
             workflow["created_at"] = Value::String(crate::now_iso());
             workflow["updated_at"] = Value::String(crate::now_iso());
+            workflow["validation"] = validation;
             workflows.push(workflow.clone());
             save_workflows(root, &workflows);
             return Some(CompatApiResponse {
@@ -624,4 +696,83 @@ pub fn handle(
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_snapshot() -> Value {
+        json!({"ok": true})
+    }
+
+    #[test]
+    fn workflow_create_rejects_unknown_target_edges() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let payload = json!({
+            "name": "invalid-workflow",
+            "steps": [
+                {"id":"step-1","name":"step-1","mode":"sequential","next":"step-404","prompt":"{{input}}"},
+                {"id":"step-2","name":"step-2","mode":"sequential","prompt":"{{input}}"}
+            ]
+        });
+        let response = handle(
+            tmp.path(),
+            "POST",
+            "/api/workflows",
+            serde_json::to_vec(&payload).expect("encode").as_slice(),
+            &empty_snapshot(),
+        )
+        .expect("response");
+        assert_eq!(response.status, 400);
+        assert_eq!(
+            response.payload.get("error").and_then(Value::as_str),
+            Some("workflow_validation_failed")
+        );
+    }
+
+    #[test]
+    fn workflow_create_and_validate_route_succeeds_for_valid_graph() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let payload = json!({
+            "name": "valid-workflow",
+            "steps": [
+                {"id":"step-1","name":"step-1","mode":"sequential","next":"step-2","prompt":"{{input}}"},
+                {"id":"step-2","name":"step-2","mode":"sequential","prompt":"{{input}}"}
+            ]
+        });
+        let create = handle(
+            tmp.path(),
+            "POST",
+            "/api/workflows",
+            serde_json::to_vec(&payload).expect("encode").as_slice(),
+            &empty_snapshot(),
+        )
+        .expect("create");
+        assert_eq!(create.status, 200);
+        let workflow_id = create
+            .payload
+            .pointer("/workflow/id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        assert!(!workflow_id.is_empty());
+
+        let validate = handle(
+            tmp.path(),
+            "GET",
+            &format!("/api/workflows/{workflow_id}/validate"),
+            b"",
+            &empty_snapshot(),
+        )
+        .expect("validate");
+        assert_eq!(validate.status, 200);
+        assert_eq!(
+            validate
+                .payload
+                .pointer("/validation/valid")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
 }
