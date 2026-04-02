@@ -132,6 +132,13 @@ fn run_node_script(root: &Path, script_rel: &str, args: &[String], forward_stdin
         if let Some(status) = node_missing_fallback(&workspace_root, &synthetic_route, false) {
             return status;
         }
+        if matches!(
+            script_rel,
+            "client/runtime/systems/ops/protheus_setup_wizard.ts"
+                | "client/runtime/systems/ops/protheus_setup_wizard.js"
+        ) {
+            return run_setup_wizard_missing_script_fallback(&workspace_root, args);
+        }
         eprintln!(
             "{}",
             json!({
@@ -183,6 +190,50 @@ fn run_node_script(root: &Path, script_rel: &str, args: &[String], forward_stdin
             1
         }
     }
+}
+
+fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32 {
+    let state_path = root
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("protheus_setup_wizard")
+        .join("latest.json");
+    let payload = json!({
+        "type": "protheus_setup_wizard_state",
+        "completed": true,
+        "completed_at": crate::now_iso(),
+        "completion_mode": "missing_script_fallback",
+        "node_runtime_detected": has_node_runtime(),
+        "interaction_style": "silent",
+        "notifications": "none",
+        "covenant_acknowledged": false,
+        "version": 1
+    });
+    if let Some(parent) = state_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(raw) = serde_json::to_string_pretty(&payload) {
+        let _ = std::fs::write(state_path, raw);
+    }
+    let json_mode = args
+        .iter()
+        .any(|arg| arg == "--json" || arg == "--json=1");
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "type": "protheus_setup_wizard_fallback",
+                "mode": "missing_script_fallback",
+                "message": "setup wizard script missing in this runtime; wrote fallback state and continued"
+            })
+        );
+    } else {
+        println!("Setup wizard script missing in this runtime; applied compatibility fallback.");
+        println!("You can rerun `infring setup --force` after updating your runtime.");
+    }
+    0
 }
 
 fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bool) -> i32 {

@@ -16,6 +16,7 @@ DEFAULT_INSTALL_DIR="${INFRING_HOME}/bin"
 DEFAULT_WORKSPACE_DIR="${INFRING_HOME}"
 INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}}"
 WORKSPACE_DIR="${INFRING_WORKSPACE_DIR:-${PROTHEUS_WORKSPACE_DIR:-$DEFAULT_WORKSPACE_DIR}}"
+NODE_RUNTIME_VERSION="${INFRING_NODE_RUNTIME_VERSION:-${PROTHEUS_NODE_RUNTIME_VERSION:-22.15.0}}"
 INSTALL_DIR_EXPLICIT=0
 if [ -n "${INFRING_INSTALL_DIR:-}" ] || [ -n "${PROTHEUS_INSTALL_DIR:-}" ]; then
   INSTALL_DIR_EXPLICIT=1
@@ -74,10 +75,9 @@ is_truthy() {
 }
 
 node_version_major() {
-  if ! command -v node >/dev/null 2>&1; then
-    return 1
-  fi
-  version="$(node --version 2>/dev/null || true)"
+  node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+  [ -n "$node_bin_path" ] || return 1
+  version="$("$node_bin_path" --version 2>/dev/null || true)"
   version="${version#v}"
   major="$(printf '%s' "$version" | cut -d. -f1)"
   case "$major" in
@@ -91,6 +91,120 @@ node_runtime_meets_minimum() {
   major="$(node_version_major 2>/dev/null || true)"
   [ -n "$major" ] || return 1
   [ "$major" -ge 22 ]
+}
+
+resolve_node_binary_path() {
+  preferred="${PROTHEUS_NODE_BINARY:-${INFRING_NODE_BINARY:-}}"
+  if [ -n "$preferred" ]; then
+    if [ -x "$preferred" ]; then
+      printf '%s\n' "$preferred"
+      return 0
+    fi
+    if command -v "$preferred" >/dev/null 2>&1; then
+      command -v "$preferred"
+      return 0
+    fi
+  fi
+
+  for candidate in \
+    "$INFRING_HOME/node-runtime/node-v"*/bin/node \
+    "$INFRING_HOME/node-runtime/bin/node"
+  do
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
+  fi
+  return 1
+}
+
+portable_node_archive_name() {
+  os_name="$(norm_os)"
+  arch_name="$(norm_arch)"
+  case "$os_name" in
+    darwin)
+      case "$arch_name" in
+        aarch64) printf '%s\n' "node-v${NODE_RUNTIME_VERSION}-darwin-arm64.tar.gz" ;;
+        x86_64) printf '%s\n' "node-v${NODE_RUNTIME_VERSION}-darwin-x64.tar.gz" ;;
+        *) return 1 ;;
+      esac
+      ;;
+    linux)
+      case "$arch_name" in
+        aarch64) printf '%s\n' "node-v${NODE_RUNTIME_VERSION}-linux-arm64.tar.xz" ;;
+        x86_64) printf '%s\n' "node-v${NODE_RUNTIME_VERSION}-linux-x64.tar.xz" ;;
+        *) return 1 ;;
+      esac
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+install_node_runtime_portable() {
+  archive_name="$(portable_node_archive_name 2>/dev/null || true)"
+  if [ -z "$archive_name" ]; then
+    echo "[infring install] portable Node runtime is unavailable for this platform."
+    return 1
+  fi
+
+  runtime_dir="$INFRING_HOME/node-runtime"
+  tmpdir="$(mktemp -d)"
+  archive_path="$tmpdir/$archive_name"
+  node_url="https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/${archive_name}"
+
+  echo "[infring install] attempting portable Node runtime install:"
+  echo "[infring install]   $node_url"
+
+  if ! curl_fetch "$node_url" -o "$archive_path"; then
+    rm -rf "$tmpdir"
+    echo "[infring install] portable Node download failed."
+    return 1
+  fi
+
+  rm -rf "$runtime_dir"
+  mkdir -p "$runtime_dir"
+  case "$archive_name" in
+    *.tar.gz)
+      tar -xzf "$archive_path" -C "$runtime_dir" || {
+        rm -rf "$tmpdir"
+        echo "[infring install] portable Node extract failed (.tar.gz)."
+        return 1
+      }
+      ;;
+    *.tar.xz)
+      tar -xJf "$archive_path" -C "$runtime_dir" || {
+        rm -rf "$tmpdir"
+        echo "[infring install] portable Node extract failed (.tar.xz)."
+        return 1
+      }
+      ;;
+    *)
+      rm -rf "$tmpdir"
+      echo "[infring install] portable Node archive format unsupported: $archive_name"
+      return 1
+      ;;
+  esac
+
+  node_bin_path="$(find "$runtime_dir" -maxdepth 4 -type f -path '*/bin/node' 2>/dev/null | head -n 1)"
+  if [ -z "$node_bin_path" ] || [ ! -x "$node_bin_path" ]; then
+    rm -rf "$tmpdir"
+    echo "[infring install] portable Node install incomplete (node binary missing)."
+    return 1
+  fi
+
+  export PROTHEUS_NODE_BINARY="$node_bin_path"
+  export INFRING_NODE_BINARY="$node_bin_path"
+  rm -rf "$tmpdir"
+  echo "[infring install] portable Node installed: $node_bin_path"
+  return 0
 }
 
 detect_node_install_command() {
@@ -138,16 +252,18 @@ detect_node_install_command() {
 
 ensure_node_runtime_notice() {
   if node_runtime_meets_minimum; then
-    node_ver="$(node --version 2>/dev/null || true)"
+    node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+    node_ver="$("$node_bin_path" --version 2>/dev/null || true)"
     if [ -n "$node_ver" ]; then
       echo "[infring install] Node.js check: $node_ver (OK for full CLI surface)"
+      [ -n "$node_bin_path" ] && echo "[infring install] Node.js binary: $node_bin_path"
     fi
     return 0
   fi
 
   install_cmd="$(detect_node_install_command)"
-  if command -v node >/dev/null 2>&1; then
-    node_ver="$(node --version 2>/dev/null || true)"
+  if node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"; then
+    node_ver="$("$node_bin_path" --version 2>/dev/null || true)"
     if [ -n "$node_ver" ]; then
       echo "[infring install] Node.js check: detected $node_ver (requires 22+ for full CLI surface)"
     else
@@ -158,24 +274,39 @@ ensure_node_runtime_notice() {
   fi
 
   if is_truthy "$INSTALL_NODE"; then
+    auto_installed=0
+    if install_node_runtime_portable >/dev/null 2>&1 && node_runtime_meets_minimum; then
+      auto_installed=1
+    fi
+    if [ "$auto_installed" = "1" ]; then
+      node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+      node_ver="$("$node_bin_path" --version 2>/dev/null || true)"
+      echo "[infring install] Node.js install complete: ${node_ver:-unknown version}"
+      [ -n "$node_bin_path" ] && echo "[infring install] Node.js binary: $node_bin_path"
+      return 0
+    fi
     case "$install_cmd" in
       Install\ Homebrew*|Install\ Node.js*)
-        echo "[infring install] automatic Node install unavailable on this host."
-        echo "[infring install] run manually: $install_cmd"
-        return 1
+        echo "[infring install] package-manager Node install unavailable on this host."
+        ;;
+      *)
+        echo "[infring install] attempting automatic Node.js install:"
+        echo "[infring install]   $install_cmd"
+        if sh -c "$install_cmd" && node_runtime_meets_minimum; then
+          auto_installed=1
+        fi
         ;;
     esac
-    echo "[infring install] attempting automatic Node.js install:"
-    echo "[infring install]   $install_cmd"
-    if sh -c "$install_cmd"; then
-      if node_runtime_meets_minimum; then
-        node_ver="$(node --version 2>/dev/null || true)"
-        echo "[infring install] Node.js install complete: ${node_ver:-unknown version}"
-        return 0
-      fi
+    if [ "$auto_installed" = "1" ]; then
+      node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+      node_ver="$("$node_bin_path" --version 2>/dev/null || true)"
+      echo "[infring install] Node.js install complete: ${node_ver:-unknown version}"
+      [ -n "$node_bin_path" ] && echo "[infring install] Node.js binary: $node_bin_path"
+      return 0
     fi
     echo "[infring install] warning: automatic Node.js install failed."
     echo "[infring install] run manually: $install_cmd"
+    echo "[infring install] fallback: set PROTHEUS_NODE_BINARY to a valid node executable."
     return 1
   fi
 
@@ -274,11 +405,9 @@ path_dir_writable_or_creatable() {
     [ -w "$candidate" ] || return 1
     return 0
   fi
-  parent_dir="$(dirname "$candidate")"
-  [ -n "$parent_dir" ] || return 1
-  [ -d "$parent_dir" ] || return 1
-  [ -w "$parent_dir" ] || return 1
   mkdir -p "$candidate" 2>/dev/null || return 1
+  [ -d "$candidate" ] || return 1
+  [ -w "$candidate" ] || return 1
   return 0
 }
 
@@ -287,7 +416,7 @@ first_writable_path_dir() {
   IFS=':'
   for candidate in $PATH; do
     [ -n "$candidate" ] || continue
-    if ! path_dir_writable_or_creatable "$candidate"; then
+    if [ ! -d "$candidate" ] || [ ! -w "$candidate" ]; then
       continue
     fi
     printf '%s\n' "$candidate"
@@ -605,6 +734,23 @@ write_path_activate_script() {
     printf '%s\n' "export PROTHEUS_HOME=\"$INFRING_HOME\""
     printf '%s\n' "export INFRING_WORKSPACE_ROOT=\"$WORKSPACE_DIR\""
     printf '%s\n' "export PROTHEUS_WORKSPACE_ROOT=\"$WORKSPACE_DIR\""
+    if node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"; then
+      case "$node_bin_path" in
+        "$INFRING_HOME"/*)
+          printf '%s\n' "export PROTHEUS_NODE_BINARY=\"$node_bin_path\""
+          printf '%s\n' "export INFRING_NODE_BINARY=\"$node_bin_path\""
+          ;;
+      esac
+    fi
+    printf '%s\n' "if [ -z \"\${PROTHEUS_NODE_BINARY:-}\" ]; then"
+    printf '%s\n' "  for node_candidate in \"$INFRING_HOME/node-runtime/node-v\"*/bin/node \"$INFRING_HOME/node-runtime/bin/node\"; do"
+    printf '%s\n' "    if [ -x \"\$node_candidate\" ]; then"
+    printf '%s\n' "      export PROTHEUS_NODE_BINARY=\"\$node_candidate\""
+    printf '%s\n' "      export INFRING_NODE_BINARY=\"\$node_candidate\""
+    printf '%s\n' "      break"
+    printf '%s\n' "    fi"
+    printf '%s\n' "  done"
+    printf '%s\n' "fi"
     printf '%s\n' "if [ -d \"$INSTALL_DIR\" ]; then"
     printf '%s\n' "  case \":\$PATH:\" in"
     printf '%s\n' "    *\":$INSTALL_DIR:\"*) ;;"
@@ -1033,12 +1179,20 @@ install_client_bundle() {
     "protheus-client.tar.gz"
   do
     if download_asset "$version_tag" "$asset" "$archive"; then
+      rm -rf "$extract_dir"
+      mkdir -p "$extract_dir"
       if extract_bundle "$archive"; then
-        mkdir -p "$output_dir"
-        (cd "$extract_dir" && tar -cf - .) | (cd "$output_dir" && tar -xf -)
-        rm -rf "$tmpdir"
-        echo "[infring install] installed optional client runtime bundle"
-        return 0
+        runtime_root="$(workspace_runtime_root "$extract_dir" 2>/dev/null || true)"
+        if [ -n "$runtime_root" ]; then
+          mkdir -p "$output_dir"
+          (cd "$runtime_root" && tar -cf - .) | (cd "$output_dir" && tar -xf -)
+          if workspace_has_runtime "$output_dir"; then
+            rm -rf "$tmpdir"
+            echo "[infring install] installed optional client runtime bundle"
+            return 0
+          fi
+        fi
+        echo "[infring install] ignored invalid client runtime bundle asset: $asset"
       fi
     fi
   done
@@ -1050,6 +1204,23 @@ install_client_bundle() {
 workspace_has_runtime() {
   workspace="$1"
   [ -d "$workspace/client/runtime" ] && [ -d "$workspace/client/runtime/config" ]
+}
+
+workspace_runtime_root() {
+  base="$1"
+  for candidate in \
+    "$base" \
+    "$base/workspace" \
+    "$base/protheus-client" \
+    "$base/infring-workspace"
+  do
+    [ -n "$candidate" ] || continue
+    if workspace_has_runtime "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
 }
 
 install_workspace_from_source_fallback() {
@@ -1097,6 +1268,60 @@ install_workspace_from_source_fallback() {
   mkdir -p "$output_dir/local/state" "$output_dir/local/workspace/memory" "$output_dir/local/workspace/assistant"
   rm -rf "$tmpdir"
   echo "[infring install] installed workspace runtime from source fallback"
+  return 0
+}
+
+ensure_workspace_setup_wizard_compat() {
+  workspace="$1"
+  [ -n "$workspace" ] || return 0
+  ops_dir="$workspace/client/runtime/systems/ops"
+  shim_path="$ops_dir/protheus_setup_wizard.js"
+  [ -d "$ops_dir" ] || mkdir -p "$ops_dir"
+  if [ -f "$shim_path" ]; then
+    return 0
+  fi
+  cat > "$shim_path" <<'__INFRING_SETUP_SHIM__'
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+const TS_ENTRY = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
+const TS_TARGET = path.join(__dirname, 'protheus_setup_wizard.ts');
+const STATE_PATH = path.join(ROOT, 'local', 'state', 'ops', 'protheus_setup_wizard', 'latest.json');
+
+if (fs.existsSync(TS_ENTRY) && fs.existsSync(TS_TARGET)) {
+  const out = spawnSync(process.execPath, [TS_ENTRY, TS_TARGET, ...process.argv.slice(2)], { stdio: 'inherit', cwd: ROOT });
+  process.exit(Number.isFinite(out.status) ? out.status : 1);
+}
+
+const payload = {
+  type: 'protheus_setup_wizard_state',
+  completed: true,
+  completed_at: new Date().toISOString(),
+  completion_mode: 'install_shim_fallback',
+  node_runtime_detected: true,
+  interaction_style: 'silent',
+  notifications: 'none',
+  covenant_acknowledged: false,
+  version: 1
+};
+fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+fs.writeFileSync(STATE_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+const jsonMode = process.argv.slice(2).some((arg) => {
+  const token = String(arg || '').trim().toLowerCase();
+  return token === '--json' || token === '--json=1';
+});
+if (jsonMode) {
+  process.stdout.write(`${JSON.stringify({ ok: true, type: 'protheus_setup_wizard_fallback', mode: 'install_shim_fallback', state_path: STATE_PATH, state: payload })}\n`);
+} else {
+  process.stdout.write('[infring setup] compatibility fallback completed\n');
+}
+process.exit(0);
+__INFRING_SETUP_SHIM__
+  chmod 755 "$shim_path" 2>/dev/null || true
+  echo "[infring install] installed setup wizard compatibility shim"
   return 0
 }
 
@@ -1150,6 +1375,15 @@ write_wrapper() {
   printf '%s\n' "  export PROTHEUS_HOME=\"__INFRING_HOME__\"" >> "$wrapper_path"
   printf '%s\n' "  export INFRING_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
   printf '%s\n' "  export PROTHEUS_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
+  printf '%s\n' "  if [ -z \"\${PROTHEUS_NODE_BINARY:-}\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "    for node_candidate in \"__INFRING_HOME__/node-runtime/node-v\"*/bin/node \"__INFRING_HOME__/node-runtime/bin/node\"; do" >> "$wrapper_path"
+  printf '%s\n' "      if [ -x \"\$node_candidate\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "        export PROTHEUS_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
+  printf '%s\n' "        export INFRING_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
+  printf '%s\n' "        break" >> "$wrapper_path"
+  printf '%s\n' "      fi" >> "$wrapper_path"
+  printf '%s\n' "    done" >> "$wrapper_path"
+  printf '%s\n' "  fi" >> "$wrapper_path"
   printf '%s\n' "  cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
   printf '%s\n' "fi" >> "$wrapper_path"
   printf '%s\n' "$wrapper_body" >> "$wrapper_path"
@@ -1266,7 +1500,8 @@ infring_gateway_launchd_write_plist() {
   plist="$(infring_gateway_launchd_plist "$host" "$port")"
   launch_dir="$(dirname "$plist")"
   mkdir -p "$launch_dir" >/dev/null 2>&1 || return 1
-  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infringctl}"
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/protheus-ops}"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
   [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
   [ -x "$dashboard_bin" ] || return 1
   label_xml="$(infring_gateway_xml_escape "$label")"
@@ -1590,7 +1825,8 @@ infring_gateway_start_dashboard_fallback() {
     fi
   done
   [ -n "$root" ] || return 1
-  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infringctl}"
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/protheus-ops}"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
   [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
   [ -x "$dashboard_bin" ] || return 1
   if infring_gateway_launchd_mode_enabled; then
@@ -2004,6 +2240,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
       echo "[infring install] expected workspace runtime root: $WORKSPACE_DIR" >&2
       exit 1
     fi
+    ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
   fi
 
   echo "[infring install] installed: infring, infringctl, infringd"
