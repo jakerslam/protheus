@@ -13,7 +13,7 @@ DEFAULT_BOOTSTRAP_BASE_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${RE
 
 INFRING_HOME="${INFRING_HOME:-${PROTHEUS_HOME:-$HOME/.infring}}"
 DEFAULT_INSTALL_DIR="${INFRING_HOME}/bin"
-DEFAULT_WORKSPACE_DIR="${INFRING_HOME}/workspace"
+DEFAULT_WORKSPACE_DIR="${INFRING_HOME}"
 INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}}"
 WORKSPACE_DIR="${INFRING_WORKSPACE_DIR:-${PROTHEUS_WORKSPACE_DIR:-$DEFAULT_WORKSPACE_DIR}}"
 INSTALL_DIR_EXPLICIT=0
@@ -33,6 +33,7 @@ INSTALL_PURE="${INFRING_INSTALL_PURE:-${PROTHEUS_INSTALL_PURE:-0}}"
 INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
 INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-${PROTHEUS_INSTALL_REPAIR:-0}}"
 INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
+INSTALL_NODE="${INFRING_INSTALL_NODE:-${PROTHEUS_INSTALL_NODE:-0}}"
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
@@ -72,6 +73,118 @@ is_truthy() {
   esac
 }
 
+node_version_major() {
+  if ! command -v node >/dev/null 2>&1; then
+    return 1
+  fi
+  version="$(node --version 2>/dev/null || true)"
+  version="${version#v}"
+  major="$(printf '%s' "$version" | cut -d. -f1)"
+  case "$major" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  printf '%s\n' "$major"
+  return 0
+}
+
+node_runtime_meets_minimum() {
+  major="$(node_version_major 2>/dev/null || true)"
+  [ -n "$major" ] || return 1
+  [ "$major" -ge 22 ]
+}
+
+detect_node_install_command() {
+  os_name="$(norm_os)"
+  if [ "$os_name" = "darwin" ]; then
+    if command -v brew >/dev/null 2>&1; then
+      printf '%s\n' "brew install node@22 && brew link --overwrite --force node@22"
+      return 0
+    fi
+    if command -v port >/dev/null 2>&1; then
+      printf '%s\n' "sudo port selfupdate && sudo port install nodejs22"
+      return 0
+    fi
+    printf '%s\n' "Install Homebrew from https://brew.sh then run: brew install node@22"
+    return 0
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    printf '%s\n' "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs"
+    return 0
+  fi
+  if command -v dnf >/dev/null 2>&1; then
+    printf '%s\n' "sudo dnf install -y nodejs npm"
+    return 0
+  fi
+  if command -v yum >/dev/null 2>&1; then
+    printf '%s\n' "sudo yum install -y nodejs npm"
+    return 0
+  fi
+  if command -v pacman >/dev/null 2>&1; then
+    printf '%s\n' "sudo pacman -S --noconfirm nodejs npm"
+    return 0
+  fi
+  if command -v apk >/dev/null 2>&1; then
+    printf '%s\n' "sudo apk add --no-cache nodejs npm"
+    return 0
+  fi
+  if command -v zypper >/dev/null 2>&1; then
+    printf '%s\n' "sudo zypper install -y nodejs22"
+    return 0
+  fi
+  printf '%s\n' "Install Node.js 22+ from https://nodejs.org/en/download"
+  return 0
+}
+
+ensure_node_runtime_notice() {
+  if node_runtime_meets_minimum; then
+    node_ver="$(node --version 2>/dev/null || true)"
+    if [ -n "$node_ver" ]; then
+      echo "[infring install] Node.js check: $node_ver (OK for full CLI surface)"
+    fi
+    return 0
+  fi
+
+  install_cmd="$(detect_node_install_command)"
+  if command -v node >/dev/null 2>&1; then
+    node_ver="$(node --version 2>/dev/null || true)"
+    if [ -n "$node_ver" ]; then
+      echo "[infring install] Node.js check: detected $node_ver (requires 22+ for full CLI surface)"
+    else
+      echo "[infring install] Node.js check: detected but version could not be read"
+    fi
+  else
+    echo "[infring install] Node.js check: not detected (requires 22+ for full CLI surface)"
+  fi
+
+  if is_truthy "$INSTALL_NODE"; then
+    case "$install_cmd" in
+      Install\ Homebrew*|Install\ Node.js*)
+        echo "[infring install] automatic Node install unavailable on this host."
+        echo "[infring install] run manually: $install_cmd"
+        return 1
+        ;;
+    esac
+    echo "[infring install] attempting automatic Node.js install:"
+    echo "[infring install]   $install_cmd"
+    if sh -c "$install_cmd"; then
+      if node_runtime_meets_minimum; then
+        node_ver="$(node --version 2>/dev/null || true)"
+        echo "[infring install] Node.js install complete: ${node_ver:-unknown version}"
+        return 0
+      fi
+    fi
+    echo "[infring install] warning: automatic Node.js install failed."
+    echo "[infring install] run manually: $install_cmd"
+    return 1
+  fi
+
+  echo "[infring install] install Node.js now:"
+  echo "[infring install]   $install_cmd"
+  echo "[infring install] tip: rerun installer with --install-node to attempt automatic install."
+  return 1
+}
+
 curl_fetch() {
   if is_truthy "$INSTALL_DEBUG"; then
     curl -fsSL "$@"
@@ -103,6 +216,9 @@ parse_install_args() {
       --repair)
         INSTALL_REPAIR=1
         ;;
+      --install-node)
+        INSTALL_NODE=1
+        ;;
       --install-dir)
         shift
         if [ "$#" -eq 0 ]; then
@@ -128,12 +244,13 @@ parse_install_args() {
         INSTALL_TMP_DIR="${arg#--tmp-dir=}"
         ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair] [--install-dir PATH] [--tmp-dir PATH]"
+        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node] [--install-dir PATH] [--tmp-dir PATH]"
         echo "  --full            install optional client runtime bundle when available"
         echo "  --minimal         install daemon + CLI only (default)"
         echo "  --pure            install pure Rust client + daemon only (no Node/TS surfaces)"
         echo "  --tiny-max        install tiny-max pure profile for old/embedded hardware targets"
         echo "  --repair          clear stale install wrappers + workspace runtime state before install"
+        echo "  --install-node    attempt automatic Node.js 22+ install for full CLI command surface"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
         exit 0
@@ -1950,6 +2067,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   if [ -n "$PATH_ACTIVATE_FILE" ]; then
     echo "[infring install] activation script: $PATH_ACTIVATE_FILE"
   fi
+  ensure_node_runtime_notice || true
   echo "[infring install] run now (direct path): \"$INSTALL_DIR/infring\" --help"
   echo "[infring install] quickstart now (direct path): \"$INSTALL_DIR/infring\" gateway"
   echo "[infring install] run: ${quickstart_prefix}infring --help"

@@ -139,6 +139,46 @@ fn has_node_runtime() -> bool {
         .is_ok()
 }
 
+fn command_exists(bin: &str) -> bool {
+    Command::new(bin)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn node_install_command_hint() -> String {
+    match env::consts::OS {
+        "macos" => {
+            if command_exists("brew") {
+                "brew install node@22 && brew link --overwrite --force node@22".to_string()
+            } else {
+                "Install Homebrew from https://brew.sh then run: brew install node@22".to_string()
+            }
+        }
+        "linux" => {
+            if command_exists("apt-get") {
+                "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs".to_string()
+            } else if command_exists("dnf") {
+                "sudo dnf install -y nodejs npm".to_string()
+            } else if command_exists("yum") {
+                "sudo yum install -y nodejs npm".to_string()
+            } else if command_exists("pacman") {
+                "sudo pacman -S --noconfirm nodejs npm".to_string()
+            } else if command_exists("apk") {
+                "sudo apk add --no-cache nodejs npm".to_string()
+            } else {
+                "Install Node.js 22+ from https://nodejs.org/en/download".to_string()
+            }
+        }
+        "windows" => "winget install OpenJS.NodeJS.LTS".to_string(),
+        _ => "Install Node.js 22+ from https://nodejs.org/en/download".to_string(),
+    }
+}
+
 fn workspace_package_version(root: &Path) -> Option<String> {
     let raw = std::fs::read_to_string(root.join("package.json")).ok()?;
     let parsed: Value = serde_json::from_str(&raw).ok()?;
@@ -198,9 +238,12 @@ fn print_node_free_command_list(mode: &str) {
     }
     println!();
     println!("Install Node.js 22+ to unlock all CLI commands.");
+    println!("Suggested install command: {}", node_install_command_hint());
+    println!("Tip: rerun installer with --install-node to attempt automatic installation.");
 }
 
 fn emit_node_missing_error(cmd: &str, script_rel: &str) -> i32 {
+    let install_hint = node_install_command_hint();
     eprintln!(
         "{}",
         json!({
@@ -209,7 +252,9 @@ fn emit_node_missing_error(cmd: &str, script_rel: &str) -> i32 {
             "error": "node_runtime_missing",
             "command": clean(cmd, 80),
             "script_rel": clean(script_rel, 220),
-            "hint": "Install Node.js 22+ or set PROTHEUS_NODE_BINARY to a valid node executable."
+            "hint": clean(format!("Install Node.js 22+ (try: {install_hint}) or set PROTHEUS_NODE_BINARY to a valid node executable."), 220),
+            "node_install_command": clean(install_hint, 220),
+            "auto_install_hint": "Rerun installer with --install-node to attempt automatic Node installation."
         })
     );
     1

@@ -78,16 +78,21 @@
       try { cs = window.getComputedStyle(node); } catch(_) { cs = null; }
     }
     if (!cs) return '';
-    var candidates = [
-      cs.backgroundColor,
-      cs.borderTopColor,
-      cs.color
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      var parsed = parseColorTriplet(candidates[i]);
-      if (!parsed || !parsed.rgb) continue;
-      return parsed.rgb;
+    var bgSelf = parseColorTriplet(cs.backgroundColor);
+    if (bgSelf && bgSelf.rgb) return bgSelf.rgb;
+    var parent = node && node.parentElement ? node.parentElement : null;
+    while (parent && parent !== document.body && parent !== document.documentElement && parent !== main) {
+      var parentStyle = null;
+      try { parentStyle = window.getComputedStyle(parent); } catch(_) { parentStyle = null; }
+      var bgParent = parseColorTriplet(parentStyle && parentStyle.backgroundColor);
+      if (bgParent && bgParent.rgb) return bgParent.rgb;
+      parent = parent.parentElement;
     }
+    var border = parseColorTriplet(cs.borderTopColor);
+    if (border && border.rgb) return border.rgb;
+    var mainBg = null;
+    try { mainBg = parseColorTriplet(window.getComputedStyle(main).backgroundColor); } catch(_) { mainBg = null; }
+    if (mainBg && mainBg.rgb) return mainBg.rgb;
     return '';
   }
 
@@ -104,36 +109,49 @@
     reflectionLastSyncAt = now;
     var targetRoot = resolveReflectionRoot(reflectionLayer);
     var selector = resolveReflectionSelectors(reflectionLayer);
-    var targets = targetRoot.querySelectorAll(selector);
-    if (!targets || !targets.length) { clearReflections(); return; }
+    var selectorPasses = [selector];
+    if (reflectionLayer === globalReflectionLayer && reflectionFallbackSelectors) {
+      selectorPasses.push(reflectionFallbackSelectors);
+    }
     var mainRect = targetRoot.getBoundingClientRect();
     var darkTheme = resolveTheme() === 'dark';
+    var seenNodes = new Set();
     var rows = [];
-    for (var i = 0; i < targets.length; i++) {
+    for (var s = 0; s < selectorPasses.length; s++) {
       if (rows.length >= 140) break;
-      var node = targets[i];
-      if (!node || !node.isConnected) continue;
-      var rect = node.getBoundingClientRect();
-      if (!rect || rect.width < 28 || rect.height < 16) continue;
-      var row = mirrorSlabRow(mainRect, rect);
-      if (!row) continue;
-      var radiusPx = 12;
-      var rgbTriplet = '';
-      try {
-        var cs = window.getComputedStyle(node);
-        var fromNode = parseFloat((cs && cs.borderTopLeftRadius) || '');
-        if (Number.isFinite(fromNode)) radiusPx = Math.max(6, Math.min(20, Math.round(fromNode)));
-        rgbTriplet = resolveReflectionColorTriplet(node, cs);
-      } catch(_) {}
-      var alphaBase = Math.max(0.08, Math.min(0.22, ((row.width * row.height) / 42000)));
-      var alpha = darkTheme
-        ? Math.max(0.16, Math.min(0.36, alphaBase * 1.55))
-        : alphaBase;
-      row.radius = radiusPx;
-      row.rgb = rgbTriplet;
-      row.alpha = Number(alpha.toFixed(3));
-      rows.push(row);
+      var passSelector = selectorPasses[s];
+      if (!passSelector) continue;
+      var targets = targetRoot.querySelectorAll(passSelector);
+      if (!targets || !targets.length) continue;
+      for (var i = 0; i < targets.length; i++) {
+        if (rows.length >= 140) break;
+        var node = targets[i];
+        if (!node || !node.isConnected || seenNodes.has(node)) continue;
+        seenNodes.add(node);
+        var rect = node.getBoundingClientRect();
+        if (!rect || rect.width < 28 || rect.height < 16) continue;
+        var row = mirrorSlabRow(mainRect, rect);
+        if (!row) continue;
+        var radiusPx = 12;
+        var rgbTriplet = '';
+        try {
+          var cs = window.getComputedStyle(node);
+          var fromNode = parseFloat((cs && cs.borderTopLeftRadius) || '');
+          if (Number.isFinite(fromNode)) radiusPx = Math.max(6, Math.min(20, Math.round(fromNode)));
+          rgbTriplet = resolveReflectionColorTriplet(node, cs);
+        } catch(_) {}
+        if (!rgbTriplet) continue;
+        var alphaBase = Math.max(0.08, Math.min(0.22, ((row.width * row.height) / 42000)));
+        var alpha = darkTheme
+          ? Math.max(0.16, Math.min(0.36, alphaBase * 1.55))
+          : alphaBase;
+        row.radius = radiusPx;
+        row.rgb = rgbTriplet;
+        row.alpha = Number(alpha.toFixed(3));
+        rows.push(row);
+      }
     }
+    if (!rows.length) { clearReflections(); return; }
     var signature = rows.map(function(row) {
       return [row.left, row.top, row.width, row.height, row.radius, row.rgb || '', row.alpha].join(',');
     }).join('|');
