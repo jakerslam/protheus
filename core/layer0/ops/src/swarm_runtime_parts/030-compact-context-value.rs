@@ -79,9 +79,203 @@ fn load_state(path: &Path) -> Result<SwarmState, String> {
 
 fn save_state(path: &Path, state: &SwarmState) -> Result<(), String> {
     ensure_parent(path)?;
-    let encoded =
-        serde_json::to_string_pretty(state).map_err(|err| format!("state_encode_failed:{err}"))?;
+    let encoded = if state.sessions.len() > STATE_PRETTY_MAX_SESSIONS {
+        serde_json::to_string(state).map_err(|err| format!("state_encode_failed:{err}"))?
+    } else {
+        serde_json::to_string_pretty(state).map_err(|err| format!("state_encode_failed:{err}"))?
+    };
     fs::write(path, encoded).map_err(|err| format!("state_write_failed:{err}"))
+}
+
+fn effective_spawn_max_depth(state: &SwarmState, requested_max_depth: u8) -> u8 {
+    requested_max_depth
+        .max(1)
+        .min(state.scale_policy.max_depth_hard.max(1))
+}
+
+fn recommended_manager_fanout_for_target(target_agents: usize) -> usize {
+    if target_agents >= 100_000 {
+        32
+    } else if target_agents >= 10_000 {
+        24
+    } else if target_agents >= 1_000 {
+        12
+    } else if target_agents >= 500 {
+        10
+    } else if target_agents >= 100 {
+        8
+    } else {
+        5
+    }
+}
+
+fn compute_hierarchy_topology(target_agents: usize, fanout: usize) -> Value {
+    let target_agents = target_agents.max(1);
+    let fanout = fanout.max(2);
+
+    let mut remaining = target_agents;
+    let mut level_capacity = 1usize;
+    let mut level = 0usize;
+    let mut level_counts: Vec<usize> = Vec::new();
+    let mut levels = Vec::new();
+
+    while remaining > 0 {
+        let count = remaining.min(level_capacity);
+        level_counts.push(count);
+        levels.push(json!({
+            "level": level,
+            "agents": count,
+            "capacity": level_capacity,
+        }));
+        remaining = remaining.saturating_sub(count);
+        if remaining == 0 {
+            break;
+        }
+        level = level.saturating_add(1);
+        level_capacity = level_capacity.saturating_mul(fanout);
+        if level > 512 {
+            break;
+        }
+    }
+
+    let mut managers_by_level = Vec::new();
+    let mut manager_count = 0usize;
+    for idx in 1..level_counts.len() {
+        let children_at_level = level_counts[idx];
+        let manager_agents = (children_at_level.saturating_add(fanout).saturating_sub(1)) / fanout;
+        manager_count = manager_count.saturating_add(manager_agents);
+        managers_by_level.push(json!({
+            "level": idx - 1,
+            "manager_agents": manager_agents,
+        }));
+    }
+    let leaf_count = target_agents.saturating_sub(manager_count);
+    let required_depth = level_counts.len().saturating_sub(1);
+
+    json!({
+        "target_agents": target_agents,
+        "fanout": fanout,
+        "required_depth": required_depth,
+        "levels": levels,
+        "managers_by_level": managers_by_level,
+        "manager_count": manager_count,
+        "leaf_count": leaf_count,
+        "manager_ratio": if target_agents == 0 { 0.0 } else { manager_count as f64 / target_agents as f64 },
+    })
+}
+
+fn evaluate_scale_policy_readiness(
+    state: &SwarmState,
+    target_agents: usize,
+    fanout: usize,
+) -> Value {
+    let topology = compute_hierarchy_topology(target_agents, fanout);
+    let required_depth = topology
+        .get("required_depth")
+        .and_then(Value::as_u64)
+        .unwrap_or(0) as u8;
+    let sessions_total = state.sessions.len();
+    let max_children_current = state
+        .sessions
+        .values()
+        .map(|session| session.children.len())
+        .max()
+        .unwrap_or(0);
+    let utilization = if state.scale_policy.max_sessions_hard == 0 {
+        0.0
+    } else {
+        sessions_total as f64 / state.scale_policy.max_sessions_hard as f64
+    };
+
+    json!({
+        "policy": {
+            "max_sessions_hard": state.scale_policy.max_sessions_hard,
+            "max_children_per_parent": state.scale_policy.max_children_per_parent,
+            "max_depth_hard": state.scale_policy.max_depth_hard,
+            "target_ready_agents": state.scale_policy.target_ready_agents,
+            "enforce_session_cap": state.scale_policy.enforce_session_cap,
+            "enforce_parent_capacity": state.scale_policy.enforce_parent_capacity,
+        },
+        "current_load": {
+            "sessions_total": sessions_total,
+            "max_children_current": max_children_current,
+            "session_cap_utilization": utilization,
+            "utilization_alert": utilization >= SCALE_UTILIZATION_ALERT_THRESHOLD,
+        },
+        "readiness": {
+            "target_agents": target_agents,
+            "requested_fanout": fanout,
+            "within_session_cap": target_agents <= state.scale_policy.max_sessions_hard,
+            "within_depth_cap": required_depth <= state.scale_policy.max_depth_hard,
+            "within_parent_capacity": fanout <= state.scale_policy.max_children_per_parent,
+            "required_depth": required_depth,
+            "recommended_fanout": recommended_manager_fanout_for_target(target_agents),
+        },
+        "topology": topology,
+    })
+}
+
+fn validate_spawn_capacity(
+    state: &SwarmState,
+    parent_id: Option<&str>,
+    depth: u8,
+    requested_max_depth: u8,
+) -> Result<u8, String> {
+    let effective_max_depth = effective_spawn_max_depth(state, requested_max_depth);
+    if depth >= effective_max_depth {
+        return Err(format!(
+            "max_depth_exceeded:{depth}>=max_depth:{effective_max_depth}"
+        ));
+    }
+
+    if state.scale_policy.enforce_session_cap
+        && state.sessions.len() >= state.scale_policy.max_sessions_hard
+    {
+        return Err(format!(
+            "session_capacity_exceeded:current={}:cap={}",
+            state.sessions.len(),
+            state.scale_policy.max_sessions_hard
+        ));
+    }
+
+    if state.scale_policy.enforce_parent_capacity {
+        if let Some(parent) = parent_id {
+            let parent_children = state
+                .sessions
+                .get(parent)
+                .map(|session| session.children.len())
+                .unwrap_or(0);
+            if parent_children >= state.scale_policy.max_children_per_parent {
+                return Err(format!(
+                    "parent_capacity_exceeded:parent={parent}:children={parent_children}:cap={}",
+                    state.scale_policy.max_children_per_parent
+                ));
+            }
+        }
+    }
+
+    Ok(effective_max_depth)
+}
+
+fn resolve_spawn_depth(state: &SwarmState, parent_id: Option<&str>) -> Result<u8, String> {
+    match parent_id {
+        Some(parent) => state
+            .sessions
+            .get(parent)
+            .map(|session| session.depth.saturating_add(1))
+            .ok_or_else(|| format!("parent_session_missing:{parent}")),
+        None => Ok(0),
+    }
+}
+
+fn ensure_spawn_capacity(
+    state: &SwarmState,
+    parent_id: Option<&str>,
+    requested_max_depth: u8,
+) -> Result<u8, String> {
+    let depth = resolve_spawn_depth(state, parent_id)?;
+    let _ = validate_spawn_capacity(state, parent_id, depth, requested_max_depth)?;
+    Ok(depth)
 }
 
 fn now_epoch_ms() -> u64 {

@@ -6,25 +6,7 @@ fn spawn_single(
     options: &SpawnOptions,
 ) -> Result<Value, String> {
     let request_received_ms = now_epoch_ms();
-    let parent_depth = if let Some(parent) = parent_id {
-        let parent_session = state
-            .sessions
-            .get(parent)
-            .ok_or_else(|| format!("parent_session_missing:{parent}"))?;
-        parent_session.depth
-    } else {
-        0
-    };
-
-    let depth = if parent_id.is_some() {
-        parent_depth.saturating_add(1)
-    } else {
-        0
-    };
-
-    if depth >= max_depth {
-        return Err(format!("max_depth_exceeded:{depth}>=max_depth:{max_depth}"));
-    }
+    let depth = ensure_spawn_capacity(state, parent_id, max_depth)?;
 
     if options.byzantine && !state.byzantine_test_mode {
         return Err("byzantine_test_mode_required".to_string());
@@ -69,57 +51,35 @@ fn spawn_single(
                 }
                 BudgetUsageOutcome::ExceededDenied(reason) => {
                     budget_action_taken = Some("fail".to_string());
-                    let failed_metadata = SessionMetadata {
-                        session_id: session_id.clone(),
-                        parent_id: parent_id.map(ToString::to_string),
-                        children: Vec::new(),
+                    let mut failed_metadata = session_metadata_base(
+                        session_id.clone(),
+                        parent_id.map(ToString::to_string),
                         depth,
-                        task: task.to_string(),
-                        created_at: now_iso(),
-                        status: "failed".to_string(),
-                        reachable: false,
-                        byzantine: options.byzantine,
-                        corruption_type: if options.byzantine {
-                            Some(options.corruption_type.clone())
-                        } else {
-                            None
-                        },
-                        report: Some(json!({
-                            "task": scaled_task,
-                            "original_task": task,
-                            "session_id": session_id,
-                            "depth": depth,
-                            "result": "failed",
-                            "reason_code": "token_budget_exceeded"
-                        })),
-                        metrics: None,
-                        budget_telemetry: Some(telemetry.clone()),
-                        scaled_task: Some(scaled_task.clone()),
-                        budget_action_taken: budget_action_taken.clone(),
-                        role: options.role.clone(),
-                        agent_label: options.agent_label.clone(),
-                        tool_access: default_session_tool_access(),
-                        context_vars: BTreeMap::new(),
-                        context_mode: None,
-                        handoff_ids: Vec::new(),
-                        registered_tool_ids: Vec::new(),
-                        stream_turn_ids: Vec::new(),
-                        turn_run_ids: Vec::new(),
-                        network_ids: Vec::new(),
-                        check_ins: Vec::new(),
-                        metrics_timeline: Vec::new(),
-                        anomalies: Vec::new(),
-                        persistent: None,
-                        background_worker: false,
-                        budget_parent_session_id: budget_parent_session_id.clone(),
-                        budget_reservation_tokens,
-                        budget_reservation_settled: false,
-                        thorn_cell: false,
-                        thorn_target_session_id: None,
-                        thorn_expires_at_ms: None,
-                        quarantine_reason: None,
-                        quarantine_previous_status: None,
+                        task.to_string(),
+                        "failed".to_string(),
+                    );
+                    failed_metadata.reachable = false;
+                    failed_metadata.byzantine = options.byzantine;
+                    failed_metadata.corruption_type = if options.byzantine {
+                        Some(options.corruption_type.clone())
+                    } else {
+                        None
                     };
+                    failed_metadata.report = Some(json!({
+                        "task": scaled_task,
+                        "original_task": task,
+                        "session_id": session_id,
+                        "depth": depth,
+                        "result": "failed",
+                        "reason_code": "token_budget_exceeded"
+                    }));
+                    failed_metadata.budget_telemetry = Some(telemetry.clone());
+                    failed_metadata.scaled_task = Some(scaled_task.clone());
+                    failed_metadata.budget_action_taken = budget_action_taken.clone();
+                    failed_metadata.role = options.role.clone();
+                    failed_metadata.agent_label = options.agent_label.clone();
+                    failed_metadata.budget_parent_session_id = budget_parent_session_id.clone();
+                    failed_metadata.budget_reservation_tokens = budget_reservation_tokens;
                     state.sessions.insert(session_id.clone(), failed_metadata);
                     settle_budget_reservation(state, &session_id);
                     append_event(
@@ -173,50 +133,29 @@ fn spawn_single(
         report_back_latency_ms: now_epoch_ms().saturating_sub(execution_end_ms),
     };
 
-    let metadata = SessionMetadata {
-        session_id: session_id.clone(),
-        parent_id: parent_id.map(ToString::to_string),
-        children: Vec::new(),
+    let mut metadata = session_metadata_base(
+        session_id.clone(),
+        parent_id.map(ToString::to_string),
         depth,
-        task: task.to_string(),
-        created_at: now_iso(),
-        status: "running".to_string(),
-        reachable: !options.simulate_unreachable,
-        byzantine: options.byzantine,
-        corruption_type: if options.byzantine {
-            Some(options.corruption_type.clone())
-        } else {
-            None
-        },
-        report: Some(report.clone()),
-        metrics: Some(metrics.clone()),
-        budget_telemetry: budget_telemetry.clone(),
-        scaled_task: Some(scaled_task.clone()),
-        budget_action_taken: budget_action_taken.clone(),
-        role: options.role.clone(),
-        agent_label: options.agent_label.clone(),
-        tool_access: default_session_tool_access(),
-        context_vars: BTreeMap::new(),
-        context_mode: None,
-        handoff_ids: Vec::new(),
-        registered_tool_ids: Vec::new(),
-        stream_turn_ids: Vec::new(),
-        turn_run_ids: Vec::new(),
-        network_ids: Vec::new(),
-        check_ins: Vec::new(),
-        metrics_timeline: Vec::new(),
-        anomalies: Vec::new(),
-        persistent: None,
-        background_worker: false,
-        budget_parent_session_id,
-        budget_reservation_tokens,
-        budget_reservation_settled: false,
-        thorn_cell: false,
-        thorn_target_session_id: None,
-        thorn_expires_at_ms: None,
-        quarantine_reason: None,
-        quarantine_previous_status: None,
+        task.to_string(),
+        "running".to_string(),
+    );
+    metadata.reachable = !options.simulate_unreachable;
+    metadata.byzantine = options.byzantine;
+    metadata.corruption_type = if options.byzantine {
+        Some(options.corruption_type.clone())
+    } else {
+        None
     };
+    metadata.report = Some(report.clone());
+    metadata.metrics = Some(metrics.clone());
+    metadata.budget_telemetry = budget_telemetry.clone();
+    metadata.scaled_task = Some(scaled_task.clone());
+    metadata.budget_action_taken = budget_action_taken.clone();
+    metadata.role = options.role.clone();
+    metadata.agent_label = options.agent_label.clone();
+    metadata.budget_parent_session_id = budget_parent_session_id;
+    metadata.budget_reservation_tokens = budget_reservation_tokens;
 
     state.sessions.insert(session_id.clone(), metadata);
     register_service_instance(

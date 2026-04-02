@@ -14,6 +14,35 @@ const MAX_EVENT_ROWS: usize = 256;
 const MAX_DEAD_LETTER_ROWS: usize = 256;
 const DEFAULT_MESSAGE_TTL_MS: u64 = 300_000;
 const MAX_MAILBOX_UNREAD: usize = 32;
+const DEFAULT_SCALE_MAX_SESSIONS_HARD: usize = 200_000;
+const DEFAULT_SCALE_MAX_CHILDREN_PER_PARENT: usize = 256;
+const DEFAULT_SCALE_MAX_DEPTH_HARD: u8 = 64;
+const DEFAULT_SCALE_TARGET_READY_AGENTS: usize = 100_000;
+const SCALE_UTILIZATION_ALERT_THRESHOLD: f64 = 0.85;
+const STATE_PRETTY_MAX_SESSIONS: usize = 2_000;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SwarmScalePolicy {
+    max_sessions_hard: usize,
+    max_children_per_parent: usize,
+    max_depth_hard: u8,
+    target_ready_agents: usize,
+    enforce_session_cap: bool,
+    enforce_parent_capacity: bool,
+}
+
+impl Default for SwarmScalePolicy {
+    fn default() -> Self {
+        Self {
+            max_sessions_hard: DEFAULT_SCALE_MAX_SESSIONS_HARD,
+            max_children_per_parent: DEFAULT_SCALE_MAX_CHILDREN_PER_PARENT,
+            max_depth_hard: DEFAULT_SCALE_MAX_DEPTH_HARD,
+            target_ready_agents: DEFAULT_SCALE_TARGET_READY_AGENTS,
+            enforce_session_cap: true,
+            enforce_parent_capacity: true,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SwarmState {
@@ -54,6 +83,8 @@ struct SwarmState {
     scheduled_tasks: BTreeMap<String, ScheduledTask>,
     #[serde(default)]
     events: Vec<Value>,
+    #[serde(default)]
+    scale_policy: SwarmScalePolicy,
 }
 
 impl Default for SwarmState {
@@ -79,6 +110,7 @@ impl Default for SwarmState {
             dead_letters: Vec::new(),
             scheduled_tasks: BTreeMap::new(),
             events: Vec::new(),
+            scale_policy: SwarmScalePolicy::default(),
         }
     }
 }
@@ -184,6 +216,55 @@ fn thorn_session_tool_access() -> Vec<String> {
         "sessions_receive".to_string(),
         "sessions_ack".to_string(),
     ]
+}
+
+fn session_metadata_base(
+    session_id: String,
+    parent_id: Option<String>,
+    depth: u8,
+    task: String,
+    status: String,
+) -> SessionMetadata {
+    SessionMetadata {
+        session_id,
+        parent_id,
+        children: Vec::new(),
+        depth,
+        task,
+        created_at: now_iso(),
+        status,
+        reachable: true,
+        byzantine: false,
+        corruption_type: None,
+        report: None,
+        metrics: None,
+        budget_telemetry: None,
+        scaled_task: None,
+        budget_action_taken: None,
+        role: None,
+        agent_label: None,
+        tool_access: default_session_tool_access(),
+        context_vars: BTreeMap::new(),
+        context_mode: None,
+        handoff_ids: Vec::new(),
+        registered_tool_ids: Vec::new(),
+        stream_turn_ids: Vec::new(),
+        turn_run_ids: Vec::new(),
+        network_ids: Vec::new(),
+        check_ins: Vec::new(),
+        metrics_timeline: Vec::new(),
+        anomalies: Vec::new(),
+        persistent: None,
+        background_worker: false,
+        budget_parent_session_id: None,
+        budget_reservation_tokens: 0,
+        budget_reservation_settled: false,
+        thorn_cell: false,
+        thorn_target_session_id: None,
+        thorn_expires_at_ms: None,
+        quarantine_reason: None,
+        quarantine_previous_status: None,
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
