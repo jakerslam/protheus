@@ -262,6 +262,47 @@ fn emit_node_missing_error(cmd: &str, script_rel: &str) -> i32 {
 
 fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<i32> {
     match route.script_rel.as_str() {
+        "client/runtime/systems/ops/protheus_setup_wizard.ts"
+        | "client/runtime/systems/ops/protheus_setup_wizard.js" => {
+            let state_path = root
+                .join("local")
+                .join("state")
+                .join("ops")
+                .join("protheus_setup_wizard")
+                .join("latest.json");
+            let payload = json!({
+                "type": "protheus_setup_wizard_state",
+                "completed": true,
+                "completed_at": crate::now_iso(),
+                "completion_mode": "node_runtime_missing_fallback",
+                "node_runtime_detected": false,
+                "interaction_style": "silent",
+                "notifications": "none",
+                "covenant_acknowledged": false,
+                "version": 1
+            });
+            if let Some(parent) = state_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(raw) = serde_json::to_string_pretty(&payload) {
+                let _ = std::fs::write(state_path, raw);
+            }
+            if json_mode {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": true,
+                        "type": "protheus_setup_wizard_fallback",
+                        "mode": "node_runtime_missing_fallback",
+                        "node_runtime_detected": false
+                    })
+                );
+            } else {
+                println!("Setup wizard deferred because Node.js 22+ is unavailable.");
+                println!("Install Node.js and run `infring setup --force` to finish setup later.");
+            }
+            Some(0)
+        }
         "client/runtime/systems/ops/protheus_command_list.js"
         | "client/runtime/systems/ops/protheus_command_list.ts" => {
             let mode = command_list_mode(&route.args);
