@@ -22,7 +22,7 @@
       "min_clearance": "L2",
       "daily_tokens": 9000,
       "actions": ["route", "execute"],
-      "targets": ["openai", "anthropic", "google", "ollama", "local"]
+      "targets": ["openai", "frontier_provider", "google", "ollama", "local"]
     },
     "external": {
       "enabled": false,

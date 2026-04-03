@@ -9,10 +9,10 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const OPENFANG_PARITY_STATE_REL: &str =
-    "client/runtime/local/state/ui/infring_dashboard/openfang_parity_state.json";
-const OPENFANG_UPLOADS_DIR_REL: &str =
-    "client/runtime/local/state/ui/infring_dashboard/openfang_uploads";
+const REFERENCE_PARITY_STATE_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/reference_runtime_parity_state.json";
+const REFERENCE_UPLOADS_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/reference_runtime_uploads";
 const ACTION_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
 
@@ -94,9 +94,9 @@ fn stable_hash(seed: &str, len: usize) -> String {
 }
 
 fn load_parity_state(root: &Path) -> Value {
-    read_json(&state_path(root, OPENFANG_PARITY_STATE_REL)).unwrap_or_else(|| {
+    read_json(&state_path(root, REFERENCE_PARITY_STATE_REL)).unwrap_or_else(|| {
         json!({
-            "type": "openfang_parity_state",
+            "type": "reference_runtime_parity_state",
             "updated_at": crate::now_iso(),
             "auth": {
                 "token": "",
@@ -117,7 +117,7 @@ fn load_parity_state(root: &Path) -> Value {
 
 fn save_parity_state(root: &Path, mut state: Value) {
     state["updated_at"] = Value::String(crate::now_iso());
-    write_json(&state_path(root, OPENFANG_PARITY_STATE_REL), &state);
+    write_json(&state_path(root, REFERENCE_PARITY_STATE_REL), &state);
 }
 
 fn as_array_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
@@ -423,7 +423,7 @@ fn upload_create_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
         )
     );
     let digest = stable_hash(&String::from_utf8_lossy(&bytes), 16);
-    let uploads_dir = state_path(root, OPENFANG_UPLOADS_DIR_REL);
+    let uploads_dir = state_path(root, REFERENCE_UPLOADS_DIR_REL);
     let _ = fs::create_dir_all(&uploads_dir);
     let file_path = uploads_dir.join(format!("{upload_id}.bin"));
     let _ = fs::write(&file_path, &bytes);

@@ -25,7 +25,7 @@
   "engines": [
     "protheus",
     "infring",
-    "langgraph",
+    "workflow_graph",
     "mastra",
     "letta"
   ]

@@ -17,12 +17,12 @@ const SVELTEKIT_INDEX_PATH = path.resolve(SVELTEKIT_BUILD_DIR, 'index.html');
 const STATIC_DIR = CANONICAL_STATIC_DIR;
 const FORBIDDEN_ALT_DASHBOARD_DIRS = [
   path.resolve(DASHBOARD_DIR, 'legacy_dashboard'),
-  path.resolve(DASHBOARD_DIR, 'openfang_dashboard'),
-  path.resolve(DASHBOARD_DIR, 'openclaw_dashboard'),
+  path.resolve(DASHBOARD_DIR, 'reference_runtime_dashboard'),
+  path.resolve(DASHBOARD_DIR, 'control_runtime_dashboard'),
   path.resolve(DASHBOARD_DIR, 'dashboard_legacy'),
   path.resolve(DASHBOARD_DIR, 'deprecated_dashboard'),
 ];
-const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|openfang|openclaw|deprecated)/i;
+const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|reference_runtime|control_runtime|deprecated)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';

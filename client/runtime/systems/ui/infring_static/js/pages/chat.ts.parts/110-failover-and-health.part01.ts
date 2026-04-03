@@ -49,30 +49,17 @@
       var self = this;
       if (self._typingTimeout) clearTimeout(self._typingTimeout);
       self._typingTimeout = setTimeout(function() {
-        // Auto-clear stuck typing indicators
-        var timeoutEnvelope = self.collectStreamedAssistantEnvelope();
-        var timeoutThought = String(timeoutEnvelope.thought || '').trim();
-        var timeoutTools = timeoutEnvelope.tools || [];
-        var timeoutText = self.sanitizeToolText(String(timeoutEnvelope.text || '').trim());
+        // Transport timeout: do not fabricate assistant content.
         self._clearStreamingTypewriters();
-        if (timeoutThought) {
-          timeoutTools.unshift(self.makeThoughtToolCard(timeoutThought, Math.max(0, Date.now() - Number(self._responseStartedAt || Date.now()))));
-        }
         self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-        if (!timeoutText) {
-          timeoutText = self.defaultAssistantFallback(timeoutThought, timeoutTools);
-        }
-        if (timeoutText) {
-          self.messages.push({
-            id: ++msgId,
-            role: 'agent',
-            text: timeoutText,
-            meta: 'transport timeout',
-            tools: timeoutTools,
-            ts: Date.now(),
-            _auto_fallback: true
-          });
-        }
+        self.pushSystemMessage({
+          text: 'Response timed out before delivery. Please retry.',
+          meta: '',
+          tools: [],
+          system_origin: 'transport:timeout',
+          ts: Date.now(),
+          dedupe_window_ms: 60000
+        });
         self.sending = false;
         self._responseStartedAt = 0;
         self.tokenCount = 0;

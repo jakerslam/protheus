@@ -4947,12 +4947,12 @@ pub fn handle_with_headers(
             payload,
         });
     }
-    if let Some(response) = dashboard_compat_api_openfang_gap_closure::handle(
+    if let Some(response) = dashboard_compat_api_reference_gap_closure::handle(
         root, method, path, path_only, body, snapshot,
     ) {
         return Some(response);
     }
-    if let Some(response) = dashboard_compat_api_openfang_parity::handle(
+    if let Some(response) = dashboard_compat_api_reference_parity::handle(
         root, method, path, path_only, headers, body, snapshot,
     ) {
         return Some(response);
@@ -7828,7 +7828,7 @@ pub fn handle_with_headers(
                 "templates": [
                     {"id": "general-assistant", "name": "General Assistant", "provider": "auto", "model": "auto"},
                     {"id": "research-analyst", "name": "Research Analyst", "provider": "openai", "model": "gpt-5"},
-                    {"id": "ops-reliability", "name": "Ops Reliability", "provider": "anthropic", "model": "claude-opus-4-20250514"}
+                    {"id": "ops-reliability", "name": "Ops Reliability", "provider": "frontier_provider", "model": "claude-opus-4-20250514"}
                 ]
             }),
             _ => return None,

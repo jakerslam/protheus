@@ -1,4 +1,4 @@
-# REQ-56: LangChain Declarative Ecosystem Assimilation
+# REQ-56: Workflow Chain Declarative Ecosystem Assimilation
 
 Version: 1.0
 Date: 2026-03-17
@@ -6,12 +6,12 @@ Owner: InfRing Workflow / Memory / Integrations
 
 ## Objective
 
-Assimilate LangChain's foundational declarative ecosystem into InfRing without introducing a parallel authority path: LCEL chains, Runnable composability, legacy and deep agents, retrieval and memory abstractions, large integration breadth, model interoperability, prompt templating, and LangSmith-style observability should all map onto existing workflow, swarm, Dream Sequencer, content-skill, adapter, inference, receipt, and observability primitives.
+Assimilate Workflow Chain's foundational declarative ecosystem into InfRing without introducing a parallel authority path: LCEL chains, Runnable composability, legacy and deep agents, retrieval and memory abstractions, large integration breadth, model interoperability, prompt templating, and LangSmith-style observability should all map onto existing workflow, swarm, Dream Sequencer, content-skill, adapter, inference, receipt, and observability primitives.
 
 ## Source References
 
 - [Source doc](https://docs.google.com/document/d/1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw/edit?usp=sharing)
-- [LangChain upstream](https://github.com/langchain-ai/langchain)
+- [Workflow Chain upstream](https://github.com/workflow_chain-ai/workflow_chain)
 
 ## Scope
 
@@ -25,8 +25,8 @@ In scope:
 - Stateful chain execution and rapid-iteration workflow semantics
 
 Out of scope:
-- A separate LangChain-owned execution engine
-- Moving orchestration or integration authority into `apps/langchain/**`
+- A separate Workflow Chain-owned execution engine
+- Moving orchestration or integration authority into `apps/workflow_chain/**`
 - Bypassing current budget, receipt, memory, or policy governance for chain or agent flows
 
 ## Placement Constraints
@@ -41,7 +41,7 @@ This intake must obey repository placement policy.
 ## Related Requirements
 
 - REQ-39: Haystack modular pipeline and agent assimilation
-- REQ-49: LangGraph persistent graph orchestration assimilation
+- REQ-49: Workflow Graph persistent graph orchestration assimilation
 - REQ-53: CAMEL scaling-law agent society assimilation
 - REQ-55: DSPy declarative self-improving pipelines assimilation
 - Existing SRS families:
@@ -89,10 +89,10 @@ This intake must obey repository placement policy.
 
 ### REQ-56-004: Integration Gateway
 
-**Requirement:** LangChain's broad ecosystem of models, tools, vector stores, and document loaders must ingest through governed content-skill and adapter bridges.
+**Requirement:** Workflow Chain's broad ecosystem of models, tools, vector stores, and document loaders must ingest through governed content-skill and adapter bridges.
 
 **Acceptance:**
-- `infring assimilate langchain` or equivalent intake normalizes integration assets into governed manifests
+- `infring assimilate workflow_chain` or equivalent intake normalizes integration assets into governed manifests
 - Every imported component remains provenance-linked and receipted
 - Unsupported integrations fail closed with explicit reasons
 
@@ -111,7 +111,7 @@ This intake must obey repository placement policy.
 
 ### REQ-56-006: LangSmith-Style Observability Bridge
 
-**Requirement:** LangChain tracing, eval, and debugging value must stream through the native observability and evidence stack.
+**Requirement:** Workflow Chain tracing, eval, and debugging value must stream through the native observability and evidence stack.
 
 **Acceptance:**
 - Traces and eval artifacts are captured natively with deterministic receipts
@@ -142,5 +142,5 @@ This intake must obey repository placement policy.
 ## Execution Notes
 
 - This is a requirements intake only.
-- Normalize the source doc's `apps/langchain/` idea into optional shells only; authority remains in `core/`, `client/runtime/systems/**`, and `adapters/`.
-- Prefer `infring assimilate langchain` for operator-facing naming.
+- Normalize the source doc's `apps/workflow_chain/` idea into optional shells only; authority remains in `core/`, `client/runtime/systems/**`, and `adapters/`.
+- Prefer `infring assimilate workflow_chain` for operator-facing naming.

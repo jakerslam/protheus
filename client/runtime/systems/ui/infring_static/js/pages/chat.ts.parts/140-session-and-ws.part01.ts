@@ -177,6 +177,41 @@
         var eventId = String(eventAgentId || '').trim();
         return !eventId || eventId === targetAgentId;
       };
+      var ensurePendingThinkingRow = function(statusText) {
+        var pendingRow = null;
+        var rows = Array.isArray(self.messages) ? self.messages : [];
+        for (var i = rows.length - 1; i >= 0; i--) {
+          var row = rows[i];
+          if (!row) continue;
+          if (row.thinking || row.streaming) {
+            pendingRow = row;
+            break;
+          }
+          if (String(row.role || '').toLowerCase() === 'agent') break;
+        }
+        if (!pendingRow) {
+          pendingRow = {
+            id: ++msgId,
+            role: 'agent',
+            text: 'Thinking...',
+            meta: '',
+            thinking: true,
+            streaming: true,
+            thinking_status: statusText,
+            tools: [],
+            agent_id: targetAgentId,
+            agent_name: self.currentAgent && self.currentAgent.name ? String(self.currentAgent.name) : '',
+            ts: Date.now(),
+          };
+          self.messages.push(pendingRow);
+        } else {
+          pendingRow.thinking = true;
+          pendingRow.streaming = true;
+          if (!String(pendingRow.text || '').trim()) pendingRow.text = 'Thinking...';
+          pendingRow.thinking_status = statusText;
+          pendingRow._stream_updated_at = Date.now();
+        }
+      };
 
       InfringAPI.wsConnect(targetAgentId, {
         onOpen: function() {
@@ -200,10 +235,10 @@
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
             self._clearTypingTimeout();
-            self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-            self.sending = false;
-            self._responseStartedAt = 0;
+            ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
+            self.setAgentLiveActivity(pending.agent_id, 'working');
             self._recoverPendingWsRequest('ws_close');
+            self.scrollToBottom();
           }
           if (self.currentAgent && self.currentAgent.id) {
             Alpine.store('app').refreshAgents().then(function() {
@@ -221,10 +256,10 @@
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
             self._clearTypingTimeout();
-            self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; });
-            self.sending = false;
-            self._responseStartedAt = 0;
+            ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
+            self.setAgentLiveActivity(pending.agent_id, 'working');
             self._recoverPendingWsRequest('ws_error');
+            self.scrollToBottom();
           }
         }
       });
@@ -385,7 +420,7 @@
         // Legacy thinking event (backward compat)
         case 'thinking':
           if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-            var thinkLabel = data.level ? 'Thinking (' + data.level + ')...' : 'Processing...';
+            var thinkLabel = data.level ? 'Thinking (' + data.level + ')...' : 'Thinking...';
             this.messages.push({
               id: ++msgId,
               role: 'agent',
@@ -413,7 +448,7 @@
               this.messages.push({
                 id: ++msgId,
                 role: 'agent',
-                text: '*Processing...*',
+                text: 'Thinking...',
                 meta: '',
                 thinking: true,
                 streaming: true,

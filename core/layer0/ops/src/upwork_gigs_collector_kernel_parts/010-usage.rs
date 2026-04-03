@@ -328,7 +328,7 @@ fn score_keywords() -> &'static [&'static str] {
         "llm",
         "openai",
         "claude",
-        "anthropic",
+        "frontier_provider",
         "agent",
         "workflow",
         "n8n",

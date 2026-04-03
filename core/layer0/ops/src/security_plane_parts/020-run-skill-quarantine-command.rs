@@ -246,7 +246,7 @@ fn run_log_redaction_guard(root: &Path, argv: &[String], strict: bool) -> (Value
     let lower = content.to_ascii_lowercase();
     let patterns = [
         ("openai_api_key", "sk-"),
-        ("anthropic_api_key", "sk-ant-"),
+        ("frontier_provider_api_key", "sk-ant-"),
         ("aws_access_key", "akia"),
         ("private_key", "-----begin private key-----"),
         ("github_pat", "ghp_"),
@@ -350,7 +350,7 @@ fn run_llm_gateway_guard(_root: &Path, argv: &[String], strict: bool) -> (Value,
         if rows.is_empty() {
             vec![
                 "openai".to_string(),
-                "anthropic".to_string(),
+                "frontier_provider".to_string(),
                 "local".to_string(),
             ]
         } else {

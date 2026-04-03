@@ -1,13 +1,13 @@
-fn cron_runtime_jobs_path(openclaw_root: &Path) -> PathBuf {
-    openclaw_root.join("cron/jobs.json")
+fn cron_runtime_jobs_path(control_runtime_root: &Path) -> PathBuf {
+    control_runtime_root.join("cron/jobs.json")
 }
 
 fn cron_workspace_mirror_path(workspace_root: &Path) -> PathBuf {
     workspace_root.join("config/infring_assimilation/cron/jobs.json")
 }
 
-fn run_cron_drift(openclaw_root: &Path, workspace_root: &Path) -> Value {
-    let runtime = cron_runtime_jobs_path(openclaw_root);
+fn run_cron_drift(control_runtime_root: &Path, workspace_root: &Path) -> Value {
+    let runtime = cron_runtime_jobs_path(control_runtime_root);
     let mirror = cron_workspace_mirror_path(workspace_root);
     let runtime_raw = fs::read_to_string(&runtime).unwrap_or_default();
     let mirror_raw = fs::read_to_string(&mirror).unwrap_or_default();
@@ -29,8 +29,8 @@ fn run_cron_drift(openclaw_root: &Path, workspace_root: &Path) -> Value {
     }))
 }
 
-fn run_cron_sync(openclaw_root: &Path, workspace_root: &Path) -> Result<Value, String> {
-    let runtime = cron_runtime_jobs_path(openclaw_root);
+fn run_cron_sync(control_runtime_root: &Path, workspace_root: &Path) -> Result<Value, String> {
+    let runtime = cron_runtime_jobs_path(control_runtime_root);
     let mirror = cron_workspace_mirror_path(workspace_root);
     if !runtime.exists() {
         return Err("cron_runtime_jobs_missing".to_string());
@@ -49,9 +49,9 @@ fn run_cron_sync(openclaw_root: &Path, workspace_root: &Path) -> Result<Value, S
     })))
 }
 
-fn run_doctor(openclaw_root: &Path, workspace_root: &Path, parsed: &crate::ParsedArgs) -> Value {
-    let routing = run_smoke_routing(openclaw_root, parsed);
-    let cron = run_cron_drift(openclaw_root, workspace_root);
+fn run_doctor(control_runtime_root: &Path, workspace_root: &Path, parsed: &crate::ParsedArgs) -> Value {
+    let routing = run_smoke_routing(control_runtime_root, parsed);
+    let cron = run_cron_drift(control_runtime_root, workspace_root);
     let checks = vec![
         json!({
             "id": "routing_smoke",
@@ -65,8 +65,8 @@ fn run_doctor(openclaw_root: &Path, workspace_root: &Path, parsed: &crate::Parse
         }),
         json!({
             "id": "agent_state_exists",
-            "ok": state_path(openclaw_root, parsed).exists(),
-            "detail": state_path(openclaw_root, parsed).to_string_lossy().to_string()
+            "ok": state_path(control_runtime_root, parsed).exists(),
+            "detail": state_path(control_runtime_root, parsed).to_string_lossy().to_string()
         }),
     ];
     let ok = checks
@@ -75,19 +75,19 @@ fn run_doctor(openclaw_root: &Path, workspace_root: &Path, parsed: &crate::Parse
     with_receipt(json!({
         "ok": ok,
         "type": "operator_tooling_doctor",
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "workspace_root": workspace_root.to_string_lossy().to_string(),
         "checks": checks
     }))
 }
 
 fn run_audit_plane(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     workspace_root: &Path,
     parsed: &crate::ParsedArgs,
 ) -> Value {
-    let doctor = run_doctor(openclaw_root, workspace_root, parsed);
-    let memory_recent = run_memory_last_change(openclaw_root, 10);
+    let doctor = run_doctor(control_runtime_root, workspace_root, parsed);
+    let memory_recent = run_memory_last_change(control_runtime_root, 10);
     with_receipt(json!({
         "ok": doctor.get("ok").and_then(Value::as_bool).unwrap_or(false),
         "type": "operator_tooling_audit_plane",
@@ -97,11 +97,11 @@ fn run_audit_plane(
 }
 
 fn run_daily_brief(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     workspace_root: &Path,
     parsed: &crate::ParsedArgs,
 ) -> Value {
-    let state_file = state_path(openclaw_root, parsed);
+    let state_file = state_path(control_runtime_root, parsed);
     let state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let last_task = state.get("last_task").cloned().unwrap_or_else(|| json!({}));
     let routing = state.get("routing").cloned().unwrap_or_else(|| json!({}));
@@ -109,7 +109,7 @@ fn run_daily_brief(
         .get("preferences")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let spawn_events = read_jsonl_rows(&openclaw_root.join("logs/spawn-safe.jsonl"), 40);
+    let spawn_events = read_jsonl_rows(&control_runtime_root.join("logs/spawn-safe.jsonl"), 40);
     let mut seen = HashSet::<String>::new();
     let mut recent_models = Vec::<String>::new();
     for row in spawn_events.iter().rev() {
@@ -142,7 +142,7 @@ fn run_daily_brief(
         .get("always_sync_allowlist")
         .and_then(Value::as_bool)
         .unwrap_or(true)
-        && !agent_root(openclaw_root).join("models.json").exists()
+        && !agent_root(control_runtime_root).join("models.json").exists()
     {
         recommendations
             .push("Allowlist appears missing. Run `infring sync-allowed-models`.".to_string());
@@ -154,7 +154,7 @@ fn run_daily_brief(
         );
     }
 
-    let audit = run_audit_plane(openclaw_root, workspace_root, parsed);
+    let audit = run_audit_plane(control_runtime_root, workspace_root, parsed);
 
     with_receipt(json!({
         "ok": true,
@@ -183,11 +183,11 @@ fn run_daily_brief(
 }
 
 fn run_fail_playbook(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     workspace_root: &Path,
     parsed: &crate::ParsedArgs,
 ) -> Value {
-    let doctor = run_doctor(openclaw_root, workspace_root, parsed);
+    let doctor = run_doctor(control_runtime_root, workspace_root, parsed);
     let mut actions = Vec::<String>::new();
     if doctor.pointer("/checks/0/ok").and_then(Value::as_bool) == Some(false) {
         actions.push("Run: infring smoke-routing".to_string());
@@ -207,19 +207,19 @@ fn run_fail_playbook(
     }))
 }
 
-fn summary_status(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Value {
-    let policy = routing_policy_path(openclaw_root, parsed);
-    let state = state_path(openclaw_root, parsed);
-    let decisions = decision_log_path(openclaw_root, parsed);
+fn summary_status(control_runtime_root: &Path, parsed: &crate::ParsedArgs) -> Value {
+    let policy = routing_policy_path(control_runtime_root, parsed);
+    let state = state_path(control_runtime_root, parsed);
+    let decisions = decision_log_path(control_runtime_root, parsed);
     let files = vec![
         ("routing_policy", policy),
         ("state", state),
         ("decisions", decisions),
         (
             "logs_spawn_safe",
-            openclaw_root.join("logs/spawn-safe.jsonl"),
+            control_runtime_root.join("logs/spawn-safe.jsonl"),
         ),
-        ("logs_spawn_run", openclaw_root.join("logs/spawn-run.jsonl")),
+        ("logs_spawn_run", control_runtime_root.join("logs/spawn-run.jsonl")),
     ];
     let file_rows = files
         .into_iter()
@@ -234,7 +234,7 @@ fn summary_status(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Value {
     with_receipt(json!({
         "ok": true,
         "type": "operator_tooling_status",
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "commands": [
             "status",
             "route-model",
@@ -259,7 +259,7 @@ fn summary_status(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Value {
             "auto-spawn",
             "execute-handoff",
             "safe-run",
-            "openclaw-health",
+            "control_runtime-health",
             "cron-drift",
             "cron-sync",
             "doctor",

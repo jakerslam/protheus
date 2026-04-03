@@ -1130,7 +1130,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-LENS-011 | blocked_external_prepared | queued | needs_implementation | no | [hardening / V4] LensMap Security Posture and External Audit Landing Page |
 | V4-MIGR-001 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Core Migration Bridge + Workspace Port Command |
 | V4-MIGR-002 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) |
-| V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps) |
+| V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps) |
 | V4-MIGR-004 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Self-Healing Migration Daemon |
 | V4-MIGR-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Post-Migration Verification + Premium Completion Report |
 | V4-OBS-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Advanced `protheus-top` observability dashboard polish |

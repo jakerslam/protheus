@@ -26,47 +26,47 @@ fn category_style(category: &str) -> (&'static str, &'static str, &'static str) 
     }
 }
 
-fn openfang_adapter(name: &str) -> Option<&'static str> {
+fn reference_runtime_adapter(name: &str) -> Option<&'static str> {
     match name {
-        "signal" => Some("openfang_signal"),
-        "teams" => Some("openfang_teams"),
-        "matrix" => Some("openfang_matrix"),
-        "irc" => Some("openfang_irc"),
-        "email" => Some("openfang_email"),
-        "google_chat" => Some("openfang_google_chat"),
-        "mattermost" => Some("openfang_mattermost"),
-        "zulip" => Some("openfang_zulip"),
-        "rocketchat" => Some("openfang_rocketchat"),
-        "rocket_chat" => Some("openfang_rocketchat"),
-        "xmpp" => Some("openfang_xmpp"),
-        "bluesky" => Some("openfang_bluesky"),
-        "feishu" => Some("openfang_feishu"),
-        "line" => Some("openfang_line"),
-        "mastodon" => Some("openfang_mastodon"),
-        "messenger" => Some("openfang_messenger"),
-        "facebook_messenger" => Some("openfang_messenger"),
-        "reddit" => Some("openfang_reddit"),
-        "guilded" => Some("openfang_guilded"),
-        "nextcloud" => Some("openfang_nextcloud"),
-        "nostr" => Some("openfang_nostr"),
-        "revolt" => Some("openfang_revolt"),
-        "viber" => Some("openfang_viber"),
-        "webex" => Some("openfang_webex"),
-        "dingtalk" => Some("openfang_dingtalk"),
-        "dingtalk_stream" => Some("openfang_dingtalk_stream"),
-        "discourse" => Some("openfang_discourse"),
-        "gitter" => Some("openfang_gitter"),
-        "keybase" => Some("openfang_keybase"),
-        "linkedin" => Some("openfang_linkedin"),
-        "flock" => Some("openfang_flock"),
-        "mqtt" => Some("openfang_mqtt"),
-        "mumble" => Some("openfang_mumble"),
-        "pumble" => Some("openfang_pumble"),
-        "threema" => Some("openfang_threema"),
-        "twist" => Some("openfang_twist"),
-        "twitch" => Some("openfang_twitch"),
-        "webhook" => Some("openfang_webhook"),
-        "wecom" => Some("openfang_wecom"),
+        "signal" => Some("reference_runtime_signal"),
+        "teams" => Some("reference_runtime_teams"),
+        "matrix" => Some("reference_runtime_matrix"),
+        "irc" => Some("reference_runtime_irc"),
+        "email" => Some("reference_runtime_email"),
+        "google_chat" => Some("reference_runtime_google_chat"),
+        "mattermost" => Some("reference_runtime_mattermost"),
+        "zulip" => Some("reference_runtime_zulip"),
+        "rocketchat" => Some("reference_runtime_rocketchat"),
+        "rocket_chat" => Some("reference_runtime_rocketchat"),
+        "xmpp" => Some("reference_runtime_xmpp"),
+        "bluesky" => Some("reference_runtime_bluesky"),
+        "feishu" => Some("reference_runtime_feishu"),
+        "line" => Some("reference_runtime_line"),
+        "mastodon" => Some("reference_runtime_mastodon"),
+        "messenger" => Some("reference_runtime_messenger"),
+        "facebook_messenger" => Some("reference_runtime_messenger"),
+        "reddit" => Some("reference_runtime_reddit"),
+        "guilded" => Some("reference_runtime_guilded"),
+        "nextcloud" => Some("reference_runtime_nextcloud"),
+        "nostr" => Some("reference_runtime_nostr"),
+        "revolt" => Some("reference_runtime_revolt"),
+        "viber" => Some("reference_runtime_viber"),
+        "webex" => Some("reference_runtime_webex"),
+        "dingtalk" => Some("reference_runtime_dingtalk"),
+        "dingtalk_stream" => Some("reference_runtime_dingtalk_stream"),
+        "discourse" => Some("reference_runtime_discourse"),
+        "gitter" => Some("reference_runtime_gitter"),
+        "keybase" => Some("reference_runtime_keybase"),
+        "linkedin" => Some("reference_runtime_linkedin"),
+        "flock" => Some("reference_runtime_flock"),
+        "mqtt" => Some("reference_runtime_mqtt"),
+        "mumble" => Some("reference_runtime_mumble"),
+        "pumble" => Some("reference_runtime_pumble"),
+        "threema" => Some("reference_runtime_threema"),
+        "twist" => Some("reference_runtime_twist"),
+        "twitch" => Some("reference_runtime_twitch"),
+        "webhook" => Some("reference_runtime_webhook"),
+        "wecom" => Some("reference_runtime_wecom"),
         _ => None,
     }
 }
@@ -81,7 +81,7 @@ fn adapter_label(name: &str, display_name: &str) -> String {
     }
 }
 
-pub fn openfang_native_channel_names() -> &'static [&'static str] {
+pub fn reference_runtime_native_channel_names() -> &'static [&'static str] {
     &[
         "signal",
         "teams",
@@ -131,7 +131,7 @@ pub fn channel_catalog_entry(
     category: &str,
     setup_type: &str,
 ) -> Option<Value> {
-    let adapter = openfang_adapter(name)?;
+    let adapter = reference_runtime_adapter(name)?;
     let (icon, difficulty, setup_time) = category_style(category);
     let label = adapter_label(name, display_name);
     let requires_token = !matches!(name, "mqtt");
@@ -158,7 +158,7 @@ pub fn channel_catalog_entry(
         "name": name,
         "icon": icon,
         "display_name": display_name,
-        "description": format!("OpenFang-native {} adapter with governed live probe and receipts.", label),
+        "description": format!("Reference Runtime-native {} adapter with governed live probe and receipts.", label),
         "quick_setup": quick,
         "category": category,
         "difficulty": difficulty,
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn dingtalk_stream_is_in_native_catalog() {
-        assert!(openfang_native_channel_names()
+        assert!(reference_runtime_native_channel_names()
             .iter()
             .any(|name| *name == "dingtalk_stream"));
         let entry =
@@ -337,7 +337,7 @@ mod tests {
                 .get("runtime_adapter")
                 .and_then(Value::as_str)
                 .unwrap_or(""),
-            "openfang_dingtalk_stream"
+            "reference_runtime_dingtalk_stream"
         );
     }
 }

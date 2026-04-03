@@ -34,10 +34,10 @@ mod dashboard_compat_api_channels;
 mod dashboard_compat_api_comms;
 #[path = "../dashboard_compat_api_hands.rs"]
 mod dashboard_compat_api_hands;
-#[path = "../dashboard_compat_api_openfang_parity.rs"]
-mod dashboard_compat_api_openfang_parity;
-#[path = "../dashboard_compat_api_openfang_gap_closure.rs"]
-mod dashboard_compat_api_openfang_gap_closure;
+#[path = "../dashboard_compat_api_reference_parity.rs"]
+mod dashboard_compat_api_reference_parity;
+#[path = "../dashboard_compat_api_reference_gap_closure.rs"]
+mod dashboard_compat_api_reference_gap_closure;
 #[path = "../dashboard_compat_api_settings_ops.rs"]
 mod dashboard_compat_api_settings_ops;
 #[path = "../dashboard_compat_api_sidebar_ops.rs"]

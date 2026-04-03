@@ -22,7 +22,7 @@
       "channel_adapters": 15,
       "llm_providers": 5
     },
-    "LangGraph": {
+    "Workflow Graph": {
       "cold_start_ms": 2500,
       "idle_memory_mb": 180,
       "install_size_mb": 150,

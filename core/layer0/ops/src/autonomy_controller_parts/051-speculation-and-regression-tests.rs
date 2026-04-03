@@ -200,29 +200,29 @@ mod regression_tests {
     }
 
     #[test]
-    fn kairos_pause_blocks_cycle_increment() {
+    fn proactive_daemon_pause_blocks_cycle_increment() {
         let root = tempdir().expect("tmp");
         assert_eq!(
-            run_kairos_daemon(root.path(), &["kairos".to_string(), "pause".to_string()]),
+            run_proactive_daemon_daemon(root.path(), &["proactive_daemon".to_string(), "pause".to_string()]),
             0
         );
         assert_eq!(
-            run_kairos_daemon(root.path(), &["kairos".to_string(), "cycle".to_string()]),
+            run_proactive_daemon_daemon(root.path(), &["proactive_daemon".to_string(), "cycle".to_string()]),
             0
         );
-        let state = read_json(&kairos_state_path(root.path())).expect("state");
+        let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
         assert_eq!(state.get("paused").and_then(Value::as_bool), Some(true));
         assert_eq!(state.get("cycles").and_then(Value::as_u64), Some(0));
     }
 
     #[test]
-    fn kairos_cycle_emits_append_only_daily_log_and_state_write_confirmation() {
+    fn proactive_daemon_cycle_emits_append_only_daily_log_and_state_write_confirmation() {
         let root = tempdir().expect("tmp");
         assert_eq!(
-            run_kairos_daemon(
+            run_proactive_daemon_daemon(
                 root.path(),
                 &[
-                    "kairos".to_string(),
+                    "proactive_daemon".to_string(),
                     "cycle".to_string(),
                     "--auto=1".to_string(),
                     "--force=1".to_string(),
@@ -232,13 +232,13 @@ mod regression_tests {
             0
         );
         let ymd: String = now_iso().chars().take(10).collect();
-        let log_path = kairos_daily_log_path(root.path(), &ymd);
+        let log_path = proactive_daemon_daily_log_path(root.path(), &ymd);
         let rows = read_jsonl(&log_path);
         assert!(
             !rows.is_empty(),
-            "kairos daily log should append at least one row"
+            "proactive_daemon daily log should append at least one row"
         );
-        let state = read_json(&kairos_state_path(root.path())).expect("state");
+        let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
         assert_eq!(
             state
                 .pointer("/write_discipline/state_write_confirmed")
@@ -248,7 +248,7 @@ mod regression_tests {
     }
 
     #[test]
-    fn kairos_rate_limit_and_block_budget_defer_intents() {
+    fn proactive_daemon_rate_limit_and_block_budget_defer_intents() {
         let root = tempdir().expect("tmp");
         assert_eq!(
             run_hand_new(
@@ -283,10 +283,10 @@ mod regression_tests {
         .expect("swarm");
 
         assert_eq!(
-            run_kairos_daemon(
+            run_proactive_daemon_daemon(
                 root.path(),
                 &[
-                    "kairos".to_string(),
+                    "proactive_daemon".to_string(),
                     "cycle".to_string(),
                     "--auto=1".to_string(),
                     "--force=1".to_string(),
@@ -296,7 +296,7 @@ mod regression_tests {
             ),
             0
         );
-        let state = read_json(&kairos_state_path(root.path())).expect("state");
+        let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
         let deferred = state
             .pointer("/last_deferred_intents")
             .and_then(Value::as_array)
@@ -314,7 +314,7 @@ mod regression_tests {
     }
 
     #[test]
-    fn kairos_auto_compaction_uses_reactive_threshold_near_ninety_five_percent() {
+    fn proactive_daemon_auto_compaction_uses_reactive_threshold_near_ninety_five_percent() {
         let root = tempdir().expect("tmp");
         assert_eq!(
             run_hand_new(
@@ -332,10 +332,10 @@ mod regression_tests {
         );
         write_json(&hand_path, &hand).expect("write hand");
         assert_eq!(
-            run_kairos_daemon(
+            run_proactive_daemon_daemon(
                 root.path(),
                 &[
-                    "kairos".to_string(),
+                    "proactive_daemon".to_string(),
                     "cycle".to_string(),
                     "--auto=1".to_string(),
                     "--force=1".to_string(),
@@ -345,7 +345,7 @@ mod regression_tests {
             ),
             0
         );
-        let state = read_json(&kairos_state_path(root.path())).expect("state");
+        let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
         let executed = state
             .pointer("/last_executed_intents")
             .and_then(Value::as_array)
@@ -365,13 +365,13 @@ mod regression_tests {
     }
 
     #[test]
-    fn kairos_heartbeat_tick_gate_prevents_early_cycle_reentry() {
+    fn proactive_daemon_heartbeat_tick_gate_prevents_early_cycle_reentry() {
         let root = tempdir().expect("tmp");
         assert_eq!(
-            run_kairos_daemon(
+            run_proactive_daemon_daemon(
                 root.path(),
                 &[
-                    "kairos".to_string(),
+                    "proactive_daemon".to_string(),
                     "cycle".to_string(),
                     "--tick-ms=60000".to_string(),
                     "--force=1".to_string(),
@@ -379,20 +379,20 @@ mod regression_tests {
             ),
             0
         );
-        let first = read_json(&kairos_state_path(root.path())).expect("state first");
+        let first = read_json(&proactive_daemon_state_path(root.path())).expect("state first");
         assert_eq!(first.get("cycles").and_then(Value::as_u64), Some(1));
         assert_eq!(
-            run_kairos_daemon(
+            run_proactive_daemon_daemon(
                 root.path(),
                 &[
-                    "kairos".to_string(),
+                    "proactive_daemon".to_string(),
                     "cycle".to_string(),
                     "--tick-ms=60000".to_string(),
                 ],
             ),
             0
         );
-        let second = read_json(&kairos_state_path(root.path())).expect("state second");
+        let second = read_json(&proactive_daemon_state_path(root.path())).expect("state second");
         assert_eq!(second.get("cycles").and_then(Value::as_u64), Some(1));
         assert_eq!(
             second.get("last_decision").and_then(Value::as_str),
@@ -401,21 +401,21 @@ mod regression_tests {
     }
 
     #[test]
-    fn kairos_daily_log_is_append_only_across_cycles() {
+    fn proactive_daemon_daily_log_is_append_only_across_cycles() {
         let root = tempdir().expect("tmp");
         let args = &[
-            "kairos".to_string(),
+            "proactive_daemon".to_string(),
             "cycle".to_string(),
             "--force=1".to_string(),
             "--auto=1".to_string(),
         ];
-        assert_eq!(run_kairos_daemon(root.path(), args), 0);
-        assert_eq!(run_kairos_daemon(root.path(), args), 0);
+        assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
+        assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
         let ymd: String = now_iso().chars().take(10).collect();
-        let rows = read_jsonl(&kairos_daily_log_path(root.path(), &ymd));
+        let rows = read_jsonl(&proactive_daemon_daily_log_path(root.path(), &ymd));
         assert!(
             rows.len() >= 2,
-            "expected append-only kairos log to retain multiple cycle rows"
+            "expected append-only proactive_daemon log to retain multiple cycle rows"
         );
     }
 

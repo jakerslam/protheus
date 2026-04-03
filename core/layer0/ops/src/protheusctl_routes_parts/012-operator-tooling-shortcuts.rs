@@ -147,16 +147,16 @@ fn resolve_operator_tooling_shortcuts(cmd: &str, rest: &[String]) -> Option<Rout
                 .collect(),
             forward_stdin: false,
         }),
-        "safe-run" | "openclaw-safe" | "watch-exec" => Some(Route {
+        "safe-run" | "control_runtime-safe" | "watch-exec" => Some(Route {
             script_rel: "core://operator-tooling-kernel".to_string(),
             args: std::iter::once("safe-run".to_string())
                 .chain(rest.iter().cloned())
                 .collect(),
             forward_stdin: false,
         }),
-        "openclaw-health" | "safe-health" => Some(Route {
+        "control_runtime-health" | "safe-health" => Some(Route {
             script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("openclaw-health".to_string())
+            args: std::iter::once("control_runtime-health".to_string())
                 .chain(rest.iter().cloned())
                 .collect(),
             forward_stdin: false,
@@ -175,7 +175,7 @@ fn resolve_operator_tooling_shortcuts(cmd: &str, rest: &[String]) -> Option<Rout
                 .collect(),
             forward_stdin: false,
         }),
-        "doctor" | "openclaw-doctor" => Some(Route {
+        "control_runtime-doctor" => Some(Route {
             script_rel: "core://operator-tooling-kernel".to_string(),
             args: std::iter::once("doctor".to_string())
                 .chain(rest.iter().cloned())

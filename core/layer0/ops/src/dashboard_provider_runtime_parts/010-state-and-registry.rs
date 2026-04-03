@@ -19,7 +19,7 @@ const PROVIDER_ROUTING_EVENTS_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_routing_events.jsonl";
 const DEFAULT_PROVIDER_IDS: &[&str] = &[
     "openai",
-    "anthropic",
+    "frontier_provider",
     "google",
     "groq",
     "moonshot",
@@ -146,7 +146,7 @@ fn provider_display_name(provider_id: &str) -> String {
     match provider_id {
         "auto" => "Auto Router".to_string(),
         "openai" => "OpenAI".to_string(),
-        "anthropic" => "Anthropic".to_string(),
+        "frontier_provider" => "Frontier Provider".to_string(),
         "google" => "Gemini".to_string(),
         "groq" => "Groq".to_string(),
         "moonshot" => "Moonshot".to_string(),
@@ -226,7 +226,7 @@ fn local_provider_reachable(provider_id: &str, row: &Value) -> bool {
 pub fn provider_supports_chat(provider_id: &str, base_url: &str) -> bool {
     let cleaned = clean_text(base_url, 400);
     match provider_id {
-        "openai" | "anthropic" | "google" | "groq" | "moonshot" | "xai" | "openrouter"
+        "openai" | "frontier_provider" | "google" | "groq" | "moonshot" | "xai" | "openrouter"
         | "deepseek" | "together" | "fireworks" | "perplexity" | "mistral" | "ollama"
         | "llama.cpp" => !cleaned.is_empty(),
         "claude-code" | "cohere" | "auto" => false,
@@ -251,7 +251,7 @@ fn provider_api_key_env(provider_id: &str) -> String {
 fn provider_key_env_names(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "openai" => &["OPENAI_API_KEY"],
-        "anthropic" => &["ANTHROPIC_API_KEY"],
+        "frontier_provider" => &["FRONTIER_PROVIDER_API_KEY"],
         "google" => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
         "groq" => &["GROQ_API_KEY"],
         "moonshot" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
@@ -298,7 +298,7 @@ fn provider_key(root: &Path, provider_id: &str) -> Option<String> {
 fn provider_base_url_default(provider_id: &str) -> String {
     match provider_id {
         "openai" => "https://api.openai.com/v1".to_string(),
-        "anthropic" => "https://api.anthropic.com".to_string(),
+        "frontier_provider" => "https://api.frontier_provider.com".to_string(),
         "google" => "https://generativelanguage.googleapis.com".to_string(),
         "groq" => "https://api.groq.com/openai/v1".to_string(),
         "moonshot" => "https://api.moonshot.ai/v1".to_string(),
@@ -323,7 +323,7 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
             "gpt-4o": {"power_rating": 4, "cost_rating": 3, "param_count_billion": 0, "specialty": "vision", "specialty_tags": ["vision", "general"], "deployment_kind": "api"}
         }))
         .unwrap_or_default(),
-        "anthropic" => serde_json::from_value(json!({
+        "frontier_provider" => serde_json::from_value(json!({
             "claude-sonnet-4-20250514": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api"},
             "claude-opus-4-20250514": {"power_rating": 5, "cost_rating": 5, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api"}
         }))
@@ -351,7 +351,7 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
         .unwrap_or_default(),
         "openrouter" => serde_json::from_value(json!({
             "google/gemini-2.5-flash": {"power_rating": 3, "cost_rating": 2, "param_count_billion": 0, "specialty": "vision", "specialty_tags": ["vision", "speed", "general"], "deployment_kind": "api", "context_window": 1048576},
-            "anthropic/claude-sonnet-4": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api", "context_window": 200000},
+            "frontier_provider/claude-sonnet-4": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api", "context_window": 200000},
             "moonshotai/kimi-k2": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 1000, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "api", "context_window": 262144},
             "moonshotai/kimi-k2.5": {"power_rating": 5, "cost_rating": 4, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api", "context_window": 262144}
         }))
@@ -785,7 +785,7 @@ fn masked_last4(key: &str) -> String {
 fn guess_provider_from_key(raw: &str) -> String {
     let key = clean_text(raw, 512);
     if key.starts_with("sk-ant-") {
-        return "anthropic".to_string();
+        return "frontier_provider".to_string();
     }
     if key.starts_with("gsk_") || key.starts_with("gsk-") {
         return "groq".to_string();

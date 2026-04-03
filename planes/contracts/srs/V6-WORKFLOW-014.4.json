@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-014.4",
   "upgrade": "Broad Integration Gateway Contract",
-  "section": "LangChain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
+  "section": "Workflow Chain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,
@@ -34,6 +34,6 @@
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-18T06:10:37Z",
-    "notes": "Govern LangChain integration intake through one adapter bridge family and fail closed on unsupported assets."
+    "notes": "Govern Workflow Chain integration intake through one adapter bridge family and fail closed on unsupported assets."
   }
 }

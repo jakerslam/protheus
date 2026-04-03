@@ -103,7 +103,7 @@ fn dashboard_auto_route_from_payload(payload: &Value) -> Value {
                 "ollama" => (120.0_f64, 0.0_f64, 0.92_f64),
                 "groq" => (65.0_f64, 0.2_f64, 0.90_f64),
                 "openai" => (90.0_f64, 0.55_f64, 0.95_f64),
-                "anthropic" => (105.0_f64, 0.7_f64, 0.95_f64),
+                "frontier_provider" => (105.0_f64, 0.7_f64, 0.95_f64),
                 "google" => (95.0_f64, 0.6_f64, 0.94_f64),
                 "cloud" => (80.0_f64, 0.3_f64, 0.93_f64),
                 _ => (110.0_f64, 0.45_f64, 0.90_f64),

@@ -178,6 +178,8 @@
       if (!this.currentAgent) return '';
       var selected = String(this.currentAgent.model_name || '').trim();
       var runtime = String(this.currentAgent.runtime_model || '').trim();
+      if (this.isPlaceholderModelRef(selected)) selected = '';
+      if (this.isPlaceholderModelRef(runtime)) runtime = '';
       if (selected.toLowerCase() === 'auto') {
         var resolved = runtime ? runtime.replace(/-\d{8}$/, '') : '';
         var autoLabel = resolved ? ('Auto: ' + resolved) : 'Auto';
@@ -210,6 +212,9 @@
       filtered.sort(function(a, b) {
         var aId = String((a && a.id) || '').trim();
         var bId = String((b && b.id) || '').trim();
+        var aAvailable = !(a && a.available === false) ? 1 : 0;
+        var bAvailable = !(b && b.available === false) ? 1 : 0;
+        if (bAvailable !== aAvailable) return bAvailable - aAvailable;
         var aUsage = self.modelUsageTs(aId);
         var bUsage = self.modelUsageTs(bId);
         if (bUsage !== aUsage) return bUsage - aUsage;
@@ -225,12 +230,48 @@
       return filtered;
     },
 
+    isPlaceholderModelRef: function(value) {
+      var id = String(value || '').trim().toLowerCase();
+      if (!id) return true;
+      if (id === 'model' || id === '<model>' || id === '(model)') return true;
+      if (id.indexOf('/') >= 0) {
+        var tail = String(id.split('/').slice(-1)[0] || '').trim();
+        if (!tail) return true;
+        return tail === 'model' || tail === '<model>' || tail === '(model)';
+      }
+      return false;
+    },
+
+    sanitizeModelCatalogRows: function(rows) {
+      var list = Array.isArray(rows) ? rows : [];
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < list.length; i += 1) {
+        var row = list[i] && typeof list[i] === 'object' ? list[i] : {};
+        var id = String(row.id || row.model || row.model_name || '').trim();
+        if (!id || this.isPlaceholderModelRef(id)) continue;
+        var provider = String(row.provider || row.model_provider || '').trim();
+        if (!provider && id.indexOf('/') >= 0) provider = String(id.split('/')[0] || '').trim();
+        if (!provider) provider = 'unknown';
+        var key = id.toLowerCase();
+        if (seen[key]) continue;
+        seen[key] = true;
+        out.push(Object.assign({}, row, {
+          id: id,
+          provider: provider,
+          available: row.available !== false
+        }));
+      }
+      return out;
+    },
+
     activeModelCandidateIds: function() {
       var out = [];
       var seen = {};
+      var self = this;
       var add = function(value) {
         var id = String(value || '').trim();
-        if (!id || seen[id]) return;
+        if (!id || self.isPlaceholderModelRef(id) || seen[id]) return;
         seen[id] = true;
         out.push(id);
       };
@@ -267,7 +308,7 @@
       var runtime = String(agent.runtime_model || '').trim();
       var provider = String(agent.model_provider || '').trim();
       var activeId = selected.toLowerCase() === 'auto' && runtime ? runtime : (selected || runtime);
-      if (!activeId) return null;
+      if (!activeId || this.isPlaceholderModelRef(activeId)) return null;
       return {
         id: activeId,
         provider: provider || (activeId.indexOf('/') >= 0 ? activeId.split('/')[0] : 'unknown'),

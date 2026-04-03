@@ -191,7 +191,7 @@ function bootstrap(entryPath, mod) {
       mod._compile(distSource, distPath);
       return;
     }
-    if (runtimeMode === 'dist' && String(process.env.PROTHEUS_RUNTIME_DIST_REQUIRED || '0') === '1') {
+    if (runtimeMode === 'dist') {
       throw new Error(`ts_bootstrap: missing_dist_runtime:${String(distPath || 'unknown')}`);
     }
   }

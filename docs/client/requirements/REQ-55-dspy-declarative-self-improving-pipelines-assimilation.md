@@ -42,7 +42,7 @@ This intake must obey repository placement policy.
 ## Related Requirements
 
 - REQ-39: Haystack modular pipeline and agent assimilation
-- REQ-49: LangGraph persistent graph orchestration assimilation
+- REQ-49: Workflow Graph persistent graph orchestration assimilation
 - REQ-53: CAMEL scaling-law agent society assimilation
 - REQ-54: Pydantic AI type-safe structured agents assimilation
 - Existing SRS families:

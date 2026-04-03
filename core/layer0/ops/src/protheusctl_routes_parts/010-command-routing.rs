@@ -29,6 +29,69 @@ fn has_prefix_flag(args: &[String], key: &str) -> bool {
     args.iter().any(|arg| arg.trim().starts_with(&prefix))
 }
 
+fn normalize_dashboard_flag(token: &str) -> String {
+    let trimmed = token.trim();
+    if let Some(value) = trimmed.strip_prefix("--host=") {
+        return format!("--dashboard-host={value}");
+    }
+    if let Some(value) = trimmed.strip_prefix("--port=") {
+        return format!("--dashboard-port={value}");
+    }
+    if trimmed == "--host" {
+        return "--dashboard-host".to_string();
+    }
+    if trimmed == "--port" {
+        return "--dashboard-port".to_string();
+    }
+    trimmed.to_string()
+}
+
+fn route_dashboard_compat(rest: &[String], from_dashboard_ui: bool) -> Route {
+    let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
+    let (subcommand, passthrough_start_idx) = match first.as_deref() {
+        Some(
+            "start" | "serve" | "boot" | "stop" | "restart" | "status" | "heal" | "attach"
+            | "subscribe" | "tick" | "diagnostics",
+        ) => (
+            match first.as_deref() {
+                Some("serve" | "boot") => "start".to_string(),
+                _ => first.unwrap_or_else(|| "start".to_string()),
+            },
+            1usize,
+        ),
+        Some("help" | "--help" | "-h") => ("status".to_string(), 0usize),
+        _ => ("start".to_string(), 0usize),
+    };
+
+    let mut args = Vec::<String>::new();
+    args.push(subcommand.clone());
+    args.extend(
+        rest.iter()
+            .skip(passthrough_start_idx)
+            .map(|token| normalize_dashboard_flag(token)),
+    );
+    if subcommand == "start" {
+        let has_open_flag = args.iter().any(|arg| {
+            let token = arg.trim();
+            token == "--dashboard-open"
+                || token == "--no-browser"
+                || token.starts_with("--dashboard-open=")
+        });
+        if !has_open_flag {
+            if from_dashboard_ui {
+                args.push("--dashboard-open=0".to_string());
+            } else {
+                args.push("--dashboard-open=1".to_string());
+            }
+        }
+    }
+    Route {
+        script_rel: "core://daemon-control".to_string(),
+        args,
+        forward_stdin: false,
+    }
+}
+
 pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
     if let Some(route) = resolve_operator_tooling_shortcuts(cmd, rest) {
         return Some(route);
@@ -66,6 +129,8 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "dashboard-ui" => Some(route_dashboard_compat(rest, true)),
+        "dashboard" => Some(route_dashboard_compat(rest, false)),
         "verity" => {
             let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
             let (subcommand, passthrough_start_idx) = match first.as_deref() {
@@ -142,7 +207,16 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
-        "dream" | "compact" | "kairos" | "speculate" => {
+        "doctor" | "verify-install" => {
+            let mut args = vec![cmd.to_string()];
+            args.extend(rest.iter().cloned());
+            Some(Route {
+                script_rel: "core://install-doctor".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "dream" | "compact" | "proactive_daemon" | "speculate" => {
             let mut args = vec![cmd.to_string()];
             args.extend(rest.iter().cloned());
             Some(Route {
@@ -863,7 +937,7 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                         forward_stdin: false,
                     })
                 }
-                "langchain" | "workflow://langchain" | "chains://langchain" => {
+                "workflow_chain" | "workflow://workflow_chain" | "chains://workflow_chain" => {
                     let args = if passthrough.is_empty()
                         || passthrough
                             .first()
@@ -877,7 +951,7 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                         passthrough
                     };
                     Some(Route {
-                        script_rel: "core://langchain-bridge".to_string(),
+                        script_rel: "core://workflow_chain-bridge".to_string(),
                         args,
                         forward_stdin: false,
                     })

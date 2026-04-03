@@ -105,7 +105,7 @@ fn extract_openai_text(value: &Value) -> String {
         .unwrap_or_default()
 }
 
-fn extract_anthropic_text(value: &Value) -> String {
+fn extract_frontier_provider_text(value: &Value) -> String {
     value
         .get("content")
         .and_then(Value::as_array)
@@ -505,12 +505,12 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
             };
             format!("{base_url}/v1beta/models?key={key}")
         }
-        "anthropic" => {
+        "frontier_provider" => {
             let Some(key) = provider_key(root, &provider) else {
                 return json!({"ok": false, "status": "error", "provider": provider, "error": "provider_key_missing"});
             };
             headers.push(format!("x-api-key: {key}"));
-            headers.push("anthropic-version: 2023-06-01".to_string());
+            headers.push("frontier_provider-version: 2023-06-01".to_string());
             format!("{base_url}/v1/models")
         }
         _ => {

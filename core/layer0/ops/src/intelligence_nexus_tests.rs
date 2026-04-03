@@ -229,7 +229,7 @@ fn autobuy_apply_executes_purchase_when_below_threshold() {
             &root,
             &[
                 "autobuy-evaluate".to_string(),
-                "--provider=anthropic".to_string(),
+                "--provider=frontier_provider".to_string(),
                 "--current=40".to_string(),
                 "--threshold=100".to_string(),
                 "--refill=150".to_string(),
@@ -277,7 +277,7 @@ fn workspace_view_emits_credit_health_cards_with_remaining_bars() {
             &root,
             &[
                 "credits-status".to_string(),
-                "--provider=anthropic".to_string(),
+                "--provider=frontier_provider".to_string(),
                 "--credits=10".to_string(),
                 "--burn-rate-per-day=30".to_string(),
             ],
@@ -303,7 +303,7 @@ fn workspace_view_emits_credit_health_cards_with_remaining_bars() {
         .map(|bar| bar.len() == 20)
         .unwrap_or(false)));
     assert!(cards.iter().any(|row| {
-        row.get("provider").and_then(Value::as_str) == Some("anthropic")
+        row.get("provider").and_then(Value::as_str) == Some("frontier_provider")
             && row.get("health").and_then(Value::as_str) == Some("critical")
     }));
     std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");

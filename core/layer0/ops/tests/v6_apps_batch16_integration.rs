@@ -117,7 +117,7 @@ fn v6_apps_batch16_chat_surfaces_and_code_engineer_are_receipted() {
             "switch-provider".to_string(),
             "--strict=1".to_string(),
             "--app=chat-ui".to_string(),
-            "--provider=anthropic".to_string(),
+            "--provider=frontier_provider".to_string(),
             "--model=claude-sonnet".to_string(),
         ],
     );

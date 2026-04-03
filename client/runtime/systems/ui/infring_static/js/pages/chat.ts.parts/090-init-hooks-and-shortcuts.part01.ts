@@ -230,7 +230,7 @@
           self.modelPickerFilter = modelMatch[1].toLowerCase();
           if (!self.modelPickerList.length) {
             InfringAPI.get('/api/models').then(function(data) {
-              self.modelPickerList = (data.models || []).filter(function(m) { return m.available; });
+              self.modelPickerList = self.sanitizeModelCatalogRows((data && data.models) || []);
               self.showModelPicker = true;
               self.modelPickerIdx = 0;
             }).catch(function() {});

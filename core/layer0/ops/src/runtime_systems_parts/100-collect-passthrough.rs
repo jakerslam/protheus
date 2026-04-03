@@ -74,7 +74,7 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
         }),
         "go_to_market_crush" => json!({
             "enterprise_licensing_guard": "active",
-            "migration_bridge": "crewai_langgraph_autogen_openhands",
+            "migration_bridge": "crewai_workflow_graph_autogen_openhands",
             "ga_lts_contract": true,
             "governance_observability": "required"
         }),

@@ -1,9 +1,9 @@
-fn safe_wrapper_state_path(openclaw_root: &Path) -> PathBuf {
-    openclaw_root.join("state/openclaw-safe-state.json")
+fn safe_wrapper_state_path(control_runtime_root: &Path) -> PathBuf {
+    control_runtime_root.join("state/control_runtime-safe-state.json")
 }
 
-fn safe_wrapper_log_path(openclaw_root: &Path) -> PathBuf {
-    openclaw_root.join("logs/openclaw-safe.jsonl")
+fn safe_wrapper_log_path(control_runtime_root: &Path) -> PathBuf {
+    control_runtime_root.join("logs/control_runtime-safe.jsonl")
 }
 
 include!("050_ops_helpers.rs");
@@ -117,7 +117,7 @@ fn run_core_with_timeout(
     }))
 }
 
-fn run_openclaw_health(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Value {
+fn run_control_runtime_health(control_runtime_root: &Path, parsed: &crate::ParsedArgs) -> Value {
     let since_hours = parsed
         .flags
         .get("since-hours")
@@ -125,7 +125,7 @@ fn run_openclaw_health(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Valu
         .unwrap_or(48.0)
         .clamp(1.0, 24.0 * 30.0);
     let cutoff = epoch_secs_now().saturating_sub((since_hours * 3600.0) as u64);
-    let rows = read_jsonl_rows(&safe_wrapper_log_path(openclaw_root), 4000)
+    let rows = read_jsonl_rows(&safe_wrapper_log_path(control_runtime_root), 4000)
         .into_iter()
         .filter(|row| row.get("ts_epoch").and_then(Value::as_u64).unwrap_or(0) >= cutoff)
         .collect::<Vec<_>>();
@@ -158,7 +158,7 @@ fn run_openclaw_health(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Valu
         .into_iter()
         .map(|(cmd, count)| json!({ "cmd_key": cmd, "count": count }))
         .collect::<Vec<_>>();
-    let safe_state = read_json_file(&safe_wrapper_state_path(openclaw_root))
+    let safe_state = read_json_file(&safe_wrapper_state_path(control_runtime_root))
         .unwrap_or_else(|| json!({"blacklist": {}, "timeouts": {}}));
     let blacklist = safe_state
         .get("blacklist")
@@ -167,20 +167,20 @@ fn run_openclaw_health(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Valu
 
     with_receipt(json!({
         "ok": true,
-        "type": "operator_tooling_openclaw_health",
+        "type": "operator_tooling_control_runtime_health",
         "since_hours": since_hours,
         "rows_count": rows.len(),
         "status_counts": by_status,
         "top_timeouts": top_timeouts,
         "adaptive_blacklist": blacklist,
-        "state_path": safe_wrapper_state_path(openclaw_root).to_string_lossy().to_string(),
-        "log_path": safe_wrapper_log_path(openclaw_root).to_string_lossy().to_string(),
+        "state_path": safe_wrapper_state_path(control_runtime_root).to_string_lossy().to_string(),
+        "log_path": safe_wrapper_log_path(control_runtime_root).to_string_lossy().to_string(),
     }))
 }
 
 fn run_safe_run(
     root: &Path,
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     parsed: &crate::ParsedArgs,
 ) -> Result<Value, String> {
     let domain = parsed
@@ -208,7 +208,7 @@ fn run_safe_run(
         })));
     }
 
-    let state_path = safe_wrapper_state_path(openclaw_root);
+    let state_path = safe_wrapper_state_path(control_runtime_root);
     let mut state =
         read_json_file(&state_path).unwrap_or_else(|| json!({"blacklist": {}, "timeouts": {}}));
     let now = epoch_secs_now();
@@ -269,7 +269,7 @@ fn run_safe_run(
     }
     write_json_file(&state_path, &state)?;
 
-    let log_path = safe_wrapper_log_path(openclaw_root);
+    let log_path = safe_wrapper_log_path(control_runtime_root);
     let log_row = with_receipt(json!({
         "ok": final_out.get("ok").cloned().unwrap_or(Value::Bool(false)),
         "type": "operator_tooling_safe_run_event",
@@ -347,7 +347,7 @@ fn run_shell_with_timeout(
 }
 
 fn run_safe_apply(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     parsed: &crate::ParsedArgs,
     payload: &Value,
 ) -> Result<Value, String> {
@@ -405,16 +405,16 @@ fn run_safe_apply(
         .replace('-', "")
         .replace('T', "-")
         .replace('Z', "");
-    let backup_dir = openclaw_root.join("backups").join(stamp);
+    let backup_dir = control_runtime_root.join("backups").join(stamp);
     fs::create_dir_all(&backup_dir)
         .map_err(|err| format!("safe_apply_backup_mkdir_failed:{err}"))?;
-    let targets = safe_apply_targets(openclaw_root, payload);
+    let targets = safe_apply_targets(control_runtime_root, payload);
     let mut backed_up = Vec::<String>::new();
     for target in &targets {
         if !target.exists() {
             continue;
         }
-        let backup_path = safe_apply_backup_path(openclaw_root, &backup_dir, target);
+        let backup_path = safe_apply_backup_path(control_runtime_root, &backup_dir, target);
         if let Some(parent) = backup_path.parent() {
             fs::create_dir_all(parent)
                 .map_err(|err| format!("safe_apply_backup_mkdir_failed:{err}"))?;
@@ -424,13 +424,13 @@ fn run_safe_apply(
         backed_up.push(target.to_string_lossy().to_string());
     }
 
-    let command_result = run_shell_with_timeout(openclaw_root, &command_text, timeout_ms)?;
+    let command_result = run_shell_with_timeout(control_runtime_root, &command_text, timeout_ms)?;
     if !command_result
         .get("ok")
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        let restored = rollback_from_backup(openclaw_root, &targets, &backup_dir)?;
+        let restored = rollback_from_backup(control_runtime_root, &targets, &backup_dir)?;
         return Err(format!(
             "safe_apply_command_failed:rolled_back={} status_code={}",
             restored.len(),
@@ -444,9 +444,9 @@ fn run_safe_apply(
     let verify_result = if verify_cmd.trim().is_empty() {
         Value::Null
     } else {
-        let check = run_shell_with_timeout(openclaw_root, &verify_cmd, timeout_ms)?;
+        let check = run_shell_with_timeout(control_runtime_root, &verify_cmd, timeout_ms)?;
         if !check.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            let restored = rollback_from_backup(openclaw_root, &targets, &backup_dir)?;
+            let restored = rollback_from_backup(control_runtime_root, &targets, &backup_dir)?;
             return Err(format!(
                 "safe_apply_verify_failed:rolled_back={} status_code={}",
                 restored.len(),
@@ -466,7 +466,7 @@ fn run_safe_apply(
         "targets": backed_up
     });
     append_decision_markdown(
-        &decision_log_path(openclaw_root, parsed),
+        &decision_log_path(control_runtime_root, parsed),
         &title,
         &reason,
         &verify_cmd,

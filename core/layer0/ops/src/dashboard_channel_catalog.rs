@@ -3,7 +3,7 @@
 use serde_json::{json, Value};
 
 fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Value {
-    if let Some(row) = crate::openfang_parity_catalog::channel_catalog_entry(
+    if let Some(row) = crate::reference_parity_catalog::channel_catalog_entry(
         name,
         display_name,
         category,

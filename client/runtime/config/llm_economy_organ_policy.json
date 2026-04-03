@@ -52,9 +52,9 @@
       "reliability_index": 0.94,
       "payment_route": "x402_or_provider_billing"
     },
-    "anthropic": {
+    "frontier_provider": {
       "enabled": true,
-      "display_name": "Anthropic",
+      "display_name": "Frontier Provider",
       "pricing_index": 0.6,
       "performance_index": 0.9,
       "reliability_index": 0.93,

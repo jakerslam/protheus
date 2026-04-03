@@ -1,4 +1,4 @@
-fn safe_apply_targets(openclaw_root: &Path, payload: &Value) -> Vec<PathBuf> {
+fn safe_apply_targets(control_runtime_root: &Path, payload: &Value) -> Vec<PathBuf> {
     if let Some(rows) = payload.get("targets").and_then(Value::as_array) {
         let selected = rows
             .iter()
@@ -8,7 +8,7 @@ fn safe_apply_targets(openclaw_root: &Path, payload: &Value) -> Vec<PathBuf> {
                 if path.is_absolute() {
                     path
                 } else {
-                    openclaw_root.join(path)
+                    control_runtime_root.join(path)
                 }
             })
             .collect::<Vec<_>>();
@@ -17,15 +17,15 @@ fn safe_apply_targets(openclaw_root: &Path, payload: &Value) -> Vec<PathBuf> {
         }
     }
     vec![
-        openclaw_root.join("openclaw.json"),
-        openclaw_root.join("agents/main/agent/models.json"),
-        openclaw_root.join("agents/main/agent/routing-policy.json"),
-        openclaw_root.join("agents/main/agent/identity.md"),
+        control_runtime_root.join("control_runtime.json"),
+        control_runtime_root.join("agents/main/agent/models.json"),
+        control_runtime_root.join("agents/main/agent/routing-policy.json"),
+        control_runtime_root.join("agents/main/agent/identity.md"),
     ]
 }
 
-fn safe_apply_backup_path(openclaw_root: &Path, backup_dir: &Path, target: &Path) -> PathBuf {
-    if let Ok(rel) = target.strip_prefix(openclaw_root) {
+fn safe_apply_backup_path(control_runtime_root: &Path, backup_dir: &Path, target: &Path) -> PathBuf {
+    if let Ok(rel) = target.strip_prefix(control_runtime_root) {
         return backup_dir.join(rel);
     }
     let file_name = target
@@ -43,13 +43,13 @@ fn safe_apply_backup_path(openclaw_root: &Path, backup_dir: &Path, target: &Path
 }
 
 fn rollback_from_backup(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     targets: &[PathBuf],
     backup_dir: &Path,
 ) -> Result<Vec<String>, String> {
     let mut restored = Vec::<String>::new();
     for target in targets {
-        let backup = safe_apply_backup_path(openclaw_root, backup_dir, target);
+        let backup = safe_apply_backup_path(control_runtime_root, backup_dir, target);
         if backup.exists() {
             fs::copy(&backup, target)
                 .map_err(|err| format!("safe_apply_rollback_copy_failed:{err}"))?;

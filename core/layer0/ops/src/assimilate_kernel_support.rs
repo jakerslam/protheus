@@ -278,8 +278,8 @@ pub fn payload_scaffold_for(target: &str) -> Value {
                 "budget": 128
             }]
         }),
-        "langchain" | "workflow://langchain" | "chains://langchain" => {
-            json!({"name":"langchain-integration","integration_type":"tool","capabilities":["retrieve"]})
+        "workflow_chain" | "workflow://workflow_chain" | "chains://workflow_chain" => {
+            json!({"name":"workflow_chain-integration","integration_type":"tool","capabilities":["retrieve"]})
         }
         "dspy" | "workflow://dspy" | "optimizer://dspy" => {
             json!({"name":"dspy-integration","kind":"retriever","capabilities":["retrieve"]})

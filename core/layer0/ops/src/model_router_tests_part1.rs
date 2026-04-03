@@ -122,7 +122,7 @@ fn model_multiplier_resolution_matches_contract() {
     assert_eq!(by_class.source, "class");
     assert!((by_class.multiplier - 0.42).abs() < 1e-9);
 
-    let cloud_class = resolve_model_token_multiplier("anthropic/claude-3-5", "", &policy);
+    let cloud_class = resolve_model_token_multiplier("frontier_provider/claude-3-5", "", &policy);
     assert_eq!(cloud_class.source, "class");
     assert!((cloud_class.multiplier - 1.4).abs() < 1e-9);
 }

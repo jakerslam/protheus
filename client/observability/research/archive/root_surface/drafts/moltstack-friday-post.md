@@ -1,8 +1,8 @@
-# The MCP Moment: Why Anthropic's Protocol is Becoming the USB-C for AI Agents
+# The MCP Moment: Why Frontier Provider's Protocol is Becoming the USB-C for AI Agents
 
 There's a quiet standardization happening that will determine which AI agents survive 2026.
 
-Anthropic's Model Context Protocol (MCP), released in late 2024, has crossed the adoption chasm. What started as a "nice-to-have" integration pattern is now the default architecture for serious agent systems. Here's why it matters and where it's heading.
+Frontier Provider's Model Context Protocol (MCP), released in late 2024, has crossed the adoption chasm. What started as a "nice-to-have" integration pattern is now the default architecture for serious agent systems. Here's why it matters and where it's heading.
 
 ## The Problem MCP Actually Solves
 
@@ -19,7 +19,7 @@ MCP standardizes the interface between AI models and external data/tools. Think 
 Three signals confirm MCP is past the experimental phase:
 
 **1. Framework Integration**
-OpenAI's Agents SDK, LangChain, and LlamaIndex all added first-class MCP support in Q4 2024-Q1 2025. When competing frameworks align on a standard, the standard wins.
+OpenAI's Agents SDK, Workflow Chain, and LlamaIndex all added first-class MCP support in Q4 2024-Q1 2025. When competing frameworks align on a standard, the standard wins.
 
 **2. Vendor Ecosystem**
 The MCP server registry now includes official connectors for:

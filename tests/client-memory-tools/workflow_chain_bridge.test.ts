@@ -29,15 +29,15 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const bridge = require('../../client/runtime/systems/workflow/langchain_bridge.ts');
-const connectorBridge = require('../../adapters/protocol/langchain_connector_bridge.ts');
+const bridge = require('../../client/runtime/systems/workflow/workflow_chain_bridge.ts');
+const connectorBridge = require('../../adapters/protocol/workflow_chain_connector_bridge.ts');
 
 function run() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'langchain-bridge-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow_chain-bridge-'));
   const statePath = path.join(tmpDir, 'state.json');
   const historyPath = path.join(tmpDir, 'history.jsonl');
   const swarmStatePath = path.join(tmpDir, 'swarm-state.json');
-  const outputDir = `client/runtime/local/state/langchain-shell-${process.pid}`;
+  const outputDir = `client/runtime/local/state/workflow_chain-shell-${process.pid}`;
 
   const chain = bridge.registerChain({
     name: 'incident-chain',
@@ -109,9 +109,9 @@ function run() {
   assert.strictEqual(recall.recall.results.length >= 1, true);
 
   const integration = connectorBridge.importIntegration({
-    name: 'langchain-qdrant',
+    name: 'workflow_chain-qdrant',
     integration_type: 'vector-store',
-    assets: [{ kind: 'package', name: '@langchain/qdrant' }],
+    assets: [{ kind: 'package', name: '@workflow_chain/qdrant' }],
     state_path: statePath,
     history_path: historyPath
   });
@@ -120,12 +120,12 @@ function run() {
   const prompt = bridge.routePrompt({
     name: 'incident-prompt',
     profile: 'pure',
-    provider: 'anthropic',
+    provider: 'frontier_provider',
     fallback_provider: 'openai-compatible',
     model: 'claude-3-7-sonnet',
     template: 'Answer {{question}} with {{context}}',
     variables: { question: 'What happened?', context: 'billing service degraded' },
-    supported_providers: ['anthropic', 'openai-compatible'],
+    supported_providers: ['frontier_provider', 'openai-compatible'],
     state_path: statePath,
     history_path: historyPath
   });
@@ -170,7 +170,7 @@ function run() {
 
   const intake = bridge.assimilateIntake({
     output_dir: outputDir,
-    package_name: 'langchain-shell',
+    package_name: 'workflow_chain-shell',
     state_path: statePath,
     history_path: historyPath
   });
@@ -193,7 +193,7 @@ function run() {
 
   fs.rmSync(path.join(process.cwd(), outputDir), { recursive: true, force: true });
 
-  console.log(JSON.stringify({ ok: true, type: 'langchain_bridge_test' }));
+  console.log(JSON.stringify({ ok: true, type: 'workflow_chain_bridge_test' }));
 }
 
 run();

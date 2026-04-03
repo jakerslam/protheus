@@ -34,11 +34,11 @@
           InfringToast.success('Claude Code detected (' + (result.latency_ms || '?') + 'ms)');
         } else {
           this.testResult = { status: 'error', error: 'Claude Code CLI not detected' };
-          InfringToast.error('Claude Code CLI not detected. Make sure you\'ve run: npm install -g @anthropic-ai/claude-code && claude auth');
+          InfringToast.error('Claude Code CLI not detected. Make sure you\'ve run: npm install -g @frontier_provider-ai/claude-code && claude auth');
         }
       } catch(e) {
         this.testResult = { status: 'error', error: e.message };
-        InfringToast.error('Claude Code CLI not detected. Make sure you\'ve run: npm install -g @anthropic-ai/claude-code && claude auth');
+        InfringToast.error('Claude Code CLI not detected. Make sure you\'ve run: npm install -g @frontier_provider-ai/claude-code && claude auth');
       }
       this.testingProvider = false;
     },
@@ -98,7 +98,7 @@
 
     defaultModelForProvider(providerId) {
       var defaults = {
-        anthropic: 'claude-sonnet-4-20250514',
+        frontier_provider: 'claude-sonnet-4-20250514',
         openai: 'gpt-4o',
         gemini: 'gemini-2.5-flash',
         groq: 'llama-3.3-70b-versatile',

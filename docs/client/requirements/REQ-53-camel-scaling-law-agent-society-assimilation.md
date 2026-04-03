@@ -45,7 +45,7 @@ This intake must obey repository placement policy.
 - REQ-39: Haystack modular pipeline and agent assimilation
 - REQ-42: Google ADK protocol-first agent assimilation
 - REQ-45: OpenAI Swarm lightweight handoff assimilation
-- REQ-49: LangGraph persistent graph orchestration assimilation
+- REQ-49: Workflow Graph persistent graph orchestration assimilation
 - Existing SRS families:
   - `V6-SWARM-*`
   - `V6-WORKFLOW-001.*` through `V6-WORKFLOW-012.*`

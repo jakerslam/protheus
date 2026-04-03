@@ -7,7 +7,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = match payload_json(&argv[1..]) {
         Ok(payload) => payload,
         Err(err) => {
-            print_json_line(&cli_error("langchain_bridge_error", &err));
+            print_json_line(&cli_error("workflow_chain_bridge_error", &err));
             return 1;
         }
     };
@@ -47,27 +47,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "record-trace" => record_trace(root, &mut state, input),
         "checkpoint-run" => checkpoint_run(root, argv, &mut state, input),
         "assimilate-intake" => assimilate_intake(root, &mut state, input),
-        _ => Err(format!("unknown_langchain_bridge_command:{command}")),
+        _ => Err(format!("unknown_workflow_chain_bridge_command:{command}")),
     };
 
     match result {
         Ok(payload) => {
             let receipt = cli_receipt(
-                &format!("langchain_bridge_{}", command.replace('-', "_")),
+                &format!("workflow_chain_bridge_{}", command.replace('-', "_")),
                 payload,
             );
             state["last_receipt"] = receipt.clone();
             if let Err(err) = save_state(&state_path, &state)
                 .and_then(|_| append_history(&history_path, &receipt))
             {
-                print_json_line(&cli_error("langchain_bridge_error", &err));
+                print_json_line(&cli_error("workflow_chain_bridge_error", &err));
                 return 1;
             }
             print_json_line(&receipt);
             0
         }
         Err(err) => {
-            print_json_line(&cli_error("langchain_bridge_error", &err));
+            print_json_line(&cli_error("workflow_chain_bridge_error", &err));
             1
         }
     }
@@ -84,9 +84,9 @@ mod tests {
             &mut state,
             json!({
                 "name": "support-template",
-                "provider": "anthropic",
+                "provider": "frontier_provider",
                 "fallback_provider": "openai-compatible",
-                "supported_providers": ["anthropic", "openai-compatible"],
+                "supported_providers": ["frontier_provider", "openai-compatible"],
                 "profile": "pure",
                 "template": "Hello {{name}}",
                 "variables": {"name": "Jay"}
@@ -181,6 +181,6 @@ mod tests {
             .unwrap(),
         )
         .expect_err("expected fail-closed validation error");
-        assert!(err.contains("langchain_structured_output_validation_failed"));
+        assert!(err.contains("workflow_chain_structured_output_validation_failed"));
     }
 }

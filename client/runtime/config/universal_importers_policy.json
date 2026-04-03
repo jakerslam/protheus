@@ -11,7 +11,7 @@
     "infring": "infring",
     "crewai": "generic_json",
     "autogen": "generic_json",
-    "langgraph": "workflow_graph",
+    "workflow_graph": "workflow_graph",
     "workflow_graph": "workflow_graph",
     "json": "generic_json",
     "yaml": "generic_yaml",

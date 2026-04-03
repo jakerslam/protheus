@@ -188,7 +188,7 @@ fn unseal_key(sealed: &str, provider: &str, fingerprint: &str) -> Option<String>
 fn validate_key(provider: &str, key: &str) -> Value {
     let ok = match provider {
         "openai" => key.starts_with("sk-") && key.len() >= 20,
-        "anthropic" => key.starts_with("sk-ant-") && key.len() >= 24,
+        "frontier_provider" => key.starts_with("sk-ant-") && key.len() >= 24,
         "grok" | "xai" => key.starts_with("xai-") && key.len() >= 16,
         "bedrock" => key.len() >= 16,
         "minimax" => key.len() >= 16,

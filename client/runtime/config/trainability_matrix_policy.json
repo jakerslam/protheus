@@ -21,7 +21,7 @@
       "allowed_consent_modes": [],
       "note": "Third-party terms review required."
     },
-    "anthropic": {
+    "frontier_provider": {
       "allow": false,
       "allowed_license_ids": [],
       "allowed_consent_modes": [],

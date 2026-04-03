@@ -270,7 +270,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
                     json!({
                         "request_id": "gateway-1",
                         "compat_mode": "/v1/chat/completions",
-                        "providers": ["openai", "anthropic"],
+                        "providers": ["openai", "frontier_provider"],
                         "model": "vision-pro",
                         "streaming": true,
                         "profile": "tiny-max",

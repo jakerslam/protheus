@@ -1,15 +1,15 @@
-fn memory_candidate_files(openclaw_root: &Path) -> Vec<PathBuf> {
-    let agent = agent_root(openclaw_root);
+fn memory_candidate_files(control_runtime_root: &Path) -> Vec<PathBuf> {
+    let agent = agent_root(control_runtime_root);
     vec![
-        openclaw_root.join("openclaw.json"),
+        control_runtime_root.join("control_runtime.json"),
         agent.join("models.json"),
         agent.join("routing-policy.json"),
         agent.join("identity.md"),
-        openclaw_root.join("state.json"),
-        openclaw_root.join("decisions.md"),
-        openclaw_root.join("logs/spawn-safe.jsonl"),
-        openclaw_root.join("logs/spawn-run.jsonl"),
-        openclaw_root.join("logs/decision-log.jsonl"),
+        control_runtime_root.join("state.json"),
+        control_runtime_root.join("decisions.md"),
+        control_runtime_root.join("logs/spawn-safe.jsonl"),
+        control_runtime_root.join("logs/spawn-run.jsonl"),
+        control_runtime_root.join("logs/decision-log.jsonl"),
         agent.join("state.json"),
         agent.join("decisions.md"),
     ]
@@ -39,13 +39,13 @@ fn search_file_lines(path: &Path, query_lc: &str, limit: usize) -> Vec<Value> {
     out
 }
 
-fn run_memory_search(openclaw_root: &Path, query: &str, limit: usize) -> Value {
+fn run_memory_search(control_runtime_root: &Path, query: &str, limit: usize) -> Value {
     let query_clean = clean_text(query, 240);
     let query_lc = query_clean.to_ascii_lowercase();
     let mut files_scanned = 0usize;
     let mut results = Vec::<Value>::new();
 
-    for file in memory_candidate_files(openclaw_root) {
+    for file in memory_candidate_files(control_runtime_root) {
         if !file.is_file() {
             continue;
         }
@@ -62,7 +62,7 @@ fn run_memory_search(openclaw_root: &Path, query: &str, limit: usize) -> Value {
         "ok": true,
         "type": "operator_tooling_memory_search",
         "query": query_clean,
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "files_scanned": files_scanned,
         "match_count": results.len(),
         "matches": results
@@ -149,11 +149,11 @@ fn find_trace_state(path: &Path, trace_id: &str) -> Vec<Value> {
     out
 }
 
-fn run_trace_find(openclaw_root: &Path, trace_id: &str, limit: usize) -> Value {
+fn run_trace_find(control_runtime_root: &Path, trace_id: &str, limit: usize) -> Value {
     let trace = clean_text(trace_id, 160);
-    let agent = agent_root(openclaw_root);
-    let spawn_safe = openclaw_root.join("logs/spawn-safe.jsonl");
-    let spawn_run = openclaw_root.join("logs/spawn-run.jsonl");
+    let agent = agent_root(control_runtime_root);
+    let spawn_safe = control_runtime_root.join("logs/spawn-safe.jsonl");
+    let spawn_run = control_runtime_root.join("logs/spawn-run.jsonl");
     let decisions = agent.join("decisions.md");
     let state = agent.join("state.json");
     let spawn_safe_rows = find_trace_jsonl(&spawn_safe, &trace, limit);
@@ -165,7 +165,7 @@ fn run_trace_find(openclaw_root: &Path, trace_id: &str, limit: usize) -> Value {
         "ok": true,
         "type": "operator_tooling_trace_find",
         "trace_id": trace,
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "total_matches": total,
         "spawn_safe_logs": spawn_safe_rows,
         "spawn_run_logs": spawn_run_rows,
@@ -178,8 +178,8 @@ fn workspace_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
     path_from_flag(root, parsed.flags.get("workspace-root")).unwrap_or_else(|| root.to_path_buf())
 }
 
-fn run_memory_summarize(openclaw_root: &Path, query: &str, limit: usize) -> Value {
-    let search = run_memory_search(openclaw_root, query, limit);
+fn run_memory_summarize(control_runtime_root: &Path, query: &str, limit: usize) -> Value {
+    let search = run_memory_search(control_runtime_root, query, limit);
     let mut grouped = BTreeMap::<String, Vec<Value>>::new();
     if let Some(rows) = search.get("matches").and_then(Value::as_array) {
         for row in rows {
@@ -214,14 +214,14 @@ fn run_memory_summarize(openclaw_root: &Path, query: &str, limit: usize) -> Valu
         "ok": true,
         "type": "operator_tooling_memory_summarize",
         "query": clean_text(query, 240),
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "files_with_matches": grouped_rows.len(),
         "grouped": grouped_rows
     }))
 }
 
-fn run_memory_last_change(openclaw_root: &Path, limit: usize) -> Value {
-    let mut rows = WalkDir::new(openclaw_root)
+fn run_memory_last_change(control_runtime_root: &Path, limit: usize) -> Value {
+    let mut rows = WalkDir::new(control_runtime_root)
         .into_iter()
         .filter_map(Result::ok)
         .filter(|entry| entry.file_type().is_file())
@@ -259,15 +259,15 @@ fn run_memory_last_change(openclaw_root: &Path, limit: usize) -> Value {
     with_receipt(json!({
         "ok": true,
         "type": "operator_tooling_memory_last_change",
-        "openclaw_root": openclaw_root.to_string_lossy().to_string(),
+        "control_runtime_root": control_runtime_root.to_string_lossy().to_string(),
         "rows": top_rows,
         "row_count": top_rows.len()
     }))
 }
 
-fn run_membrief(openclaw_root: &Path, query: &str, limit: usize) -> Value {
-    let summary = run_memory_summarize(openclaw_root, query, limit);
-    let recent = run_memory_last_change(openclaw_root, 25);
+fn run_membrief(control_runtime_root: &Path, query: &str, limit: usize) -> Value {
+    let summary = run_memory_summarize(control_runtime_root, query, limit);
+    let recent = run_memory_last_change(control_runtime_root, 25);
     with_receipt(json!({
         "ok": true,
         "type": "operator_tooling_membrief",

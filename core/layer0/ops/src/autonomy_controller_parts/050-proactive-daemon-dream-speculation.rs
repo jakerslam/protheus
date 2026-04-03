@@ -1,4 +1,4 @@
-const KAIROS_REACTIVE_COMPACTION_PRESSURE_RATIO: f64 = 0.95;
+const PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO: f64 = 0.95;
 
 fn normalize_compaction_mode(raw: Option<String>) -> String {
     let normalized = clean_id(raw, "reactive");
@@ -330,16 +330,16 @@ fn run_dream_consolidation(root: &Path, argv: &[String]) -> i32 {
     });
     emit_receipt(root, &mut out)
 }
-fn kairos_state_path(root: &Path) -> PathBuf {
-    state_root(root).join("kairos").join("state.json")
+fn proactive_daemon_state_path(root: &Path) -> PathBuf {
+    state_root(root).join("proactive_daemon").join("state.json")
 }
 
-fn kairos_logs_dir(root: &Path) -> PathBuf {
-    state_root(root).join("kairos").join("logs")
+fn proactive_daemon_logs_dir(root: &Path) -> PathBuf {
+    state_root(root).join("proactive_daemon").join("logs")
 }
 
-fn kairos_daily_log_path(root: &Path, ymd: &str) -> PathBuf {
-    kairos_logs_dir(root).join(format!("{ymd}.jsonl"))
+fn proactive_daemon_daily_log_path(root: &Path, ymd: &str) -> PathBuf {
+    proactive_daemon_logs_dir(root).join(format!("{ymd}.jsonl"))
 }
 
 fn now_epoch_ms() -> u64 {
@@ -350,11 +350,11 @@ fn now_epoch_ms() -> u64 {
         .as_millis() as u64
 }
 
-fn kairos_today_ymd() -> String {
+fn proactive_daemon_today_ymd() -> String {
     now_iso().chars().take(10).collect()
 }
 
-fn kairos_default_state() -> Value {
+fn proactive_daemon_default_state() -> Value {
     json!({
         "version": "v2",
         "paused": false,
@@ -385,33 +385,33 @@ fn kairos_default_state() -> Value {
     })
 }
 
-fn ensure_kairos_state_shape(state: &mut Value) {
+fn ensure_proactive_daemon_state_shape(state: &mut Value) {
     if !state.is_object() {
-        *state = kairos_default_state();
+        *state = proactive_daemon_default_state();
     }
     if !state
         .get("heartbeat")
         .map(Value::is_object)
         .unwrap_or(false)
     {
-        state["heartbeat"] = kairos_default_state()["heartbeat"].clone();
+        state["heartbeat"] = proactive_daemon_default_state()["heartbeat"].clone();
     }
     if !state
         .get("proactive")
         .map(Value::is_object)
         .unwrap_or(false)
     {
-        state["proactive"] = kairos_default_state()["proactive"].clone();
+        state["proactive"] = proactive_daemon_default_state()["proactive"].clone();
     }
     if !state.get("budgets").map(Value::is_object).unwrap_or(false) {
-        state["budgets"] = kairos_default_state()["budgets"].clone();
+        state["budgets"] = proactive_daemon_default_state()["budgets"].clone();
     }
     if !state
         .get("write_discipline")
         .map(Value::is_object)
         .unwrap_or(false)
     {
-        state["write_discipline"] = kairos_default_state()["write_discipline"].clone();
+        state["write_discipline"] = proactive_daemon_default_state()["write_discipline"].clone();
     }
     for key in [
         "last_intents",
@@ -463,20 +463,20 @@ fn rollover_proactive_window(state: &mut Value, now_ms: u64) {
     }
 }
 
-fn append_kairos_log(root: &Path, row: &Value, strict: bool) -> Result<(), String> {
-    let path = kairos_daily_log_path(root, &kairos_today_ymd());
+fn append_proactive_daemon_log(root: &Path, row: &Value, strict: bool) -> Result<(), String> {
+    let path = proactive_daemon_daily_log_path(root, &proactive_daemon_today_ymd());
     append_jsonl(&path, row)?;
     if strict {
         let rows = read_jsonl(&path);
         if rows.is_empty() {
-            return Err("kairos_log_append_verification_failed".to_string());
+            return Err("proactive_daemon_log_append_verification_failed".to_string());
         }
     }
     Ok(())
 }
 
-fn persist_kairos_state(root: &Path, state: &mut Value, strict: bool) -> Result<(), String> {
-    let path = kairos_state_path(root);
+fn persist_proactive_daemon_state(root: &Path, state: &mut Value, strict: bool) -> Result<(), String> {
+    let path = proactive_daemon_state_path(root);
     state["write_discipline"]["state_write_confirmed"] = json!(false);
     state["write_discipline"]["last_state_write_at"] = json!(now_iso());
     state["write_discipline"]["state_path"] = json!(path.display().to_string());
@@ -485,13 +485,13 @@ fn persist_kairos_state(root: &Path, state: &mut Value, strict: bool) -> Result<
     let confirmed = persisted.get("updated_at") == state.get("updated_at");
     state["write_discipline"]["state_write_confirmed"] = json!(confirmed);
     if strict && !confirmed {
-        return Err("kairos_state_write_confirm_failed".to_string());
+        return Err("proactive_daemon_state_write_confirm_failed".to_string());
     }
     write_json(&path, state)?;
     Ok(())
 }
 
-fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
+fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
     let strict = parse_bool(parse_flag(argv, "strict").as_deref(), true);
     if let Some(mut denied) = conduit_guard(argv, strict) {
         return emit_receipt(root, &mut denied);
@@ -520,8 +520,8 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
     let brief_mode = parse_bool(parse_flag(argv, "brief").as_deref(), true);
     let now_ms = now_epoch_ms();
 
-    let mut state = read_json(&kairos_state_path(root)).unwrap_or_else(kairos_default_state);
-    ensure_kairos_state_shape(&mut state);
+    let mut state = read_json(&proactive_daemon_state_path(root)).unwrap_or_else(proactive_daemon_default_state);
+    ensure_proactive_daemon_state_shape(&mut state);
     state["heartbeat"]["tick_ms"] = json!(tick_ms);
     state["heartbeat"]["jitter_ms"] = json!(jitter_ms);
     state["proactive"]["window_sec"] = json!(window_sec);
@@ -627,7 +627,7 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
                                         root,
                                         hand_id,
                                         "reactive",
-                                        KAIROS_REACTIVE_COMPACTION_PRESSURE_RATIO,
+                                        PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO,
                                         None,
                                     );
                                     if compact_result.is_err() {
@@ -648,7 +648,7 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
                                 == Some("compact_hand_memory")
                             {
                                 execution["pressure_ratio"] =
-                                    json!(KAIROS_REACTIVE_COMPACTION_PRESSURE_RATIO);
+                                    json!(PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO);
                             }
                             executed.push(execution);
                         }
@@ -672,7 +672,7 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
                     };
                     state["last_blocking_budget_used_ms"] = json!(blocking_used_ms);
                     cycle_log_row = json!({
-                        "type": "kairos_tick",
+                        "type": "proactive_daemon_tick",
                         "ts": now_iso(),
                         "action": action,
                         "auto": auto,
@@ -695,20 +695,20 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
     }
     state["updated_at"] = json!(now_iso());
     if cycle_log_row != Value::Null {
-        if let Err(err) = append_kairos_log(root, &cycle_log_row, strict) {
-            let mut out = cli_error_receipt(argv, &format!("kairos_log_failed:{err}"), 2);
-            out["type"] = json!("autonomy_kairos");
+        if let Err(err) = append_proactive_daemon_log(root, &cycle_log_row, strict) {
+            let mut out = cli_error_receipt(argv, &format!("proactive_daemon_log_failed:{err}"), 2);
+            out["type"] = json!("autonomy_proactive_daemon");
             return emit_receipt(root, &mut out);
         }
     }
-    if let Err(err) = persist_kairos_state(root, &mut state, strict) {
-        let mut out = cli_error_receipt(argv, &format!("kairos_state_persist_failed:{err}"), 2);
-        out["type"] = json!("autonomy_kairos");
+    if let Err(err) = persist_proactive_daemon_state(root, &mut state, strict) {
+        let mut out = cli_error_receipt(argv, &format!("proactive_daemon_state_persist_failed:{err}"), 2);
+        out["type"] = json!("autonomy_proactive_daemon");
         return emit_receipt(root, &mut out);
     }
     let mut out = json!({
         "ok": true,
-        "type": "autonomy_kairos",
+        "type": "autonomy_proactive_daemon",
         "lane": LANE_ID,
         "strict": strict,
         "action": action,
@@ -722,9 +722,9 @@ fn run_kairos_daemon(root: &Path, argv: &[String]) -> i32 {
             "brief_mode": brief_mode
         },
         "claim_evidence": [
-            {"id":"V6-AUTONOMY-003.1","claim":"kairos_background_daemon_tracks_runtime_state_and_receipts_actions"},
-            {"id":"V6-AUTONOMY-003.2","claim":"kairos_generates_proactive_micro_tasks_with_policy_bounded_auto_execution"},
-            {"id":"V6-AUTONOMY-004","claim":"kairos_tick_heartbeat_rate_limits_blocking_budget_and_append_only_daily_logs_enforce_proactive_safety"}
+            {"id":"V6-AUTONOMY-003.1","claim":"proactive_daemon_background_daemon_tracks_runtime_state_and_receipts_actions"},
+            {"id":"V6-AUTONOMY-003.2","claim":"proactive_daemon_generates_proactive_micro_tasks_with_policy_bounded_auto_execution"},
+            {"id":"V6-AUTONOMY-004","claim":"proactive_daemon_tick_heartbeat_rate_limits_blocking_budget_and_append_only_daily_logs_enforce_proactive_safety"}
         ]
     });
     emit_receipt(root, &mut out)

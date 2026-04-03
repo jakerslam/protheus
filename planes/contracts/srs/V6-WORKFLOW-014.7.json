@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-014.7",
   "upgrade": "Stateful Workflow and Rapid Prototyping Contract",
-  "section": "LangChain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
+  "section": "Workflow Chain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
   "impact": 8,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,

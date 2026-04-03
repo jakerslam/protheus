@@ -5,7 +5,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         json!({
             "version": "v1",
             "kind": "chat_ui_contract",
-            "providers": ["openai", "anthropic", "google", "gemini", "groq", "deepseek", "openrouter", "xai", "ollama", "claude-code"],
+            "providers": ["openai", "frontier_provider", "google", "gemini", "groq", "deepseek", "openrouter", "xai", "ollama", "claude-code"],
             "default_provider": "openai",
             "default_model": "gpt-5"
         }),

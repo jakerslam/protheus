@@ -1050,11 +1050,11 @@ fn main() {
         "dify-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::dify_bridge::run);
         }
-        "langgraph-bridge" => {
-            exit_domain!(&cwd, &args, protheus_ops_core::langgraph_bridge::run);
+        "workflow_graph-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::workflow_graph_bridge::run);
         }
-        "langchain-bridge" => {
-            exit_domain!(&cwd, &args, protheus_ops_core::langchain_bridge::run);
+        "workflow_chain-bridge" => {
+            exit_domain!(&cwd, &args, protheus_ops_core::workflow_chain_bridge::run);
         }
         "crewai-bridge" => {
             exit_domain!(&cwd, &args, protheus_ops_core::crewai_bridge::run);

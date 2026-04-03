@@ -1,8 +1,8 @@
-fn run_sync_allowed_models(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let policy_path = routing_policy_path(openclaw_root, parsed);
+fn run_sync_allowed_models(control_runtime_root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
+    let policy_path = routing_policy_path(control_runtime_root, parsed);
     let policy = read_json_file(&policy_path).unwrap_or_else(|| json!({}));
     let models = all_models_from_policy(&policy);
-    let models_path = agent_root(openclaw_root).join("models.json");
+    let models_path = agent_root(control_runtime_root).join("models.json");
     let mut payload = read_json_file(&models_path).unwrap_or_else(|| json!({}));
     payload["type"] = json!("operator_tooling_models_allowlist");
     payload["updated_at"] = json!(crate::now_iso());
@@ -18,8 +18,8 @@ fn run_sync_allowed_models(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> 
     })))
 }
 
-fn run_smoke_routing(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> Value {
-    let policy_path = routing_policy_path(openclaw_root, parsed);
+fn run_smoke_routing(control_runtime_root: &Path, parsed: &crate::ParsedArgs) -> Value {
+    let policy_path = routing_policy_path(control_runtime_root, parsed);
     let policy = read_json_file(&policy_path).unwrap_or_else(|| json!({}));
     let scenarios = vec![
         vec!["general".to_string(), "analysis".to_string()],
@@ -57,8 +57,8 @@ fn pseudo_uuid(seed: &str) -> String {
     )
 }
 
-fn spawn_routing_config(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> (usize, usize, bool, HashSet<String>) {
-    let state_file = state_path(openclaw_root, parsed);
+fn spawn_routing_config(control_runtime_root: &Path, parsed: &crate::ParsedArgs) -> (usize, usize, bool, HashSet<String>) {
+    let state_file = state_path(control_runtime_root, parsed);
     let state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let routing = state
         .get("routing")
@@ -104,7 +104,7 @@ fn spawn_routing_config(openclaw_root: &Path, parsed: &crate::ParsedArgs) -> (us
 }
 
 fn build_spawn_packet(
-    openclaw_root: &Path,
+    control_runtime_root: &Path,
     parsed: &crate::ParsedArgs,
     payload: &Value,
     require_plan: bool,
@@ -116,7 +116,7 @@ fn build_spawn_packet(
     }
     let tags = norm_tags(payload.get("tags"));
     let (min_tags, max_tags, high_risk_requires_plan, high_risk_tag_set) =
-        spawn_routing_config(openclaw_root, parsed);
+        spawn_routing_config(control_runtime_root, parsed);
     if tags.len() < min_tags || tags.len() > max_tags {
         return Err(format!("tags_len_out_of_range:{min_tags}-{max_tags}"));
     }
@@ -143,7 +143,7 @@ fn build_spawn_packet(
         .filter(|v| !v.is_empty())
         .map(Value::String)
         .collect::<Vec<_>>();
-    let policy_path = routing_policy_path(openclaw_root, parsed);
+    let policy_path = routing_policy_path(control_runtime_root, parsed);
     let policy = read_json_file(&policy_path).unwrap_or_else(|| json!({}));
     let escalation = run_escalate_model(&policy, payload, &policy_path);
     let model_chain = escalation
@@ -216,7 +216,7 @@ fn build_spawn_packet(
             }
         }
     });
-    let state_file = state_path(openclaw_root, parsed);
+    let state_file = state_path(control_runtime_root, parsed);
     let mut state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let mut handoffs = state
         .get("handoffs_recent")
@@ -243,18 +243,18 @@ fn build_spawn_packet(
     })))
 }
 
-fn run_smart_spawn(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
-    let state_file = state_path(openclaw_root, parsed);
+fn run_smart_spawn(control_runtime_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
+    let state_file = state_path(control_runtime_root, parsed);
     let state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let always_sync_allowlist = state
         .pointer("/preferences/always_sync_allowlist")
         .and_then(Value::as_bool)
         .unwrap_or(true);
     if always_sync_allowlist {
-        let _ = run_sync_allowed_models(openclaw_root, parsed);
+        let _ = run_sync_allowed_models(control_runtime_root, parsed);
     }
     let strict_plan = bool_flag(&parsed.flags, "strict-plan", false);
-    let safe = build_spawn_packet(openclaw_root, parsed, payload, false, strict_plan)?;
+    let safe = build_spawn_packet(control_runtime_root, parsed, payload, false, strict_plan)?;
     let mut packet = safe
         .get("packet")
         .cloned()
@@ -294,7 +294,7 @@ fn run_smart_spawn(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload: &V
     })))
 }
 
-fn run_execute_handoff(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
+fn run_execute_handoff(control_runtime_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
     let handoff = payload.get("handoff").cloned().unwrap_or_else(|| payload.clone());
     if !handoff.is_object() {
         return Err("handoff_object_required".to_string());
@@ -314,7 +314,7 @@ fn run_execute_handoff(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload
     if idempotency_key.is_empty() {
         return Err("handoff_idempotency_key_required".to_string());
     }
-    let state_file = state_path(openclaw_root, parsed);
+    let state_file = state_path(control_runtime_root, parsed);
     let mut state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let mut executions = state
         .get("executions_recent")
@@ -356,8 +356,8 @@ fn run_execute_handoff(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload
     })))
 }
 
-fn run_auto_spawn(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
-    let smart = run_smart_spawn(openclaw_root, parsed, payload)?;
+fn run_auto_spawn(control_runtime_root: &Path, parsed: &crate::ParsedArgs, payload: &Value) -> Result<Value, String> {
+    let smart = run_smart_spawn(control_runtime_root, parsed, payload)?;
     let packet = smart.get("packet").cloned().unwrap_or_else(|| json!({}));
     let handoff = packet.get("handoff").cloned().unwrap_or_else(|| json!({}));
     let chain = handoff
@@ -398,7 +398,7 @@ fn run_auto_spawn(openclaw_root: &Path, parsed: &crate::ParsedArgs, payload: &Va
         }
     }
 
-    let state_file = state_path(openclaw_root, parsed);
+    let state_file = state_path(control_runtime_root, parsed);
     let mut state = read_json_file(&state_file).unwrap_or_else(|| json!({}));
     let cache_key = clean_text(
         handoff.get("cache_key").and_then(Value::as_str).unwrap_or(""),

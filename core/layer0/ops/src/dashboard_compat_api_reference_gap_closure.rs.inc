@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 type HmacSha256 = Hmac<Sha256>;
 
 const GAP_STATE_REL: &str =
-    "client/runtime/local/state/ui/infring_dashboard/openfang_gap_closure_state.json";
+    "client/runtime/local/state/ui/infring_dashboard/reference_runtime_gap_closure_state.json";
 const AGENT_PROFILES_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/agent_profiles.json";
 const NONCE_REPLAY_WINDOW_MS: i64 = 10 * 60 * 1000;
@@ -84,7 +84,7 @@ fn state_path(root: &Path) -> PathBuf {
 fn load_state(root: &Path) -> Value {
     read_json(&state_path(root)).unwrap_or_else(|| {
         json!({
-            "type": "openfang_gap_closure_state",
+            "type": "reference_runtime_gap_closure_state",
             "updated_at": crate::now_iso(),
             "a2a": {
                 "agents": [],
@@ -470,7 +470,7 @@ fn network_shared_secret(state: &Value) -> String {
         .ok()
         .map(|raw| clean_text(&raw, 240))
         .filter(|raw| !raw.is_empty())
-        .unwrap_or_else(|| "infring-openfang-peer-shared-secret".to_string())
+        .unwrap_or_else(|| "infring-reference_runtime-peer-shared-secret".to_string())
 }
 
 fn hmac_signature(secret: &str, payload: &str) -> Result<String, String> {
@@ -1307,7 +1307,7 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let ts_ms = now_ms();
         let payload = format!("peer-alpha|nonce-1|{ts_ms}");
-        let signature = hmac_signature("infring-openfang-peer-shared-secret", &payload)
+        let signature = hmac_signature("infring-reference_runtime-peer-shared-secret", &payload)
             .expect("signature");
         let body = json!({
             "peer_id": "peer-alpha",
@@ -1479,7 +1479,7 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let ts_ms = now_ms();
         let payload = format!("peer-bravo|nonce-peers|{ts_ms}");
-        let signature = hmac_signature("infring-openfang-peer-shared-secret", &payload)
+        let signature = hmac_signature("infring-reference_runtime-peer-shared-secret", &payload)
             .expect("signature");
         let handshake = handle(
             root.path(),

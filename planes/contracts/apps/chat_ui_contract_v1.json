@@ -10,7 +10,7 @@
   ],
   "providers": [
     "openai",
-    "anthropic",
+    "frontier_provider",
     "grok",
     "bedrock",
     "minimax"

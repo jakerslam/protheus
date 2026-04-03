@@ -332,7 +332,7 @@ function wizardPage() {
     },
 
     get popularProviders() {
-      var popular = ['anthropic', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['frontier_provider', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) >= 0;
       }).sort(function(a, b) {
@@ -341,7 +341,7 @@ function wizardPage() {
     },
 
     get otherProviders() {
-      var popular = ['anthropic', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['frontier_provider', 'openai', 'google', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) < 0;
       });
@@ -356,7 +356,7 @@ function wizardPage() {
 
     providerHelp: function(id) {
       var help = {
-        anthropic: { url: 'https://console.anthropic.com/settings/keys', text: 'Get your key from the Anthropic Console' },
+        frontier_provider: { url: 'https://console.frontier_provider.com/settings/keys', text: 'Get your key from the Frontier Provider Console' },
         openai: { url: 'https://platform.openai.com/api-keys', text: 'Get your key from the OpenAI Platform' },
         gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get your key from Google AI Studio' },
         google: { url: 'https://aistudio.google.com/apikey', text: 'Get your key from Google AI Studio' },
@@ -369,7 +369,7 @@ function wizardPage() {
         perplexity: { url: 'https://www.perplexity.ai/settings/api', text: 'Get your key from Perplexity Settings' },
         cohere: { url: 'https://dashboard.cohere.com/api-keys', text: 'Get your key from the Cohere Dashboard' },
         xai: { url: 'https://console.x.ai/', text: 'Get your key from the xAI Console' },
-        'claude-code': { url: 'https://docs.anthropic.com/en/docs/claude-code', text: 'Install: npm install -g @anthropic-ai/claude-code && claude auth (no API key needed)' }
+        'claude-code': { url: 'https://docs.frontier_provider.com/en/docs/claude-code', text: 'Install: npm install -g @frontier_provider-ai/claude-code && claude auth (no API key needed)' }
       };
       return help[id] || null;
     },
