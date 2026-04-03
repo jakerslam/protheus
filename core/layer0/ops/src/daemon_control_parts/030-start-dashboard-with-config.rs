@@ -161,7 +161,8 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
         let healthy = dashboard_health_ok(cfg.host.as_str(), cfg.port);
         let dashboard_pid = read_pid_file(&dashboard_pid_path(root));
         let listener_pids = dashboard_listener_pids(cfg.port);
-        let process_active = dashboard_pid.map(pid_running).unwrap_or(false) || !listener_pids.is_empty();
+        let process_active =
+            dashboard_pid.map(pid_running).unwrap_or(false) || !listener_pids.is_empty();
         if last_health != Some(healthy) {
             append_watchdog_log(
                 root,
@@ -252,16 +253,14 @@ fn ensure_gateway_supervisor(
         return gateway_supervisor::status(root).payload;
     }
     let existing = gateway_supervisor::status(root);
-    let supervisor = if should_refresh_supervisor(force_refresh, existing.active) {
+    let existing_healthy = supervisor_payload_healthy(&existing.payload);
+    let supervisor = if should_refresh_supervisor(force_refresh, existing_healthy) {
         gateway_supervisor_enable(root, cfg)
     } else {
         existing
     };
-    let dashboard_running = dashboard
-        .get("running")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if !supervisor.active && dashboard_running {
+    let supervisor_healthy = supervisor_payload_healthy(&supervisor.payload);
+    if !supervisor_healthy {
         let fallback = spawn_dashboard_watchdog(root, cfg);
         dashboard["watchdog_fallback"] = match fallback {
             Ok(pid) => json!({
@@ -281,8 +280,28 @@ fn ensure_gateway_supervisor(
     supervisor.payload
 }
 
-fn should_refresh_supervisor(force_refresh: bool, supervisor_active: bool) -> bool {
-    force_refresh || !supervisor_active
+fn supervisor_payload_running(supervisor: &Value) -> bool {
+    supervisor
+        .get("running")
+        .and_then(Value::as_bool)
+        .or_else(|| supervisor.get("active").and_then(Value::as_bool))
+        .unwrap_or(false)
+}
+
+fn supervisor_payload_healthy(supervisor: &Value) -> bool {
+    supervisor
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        && supervisor
+            .get("active")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        && supervisor_payload_running(supervisor)
+}
+
+fn should_refresh_supervisor(force_refresh: bool, supervisor_healthy: bool) -> bool {
+    force_refresh || !supervisor_healthy
 }
 
 fn heal_gateway_runtime(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
@@ -299,26 +318,22 @@ fn heal_gateway_runtime(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
     }
 
     let mut supervisor = gateway_supervisor::status(root).payload;
-    let mut supervisor_active = supervisor
-        .get("active")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if cfg.persistent_supervisor && desired_before && !supervisor_active {
+    let mut supervisor_healthy = supervisor_payload_healthy(&supervisor);
+    if cfg.persistent_supervisor && desired_before && !supervisor_healthy {
         let enabled = gateway_supervisor_enable(root, cfg);
         supervisor = enabled.payload;
-        supervisor_active = enabled.active;
+        supervisor_healthy = supervisor_payload_healthy(&supervisor);
         actions.push(json!({
             "action": "enable_supervisor",
             "ok": supervisor.get("ok").and_then(Value::as_bool).unwrap_or(false),
-            "active": supervisor_active
+            "healthy": supervisor_healthy
         }));
     }
 
     let health_before = dashboard_health_ok(cfg.host.as_str(), cfg.port);
     let dashboard_pid = read_pid_file(&dashboard_pid_path(root));
     let listeners = dashboard_listener_pids(cfg.port);
-    let process_active =
-        dashboard_pid.map(pid_running).unwrap_or(false) || !listeners.is_empty();
+    let process_active = dashboard_pid.map(pid_running).unwrap_or(false) || !listeners.is_empty();
 
     let mut restart_payload = Value::Null;
     if desired_before && !health_before && !process_active {
@@ -335,8 +350,7 @@ fn heal_gateway_runtime(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let mut watchdog_fallback = Value::Null;
-    if desired_before && !health_before && !watchdog_running && (!cfg.persistent_supervisor || !supervisor_active)
-    {
+    if desired_before && !watchdog_running && (!cfg.persistent_supervisor || !supervisor_healthy) {
         watchdog_fallback = match spawn_dashboard_watchdog(root, cfg) {
             Ok(pid) => json!({
                 "ok": true,
@@ -538,8 +552,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
                 let mut started =
                     start_dashboard_with_config(root, &cfg, true, !cfg.persistent_supervisor);
-                started["supervisor"] =
-                    ensure_gateway_supervisor(root, &cfg, &mut started, false);
+                started["supervisor"] = ensure_gateway_supervisor(root, &cfg, &mut started, false);
                 started
             }
             "restart" => {
@@ -620,7 +633,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
 #[cfg(test)]
 mod startup_compaction_tests {
-    use super::should_refresh_supervisor;
+    use super::{
+        should_refresh_supervisor, supervisor_payload_healthy, supervisor_payload_running,
+    };
+    use serde_json::json;
 
     #[test]
     fn supervisor_refresh_skips_when_already_active_for_plain_start() {
@@ -631,5 +647,31 @@ mod startup_compaction_tests {
     fn supervisor_refresh_happens_when_inactive_or_forced() {
         assert!(should_refresh_supervisor(false, false));
         assert!(should_refresh_supervisor(true, true));
+    }
+
+    #[test]
+    fn supervisor_payload_running_falls_back_to_active() {
+        assert!(supervisor_payload_running(&json!({
+            "ok": true,
+            "active": true
+        })));
+        assert!(!supervisor_payload_running(&json!({
+            "ok": true,
+            "active": false
+        })));
+    }
+
+    #[test]
+    fn supervisor_payload_healthy_requires_running_and_active() {
+        assert!(supervisor_payload_healthy(&json!({
+            "ok": true,
+            "active": true,
+            "running": true
+        })));
+        assert!(!supervisor_payload_healthy(&json!({
+            "ok": true,
+            "active": true,
+            "running": false
+        })));
     }
 }

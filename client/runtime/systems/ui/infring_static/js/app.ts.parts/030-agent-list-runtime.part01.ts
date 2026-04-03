@@ -428,6 +428,7 @@
       }, minRemain);
     },
     navigate(p) {
+      if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
       if (String(p || '') !== 'chat') {
         var store = this.getAppStore();
         var pendingId = String((store && store.pendingFreshAgentId) || '').trim();

@@ -44,6 +44,7 @@ PATH_PERSISTED_MIRRORS=""
 PATH_ACTIVATE_FILE=""
 INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-${PROTHEUS_INSTALL_SUDO_SHIMS:-auto}}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
+RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1493,13 +1494,14 @@ __INFRING_RUNTIME_MODE__
 ensure_runtime_node_module_closure() {
   workspace="$1"
   [ -n "$workspace" ] || return 1
+  node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
   if ! node_runtime_meets_minimum; then
     echo "[infring install] node module closure skipped (node runtime unavailable)"
     return 0
   fi
 
   missing_modules=""
-  for module_name in typescript ws; do
+  for module_name in $RUNTIME_NODE_REQUIRED_MODULES; do
     if ! runtime_module_resolvable "$workspace" "$module_name"; then
       missing_modules="${missing_modules} ${module_name}"
     fi
@@ -1511,7 +1513,7 @@ ensure_runtime_node_module_closure() {
   fi
 
   npm_bin_path="$(resolve_npm_binary_path 2>/dev/null || true)"
-  if [ -z "$npm_bin_path" ]; then
+  if [ -z "$node_bin_path" ] || [ -z "$npm_bin_path" ]; then
     echo "[infring install] node module closure failed: npm unavailable" >&2
     echo "[infring install] missing modules:${missing_modules}" >&2
     return 1
@@ -1523,16 +1525,19 @@ ensure_runtime_node_module_closure() {
   fi
 
   echo "[infring install] installing runtime node module closure:${missing_modules}"
+  npm_cmd_dir="$(dirname "$npm_bin_path")"
+  # npm entrypoint scripts are node-shebang wrappers; force PATH so `env node` resolves
+  # the resolved installer node binary.
   if ! (
     cd "$workspace" >/dev/null 2>&1 && \
-    "$npm_bin_path" install --silent --no-audit --no-fund --no-save typescript ws
+    PATH="$npm_cmd_dir:$PATH" "$npm_bin_path" install --silent --no-audit --no-fund --no-save $missing_modules
   ); then
     echo "[infring install] node module closure install failed" >&2
     return 1
   fi
 
   still_missing=""
-  for module_name in typescript ws; do
+  for module_name in $RUNTIME_NODE_REQUIRED_MODULES; do
     if ! runtime_module_resolvable "$workspace" "$module_name"; then
       still_missing="${still_missing} ${module_name}"
     fi

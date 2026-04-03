@@ -87,3 +87,32 @@ fn core_shortcut_routes_verify_install_to_install_doctor_domain() {
     assert_eq!(route.script_rel, "core://install-doctor");
     assert_eq!(route.args, vec!["verify-install", "--json=1"]);
 }
+
+#[test]
+fn tier1_route_contracts_resolve_to_expected_core_targets() {
+    for row in crate::command_list_kernel::tier1_route_contracts() {
+        let rest = row
+            .rest
+            .iter()
+            .map(|token| token.to_string())
+            .collect::<Vec<_>>();
+        let route = resolve_core_shortcuts(row.cmd, &rest).expect("tier1 contract route");
+        assert_eq!(
+            route.script_rel, row.expected_script,
+            "tier1 route mismatch for {}",
+            row.cmd
+        );
+    }
+}
+
+#[test]
+fn tier1_runtime_entrypoints_align_with_install_fallback_manifest() {
+    let mut expected = crate::command_list_kernel::tier1_runtime_entrypoints();
+    expected.sort_unstable();
+    let mut fallback = INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS
+        .iter()
+        .map(|row| (*row).to_string())
+        .collect::<Vec<_>>();
+    fallback.sort_unstable();
+    assert_eq!(expected, fallback);
+}

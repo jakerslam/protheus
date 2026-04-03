@@ -165,9 +165,36 @@ describe('conduit primitive wrapper contract', () => {
     expect(devDeps.ws).toBeUndefined();
   });
 
+  test('runtime dependency contract is declared and installer-aligned', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    const contract = (pkg && pkg.runtimeDependencyContract) || {};
+    const required = Array.isArray(contract.requiredNodeModules)
+      ? [...contract.requiredNodeModules].map((v: unknown) => String(v))
+      : [];
+    expect(required.sort()).toEqual(['typescript', 'ws']);
+    expect(contract.tier1RuntimeManifest).toBe('client/runtime/config/install_runtime_manifest_v1.txt');
+
+    const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    expect(source.includes('RUNTIME_NODE_REQUIRED_MODULES')).toBe(true);
+    for (const moduleName of required) {
+      expect(source.includes(moduleName)).toBe(true);
+    }
+  });
+
   test('installer smoke checks canonical dashboard route', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('dashboard status --json')).toBe(true);
+  });
+
+  test('command registry exposes tier1 route/runtime contract surfaces', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'core/layer0/ops/src/command_list_kernel.rs'),
+      'utf8',
+    );
+    expect(source.includes('enum CommandTier')).toBe(true);
+    expect(source.includes('Tier1RouteContract')).toBe(true);
+    expect(source.includes('TIER1_RUNTIME_ENTRYPOINTS')).toBe(true);
+    expect(source.includes('command_registry_integrity')).toBe(true);
   });
 
   test('protheusctl route map targets are resolvable or explicitly optional-not-shipped', () => {
@@ -276,6 +303,8 @@ describe('conduit primitive wrapper contract', () => {
     const bootstrapOnlyEntrypoints = new Set<string>([
       'client/runtime/systems/ops/protheusd.ts',
       'client/runtime/systems/ops/protheus_unknown_guard.ts',
+      // Retained as a compatibility runtime surface; canonical dashboard routing is core-native.
+      'client/runtime/systems/ops/protheus_status_dashboard.ts',
     ]);
 
     for (const entry of manifestEntries) {

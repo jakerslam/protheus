@@ -493,27 +493,7 @@ fn print_node_free_command_list(mode: &str) {
     } else {
         println!("Command list (Node-free fallback):");
     }
-    for cmd in [
-        "gateway [start|stop|restart|status] [--dashboard-open=1|0] [--gateway-persist=1|0]",
-        "start [--dashboard-autoboot=1|0] [--dashboard-open=1|0] [--gateway-persist=1|0]",
-        "stop",
-        "restart",
-        "task <submit|status|list|cancel|worker|slow-test> [flags]",
-        "dashboard",
-        "status",
-        "session <status|register|resume|send|list>",
-        "rag <status|search|chat|memory>",
-        "memory <status|search>",
-        "adaptive <status|propose|shadow-train|prioritize|graduate>",
-        "enterprise-hardening <run|status|export-compliance|identity-surface|certify-scale|dashboard>",
-        "benchmark <run|status>",
-        "alpha-check [--strict=1|0] [--run-gates=1|0]",
-        "doctor | verify-install",
-        "research <status|diagnostics|fetch>",
-        "help",
-        "list",
-        "version",
-    ] {
+    for cmd in crate::command_list_kernel::tier1_command_synopses() {
         println!("  - {cmd}");
     }
     println!();
