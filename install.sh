@@ -125,6 +125,16 @@ repair_rustup_default_toolchain() {
   return 1
 }
 
+print_rust_toolchain_recovery_hint() {
+  echo "[infring install] unable to provision a runnable cargo toolchain for source fallback." >&2
+  if command -v rustup >/dev/null 2>&1; then
+    echo "[infring install] fix: rustup default stable" >&2
+    echo "[infring install] fallback: rustup toolchain install stable && rustup default stable" >&2
+  else
+    echo "[infring install] fix: curl --proto '=https' --tlsv1.2 -sSf $RUSTUP_INIT_URL | sh -s -- -y --profile minimal --default-toolchain stable" >&2
+  fi
+}
+
 resolve_node_binary_path() {
   preferred="${PROTHEUS_NODE_BINARY:-${INFRING_NODE_BINARY:-}}"
   if [ -n "$preferred" ]; then
@@ -193,7 +203,7 @@ runtime_module_resolvable() {
   node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
   [ -n "$node_bin_path" ] || return 1
   (
-    cd "$workspace" >/dev/null 2>&1 || true
+    cd "$workspace" >/dev/null 2>&1 || exit 1
     "$node_bin_path" -e "try{require.resolve(process.argv[1]);process.exit(0);}catch(_e){process.exit(1);}" "$module_name" \
       >/dev/null 2>&1
   )
@@ -1326,10 +1336,12 @@ ensure_source_build_prereqs() {
   rustup_script="$rustup_tmp/rustup-init.sh"
   if ! curl -fsSL "$RUSTUP_INIT_URL" -o "$rustup_script"; then
     rm -rf "$rustup_tmp"
+    print_rust_toolchain_recovery_hint
     return 1
   fi
   if ! sh "$rustup_script" -y --profile minimal --default-toolchain stable >/dev/null 2>&1; then
     rm -rf "$rustup_tmp"
+    print_rust_toolchain_recovery_hint
     return 1
   fi
   rm -rf "$rustup_tmp"
@@ -1343,6 +1355,7 @@ ensure_source_build_prereqs() {
       return 0
     fi
   fi
+  print_rust_toolchain_recovery_hint
   return 1
 }
 
@@ -1874,11 +1887,13 @@ ensure_runtime_node_module_closure() {
 
   echo "[infring install] installing runtime node module closure:${missing_modules}"
   npm_cmd_dir="$(dirname "$npm_bin_path")"
+  node_cmd_dir="$(dirname "$node_bin_path")"
   # npm entrypoint scripts are node-shebang wrappers; force PATH so `env node` resolves
   # the resolved installer node binary.
   if ! (
     cd "$workspace" >/dev/null 2>&1 && \
-    PATH="$npm_cmd_dir:$PATH" "$npm_bin_path" install --silent --no-audit --no-fund --no-save $missing_modules
+    INFRING_NODE_BINARY="$node_bin_path" PROTHEUS_NODE_BINARY="$node_bin_path" \
+    PATH="$node_cmd_dir:$npm_cmd_dir:$PATH" "$npm_bin_path" install --silent --no-audit --no-fund --no-save $missing_modules
   ); then
     echo "[infring install] node module closure install failed" >&2
     return 1
@@ -1910,7 +1925,7 @@ run_post_install_smoke_command() {
   fi
   case "$label" in
     infringctl_help)
-      if grep -q "could not choose a version of cargo to run" "$log"; then
+      if grep -Eq "could not choose a version of cargo to run|no default is configured|run 'rustup default stable'" "$log"; then
         echo "[infring install] smoke $label: skipped (missing rustup default toolchain)"
         return 0
       fi

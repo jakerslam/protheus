@@ -131,7 +131,8 @@
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
       var eventType = String((ev && ev.type) || '').toLowerCase();
-      if (eventType && eventType.indexOf('mouse') !== 0 && eventType.indexOf('pointer') !== 0) return;
+      if (eventType !== 'mousemove' && eventType !== 'pointermove') return;
+      if (ev && ev.isTrusted === false) return;
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var rawId = String((agent && agent.id) || '').trim();
