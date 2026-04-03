@@ -2587,6 +2587,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
     verify_workspace_runtime_contract "$WORKSPACE_DIR" || exit 1
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
+    ensure_node_runtime_notice || true
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
     run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
@@ -2652,7 +2653,6 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   if [ -n "$PATH_ACTIVATE_FILE" ]; then
     echo "[infring install] activation script: $PATH_ACTIVATE_FILE"
   fi
-  ensure_node_runtime_notice || true
   echo "[infring install] run now (direct path): \"$INSTALL_DIR/infring\" --help"
   echo "[infring install] quickstart now (direct path): \"$INSTALL_DIR/infring\" gateway"
   echo "[infring install] run: ${quickstart_prefix}infring --help"
