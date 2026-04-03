@@ -299,6 +299,20 @@ fn render_launchd_plist(
 }
 
 #[cfg(target_os = "macos")]
+fn launchctl_state(stdout: &str) -> Option<String> {
+    stdout.lines().find_map(|line| {
+        let trimmed = line.trim();
+        let (_, value) = trimmed.split_once("state =")?;
+        let state = value.trim();
+        if state.is_empty() {
+            None
+        } else {
+            Some(state.to_string())
+        }
+    })
+}
+
+#[cfg(target_os = "macos")]
 fn launchctl_status(uid: &str, label: &str, plist_path: &Path) -> GatewaySupervisorResult {
     let target = format!("gui/{uid}/{label}");
     let print = run_command("launchctl", &[String::from("print"), target.clone()], None);
@@ -307,7 +321,8 @@ fn launchctl_status(uid: &str, label: &str, plist_path: &Path) -> GatewaySupervi
         .and_then(Value::as_str)
         .unwrap_or_default();
     let active = command_ok(&print);
-    let running = active && (stdout.contains("state = running") || stdout.contains("pid = "));
+    let service_state = launchctl_state(stdout);
+    let running = active && service_state.as_deref() == Some("running");
     GatewaySupervisorResult {
         active,
         payload: json!({
@@ -319,6 +334,7 @@ fn launchctl_status(uid: &str, label: &str, plist_path: &Path) -> GatewaySupervi
             "installed": plist_path.exists(),
             "active": active,
             "running": running,
+            "service_state": service_state,
             "status_probe": print,
         }),
     }
@@ -709,10 +725,10 @@ pub fn status(root: &Path) -> GatewaySupervisorResult {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "macos")]
-    use super::render_launchd_plist;
     #[cfg(target_os = "linux")]
     use super::render_systemd_service;
+    #[cfg(target_os = "macos")]
+    use super::{launchctl_state, render_launchd_plist};
     use super::{shell_quote, trim_text, watchdog_args, GatewaySupervisorConfig};
     use std::path::Path;
 
@@ -728,6 +744,20 @@ mod tests {
         let raw = "x".repeat(20);
         let trimmed = trim_text(raw, 8);
         assert_eq!(trimmed.len(), 8);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn launchctl_state_extracts_running_state() {
+        let stdout = "service = {\n    state = running\n}";
+        assert_eq!(launchctl_state(stdout).as_deref(), Some("running"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn launchctl_state_handles_missing_state() {
+        let stdout = "service = {\n    pid = 42\n}";
+        assert!(launchctl_state(stdout).is_none());
     }
 
     #[test]

@@ -150,7 +150,7 @@ pub(super) fn print_usage() {
         "  protheus-ops strategy-resolver <status|invoke> [--payload=<json>|--payload-file=<path>]"
     );
     println!("  protheus-ops status [--dashboard]");
-    println!("  protheus-ops dashboard-ui <serve|snapshot|status|runtime-sync> [--host=<ip>] [--port=<n>] [--team=<id>] [--refresh-ms=<n>]");
+    println!("  protheus-ops dashboard <start|status|snapshot|runtime-sync> [--dashboard-host=<ip>] [--dashboard-port=<n>] [--team=<id>] [--refresh-ms=<n>] (dashboard-ui is internal compat alias)");
     println!("  protheus-ops daemon-control <start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|watchdog> [flags]");
     println!("  protheus-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
     println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");

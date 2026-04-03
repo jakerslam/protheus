@@ -36,6 +36,9 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Release Contract Gate
+        run: npm run -s ops:release-contract:gate
+
       - name: Source Runtime Classifier
         run: npm run ops:source-runtime:check
 

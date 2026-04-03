@@ -334,7 +334,7 @@ mark.search-highlight {
   color: var(--text);
 }
 
-.message-bubble.markdown-body .chat-codeblock .copy-btn.chat-codeblock-copy {
+.message-bubble.markdown-body .chat-codeblock .message-stat-btn.chat-codeblock-copy {
   position: absolute;
   top: 8px;
   right: 8px;

@@ -167,6 +167,8 @@
     "js:holdout:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/js_holdout_audit.ts status",
     "ops:runtime-state:guard": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/runtime_state_surface_guard.ts check --strict=1",
     "ops:runtime-state:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/runtime_state_surface_guard.ts status",
+    "ops:runtime-deps:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts --strict=1",
+    "ops:release-contract:gate": "npm run -s ops:runtime-deps:gate && npx vitest run --config vitest.config.ts tests/vitest/conduit_primitives_gap_closer.test.ts",
     "ops:tools:context-route": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/tool_context_router.ts route --apply=1 --context-json='{\"scope\":\"analysis\",\"tags\":[\"market\",\"intel\"]}'",
     "ops:tools:notify": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/tool_notification_lane.ts notify --apply=1 --channel=main --severity=info --topic=ops --message=\"runtime heartbeat\"",
     "ops:tools:shadow-bridge": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/shadow_tool_notification_bridge.ts bridge --apply=1 --shadow=alpha --persona=vikram --context-json='{\"scope\":\"memory\",\"tags\":[\"memory\",\"decision\"]}' --message=\"shadow bridge pulse\"",
@@ -1785,5 +1787,13 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "npm@11.10.0"
+  "packageManager": "npm@11.10.0",
+  "runtimeDependencyContract": {
+    "requiredNodeModules": [
+      "typescript",
+      "ws"
+    ],
+    "tier1RuntimeManifest": "client/runtime/config/install_runtime_manifest_v1.txt",
+    "dashboardHealthEndpoint": "/healthz"
+  }
 }

@@ -130,17 +130,22 @@
     },
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
-      var eventType = String((ev && ev.type) || '').toLowerCase();
-      var focusDriven = eventType.indexOf('focus') === 0;
-      if (!focusDriven && this._collapsedHoverNeedsPointerMove) return;
+      if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       this.updateCollapsedAgentHoverPosition(ev);
       var preview = this.chatSidebarPreview(agent) || {};
+      var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
+      var hasPreviewText = String(preview.text || '').trim().length > 0;
+      if (!isSystemThread && !hasPreviewText) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var fallbackText = isSystemThread ? 'System events and terminal output' : 'No messages yet';
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
         id: String(agent.id || ''),
         active: true,
         name: String(agent.name || agent.id || 'Agent'),
-        text: String(preview.text || 'No messages yet'),
+        text: String(preview.text || fallbackText),
         unread: !!preview.unread_response
       });
     },

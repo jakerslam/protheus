@@ -261,33 +261,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "dashboard" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
-                    .to_string(),
-                args: std::iter::once("--web".to_string()).chain(rest).collect(),
+                script_rel: "core://daemon-control".to_string(),
+                args: std::iter::once("start".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
-            "status" => {
-                let use_dashboard = rest
-                    .iter()
-                    .any(|arg| arg == "--dashboard" || arg == "dashboard");
-                if use_dashboard {
-                    let stripped = strip_status_dashboard_tokens(rest);
-                    Route {
-                        script_rel: "client/runtime/systems/ops/protheus_status_dashboard.ts"
-                            .to_string(),
-                        args: std::iter::once("--web".to_string())
-                            .chain(stripped)
-                            .collect(),
-                        forward_stdin: false,
-                    }
-                } else {
-                    Route {
-                        script_rel: "core://daemon-control".to_string(),
-                        args: std::iter::once("status".to_string()).chain(rest).collect(),
-                        forward_stdin: false,
-                    }
-                }
-            }
+            "status" => Route {
+                script_rel: "core://daemon-control".to_string(),
+                args: std::iter::once("status".to_string())
+                    .chain(strip_status_dashboard_tokens(rest))
+                    .collect(),
+                forward_stdin: false,
+            },
             "session" => {
                 let sub = rest
                     .first()
@@ -791,8 +775,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let supports_json_flag = matches!(
         route.script_rel.as_str(),
-        "client/runtime/systems/ops/protheus_command_list.ts"
+        "core://install-doctor"
+            | "core://daemon-control"
+            | "core://verity-plane"
+            | "client/runtime/systems/ops/protheus_command_list.ts"
+            | "client/runtime/systems/ops/protheus_command_list.js"
             | "client/runtime/systems/ops/protheus_setup_wizard.ts"
+            | "client/runtime/systems/ops/protheus_setup_wizard.js"
             | "client/runtime/systems/ops/protheus_demo.js"
             | "client/runtime/systems/ops/protheus_examples.js"
             | "client/runtime/systems/ops/protheus_version_cli.js"
@@ -836,6 +825,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .any(|arg| arg == "--quiet" || arg.starts_with("--quiet="))
     {
         route.args.push("--quiet=1".to_string());
+    }
+
+    if let Some(expected) = crate::command_list_kernel::tier1_route_contracts()
+        .iter()
+        .find(|row| row.cmd == cmd)
+        .map(|row| row.expected_script)
+    {
+        if route.script_rel != expected {
+            eprintln!(
+                "{}",
+                json!({
+                    "ok": false,
+                    "type": "protheusctl_dispatch",
+                    "error": "tier1_route_contract_failed",
+                    "command": clean(cmd, 120),
+                    "expected_script": expected,
+                    "resolved_script": route.script_rel
+                })
+            );
+            return 2;
+        }
     }
 
     if let Err(reason) = enforce_command_center_boundary(&cmd, &route) {

@@ -101,8 +101,14 @@ fn evaluate_security_decision_payload(
     match evaluate_security_decision_embedded(req) {
         Ok(payload) => Ok(payload),
         Err(embedded_error) => {
-            if bool_env("PROTHEUS_CTL_SECURITY_DISABLE_CARGO_FALLBACK", false) {
-                return Err(format!("embedded_checker_failed:{embedded_error}"));
+            let cargo_fallback_disabled =
+                bool_env("PROTHEUS_CTL_SECURITY_DISABLE_CARGO_FALLBACK", false);
+            let cargo_fallback_enabled =
+                bool_env("PROTHEUS_CTL_SECURITY_ENABLE_CARGO_FALLBACK", false);
+            if cargo_fallback_disabled || !cargo_fallback_enabled {
+                return Err(format!(
+                    "embedded_checker_failed:{embedded_error}; cargo_fallback_disabled"
+                ));
             }
             match evaluate_security_decision_via_cargo(workspace_root, request_base64) {
                 Ok(payload) => Ok(payload),
@@ -389,6 +395,60 @@ fn route_integrity_ok(cmd: &str, rest: &[String], expected_script: &str) -> bool
         .unwrap_or(false)
 }
 
+fn tier1_route_contract_mismatches() -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for row in crate::command_list_kernel::tier1_route_contracts() {
+        let rest = row
+            .rest
+            .iter()
+            .map(|token| token.to_string())
+            .collect::<Vec<_>>();
+        if !route_integrity_ok(row.cmd, &rest, row.expected_script) {
+            out.push(format!(
+                "{} {} -> expected {}",
+                row.cmd,
+                row.rest.join(" "),
+                row.expected_script
+            ));
+        }
+    }
+    out
+}
+
+fn root_cause_code_for_issue(issue: &str) -> &'static str {
+    match issue {
+        "wrapper_missing" => "INF-INSTALL-001-WRAPPER-MISSING",
+        "runtime_assets_missing" => "INF-INSTALL-002-RUNTIME-ASSETS-MISSING",
+        "command_registry_integrity_failed" => "INF-REGISTRY-001-INTEGRITY-FAILED",
+        "tier1_route_contract_failed" => "INF-REGISTRY-002-TIER1-ROUTE-MISMATCH",
+        "tier1_runtime_targets_missing" => "INF-REGISTRY-003-TIER1-RUNTIME-MISSING",
+        "dashboard_route_mismatch" => "INF-ROUTE-001-DASHBOARD-ROUTE-MISMATCH",
+        "verify_install_route_mismatch" => "INF-ROUTE-002-VERIFY-ROUTE-MISMATCH",
+        "gateway_status_route_mismatch" => "INF-ROUTE-003-GATEWAY-ROUTE-MISMATCH",
+        "node_runtime_missing" => "INF-RUNTIME-001-NODE-MISSING",
+        "node_module_typescript_missing" => "INF-RUNTIME-002-TYPESCRIPT-MISSING",
+        "node_module_ws_missing" => "INF-RUNTIME-003-WS-MISSING",
+        "dashboard_port_invalid" => "INF-DASH-001-PORT-INVALID",
+        "dashboard_healthz_unreachable" => "INF-DASH-002-HEALTHZ-UNREACHABLE",
+        "dashboard_pid_not_running" => "INF-DASH-003-PID-NOT-RUNNING",
+        "dashboard_watchdog_not_running" => "INF-DASH-004-WATCHDOG-NOT-RUNNING",
+        "launchd_not_loaded" => "INF-DASH-005-LAUNCHD-NOT-LOADED",
+        "dashboard_ui_route_mismatch" => "INF-ROUTE-004-DASHBOARD-UI-LEGACY-MISMATCH",
+        _ => "INF-UNKNOWN-000-UNCLASSIFIED",
+    }
+}
+
+fn collect_root_cause_codes(failures: &[String], warnings: &[String]) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for issue in failures.iter().chain(warnings.iter()) {
+        let code = root_cause_code_for_issue(issue.as_str()).to_string();
+        if !out.contains(&code) {
+            out.push(code);
+        }
+    }
+    out
+}
+
 fn node_module_resolvable(root: &Path, module_name: &str) -> bool {
     if !has_node_runtime() {
         return false;
@@ -422,6 +482,23 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let node_detected = has_node_runtime();
     let typescript_module_resolved = node_detected && node_module_resolvable(root, "typescript");
     let ws_module_resolved = node_detected && node_module_resolvable(root, "ws");
+    let command_registry_integrity = crate::command_list_kernel::command_registry_integrity();
+    let command_registry_ok = command_registry_integrity
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tier1_route_mismatches = tier1_route_contract_mismatches();
+    let tier1_runtime_targets = crate::command_list_kernel::tier1_runtime_entrypoints();
+    let tier1_runtime_missing = tier1_runtime_targets
+        .iter()
+        .filter_map(|rel| {
+            if script_exists_with_ts_js_fallback(root, rel) {
+                None
+            } else {
+                Some((*rel).to_string())
+            }
+        })
+        .collect::<Vec<_>>();
     let missing_runtime = runtime_missing_entrypoints_for_mode(root, runtime_mode.as_str());
     let wrappers = json!({
         "infring": command_available_in_current_bin_dir("infring"),
@@ -489,6 +566,11 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         "node_runtime_detected": node_detected,
         "typescript_module_resolved": typescript_module_resolved,
         "ws_module_resolved": ws_module_resolved,
+        "command_registry_ok": command_registry_ok,
+        "command_registry": command_registry_integrity,
+        "tier1_route_mismatches": tier1_route_mismatches,
+        "tier1_runtime_targets": tier1_runtime_targets,
+        "tier1_runtime_missing": tier1_runtime_missing,
         "runtime_assets_missing": missing_runtime.len(),
         "wrappers_ok": wrappers_ok,
         "dashboard_route_ok": dashboard_route_ok,
@@ -506,6 +588,15 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     }
     if !missing_runtime.is_empty() {
         failures.push("runtime_assets_missing".to_string());
+    }
+    if !command_registry_ok {
+        failures.push("command_registry_integrity_failed".to_string());
+    }
+    if !tier1_route_mismatches.is_empty() {
+        failures.push("tier1_route_contract_failed".to_string());
+    }
+    if !tier1_runtime_missing.is_empty() {
+        failures.push("tier1_runtime_targets_missing".to_string());
     }
     if !dashboard_route_ok {
         failures.push("dashboard_route_mismatch".to_string());
@@ -550,6 +641,7 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     if env::consts::OS == "macos" && !launchd_loaded {
         warnings.push("launchd_not_loaded".to_string());
     }
+    let root_cause_codes = collect_root_cause_codes(&failures, &warnings);
 
     let ok = failures.is_empty();
     if json_mode {
@@ -563,7 +655,8 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
                 "wrappers": wrappers,
                 "missing_runtime_entrypoints": missing_runtime,
                 "failures": failures,
-                "warnings": warnings
+                "warnings": warnings,
+                "root_cause_codes": root_cause_codes
             })
         );
     } else {
@@ -579,12 +672,28 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
             "[infring doctor] runtime assets missing: {}",
             missing_runtime.len()
         );
+        println!(
+            "[infring doctor] command registry: ok={} tier1-route-mismatch={} tier1-runtime-missing={}",
+            command_registry_ok,
+            tier1_route_mismatches.len(),
+            tier1_runtime_missing.len()
+        );
         if !missing_runtime.is_empty() {
             for rel in missing_runtime.iter().take(10) {
                 println!("  - {rel}");
             }
             if missing_runtime.len() > 10 {
                 println!("  - ... {} more", missing_runtime.len() - 10);
+            }
+        }
+        if !tier1_route_mismatches.is_empty() {
+            for row in tier1_route_mismatches.iter().take(5) {
+                println!("  - tier1 route mismatch: {row}");
+            }
+        }
+        if !tier1_runtime_missing.is_empty() {
+            for row in tier1_runtime_missing.iter().take(5) {
+                println!("  - tier1 runtime missing: {row}");
             }
         }
         println!(
@@ -600,6 +709,9 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         );
         if !warnings.is_empty() {
             println!("[infring doctor] warnings: {}", warnings.join(", "));
+        }
+        if !root_cause_codes.is_empty() {
+            println!("[infring doctor] root-cause-codes: {}", root_cause_codes.join(", "));
         }
         if ok {
             println!("[infring doctor] verdict: ok");

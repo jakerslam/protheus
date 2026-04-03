@@ -62,7 +62,10 @@ function renderMarkdown(text) {
       var codeAttrs = attrs || '';
       return (
         '<div class="chat-codeblock">' +
-          '<button class="copy-btn chat-codeblock-copy" type="button" onclick="copyCode(this)">Copy</button>' +
+          '<button class="message-stat-btn chat-codeblock-copy" type="button" onclick="copyCode(this)" title="Copy code" aria-label="Copy code">' +
+            '<svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>' +
+            '<svg class="copied-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M20 6L9 17l-5-5"></path></svg>' +
+          '</button>' +
           '<pre><code' + codeAttrs + '>' + body + '</code></pre>' +
         '</div>'
       );
@@ -110,10 +113,25 @@ function copyCode(btn) {
     if (next && next.tagName === 'CODE') code = next;
   }
   if (code) {
+    var setCopyState = function(copied) {
+      if (!btn) return;
+      var copyIcon = btn.querySelector('.copy-icon');
+      var copiedIcon = btn.querySelector('.copied-icon');
+      if (copyIcon && copiedIcon) {
+        copyIcon.style.display = copied ? 'none' : '';
+        copiedIcon.style.display = copied ? '' : 'none';
+      }
+      btn.classList.toggle('copied', !!copied);
+      btn.setAttribute('title', copied ? 'Copied' : 'Copy code');
+      btn.setAttribute('aria-label', copied ? 'Copied' : 'Copy code');
+    };
     navigator.clipboard.writeText(code.textContent).then(function() {
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      if (btn._copyResetTimer) clearTimeout(btn._copyResetTimer);
+      setCopyState(true);
+      btn._copyResetTimer = setTimeout(function() {
+        setCopyState(false);
+        btn._copyResetTimer = null;
+      }, 1500);
     });
   }
 }
