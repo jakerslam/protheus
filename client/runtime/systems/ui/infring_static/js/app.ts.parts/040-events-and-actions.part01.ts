@@ -115,6 +115,9 @@
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
       var fallbackText = isSystemThread ? 'System events and terminal output' : 'No messages yet';
+      if (typeof this._isCollapsedHoverStatePlaceholderText === 'function' && this._isCollapsedHoverStatePlaceholderText(fallbackText)) {
+        fallbackText = '';
+      }
       if (agent._sidebar_search_result) {
         var snippet = String(agent._sidebar_preview_text || '').trim();
         return {
