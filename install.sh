@@ -107,21 +107,62 @@ resolve_node_binary_path() {
     fi
   fi
 
-  for candidate in \
-    "$INFRING_HOME/node-runtime/node-v"*/bin/node \
-    "$INFRING_HOME/node-runtime/bin/node"
-  do
-    if [ -x "$candidate" ]; then
+  if [ -x "$INFRING_HOME/node-runtime/bin/node" ]; then
+    printf '%s\n' "$INFRING_HOME/node-runtime/bin/node"
+    return 0
+  fi
+
+  if [ -d "$INFRING_HOME/node-runtime" ]; then
+    candidate="$(find "$INFRING_HOME/node-runtime" -maxdepth 4 -type f -name node 2>/dev/null | sort | head -n 1 || true)"
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
       printf '%s\n' "$candidate"
       return 0
     fi
-  done
+  fi
 
   if command -v node >/dev/null 2>&1; then
     command -v node
     return 0
   fi
   return 1
+}
+
+resolve_npm_binary_path() {
+  preferred="${PROTHEUS_NPM_BINARY:-${INFRING_NPM_BINARY:-}}"
+  if [ -n "$preferred" ]; then
+    if [ -x "$preferred" ]; then
+      printf '%s\n' "$preferred"
+      return 0
+    fi
+    if command -v "$preferred" >/dev/null 2>&1; then
+      command -v "$preferred"
+      return 0
+    fi
+  fi
+
+  node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+  if [ -n "$node_bin_path" ]; then
+    npm_candidate="$(dirname "$node_bin_path")/npm"
+    if [ -x "$npm_candidate" ]; then
+      printf '%s\n' "$npm_candidate"
+      return 0
+    fi
+  fi
+
+  if command -v npm >/dev/null 2>&1; then
+    command -v npm
+    return 0
+  fi
+  return 1
+}
+
+runtime_module_resolvable() {
+  workspace="$1"
+  module_name="$2"
+  node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+  [ -n "$node_bin_path" ] || return 1
+  "$node_bin_path" -e "try{require.resolve(process.argv[1]);process.exit(0);}catch(_e){process.exit(1);}" "$module_name" \
+    >/dev/null 2>&1
 }
 
 portable_node_archive_name() {
@@ -744,13 +785,16 @@ write_path_activate_script() {
       esac
     fi
     printf '%s\n' "if [ -z \"\${PROTHEUS_NODE_BINARY:-}\" ]; then"
-    printf '%s\n' "  for node_candidate in \"$INFRING_HOME/node-runtime/node-v\"*/bin/node \"$INFRING_HOME/node-runtime/bin/node\"; do"
-    printf '%s\n' "    if [ -x \"\$node_candidate\" ]; then"
+    printf '%s\n' "  if [ -x \"$INFRING_HOME/node-runtime/bin/node\" ]; then"
+    printf '%s\n' "    export PROTHEUS_NODE_BINARY=\"$INFRING_HOME/node-runtime/bin/node\""
+    printf '%s\n' "    export INFRING_NODE_BINARY=\"$INFRING_HOME/node-runtime/bin/node\""
+    printf '%s\n' "  elif [ -d \"$INFRING_HOME/node-runtime\" ]; then"
+    printf '%s\n' "    node_candidate=\"\$(find \"$INFRING_HOME/node-runtime\" -maxdepth 4 -type f -name node 2>/dev/null | sort | head -n 1 || true)\""
+    printf '%s\n' "    if [ -n \"\$node_candidate\" ] && [ -x \"\$node_candidate\" ]; then"
     printf '%s\n' "      export PROTHEUS_NODE_BINARY=\"\$node_candidate\""
     printf '%s\n' "      export INFRING_NODE_BINARY=\"\$node_candidate\""
-    printf '%s\n' "      break"
     printf '%s\n' "    fi"
-    printf '%s\n' "  done"
+    printf '%s\n' "  fi"
     printf '%s\n' "fi"
     printf '%s\n' "if [ -d \"$INSTALL_DIR\" ]; then"
     printf '%s\n' "  case \":\$PATH:\" in"
@@ -1431,6 +1475,77 @@ verify_workspace_runtime_contract() {
   return 0
 }
 
+force_workspace_runtime_mode_source() {
+  workspace="$1"
+  [ -n "$workspace" ] || return 1
+  mode_state_path="$workspace/local/state/ops/runtime_mode.json"
+  mkdir -p "$(dirname "$mode_state_path")" >/dev/null 2>&1 || return 1
+  cat > "$mode_state_path" <<'__INFRING_RUNTIME_MODE__'
+{
+  "mode": "source",
+  "set_by": "install.sh"
+}
+__INFRING_RUNTIME_MODE__
+  echo "[infring install] runtime mode pinned: source"
+  return 0
+}
+
+ensure_runtime_node_module_closure() {
+  workspace="$1"
+  [ -n "$workspace" ] || return 1
+  if ! node_runtime_meets_minimum; then
+    echo "[infring install] node module closure skipped (node runtime unavailable)"
+    return 0
+  fi
+
+  missing_modules=""
+  for module_name in typescript ws; do
+    if ! runtime_module_resolvable "$workspace" "$module_name"; then
+      missing_modules="${missing_modules} ${module_name}"
+    fi
+  done
+
+  if [ -z "$missing_modules" ]; then
+    echo "[infring install] node module closure: satisfied"
+    return 0
+  fi
+
+  npm_bin_path="$(resolve_npm_binary_path 2>/dev/null || true)"
+  if [ -z "$npm_bin_path" ]; then
+    echo "[infring install] node module closure failed: npm unavailable" >&2
+    echo "[infring install] missing modules:${missing_modules}" >&2
+    return 1
+  fi
+  if [ ! -f "$workspace/package.json" ]; then
+    echo "[infring install] node module closure failed: package.json missing in workspace" >&2
+    echo "[infring install] missing modules:${missing_modules}" >&2
+    return 1
+  fi
+
+  echo "[infring install] installing runtime node module closure:${missing_modules}"
+  if ! (
+    cd "$workspace" >/dev/null 2>&1 && \
+    "$npm_bin_path" install --silent --no-audit --no-fund --no-save typescript ws
+  ); then
+    echo "[infring install] node module closure install failed" >&2
+    return 1
+  fi
+
+  still_missing=""
+  for module_name in typescript ws; do
+    if ! runtime_module_resolvable "$workspace" "$module_name"; then
+      still_missing="${still_missing} ${module_name}"
+    fi
+  done
+  if [ -n "$still_missing" ]; then
+    echo "[infring install] node module closure verification failed:${still_missing}" >&2
+    return 1
+  fi
+
+  echo "[infring install] node module closure: installed and verified"
+  return 0
+}
+
 run_post_install_smoke_command() {
   smoke_dir="$1"
   label="$2"
@@ -1445,6 +1560,45 @@ run_post_install_smoke_command() {
   return 1
 }
 
+run_dashboard_health_smoke() {
+  smoke_dir="$1"
+  install_dir="$2"
+  host="${3:-127.0.0.1}"
+  port="${4:-4173}"
+  log="$smoke_dir/dashboard_health.log"
+  [ -x "$install_dir/infring" ] || return 1
+
+  if ! INFRING_DASHBOARD_LAUNCHD=0 "$install_dir/infring" gateway start \
+    "--dashboard-host=${host}" "--dashboard-port=${port}" \
+    "--dashboard-open=0" "--gateway-persist=0" >"$log" 2>&1; then
+    echo "[infring install] smoke dashboard_health: failed (gateway start)" >&2
+    cat "$log" >&2 || true
+    return 1
+  fi
+
+  ready=0
+  i=0
+  while [ "$i" -lt 45 ]; do
+    if curl -fsS --max-time 2 "http://${host}:${port}/healthz" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+
+  INFRING_DASHBOARD_LAUNCHD=0 "$install_dir/infring" gateway stop \
+    "--dashboard-host=${host}" "--dashboard-port=${port}" >/dev/null 2>&1 || true
+
+  if [ "$ready" != "1" ]; then
+    echo "[infring install] smoke dashboard_health: failed (healthz timeout)" >&2
+    cat "$log" >&2 || true
+    return 1
+  fi
+  echo "[infring install] smoke dashboard_health: ok"
+  return 0
+}
+
 run_post_install_smoke_tests() {
   install_dir="$1"
   workspace="$2"
@@ -1457,9 +1611,11 @@ run_post_install_smoke_tests() {
   run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
   run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help || failures=$((failures + 1))
   run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status || failures=$((failures + 1))
-  run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard-ui status --json || failures=$((failures + 1))
+  run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard status --json || failures=$((failures + 1))
   if node_runtime_meets_minimum; then
     run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
+    smoke_port="$((4400 + ($$ % 1000)))"
+    run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port" || failures=$((failures + 1))
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
   fi
@@ -1534,7 +1690,7 @@ write_wrapper() {
   printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "    probe=\"\$parent\"" >> "$wrapper_path"
   printf '%s\n' "  done" >> "$wrapper_path"
-  printf '%s\n' "  for candidate in \"__WORKSPACE_DIR__\" \"\$HOME/.infring/workspace\" \"\$HOME/.infring\" \"__INSTALL_DIR__/protheus-client\"; do" >> "$wrapper_path"
+  printf '%s\n' "  for candidate in \"__WORKSPACE_DIR__\" \"__INFRING_HOME__/workspace\" \"__INFRING_HOME__\" \"__INSTALL_DIR__/protheus-client\"; do" >> "$wrapper_path"
   printf '%s\n' "    [ -n \"\$candidate\" ] || continue" >> "$wrapper_path"
   printf '%s\n' "    if infring_workspace_valid \"\$candidate\"; then" >> "$wrapper_path"
   printf '%s\n' "      printf '%s\n' \"\$candidate\"" >> "$wrapper_path"
@@ -1549,13 +1705,16 @@ write_wrapper() {
   printf '%s\n' "  export INFRING_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
   printf '%s\n' "  export PROTHEUS_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
   printf '%s\n' "  if [ -z \"\${PROTHEUS_NODE_BINARY:-}\" ]; then" >> "$wrapper_path"
-  printf '%s\n' "    for node_candidate in \"__INFRING_HOME__/node-runtime/node-v\"*/bin/node \"__INFRING_HOME__/node-runtime/bin/node\"; do" >> "$wrapper_path"
-  printf '%s\n' "      if [ -x \"\$node_candidate\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "    if [ -x \"__INFRING_HOME__/node-runtime/bin/node\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "      export PROTHEUS_NODE_BINARY=\"__INFRING_HOME__/node-runtime/bin/node\"" >> "$wrapper_path"
+  printf '%s\n' "      export INFRING_NODE_BINARY=\"__INFRING_HOME__/node-runtime/bin/node\"" >> "$wrapper_path"
+  printf '%s\n' "    elif [ -d \"__INFRING_HOME__/node-runtime\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "      node_candidate=\"\$(find \"__INFRING_HOME__/node-runtime\" -maxdepth 4 -type f -name node 2>/dev/null | sort | head -n 1 || true)\"" >> "$wrapper_path"
+  printf '%s\n' "      if [ -n \"\$node_candidate\" ] && [ -x \"\$node_candidate\" ]; then" >> "$wrapper_path"
   printf '%s\n' "        export PROTHEUS_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
   printf '%s\n' "        export INFRING_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
-  printf '%s\n' "        break" >> "$wrapper_path"
   printf '%s\n' "      fi" >> "$wrapper_path"
-  printf '%s\n' "    done" >> "$wrapper_path"
+  printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
   printf '%s\n' "  if [ \"\${INFRING_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ] || [ \"\${PROTHEUS_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ]; then" >> "$wrapper_path"
   printf '%s\n' "    cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
@@ -2427,6 +2586,8 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     fi
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
     verify_workspace_runtime_contract "$WORKSPACE_DIR" || exit 1
+    force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
+    ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
     run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
 

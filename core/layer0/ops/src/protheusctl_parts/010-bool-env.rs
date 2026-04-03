@@ -35,12 +35,12 @@ const PERSONA_VALID_LENSES_DEFAULT: &str = "operator,guardian,analyst";
 const PERSONA_BLOCKED_PATHS_ENV: &str = "PROTHEUS_CTL_PERSONA_BLOCKED_PATHS";
 const INSTALL_RUNTIME_MANIFEST_REL: &str = "client/runtime/config/install_runtime_manifest_v1.txt";
 const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
-    "client/runtime/systems/ops/protheusd.js",
-    "client/runtime/systems/ops/protheus_status_dashboard.js",
-    "client/runtime/systems/ops/protheus_unknown_guard.js",
-    "client/runtime/systems/ops/protheus_completion.js",
-    "client/runtime/systems/ops/protheus_repl.js",
-    "client/runtime/systems/ops/protheus_command_list.js",
+    "client/runtime/systems/ops/protheusd.ts",
+    "client/runtime/systems/ops/protheus_status_dashboard.ts",
+    "client/runtime/systems/ops/protheus_unknown_guard.ts",
+    "client/runtime/systems/ops/protheus_completion.ts",
+    "client/runtime/systems/ops/protheus_repl.ts",
+    "client/runtime/systems/ops/protheus_command_list.ts",
 ];
 
 fn bool_env(name: &str, fallback: bool) -> bool {

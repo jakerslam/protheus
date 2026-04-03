@@ -420,6 +420,7 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     };
     let runtime_mode = resolved_runtime_mode(root);
     let node_detected = has_node_runtime();
+    let typescript_module_resolved = node_detected && node_module_resolvable(root, "typescript");
     let ws_module_resolved = node_detected && node_module_resolvable(root, "ws");
     let missing_runtime = runtime_missing_entrypoints_for_mode(root, runtime_mode.as_str());
     let wrappers = json!({
@@ -431,13 +432,11 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         .as_object()
         .map(|map| map.values().all(|v| v.as_bool().unwrap_or(false)))
         .unwrap_or(false);
-    let dashboard_route_ok = route_integrity_ok(
+    let dashboard_route_ok =
+        route_integrity_ok("dashboard", &["status".to_string()], "core://daemon-control");
+    let dashboard_ui_route_ok = route_integrity_ok(
         "dashboard-ui",
-        &[
-            "serve".to_string(),
-            "--host=127.0.0.1".to_string(),
-            "--port=4173".to_string(),
-        ],
+        &["status".to_string()],
         "core://daemon-control",
     );
     let verify_route_ok = route_integrity_ok("verify-install", &[], "core://install-doctor");
@@ -488,10 +487,12 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let checks = json!({
         "runtime_mode": runtime_mode,
         "node_runtime_detected": node_detected,
+        "typescript_module_resolved": typescript_module_resolved,
         "ws_module_resolved": ws_module_resolved,
         "runtime_assets_missing": missing_runtime.len(),
         "wrappers_ok": wrappers_ok,
         "dashboard_route_ok": dashboard_route_ok,
+        "dashboard_ui_route_ok": dashboard_ui_route_ok,
         "verify_route_ok": verify_route_ok,
         "gateway_status_route_ok": gateway_status_route_ok,
         "runtime_manifest_rel": INSTALL_RUNTIME_MANIFEST_REL,
@@ -509,6 +510,9 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     if !dashboard_route_ok {
         failures.push("dashboard_route_mismatch".to_string());
     }
+    if !dashboard_ui_route_ok {
+        warnings.push("dashboard_ui_route_mismatch".to_string());
+    }
     if !verify_route_ok {
         failures.push("verify_install_route_mismatch".to_string());
     }
@@ -518,6 +522,15 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     // Full verification expects Node so all JS/TS command surfaces are actionable.
     if normalized_mode == "verify-install" && !node_detected {
         failures.push("node_runtime_missing".to_string());
+    }
+    if normalized_mode == "verify-install" && node_detected && !typescript_module_resolved {
+        failures.push("node_module_typescript_missing".to_string());
+    }
+    if normalized_mode == "verify-install" && node_detected && !ws_module_resolved {
+        failures.push("node_module_ws_missing".to_string());
+    }
+    if node_detected && !typescript_module_resolved {
+        warnings.push("node_module_typescript_missing".to_string());
     }
     if node_detected && !ws_module_resolved {
         warnings.push("node_module_ws_missing".to_string());
@@ -575,8 +588,8 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
             }
         }
         println!(
-            "[infring doctor] route integrity: dashboard={}, gateway-status={}, verify-install={}",
-            dashboard_route_ok, gateway_status_route_ok, verify_route_ok
+            "[infring doctor] route integrity: dashboard={}, dashboard-ui={}, gateway-status={}, verify-install={}",
+            dashboard_route_ok, dashboard_ui_route_ok, gateway_status_route_ok, verify_route_ok
         );
         println!(
             "[infring doctor] process: healthz={}, dashboard-pid-running={}, watchdog-running={}, launchd-loaded={}",
