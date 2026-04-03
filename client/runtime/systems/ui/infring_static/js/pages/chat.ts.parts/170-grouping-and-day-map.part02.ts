@@ -2,7 +2,10 @@
 
     pushSystemMessage: function(entry) {
       var payload = entry && typeof entry === 'object' ? entry : { text: entry };
-      var text = String(payload && payload.text ? payload.text : '').trim();
+      var rawText = String(payload && payload.text ? payload.text : '');
+      var text = this.normalizeSystemMessageText
+        ? this.normalizeSystemMessageText(rawText)
+        : rawText.trim();
       if (!text) return null;
       var canonicalText = text.replace(/\s+/g, ' ').trim().toLowerCase();
       if (/^error:\s*/i.test(canonicalText) && canonicalText.indexOf('operation was aborted') >= 0) return null;

@@ -45,6 +45,14 @@ PATH_ACTIVATE_FILE=""
 INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-${PROTHEUS_INSTALL_SUDO_SHIMS:-auto}}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
+INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-${PROTHEUS_INSTALL_VERIFY_ASSETS:-1}}"
+INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
+INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-${PROTHEUS_INSTALL_ASSET_CACHE:-1}}"
+INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-${PROTHEUS_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}}"
+CHECKSUM_MANIFEST_PATH=""
+CHECKSUM_MANIFEST_VERSION=""
+CHECKSUM_MANIFEST_TMP_DIR=""
+INSTALL_SUMMARY_STATUS="failed"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -52,12 +60,6 @@ need_cmd() {
     exit 1
   fi
 }
-
-need_cmd curl
-need_cmd chmod
-need_cmd mkdir
-need_cmd uname
-need_cmd tar
 
 finalize_installed_binary() {
   binary_path="$1"
@@ -93,6 +95,34 @@ node_runtime_meets_minimum() {
   major="$(node_version_major 2>/dev/null || true)"
   [ -n "$major" ] || return 1
   [ "$major" -ge 22 ]
+}
+
+ensure_cargo_command_ready() {
+  if command -v cargo >/dev/null 2>&1; then
+    if cargo --version >/dev/null 2>&1; then
+      return 0
+    fi
+    if [ -x "$HOME/.cargo/bin/rustup" ] && [ -x "$HOME/.cargo/bin/cargo" ]; then
+      export PATH="$HOME/.cargo/bin:$PATH"
+      if cargo --version >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+  fi
+  return 1
+}
+
+repair_rustup_default_toolchain() {
+  if command -v rustup >/dev/null 2>&1; then
+    echo "[infring install] rustup present but default cargo toolchain is missing; attempting recovery."
+    if rustup default stable >/dev/null 2>&1; then
+      return 0
+    fi
+    if rustup toolchain install stable >/dev/null 2>&1 && rustup default stable >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
 }
 
 resolve_node_binary_path() {
@@ -162,8 +192,11 @@ runtime_module_resolvable() {
   module_name="$2"
   node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
   [ -n "$node_bin_path" ] || return 1
-  "$node_bin_path" -e "try{require.resolve(process.argv[1]);process.exit(0);}catch(_e){process.exit(1);}" "$module_name" \
-    >/dev/null 2>&1
+  (
+    cd "$workspace" >/dev/null 2>&1 || true
+    "$node_bin_path" -e "try{require.resolve(process.argv[1]);process.exit(0);}catch(_e){process.exit(1);}" "$module_name" \
+      >/dev/null 2>&1
+  )
 }
 
 portable_node_archive_name() {
@@ -436,6 +469,268 @@ parse_install_args() {
     esac
     shift
   done
+}
+
+install_summary_init() {
+  summary_file="$INSTALL_SUMMARY_FILE"
+  summary_dir="$(dirname "$summary_file")"
+  mkdir -p "$summary_dir" >/dev/null 2>&1 || true
+  {
+    echo "infring_install_summary_v1"
+    echo "timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+    echo "repo: ${REPO_OWNER}/${REPO_NAME}"
+    echo "requested_version: ${REQUESTED_VERSION}"
+    echo "install_mode_full: ${INSTALL_FULL}"
+    echo "install_mode_pure: ${INSTALL_PURE}"
+    echo "install_mode_tiny_max: ${INSTALL_TINY_MAX}"
+    echo "install_mode_repair: ${INSTALL_REPAIR}"
+    echo "install_mode_install_node: ${INSTALL_NODE}"
+    echo "install_dir: ${INSTALL_DIR}"
+    echo "workspace_dir: ${WORKSPACE_DIR}"
+    echo "status: pending"
+  } > "$summary_file" 2>/dev/null || true
+}
+
+install_summary_note() {
+  note="$1"
+  [ -n "$note" ] || return 0
+  {
+    printf '%s\n' "$note"
+  } >> "$INSTALL_SUMMARY_FILE" 2>/dev/null || true
+}
+
+install_summary_finalize() {
+  summary_file="$INSTALL_SUMMARY_FILE"
+  [ -f "$summary_file" ] || return 0
+  tmp_file="${summary_file}.tmp"
+  (
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        status:*)
+          echo "status: ${INSTALL_SUMMARY_STATUS}"
+          ;;
+        *)
+          echo "$line"
+          ;;
+      esac
+    done < "$summary_file"
+  ) > "$tmp_file" 2>/dev/null || return 0
+  mv "$tmp_file" "$summary_file" >/dev/null 2>&1 || true
+}
+
+tool_install_hint() {
+  tool="$1"
+  host_os="unknown"
+  if command -v uname >/dev/null 2>&1; then
+    host_os="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  fi
+  case "$host_os" in
+    darwin)
+      case "$tool" in
+        curl|git|tar|unzip) echo "brew install $tool" ;;
+        *) echo "install missing system command: $tool" ;;
+      esac
+      ;;
+    linux)
+      if command -v apt-get >/dev/null 2>&1; then
+        case "$tool" in
+          curl|git|tar|unzip) echo "sudo apt-get update && sudo apt-get install -y $tool" ;;
+          *) echo "install missing system command: $tool" ;;
+        esac
+      elif command -v dnf >/dev/null 2>&1; then
+        case "$tool" in
+          curl|git|tar|unzip) echo "sudo dnf install -y $tool" ;;
+          *) echo "install missing system command: $tool" ;;
+        esac
+      else
+        echo "install missing system command: $tool"
+      fi
+      ;;
+    *)
+      echo "install missing system command: $tool"
+      ;;
+  esac
+}
+
+run_install_preflight() {
+  echo "[infring install] preflight: checking host prerequisites"
+  missing_required=0
+  for cmd in sh curl chmod mkdir uname tar; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      echo "[infring install] preflight $cmd: ok"
+    else
+      missing_required=1
+      hint="$(tool_install_hint "$cmd")"
+      echo "[infring install] preflight $cmd: missing"
+      echo "[infring install] fix: $hint"
+    fi
+  done
+
+  if command -v git >/dev/null 2>&1; then
+    echo "[infring install] preflight git: ok"
+  else
+    echo "[infring install] preflight git: missing (source fallback may be slower or unavailable)"
+    echo "[infring install] fix: $(tool_install_hint git)"
+  fi
+
+  if command -v unzip >/dev/null 2>&1; then
+    echo "[infring install] preflight unzip: ok"
+  else
+    echo "[infring install] preflight unzip: missing (non-blocking)"
+    echo "[infring install] fix: $(tool_install_hint unzip)"
+  fi
+
+  if node_runtime_meets_minimum; then
+    node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
+    node_ver="$("$node_bin_path" --version 2>/dev/null || true)"
+    echo "[infring install] preflight node: ${node_ver:-detected} (ok)"
+  else
+    echo "[infring install] preflight node: missing or <22 (optional for full surfaces)"
+    if command -v uname >/dev/null 2>&1; then
+      echo "[infring install] fix: $(detect_node_install_command)"
+    else
+      echo "[infring install] fix: install Node.js 22+ from https://nodejs.org/en/download"
+    fi
+  fi
+
+  if ensure_cargo_command_ready; then
+    echo "[infring install] preflight cargo: ok"
+  elif command -v rustup >/dev/null 2>&1; then
+    echo "[infring install] preflight cargo: rustup detected but default toolchain missing"
+    echo "[infring install] fix: rustup default stable"
+  else
+    echo "[infring install] preflight cargo: missing (only needed for source fallback build path)"
+    echo "[infring install] fix: curl --proto '=https' --tlsv1.2 -sSf $RUSTUP_INIT_URL | sh -s -- -y --profile minimal --default-toolchain stable"
+  fi
+
+  if [ "$missing_required" -ne 0 ]; then
+    echo "[infring install] preflight failed: required host tools are missing." >&2
+    return 1
+  fi
+  echo "[infring install] preflight: passed"
+  return 0
+}
+
+resolve_sha256_tool() {
+  if command -v shasum >/dev/null 2>&1; then
+    echo "shasum"
+    return 0
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    echo "sha256sum"
+    return 0
+  fi
+  if command -v openssl >/dev/null 2>&1; then
+    echo "openssl"
+    return 0
+  fi
+  return 1
+}
+
+sha256_file() {
+  target_file="$1"
+  tool="$(resolve_sha256_tool 2>/dev/null || true)"
+  case "$tool" in
+    shasum) shasum -a 256 "$target_file" | awk '{print $1}' ;;
+    sha256sum) sha256sum "$target_file" | awk '{print $1}' ;;
+    openssl) openssl dgst -sha256 "$target_file" | awk '{print $NF}' ;;
+    *) return 1 ;;
+  esac
+}
+
+load_release_checksum_manifest() {
+  version_tag="$1"
+  if [ "$CHECKSUM_MANIFEST_VERSION" = "$version_tag" ] && [ -n "$CHECKSUM_MANIFEST_PATH" ] && [ -f "$CHECKSUM_MANIFEST_PATH" ]; then
+    return 0
+  fi
+  [ -n "$CHECKSUM_MANIFEST_TMP_DIR" ] && rm -rf "$CHECKSUM_MANIFEST_TMP_DIR" >/dev/null 2>&1 || true
+  CHECKSUM_MANIFEST_TMP_DIR="$(mktemp -d)"
+  CHECKSUM_MANIFEST_PATH=""
+  for checksum_asset in SHA256SUMS SHA256SUMS.txt checksums.txt checksums.sha256; do
+    if curl_fetch "$BASE_URL/$version_tag/$checksum_asset" -o "$CHECKSUM_MANIFEST_TMP_DIR/$checksum_asset"; then
+      CHECKSUM_MANIFEST_PATH="$CHECKSUM_MANIFEST_TMP_DIR/$checksum_asset"
+      CHECKSUM_MANIFEST_VERSION="$version_tag"
+      install_summary_note "checksum_manifest: $checksum_asset"
+      return 0
+    fi
+  done
+  return 1
+}
+
+expected_asset_sha256() {
+  manifest_path="$1"
+  asset_name="$2"
+  [ -f "$manifest_path" ] || return 1
+  awk -v asset="$asset_name" '
+    BEGIN { IGNORECASE=1 }
+    {
+      line=$0
+      gsub("\r", "", line)
+      if (match(line, /^SHA256 \(([^)]+)\) = ([a-fA-F0-9]{64})$/, m)) {
+        if (m[1] == asset) {
+          print tolower(m[2]); exit
+        }
+      }
+      n=split(line, parts, /[[:space:]]+/)
+      if (n >= 2) {
+        digest=tolower(parts[1])
+        file=parts[n]
+        sub(/^\*+/, "", file)
+        sub(/^\.\/+/, "", file)
+        if (length(digest) == 64 && file == asset) {
+          print digest; exit
+        }
+      }
+    }
+  ' "$manifest_path"
+}
+
+verify_downloaded_asset() {
+  version_tag="$1"
+  asset_name="$2"
+  asset_path="$3"
+  if ! is_truthy "$INSTALL_VERIFY_ASSETS"; then
+    return 0
+  fi
+  digest_tool="$(resolve_sha256_tool 2>/dev/null || true)"
+  if [ -z "$digest_tool" ]; then
+    echo "[infring install] asset verification failed: no sha256 tool found" >&2
+    echo "[infring install] fix: install 'shasum' or 'sha256sum' (or openssl)" >&2
+    return 1
+  fi
+  if ! load_release_checksum_manifest "$version_tag"; then
+    if is_truthy "$INSTALL_ALLOW_UNVERIFIED_ASSETS"; then
+      echo "[infring install] warning: checksum manifest missing for $version_tag; continuing due to override."
+      install_summary_note "asset_unverified: ${asset_name} (manifest missing)"
+      return 0
+    fi
+    echo "[infring install] asset verification failed: checksum manifest unavailable for $version_tag" >&2
+    echo "[infring install] fix: publish release checksum manifest (SHA256SUMS) or set INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS=1" >&2
+    return 1
+  fi
+  expected_digest="$(expected_asset_sha256 "$CHECKSUM_MANIFEST_PATH" "$asset_name" || true)"
+  if [ -z "$expected_digest" ]; then
+    if is_truthy "$INSTALL_ALLOW_UNVERIFIED_ASSETS"; then
+      echo "[infring install] warning: no checksum entry for $asset_name; continuing due to override."
+      install_summary_note "asset_unverified: ${asset_name} (entry missing)"
+      return 0
+    fi
+    echo "[infring install] asset verification failed: missing checksum entry for $asset_name" >&2
+    return 1
+  fi
+  actual_digest="$(sha256_file "$asset_path" 2>/dev/null || true)"
+  if [ -z "$actual_digest" ]; then
+    echo "[infring install] asset verification failed: unable to hash $asset_name" >&2
+    return 1
+  fi
+  if [ "$actual_digest" != "$expected_digest" ]; then
+    echo "[infring install] asset verification failed: checksum mismatch for $asset_name" >&2
+    echo "[infring install] expected: $expected_digest" >&2
+    echo "[infring install] actual:   $actual_digest" >&2
+    return 1
+  fi
+  install_summary_note "asset_verified: ${asset_name} sha256:${actual_digest}"
+  return 0
 }
 
 path_dir_writable_or_creatable() {
@@ -958,10 +1253,30 @@ download_asset() {
   version_tag="$1"
   asset_name="$2"
   asset_out="$3"
+  cache_dir="$INFRING_HOME/cache/install-assets/$version_tag"
+  cache_file="$cache_dir/$asset_name"
   url="$BASE_URL/$version_tag/$asset_name"
+  if is_truthy "$INSTALL_ASSET_CACHE" && [ -f "$cache_file" ]; then
+    cp "$cache_file" "$asset_out"
+    if verify_downloaded_asset "$version_tag" "$asset_name" "$asset_out"; then
+      echo "[infring install] downloaded $asset_name (cache hit)"
+      return 0
+    fi
+    rm -f "$asset_out" >/dev/null 2>&1 || true
+    rm -f "$cache_file" >/dev/null 2>&1 || true
+    echo "[infring install] cache invalid for $asset_name; refetching"
+  fi
   # TODO(rk): Consider adding retry logic with exponential backoff for transient network failures.
   # This would improve install reliability in CI environments and regions with intermittent connectivity.
   if curl_fetch "$url" -o "$asset_out"; then
+    if ! verify_downloaded_asset "$version_tag" "$asset_name" "$asset_out"; then
+      rm -f "$asset_out" >/dev/null 2>&1 || true
+      return 1
+    fi
+    if is_truthy "$INSTALL_ASSET_CACHE"; then
+      mkdir -p "$cache_dir" >/dev/null 2>&1 || true
+      cp "$asset_out" "$cache_file" >/dev/null 2>&1 || true
+    fi
     echo "[infring install] downloaded $asset_name"
     return 0
   fi
@@ -1002,7 +1317,7 @@ fallback_triple_alias() {
 }
 
 ensure_source_build_prereqs() {
-  if command -v cargo >/dev/null 2>&1; then
+  if ensure_cargo_command_ready; then
     return 0
   fi
 
@@ -1019,7 +1334,16 @@ ensure_source_build_prereqs() {
   fi
   rm -rf "$rustup_tmp"
   export PATH="$HOME/.cargo/bin:$PATH"
-  command -v cargo >/dev/null 2>&1
+  if ensure_cargo_command_ready; then
+    return 0
+  fi
+  if repair_rustup_default_toolchain; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+    if ensure_cargo_command_ready; then
+      return 0
+    fi
+  fi
+  return 1
 }
 
 prepare_source_fallback_repo() {
@@ -1476,6 +1800,30 @@ verify_workspace_runtime_contract() {
   return 0
 }
 
+repair_workspace_runtime_contract() {
+  version_tag="$1"
+  triple_id="$2"
+  workspace="$3"
+  [ -n "$workspace" ] || return 1
+  echo "[infring install] attempting runtime self-heal for missing manifest entrypoints"
+  if install_client_bundle "$version_tag" "$triple_id" "$workspace"; then
+    ensure_workspace_setup_wizard_compat "$workspace" || true
+    if verify_workspace_runtime_contract "$workspace"; then
+      echo "[infring install] runtime self-heal succeeded via runtime bundle refresh"
+      return 0
+    fi
+  fi
+  if install_workspace_from_source_fallback "$version_tag" "$workspace"; then
+    ensure_workspace_setup_wizard_compat "$workspace" || true
+    if verify_workspace_runtime_contract "$workspace"; then
+      echo "[infring install] runtime self-heal succeeded via source fallback refresh"
+      return 0
+    fi
+  fi
+  echo "[infring install] runtime self-heal failed; runtime contract is still incomplete" >&2
+  return 1
+}
+
 force_workspace_runtime_mode_source() {
   workspace="$1"
   [ -n "$workspace" ] || return 1
@@ -1560,9 +1908,33 @@ run_post_install_smoke_command() {
     echo "[infring install] smoke $label: ok"
     return 0
   fi
+  case "$label" in
+    infringctl_help)
+      if grep -q "could not choose a version of cargo to run" "$log"; then
+        echo "[infring install] smoke $label: skipped (missing rustup default toolchain)"
+        return 0
+      fi
+      ;;
+  esac
   echo "[infring install] smoke $label: failed" >&2
   cat "$log" >&2 || true
   return 1
+}
+
+rustup_default_toolchain_missing() {
+  if ! command -v rustup >/dev/null 2>&1; then
+    return 1
+  fi
+  if command -v cargo >/dev/null 2>&1; then
+    if cargo --version >/dev/null 2>&1; then
+      return 1
+    fi
+    return 0
+  fi
+  if rustup default >/dev/null 2>&1; then
+    return 1
+  fi
+  return 0
 }
 
 run_dashboard_health_smoke() {
@@ -1614,7 +1986,16 @@ run_post_install_smoke_tests() {
   export PROTHEUS_WORKSPACE_ROOT="$workspace"
   failures=0
   run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
-  run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help || failures=$((failures + 1))
+  if rustup_default_toolchain_missing; then
+    cat <<EOF > "$smoke_dir/infringctl_help.log"
+skipped (missing rustup default toolchain)
+help: run 'rustup default stable' to download the latest stable release of Rust and set it as your default toolchain.
+EOF
+    echo "[infring install] smoke infringctl_help: skipped (missing rustup default toolchain)"
+    echo "[infring install] smoke infringctl_help: run 'rustup default stable' to enable this check."
+  else
+    run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help || failures=$((failures + 1))
+  fi
   run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status || failures=$((failures + 1))
   run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard status --json || failures=$((failures + 1))
   if node_runtime_meets_minimum; then
@@ -2422,7 +2803,10 @@ EOF
 
 main() {
   parse_install_args "$@"
+  install_summary_init
+  trap 'install_summary_finalize' EXIT
   resolve_install_dir_default
+  run_install_preflight || exit 1
 
   if [ -n "${INSTALL_TMP_DIR:-}" ]; then
     mkdir -p "$INSTALL_TMP_DIR"
@@ -2436,6 +2820,8 @@ main() {
   fi
   triple="$(platform_triple)"
   version="$(resolve_version)"
+  install_summary_note "resolved_version: ${version}"
+  install_summary_note "platform_triple: ${triple}"
 
   echo "[infring install] version: $version"
   echo "[infring install] platform: $triple"
@@ -2590,7 +2976,9 @@ exec \"$ops_bin\" protheusctl \"\$@\""
       exit 1
     fi
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
-    verify_workspace_runtime_contract "$WORKSPACE_DIR" || exit 1
+    if ! verify_workspace_runtime_contract "$WORKSPACE_DIR"; then
+      repair_workspace_runtime_contract "$version" "$triple" "$WORKSPACE_DIR" || exit 1
+    fi
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
@@ -2663,9 +3051,15 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] run: ${quickstart_prefix}infring --help"
   echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
   echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
+  echo "[infring install] summary log: $INSTALL_SUMMARY_FILE"
+  install_summary_note "completed_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+  INSTALL_SUMMARY_STATUS="success"
 
   if [ -n "$SOURCE_FALLBACK_TMP" ] && [ -d "$SOURCE_FALLBACK_TMP" ]; then
     rm -rf "$SOURCE_FALLBACK_TMP"
+  fi
+  if [ -n "$CHECKSUM_MANIFEST_TMP_DIR" ] && [ -d "$CHECKSUM_MANIFEST_TMP_DIR" ]; then
+    rm -rf "$CHECKSUM_MANIFEST_TMP_DIR"
   fi
 }
 

@@ -249,6 +249,7 @@
             termination_condition: 'task_or_timeout',
             expiry_seconds: 3600,
             auto_terminate_allowed: false,
+            idle_terminate_allowed: false,
             conversation_hold: true
           }
         });

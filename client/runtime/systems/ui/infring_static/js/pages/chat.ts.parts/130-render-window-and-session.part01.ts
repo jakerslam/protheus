@@ -282,6 +282,7 @@
           expiry_seconds: 60 * 60,
           indefinite: false,
           auto_terminate_allowed: true,
+          idle_terminate_allowed: true,
         };
       }
       var terminationCondition = String(selected.termination_condition || 'task_or_timeout');
@@ -294,6 +295,7 @@
         expiry_seconds: expirySeconds,
         indefinite: indefinite,
         auto_terminate_allowed: !indefinite && supportsTimeout && expirySeconds != null,
+        idle_terminate_allowed: !indefinite && supportsTimeout && expirySeconds != null,
       };
     },
 

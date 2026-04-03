@@ -367,6 +367,7 @@
     },
     showMessageTitle(msg, idx, rows) {
       if (!msg || msg.is_notice) return false;
+      if (msg.terminal) return this.isFirstInSourceRun(idx, rows);
       var role = String(msg.role || '').toLowerCase();
       if (role !== 'agent' && role !== 'system' && role !== 'user') return false;
       return this.isFirstInSourceRun(idx, rows);

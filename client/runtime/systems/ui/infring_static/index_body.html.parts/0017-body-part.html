@@ -439,7 +439,6 @@
     }
     return globalReflectionLayer;
   }
-
   function resolveReflectionRoot(targetLayer) {
     if (targetLayer && targetLayer !== globalReflectionLayer) {
       var chatHost = targetLayer.closest ? targetLayer.closest('.messages') : null;
@@ -457,7 +456,6 @@
   function setGridActive(active) {
     try { main.style.setProperty('--chat-grid-active', active ? '1' : '0'); } catch(_) {}
   }
-
   function clearParticles() {
     var nodes = layer.querySelectorAll('.chat-pointer-trail-dot,.chat-pointer-trail-segment,.chat-pointer-ripple,.chat-pointer-orb');
     for (var i = 0; i < nodes.length; i++) {

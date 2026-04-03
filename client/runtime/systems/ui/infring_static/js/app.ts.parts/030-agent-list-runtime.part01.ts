@@ -287,6 +287,9 @@
       var self = this;
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
+      if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
+      this._collapsedHoverNeedsPointerMove = !!this.sidebarCollapsed;
+      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 260) : 0;
       if (this._bootSplashMaxTimer) {
         clearTimeout(this._bootSplashMaxTimer);
         this._bootSplashMaxTimer = 0;

@@ -356,6 +356,12 @@
   cursor: text;
 }
 
+.message-agent-name.terminal-actor-label {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .message-bubble-content {
   display: block;
   transition: opacity 0.1s var(--ease-smooth), filter 0.1s var(--ease-smooth);
@@ -426,13 +432,25 @@
 }
 
 .message.terminal .message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   width: 100%;
 }
 
+.message.terminal.terminal-user {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.message.terminal.terminal-user .message-body {
+  align-items: flex-end;
+}
+
 .message.terminal .message-bubble {
-  width: 100%;
-  max-width: 100%;
-  display: block;
+  width: auto;
+  max-width: min(84ch, 90%);
+  display: inline-block;
   background: #050905;
   color: #99ff72;
   border: 0.75px solid #72ff5c;
@@ -443,6 +461,15 @@
   white-space: pre-wrap;
   text-align: left;
   box-shadow: 0 0 0 0.5px rgba(114, 255, 92, 0.12) inset;
+}
+
+.message.terminal.terminal-user .message-bubble {
+  margin-left: auto;
+}
+
+.message.terminal.terminal-agent .message-bubble,
+.message.terminal.terminal-system .message-bubble {
+  margin-right: auto;
 }
 
 .message.system .message-bubble::before,

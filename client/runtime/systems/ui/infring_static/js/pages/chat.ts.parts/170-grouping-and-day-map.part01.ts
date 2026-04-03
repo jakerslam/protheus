@@ -52,6 +52,41 @@
       return text.slice(0, limit - 1) + '\u2026';
     },
 
+    normalizeSystemMessageText: function(rawText) {
+      var raw = String(rawText || '');
+      if (!raw.trim()) return '';
+      var lowered = raw.toLowerCase();
+      var errorLike = /^\s*error:/i.test(raw) || lowered.indexOf('request_read_failed') >= 0;
+      if (!errorLike) return raw.trim();
+
+      var lines = raw.split(/\r?\n/);
+      var deduped = [];
+      var previousKey = '';
+      for (var i = 0; i < lines.length; i++) {
+        var line = String(lines[i] || '').replace(/\s+/g, ' ').trim();
+        if (!line) continue;
+        var key = line.toLowerCase();
+        if (key === previousKey) continue;
+        deduped.push(line);
+        previousKey = key;
+      }
+
+      if (lowered.indexOf('request_read_failed') >= 0 && deduped.length > 1) {
+        var unique = [];
+        var seen = {};
+        for (var j = 0; j < deduped.length; j++) {
+          var value = String(deduped[j] || '');
+          var valueKey = value.toLowerCase();
+          if (seen[valueKey]) continue;
+          seen[valueKey] = true;
+          unique.push(value);
+        }
+        deduped = unique;
+      }
+
+      return deduped.join('\n').trim();
+    },
+
     messageAgentLabel: function(msg) {
       var name = '';
       if (msg && msg.agent_name) name = String(msg.agent_name || '');
@@ -72,7 +107,12 @@
         if (this.normalizeNoticeType(msg.notice_type, 'model') === 'info') return '\u24d8 Info';
         return 'Model';
       }
-      if (msg.terminal) return 'Terminal';
+      if (msg.terminal) {
+        var terminalSource = this.terminalMessageSource(msg);
+        if (terminalSource === 'user') return 'You';
+        if (terminalSource === 'system') return 'System';
+        return this.messageAgentLabel(msg);
+      }
       if (Array.isArray(msg.tools) && msg.tools.length && (!msg.text || !String(msg.text).trim())) {
         return 'Tool';
       }

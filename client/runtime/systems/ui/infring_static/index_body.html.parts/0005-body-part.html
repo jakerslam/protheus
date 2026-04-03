@@ -180,14 +180,14 @@
                         <div class="message-body">
                         <div
                           class="message-agent-name"
-                          :class="messageTitleClass(msg)"
+                          :class="(messageTitleClass(msg) || '') + (msg.terminal ? ' terminal-actor-label' : '')"
                           x-show="showMessageTitle(msg, idx, filteredMessages)"
                         >
                           <span class="message-agent-name-bracket" aria-hidden="true">[</span><span class="message-agent-name-label" x-text="messageTitleLabel(msg)"></span><span class="message-agent-name-bracket" aria-hidden="true">]</span>
                         </div>
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
-                          <div class="thinking-inline-text"><em x-text="thinkingDisplayText(msg)"></em></div>
+                          <div class="thinking-inline-text" x-show="thinkingDisplayText(msg)"><em x-text="thinkingDisplayText(msg)"></em></div>
                           <div class="thinking-status-line" x-show="thinkingStatusText(msg)" x-text="thinkingStatusText(msg)"></div>
                           <div class="thinking-trace-list" x-show="thinkingTraceRows(msg).length">
                             <template x-for="trace in thinkingTraceRows(msg)" :key="trace.id">

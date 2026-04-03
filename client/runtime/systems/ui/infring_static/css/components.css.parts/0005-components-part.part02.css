@@ -6,6 +6,10 @@
   justify-content: flex-start;
 }
 
+.message.terminal.terminal-user .message-stats-row {
+  justify-content: flex-end;
+}
+
 .terminal-toolbox {
   width: auto;
   max-width: min(90%, 760px);

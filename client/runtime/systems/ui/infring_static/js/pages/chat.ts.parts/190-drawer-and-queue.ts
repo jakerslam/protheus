@@ -374,12 +374,22 @@
       var ts = Number.isFinite(Number(payload.ts)) ? Number(payload.ts) : now;
       var role = payload.role ? String(payload.role) : 'terminal';
       var terminalSource = payload.terminal_source ? String(payload.terminal_source).toLowerCase() : '';
+      if (terminalSource !== 'user' && terminalSource !== 'agent' && terminalSource !== 'system') {
+        terminalSource = role === 'user' ? 'user' : 'system';
+      }
       var cwd = payload.cwd ? String(payload.cwd) : this.terminalPromptPath;
       var meta = payload.meta == null ? '' : String(payload.meta);
       var tools = Array.isArray(payload.tools) ? payload.tools : [];
+      var shouldAppendToLast = payload.append_to_last === true;
+      var agentId = payload.agent_id ? String(payload.agent_id) : '';
+      var agentName = payload.agent_name ? String(payload.agent_name) : '';
+      if (terminalSource === 'agent') {
+        if (!agentId && this.currentAgent && this.currentAgent.id) agentId = String(this.currentAgent.id);
+        if (!agentName && this.currentAgent && this.currentAgent.name) agentName = String(this.currentAgent.name);
+      }
 
       var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
-      if (last && !last.thinking && last.terminal) {
+      if (shouldAppendToLast && last && !last.thinking && last.terminal) {
         if (text) {
           if (last.text && !/\n$/.test(last.text)) last.text += '\n';
           last.text += text;
@@ -390,6 +400,8 @@
           this.terminalCwd = cwd;
         }
         if (terminalSource) last.terminal_source = terminalSource;
+        if (agentId) last.agent_id = agentId;
+        if (agentName) last.agent_name = agentName;
         last.ts = ts;
         if (!Array.isArray(last.tools)) last.tools = [];
         if (tools.length) last.tools = last.tools.concat(tools);
@@ -404,9 +416,11 @@
         tools: tools,
         ts: ts,
         terminal: true,
-        terminal_source: terminalSource || 'user',
+        terminal_source: terminalSource || 'system',
         cwd: cwd
       };
+      if (agentId) msg.agent_id = agentId;
+      if (agentName) msg.agent_name = agentName;
       this.messages.push(msg);
       if (cwd) this.terminalCwd = cwd;
       return msg;
