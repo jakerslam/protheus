@@ -340,6 +340,39 @@ fn strip_internal_context_metadata_prefix(text: &str) -> String {
     String::new()
 }
 
+fn strip_internal_cache_control_markup(text: &str) -> String {
+    let mut cleaned = clean_chat_text(text, 64_000);
+    loop {
+        let lowered = cleaned.to_ascii_lowercase();
+        let Some(start) = lowered.find("<cache_control") else {
+            break;
+        };
+        let tail = &lowered[start..];
+        let end_rel = tail
+            .find("/>")
+            .map(|idx| idx + 2)
+            .or_else(|| tail.find("</cache_control>").map(|idx| idx + "</cache_control>".len()))
+            .or_else(|| tail.find('>').map(|idx| idx + 1))
+            .unwrap_or(tail.len());
+        let end = start.saturating_add(end_rel).min(cleaned.len());
+        if end <= start {
+            break;
+        }
+        cleaned.replace_range(start..end, "");
+    }
+    cleaned
+        .lines()
+        .filter(|line| {
+            let lowered = line.to_ascii_lowercase();
+            !(lowered.contains("stable_hash=")
+                && (lowered.contains("cache_control") || lowered.contains("cache control")))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
 fn persistent_memory_denied_phrase(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
     let conduit_gated_memory_denial = (lowered.contains("memory conduit")
@@ -600,6 +633,7 @@ mod clean_text_swarm_intent_tests {
 mod clean_text_memory_phrase_tests {
     use super::{
         internal_context_metadata_phrase, persistent_memory_denied_phrase,
+        strip_internal_cache_control_markup,
         strip_internal_context_metadata_prefix,
     };
 
@@ -625,5 +659,23 @@ mod clean_text_memory_phrase_tests {
             ),
             ""
         );
+    }
+
+    #[test]
+    fn strip_internal_cache_control_markup_removes_cache_tags() {
+        let cleaned = strip_internal_cache_control_markup(
+            "I see marker <cache_control lane=\"autonomy\" stable_hash=\"abc123\" breakpoint=\"system_instructions\" /> and continue.",
+        );
+        assert!(!cleaned.contains("<cache_control"));
+        assert!(!cleaned.contains("stable_hash="));
+        assert!(cleaned.contains("I see marker"));
+    }
+
+    #[test]
+    fn strip_internal_cache_control_markup_removes_plaintext_hash_line() {
+        let cleaned = strip_internal_cache_control_markup(
+            "cache telemetry: cache_control lane=\"autonomy\" stable_hash=\"6f4ed79ad92d4b86\"\nreal answer",
+        );
+        assert_eq!(cleaned, "real answer");
     }
 }

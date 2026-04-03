@@ -347,3 +347,58 @@ fn context_command_emergency_compacts_before_saturation() {
         true
     );
 }
+
+#[test]
+fn message_ignores_unrelated_passive_memory_when_term_index_is_missing() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let attention_path = root
+        .path()
+        .join("client/runtime/local/state/attention/queue.jsonl");
+    if let Some(parent) = attention_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let unrelated = json!({
+        "ts": crate::now_iso(),
+        "source": format!("agent:{agent_id}"),
+        "source_type": "passive_memory_turn",
+        "severity": "info",
+        "summary": "SQL-Data-Exploration Data Exploration in SQL for Covid-19 Data Project Overview Data Source Tools Used",
+        "raw_event": {
+            "agent_id": agent_id,
+            "memory_kind": "passive_turn",
+            "user_text": "legacy row without indexed terms",
+            "assistant_text": "legacy row without indexed terms"
+        }
+    });
+    let encoded = serde_json::to_string(&unrelated).expect("encode attention row");
+    std::fs::write(&attention_path, format!("{encoded}\n")).expect("write attention queue");
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"code me a reverse linked list"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("message");
+    assert_eq!(response.status, 200);
+    let text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(
+        !text.contains("sql-data-exploration"),
+        "unrelated passive-memory project summary should never leak into response text"
+    );
+    assert!(
+        !text.contains("project overview"),
+        "template-section drift should be filtered before prompt assembly"
+    );
+    assert!(
+        !text.contains("covid-19"),
+        "legacy unrelated context row should not steer coding request replies"
+    );
+}

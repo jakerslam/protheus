@@ -415,6 +415,18 @@
       text = text.replace(/<function=[^>]+>[\s\S]*?<\/function>/gi, '');
       // Pattern: stray opening/closing function tags
       text = text.replace(/<\/?function[^>]*>/gi, '');
+      // Pattern: leaked cache-control metadata tags
+      text = text.replace(/<cache_control[^>]*\/>/gi, '');
+      text = text.replace(/<cache_control[^>]*>[\s\S]*?<\/cache_control>/gi, '');
+      text = text.replace(/<\/?cache_control[^>]*>/gi, '');
+      // Pattern: plaintext cache telemetry lines
+      text = text
+        .split('\n')
+        .filter(function(line) {
+          var lowered = String(line || '').toLowerCase();
+          return !(lowered.includes('stable_hash=') && (lowered.includes('cache_control') || lowered.includes('cache control')));
+        })
+        .join('\n');
       // Pattern: tool_name</function={"key":"value"} or tool_name</function,{...}
       text = text.replace(/\s*\w+<\/function[=,]?\s*\{[\s\S]*$/gmi, '');
       // Pattern: dangling <function=...>{... after truncation
