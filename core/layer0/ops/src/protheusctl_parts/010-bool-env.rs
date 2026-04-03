@@ -33,6 +33,8 @@ pub struct DispatchSecurity {
 const PERSONA_VALID_LENSES_ENV: &str = "PROTHEUS_CTL_PERSONA_VALID_LENSES";
 const PERSONA_VALID_LENSES_DEFAULT: &str = "operator,guardian,analyst";
 const PERSONA_BLOCKED_PATHS_ENV: &str = "PROTHEUS_CTL_PERSONA_BLOCKED_PATHS";
+const INFRING_WORKSPACE_ROOT_ENV: &str = "INFRING_WORKSPACE_ROOT";
+const PROTHEUS_WORKSPACE_ROOT_ENV: &str = "PROTHEUS_WORKSPACE_ROOT";
 const INSTALL_RUNTIME_MANIFEST_REL: &str = "client/runtime/config/install_runtime_manifest_v1.txt";
 const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheusd.ts",
@@ -115,6 +117,43 @@ fn should_offer_setup(root: &Path, skip_setup: bool) -> bool {
 }
 
 fn resolve_workspace_root(start: &Path) -> Option<PathBuf> {
+    let parse_workspace_root = |raw: String| -> Option<PathBuf> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let base = PathBuf::from(trimmed);
+        let candidate = if base.is_absolute() {
+            base
+        } else {
+            let cwd = std::env::current_dir().ok()?;
+            cwd.join(base)
+        };
+        if candidate
+            .join("core")
+            .join("layer0")
+            .join("ops")
+            .join("Cargo.toml")
+            .exists()
+            && candidate.join("client").join("runtime").exists()
+        {
+            Some(candidate)
+        } else {
+            None
+        }
+    };
+
+    if let Ok(raw) = env::var(INFRING_WORKSPACE_ROOT_ENV) {
+        if let Some(root) = parse_workspace_root(raw) {
+            return Some(root);
+        }
+    }
+    if let Ok(raw) = env::var(PROTHEUS_WORKSPACE_ROOT_ENV) {
+        if let Some(root) = parse_workspace_root(raw) {
+            return Some(root);
+        }
+    }
+
     let mut cursor = Some(start);
     while let Some(path) = cursor {
         if path

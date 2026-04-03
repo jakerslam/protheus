@@ -428,6 +428,8 @@ fn root_cause_code_for_issue(issue: &str) -> &'static str {
         "node_runtime_missing" => "INF-RUNTIME-001-NODE-MISSING",
         "node_module_typescript_missing" => "INF-RUNTIME-002-TYPESCRIPT-MISSING",
         "node_module_ws_missing" => "INF-RUNTIME-003-WS-MISSING",
+        "cargo_not_runnable" => "INF-RUST-001-CARGO-NOT-RUNNABLE",
+        "rustup_default_toolchain_missing" => "INF-RUST-002-RUSTUP-DEFAULT-MISSING",
         "dashboard_port_invalid" => "INF-DASH-001-PORT-INVALID",
         "dashboard_healthz_unreachable" => "INF-DASH-002-HEALTHZ-UNREACHABLE",
         "dashboard_pid_not_running" => "INF-DASH-003-PID-NOT-RUNNING",
@@ -470,6 +472,48 @@ fn node_module_resolvable(root: &Path, module_name: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn cargo_detected() -> bool {
+    Command::new("cargo")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+}
+
+fn cargo_runnable() -> bool {
+    Command::new("cargo")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn rustup_detected() -> bool {
+    Command::new("rustup")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+}
+
+fn rustup_default_toolchain_configured() -> bool {
+    Command::new("rustup")
+        .arg("default")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let json_mode = has_json_flag(args);
     let mode = first_positional_command(args);
@@ -482,6 +526,14 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let node_detected = has_node_runtime();
     let typescript_module_resolved = node_detected && node_module_resolvable(root, "typescript");
     let ws_module_resolved = node_detected && node_module_resolvable(root, "ws");
+    let cargo_detected = cargo_detected();
+    let cargo_runnable = cargo_runnable();
+    let rustup_detected = rustup_detected();
+    let rustup_default_toolchain_configured = if rustup_detected {
+        rustup_default_toolchain_configured()
+    } else {
+        false
+    };
     let command_registry_integrity = crate::command_list_kernel::command_registry_integrity();
     let command_registry_ok = command_registry_integrity
         .get("ok")
@@ -566,6 +618,12 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         "node_runtime_detected": node_detected,
         "typescript_module_resolved": typescript_module_resolved,
         "ws_module_resolved": ws_module_resolved,
+        "toolchains": {
+            "cargo_detected": cargo_detected,
+            "cargo_runnable": cargo_runnable,
+            "rustup_detected": rustup_detected,
+            "rustup_default_toolchain_configured": rustup_default_toolchain_configured
+        },
         "command_registry_ok": command_registry_ok,
         "command_registry": command_registry_integrity,
         "tier1_route_mismatches": tier1_route_mismatches,
@@ -626,6 +684,12 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     if node_detected && !ws_module_resolved {
         warnings.push("node_module_ws_missing".to_string());
     }
+    if cargo_detected && !cargo_runnable {
+        warnings.push("cargo_not_runnable".to_string());
+    }
+    if rustup_detected && !rustup_default_toolchain_configured {
+        warnings.push("rustup_default_toolchain_missing".to_string());
+    }
     if dashboard_port.is_none() {
         failures.push("dashboard_port_invalid".to_string());
     }
@@ -662,6 +726,13 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     } else {
         println!("[infring doctor] mode: {normalized_mode}");
         println!("[infring doctor] node runtime: {}", if node_detected { "detected" } else { "missing" });
+        println!(
+            "[infring doctor] toolchains: cargo-detected={} cargo-runnable={} rustup-detected={} rustup-default={}",
+            cargo_detected,
+            cargo_runnable,
+            rustup_detected,
+            rustup_default_toolchain_configured
+        );
         println!(
             "[infring doctor] wrappers: infring={}, infringctl={}, infringd={}",
             wrappers.get("infring").and_then(Value::as_bool).unwrap_or(false),

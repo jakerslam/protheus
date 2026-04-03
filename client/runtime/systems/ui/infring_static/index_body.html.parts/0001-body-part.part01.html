@@ -188,7 +188,7 @@
                 @dragover="handleChatSidebarTopologyDragOver(agent, $event)"
                 @drop="handleChatSidebarTopologyDrop(agent, $event)"
                 @dragend="endChatSidebarTopologyDrag()"
-                @mouseenter="if (sidebarCollapsed) showCollapsedAgentHover(agent, $event)"
+                @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = true; updateCollapsedAgentHoverPosition($event); }"
                 @mousemove="if (sidebarCollapsed) handleCollapsedAgentHoverMove(agent, $event)"
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
@@ -374,7 +374,7 @@
     <div
       class="nav-agent-collapsed-hover-float"
       x-cloak
-      x-show="sidebarCollapsed && collapsedAgentHover.active && !!String(collapsedAgentHover.id || '').trim() && !!String(collapsedAgentHover.name || '').trim() && !!String(collapsedAgentHover.text || '').trim() && Number(collapsedAgentHover.top || 0) > 0"
+      x-show="sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && collapsedAgentHover.active && !!String(collapsedAgentHover.id || '').trim() && !!String(collapsedAgentHover.name || '').trim() && !!String(collapsedAgentHover.text || '').trim() && Number(collapsedAgentHover.top || 0) > 0"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >
