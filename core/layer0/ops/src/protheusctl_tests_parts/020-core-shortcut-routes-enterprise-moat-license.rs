@@ -370,13 +370,13 @@ fn core_shortcut_routes_assimilate_haystack_to_haystack_bridge() {
 }
 
 #[test]
-fn core_shortcut_routes_assimilate_langchain_to_langchain_bridge() {
+fn core_shortcut_routes_assimilate_workflow_chain_to_workflow_chain_bridge() {
     let route = resolve_core_shortcuts(
         "assimilate",
-        &["langchain".to_string(), "--payload-base64=e30=".to_string()],
+        &["workflow_chain".to_string(), "--payload-base64=e30=".to_string()],
     )
     .expect("route");
-    assert_eq!(route.script_rel, "core://langchain-bridge");
+    assert_eq!(route.script_rel, "core://workflow_chain-bridge");
     assert_eq!(
         route.args,
         vec!["import-integration", "--payload-base64=e30="]

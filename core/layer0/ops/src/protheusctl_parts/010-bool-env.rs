@@ -9,8 +9,10 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::env;
 use std::io::IsTerminal;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::Duration;
 
 use crate::{clean, client_state_root};
 #[path = "../protheusctl_routes.rs"]
@@ -31,6 +33,15 @@ pub struct DispatchSecurity {
 const PERSONA_VALID_LENSES_ENV: &str = "PROTHEUS_CTL_PERSONA_VALID_LENSES";
 const PERSONA_VALID_LENSES_DEFAULT: &str = "operator,guardian,analyst";
 const PERSONA_BLOCKED_PATHS_ENV: &str = "PROTHEUS_CTL_PERSONA_BLOCKED_PATHS";
+const INSTALL_RUNTIME_MANIFEST_REL: &str = "client/runtime/config/install_runtime_manifest_v1.txt";
+const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
+    "client/runtime/systems/ops/protheusd.js",
+    "client/runtime/systems/ops/protheus_status_dashboard.js",
+    "client/runtime/systems/ops/protheus_unknown_guard.js",
+    "client/runtime/systems/ops/protheus_completion.js",
+    "client/runtime/systems/ops/protheus_repl.js",
+    "client/runtime/systems/ops/protheus_command_list.js",
+];
 
 fn bool_env(name: &str, fallback: bool) -> bool {
     match env::var(name) {
@@ -139,6 +150,102 @@ fn has_node_runtime() -> bool {
         .is_ok()
 }
 
+fn script_exists_with_ts_js_fallback(root: &Path, rel: &str) -> bool {
+    let primary = root.join(rel);
+    if primary.exists() {
+        return true;
+    }
+    if rel.ends_with(".js") {
+        let ts_rel = format!("{}{}", rel.trim_end_matches(".js"), ".ts");
+        return root.join(ts_rel).exists();
+    }
+    if rel.ends_with(".ts") {
+        let js_rel = format!("{}{}", rel.trim_end_matches(".ts"), ".js");
+        return root.join(js_rel).exists();
+    }
+    false
+}
+
+fn runtime_mode_state_path(root: &Path) -> PathBuf {
+    if let Ok(raw) = env::var("PROTHEUS_RUNTIME_MODE_STATE_PATH") {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
+    root.join("local")
+        .join("state")
+        .join("ops")
+        .join("runtime_mode.json")
+}
+
+fn runtime_mode_from_state(root: &Path) -> Option<String> {
+    let path = runtime_mode_state_path(root);
+    let raw = std::fs::read_to_string(path).ok()?;
+    let payload: Value = serde_json::from_str(&raw).ok()?;
+    let mode = payload
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if mode == "dist" || mode == "source" {
+        Some(mode)
+    } else {
+        None
+    }
+}
+
+fn resolved_runtime_mode(root: &Path) -> String {
+    let env_mode = env::var("PROTHEUS_RUNTIME_MODE")
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    if env_mode == "dist" || env_mode == "source" {
+        return env_mode;
+    }
+    runtime_mode_from_state(root).unwrap_or_else(|| "source".to_string())
+}
+
+fn install_runtime_manifest_entries(root: &Path) -> Vec<String> {
+    let manifest_path = root.join(INSTALL_RUNTIME_MANIFEST_REL);
+    let mut entries = Vec::<String>::new();
+    if let Ok(raw) = std::fs::read_to_string(manifest_path) {
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            entries.push(trimmed.to_string());
+        }
+    }
+    if entries.is_empty() {
+        entries = INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS
+            .iter()
+            .map(|entry| (*entry).to_string())
+            .collect();
+    }
+    entries
+}
+
+fn runtime_missing_entrypoints_for_mode(root: &Path, runtime_mode: &str) -> Vec<String> {
+    let strict_dist = runtime_mode == "dist";
+    install_runtime_manifest_entries(root)
+        .into_iter()
+        .filter(|rel| {
+            if strict_dist && rel.ends_with(".js") {
+                return !root.join(rel).exists();
+            }
+            !script_exists_with_ts_js_fallback(root, rel)
+        })
+        .collect()
+}
+
+fn runtime_missing_entrypoints(root: &Path) -> Vec<String> {
+    let runtime_mode = resolved_runtime_mode(root);
+    runtime_missing_entrypoints_for_mode(root, runtime_mode.as_str())
+}
+
 fn command_exists(bin: &str) -> bool {
     Command::new(bin)
         .arg("--version")
@@ -148,6 +255,178 @@ fn command_exists(bin: &str) -> bool {
         .status()
         .map(|status| status.success())
         .unwrap_or(false)
+}
+
+fn parse_flag_value(args: &[String], key: &str) -> Option<String> {
+    let prefix = format!("--{key}=");
+    let exact = format!("--{key}");
+    let mut idx = 0usize;
+    while idx < args.len() {
+        let token = args[idx].trim();
+        if let Some(value) = token.strip_prefix(&prefix) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        } else if token == exact {
+            if let Some(value) = args.get(idx + 1) {
+                let trimmed = value.trim();
+                if !trimmed.is_empty() && !trimmed.starts_with('-') {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+        idx += 1;
+    }
+    None
+}
+
+fn sanitize_dashboard_host_token(host: &str) -> String {
+    let mut out = String::with_capacity(host.len());
+    for ch in host.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' || ch == '-' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "127.0.0.1".to_string()
+    } else {
+        out
+    }
+}
+
+fn sanitize_dashboard_port_token(port: &str) -> String {
+    let mut out = String::with_capacity(port.len());
+    for ch in port.chars() {
+        if ch.is_ascii_digit() {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "4173".to_string()
+    } else {
+        out
+    }
+}
+
+fn tmp_root_path() -> PathBuf {
+    let raw = env::var("TMPDIR")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "/tmp".to_string());
+    PathBuf::from(raw)
+}
+
+fn dashboard_pid_file(host: &str, port: &str) -> PathBuf {
+    let host_safe = sanitize_dashboard_host_token(host);
+    let port_safe = sanitize_dashboard_port_token(port);
+    tmp_root_path().join(format!("infring-dashboard-{host_safe}-{port_safe}.pid"))
+}
+
+fn dashboard_watchdog_pid_file(host: &str, port: &str) -> PathBuf {
+    let host_safe = sanitize_dashboard_host_token(host);
+    let port_safe = sanitize_dashboard_port_token(port);
+    tmp_root_path().join(format!("infring-dashboard-watchdog-{host_safe}-{port_safe}.pid"))
+}
+
+fn read_pid_file(path: &Path) -> Option<u32> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let digits = raw
+        .chars()
+        .filter(|ch| ch.is_ascii_digit())
+        .collect::<String>();
+    if digits.is_empty() {
+        return None;
+    }
+    digits.parse::<u32>().ok()
+}
+
+fn process_running(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        return Command::new("kill")
+            .arg("-0")
+            .arg(pid.to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false);
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        false
+    }
+}
+
+fn dashboard_healthz_reachable(host: &str, port: u16, timeout_ms: u64) -> bool {
+    let addr = format!("{host}:{port}");
+    let timeout = Duration::from_millis(timeout_ms.max(100));
+    let Ok(addrs) = addr.to_socket_addrs() else {
+        return false;
+    };
+    for socket_addr in addrs {
+        if TcpStream::connect_timeout(&socket_addr, timeout).is_ok() {
+            return true;
+        }
+    }
+    false
+}
+
+fn launchd_dashboard_loaded() -> bool {
+    if env::consts::OS != "macos" {
+        return false;
+    }
+    if !Command::new("launchctl")
+        .arg("help")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+    {
+        return false;
+    }
+    let uid = match Command::new("id")
+        .arg("-u")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+    {
+        Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_string(),
+        _ => String::new(),
+    };
+    if uid.is_empty() {
+        return false;
+    }
+    let label = "com.protheuslabs.infring.dashboard.shelltest2";
+    for domain in [format!("gui/{uid}"), format!("user/{uid}")] {
+        let target = format!("{domain}/{label}");
+        if Command::new("launchctl")
+            .arg("print")
+            .arg(target)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn node_install_command_hint() -> String {
@@ -229,6 +508,7 @@ fn print_node_free_command_list(mode: &str) {
         "enterprise-hardening <run|status|export-compliance|identity-surface|certify-scale|dashboard>",
         "benchmark <run|status>",
         "alpha-check [--strict=1|0] [--run-gates=1|0]",
+        "doctor | verify-install",
         "research <status|diagnostics|fetch>",
         "help",
         "list",
@@ -240,10 +520,25 @@ fn print_node_free_command_list(mode: &str) {
     println!("Install Node.js 22+ to unlock all CLI commands.");
     println!("Suggested install command: {}", node_install_command_hint());
     println!("Tip: rerun installer with --install-node to attempt automatic installation.");
+    let root = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let missing_runtime = runtime_missing_entrypoints(&effective_workspace_root(&root));
+    if !missing_runtime.is_empty() {
+        println!();
+        println!("Runtime assets also appear incomplete (manifest: {INSTALL_RUNTIME_MANIFEST_REL}):");
+        for rel in missing_runtime.iter().take(8) {
+            println!("  - missing: {rel}");
+        }
+        if missing_runtime.len() > 8 {
+            println!("  - ... {} more", missing_runtime.len() - 8);
+        }
+        println!("Run `infring doctor --json` for a full install integrity report.");
+    }
 }
 
-fn emit_node_missing_error(cmd: &str, script_rel: &str) -> i32 {
+fn emit_node_missing_error(root: &Path, cmd: &str, script_rel: &str) -> i32 {
     let install_hint = node_install_command_hint();
+    let missing_runtime = runtime_missing_entrypoints(root);
+    let runtime_assets_missing = !missing_runtime.is_empty();
     eprintln!(
         "{}",
         json!({
@@ -254,7 +549,10 @@ fn emit_node_missing_error(cmd: &str, script_rel: &str) -> i32 {
             "script_rel": clean(script_rel, 220),
             "hint": clean(format!("Install Node.js 22+ (try: {install_hint}) or set PROTHEUS_NODE_BINARY to a valid node executable."), 220),
             "node_install_command": clean(install_hint, 220),
-            "auto_install_hint": "Rerun installer with --install-node to attempt automatic Node installation."
+            "auto_install_hint": "Rerun installer with --install-node to attempt automatic Node installation.",
+            "runtime_assets_missing": runtime_assets_missing,
+            "runtime_manifest_rel": INSTALL_RUNTIME_MANIFEST_REL,
+            "missing_runtime_entrypoints": missing_runtime
         })
     );
     1

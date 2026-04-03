@@ -72,32 +72,35 @@
       var self = this;
       var now = Date.now();
       this.modelApiKeyStatus = '';
-      if (this._modelCache && (now - this._modelCacheTime) < 300000) {
-        this.modelSwitcherFilter = '';
-        this.modelSwitcherProviderFilter = '';
-        this.modelSwitcherIdx = 0;
-        this.showModelSwitcher = true;
-        this.$nextTick(function() {
-          var el = document.getElementById('model-switcher-search');
-          if (el) el.focus();
-        });
-        return;
+      var cached = self.sanitizeModelCatalogRows(self._modelCache || []);
+      if (cached.length) {
+        self._modelCache = cached;
+        self.modelPickerList = cached;
       }
+      this.modelSwitcherFilter = '';
+      this.modelSwitcherProviderFilter = '';
+      this.modelSwitcherIdx = 0;
+      this.showModelSwitcher = true;
+      this.$nextTick(function() {
+        var el = document.getElementById('model-switcher-search');
+        if (el) el.focus();
+      });
+
+      var cacheFresh = Array.isArray(this._modelCache) && (now - this._modelCacheTime) < 300000;
+      if (cacheFresh) return;
+
       InfringAPI.get('/api/models').then(function(data) {
-        var models = (data.models || []).filter(function(m) { return m.available; });
+        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;
         self._modelCacheTime = Date.now();
         self.modelPickerList = models;
-        self.modelSwitcherFilter = '';
-        self.modelSwitcherProviderFilter = '';
-        self.modelSwitcherIdx = 0;
-        self.showModelSwitcher = true;
-        self.$nextTick(function() {
-          var el = document.getElementById('model-switcher-search');
-          if (el) el.focus();
-        });
       }).catch(function(e) {
-        InfringToast.error('Failed to load models: ' + e.message);
+        if (!self.modelPickerList || !self.modelPickerList.length) {
+          var active = self.resolveActiveSwitcherModel([]);
+          self.modelPickerList = active ? [active] : [];
+        }
+        self.modelApiKeyStatus = 'Unable to refresh model list (showing cached entries)';
+        InfringToast.error('Failed to refresh models: ' + e.message);
       });
     },
 
@@ -129,10 +132,10 @@
         self._modelCacheTime = 0;
         return InfringAPI.get('/api/models');
       }).then(function(data) {
-        var models = (data && data.models) || [];
-        self._modelCache = models.filter(function(m) { return m.available; });
+        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
+        self._modelCache = models;
         self._modelCacheTime = Date.now();
-        self.modelPickerList = self._modelCache;
+        self.modelPickerList = models;
       }).catch(function(e) {
         self.modelApiKeyStatus = '';
         InfringToast.error('Model discovery failed: ' + (e && e.message ? e.message : e));

@@ -12,25 +12,25 @@ use std::sync::OnceLock;
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 
-const DEFAULT_STATE_REL: &str = "local/state/ops/langchain_bridge/latest.json";
-const DEFAULT_HISTORY_REL: &str = "local/state/ops/langchain_bridge/history.jsonl";
-const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/langchain_bridge/swarm_state.json";
+const DEFAULT_STATE_REL: &str = "local/state/ops/workflow_chain_bridge/latest.json";
+const DEFAULT_HISTORY_REL: &str = "local/state/ops/workflow_chain_bridge/history.jsonl";
+const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/workflow_chain_bridge/swarm_state.json";
 
 fn usage() {
-    println!("langchain-bridge commands:");
-    println!("  protheus-ops langchain-bridge status [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge register-chain [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge execute-chain [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops langchain-bridge register-middleware [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge run-deep-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops langchain-bridge register-memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge recall-memory [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge route-prompt [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge parse-structured-output [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langchain-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops langchain-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("workflow_chain-bridge commands:");
+    println!("  protheus-ops workflow_chain-bridge status [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge register-chain [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge execute-chain [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge register-middleware [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge run-deep-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge register-memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge recall-memory [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge route-prompt [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge parse-structured-output [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  protheus-ops workflow_chain-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -72,16 +72,16 @@ fn print_json_line(value: &Value) {
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("langchain_bridge_payload_decode_failed:{err}"));
+            .map_err(|err| format!("workflow_chain_bridge_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
         let bytes = BASE64_STANDARD
             .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("langchain_bridge_payload_base64_decode_failed:{err}"))?;
+            .map_err(|err| format!("workflow_chain_bridge_payload_base64_decode_failed:{err}"))?;
         let text = String::from_utf8(bytes)
-            .map_err(|err| format!("langchain_bridge_payload_utf8_decode_failed:{err}"))?;
+            .map_err(|err| format!("workflow_chain_bridge_payload_utf8_decode_failed:{err}"))?;
         return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("langchain_bridge_payload_decode_failed:{err}"));
+            .map_err(|err| format!("workflow_chain_bridge_payload_decode_failed:{err}"));
     }
     Ok(json!({}))
 }
@@ -146,7 +146,7 @@ fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) 
 
 fn default_state() -> Value {
     json!({
-        "schema_version": "langchain_bridge_state_v1",
+        "schema_version": "workflow_chain_bridge_state_v1",
         "chains": {},
         "chain_runs": {},
         "middleware_hooks": {},
@@ -193,7 +193,7 @@ fn ensure_state_shape(value: &mut Value) {
         .and_then(Value::as_str)
         .is_none()
     {
-        value["schema_version"] = json!("langchain_bridge_state_v1");
+        value["schema_version"] = json!("workflow_chain_bridge_state_v1");
     }
 }
 
@@ -305,14 +305,14 @@ fn safe_shell_prefix(path: &str) -> bool {
 fn normalize_bridge_path(root: &Path, raw: &str) -> Result<String, String> {
     let cleaned = clean_text(Some(raw), 240);
     if cleaned.is_empty() {
-        return Err("langchain_bridge_path_required".to_string());
+        return Err("workflow_chain_bridge_path_required".to_string());
     }
     if !safe_prefix_for_bridge(&cleaned) {
-        return Err("langchain_bridge_path_must_be_adapter_owned".to_string());
+        return Err("workflow_chain_bridge_path_must_be_adapter_owned".to_string());
     }
     let full = repo_path(root, &cleaned);
     if !full.starts_with(root.join("adapters")) {
-        return Err("langchain_bridge_path_escapes_adapters".to_string());
+        return Err("workflow_chain_bridge_path_escapes_adapters".to_string());
     }
     Ok(cleaned)
 }
@@ -320,14 +320,14 @@ fn normalize_bridge_path(root: &Path, raw: &str) -> Result<String, String> {
 fn normalize_shell_path(root: &Path, raw: &str) -> Result<String, String> {
     let cleaned = clean_text(Some(raw), 240);
     if cleaned.is_empty() {
-        return Err("langchain_shell_path_required".to_string());
+        return Err("workflow_chain_shell_path_required".to_string());
     }
     if !safe_shell_prefix(&cleaned) {
-        return Err("langchain_shell_path_must_live_under_client_or_apps".to_string());
+        return Err("workflow_chain_shell_path_must_live_under_client_or_apps".to_string());
     }
     let full = repo_path(root, &cleaned);
     if !(full.starts_with(root.join("client")) || full.starts_with(root.join("apps"))) {
-        return Err("langchain_shell_path_escapes_workspace".to_string());
+        return Err("workflow_chain_shell_path_escapes_workspace".to_string());
     }
     Ok(cleaned)
 }
@@ -336,30 +336,30 @@ fn default_claim_evidence(id: &str, claim: &str) -> Value {
     json!([{ "id": id, "claim": claim }])
 }
 
-fn langchain_claim(id: &str) -> &'static str {
+fn workflow_chain_claim(id: &str) -> &'static str {
     match id {
         "V6-WORKFLOW-014.1" => {
-            "langchain_lcel_and_runnable_chains_register_and_execute_as_governed_workflows"
+            "workflow_chain_lcel_and_runnable_chains_register_and_execute_as_governed_workflows"
         }
-        "V6-WORKFLOW-014.2" => "langchain_legacy_and_deep_agents_execute_through_swarm_authority",
+        "V6-WORKFLOW-014.2" => "workflow_chain_legacy_and_deep_agents_execute_through_swarm_authority",
         "V6-WORKFLOW-014.3" => {
-            "langchain_retrieval_and_memory_abstractions_normalize_to_governed_memory_runtime"
+            "workflow_chain_retrieval_and_memory_abstractions_normalize_to_governed_memory_runtime"
         }
-        "V6-WORKFLOW-014.4" => "langchain_integrations_ingest_through_one_governed_gateway",
+        "V6-WORKFLOW-014.4" => "workflow_chain_integrations_ingest_through_one_governed_gateway",
         "V6-WORKFLOW-014.5" => {
-            "langchain_model_routing_and_prompt_templates_are_deterministic_and_fail_closed"
+            "workflow_chain_model_routing_and_prompt_templates_are_deterministic_and_fail_closed"
         }
-        "V6-WORKFLOW-014.6" => "langchain_traces_and_eval_events_fold_into_native_observability",
+        "V6-WORKFLOW-014.6" => "workflow_chain_traces_and_eval_events_fold_into_native_observability",
         "V6-WORKFLOW-014.7" => {
-            "langchain_stateful_runs_checkpoint_and_replay_through_authoritative_workflow_lanes"
+            "workflow_chain_stateful_runs_checkpoint_and_replay_through_authoritative_workflow_lanes"
         }
         "V6-WORKFLOW-014.8" => {
-            "langchain_structured_output_parsing_and_schema_validation_remain_fail_closed"
+            "workflow_chain_structured_output_parsing_and_schema_validation_remain_fail_closed"
         }
         "V6-WORKFLOW-014.9" => {
-            "langchain_middleware_hooks_register_and_apply_with_receipted_workflow_visibility"
+            "workflow_chain_middleware_hooks_register_and_apply_with_receipted_workflow_visibility"
         }
-        _ => "langchain_bridge_claim",
+        _ => "workflow_chain_bridge_claim",
     }
 }
 
@@ -407,11 +407,11 @@ fn ensure_session_for_task(
     }
     let exit = crate::swarm_runtime::run(root, &args);
     if exit != 0 {
-        return Err(format!("langchain_swarm_spawn_failed:{label}"));
+        return Err(format!("workflow_chain_swarm_spawn_failed:{label}"));
     }
     let swarm_state = read_swarm_state(swarm_state_path);
     find_swarm_session_id_by_task(&swarm_state, task)
-        .ok_or_else(|| format!("langchain_swarm_session_missing:{label}"))
+        .ok_or_else(|| format!("workflow_chain_swarm_session_missing:{label}"))
 }
 
 fn emit_native_trace(
@@ -431,14 +431,14 @@ fn emit_native_trace(
         ],
     );
     if enable_exit != 0 {
-        return Err("langchain_observability_enable_failed".to_string());
+        return Err("workflow_chain_observability_enable_failed".to_string());
     }
     let exit = crate::observability_plane::run(
         root,
         &[
             "acp-provenance".to_string(),
             "--op=trace".to_string(),
-            "--source-agent=langchain-bridge".to_string(),
+            "--source-agent=workflow_chain-bridge".to_string(),
             format!("--target-agent={}", clean_token(Some(intent), "workflow")),
             format!("--intent={}", clean_text(Some(intent), 80)),
             format!("--message={}", clean_text(Some(message), 160)),
@@ -448,7 +448,7 @@ fn emit_native_trace(
         ],
     );
     if exit != 0 {
-        return Err("langchain_observability_trace_failed".to_string());
+        return Err("workflow_chain_observability_trace_failed".to_string());
     }
     Ok(())
 }

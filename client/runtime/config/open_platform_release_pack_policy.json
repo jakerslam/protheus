@@ -10,7 +10,7 @@
     "client/runtime/systems/observability/thought_action_trace_contract.ts"
   ],
   "reference_integrations": [
-    "langgraph",
+    "workflow_graph",
     "crewai",
     "autogen"
   ],

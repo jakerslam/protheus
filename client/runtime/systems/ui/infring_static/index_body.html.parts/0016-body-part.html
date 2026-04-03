@@ -302,7 +302,7 @@
                 <div style="margin-top:8px">
                   <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
                     <span class="badge badge-info" style="min-width:20px;justify-content:center">1</span>
-                    <span style="font-size:12px">Connect an LLM provider (Anthropic, OpenAI, Gemini, etc.)</span>
+                    <span style="font-size:12px">Connect an LLM provider (Frontier Provider, OpenAI, Gemini, etc.)</span>
                   </div>
                   <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
                     <span class="badge badge-info" style="min-width:20px;justify-content:center">2</span>
@@ -376,7 +376,7 @@
                     Claude Code uses its own CLI authentication &mdash; no API key needed.
                   </div>
                   <div style="background:var(--bg);border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.8">
-                    <div><span style="color:var(--accent)">1.</span> Install: <code style="color:var(--accent-light);background:var(--bg-secondary);padding:1px 4px;border-radius:2px">npm install -g @anthropic-ai/claude-code</code></div>
+                    <div><span style="color:var(--accent)">1.</span> Install: <code style="color:var(--accent-light);background:var(--bg-secondary);padding:1px 4px;border-radius:2px">npm install -g @frontier_provider-ai/claude-code</code></div>
                     <div><span style="color:var(--accent)">2.</span> Authenticate: <code style="color:var(--accent-light);background:var(--bg-secondary);padding:1px 4px;border-radius:2px">claude auth</code></div>
                     <div><span style="color:var(--accent)">3.</span> Click <strong>Detect</strong> below to verify</div>
                   </div>
@@ -386,7 +386,7 @@
                   </button>
                   <div x-show="testResult" class="mt-2">
                     <div x-show="testResult && testResult.status === 'ok'" class="badge badge-success" style="padding:6px 12px">Claude Code detected<span x-show="testResult && testResult.latency_ms" x-text="' (' + (testResult ? testResult.latency_ms : '') + 'ms)'"></span></div>
-                    <div x-show="testResult && testResult.status !== 'ok'" class="badge badge-error" style="padding:6px 12px">Claude Code CLI not detected. Make sure you&rsquo;ve run: <code>npm install -g @anthropic-ai/claude-code &amp;&amp; claude auth</code></div>
+                    <div x-show="testResult && testResult.status !== 'ok'" class="badge badge-error" style="padding:6px 12px">Claude Code CLI not detected. Make sure you&rsquo;ve run: <code>npm install -g @frontier_provider-ai/claude-code &amp;&amp; claude auth</code></div>
                   </div>
                 </div>
               </template>

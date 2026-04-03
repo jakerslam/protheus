@@ -407,10 +407,10 @@ impl LlmProviderAdapter for OllamaAdapter {
     }
 }
 
-struct AnthropicAdapter;
-impl LlmProviderAdapter for AnthropicAdapter {
+struct FrontierProviderAdapter;
+impl LlmProviderAdapter for FrontierProviderAdapter {
     fn supports(&self, provider: &str) -> bool {
-        provider == "anthropic"
+        provider == "frontier_provider"
     }
     fn invoke(&self, input: &ProviderInvokeInput<'_>) -> Result<Value, String> {
         let Some(key) = provider_key(input.root, input.provider) else {
@@ -430,7 +430,7 @@ impl LlmProviderAdapter for AnthropicAdapter {
         let headers = vec![
             "Content-Type: application/json".to_string(),
             format!("x-api-key: {key}"),
-            "anthropic-version: 2023-06-01".to_string(),
+            "frontier_provider-version: 2023-06-01".to_string(),
         ];
         let (status, value) = curl_json(
             &format!("{}/v1/messages", input.base_url),
@@ -445,7 +445,7 @@ impl LlmProviderAdapter for AnthropicAdapter {
                 error_text_from_value(&value)
             ));
         }
-        let text = extract_anthropic_text(&value);
+        let text = extract_frontier_provider_text(&value);
         Ok(provider_response_row(
             input,
             &text,
@@ -566,10 +566,10 @@ impl LlmProviderAdapter for OpenAiCompatAdapter {
 fn invoke_provider_via_adapter(input: &ProviderInvokeInput<'_>) -> Result<Value, String> {
     let policy_decision = provider_network_guard(input.root, input.provider, input.base_url)?;
     let ollama = OllamaAdapter;
-    let anthropic = AnthropicAdapter;
+    let frontier_provider = FrontierProviderAdapter;
     let google = GoogleAdapter;
     let openai = OpenAiCompatAdapter;
-    let adapters: [&dyn LlmProviderAdapter; 4] = [&ollama, &anthropic, &google, &openai];
+    let adapters: [&dyn LlmProviderAdapter; 4] = [&ollama, &frontier_provider, &google, &openai];
     for adapter in adapters {
         if !adapter.supports(input.provider) {
             continue;

@@ -40,7 +40,7 @@ This intake must obey repository placement policy.
 
 - REQ-17: Tool context and messaging assimilation
 - REQ-38: Agent orchestration hardening
-- REQ-49: LangGraph persistent graph orchestration assimilation
+- REQ-49: Workflow Graph persistent graph orchestration assimilation
 - Existing SRS families:
   - `V6-WORKFLOW-002.*`
   - `V6-SWARM-*`

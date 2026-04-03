@@ -3,13 +3,13 @@
 // V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7,
 // V6-WORKFLOW-014.8, V6-WORKFLOW-014.9
 
-use protheus_ops_core::langchain_bridge;
+use protheus_ops_core::workflow_chain_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
 fn run_bridge(root: &Path, args: &[String]) -> i32 {
-    langchain_bridge::run(root, args)
+    workflow_chain_bridge::run(root, args)
 }
 
 fn read_json(path: &Path) -> Value {
@@ -26,9 +26,9 @@ fn latest_receipt(state_path: &Path) -> Value {
 #[test]
 fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/langchain/latest.json");
-    let history_path = root.path().join("state/langchain/history.jsonl");
-    let swarm_state_path = root.path().join("state/langchain/swarm.json");
+    let state_path = root.path().join("state/workflow_chain/latest.json");
+    let history_path = root.path().join("state/workflow_chain/history.jsonl");
+    let swarm_state_path = root.path().join("state/workflow_chain/swarm.json");
 
     assert_eq!(
         run_bridge(
@@ -220,9 +220,9 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
                 format!(
                     "--payload={}",
                     json!({
-                        "name": "langchain-qdrant",
+                        "name": "workflow_chain-qdrant",
                         "integration_type": "vector-store",
-                        "assets": [{"kind": "package", "name": "@langchain/qdrant"}]
+                        "assets": [{"kind": "package", "name": "@workflow_chain/qdrant"}]
                     })
                 ),
                 format!("--state-path={}", state_path.display()),
@@ -247,12 +247,12 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
                     json!({
                         "name": "incident-prompt",
                         "profile": "pure",
-                        "provider": "anthropic",
+                        "provider": "frontier_provider",
                         "fallback_provider": "openai-compatible",
                         "model": "claude-3-7-sonnet",
                         "template": "Answer {{question}} with {{context}}",
                         "variables": {"question": "What happened?", "context": "billing service degraded"},
-                        "supported_providers": ["anthropic", "openai-compatible"]
+                        "supported_providers": ["frontier_provider", "openai-compatible"]
                     })
                 ),
                 format!("--state-path={}", state_path.display()),
@@ -367,7 +367,7 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
 
     let output_dir = root
         .path()
-        .join("client/runtime/local/state/langchain-shell");
+        .join("client/runtime/local/state/workflow_chain-shell");
     assert_eq!(
         run_bridge(
             root.path(),
@@ -377,7 +377,7 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
                     "--payload={}",
                     json!({
                         "output_dir": output_dir.strip_prefix(root.path()).unwrap().display().to_string(),
-                        "package_name": "langchain-shell"
+                        "package_name": "workflow_chain-shell"
                     })
                 ),
                 format!("--state-path={}", state_path.display()),

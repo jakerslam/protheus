@@ -93,7 +93,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "hand-wasm-task" => run_hand_wasm_task(root, argv),
         "compact" => run_tiered_compaction(root, argv),
         "dream" => run_dream_consolidation(root, argv),
-        "kairos" => run_kairos_daemon(root, argv),
+        "proactive_daemon" => run_proactive_daemon_daemon(root, argv),
         "speculate" | "speculation" => run_speculation_overlay(root, argv),
         "autoreason" => run_autoreason(root, argv),
         "ephemeral-run" => run_ephemeral(root, argv),
@@ -415,7 +415,7 @@ mod tests {
             0
         );
         assert_eq!(
-            run(root.path(), &["kairos".to_string(), "status".to_string()]),
+            run(root.path(), &["proactive_daemon".to_string(), "status".to_string()]),
             0
         );
         assert_eq!(

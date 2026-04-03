@@ -104,10 +104,10 @@
         self._modelCacheTime = 0;
         return InfringAPI.get('/api/models');
       }).then(function(data) {
-        var models = (data && data.models) || [];
-        self._modelCache = models.filter(function(m) { return m.available; });
+        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
+        self._modelCache = models;
         self._modelCacheTime = Date.now();
-        self.modelPickerList = self._modelCache;
+        self.modelPickerList = models;
       }).catch(function(e) {
         InfringToast.error('Model download failed: ' + (e && e.message ? e.message : e));
         self.setModelDownloadProgress(key, 0);

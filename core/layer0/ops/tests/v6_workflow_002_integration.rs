@@ -2,13 +2,13 @@
 // SRS coverage: V6-WORKFLOW-002.1, V6-WORKFLOW-002.2, V6-WORKFLOW-002.3,
 // V6-WORKFLOW-002.4, V6-WORKFLOW-002.5, V6-WORKFLOW-002.6, V6-WORKFLOW-002.7
 
-use protheus_ops_core::langgraph_bridge;
+use protheus_ops_core::workflow_graph_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
 fn run_bridge(root: &Path, args: &[String]) -> i32 {
-    langgraph_bridge::run(root, args)
+    workflow_graph_bridge::run(root, args)
 }
 
 fn read_json(path: &Path) -> Value {
@@ -23,13 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
 }
 
 #[test]
-fn workflow_002_langgraph_bridge_emits_receipted_graph_checkpoint_hitl_interrupt_subgraph_trace_and_stream(
+fn workflow_002_workflow_graph_bridge_emits_receipted_graph_checkpoint_hitl_interrupt_subgraph_trace_and_stream(
 ) {
     let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/langgraph/latest.json");
-    let history_path = root.path().join("state/langgraph/history.jsonl");
-    let swarm_state_path = root.path().join("state/langgraph/swarm.json");
-    let trace_path = root.path().join("state/langgraph/native_trace.jsonl");
+    let state_path = root.path().join("state/workflow_graph/latest.json");
+    let history_path = root.path().join("state/workflow_graph/history.jsonl");
+    let swarm_state_path = root.path().join("state/workflow_graph/swarm.json");
+    let trace_path = root.path().join("state/workflow_graph/native_trace.jsonl");
 
     assert_eq!(
         run_bridge(
@@ -247,7 +247,7 @@ fn workflow_002_langgraph_bridge_emits_receipted_graph_checkpoint_hitl_interrupt
                             {"from": "triage", "to": "retrieve", "reason": "need_context"}
                         ],
                         "metrics": {"latency_ms": 48},
-                        "bridge_path": "adapters/protocol/langgraph_trace_bridge.ts"
+                        "bridge_path": "adapters/protocol/workflow_graph_trace_bridge.ts"
                     })
                 ),
                 format!("--state-path={}", state_path.display()),

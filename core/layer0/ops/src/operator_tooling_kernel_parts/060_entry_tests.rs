@@ -6,17 +6,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let payload = payload_from_parsed(&parsed);
-    let openclaw_root = openclaw_root(root, &parsed);
+    let control_runtime_root = control_runtime_root(root, &parsed);
 
     let result = match command.as_str() {
-        "status" => Ok(summary_status(&openclaw_root, &parsed)),
+        "status" => Ok(summary_status(&control_runtime_root, &parsed)),
         "route-model" => {
-            let policy_path = routing_policy_path(&openclaw_root, &parsed);
+            let policy_path = routing_policy_path(&control_runtime_root, &parsed);
             let policy = read_json_file(&policy_path).unwrap_or_else(|| json!({}));
             Ok(run_route_model(&policy, &payload, &policy_path))
         }
         "escalate-model" => {
-            let policy_path = routing_policy_path(&openclaw_root, &parsed);
+            let policy_path = routing_policy_path(&control_runtime_root, &parsed);
             let policy = read_json_file(&policy_path).unwrap_or_else(|| json!({}));
             Ok(run_escalate_model(&policy, &payload, &policy_path))
         }
@@ -25,14 +25,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "postflight-validate" | "postflight-check" => run_postflight_validate(&payload),
         "output-validate" | "output-check" => run_output_validate(&payload),
         "state-read" | "read-state" => {
-            let path = state_path(&openclaw_root, &parsed);
+            let path = state_path(&control_runtime_root, &parsed);
             let state = read_json_file(&path).unwrap_or_else(|| json!({}));
             let key_from_flag = parsed.flags.get("key").map(String::as_str);
             let key_from_positional = parsed.positional.get(1).map(String::as_str);
             run_state_read(&state, key_from_flag.or(key_from_positional), &path)
         }
         "state-write" | "write-state" => {
-            let path = state_path(&openclaw_root, &parsed);
+            let path = state_path(&control_runtime_root, &parsed);
             let mut state = read_json_file(&path).unwrap_or_else(|| json!({}));
             run_state_write(&mut state, &payload, &path)
         }
@@ -82,7 +82,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 })
                 .unwrap_or_default();
             let details = details_from_flag_or_payload(&parsed, &payload);
-            let path = decision_log_path(&openclaw_root, &parsed);
+            let path = decision_log_path(&control_runtime_root, &parsed);
             match append_decision_markdown(&path, &title, &reason, &verify, &rollback, &details) {
                 Ok(()) => Ok(with_receipt(json!({
                     "ok": true,
@@ -93,7 +93,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err(err) => Err(err),
             }
         }
-        "safe-apply" => run_safe_apply(&openclaw_root, &parsed, &payload),
+        "safe-apply" => run_safe_apply(&control_runtime_root, &parsed, &payload),
         "memory-search" => {
             let query = parsed
                 .flags
@@ -105,7 +105,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("query_required".to_string())
             } else {
                 let limit = parse_usize_flag(&parsed.flags, "limit", 200, 1, 2000);
-                Ok(run_memory_search(&openclaw_root, &query, limit))
+                Ok(run_memory_search(&control_runtime_root, &query, limit))
             }
         }
         "memory-summarize" => {
@@ -119,12 +119,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("query_required".to_string())
             } else {
                 let limit = parse_usize_flag(&parsed.flags, "limit", 120, 1, 2000);
-                Ok(run_memory_summarize(&openclaw_root, &query, limit))
+                Ok(run_memory_summarize(&control_runtime_root, &query, limit))
             }
         }
         "memory-last-change" => {
             let limit = parse_usize_flag(&parsed.flags, "limit", 25, 1, 500);
-            Ok(run_memory_last_change(&openclaw_root, limit))
+            Ok(run_memory_last_change(&control_runtime_root, limit))
         }
         "membrief" | "memory-brief" => {
             let query = parsed
@@ -137,7 +137,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("query_required".to_string())
             } else {
                 let limit = parse_usize_flag(&parsed.flags, "limit", 120, 1, 2000);
-                Ok(run_membrief(&openclaw_root, &query, limit))
+                Ok(run_membrief(&control_runtime_root, &query, limit))
             }
         }
         "trace-find" => {
@@ -151,48 +151,48 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 Err("trace_id_required".to_string())
             } else {
                 let limit = parse_usize_flag(&parsed.flags, "limit", 10, 1, 200);
-                Ok(run_trace_find(&openclaw_root, &trace_id, limit))
+                Ok(run_trace_find(&control_runtime_root, &trace_id, limit))
             }
         }
         "sync-allowed-models" | "sync-allowlist" => {
-            run_sync_allowed_models(&openclaw_root, &parsed)
+            run_sync_allowed_models(&control_runtime_root, &parsed)
         }
-        "smoke-routing" => Ok(run_smoke_routing(&openclaw_root, &parsed)),
+        "smoke-routing" => Ok(run_smoke_routing(&control_runtime_root, &parsed)),
         "spawn-safe" => {
             let require_plan = bool_flag(&parsed.flags, "require-plan", false);
             let strict_plan = bool_flag(&parsed.flags, "strict-plan", false);
-            build_spawn_packet(&openclaw_root, &parsed, &payload, require_plan, strict_plan)
+            build_spawn_packet(&control_runtime_root, &parsed, &payload, require_plan, strict_plan)
         }
-        "smart-spawn" => run_smart_spawn(&openclaw_root, &parsed, &payload),
-        "auto-spawn" => run_auto_spawn(&openclaw_root, &parsed, &payload),
-        "execute-handoff" => run_execute_handoff(&openclaw_root, &parsed, &payload),
-        "safe-run" | "openclaw-safe" | "watch-exec" => run_safe_run(root, &openclaw_root, &parsed),
-        "openclaw-health" | "safe-health" | "health" => {
-            Ok(run_openclaw_health(&openclaw_root, &parsed))
+        "smart-spawn" => run_smart_spawn(&control_runtime_root, &parsed, &payload),
+        "auto-spawn" => run_auto_spawn(&control_runtime_root, &parsed, &payload),
+        "execute-handoff" => run_execute_handoff(&control_runtime_root, &parsed, &payload),
+        "safe-run" | "control_runtime-safe" | "watch-exec" => run_safe_run(root, &control_runtime_root, &parsed),
+        "control_runtime-health" | "safe-health" | "health" => {
+            Ok(run_control_runtime_health(&control_runtime_root, &parsed))
         }
         "cron-drift" => {
             let workspace_root = workspace_root(root, &parsed);
-            Ok(run_cron_drift(&openclaw_root, &workspace_root))
+            Ok(run_cron_drift(&control_runtime_root, &workspace_root))
         }
         "cron-sync" => {
             let workspace_root = workspace_root(root, &parsed);
-            run_cron_sync(&openclaw_root, &workspace_root)
+            run_cron_sync(&control_runtime_root, &workspace_root)
         }
-        "doctor" | "openclaw-doctor" => {
+        "doctor" | "control_runtime-doctor" => {
             let workspace_root = workspace_root(root, &parsed);
-            Ok(run_doctor(&openclaw_root, &workspace_root, &parsed))
+            Ok(run_doctor(&control_runtime_root, &workspace_root, &parsed))
         }
         "audit-plane" | "control-plane-audit" => {
             let workspace_root = workspace_root(root, &parsed);
-            Ok(run_audit_plane(&openclaw_root, &workspace_root, &parsed))
+            Ok(run_audit_plane(&control_runtime_root, &workspace_root, &parsed))
         }
         "daily-brief" => {
             let workspace_root = workspace_root(root, &parsed);
-            Ok(run_daily_brief(&openclaw_root, &workspace_root, &parsed))
+            Ok(run_daily_brief(&control_runtime_root, &workspace_root, &parsed))
         }
         "fail-playbook" => {
             let workspace_root = workspace_root(root, &parsed);
-            Ok(run_fail_playbook(&openclaw_root, &workspace_root, &parsed))
+            Ok(run_fail_playbook(&control_runtime_root, &workspace_root, &parsed))
         }
         "help" | "--help" | "-h" => {
             usage();

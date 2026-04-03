@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-002.6",
   "upgrade": "Streaming and Conditional Execution Guard Contract",
-  "section": "LangGraph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
+  "section": "Workflow Graph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
   "impact": 8,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,
@@ -34,6 +34,6 @@
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-18T08:32:45Z",
-    "notes": "Execute LangGraph-style streaming and conditional edge selection through fail-closed policy-aware graph traversal with explicit degraded-profile receipts."
+    "notes": "Execute Workflow Graph-style streaming and conditional edge selection through fail-closed policy-aware graph traversal with explicit degraded-profile receipts."
   }
 }

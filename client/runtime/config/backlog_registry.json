@@ -8224,7 +8224,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-RACE-174",
@@ -11250,7 +11250,7 @@
       "id": "V4-MIGR-003",
       "problem": "Users coming from other agent stacks face high switching cost without structured import tooling.",
       "status": "existing-coverage-validated",
-      "title": "[interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "[interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps)",
       "wave": "V4"
     },
     {
@@ -12864,7 +12864,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Auto-generate migration guides/matrices (e.g., LangGraph/CrewAI/Infring -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold.",
+      "acceptance": "Auto-generate migration guides/matrices (e.g., Workflow Graph/CrewAI/Infring -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold.",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-DOM-416",

@@ -10,26 +10,26 @@ use crate::contract_lane_utils::{
 };
 use crate::{deterministic_receipt_hash, now_iso};
 
-const DEFAULT_STATE_REL: &str = "local/state/ops/langgraph_bridge/latest.json";
-const DEFAULT_HISTORY_REL: &str = "local/state/ops/langgraph_bridge/history.jsonl";
-const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/langgraph_bridge/swarm_state.json";
-const DEFAULT_TRACE_REL: &str = "local/state/ops/langgraph_bridge/native_trace.jsonl";
+const DEFAULT_STATE_REL: &str = "local/state/ops/workflow_graph_bridge/latest.json";
+const DEFAULT_HISTORY_REL: &str = "local/state/ops/workflow_graph_bridge/history.jsonl";
+const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/workflow_graph_bridge/swarm_state.json";
+const DEFAULT_TRACE_REL: &str = "local/state/ops/workflow_graph_bridge/native_trace.jsonl";
 
 fn usage() {
-    println!("langgraph-bridge commands:");
-    println!("  protheus-ops langgraph-bridge status [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge inspect-state [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge interrupt-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge resume-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops langgraph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("workflow_graph-bridge commands:");
+    println!("  protheus-ops workflow_graph-bridge status [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge inspect-state [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge interrupt-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge resume-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
-    lane_utils::payload_json(argv, "langgraph_bridge")
+    lane_utils::payload_json(argv, "workflow_graph_bridge")
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
@@ -78,7 +78,7 @@ fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> Pat
 
 fn default_state() -> Value {
     json!({
-        "schema_version": "langgraph_bridge_state_v1",
+        "schema_version": "workflow_graph_bridge_state_v1",
         "graphs": {},
         "checkpoints": {},
         "inspections": {},
@@ -116,7 +116,7 @@ fn ensure_state_shape(value: &mut Value) {
         .and_then(Value::as_str)
         .is_none()
     {
-        value["schema_version"] = json!("langgraph_bridge_state_v1");
+        value["schema_version"] = json!("workflow_graph_bridge_state_v1");
     }
 }
 
@@ -165,27 +165,27 @@ fn default_claim_evidence(id: &str, claim: &str) -> Value {
 fn semantic_claim(id: &str) -> &'static str {
     match id {
         "V6-WORKFLOW-002.1" => {
-            "langgraph_nodes_edges_and_cycles_register_as_governed_receipted_graphs"
+            "workflow_graph_nodes_edges_and_cycles_register_as_governed_receipted_graphs"
         }
         "V6-WORKFLOW-002.2" => {
-            "langgraph_checkpoints_and_time_travel_replay_route_through_receipted_persistence"
+            "workflow_graph_checkpoints_and_time_travel_replay_route_through_receipted_persistence"
         }
         "V6-WORKFLOW-002.3" => {
-            "langgraph_hitl_state_inspection_and_intervention_remain_governed_and_receipted"
+            "workflow_graph_hitl_state_inspection_and_intervention_remain_governed_and_receipted"
         }
         "V6-WORKFLOW-002.4" => {
-            "langgraph_subgraphs_and_nested_agents_reuse_authoritative_swarm_lineage"
+            "workflow_graph_subgraphs_and_nested_agents_reuse_authoritative_swarm_lineage"
         }
         "V6-WORKFLOW-002.5" => {
-            "langgraph_traces_fold_into_native_observability_without_duplicate_telemetry_stacks"
+            "workflow_graph_traces_fold_into_native_observability_without_duplicate_telemetry_stacks"
         }
         "V6-WORKFLOW-002.6" => {
-            "langgraph_streaming_and_conditional_edges_remain_receipted_and_fail_closed"
+            "workflow_graph_streaming_and_conditional_edges_remain_receipted_and_fail_closed"
         }
         "V6-WORKFLOW-002.7" => {
-            "langgraph_interrupt_and_resume_lifecycle_stays_receipted_and_fail_closed"
+            "workflow_graph_interrupt_and_resume_lifecycle_stays_receipted_and_fail_closed"
         }
-        _ => "langgraph_bridge_claim",
+        _ => "workflow_graph_bridge_claim",
     }
 }
 
@@ -199,7 +199,7 @@ fn emit_native_trace(
     lane_utils::append_jsonl(
         trace_path,
         &json!({
-            "trace_id": clean_token(Some(trace_id), "langgraph-trace"),
+            "trace_id": clean_token(Some(trace_id), "workflow_graph-trace"),
             "stage": clean_token(Some(stage), "graph"),
             "message": clean_text(Some(message), 200),
             "recorded_at": now_iso(),
@@ -262,7 +262,7 @@ fn condition_matches(condition: &Value, context: &Map<String, Value>) -> bool {
 fn register_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langgraph-graph",
+        "workflow_graph-graph",
     );
     let nodes = payload
         .get("nodes")
@@ -270,7 +270,7 @@ fn register_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         .cloned()
         .unwrap_or_default();
     if nodes.is_empty() {
-        return Err("langgraph_nodes_required".to_string());
+        return Err("workflow_graph_nodes_required".to_string());
     }
     let edges = payload
         .get("edges")
@@ -319,14 +319,14 @@ fn register_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
 fn checkpoint_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let graph_id = clean_token(payload.get("graph_id").and_then(Value::as_str), "");
     if graph_id.is_empty() {
-        return Err("langgraph_checkpoint_graph_id_required".to_string());
+        return Err("workflow_graph_checkpoint_graph_id_required".to_string());
     }
     let graph = state
         .get("graphs")
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&graph_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langgraph_graph:{graph_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_graph_graph:{graph_id}"))?;
     let snapshot = payload
         .get("state_snapshot")
         .cloned()
@@ -382,7 +382,7 @@ fn inspect_state(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         "",
     );
     if graph_id.is_empty() {
-        return Err("langgraph_inspection_graph_or_checkpoint_required".to_string());
+        return Err("workflow_graph_inspection_graph_or_checkpoint_required".to_string());
     }
     let state_view = checkpoint
         .as_ref()
@@ -421,17 +421,17 @@ fn inspect_state(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
 fn interrupt_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let checkpoint_id = clean_token(payload.get("checkpoint_id").and_then(Value::as_str), "");
     if checkpoint_id.is_empty() {
-        return Err("langgraph_interrupt_checkpoint_id_required".to_string());
+        return Err("workflow_graph_interrupt_checkpoint_id_required".to_string());
     }
     let checkpoint = state
         .get("checkpoints")
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&checkpoint_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langgraph_checkpoint:{checkpoint_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_graph_checkpoint:{checkpoint_id}"))?;
     let graph_id = clean_token(
         checkpoint.get("graph_id").and_then(Value::as_str),
-        "langgraph-graph",
+        "workflow_graph-graph",
     );
     let reason = clean_text(payload.get("reason").and_then(Value::as_str), 160);
     let interrupt = json!({
@@ -480,28 +480,28 @@ fn resume_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, 
     let interrupt_id = clean_token(payload.get("interrupt_id").and_then(Value::as_str), "");
     let resume_token = clean_token(payload.get("resume_token").and_then(Value::as_str), "");
     if interrupt_id.is_empty() && resume_token.is_empty() {
-        return Err("langgraph_resume_interrupt_or_token_required".to_string());
+        return Err("workflow_graph_resume_interrupt_or_token_required".to_string());
     }
     let key = {
         let interrupts = state
             .get("interrupts")
             .and_then(Value::as_object)
-            .ok_or_else(|| "langgraph_interrupt_store_missing".to_string())?;
+            .ok_or_else(|| "workflow_graph_interrupt_store_missing".to_string())?;
         find_interrupt_key(interrupts, &interrupt_id, &resume_token)
-            .ok_or_else(|| "langgraph_interrupt_not_found".to_string())?
+            .ok_or_else(|| "workflow_graph_interrupt_not_found".to_string())?
     };
     let updated = {
         let interrupts = as_object_mut(state, "interrupts");
         let row = interrupts
             .get_mut(&key)
             .and_then(Value::as_object_mut)
-            .ok_or_else(|| "langgraph_interrupt_record_invalid".to_string())?;
+            .ok_or_else(|| "workflow_graph_interrupt_record_invalid".to_string())?;
         if row
             .get("status")
             .and_then(Value::as_str)
             .is_some_and(|status| status != "paused")
         {
-            return Err("langgraph_interrupt_not_paused".to_string());
+            return Err("workflow_graph_interrupt_not_paused".to_string());
         }
         row.insert("status".to_string(), json!("resumed"));
         row.insert("resumed_at".to_string(), json!(now_iso()));
@@ -535,14 +535,14 @@ fn coordinate_subgraph(
 ) -> Result<Value, String> {
     let graph_id = clean_token(payload.get("graph_id").and_then(Value::as_str), "");
     if graph_id.is_empty() {
-        return Err("langgraph_subgraph_graph_id_required".to_string());
+        return Err("workflow_graph_subgraph_graph_id_required".to_string());
     }
     let graph = state
         .get("graphs")
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&graph_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langgraph_graph:{graph_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_graph_graph:{graph_id}"))?;
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
     let requested = payload
         .get("subgraphs")
@@ -550,7 +550,7 @@ fn coordinate_subgraph(
         .cloned()
         .unwrap_or_default();
     if requested.is_empty() {
-        return Err("langgraph_subgraphs_required".to_string());
+        return Err("workflow_graph_subgraphs_required".to_string());
     }
     let max_children = match profile.as_str() {
         "tiny-max" => 1usize,
@@ -588,7 +588,7 @@ fn coordinate_subgraph(
         coordinator_id.clone(),
         json!({
             "session_id": coordinator_id,
-            "task": format!("langgraph:{}", graph.get("name").and_then(Value::as_str).unwrap_or("graph")),
+            "task": format!("workflow_graph:{}", graph.get("name").and_then(Value::as_str).unwrap_or("graph")),
             "role": "coordinator",
             "graph_id": graph_id,
             "created_at": now_iso(),
@@ -645,14 +645,14 @@ fn record_trace(
 ) -> Result<Value, String> {
     let graph_id = clean_token(payload.get("graph_id").and_then(Value::as_str), "");
     if graph_id.is_empty() {
-        return Err("langgraph_trace_graph_id_required".to_string());
+        return Err("workflow_graph_trace_graph_id_required".to_string());
     }
     let adapter_path = normalize_bridge_path(
         root,
         payload
             .get("bridge_path")
             .and_then(Value::as_str)
-            .unwrap_or("adapters/protocol/langgraph_trace_bridge.ts"),
+            .unwrap_or("adapters/protocol/workflow_graph_trace_bridge.ts"),
     )?;
     let trace = json!({
         "trace_id": stable_id("lgtrace", &json!({"graph_id": graph_id, "message": payload.get("message")})),
@@ -670,7 +670,7 @@ fn record_trace(
         trace
             .get("trace_id")
             .and_then(Value::as_str)
-            .unwrap_or("langgraph-trace"),
+            .unwrap_or("workflow_graph-trace"),
         trace
             .get("stage")
             .and_then(Value::as_str)
@@ -727,14 +727,14 @@ fn select_edge(edges: &[Value], context: &Map<String, Value>) -> Option<Value> {
 fn stream_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let graph_id = clean_token(payload.get("graph_id").and_then(Value::as_str), "");
     if graph_id.is_empty() {
-        return Err("langgraph_stream_graph_id_required".to_string());
+        return Err("workflow_graph_stream_graph_id_required".to_string());
     }
     let graph = state
         .get("graphs")
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&graph_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langgraph_graph:{graph_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_graph_graph:{graph_id}"))?;
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
     let context = payload
         .get("context")
@@ -754,7 +754,7 @@ fn stream_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         "",
     );
     if current.is_empty() || !node_exists(&graph, &current) {
-        return Err("langgraph_stream_entry_node_unknown".to_string());
+        return Err("workflow_graph_stream_entry_node_unknown".to_string());
     }
     let mut visited = Vec::new();
     let mut events = Vec::new();
@@ -771,11 +771,11 @@ fn stream_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
             break;
         }
         let Some(edge) = select_edge(&edges, &context) else {
-            return Err("langgraph_stream_no_matching_edge_fail_closed".to_string());
+            return Err("workflow_graph_stream_no_matching_edge_fail_closed".to_string());
         };
         let next = clean_token(edge.get("to").and_then(Value::as_str), "");
         if next.is_empty() || !node_exists(&graph, &next) {
-            return Err("langgraph_stream_edge_target_unknown".to_string());
+            return Err("workflow_graph_stream_edge_target_unknown".to_string());
         }
         events.push(json!({
             "event": "edge_selected",
@@ -822,7 +822,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = match payload_json(argv) {
         Ok(value) => value,
         Err(error) => {
-            print_json_line(&cli_error("langgraph_bridge_error", &error));
+            print_json_line(&cli_error("workflow_graph_bridge_error", &error));
             return 1;
         }
     };
@@ -835,7 +835,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "status" {
         let state = load_state(&state_path);
         let receipt = cli_receipt(
-            "langgraph_bridge_status",
+            "workflow_graph_bridge_status",
             json!({
                 "ok": true,
                 "schema_version": state.get("schema_version").cloned().unwrap_or_else(|| json!(null)),
@@ -870,8 +870,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         _ => {
             print_json_line(&cli_error(
-                "langgraph_bridge_error",
-                &format!("unknown_langgraph_bridge_command:{command}"),
+                "workflow_graph_bridge_error",
+                &format!("unknown_workflow_graph_bridge_command:{command}"),
             ));
             return 1;
         }
@@ -880,20 +880,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload_out = match payload_result {
         Ok(value) => value,
         Err(error) => {
-            let receipt = cli_error("langgraph_bridge_error", &error);
+            let receipt = cli_error("workflow_graph_bridge_error", &error);
             print_json_line(&receipt);
             return 1;
         }
     };
-    let receipt = cli_receipt("langgraph_bridge_receipt", payload_out);
+    let receipt = cli_receipt("workflow_graph_bridge_receipt", payload_out);
     state["last_receipt"] = receipt.clone();
     if let Err(error) = save_state(&state_path, &state) {
-        let err = cli_error("langgraph_bridge_error", &error);
+        let err = cli_error("workflow_graph_bridge_error", &error);
         print_json_line(&err);
         return 1;
     }
     if let Err(error) = append_history(&history_path, &receipt) {
-        let err = cli_error("langgraph_bridge_error", &error);
+        let err = cli_error("workflow_graph_bridge_error", &error);
         print_json_line(&err);
         return 1;
     }

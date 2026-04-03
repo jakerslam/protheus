@@ -11,9 +11,9 @@
       "min_trust": 0.72,
       "daily_tokens": 10000
     },
-    "anthropic": {
+    "frontier_provider": {
       "enabled": true,
-      "adapter": "anthropic.v1",
+      "adapter": "frontier_provider.v1",
       "trust_score": 0.8,
       "min_trust": 0.72,
       "daily_tokens": 9000

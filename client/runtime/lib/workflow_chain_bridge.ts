@@ -2,13 +2,13 @@
 'use strict';
 export {};
 
-// Layer ownership: client/runtime/lib (thin bridge over core/layer0/ops langchain-bridge)
+// Layer ownership: client/runtime/lib (thin bridge over core/layer0/ops workflow_chain-bridge)
 
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
-const bridge = createOpsLaneBridge(__dirname, 'langchain_bridge', 'langchain-bridge', {
+const bridge = createOpsLaneBridge(__dirname, 'workflow_chain_bridge', 'workflow_chain-bridge', {
   preferLocalCore: true
 });
 
@@ -27,14 +27,14 @@ function invoke(command, payload = {}, opts = {}) {
   if (out.status !== 0) {
     const message = payloadOut && typeof payloadOut.error === 'string'
       ? payloadOut.error
-      : (out && out.stderr ? String(out.stderr).trim() : `langchain_bridge_${command}_failed`);
-    if (opts.throwOnError !== false) throw new Error(message || `langchain_bridge_${command}_failed`);
-    return { ok: false, error: message || `langchain_bridge_${command}_failed` };
+      : (out && out.stderr ? String(out.stderr).trim() : `workflow_chain_bridge_${command}_failed`);
+    if (opts.throwOnError !== false) throw new Error(message || `workflow_chain_bridge_${command}_failed`);
+    return { ok: false, error: message || `workflow_chain_bridge_${command}_failed` };
   }
   if (!payloadOut || typeof payloadOut !== 'object') {
     const message = out && out.stderr
-      ? String(out.stderr).trim() || `langchain_bridge_${command}_bridge_failed`
-      : `langchain_bridge_${command}_bridge_failed`;
+      ? String(out.stderr).trim() || `workflow_chain_bridge_${command}_bridge_failed`
+      : `workflow_chain_bridge_${command}_bridge_failed`;
     if (opts.throwOnError !== false) throw new Error(message);
     return { ok: false, error: message };
   }

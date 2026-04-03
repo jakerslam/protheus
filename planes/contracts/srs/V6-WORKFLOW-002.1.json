@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-002.1",
   "upgrade": "Graph Node and Edge Registry Contract",
-  "section": "LangGraph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
+  "section": "Workflow Graph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
   "impact": 10,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,
@@ -34,6 +34,6 @@
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-18T08:32:45Z",
-    "notes": "Register LangGraph-style nodes, edges, conditional branches, and cycle-capable graph metadata as deterministic receipts over the governed workflow surface."
+    "notes": "Register Workflow Graph-style nodes, edges, conditional branches, and cycle-capable graph metadata as deterministic receipts over the governed workflow surface."
   }
 }

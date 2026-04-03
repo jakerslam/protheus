@@ -267,17 +267,6 @@
           state_label: state === 'done' ? 'complete' : state
         });
       }
-      if (!rows.length) {
-        var status = String(this.thinkingStatusText(msg) || '').trim();
-        if (status) {
-          rows.push({
-            id: 'trace-status',
-            label: status,
-            state: 'running',
-            state_label: 'active'
-          });
-        }
-      }
       return rows.slice(-4);
     },
 

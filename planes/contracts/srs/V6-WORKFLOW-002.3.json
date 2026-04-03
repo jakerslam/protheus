@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-002.3",
   "upgrade": "Human-in-the-Loop State Inspection Contract",
-  "section": "LangGraph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
+  "section": "Workflow Graph Persistent Graph Orchestration Assimilation Source Coverage Intake (Doc `1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8`, 2026-03-17)",
   "impact": 9,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,
@@ -34,6 +34,6 @@
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-18T08:32:45Z",
-    "notes": "Keep LangGraph state inspection and intervention inside governed operator lanes with deterministic receipts for every view and patch action."
+    "notes": "Keep Workflow Graph state inspection and intervention inside governed operator lanes with deterministic receipts for every view and patch action."
   }
 }

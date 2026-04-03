@@ -1,7 +1,7 @@
 {
   "id": "V6-WORKFLOW-014.1",
   "upgrade": "LCEL and Runnable Chain Registry Contract",
-  "section": "LangChain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
+  "section": "Workflow Chain Declarative Ecosystem Assimilation Source Coverage Intake (Doc `1tghS8K-vKzMb-3-gtHo7byy_W22g92upY-BDom7SbCw`, 2026-03-17)",
   "impact": 9,
   "layer_map": "0/1/2/client",
   "conduit_only_boundary": false,
@@ -34,6 +34,6 @@
   "generated_from": {
     "source": "manual_impl",
     "generated_at": "2026-03-18T06:10:37Z",
-    "notes": "Model LangChain LCEL and Runnable registries as receipted chains over the authoritative workflow/swarm lane."
+    "notes": "Model Workflow Chain LCEL and Runnable registries as receipted chains over the authoritative workflow/swarm lane."
   }
 }

@@ -26,10 +26,10 @@
         "note": "Third-party terms review required."
       }
     },
-    "anthropic_claude_cloud": {
+    "frontier_provider_claude_cloud": {
       "enabled": false,
-      "model_id": "anthropic/claude-3.7-sonnet",
-      "provider_key": "anthropic",
+      "model_id": "frontier_provider/claude-3.7-sonnet",
+      "provider_key": "frontier_provider",
       "tiers": [2, 3],
       "roles": ["planning", "logic", "general"],
       "class": "cloud_specialist",
@@ -43,8 +43,8 @@
         "require_second_opinion_for_high_risk": true
       },
       "secret": {
-        "secret_id": "anthropic_api_key",
-        "env_var": "ANTHROPIC_API_KEY"
+        "secret_id": "frontier_provider_api_key",
+        "env_var": "FRONTIER_PROVIDER_API_KEY"
       },
       "trainability": {
         "allow": false,

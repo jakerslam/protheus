@@ -139,7 +139,7 @@ function run() {
   const gateway = adapter.gatewayRoute({
     request_id: 'gateway-1',
     compat_mode: '/v1/chat/completions',
-    providers: ['openai', 'anthropic'],
+    providers: ['openai', 'frontier_provider'],
     model: 'vision-pro',
     streaming: true,
     profile: 'tiny-max',

@@ -63,12 +63,12 @@ function readSegmentedText(basePath, fallback = '') {
 }
 function rebrandDashboardText(text) {
   return String(text || '')
-    .replace(/\bOpenFang\b/g, 'Infring')
-    .replace(/\bOPENFANG\b/g, 'INFRING')
-    .replace(/\bopenfang\b/g, 'infring')
-    .replace(/\bOpenClaw\b/g, 'Infring')
-    .replace(/\bOPENCLAW\b/g, 'INFRING')
-    .replace(/\bopenclaw\b/g, 'infring');
+    .replace(/\bReference Runtime\b/g, 'Infring')
+    .replace(/\bREFERENCE_RUNTIME\b/g, 'INFRING')
+    .replace(/\breference_runtime\b/g, 'infring')
+    .replace(/\bControl Runtime\b/g, 'Infring')
+    .replace(/\bCONTROL_RUNTIME\b/g, 'INFRING')
+    .replace(/\bcontrol_runtime\b/g, 'infring');
 }
 function readForkScript(staticDir, basePathNoExt) {
   const jsPath = path.resolve(staticDir, `${basePathNoExt}.js`);

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: adapters/protocol (thin protocol bridge over langgraph-bridge)
+// Layer ownership: adapters/protocol (thin protocol bridge over workflow_graph-bridge)
 
-const bridge = require('../../client/runtime/systems/workflow/langgraph_bridge.ts');
+const bridge = require('../../client/runtime/systems/workflow/workflow_graph_bridge.ts');
 
 function recordTrace(payload = {}) {
   return bridge.recordTrace({
-    bridge_path: 'adapters/protocol/langgraph_trace_bridge.ts',
+    bridge_path: 'adapters/protocol/workflow_graph_trace_bridge.ts',
     ...payload,
   });
 }

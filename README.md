@@ -204,7 +204,7 @@ Source: [`docs/client/reports/benchmark_matrix_run_2026-03-06.json`](docs/client
 | Infring | 207.391 | 6.859 | 25.84 | 4,223.41 |
 | AutoGen | 4000.0 | 250.0 | 200.0 | n/a |
 | CrewAI | 3000.0 | 200.0 | 100.0 | n/a |
-| LangGraph | 2500.0 | 180.0 | 150.0 | n/a |
+| Workflow Graph | 2500.0 | 180.0 | 150.0 | n/a |
 | OpenHands | 1300.0 | 150.0 | 95.5 | n/a |
 
 Refresh commands:

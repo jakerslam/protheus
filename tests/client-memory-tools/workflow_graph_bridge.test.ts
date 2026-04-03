@@ -28,11 +28,11 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const bridge = require('../../client/runtime/systems/workflow/langgraph_bridge.ts');
-const protocol = require('../../adapters/protocol/langgraph_trace_bridge.ts');
+const bridge = require('../../client/runtime/systems/workflow/workflow_graph_bridge.ts');
+const protocol = require('../../adapters/protocol/workflow_graph_trace_bridge.ts');
 
 function run() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'langgraph-bridge-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow_graph-bridge-'));
   const statePath = path.join(tmpDir, 'state.json');
   const historyPath = path.join(tmpDir, 'history.jsonl');
   const swarmStatePath = path.join(tmpDir, 'swarm.json');
@@ -123,7 +123,7 @@ function run() {
     history_path: historyPath,
     trace_path: tracePath,
   });
-  assert.strictEqual(trace.trace.bridge_path, 'adapters/protocol/langgraph_trace_bridge.ts');
+  assert.strictEqual(trace.trace.bridge_path, 'adapters/protocol/workflow_graph_trace_bridge.ts');
   assert.strictEqual(fs.existsSync(tracePath), true);
 
   const stream = protocol.streamGraph({
@@ -147,7 +147,7 @@ function run() {
   assert.strictEqual(status.traces, 1);
   assert.strictEqual(status.streams, 1);
 
-  console.log(JSON.stringify({ ok: true, type: 'langgraph_bridge_test' }));
+  console.log(JSON.stringify({ ok: true, type: 'workflow_graph_bridge_test' }));
 }
 
 run();

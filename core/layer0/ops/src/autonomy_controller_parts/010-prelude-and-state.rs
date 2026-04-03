@@ -36,7 +36,7 @@ fn usage() {
     println!("  protheus-ops autonomy-controller hand-wasm-task --hand-id=<id> [--task=<id>] [--fuel=<n>] [--epoch-ms=<n>] [--strict=1|0]");
     println!("  protheus-ops autonomy-controller compact [<snip|micro|full|reactive>] [--hand-id=<id>] [--auto-compact-pct=<0..100>] [--pressure-ratio=<0..1>] [--strict=1|0]");
     println!("  protheus-ops autonomy-controller dream [--hand-id=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller kairos [status|cycle|pause|resume] [--auto=1|0] [--force=1|0] [--tick-ms=<n>] [--jitter-ms=<n>] [--window-sec=<n>] [--max-proactive=<n>] [--block-budget-ms=<n>] [--brief=1|0] [--strict=1|0]");
+    println!("  protheus-ops autonomy-controller proactive_daemon [status|cycle|pause|resume] [--auto=1|0] [--force=1|0] [--tick-ms=<n>] [--jitter-ms=<n>] [--window-sec=<n>] [--max-proactive=<n>] [--block-budget-ms=<n>] [--brief=1|0] [--strict=1|0]");
     println!("  protheus-ops autonomy-controller speculate [run|status|merge|reject] [--spec-id=<id>] [--verify=1|0] [--input-json=<json>|--input-base64=<base64_json>] [--strict=1|0]");
     println!("  protheus-ops autonomy-controller autoreason [run|status] [--task=<text>] [--run-id=<id>] [--convergence=<n>] [--max-iters=<n>] [--judges=<n>] [--strict=1|0]");
     println!("  protheus-ops autonomy-controller ephemeral-run [--goal=<text>] [--domain=<id>] [--ui-leaf=1|0] [--strict=1|0]");
@@ -369,7 +369,7 @@ fn load_provider_policy(root: &Path) -> Value {
     )
     .unwrap_or_else(|| {
         json!({
-            "allowed_providers": ["bitnet", "openai", "anthropic", "local-moe"],
+            "allowed_providers": ["bitnet", "openai", "frontier_provider", "local-moe"],
             "default_provider": "bitnet",
             "max_cost_per_cycle_usd": 0.50
         })

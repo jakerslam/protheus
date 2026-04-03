@@ -56,7 +56,7 @@ pub fn usage() {
     println!("  infring gateway");
     println!("  infring dream");
     println!("  infring compact");
-    println!("  infring kairos");
+    println!("  infring proactive_daemon");
     println!("  infring speculate");
     println!("  infring dashboard");
     println!("  infring task list");
@@ -782,7 +782,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             _ => Route {
-                script_rel: "client/runtime/systems/ops/protheus_unknown_guard.js".to_string(),
+                script_rel: "core://unknown-command".to_string(),
                 args: std::iter::once(cmd.clone()).chain(rest).collect(),
                 forward_stdin: false,
             },
@@ -805,6 +805,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     );
     if global_json
         && supports_json_flag
+        && !route
+            .args
+            .iter()
+            .any(|arg| arg == "--json" || arg.starts_with("--json="))
+    {
+        route.args.push("--json=1".to_string());
+    }
+    if global_json
+        && route.script_rel == "core://unknown-command"
         && !route
             .args
             .iter()
@@ -847,7 +856,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         if let Some(status) = node_missing_fallback(root, &route, global_json) {
             return status;
         }
-        return emit_node_missing_error(&cmd, &route.script_rel);
+        return emit_node_missing_error(root, &cmd, &route.script_rel);
     }
 
     let gate = evaluate_dispatch_security(root, &route.script_rel, &route.args);

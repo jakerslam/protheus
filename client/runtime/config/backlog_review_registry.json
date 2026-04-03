@@ -1433,7 +1433,7 @@
       "status": "done",
       "title": "Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity)",
       "problem": "Operational confidence and market credibility require explicit trace/eval UX and repeatable benchmark parity artifacts against common alternatives.",
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
       "dependencies": [
         "RM-122",
         "RM-123",
@@ -16709,7 +16709,7 @@
       "class": "interoperability",
       "wave": "V4",
       "status": "done",
-      "title": "Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps)",
       "problem": "Users coming from other agent stacks face high switching cost without structured import tooling.",
       "acceptance": "Add `client/runtime/systems/migration/importers/` pluggable import surface with first-class Infring importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms.",
       "dependencies": [
@@ -37196,7 +37196,7 @@
       "wave": "V4",
       "status": "done",
       "reviewed_status": "reviewed",
-      "title": "Universal Importers (Infring/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "title": "Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps)",
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [

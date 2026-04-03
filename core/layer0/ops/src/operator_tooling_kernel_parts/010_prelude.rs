@@ -24,7 +24,7 @@ const DEFAULT_OUTPUT_VALIDATE_MAX_GOVERNANCE: usize = 7000;
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops operator-tooling-kernel status [--openclaw-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel status [--control_runtime-root=<path>]");
     println!("  protheus-ops operator-tooling-kernel route-model [--payload-base64=<base64_json>] [--policy-path=<path>]");
     println!("  protheus-ops operator-tooling-kernel escalate-model [--payload-base64=<base64_json>] [--policy-path=<path>]");
     println!("  protheus-ops operator-tooling-kernel plan-auto [--payload-base64=<base64_json>]");
@@ -35,25 +35,25 @@ fn usage() {
     println!("  protheus-ops operator-tooling-kernel state-write [--payload-base64=<base64_json>] [--state-path=<path>]");
     println!("  protheus-ops operator-tooling-kernel decision-log-append [--title=<text>] [--reason=<text>] [--verify=<cmd>] [--rollback=<hint>] [--details-base64=<base64_json>] [--decision-log-path=<path>]");
     println!("  protheus-ops operator-tooling-kernel safe-apply [--payload-base64=<base64_json>] [--timeout-ms=<n>]");
-    println!("  protheus-ops operator-tooling-kernel memory-search --query=<text> [--limit=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel memory-summarize --query=<text> [--limit=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel memory-last-change [--limit=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel membrief --query=<text> [--limit=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel trace-find --trace-id=<id> [--limit=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel sync-allowed-models [--openclaw-root=<path>] [--policy-path=<path>]");
-    println!("  protheus-ops operator-tooling-kernel smoke-routing [--openclaw-root=<path>] [--policy-path=<path>]");
+    println!("  protheus-ops operator-tooling-kernel memory-search --query=<text> [--limit=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel memory-summarize --query=<text> [--limit=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel memory-last-change [--limit=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel membrief --query=<text> [--limit=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel trace-find --trace-id=<id> [--limit=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel sync-allowed-models [--control_runtime-root=<path>] [--policy-path=<path>]");
+    println!("  protheus-ops operator-tooling-kernel smoke-routing [--control_runtime-root=<path>] [--policy-path=<path>]");
     println!("  protheus-ops operator-tooling-kernel spawn-safe [--payload-base64=<base64_json>] [--require-plan=1|0] [--strict-plan=1|0]");
     println!("  protheus-ops operator-tooling-kernel smart-spawn [--payload-base64=<base64_json>]");
     println!("  protheus-ops operator-tooling-kernel auto-spawn [--payload-base64=<base64_json>] [--max-attempts=<n>]");
     println!("  protheus-ops operator-tooling-kernel execute-handoff [--payload-base64=<base64_json>]");
     println!("  protheus-ops operator-tooling-kernel safe-run <domain> [args...] [--timeout-ms=<n>] [--retries=<n>]");
-    println!("  protheus-ops operator-tooling-kernel openclaw-health [--since-hours=<n>] [--openclaw-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel cron-drift [--openclaw-root=<path>] [--workspace-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel cron-sync [--openclaw-root=<path>] [--workspace-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel doctor [--openclaw-root=<path>] [--workspace-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel audit-plane [--openclaw-root=<path>] [--workspace-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel daily-brief [--openclaw-root=<path>] [--workspace-root=<path>]");
-    println!("  protheus-ops operator-tooling-kernel fail-playbook [--openclaw-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel control_runtime-health [--since-hours=<n>] [--control_runtime-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel cron-drift [--control_runtime-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel cron-sync [--control_runtime-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel doctor [--control_runtime-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel audit-plane [--control_runtime-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel daily-brief [--control_runtime-root=<path>] [--workspace-root=<path>]");
+    println!("  protheus-ops operator-tooling-kernel fail-playbook [--control_runtime-root=<path>] [--workspace-root=<path>]");
 }
 
 fn print_json(value: &Value) {
@@ -113,8 +113,8 @@ fn path_from_flag(root: &Path, raw: Option<&String>) -> Option<PathBuf> {
     })
 }
 
-fn openclaw_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
-    if let Some(path) = path_from_flag(root, parsed.flags.get("openclaw-root")) {
+fn control_runtime_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
+    if let Some(path) = path_from_flag(root, parsed.flags.get("control_runtime-root")) {
         return path;
     }
     let workspace_candidate = root.to_path_buf();
@@ -126,12 +126,12 @@ fn openclaw_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
     }
     env::var_os("HOME")
         .map(PathBuf::from)
-        .map(|home| home.join(".openclaw"))
+        .map(|home| home.join(".control_runtime"))
         .unwrap_or_else(|| workspace_candidate)
 }
 
-fn agent_root(openclaw_root: &Path) -> PathBuf {
-    openclaw_root.join("agents/main/agent")
+fn agent_root(control_runtime_root: &Path) -> PathBuf {
+    control_runtime_root.join("agents/main/agent")
 }
 
 fn routing_policy_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {

@@ -7,7 +7,7 @@
 - `infring` (first-class importer)
 - `crewai` (via generic JSON adapter)
 - `autogen` (via generic JSON adapter)
-- `langgraph` (workflow-graph adapter)
+- `workflow_graph` (workflow-graph adapter)
 - `json`, `yaml`, `common_dump` generic adapters
 
 ## Command

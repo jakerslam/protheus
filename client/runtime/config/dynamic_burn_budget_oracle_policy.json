@@ -64,13 +64,13 @@
         ]
       }
     },
-    "anthropic": {
+    "frontier_provider": {
       "enabled": true,
-      "secret_id": "anthropic_admin_key",
+      "secret_id": "frontier_provider_admin_key",
       "secret_scope": "ops.dynamic_burn_budget_oracle",
       "egress_scope": "ops.dynamic_burn_budget_oracle",
       "runtime_allowlist": [
-        "api.anthropic.com"
+        "api.frontier_provider.com"
       ],
       "auth_header": "x-api-key",
       "auth_prefix": "",
@@ -79,11 +79,11 @@
       "endpoints": {
         "usage": {
           "method": "GET",
-          "url": "https://api.anthropic.com/v1/organizations/usage_report/messages"
+          "url": "https://api.frontier_provider.com/v1/organizations/usage_report/messages"
         },
         "costs": {
           "method": "GET",
-          "url": "https://api.anthropic.com/v1/organizations/cost_report"
+          "url": "https://api.frontier_provider.com/v1/organizations/cost_report"
         }
       },
       "parse": {

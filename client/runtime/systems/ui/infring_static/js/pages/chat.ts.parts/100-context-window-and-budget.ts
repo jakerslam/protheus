@@ -186,6 +186,10 @@
     switchModel(model) {
       var activeAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
       if (!activeAgent) return;
+      if (model && model.available === false) {
+        InfringToast.error('This model is not ready yet. Configure its provider/API key first.');
+        return;
+      }
       if (model.id === this.currentAgent.model_name) {
         this.touchModelUsage(model.id || '');
         this.showModelSwitcher = false;
@@ -213,11 +217,11 @@
       var self = this;
       return InfringAPI.get('/api/models')
         .then(function(data) {
-          var models = Array.isArray(data && data.models) ? data.models : [];
+          var models = self.sanitizeModelCatalogRows(Array.isArray(data && data.models) ? data.models : []);
           var available = models.filter(function(m) { return !!(m && m.available); });
-          self._modelCache = available;
+          self._modelCache = models;
           self._modelCacheTime = Date.now();
-          self.modelPickerList = available;
+          self.modelPickerList = models;
           return available;
         })
         .catch(function() {

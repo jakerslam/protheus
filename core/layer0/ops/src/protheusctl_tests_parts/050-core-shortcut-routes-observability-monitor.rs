@@ -218,7 +218,7 @@ fn core_shortcut_routes_top_level_chat_ui_switch_provider_action() {
         "chat-ui",
         &[
             "switch-provider".to_string(),
-            "--provider=anthropic".to_string(),
+            "--provider=frontier_provider".to_string(),
             "--model=claude-sonnet".to_string(),
         ],
     )
@@ -229,7 +229,7 @@ fn core_shortcut_routes_top_level_chat_ui_switch_provider_action() {
         vec![
             "switch-provider",
             "--app=chat-ui",
-            "--provider=anthropic",
+            "--provider=frontier_provider",
             "--model=claude-sonnet"
         ]
     );

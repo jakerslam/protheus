@@ -33,7 +33,7 @@ fn usage() {
         "  protheus-ops app-plane replay --app=<chat-starter|chat-ui> [--session-id=<id>] [--turn=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane switch-provider --app=chat-ui --provider=<openai|anthropic|grok|bedrock|minimax> [--model=<id>] [--strict=1|0]"
+        "  protheus-ops app-plane switch-provider --app=chat-ui --provider=<openai|frontier_provider|grok|bedrock|minimax> [--model=<id>] [--strict=1|0]"
     );
     println!(
         "  protheus-ops app-plane build --app=code-engineer --goal=<text> [--risk=<low|medium|high>] [--approved=1|0] [--strict=1|0]"

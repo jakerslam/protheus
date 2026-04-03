@@ -363,7 +363,7 @@ fn base_catalog(root: &Path, snapshot: &Value) -> Vec<Value> {
             ]
         }),
     ];
-    rows.extend(crate::openfang_parity_catalog::extra_hands(
+    rows.extend(crate::reference_parity_catalog::extra_hands(
         &fallback_provider,
         &fallback_model,
     ));

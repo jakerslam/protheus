@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -14,6 +15,27 @@ const wrapperFiles = [
   'client/runtime/systems/execution/task_decomposition_primitive.ts',
   'client/runtime/systems/workflow/universal_outreach_primitive.ts',
 ] as const;
+
+function collectFilesUnder(relativeRoot: string, suffix: string): string[] {
+  const out: string[] = [];
+  const root = path.join(ROOT, relativeRoot);
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (!abs.endsWith(suffix)) continue;
+      out.push(path.relative(ROOT, abs).replace(/\\/g, '/'));
+    }
+  };
+  if (fs.existsSync(root)) {
+    walk(root);
+  }
+  return out.sort();
+}
 
 describe('conduit primitive wrapper contract', () => {
   test.each(wrapperFiles)('wrapper contract enforced for %s', async (relativePath) => {
@@ -42,14 +64,29 @@ describe('conduit primitive wrapper contract', () => {
   test('install.sh gateway fallback is Rust-first (Node optional legacy only)', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source).toMatch(
-      /launch_cmd="cd \$root && exec \$dashboard_bin dashboard-ui serve --host=\$host --port=\$port"/,
+      /launch_cmd="cd \$root && exec \$dashboard_bin gateway start --dashboard-host=\$host --dashboard-port=\$port --dashboard-open=0"/,
     );
-    expect(source).toMatch(
-      /infring_gateway_spawn_detached_logged \/tmp\/infring-dashboard-serve\.log "\$dashboard_bin"/,
-    );
+    expect(
+      source.includes(
+        'infring_gateway_spawn_detached_logged /tmp/infring-dashboard-serve.log "$dashboard_bin"',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        'gateway start "--dashboard-host=${host}" "--dashboard-port=${port}" "--dashboard-open=0"',
+      ),
+    ).toBe(true);
     expect(source).not.toMatch(
       /infring_gateway_spawn_detached_logged \/tmp\/infring-dashboard-serve\.log node/,
     );
+  });
+
+  test('install.sh enforces runtime entrypoint integrity contract', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    expect(source.includes('verify_workspace_runtime_contract')).toBe(true);
+    expect(source.includes('RUNTIME_MANIFEST_REL')).toBe(true);
+    expect(source.includes('run_post_install_smoke_tests')).toBe(true);
+    expect(source.includes('dashboard_route_check')).toBe(true);
   });
 
   test('install.ps1 exists and provisions Windows wrappers', () => {
@@ -73,6 +110,178 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('curl -fsSL https://get.protheus.ai/install | sh')).toBe(true);
     expect(source.includes('install.ps1')).toBe(true);
     expect(source.includes('infring --help')).toBe(true);
+  });
+
+  test('unknown guard json mode emits a single machine-readable payload', () => {
+    const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+    const guard = path.join(ROOT, 'client/runtime/systems/ops/protheus_unknown_guard.ts');
+    const proc = spawnSync(process.execPath, [entrypoint, guard, '--json', 'bogus-cmd'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+
+    expect(proc.status).toBe(2);
+    const lines = String(proc.stdout || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines.length).toBe(1);
+    const payload = JSON.parse(lines[0]);
+    expect(payload.ok).toBe(false);
+    expect(payload.type).toBe('protheus_unknown_guard');
+    expect(payload.command).toBe('bogus-cmd');
+    expect(String(proc.stderr || '').trim()).toBe('');
+  });
+
+  test('runtime manifest lists resolvable runtime entrypoints', () => {
+    const rel = 'client/runtime/config/install_runtime_manifest_v1.txt';
+    const manifestPath = path.join(ROOT, rel);
+    expect(fs.existsSync(manifestPath)).toBe(true);
+    const rows = fs
+      .readFileSync(manifestPath, 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const entry of rows) {
+      const abs = path.join(ROOT, entry);
+      const alt =
+        entry.endsWith('.js')
+          ? path.join(ROOT, entry.slice(0, -3) + '.ts')
+          : entry.endsWith('.ts')
+            ? path.join(ROOT, entry.slice(0, -3) + '.js')
+            : '';
+      expect(fs.existsSync(abs) || (!!alt && fs.existsSync(alt))).toBe(true);
+    }
+  });
+
+  test('protheusctl route map targets are resolvable or explicitly optional-not-shipped', () => {
+    const routeSources = [
+      'core/layer0/ops/src/protheusctl.rs',
+      'core/layer0/ops/src/protheusctl_routes.rs',
+      'core/layer0/ops/src/protheusctl_plane_shortcuts.rs',
+      ...collectFilesUnder('core/layer0/ops/src/protheusctl_parts', '.rs'),
+      ...collectFilesUnder('core/layer0/ops/src/protheusctl_routes_parts', '.rs'),
+    ];
+    const optionalNotShipped = new Set<string>([
+      'client/cognition/adaptive/rsi/rsi_bootstrap.js',
+      'client/runtime/systems/economy/donor_mining_dashboard.js',
+      'client/runtime/systems/edge/mobile_lifecycle_resilience.ts',
+      'client/runtime/systems/edge/mobile_ops_top.ts',
+      'client/runtime/systems/edge/protheus_edge_runtime.ts',
+      'client/runtime/systems/migration/core_migration_bridge.js',
+      'client/runtime/systems/migration/universal_importers.js',
+      'client/runtime/systems/ops/fluxlattice_program.js',
+      'client/runtime/systems/ops/host_adaptation_operator_surface.js',
+      'client/runtime/systems/ops/mobile_wrapper_distribution_pack.js',
+      'client/runtime/systems/ops/perception_polish_program.js',
+      'client/runtime/systems/ops/platform_socket_runtime.ts',
+      'client/runtime/systems/ops/productized_suite_program.js',
+      'client/runtime/systems/ops/protheus_demo.js',
+      'client/runtime/systems/ops/protheus_diagram.js',
+      'client/runtime/systems/ops/protheus_examples.js',
+      'client/runtime/systems/ops/protheus_version_cli.js',
+      'client/runtime/systems/ops/protheusctl_skills_discover.js',
+      'client/runtime/systems/ops/rust_hybrid_migration_program.js',
+      'client/runtime/systems/ops/scale_readiness_program.js',
+      'client/runtime/systems/ops/settlement_program.js',
+      'client/runtime/systems/ops/wasi2_execution_completeness_gate.js',
+      'client/runtime/systems/personas/ambient_stance.js',
+      'client/runtime/systems/personas/cli.js',
+      'client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts',
+      'client/runtime/systems/spine/spine_safe_launcher.js',
+      'client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js',
+    ]);
+    const routeTargets = new Set<string>();
+    for (const rel of routeSources) {
+      const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      const pattern = /script_rel:\s*"([^"]+)"/g;
+      let match: RegExpExecArray | null = null;
+      while ((match = pattern.exec(source))) {
+        routeTargets.add(match[1]);
+      }
+    }
+
+    const unresolved: string[] = [];
+    for (const target of routeTargets) {
+      if (target.startsWith('core://')) continue;
+      const abs = path.join(ROOT, target);
+      const alt =
+        target.endsWith('.js')
+          ? path.join(ROOT, target.slice(0, -3) + '.ts')
+          : target.endsWith('.ts')
+            ? path.join(ROOT, target.slice(0, -3) + '.js')
+            : '';
+      const exists = fs.existsSync(abs) || (!!alt && fs.existsSync(alt));
+      if (exists) continue;
+      if (optionalNotShipped.has(target)) continue;
+      unresolved.push(target);
+    }
+
+    const staleOptional = [...optionalNotShipped].filter((target) => {
+      const abs = path.join(ROOT, target);
+      const alt =
+        target.endsWith('.js')
+          ? path.join(ROOT, target.slice(0, -3) + '.ts')
+          : target.endsWith('.ts')
+            ? path.join(ROOT, target.slice(0, -3) + '.js')
+            : '';
+      return fs.existsSync(abs) || (!!alt && fs.existsSync(alt));
+    });
+
+    expect(unresolved.sort()).toEqual([]);
+    expect(staleOptional.sort()).toEqual([]);
+  });
+
+  test('runtime manifest entrypoints are wired from CLI route surfaces', () => {
+    const routeSources = [
+      'core/layer0/ops/src/protheusctl.rs',
+      'core/layer0/ops/src/protheusctl_routes.rs',
+      'core/layer0/ops/src/protheusctl_plane_shortcuts.rs',
+      ...collectFilesUnder('core/layer0/ops/src/protheusctl_parts', '.rs'),
+      ...collectFilesUnder('core/layer0/ops/src/protheusctl_routes_parts', '.rs'),
+    ];
+    const routeTargets = new Set<string>();
+    for (const rel of routeSources) {
+      const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      const pattern = /script_rel:\s*"([^"]+)"/g;
+      let match: RegExpExecArray | null = null;
+      while ((match = pattern.exec(source))) {
+        routeTargets.add(match[1]);
+      }
+    }
+
+    const manifestPath = path.join(ROOT, 'client/runtime/config/install_runtime_manifest_v1.txt');
+    const manifestEntries = fs
+      .readFileSync(manifestPath, 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'));
+    expect(manifestEntries.length).toBeGreaterThan(0);
+    const bootstrapOnlyEntrypoints = new Set<string>([
+      'client/runtime/systems/ops/protheusd.js',
+      'client/runtime/systems/ops/protheus_unknown_guard.js',
+    ]);
+
+    for (const entry of manifestEntries) {
+      if (bootstrapOnlyEntrypoints.has(entry)) {
+        continue;
+      }
+      const counterpart = entry.endsWith('.js')
+        ? entry.slice(0, -3) + '.ts'
+        : entry.endsWith('.ts')
+          ? entry.slice(0, -3) + '.js'
+          : '';
+      expect(routeTargets.has(entry) || (!!counterpart && routeTargets.has(counterpart))).toBe(true);
+    }
+  });
+
+  test('unknown command fallback is core-native and not JS-asset dependent', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'core/layer0/ops/src/protheusctl_parts/030-usage.rs'),
+      'utf8',
+    );
+    expect(source.includes('"core://unknown-command"')).toBe(true);
   });
 });
 

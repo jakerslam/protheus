@@ -1,4 +1,4 @@
-# REQ-49: LangGraph Persistent Graph Orchestration Assimilation
+# REQ-49: Workflow Graph Persistent Graph Orchestration Assimilation
 
 Version: 1.0
 Date: 2026-03-17
@@ -6,11 +6,11 @@ Owner: InfRing Workflow / Checkpoints / Graph Execution
 
 ## Objective
 
-Assimilate the practical strengths of LangGraph into InfRing without introducing a parallel graph-orchestration authority path: stateful graph execution, checkpoints and time-travel replay, conditional edges and cycles, human-in-the-loop state inspection, subgraph and multi-agent coordination, streaming, and LangSmith-style tracing should all map onto existing workflow, swarm, memory, observability, and adapter primitives.
+Assimilate the practical strengths of Workflow Graph into InfRing without introducing a parallel graph-orchestration authority path: stateful graph execution, checkpoints and time-travel replay, conditional edges and cycles, human-in-the-loop state inspection, subgraph and multi-agent coordination, streaming, and LangSmith-style tracing should all map onto existing workflow, swarm, memory, observability, and adapter primitives.
 
 ## Source References
 
-- [LangGraph repository](https://github.com/langchain-ai/langgraph)
+- [Workflow Graph repository](https://github.com/workflow_chain-ai/workflow_graph)
 - [Source doc](https://docs.google.com/document/d/1PKuE-cGAatgZ4ahBnf0tK0KK8hM1OYJ8WDIcA-FMJb8/edit?usp=sharing)
 
 ## Scope
@@ -21,10 +21,10 @@ In scope:
 - HITL state inspection through pause, shadow, and operator surfaces
 - Subgraph nesting and multi-agent coordination over existing swarm/session primitives
 - Streaming and LangSmith-style trace compatibility over native observability lanes
-- Thin `infring assimilate langgraph` operator path
+- Thin `infring assimilate workflow_graph` operator path
 
 Out of scope:
-- A separate LangGraph-owned execution engine
+- A separate Workflow Graph-owned execution engine
 - Moving graph, checkpoint, or replay authority into app-owned shells
 - Treating graph ergonomics as justification for bypassing conduit/runtime governance
 
@@ -52,7 +52,7 @@ This intake must obey repository placement policy.
 
 ### REQ-49-001: Graph Node and Edge Registry
 
-**Requirement:** Model LangGraph nodes, edges, conditional branches, and cycles over the authoritative workflow and swarm/runtime lanes.
+**Requirement:** Model Workflow Graph nodes, edges, conditional branches, and cycles over the authoritative workflow and swarm/runtime lanes.
 
 **Acceptance:**
 - Graph execution remains deterministic and receipted
@@ -63,7 +63,7 @@ This intake must obey repository placement policy.
 
 ### REQ-49-002: Checkpoint Persistence and Time-Travel Replay
 
-**Requirement:** Reuse existing receipt and memory primitives for LangGraph-style checkpoint export, restore, and replay.
+**Requirement:** Reuse existing receipt and memory primitives for Workflow Graph-style checkpoint export, restore, and replay.
 
 **Acceptance:**
 - Checkpoint export and replay are receipted and auditable
@@ -74,7 +74,7 @@ This intake must obey repository placement policy.
 
 ### REQ-49-003: Human-in-the-Loop State Inspection
 
-**Requirement:** Support LangGraph-style runtime state inspection and modification through existing pause, shadow, and operator-control surfaces.
+**Requirement:** Support Workflow Graph-style runtime state inspection and modification through existing pause, shadow, and operator-control surfaces.
 
 **Acceptance:**
 - State inspection and intervention emit deterministic receipts
@@ -85,7 +85,7 @@ This intake must obey repository placement policy.
 
 ### REQ-49-004: Subgraph and Multi-Agent Coordination
 
-**Requirement:** Map LangGraph-style subgraphs and multi-agent nesting onto existing swarm, session, and persona primitives.
+**Requirement:** Map Workflow Graph-style subgraphs and multi-agent nesting onto existing swarm, session, and persona primitives.
 
 **Acceptance:**
 - Nested graphs remain isolated, budgeted, and receipted
@@ -96,18 +96,18 @@ This intake must obey repository placement policy.
 
 ### REQ-49-005: LangSmith-Style Observability Bridge
 
-**Requirement:** Fold LangGraph graph traces, state transitions, and evaluation-friendly telemetry into the native observability and receipt stack.
+**Requirement:** Fold Workflow Graph graph traces, state transitions, and evaluation-friendly telemetry into the native observability and receipt stack.
 
 **Acceptance:**
 - Graph traces stream as native observability artifacts
-- Existing dashboards/export paths can render LangGraph-assimilated evidence
+- Existing dashboards/export paths can render Workflow Graph-assimilated evidence
 - No duplicate telemetry stack is introduced
 
 ---
 
 ### REQ-49-006: Streaming and Conditional Execution Guard
 
-**Requirement:** Support LangGraph-style streaming and conditional edge evaluation through existing inference, workflow, and policy primitives.
+**Requirement:** Support Workflow Graph-style streaming and conditional edge evaluation through existing inference, workflow, and policy primitives.
 
 **Acceptance:**
 - Streaming remains receipt-anchored
@@ -126,5 +126,5 @@ This intake must obey repository placement policy.
 ## Execution Notes
 
 - This is a requirements intake only.
-- Normalize the source doc's `apps/langgraph/` suggestion into optional shells only; authority remains in `core/`, `client/runtime/systems/**`, and `adapters/`.
+- Normalize the source doc's `apps/workflow_graph/` suggestion into optional shells only; authority remains in `core/`, `client/runtime/systems/**`, and `adapters/`.
 - Prefer `infring` naming for operator surfaces.

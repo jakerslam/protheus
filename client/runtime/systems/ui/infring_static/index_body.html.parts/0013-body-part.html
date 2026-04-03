@@ -104,7 +104,7 @@
                   </template>
                   <!-- Claude Code install hint -->
                   <template x-if="p.id === 'claude-code' && p.auth_status !== 'configured'">
-                    <div class="mt-2 text-xs text-dim">Install: <code style="color:var(--accent-light);background:var(--bg);padding:1px 4px;border-radius:2px">npm install -g @anthropic-ai/claude-code</code></div>
+                    <div class="mt-2 text-xs text-dim">Install: <code style="color:var(--accent-light);background:var(--bg);padding:1px 4px;border-radius:2px">npm install -g @frontier_provider-ai/claude-code</code></div>
                   </template>
                   <!-- Actions for configured providers -->
                   <template x-if="p.auth_status === 'configured'">

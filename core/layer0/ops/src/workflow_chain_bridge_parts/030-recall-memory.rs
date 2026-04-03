@@ -7,11 +7,11 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         "",
     );
     if store_id.is_empty() {
-        return Err("langchain_memory_id_required".to_string());
+        return Err("workflow_chain_memory_id_required".to_string());
     }
     let query = clean_text(payload.get("query").and_then(Value::as_str), 240);
     if query.is_empty() {
-        return Err("langchain_query_required".to_string());
+        return Err("workflow_chain_query_required".to_string());
     }
     let mode = clean_token(payload.get("mode").and_then(Value::as_str), "hybrid");
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
@@ -20,7 +20,7 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&store_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langchain_memory_bridge:{store_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_chain_memory_bridge:{store_id}"))?;
     let supported_profiles = store
         .get("supported_profiles")
         .and_then(Value::as_array)
@@ -32,7 +32,7 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .any(|row| row == profile)
     {
         return Err(format!(
-            "langchain_memory_bridge_profile_unsupported:{profile}"
+            "workflow_chain_memory_bridge_profile_unsupported:{profile}"
         ));
     }
     let supported_mode_rows = store
@@ -45,7 +45,7 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .filter_map(Value::as_str)
         .collect::<BTreeSet<_>>();
     if !supported_modes.contains(mode.as_str()) {
-        return Err(format!("langchain_retrieval_mode_unsupported:{mode}"));
+        return Err(format!("workflow_chain_retrieval_mode_unsupported:{mode}"));
     }
     let requested_top_k = parse_u64_value(payload.get("top_k"), 3, 1, 12) as usize;
     let top_k = if matches!(profile.as_str(), "pure" | "tiny-max") {
@@ -109,14 +109,14 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
     Ok(json!({
         "ok": true,
         "recall": retrieval,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", langchain_claim("V6-WORKFLOW-014.3")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", workflow_chain_claim("V6-WORKFLOW-014.3")),
     }))
 }
 
 fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-prompt",
+        "workflow_chain-prompt",
     );
     let template = clean_text(
         payload
@@ -126,7 +126,7 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         4000,
     );
     if template.is_empty() {
-        return Err("langchain_prompt_template_required".to_string());
+        return Err("workflow_chain_prompt_template_required".to_string());
     }
     let variables = payload
         .get("variables")
@@ -157,7 +157,7 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         .filter_map(Value::as_str)
         .any(|row| row == provider)
     {
-        return Err(format!("langchain_provider_unsupported:{provider}"));
+        return Err(format!("workflow_chain_provider_unsupported:{provider}"));
     }
     let local_capable = matches!(provider.as_str(), "local" | "openai-compatible");
     let constrained_profile = matches!(profile.as_str(), "pure" | "tiny-max");
@@ -202,7 +202,7 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
     Ok(json!({
         "ok": true,
         "route": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.5", langchain_claim("V6-WORKFLOW-014.5")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.5", workflow_chain_claim("V6-WORKFLOW-014.5")),
     }))
 }
 
@@ -226,13 +226,13 @@ fn parse_structured_output(
 ) -> Result<Value, String> {
     let parser_name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-structured-output",
+        "workflow_chain-structured-output",
     );
     let schema = payload
         .get("schema")
         .and_then(Value::as_object)
         .cloned()
-        .ok_or_else(|| "langchain_structured_schema_required".to_string())?;
+        .ok_or_else(|| "workflow_chain_structured_schema_required".to_string())?;
     let required_fields = schema
         .get("required_fields")
         .and_then(Value::as_array)
@@ -242,21 +242,21 @@ fn parse_structured_output(
         .filter_map(|row| row.as_str().map(ToString::to_string))
         .collect::<Vec<_>>();
     if required_fields.is_empty() {
-        return Err("langchain_structured_schema_required_fields_missing".to_string());
+        return Err("workflow_chain_structured_schema_required_fields_missing".to_string());
     }
     let parsed = if let Some(obj) = payload.get("output_json").and_then(Value::as_object) {
         Value::Object(obj.clone())
     } else {
         let raw = clean_text(payload.get("output_text").and_then(Value::as_str), 12000);
         if raw.is_empty() {
-            return Err("langchain_structured_output_missing".to_string());
+            return Err("workflow_chain_structured_output_missing".to_string());
         }
         serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("langchain_structured_output_decode_failed:{err}"))?
+            .map_err(|err| format!("workflow_chain_structured_output_decode_failed:{err}"))?
     };
     let parsed_obj = parsed
         .as_object()
-        .ok_or_else(|| "langchain_structured_output_must_be_object".to_string())?;
+        .ok_or_else(|| "workflow_chain_structured_output_must_be_object".to_string())?;
     let field_types = schema
         .get("field_types")
         .and_then(Value::as_object)
@@ -279,7 +279,7 @@ fn parse_structured_output(
     }
     if !missing_fields.is_empty() || !invalid_fields.is_empty() {
         return Err(format!(
-            "langchain_structured_output_validation_failed:missing={}:invalid={}",
+            "workflow_chain_structured_output_validation_failed:missing={}:invalid={}",
             missing_fields.join(","),
             invalid_fields.join(",")
         ));
@@ -300,7 +300,7 @@ fn parse_structured_output(
     Ok(json!({
         "ok": true,
         "structured_output": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.8", langchain_claim("V6-WORKFLOW-014.8")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.8", workflow_chain_claim("V6-WORKFLOW-014.8")),
     }))
 }
 
@@ -312,14 +312,14 @@ fn checkpoint_run(
 ) -> Result<Value, String> {
     let chain_id = clean_token(payload.get("chain_id").and_then(Value::as_str), "");
     if chain_id.is_empty() {
-        return Err("langchain_checkpoint_chain_id_required".to_string());
+        return Err("workflow_chain_checkpoint_chain_id_required".to_string());
     }
     let chain = state
         .get("chains")
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&chain_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langchain_chain:{chain_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_chain_chain:{chain_id}"))?;
     let runnables = chain
         .get("runnables")
         .and_then(Value::as_array)
@@ -339,8 +339,8 @@ fn checkpoint_run(
         Some(ensure_session_for_task(
             root,
             &swarm_state_path,
-            &format!("langchain:checkpoint:{chain_id}"),
-            "langchain-checkpoint",
+            &format!("workflow_chain:checkpoint:{chain_id}"),
+            "workflow_chain-checkpoint",
             Some("checkpoint"),
             None,
             parse_u64_value(payload.get("budget"), 768, 96, 12288),
@@ -355,7 +355,7 @@ fn checkpoint_run(
     let record = json!({
         "checkpoint_id": stable_id("langcheckpoint", &json!({"chain_id": chain_id, "profile": profile})),
         "chain_id": chain_id,
-        "prototype_label": clean_token(payload.get("prototype_label").and_then(Value::as_str), "langchain-prototype"),
+        "prototype_label": clean_token(payload.get("prototype_label").and_then(Value::as_str), "workflow_chain-prototype"),
         "profile": profile,
         "state_snapshot": state_snapshot,
         "resume_token": stable_id("langresume", &json!({"profile": profile, "parallel_count": parallel_count})),
@@ -374,7 +374,7 @@ fn checkpoint_run(
     Ok(json!({
         "ok": true,
         "checkpoint": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.7", langchain_claim("V6-WORKFLOW-014.7")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.7", workflow_chain_claim("V6-WORKFLOW-014.7")),
     }))
 }
 
@@ -385,7 +385,7 @@ fn record_trace(
 ) -> Result<Value, String> {
     let trace_id = clean_token(
         payload.get("trace_id").and_then(Value::as_str),
-        "langchain-trace",
+        "workflow_chain-trace",
     );
     let steps = payload
         .get("steps")
@@ -393,7 +393,7 @@ fn record_trace(
         .cloned()
         .unwrap_or_default();
     if steps.is_empty() {
-        return Err("langchain_trace_steps_required".to_string());
+        return Err("workflow_chain_trace_steps_required".to_string());
     }
     for step in &steps {
         let label = clean_token(step.get("stage").and_then(Value::as_str), "step");
@@ -409,7 +409,7 @@ fn record_trace(
     Ok(json!({
         "ok": true,
         "trace": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.6", langchain_claim("V6-WORKFLOW-014.6")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.6", workflow_chain_claim("V6-WORKFLOW-014.6")),
     }))
 }
 
@@ -420,7 +420,7 @@ fn import_integration(
 ) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-integration",
+        "workflow_chain-integration",
     );
     let connector_type = clean_token(
         payload
@@ -431,7 +431,7 @@ fn import_integration(
     );
     if !allowed_connector_type(&connector_type) {
         return Err(format!(
-            "langchain_connector_type_unsupported:{connector_type}"
+            "workflow_chain_connector_type_unsupported:{connector_type}"
         ));
     }
     let bridge_path = normalize_bridge_path(
@@ -439,7 +439,7 @@ fn import_integration(
         payload
             .get("bridge_path")
             .and_then(Value::as_str)
-            .unwrap_or("adapters/protocol/langchain_connector_bridge.ts"),
+            .unwrap_or("adapters/protocol/workflow_chain_connector_bridge.ts"),
     )?;
     let record = json!({
         "integration_id": stable_id("langint", &json!({"name": name, "connector_type": connector_type, "bridge_path": bridge_path})),
@@ -459,7 +459,7 @@ fn import_integration(
     Ok(json!({
         "ok": true,
         "integration": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", langchain_claim("V6-WORKFLOW-014.4")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", workflow_chain_claim("V6-WORKFLOW-014.4")),
     }))
 }
 
@@ -473,42 +473,42 @@ fn assimilate_intake(
         payload
             .get("output_dir")
             .and_then(Value::as_str)
-            .unwrap_or("client/runtime/local/state/langchain-shell"),
+            .unwrap_or("client/runtime/local/state/workflow_chain-shell"),
     )?;
     let full = repo_path(root, &output_dir);
     let src_dir = full.join("src");
     let template_dir = full.join("templates");
     fs::create_dir_all(&src_dir)
-        .map_err(|err| format!("langchain_intake_src_dir_create_failed:{err}"))?;
+        .map_err(|err| format!("workflow_chain_intake_src_dir_create_failed:{err}"))?;
     fs::create_dir_all(&template_dir)
-        .map_err(|err| format!("langchain_intake_template_dir_create_failed:{err}"))?;
+        .map_err(|err| format!("workflow_chain_intake_template_dir_create_failed:{err}"))?;
     let package_json = json!({
-        "name": clean_token(payload.get("package_name").and_then(Value::as_str), "langchain-shell"),
+        "name": clean_token(payload.get("package_name").and_then(Value::as_str), "workflow_chain-shell"),
         "private": true,
         "scripts": {
-            "start": "node src/langchain.pipeline.ts"
+            "start": "node src/workflow_chain.pipeline.ts"
         }
     });
-    let pipeline_source = "export const langchainChain = { runnables: [\n  { id: 'retrieve', runnable_type: 'retriever', input_type: 'query', output_type: 'documents' },\n  { id: 'route', runnable_type: 'prompt', input_type: 'documents', output_type: 'prompt' },\n  { id: 'answer', runnable_type: 'llm', input_type: 'prompt', output_type: 'answer', spawn: true }\n] };\n";
-    let readme = "# LangChain Shell\n\nThin generated shell over `core://langchain-bridge`.\n";
+    let pipeline_source = "export const workflow_chainChain = { runnables: [\n  { id: 'retrieve', runnable_type: 'retriever', input_type: 'query', output_type: 'documents' },\n  { id: 'route', runnable_type: 'prompt', input_type: 'documents', output_type: 'prompt' },\n  { id: 'answer', runnable_type: 'llm', input_type: 'prompt', output_type: 'answer', spawn: true }\n] };\n";
+    let readme = "# Workflow Chain Shell\n\nThin generated shell over `core://workflow_chain-bridge`.\n";
     let prompt_template = "Answer the question: {{question}}\nUse only the supplied context.\n";
     fs::write(
         full.join("package.json"),
         serde_json::to_string_pretty(&package_json).unwrap(),
     )
-    .map_err(|err| format!("langchain_intake_package_write_failed:{err}"))?;
-    fs::write(src_dir.join("langchain.pipeline.ts"), pipeline_source)
-        .map_err(|err| format!("langchain_intake_pipeline_write_failed:{err}"))?;
+    .map_err(|err| format!("workflow_chain_intake_package_write_failed:{err}"))?;
+    fs::write(src_dir.join("workflow_chain.pipeline.ts"), pipeline_source)
+        .map_err(|err| format!("workflow_chain_intake_pipeline_write_failed:{err}"))?;
     fs::write(template_dir.join("prompt.jinja"), prompt_template)
-        .map_err(|err| format!("langchain_intake_template_write_failed:{err}"))?;
+        .map_err(|err| format!("workflow_chain_intake_template_write_failed:{err}"))?;
     fs::write(full.join("README.md"), readme)
-        .map_err(|err| format!("langchain_intake_readme_write_failed:{err}"))?;
+        .map_err(|err| format!("workflow_chain_intake_readme_write_failed:{err}"))?;
     let record = json!({
         "intake_id": stable_id("langintake", &json!({"output_dir": output_dir})),
         "output_dir": output_dir,
         "files": [
             format!("{}/package.json", rel(root, &full)),
-            format!("{}/src/langchain.pipeline.ts", rel(root, &full)),
+            format!("{}/src/workflow_chain.pipeline.ts", rel(root, &full)),
             format!("{}/templates/prompt.jinja", rel(root, &full)),
             format!("{}/README.md", rel(root, &full)),
         ],
@@ -523,6 +523,6 @@ fn assimilate_intake(
     Ok(json!({
         "ok": true,
         "intake": record,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", langchain_claim("V6-WORKFLOW-014.4")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", workflow_chain_claim("V6-WORKFLOW-014.4")),
     }))
 }

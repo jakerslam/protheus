@@ -414,7 +414,7 @@ const CONTRACT_FAMILIES: &[RuntimeSystemContractFamily] = &[
     },
     RuntimeSystemContractFamily {
         ids: V6_INFRING_GAP_001_IDS,
-        family: "openclaw_parity_gap_closure",
+        family: "control_runtime_parity_gap_closure",
         objective: "close_runtime_http_channel_security_and_hands_parity_gaps_in_rust_authority",
     },
     RuntimeSystemContractFamily {

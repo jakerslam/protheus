@@ -97,7 +97,7 @@ fn collect_chain_middleware(state: &Value, chain_id: &str) -> Vec<Value> {
 fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-chain",
+        "workflow_chain-chain",
     );
     let runnables = payload
         .get("runnables")
@@ -107,7 +107,7 @@ fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         .cloned()
         .unwrap_or_default();
     if runnables.is_empty() {
-        return Err("langchain_chain_runnables_required".to_string());
+        return Err("workflow_chain_chain_runnables_required".to_string());
     }
     let normalized = runnables
         .into_iter()
@@ -125,7 +125,7 @@ fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         })
         .collect::<Vec<_>>();
     let chain = json!({
-        "chain_id": stable_id("langchain", &json!({"name": name, "runnables": normalized.len()})),
+        "chain_id": stable_id("workflow_chain", &json!({"name": name, "runnables": normalized.len()})),
         "name": name,
         "runnables": normalized,
         "registered_at": now_iso(),
@@ -139,18 +139,18 @@ fn register_chain(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
     Ok(json!({
         "ok": true,
         "chain": chain,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.1", langchain_claim("V6-WORKFLOW-014.1")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.1", workflow_chain_claim("V6-WORKFLOW-014.1")),
     }))
 }
 
 fn register_middleware(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-middleware",
+        "workflow_chain-middleware",
     );
     let hook = clean_token(payload.get("hook").and_then(Value::as_str), "");
     if !allowed_middleware_hook(&hook) {
-        return Err(format!("langchain_middleware_hook_unsupported:{hook}"));
+        return Err(format!("workflow_chain_middleware_hook_unsupported:{hook}"));
     }
     let chain_id = clean_token(payload.get("chain_id").and_then(Value::as_str), "");
     if !chain_id.is_empty()
@@ -159,7 +159,7 @@ fn register_middleware(state: &mut Value, payload: &Map<String, Value>) -> Resul
             .and_then(Value::as_object)
             .is_some_and(|rows| rows.contains_key(&chain_id))
     {
-        return Err(format!("unknown_langchain_chain:{chain_id}"));
+        return Err(format!("unknown_workflow_chain_chain:{chain_id}"));
     }
     let middleware = json!({
         "middleware_id": stable_id("langmw", &json!({"name": name, "hook": hook, "chain_id": chain_id})),
@@ -179,7 +179,7 @@ fn register_middleware(state: &mut Value, payload: &Map<String, Value>) -> Resul
     Ok(json!({
         "ok": true,
         "middleware": middleware,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.9", langchain_claim("V6-WORKFLOW-014.9")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.9", workflow_chain_claim("V6-WORKFLOW-014.9")),
     }))
 }
 
@@ -191,7 +191,7 @@ fn execute_chain(
 ) -> Result<Value, String> {
     let chain_id = clean_token(payload.get("chain_id").and_then(Value::as_str), "");
     if chain_id.is_empty() {
-        return Err("langchain_chain_id_required".to_string());
+        return Err("workflow_chain_chain_id_required".to_string());
     }
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
     let chain = state
@@ -199,7 +199,7 @@ fn execute_chain(
         .and_then(Value::as_object)
         .and_then(|rows| rows.get(&chain_id))
         .cloned()
-        .ok_or_else(|| format!("unknown_langchain_chain:{chain_id}"))?;
+        .ok_or_else(|| format!("unknown_workflow_chain_chain:{chain_id}"))?;
     let runnables = chain
         .get("runnables")
         .and_then(Value::as_array)
@@ -224,10 +224,10 @@ fn execute_chain(
             root,
             &swarm_state_path,
             &format!(
-                "langchain:chain:{}",
+                "workflow_chain:chain:{}",
                 clean_token(chain.get("name").and_then(Value::as_str), "chain")
             ),
-            "langchain-chain",
+            "workflow_chain-chain",
             Some("chain"),
             None,
             parse_u64_value(payload.get("budget"), 896, 96, 12288),
@@ -276,7 +276,7 @@ fn execute_chain(
     Ok(json!({
         "ok": true,
         "run": run,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.1", langchain_claim("V6-WORKFLOW-014.1")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.1", workflow_chain_claim("V6-WORKFLOW-014.1")),
     }))
 }
 
@@ -288,7 +288,7 @@ fn run_deep_agent(
 ) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-agent",
+        "workflow_chain-agent",
     );
     let instruction = clean_text(
         payload
@@ -298,7 +298,7 @@ fn run_deep_agent(
         240,
     );
     if instruction.is_empty() {
-        return Err("langchain_agent_instruction_required".to_string());
+        return Err("workflow_chain_agent_instruction_required".to_string());
     }
     let tools = payload
         .get("tools")
@@ -306,7 +306,7 @@ fn run_deep_agent(
         .cloned()
         .unwrap_or_default();
     if tools.is_empty() {
-        return Err("langchain_agent_tools_required".to_string());
+        return Err("workflow_chain_agent_tools_required".to_string());
     }
     let terms = query_terms(&instruction);
     let requested_limit = parse_u64_value(payload.get("search_limit"), 3, 1, 12) as usize;
@@ -346,7 +346,7 @@ fn run_deep_agent(
         vec![ranked
             .first()
             .map(|(_, tool)| tool.clone())
-            .ok_or_else(|| "langchain_agent_tool_selection_failed".to_string())?]
+            .ok_or_else(|| "workflow_chain_agent_tool_selection_failed".to_string())?]
     } else {
         selected_tools
     };
@@ -354,7 +354,7 @@ fn run_deep_agent(
     let session_id = ensure_session_for_task(
         root,
         &swarm_state_path,
-        &format!("langchain:agent:{name}:{instruction}"),
+        &format!("workflow_chain:agent:{name}:{instruction}"),
         &name,
         Some("deep-agent"),
         None,
@@ -381,7 +381,7 @@ fn run_deep_agent(
     Ok(json!({
         "ok": true,
         "agent": run,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.2", langchain_claim("V6-WORKFLOW-014.2")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.2", workflow_chain_claim("V6-WORKFLOW-014.2")),
     }))
 }
 
@@ -392,14 +392,14 @@ fn register_memory_bridge(
 ) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
-        "langchain-memory",
+        "workflow_chain-memory",
     );
     let bridge_path = normalize_bridge_path(
         root,
         payload
             .get("bridge_path")
             .and_then(Value::as_str)
-            .unwrap_or("adapters/protocol/langchain_connector_bridge.ts"),
+            .unwrap_or("adapters/protocol/workflow_chain_connector_bridge.ts"),
     )?;
     let documents = payload
         .get("documents")
@@ -407,7 +407,7 @@ fn register_memory_bridge(
         .cloned()
         .unwrap_or_default();
     if documents.is_empty() {
-        return Err("langchain_memory_bridge_documents_required".to_string());
+        return Err("workflow_chain_memory_bridge_documents_required".to_string());
     }
     let retrieval_modes = payload
         .get("retrieval_modes")
@@ -438,6 +438,6 @@ fn register_memory_bridge(
     Ok(json!({
         "ok": true,
         "memory_bridge": store,
-        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", langchain_claim("V6-WORKFLOW-014.3")),
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", workflow_chain_claim("V6-WORKFLOW-014.3")),
     }))
 }

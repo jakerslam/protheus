@@ -45,7 +45,7 @@ This intake must obey repository placement policy.
 
 - REQ-38: Agent orchestration hardening
 - REQ-42: Google ADK protocol-first agent assimilation
-- REQ-49: LangGraph persistent graph orchestration assimilation
+- REQ-49: Workflow Graph persistent graph orchestration assimilation
 - REQ-53: CAMEL scaling-law agent society assimilation
 - Existing SRS families:
   - `V6-SWARM-*`
