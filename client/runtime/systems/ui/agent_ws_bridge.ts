@@ -3,10 +3,29 @@
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer0/ops (authoritative transport + receipts); this file is UI bridge/wrapper.
 
-const { WebSocketServer } = require('ws');
+let wsDependencyWarned = false;
+function resolveWebSocketServerCtor() {
+  try {
+    const runtime = require('ws');
+    if (runtime && typeof runtime.WebSocketServer === 'function') return runtime.WebSocketServer;
+  } catch {}
+  return null;
+}
 
 function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson }) {
-  const wss = new WebSocketServer({ noServer: true, clientTracking: false, perMessageDeflate: false });
+  const WebSocketServerCtor = resolveWebSocketServerCtor();
+  if (!WebSocketServerCtor) {
+    if (!wsDependencyWarned) {
+      wsDependencyWarned = true;
+      console.warn('[infring dashboard] ws module unavailable; disabling local agent websocket bridge and falling back to HTTP transport.');
+    }
+    return {
+      ws_enabled: false,
+      ws_error: 'ws_module_missing',
+      tryHandle() { return false; },
+    };
+  }
+  const wss = new WebSocketServerCtor({ noServer: true, clientTracking: false, perMessageDeflate: false });
   const route = /^\/api\/agents\/([^/]+)\/ws$/;
   const enc = (agentId) => encodeURIComponent(String(agentId || '').trim());
   const send = (ws, payload) => {
@@ -153,6 +172,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     ws.on('error', () => {});
   });
   return {
+    ws_enabled: true,
+    ws_error: '',
     tryHandle(req, socket, head) {
       const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
       const match = pathname.match(route);

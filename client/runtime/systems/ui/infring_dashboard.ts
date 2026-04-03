@@ -338,6 +338,7 @@ async function runServe(flags) {
     console.warn('dashboard_sveltekit_build_missing_using_primary_static_ui');
   }
   const backend = await ensureBackend(flags);
+  const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const status = {
     ok: true,
     type: 'infring_dashboard_server',
@@ -352,11 +353,12 @@ async function runServe(flags) {
     dashboard_ui_mode_active: svelteKitUiEnabled ? 'sveltekit' : 'classic',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
+    ws_bridge_enabled: !!wsBridge.ws_enabled,
+    ws_bridge_error: cleanText(wsBridge.ws_error || '', 120),
     dashboard_static_dir: path.basename(STATIC_DIR),
     dashboard_sveltekit_module: fs.existsSync(SVELTEKIT_MODULE_DIR),
     status_path: path.relative(ROOT, STATUS_PATH),
   };
-  const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const server = http.createServer(async (req, res) => {
     const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
     try {

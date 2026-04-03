@@ -37,6 +37,15 @@ pub fn evaluate_dispatch_security(
     let payload = match evaluate_security_decision_payload(&workspace_root, &req, &request_base64) {
         Ok(value) => value,
         Err(reason) => {
+            if dispatch_security_gate_exempt(script_rel, args) {
+                return DispatchSecurity {
+                    ok: true,
+                    reason: format!(
+                        "dispatch_security_degraded_allow_read_only:{}",
+                        clean(reason, 180)
+                    ),
+                };
+            }
             return DispatchSecurity {
                 ok: false,
                 reason: format!("security_gate_blocked:{}", clean(reason, 220)),
@@ -68,6 +77,20 @@ pub fn evaluate_dispatch_security(
         ok: true,
         reason: "ok".to_string(),
     }
+}
+
+fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {
+    if matches!(
+        script_rel,
+        "core://unknown-command" | "core://install-doctor"
+    ) {
+        return true;
+    }
+    matches!(
+        script_rel,
+        "client/runtime/systems/ops/protheus_command_list.ts"
+            | "client/runtime/systems/ops/protheus_command_list.js"
+    )
 }
 
 fn evaluate_security_decision_payload(
@@ -366,6 +389,27 @@ fn route_integrity_ok(cmd: &str, rest: &[String], expected_script: &str) -> bool
         .unwrap_or(false)
 }
 
+fn node_module_resolvable(root: &Path, module_name: &str) -> bool {
+    if !has_node_runtime() {
+        return false;
+    }
+    let module_literal =
+        serde_json::to_string(module_name).unwrap_or_else(|_| "\"\"".to_string());
+    let probe = format!(
+        "try{{require.resolve({module_literal});process.exit(0);}}catch(_e){{process.exit(1);}}"
+    );
+    Command::new(node_bin())
+        .arg("-e")
+        .arg(probe)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let json_mode = has_json_flag(args);
     let mode = first_positional_command(args);
@@ -376,6 +420,7 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     };
     let runtime_mode = resolved_runtime_mode(root);
     let node_detected = has_node_runtime();
+    let ws_module_resolved = node_detected && node_module_resolvable(root, "ws");
     let missing_runtime = runtime_missing_entrypoints_for_mode(root, runtime_mode.as_str());
     let wrappers = json!({
         "infring": command_available_in_current_bin_dir("infring"),
@@ -443,6 +488,7 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let checks = json!({
         "runtime_mode": runtime_mode,
         "node_runtime_detected": node_detected,
+        "ws_module_resolved": ws_module_resolved,
         "runtime_assets_missing": missing_runtime.len(),
         "wrappers_ok": wrappers_ok,
         "dashboard_route_ok": dashboard_route_ok,
@@ -472,6 +518,9 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     // Full verification expects Node so all JS/TS command surfaces are actionable.
     if normalized_mode == "verify-install" && !node_detected {
         failures.push("node_runtime_missing".to_string());
+    }
+    if node_detected && !ws_module_resolved {
+        warnings.push("node_module_ws_missing".to_string());
     }
     if dashboard_port.is_none() {
         failures.push("dashboard_port_invalid".to_string());
