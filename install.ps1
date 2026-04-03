@@ -259,8 +259,9 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   Remove-Item $tmp.FullName -Force
   New-Item -ItemType Directory -Path $tmp.FullName | Out-Null
   $archive = Join-Path $tmp.FullName "client-runtime.bundle"
-  function Expand-ClientArchive($ArchivePath, $Destination) {
-    if ($ArchivePath.EndsWith(".tar.zst")) {
+  function Expand-ClientArchive($ArchivePath, $Destination, $AssetName = $null) {
+    if (-not $AssetName) { $AssetName = $ArchivePath }
+    if ($AssetName.EndsWith(".tar.zst")) {
       try {
         tar -xf $ArchivePath -C $Destination
         return $true
@@ -275,9 +276,20 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
         return $false
       }
     }
-    if ($ArchivePath.EndsWith(".tar.gz")) {
+    if ($AssetName.EndsWith(".tar.gz")) {
       tar -xzf $ArchivePath -C $Destination
       return $true
+    }
+    try {
+      tar -xzf $ArchivePath -C $Destination
+      return $true
+    } catch {
+      if (Get-Command zstd -ErrorAction SilentlyContinue) {
+        $tarPath = [System.IO.Path]::ChangeExtension($ArchivePath, ".tar")
+        zstd -d --stdout $ArchivePath > $tarPath
+        tar -xf $tarPath -C $Destination
+        return $true
+      }
     }
     return $false
   }
@@ -293,7 +305,7 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   )
   foreach ($asset in $assets) {
     if (Download-Asset $Version $asset $archive) {
-      if (Expand-ClientArchive $archive $OutDir) {
+      if (Expand-ClientArchive $archive $OutDir $asset) {
         Write-Host "[infring install] installed optional client runtime bundle"
         return $true
       }
