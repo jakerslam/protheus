@@ -233,6 +233,18 @@
   background: color-mix(in srgb, var(--accent-subtle) 72%, var(--surface) 28%);
 }
 
+.input-area.terminal-mode .chat-scroll-down {
+  border-color: color-mix(in srgb, #95ff63 70%, transparent);
+  border-top-color: color-mix(in srgb, #95ff63 70%, transparent);
+  border-bottom-color: color-mix(in srgb, #95ff63 88%, #000 12%);
+  border-right-color: color-mix(in srgb, #95ff63 88%, #000 12%);
+  color: #95ff63;
+}
+
+.input-area.terminal-mode .chat-scroll-down:hover {
+  background: color-mix(in srgb, rgba(149, 255, 99, 0.22) 74%, var(--surface) 26%);
+}
+
 .input-area.terminal-mode .composer-shell {
   background: #020502;
   border: 1px solid #95ff63;

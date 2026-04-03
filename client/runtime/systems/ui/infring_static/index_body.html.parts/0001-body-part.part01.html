@@ -119,15 +119,25 @@
               </a>
             </div>
             <a
+              class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-collapsed"
+              :class="{ 'is-loading': sidebarSpawningAgent }"
+              x-show="sidebarCollapsed"
+              :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
+              @click="if (!sidebarSpawningAgent) createSidebarAgentChat()"
+              title="New agent"
+              aria-label="New agent"
+            >
+              <span class="nav-icon new-agent-plus-icon-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true" :style="sidebarSpawningAgent ? 'opacity:0.45' : ''"><path d="M12 5v14M5 12h14"/></svg>
+                <span class="spinner-sm new-agent-plus-spinner" x-show="sidebarSpawningAgent" aria-hidden="true"></span>
+              </span>
+            </a>
+            <a
               class="nav-item nav-sub-item nav-agent-row nav-agent-row-system"
+              data-agent-id="system"
               :class="{ active: page === 'chat' && $store.app.activeAgentId === 'system' }"
               @click="selectAgentChatFromSidebar({ id: 'system', name: 'System', is_system_thread: true, state: 'running', identity: { emoji: '\u2699\ufe0f' }, model_provider: 'system', model_name: 'terminal' })"
               :aria-current="page === 'chat' && $store.app.activeAgentId === 'system' ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) showCollapsedAgentHover({ id: 'system', name: 'System', is_system_thread: true }, $event)"
-              @mousemove="if (sidebarCollapsed) handleCollapsedAgentHoverMove({ id: 'system', name: 'System', is_system_thread: true }, $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
-              @focusin="if (sidebarCollapsed) showCollapsedAgentHover({ id: 'system', name: 'System', is_system_thread: true }, $event)"
-              @focusout="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
               <span class="nav-icon nav-agent-icon">
                 <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy({ id: 'system', state: 'running' }) }">
@@ -160,6 +170,7 @@
             <template x-for="agent in chatSidebarRows" :key="'nav-agent-' + agent.id + '-' + (agent._sidebar_search_result ? 'search' : 'live')">
               <a
                 class="nav-item nav-sub-item nav-agent-row"
+                :data-agent-id="String(agent.id || '')"
                 :class="{
                   active: page === 'chat' && $store.app.activeAgentId === agent.id,
                   'nav-agent-row-archived': !!agent.archived,
@@ -180,8 +191,6 @@
                 @mouseenter="if (sidebarCollapsed) showCollapsedAgentHover(agent, $event)"
                 @mousemove="if (sidebarCollapsed) handleCollapsedAgentHoverMove(agent, $event)"
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
-                @focusin="if (sidebarCollapsed) showCollapsedAgentHover(agent, $event)"
-                @focusout="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
                 <span class="nav-icon nav-agent-icon">
                   <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent), 'nav-agent-avatar-archived-mask': !!agent.archived }">
@@ -364,15 +373,16 @@
     </div>
     <div
       class="nav-agent-collapsed-hover-float"
-      x-show="sidebarCollapsed && collapsedAgentHover.active && (!!String(collapsedAgentHover.text || '').trim() || String(collapsedAgentHover.id || '').toLowerCase() === 'system')"
+      x-cloak
+      x-show="sidebarCollapsed && collapsedAgentHover.active && !!String(collapsedAgentHover.id || '').trim() && !!String(collapsedAgentHover.name || '').trim() && !!String(collapsedAgentHover.text || '').trim() && Number(collapsedAgentHover.top || 0) > 0"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >
-      <span class="nav-agent-collapsed-hover-name truncate" x-text="collapsedAgentHover.name || 'Agent'"></span>
+      <span class="nav-agent-collapsed-hover-name truncate" x-text="collapsedAgentHover.name || ''"></span>
       <span
         class="nav-agent-collapsed-hover-text"
         :class="{ 'preview-unread': !!collapsedAgentHover.unread }"
-        x-text="collapsedAgentHover.text || ((String(collapsedAgentHover.id || '').toLowerCase() === 'system') ? 'System events and terminal output' : 'No messages yet')"
+        x-text="collapsedAgentHover.text || ''"
       ></span>
     </div>
 

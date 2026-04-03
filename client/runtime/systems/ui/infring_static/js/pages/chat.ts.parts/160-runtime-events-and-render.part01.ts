@@ -65,14 +65,35 @@
             this.terminalCwd = termCwd;
             termMeta += ' | ' + termCwd;
           }
+          var invokedBy = data && data.terminal_source ? String(data.terminal_source).trim().toLowerCase() : '';
+          if (invokedBy === 'assistant') invokedBy = 'agent';
+          if (invokedBy !== 'user' && invokedBy !== 'agent') invokedBy = '';
+          var invokedCommand = String(
+            (data && (data.command || data.requested_command || data.executed_command)) || ''
+          ).trim();
+          if (invokedBy === 'agent' && invokedCommand) {
+            this._appendTerminalMessage({
+              role: 'terminal',
+              text: this._terminalPromptLine(termCwd, invokedCommand),
+              meta: termCwd,
+              tools: [],
+              ts: Date.now(),
+              terminal_source: 'agent',
+              cwd: termCwd,
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+            });
+          }
           this._appendTerminalMessage({
             role: 'terminal',
             text: termText,
             meta: termMeta,
             tools: [],
             ts: Date.now(),
-            terminal_source: data && data.terminal_source ? String(data.terminal_source).toLowerCase() : 'user',
-            cwd: termCwd
+            terminal_source: 'system',
+            cwd: termCwd,
+            agent_id: data && data.agent_id ? String(data.agent_id) : '',
+            agent_name: data && data.agent_name ? String(data.agent_name) : ''
           });
           this.sending = false;
           this._responseStartedAt = 0;
@@ -85,14 +106,34 @@
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
+          var terminalErrorSource = data && data.terminal_source ? String(data.terminal_source).trim().toLowerCase() : '';
+          if (terminalErrorSource === 'assistant') terminalErrorSource = 'agent';
+          if (terminalErrorSource !== 'user' && terminalErrorSource !== 'agent') terminalErrorSource = '';
+          var terminalErrorCommand = String(
+            (data && (data.command || data.requested_command || data.executed_command)) || ''
+          ).trim();
+          var terminalErrorCwd = data && data.cwd ? String(data.cwd) : this.terminalPromptPath;
+          if (terminalErrorSource === 'agent' && terminalErrorCommand) {
+            this._appendTerminalMessage({
+              role: 'terminal',
+              text: this._terminalPromptLine(terminalErrorCwd, terminalErrorCommand),
+              meta: terminalErrorCwd,
+              tools: [],
+              ts: Date.now(),
+              terminal_source: 'agent',
+              cwd: terminalErrorCwd,
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+            });
+          }
           this._appendTerminalMessage({
             role: 'terminal',
             text: 'Terminal error: ' + (data && data.message ? data.message : 'command failed'),
             meta: '',
             tools: [],
             ts: Date.now(),
-            terminal_source: data && data.terminal_source ? String(data.terminal_source).toLowerCase() : 'user',
-            cwd: this.terminalPromptPath
+            terminal_source: 'system',
+            cwd: terminalErrorCwd
           });
           this.sending = false;
           this._responseStartedAt = 0;
@@ -223,7 +264,10 @@
 
     messageRoleClass: function(msg) {
       if (msg && msg.terminal) {
-        return this.terminalMessageSource(msg) === 'user' ? 'terminal terminal-user' : 'terminal terminal-agent';
+        var source = this.terminalMessageSource(msg);
+        if (source === 'user') return 'terminal terminal-user';
+        if (source === 'agent') return 'terminal terminal-agent';
+        return 'terminal terminal-system';
       }
       if (!msg || !msg.role) return 'agent';
       return String(msg.role);
@@ -233,7 +277,8 @@
       if (!msg || !msg.terminal) return 'agent';
       var source = String(msg.terminal_source || '').trim().toLowerCase();
       if (source === 'user' || source === 'agent' || source === 'system') return source;
-      return 'agent';
+      if (source === 'assistant') return 'agent';
+      return 'system';
     },
 
     terminalToolboxSideClass: function(msg) {
@@ -254,6 +299,7 @@
 
     terminalMessageCollapsed: function(msg, idx, rows) {
       if (!msg || !msg.terminal || msg.thinking) return false;
+      if (msg._terminal_compact !== true) return false;
       if (msg._terminal_expanded === true) return false;
       var list = Array.isArray(rows) ? rows : this.messages;
       if (!Array.isArray(list) || idx < 0 || idx >= list.length) return false;
@@ -278,14 +324,18 @@
       if (compact.length > 108) return compact.slice(0, 105) + '...';
       return compact;
     },
+    isThinkingPlaceholderText: function(input) {
+      var value = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\*+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!value) return true;
+      if (/^(thinking|processing|working|preparing response|reasoning through context)(\.\.\.|…)?$/.test(value)) return true;
+      if (/^(using|calling)\b.+(\.\.\.|…)?$/.test(value)) return true;
+      return false;
+    },
     thinkingDisplayText: function(msg) {
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
       var rawText = String(msg && msg.text ? msg.text : '').trim();
       var value = rawThought || rawText;
-      if (!value) return 'Thinking...';
-
-      // For active thought streaming, only show fully completed sentences.
-      // Hold the previous completed sentence while the next sentence streams.
+      if (!value) return '';
       if (rawThought) {
         var latestComplete = typeof this.latestCompleteSentence === 'function'
           ? String(this.latestCompleteSentence(rawThought) || '').trim()
@@ -296,16 +346,17 @@
         }
         var sticky = String(msg && msg._thought_last_complete_sentence ? msg._thought_last_complete_sentence : '').trim();
         if (sticky) return sticky;
-        return 'Thinking...';
+        return '';
       }
 
       value = value.replace(/<[^>]*>/g, ' ').replace(/^\*+|\*+$/g, '').replace(/\s+/g, ' ').trim();
+      if (this.isThinkingPlaceholderText(value)) return '';
       var latestFromText = typeof this.latestCompleteSentence === 'function'
         ? String(this.latestCompleteSentence(value) || '').trim()
         : '';
       if (latestFromText) return latestFromText;
       if (value.length > 180) value = value.slice(0, 177).trim() + '...';
-      return value || 'Thinking...';
+      return value || '';
     },
 
     thinkingToolStatusSummary: function(msg) {
@@ -364,15 +415,7 @@
     thinkingStatusText: function(msg) {
       if (!msg || !msg.thinking) return '';
       var status = String(msg.thinking_status || msg.status_text || '').trim();
-      var toolSummary = this.thinkingToolStatusSummary(msg);
-      if (toolSummary.text) {
-        var staleCallingText = /^calling\b/i.test(status) && !toolSummary.hasRunning;
-        if (!status || staleCallingText) {
-          status = toolSummary.text;
-        } else if (status.toLowerCase().indexOf(toolSummary.text.toLowerCase()) === -1) {
-          status += ' · ' + toolSummary.text;
-        }
-      }
+      if (this.isThinkingPlaceholderText(status)) status = '';
       var progress = msg.progress && Number.isFinite(Number(msg.progress.percent))
         ? Math.max(0, Math.min(100, Math.round(Number(msg.progress.percent))))
         : NaN;
@@ -382,6 +425,7 @@
       } else if (status && Number.isFinite(progress) && !/\b\d{1,3}%\b/.test(status)) {
         status += ' · ' + progress + '%';
       }
+      if (this.isThinkingPlaceholderText(status)) status = '';
       if (status.length > 220) status = status.slice(0, 217) + '...';
       return status;
     },
@@ -414,8 +458,11 @@
         return 'notice:' + noticeLabel + ':' + noticeTs;
       }
       if (msg.terminal) {
+        var terminalSource = this.terminalMessageSource(msg);
+        if (terminalSource === 'user') return 'terminal:user';
+        if (terminalSource === 'system') return 'terminal:system';
         var terminalAgentId = String((msg && msg.agent_id) || (this.currentAgent && this.currentAgent.id) || '').trim();
-        return terminalAgentId ? ('terminal:' + terminalAgentId) : 'terminal';
+        return terminalAgentId ? ('terminal:agent:' + terminalAgentId.toLowerCase()) : 'terminal:agent';
       }
       var role = String(msg.role || '').trim().toLowerCase();
       if (!role) return '';

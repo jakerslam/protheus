@@ -132,3 +132,47 @@ fn web_tool_fallback_can_use_semantic_memory_matches() {
         .map(|rows| !rows.is_empty())
         .unwrap_or(false));
 }
+
+#[test]
+fn web_search_summary_strips_search_engine_chrome_noise() {
+    let summary = summarize_tool_payload(
+        "web_search",
+        &json!({
+            "ok": true,
+            "query": "agentic ai systems architecture best practices 2024",
+            "summary": "agentic AI systems architecture best practices 2024 at DuckDuckGo All Regions Argentina Australia Austria arxiv.org/abs/2601.00123"
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(!lowered.contains("duckduckgo all regions"));
+    assert!(lowered.contains("web search completed"));
+    assert!(lowered.contains("arxiv.org"));
+}
+
+#[test]
+fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let response =
+        "<function=spawn_subagents>{\"count\":3,\"objective\":\"parallelize analysis\"}</function>";
+    let (text, cards) =
+        execute_inline_tool_calls(root.path(), &snapshot, "agent-inline", None, response);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(
+        cards[0].get("is_error").and_then(Value::as_bool),
+        Some(true)
+    );
+    let lowered = text.to_ascii_lowercase();
+    assert!(!lowered.contains("tool_explicit_signoff_required"));
+    assert!(!lowered.contains("spawn_subagents failed"));
+    assert!(lowered.contains("confirmation"));
+}
+
+#[test]
+fn telemetry_dump_detector_flags_duckduckgo_noise_and_tool_error_codes() {
+    let dump = "agentic AI systems architecture at DuckDuckGo All Regions Argentina Australia. spawn_subagents failed: tool_explicit_signoff_required";
+    assert!(response_is_unrelated_context_dump(
+        "improve this system",
+        dump
+    ));
+}

@@ -56,7 +56,7 @@
                 <div class="input-row">
                 <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="addFiles($event.target.files); $event.target.value = ''" style="display:none">
                 <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked() }" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
-                  <div class="composer-plus-wrap composer-icon-left" @click.outside="showAttachMenu = false">
+                  <div class="composer-plus-wrap composer-icon-left" x-show="!(isSystemThreadAgent && isSystemThreadAgent(currentAgent))" @click.outside="showAttachMenu = false">
                     <button class="composer-icon-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                     </button>
@@ -226,7 +226,7 @@
                 <span class="chat-archived-banner-text">This agent is archived</span>
                 <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
               </div>
-              <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())">
+              <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !(isSystemThreadAgent && isSystemThreadAgent(currentAgent))">
                 <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
                   <button
                     type="button"

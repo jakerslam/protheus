@@ -84,7 +84,10 @@ fn config_text(channel: &Value, keys: &[&str], max_len: usize) -> String {
         return String::new();
     };
     for key in keys {
-        let value = clean_text(config.get(*key).and_then(Value::as_str).unwrap_or(""), max_len);
+        let value = clean_text(
+            config.get(*key).and_then(Value::as_str).unwrap_or(""),
+            max_len,
+        );
         if !value.is_empty() {
             return value;
         }
@@ -296,11 +299,7 @@ fn load_channel_registry(root: &Path) -> Value {
                     }
                 }
             }
-            if !existing
-                .get("fields")
-                .map(Value::is_array)
-                .unwrap_or(false)
-            {
+            if !existing.get("fields").map(Value::is_array).unwrap_or(false) {
                 if let Some(value) = default_obj.get("fields") {
                     existing["fields"] = value.clone();
                 }
@@ -546,7 +545,10 @@ fn run_http_probe(
                 format!("Live probe failed with HTTP {status}: {err}")
             })
         }
-        Err(err) => error_response(&format!("Live probe request failed: {}", clean_text(&err, 280))),
+        Err(err) => error_response(&format!(
+            "Live probe request failed: {}",
+            clean_text(&err, 280)
+        )),
     }
 }
 
@@ -593,7 +595,12 @@ fn run_live_probe_gohighlevel(channel: &Value) -> CompatApiResponse {
     }
     let location_id = config_text(
         channel,
-        &["location_id", "locationid", "sub_account_id", "subaccount_id"],
+        &[
+            "location_id",
+            "locationid",
+            "sub_account_id",
+            "subaccount_id",
+        ],
         160,
     );
     if location_id.is_empty() {

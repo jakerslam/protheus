@@ -139,13 +139,13 @@ fn models_v1_payload(root: &Path, snapshot: &Value) -> Value {
             rows.iter()
                 .filter_map(|row| {
                     let provider = clean_text(
-                        row.get("provider").and_then(Value::as_str).unwrap_or("auto"),
+                        row.get("provider")
+                            .and_then(Value::as_str)
+                            .unwrap_or("auto"),
                         80,
                     );
-                    let model = clean_text(
-                        row.get("model").and_then(Value::as_str).unwrap_or(""),
-                        160,
-                    );
+                    let model =
+                        clean_text(row.get("model").and_then(Value::as_str).unwrap_or(""), 160);
                     if model.is_empty() {
                         return None;
                     }
@@ -295,7 +295,11 @@ fn rewrite_integration_to_channel(path_only: &str) -> Option<String> {
 fn pairing_start_payload(root: &Path) -> CompatApiResponse {
     let pairing_id = format!("pair_{}", stable_hash(&format!("{}|pairing", now_ms()), 16));
     let code_raw = stable_hash(&format!("{pairing_id}|{}", now_ms()), 12);
-    let code = code_raw.chars().take(6).collect::<String>().to_ascii_uppercase();
+    let code = code_raw
+        .chars()
+        .take(6)
+        .collect::<String>()
+        .to_ascii_uppercase();
     let mut state = load_parity_state(root);
     state["pairing"] = json!({
         "pairing_id": pairing_id,
@@ -380,7 +384,8 @@ fn pairing_transition_payload(root: &Path, body: &[u8], status: &str) -> CompatA
 
 fn upload_bytes_from_request(request: &Value, body: &[u8]) -> Vec<u8> {
     if let Some(text) = request.get("content_base64").and_then(Value::as_str) {
-        if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(clean_text(text, 1_000_000))
+        if let Ok(bytes) =
+            base64::engine::general_purpose::STANDARD.decode(clean_text(text, 1_000_000))
         {
             return bytes;
         }
@@ -417,10 +422,7 @@ fn upload_create_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
     );
     let upload_id = format!(
         "upl_{}",
-        stable_hash(
-            &format!("{}|{}|{}", filename, bytes.len(), now_ms()),
-            18
-        )
+        stable_hash(&format!("{}|{}|{}", filename, bytes.len(), now_ms()), 18)
     );
     let digest = stable_hash(&String::from_utf8_lossy(&bytes), 16);
     let uploads_dir = state_path(root, REFERENCE_UPLOADS_DIR_REL);
@@ -431,7 +433,10 @@ fn upload_create_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
     let mut state = load_parity_state(root);
     let uploads = as_array_mut(&mut state, "uploads");
     uploads.retain(|row| {
-        clean_text(row.get("upload_id").and_then(Value::as_str).unwrap_or(""), 120) != upload_id
+        clean_text(
+            row.get("upload_id").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ) != upload_id
     });
     uploads.push(json!({
         "upload_id": upload_id,
@@ -458,7 +463,10 @@ fn upload_create_payload(root: &Path, body: &[u8]) -> CompatApiResponse {
 fn upload_detail_payload(root: &Path, upload_id: &str) -> CompatApiResponse {
     let needle = clean_text(upload_id, 120);
     let Some(row) = uploads_list(root).into_iter().find(|row| {
-        clean_text(row.get("upload_id").and_then(Value::as_str).unwrap_or(""), 120) == needle
+        clean_text(
+            row.get("upload_id").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ) == needle
     }) else {
         return CompatApiResponse {
             status: 404,
@@ -477,10 +485,15 @@ fn upload_delete_payload(root: &Path, upload_id: &str) -> CompatApiResponse {
     let rows = as_array_mut(&mut state, "uploads");
     let mut removed = None;
     rows.retain(|row| {
-        let keep = clean_text(row.get("upload_id").and_then(Value::as_str).unwrap_or(""), 120)
-            != needle;
+        let keep = clean_text(
+            row.get("upload_id").and_then(Value::as_str).unwrap_or(""),
+            120,
+        ) != needle;
         if !keep {
-            removed = row.get("path").and_then(Value::as_str).map(|v| v.to_string());
+            removed = row
+                .get("path")
+                .and_then(Value::as_str)
+                .map(|v| v.to_string());
         }
         keep
     });
@@ -535,7 +548,8 @@ fn handle_marketplace_aliases(
     snapshot: &Value,
     body: &[u8],
 ) -> Option<CompatApiResponse> {
-    if method == "GET" && (path_only == "/api/marketplace" || path_only == "/api/marketplace/browse")
+    if method == "GET"
+        && (path_only == "/api/marketplace" || path_only == "/api/marketplace/browse")
     {
         let query = path.split_once('?').map(|(_, q)| q).unwrap_or("limit=25");
         let forwarded = format!("/api/clawhub/browse?{query}");
@@ -603,7 +617,8 @@ pub fn handle(
         return Some(logout_payload(root));
     }
 
-    if method == "GET" && (path_only == "/api/integrations" || path_only == "/api/integrations/catalog")
+    if method == "GET"
+        && (path_only == "/api/integrations" || path_only == "/api/integrations/catalog")
     {
         return Some(CompatApiResponse {
             status: 200,
@@ -661,7 +676,8 @@ pub fn handle(
         return Some(stream_payload(root, "comms_events"));
     }
 
-    if let Some(response) = handle_marketplace_aliases(root, method, path, path_only, snapshot, body)
+    if let Some(response) =
+        handle_marketplace_aliases(root, method, path, path_only, snapshot, body)
     {
         return Some(response);
     }
@@ -695,7 +711,11 @@ mod tests {
                 .unwrap_or(""),
             "list"
         );
-        assert!(response.payload.get("data").map(Value::is_array).unwrap_or(false));
+        assert!(response
+            .payload
+            .get("data")
+            .map(Value::is_array)
+            .unwrap_or(false));
     }
 
     #[test]
@@ -713,7 +733,11 @@ mod tests {
         .expect("login");
         assert_eq!(login.status, 200);
         let token = clean_text(
-            login.payload.get("token").and_then(Value::as_str).unwrap_or(""),
+            login
+                .payload
+                .get("token")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             200,
         );
         assert!(!token.is_empty());
@@ -729,13 +753,11 @@ mod tests {
         )
         .expect("logout");
         assert_eq!(logout.status, 200);
-        assert!(
-            logout
-                .payload
-                .get("logged_out")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        );
+        assert!(logout
+            .payload
+            .get("logged_out")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
     }
 
     #[test]
@@ -771,13 +793,11 @@ mod tests {
         )
         .expect("configure");
         assert_eq!(configure.status, 200);
-        assert!(
-            configure
-                .payload
-                .get("ok")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        );
+        assert!(configure
+            .payload
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
     }
 
     #[test]
@@ -909,13 +929,11 @@ mod tests {
             &json!({}),
         )
         .expect("upload delete");
-        assert!(
-            deleted
-                .payload
-                .get("deleted")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        );
+        assert!(deleted
+            .payload
+            .get("deleted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
     }
 
     #[test]
@@ -932,7 +950,11 @@ mod tests {
         )
         .expect("marketplace browse");
         assert_eq!(browse.status, 200);
-        assert!(browse.payload.get("items").map(Value::is_array).unwrap_or(false));
+        assert!(browse
+            .payload
+            .get("items")
+            .map(Value::is_array)
+            .unwrap_or(false));
 
         let reload = handle(
             root.path(),
@@ -945,12 +967,10 @@ mod tests {
         )
         .expect("skills reload");
         assert_eq!(reload.status, 200);
-        assert!(
-            reload
-                .payload
-                .get("reloaded")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        );
+        assert!(reload
+            .payload
+            .get("reloaded")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
     }
 }

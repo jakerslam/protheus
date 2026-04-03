@@ -224,3 +224,45 @@ fn idle_termination_can_be_disabled_per_contract() {
         .unwrap_or_default();
     assert!(terminated.is_empty());
 }
+
+#[test]
+fn manual_termination_condition_disables_auto_and_idle_termination_for_legacy_contracts() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created_at = (Utc::now() - Duration::hours(6)).to_rfc3339();
+    let path = root.path().join(AGENT_CONTRACTS_REL);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("mkdir contracts");
+    }
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!({
+            "type": "infring_dashboard_agent_contracts",
+            "updated_at": Utc::now().to_rfc3339(),
+            "contracts": {
+                "agent-permanent": {
+                    "agent_id": "agent-permanent",
+                    "contract_id": "contract-permanent",
+                    "status": "active",
+                    "created_at": created_at,
+                    "updated_at": created_at,
+                    "termination_condition": "manual",
+                    "expiry_seconds": 1,
+                    "auto_terminate_allowed": true,
+                    "idle_timeout_seconds": 120,
+                    "idle_terminate_allowed": true
+                }
+            },
+            "terminated_history": []
+        }))
+        .expect("json"),
+    )
+    .expect("write contract state");
+
+    let out = enforce_expired_contracts(root.path());
+    let terminated = out
+        .get("terminated")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(terminated.is_empty());
+}

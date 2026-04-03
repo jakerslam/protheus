@@ -178,6 +178,10 @@
         return !eventId || eventId === targetAgentId;
       };
       var ensurePendingThinkingRow = function(statusText) {
+        var nextStatus = String(statusText || '').trim();
+        if (typeof self.isThinkingPlaceholderText === 'function' && self.isThinkingPlaceholderText(nextStatus)) {
+          nextStatus = '';
+        }
         var pendingRow = null;
         var rows = Array.isArray(self.messages) ? self.messages : [];
         for (var i = rows.length - 1; i >= 0; i--) {
@@ -193,11 +197,11 @@
           pendingRow = {
             id: ++msgId,
             role: 'agent',
-            text: 'Thinking...',
+            text: '',
             meta: '',
             thinking: true,
             streaming: true,
-            thinking_status: statusText,
+            thinking_status: nextStatus,
             tools: [],
             agent_id: targetAgentId,
             agent_name: self.currentAgent && self.currentAgent.name ? String(self.currentAgent.name) : '',
@@ -207,8 +211,8 @@
         } else {
           pendingRow.thinking = true;
           pendingRow.streaming = true;
-          if (!String(pendingRow.text || '').trim()) pendingRow.text = 'Thinking...';
-          pendingRow.thinking_status = statusText;
+          if (!String(pendingRow.text || '').trim()) pendingRow.text = '';
+          pendingRow.thinking_status = nextStatus;
           pendingRow._stream_updated_at = Date.now();
         }
       };
@@ -420,23 +424,20 @@
         // Legacy thinking event (backward compat)
         case 'thinking':
           if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-            var thinkLabel = data.level ? 'Thinking (' + data.level + ')...' : 'Thinking...';
             this.messages.push({
               id: ++msgId,
               role: 'agent',
-              text: '*' + thinkLabel + '*',
+              text: '',
               meta: '',
               thinking: true,
               streaming: true,
+              thinking_status: '',
               tools: [],
               agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
               agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             });
             this.scrollToBottom();
             this._resetTypingTimeout();
-          } else if (data.level) {
-            var lastThink = this.messages[this.messages.length - 1];
-            if (lastThink && lastThink.thinking) lastThink.text = '*Thinking (' + data.level + ')...*';
           }
           break;
 
@@ -448,11 +449,11 @@
               this.messages.push({
                 id: ++msgId,
                 role: 'agent',
-                text: 'Thinking...',
+                text: '',
                 meta: '',
                 thinking: true,
                 streaming: true,
-                thinking_status: 'Preparing response...',
+                thinking_status: '',
                 tools: [],
                 agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
                 agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
@@ -464,9 +465,10 @@
             this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
             var typingMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
             if (typingMsg && (typingMsg.thinking || typingMsg.streaming)) {
-              var typingTool = String(data.tool || 'tool').trim() || 'tool';
-              typingMsg.text = '*Using ' + typingTool + '...*';
-              typingMsg.thinking_status = 'Calling ' + typingTool + '...';
+              typingMsg.text = '';
+              if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(typingMsg.thinking_status)) {
+                typingMsg.thinking_status = '';
+              }
             }
             this._resetTypingTimeout();
           } else if (data.state === 'stop') {
@@ -479,7 +481,6 @@
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
-            var phaseName = String(data && data.phase ? data.phase : '').trim().toLowerCase();
             var phaseDetailText = String(data && data.detail ? data.detail : '').trim();
             var phasePercent = Number(
               data && data.progress_percent != null

@@ -26,24 +26,24 @@ const ACTION_HISTORY_REL: &str =
 const APP_PLANE_STATE_ENV: &str = "APP_PLANE_STATE_ROOT";
 const APP_PLANE_SCOPE: &str = "app_plane";
 const AGENT_INSTINCT_DIR_REL: &str = "client/instinct";
-const AGENT_RUNTIME_SYSTEM_PROMPT: &str = "You are the currently selected Infring agent instance. Treat the injected identity profile (name, role, archetype, vibe, personality) as authoritative for self-identification. You have access to runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces. Use those capabilities directly and avoid capability-denial replies. Keep responses natural and user-focused. Do not mention internal implementation terms unless the user explicitly asks for internals. When users ask for web research, call tools with inline syntax like <function=web_search>{\"query\":\"...\"}</function> or <function=web_fetch>{\"url\":\"https://...\",\"summary_only\":true}</function>. When parallel execution helps, proactively spawn descendant agents with inline tool calls using exact syntax like <function=spawn_subagents>{\"count\":3,\"objective\":\"...\"}</function>. You may manage descendants with <function=manage_agent>{\"action\":\"message\",\"agent_id\":\"...\",\"message\":\"...\"}</function>. Never output capability-denial claims; use available command surfaces.";
+const AGENT_RUNTIME_SYSTEM_PROMPT: &str = "You are the currently selected Infring agent instance. Treat the injected identity profile (name, role, archetype, vibe, personality) as authoritative for self-identification. You have access to runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces. Use those capabilities directly and avoid capability-denial replies. Keep responses natural and user-focused. Do not mention internal implementation terms unless the user explicitly asks for internals. When users ask for web research, call tools with inline syntax like <function=web_search>{\"query\":\"...\"}</function> or <function=web_fetch>{\"url\":\"https://...\",\"summary_only\":true}</function>. When parallel execution helps, proactively spawn descendant agents with inline tool calls using exact syntax like <function=spawn_subagents>{\"count\":3,\"objective\":\"...\"}</function>. You may manage descendants with <function=manage_agent>{\"action\":\"message\",\"agent_id\":\"...\",\"message\":\"...\"}</function>. Use tool output as context and synthesize a direct answer; never dump raw tool telemetry, search-engine UI text, or policy error codes verbatim to users. Never output capability-denial claims; use available command surfaces.";
 
+#[path = "../dashboard_compat_api_agent_identity.rs"]
+mod dashboard_compat_api_agent_identity;
 #[path = "../dashboard_compat_api_channels.rs"]
 mod dashboard_compat_api_channels;
 #[path = "../dashboard_compat_api_comms.rs"]
 mod dashboard_compat_api_comms;
 #[path = "../dashboard_compat_api_hands.rs"]
 mod dashboard_compat_api_hands;
-#[path = "../dashboard_compat_api_reference_parity.rs"]
-mod dashboard_compat_api_reference_parity;
 #[path = "../dashboard_compat_api_reference_gap_closure.rs"]
 mod dashboard_compat_api_reference_gap_closure;
+#[path = "../dashboard_compat_api_reference_parity.rs"]
+mod dashboard_compat_api_reference_parity;
 #[path = "../dashboard_compat_api_settings_ops.rs"]
 mod dashboard_compat_api_settings_ops;
 #[path = "../dashboard_compat_api_sidebar_ops.rs"]
 mod dashboard_compat_api_sidebar_ops;
-#[path = "../dashboard_compat_api_agent_identity.rs"]
-mod dashboard_compat_api_agent_identity;
 #[path = "../dashboard_skills_marketplace.rs"]
 mod dashboard_skills_marketplace;
 #[derive(Debug, Clone)]
@@ -258,7 +258,8 @@ fn runtime_access_denied_phrase(text: &str) -> bool {
         || normalized.contains("which of the suggestions did you implement")
         || normalized.contains("if you can tell me which lever you pulled")
         || normalized.contains("what should i be looking for");
-    let workspace_only_capability_dump = normalized.contains("i can only read what's in your workspace files")
+    let workspace_only_capability_dump = normalized
+        .contains("i can only read what's in your workspace files")
         || normalized.contains("i can only read what is in your workspace files")
         || normalized.contains("i don't have inherent introspection")
         || normalized.contains("i do not have inherent introspection")
@@ -312,8 +313,16 @@ fn strip_internal_context_metadata_prefix(text: &str) -> String {
     let suffix = trimmed
         .split_once("Recalled context:")
         .map(|(_, tail)| tail)
-        .or_else(|| trimmed.split_once("recalled context:").map(|(_, tail)| tail))
-        .or_else(|| trimmed.split_once("RECALLED CONTEXT:").map(|(_, tail)| tail))
+        .or_else(|| {
+            trimmed
+                .split_once("recalled context:")
+                .map(|(_, tail)| tail)
+        })
+        .or_else(|| {
+            trimmed
+                .split_once("RECALLED CONTEXT:")
+                .map(|(_, tail)| tail)
+        })
         .unwrap_or("")
         .trim();
     if suffix.is_empty() {
@@ -351,7 +360,10 @@ fn strip_internal_cache_control_markup(text: &str) -> String {
         let end_rel = tail
             .find("/>")
             .map(|idx| idx + 2)
-            .or_else(|| tail.find("</cache_control>").map(|idx| idx + "</cache_control>".len()))
+            .or_else(|| {
+                tail.find("</cache_control>")
+                    .map(|idx| idx + "</cache_control>".len())
+            })
             .or_else(|| tail.find('>').map(|idx| idx + 1))
             .unwrap_or(tail.len());
         let end = start.saturating_add(end_rel).min(cleaned.len());
@@ -472,9 +484,7 @@ fn infer_subagent_count_from_message(text: &str) -> usize {
     if lowered.contains("dozen") || lowered.contains("many") || lowered.contains("all") {
         return 5;
     }
-    if lowered.contains("comprehensive")
-        || lowered.contains("across")
-        || lowered.contains("stress")
+    if lowered.contains("comprehensive") || lowered.contains("across") || lowered.contains("stress")
     {
         return 4;
     }
@@ -624,8 +634,14 @@ mod clean_text_swarm_intent_tests {
 
     #[test]
     fn infer_subagent_count_from_message_prefers_numeric_hint() {
-        assert_eq!(infer_subagent_count_from_message("spawn 11 subagents now"), 8);
-        assert_eq!(infer_subagent_count_from_message("spawn 2 subagents now"), 2);
+        assert_eq!(
+            infer_subagent_count_from_message("spawn 11 subagents now"),
+            8
+        );
+        assert_eq!(
+            infer_subagent_count_from_message("spawn 2 subagents now"),
+            2
+        );
     }
 }
 
@@ -633,8 +649,7 @@ mod clean_text_swarm_intent_tests {
 mod clean_text_memory_phrase_tests {
     use super::{
         internal_context_metadata_phrase, persistent_memory_denied_phrase,
-        strip_internal_cache_control_markup,
-        strip_internal_context_metadata_prefix,
+        strip_internal_cache_control_markup, strip_internal_context_metadata_prefix,
     };
 
     #[test]

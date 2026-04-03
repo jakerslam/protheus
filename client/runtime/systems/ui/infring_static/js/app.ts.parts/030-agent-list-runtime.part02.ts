@@ -130,22 +130,48 @@
     },
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
+      var eventType = String((ev && ev.type) || '').toLowerCase();
+      if (eventType && eventType.indexOf('mouse') !== 0 && eventType.indexOf('pointer') !== 0) return;
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
-      this.updateCollapsedAgentHoverPosition(ev);
-      var preview = this.chatSidebarPreview(agent) || {};
-      var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
-      var hasPreviewText = String(preview.text || '').trim().length > 0;
-      if (!isSystemThread && !hasPreviewText) {
+      var rawId = String((agent && agent.id) || '').trim();
+      var isSystemThread = agent.is_system_thread === true || rawId.toLowerCase() === 'system';
+      if (!rawId && !isSystemThread) {
         this.hideCollapsedAgentHover();
         return;
       }
-      var fallbackText = isSystemThread ? 'System events and terminal output' : 'No messages yet';
+      var hoverId = isSystemThread ? 'system' : rawId;
+      var rowEl = ev && ev.currentTarget ? ev.currentTarget : null;
+      if (rowEl && typeof rowEl.getAttribute === 'function') {
+        var rowAgentId = String(rowEl.getAttribute('data-agent-id') || '').trim();
+        if (!rowAgentId || rowAgentId !== hoverId) {
+          this.hideCollapsedAgentHover();
+          return;
+        }
+      }
+      this.updateCollapsedAgentHoverPosition(ev);
+      var currentTop = Number((this.collapsedAgentHover && this.collapsedAgentHover.top) || 0);
+      if (!Number.isFinite(currentTop) || currentTop <= 0) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var preview = this.chatSidebarPreview(Object.assign({}, agent, { id: hoverId, is_system_thread: isSystemThread })) || {};
+      var previewText = String(preview.text || '').trim();
+      var isPlaceholderPreview = String(previewText || '').toLowerCase() === 'no messages yet';
+      if (!previewText || isPlaceholderPreview) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var hoverName = String(agent.name || (isSystemThread ? 'System' : hoverId)).trim();
+      if (!hoverName) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
-        id: String(agent.id || ''),
+        id: hoverId,
         active: true,
-        name: String(agent.name || agent.id || 'Agent'),
-        text: String(preview.text || fallbackText),
+        name: hoverName,
+        text: previewText,
         unread: !!preview.unread_response
       });
     },

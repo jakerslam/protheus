@@ -93,19 +93,29 @@
       return merged;
     },
     latestCompleteSentence: function(inputText) {
-      var value = String(inputText || '')
+      var raw = String(inputText || '')
         .replace(/<[^>]*>/g, ' ')
         .replace(/^\*+|\*+$/g, '')
-        .replace(/\s+/g, ' ')
+        .replace(/\r/g, '')
         .trim();
+      if (!raw) return '';
+      var value = raw.replace(/[ \t]+/g, ' ').trim();
       if (!value) return '';
       var sentenceMatches = value.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g);
-      if (!sentenceMatches || !sentenceMatches.length) return '';
-      var latest = String(sentenceMatches[sentenceMatches.length - 1] || '').trim();
-      return latest || '';
+      if (sentenceMatches && sentenceMatches.length) {
+        var latest = String(sentenceMatches[sentenceMatches.length - 1] || '').trim();
+        return latest || '';
+      }
+      var lines = raw.split('\n').map(function(line) {
+        return String(line || '').replace(/\s+/g, ' ').trim();
+      }).filter(function(line) { return !!line; });
+      if (lines.length < 2) return '';
+      var finalLine = String(lines[lines.length - 1] || '').trim();
+      if (/[.!?…]$/.test(finalLine)) return finalLine;
+      return String(lines[lines.length - 2] || '').trim();
     },
     renderLiveThoughtHtml: function(thoughtText) {
-      var text = this.latestCompleteSentence(thoughtText) || 'Thinking...';
+      var text = this.latestCompleteSentence(thoughtText) || '';
       return '<span class="thinking-live-inline"><em>' + escapeHtml(text) + '</em></span>';
     },
 

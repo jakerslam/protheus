@@ -256,13 +256,15 @@
           exit_code: Number(response && response.exit_code != null ? response.exit_code : 1),
           duration_ms: 0,
           cwd: this.terminalPromptPath,
-          terminal_source: 'user'
+          terminal_source: 'system',
+          requested_command: response && response.requested_command ? String(response.requested_command) : '',
+          executed_command: response && response.executed_command ? String(response.executed_command) : ''
         });
       } catch (error) {
         this.handleWsMessage({
           type: 'terminal_error',
           message: error && error.message ? error.message : 'command failed',
-          terminal_source: 'user'
+          terminal_source: 'system'
         });
       }
     },

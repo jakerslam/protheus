@@ -324,13 +324,18 @@ pub(super) fn skills_prompt_context(root: &Path, max_skills: usize, max_chars: u
             continue;
         }
         let context = clean_text(
-            row.get("prompt_context").and_then(Value::as_str).unwrap_or(""),
+            row.get("prompt_context")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             1200,
         );
         if context.is_empty() {
             continue;
         }
-        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or("plugin"), 120);
+        let name = clean_text(
+            row.get("name").and_then(Value::as_str).unwrap_or("plugin"),
+            120,
+        );
         lines.push(format!("- {name}: {context}"));
     }
     if lines.is_empty() {
@@ -835,7 +840,10 @@ mod tests {
             .and_then(|row| row.get("prompt_context"))
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(!core_prompt.is_empty(), "core registry should persist prompt context");
+        assert!(
+            !core_prompt.is_empty(),
+            "core registry should persist prompt context"
+        );
 
         let created = handle(
             root.path(),

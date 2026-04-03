@@ -7,6 +7,10 @@
                 label: data && data.phase ? ('Progress · ' + String(data.phase)) : 'Progress'
               };
             }
+            var phaseStatusCandidate = phaseDetailText;
+            if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseStatusCandidate)) {
+              phaseStatusCandidate = '';
+            }
             // Skip phases that have no user-meaningful display text — "streaming"
             // and "done" are lifecycle signals, not status to show in the chat bubble.
             if (data.phase === 'streaming' || data.phase === 'done') {
@@ -25,34 +29,13 @@
                 phaseMsg.isHtml = true;
                 phaseMsg.thoughtStreaming = true;
                 phaseMsg.text = this.renderLiveThoughtHtml(phaseMsg._thoughtText);
-                phaseMsg.thinking_status = 'Reasoning through context...';
-              } else if (phaseMsg.thinking) {
-                phaseMsg.text = 'Thinking...';
-                if (!phaseMsg.thinking_status) phaseMsg.thinking_status = 'Reasoning through context...';
+                if (!phaseMsg.thinking_status && phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
               }
             } else if (phaseMsg.thinking) {
-              // Only update text on messages still in thinking state (not yet
-              // receiving streamed content) to avoid overwriting accumulated text.
-              var phaseDetail;
-              if (data.phase === 'tool_use') {
-                phaseDetail = 'Using ' + (data.detail || 'tool') + '...';
-              } else if (data.phase === 'thinking') {
-                phaseDetail = 'Thinking...';
-              } else {
-                phaseDetail = data.detail || 'Working...';
-              }
-              phaseMsg.text = phaseDetail;
-              if (phaseName === 'tool_use') {
-                var toolPhaseName = phaseDetail || String(data && data.tool ? data.tool : '').trim() || 'tool';
-                phaseMsg.thinking_status = 'Calling ' + toolPhaseName + '...';
-              } else if (phaseDetail) {
-                phaseMsg.thinking_status = phaseDetail;
-              } else if (phaseName) {
-                phaseMsg.thinking_status = phaseName.replace(/[_-]+/g, ' ');
-              }
+              if (phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
-            if (!phaseMsg.thinking_status && phaseDetailText) {
-              phaseMsg.thinking_status = phaseDetailText;
+            if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+              phaseMsg.thinking_status = phaseStatusCandidate;
             }
           }
           this.scrollToBottom();

@@ -737,7 +737,9 @@ fn make_agent_id(root: &Path, suggested_name: &str) -> String {
         .replace(' ', "-");
     let hint_suffix = if hint == "agent" {
         String::new()
-    } else if let Some(rest) = hint.strip_prefix("agent-").or_else(|| hint.strip_prefix("agent_"))
+    } else if let Some(rest) = hint
+        .strip_prefix("agent-")
+        .or_else(|| hint.strip_prefix("agent_"))
     {
         clean_agent_id(rest.trim_matches(|ch| ch == '-' || ch == '_'))
     } else {
@@ -907,8 +909,11 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
     let session_summaries = session_summary_map(root, snapshot);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     for (raw_id, profile) in &profiles {
-        let profile_state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
+        let profile_state = clean_text(
+            profile.get("state").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
         if profile_state == "archived" {
             let id = clean_agent_id(raw_id);
             if !id.is_empty() {
@@ -1219,7 +1224,8 @@ fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Va
                 "updated_at": crate::now_iso()
             }),
         );
-        let archived = crate::dashboard_agent_state::archive_agent(root, &agent_id, &archive_reason);
+        let archived =
+            crate::dashboard_agent_state::archive_agent(root, &agent_id, &archive_reason);
         if archived.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             archived_agent_ids.push(agent_id);
         } else {
@@ -2620,8 +2626,32 @@ fn response_contains_project_dump_sections(text: &str) -> bool {
     hits >= 2
 }
 
+fn response_contains_tool_telemetry_dump(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let noisy_markers = [
+        "at duckduckgo all regions",
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "spawn_subagents failed:",
+        "tool_explicit_signoff_required",
+        "tool_confirmation_required",
+    ];
+    let hits = noisy_markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
 fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
-    if response_text.contains("<function=") || response_text.len() < 220 {
+    if response_text.contains("<function=") {
+        return false;
+    }
+    if response_contains_tool_telemetry_dump(response_text) {
+        return true;
+    }
+    if response_text.len() < 220 {
         return false;
     }
     if response_contains_project_dump_sections(response_text) {
@@ -2947,15 +2977,19 @@ fn context_command_payload(
         "removed_messages": 0
     });
     if context_ratio >= auto_compact_threshold_ratio && context_window > 0 {
-        let emergency_target_tokens = ((context_window as f64) * auto_compact_target_ratio).round() as i64;
+        let emergency_target_tokens =
+            ((context_window as f64) * auto_compact_target_ratio).round() as i64;
         let emergency_min_recent = request
             .get("emergency_min_recent_messages")
             .or_else(|| request.get("min_recent_messages"))
             .and_then(Value::as_u64)
             .unwrap_or(active_context_min_recent.min(4) as u64)
             .clamp(2, 128) as usize;
-        let emergency_messages =
-            select_active_context_window(&pooled_messages, emergency_target_tokens, emergency_min_recent);
+        let emergency_messages = select_active_context_window(
+            &pooled_messages,
+            emergency_target_tokens,
+            emergency_min_recent,
+        );
         let emergency_tokens = total_message_tokens(&emergency_messages);
         let removed_messages = active_messages
             .len()
@@ -4144,7 +4178,8 @@ fn execute_tool_call_by_name(
                             "mission": clean_text(input.get("mission").and_then(Value::as_str).unwrap_or("Assist parent mission"), 200),
                             "termination_condition": "task_or_timeout",
                             "expiry_seconds": input.get("expiry_seconds").and_then(Value::as_i64).unwrap_or(3600).clamp(60, 172_800),
-                            "auto_terminate_allowed": input.get("auto_terminate_allowed").and_then(Value::as_bool).unwrap_or(true)
+                            "auto_terminate_allowed": input.get("auto_terminate_allowed").and_then(Value::as_bool).unwrap_or(true),
+                            "idle_terminate_allowed": input.get("idle_terminate_allowed").and_then(Value::as_bool).unwrap_or(true)
                         }
                     }),
                 ),
@@ -4197,6 +4232,10 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         || normalized == "agent_spawn"
         || normalized == "sessions_spawn"
     {
+        if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            return user_facing_tool_failure_summary(tool_name, payload)
+                .unwrap_or_else(|| "I couldn't start parallel agents in this turn.".to_string());
+        }
         let created_count = payload
             .get("created_count")
             .and_then(Value::as_u64)
@@ -4439,14 +4478,33 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         || normalized == "search"
         || normalized == "web_query"
     {
-        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
-        if !summary.trim().is_empty() {
-            return trim_text(summary, 24_000);
+        if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            return user_facing_tool_failure_summary(tool_name, payload)
+                .unwrap_or_else(|| "Web search couldn't complete right now.".to_string());
         }
-        let error = payload.get("error").and_then(Value::as_str).unwrap_or("");
-        if !error.is_empty() {
-            return trim_text(&format!("Web search failed: {error}"), 24_000);
+        let query = clean_text(
+            payload.get("query").and_then(Value::as_str).unwrap_or(""),
+            220,
+        );
+        let summary = clean_text(
+            payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+            2_400,
+        );
+        let sources = extract_search_result_domains(&summary, 4);
+        if !sources.is_empty() {
+            let _ = query;
+            return format!(
+                "Web search completed. Candidate sources: {}.",
+                sources.join(", ")
+            );
         }
+        if !query.is_empty() {
+            return "Web search completed.".to_string();
+        }
+        if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
+            return trim_text(&summary, 800);
+        }
+        return "Web search completed.".to_string();
     }
     if let Ok(raw) = serde_json::to_string_pretty(payload) {
         return trim_text(&raw, 24_000);
@@ -4464,6 +4522,113 @@ fn tool_error_text(payload: &Value) -> String {
             .unwrap_or(""),
         240,
     )
+}
+
+fn looks_like_domain_token(value: &str) -> bool {
+    if value.is_empty() || !value.contains('.') {
+        return false;
+    }
+    if value.starts_with('.') || value.ends_with('.') {
+        return false;
+    }
+    if value
+        .chars()
+        .any(|ch| !(ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-')))
+    {
+        return false;
+    }
+    let Some(tld) = value.rsplit('.').next() else {
+        return false;
+    };
+    (2..=24).contains(&tld.len())
+}
+
+fn extract_search_result_domains(summary: &str, max_domains: usize) -> Vec<String> {
+    let mut domains = Vec::<String>::new();
+    for token in clean_text(summary, 4_000).split_whitespace() {
+        let stripped = token
+            .trim_matches(|ch: char| {
+                !ch.is_ascii_alphanumeric() && ch != '.' && ch != '-' && ch != '/'
+            })
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_start_matches("www.");
+        let host = stripped
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !looks_like_domain_token(&host) {
+            continue;
+        }
+        if host == "duckduckgo.com" {
+            continue;
+        }
+        if domains.iter().any(|existing| existing == &host) {
+            continue;
+        }
+        domains.push(host);
+        if domains.len() >= max_domains.max(1) {
+            break;
+        }
+    }
+    domains
+}
+
+fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
+    let lowered = summary.to_ascii_lowercase();
+    let markers = [
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "all regions canada",
+        "safe search",
+        "any time",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<String> {
+    let normalized = normalize_tool_name(tool_name);
+    let lowered = tool_error_text(payload).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return Some(format!("I couldn't complete `{normalized}` right now."));
+    }
+    if lowered == "tool_explicit_signoff_required" || lowered == "tool_confirmation_required" {
+        return Some(format!(
+            "I need your confirmation before running `{normalized}`."
+        ));
+    }
+    if lowered.contains("query_required") {
+        return Some(format!("`{normalized}` needs a query before it can run."));
+    }
+    if lowered.contains("url_required") {
+        return Some(format!(
+            "`{normalized}` needs a valid URL before it can run."
+        ));
+    }
+    if lowered.contains("denied_domain")
+        || lowered.contains("network_policy")
+        || lowered.contains("domain_blocked")
+    {
+        return Some(format!(
+            "`{normalized}` was blocked by network policy for this request."
+        ));
+    }
+    if lowered.contains("timeout")
+        || lowered.contains("timed out")
+        || lowered.contains("unavailable")
+        || lowered.contains("connection")
+    {
+        return Some(format!(
+            "`{normalized}` hit a temporary network issue. Please retry."
+        ));
+    }
+    Some(format!("I couldn't complete `{normalized}` right now."))
 }
 
 fn transient_tool_failure(payload: &Value) -> bool {
@@ -4629,18 +4794,19 @@ fn execute_inline_tool_calls(
         if ok && !result_text.trim().is_empty() {
             fallback_lines.push(result_text);
         } else if !ok {
-            let err = clean_text(
-                payload
-                    .get("error")
-                    .and_then(Value::as_str)
-                    .unwrap_or("tool_failed"),
-                240,
-            );
-            fallback_lines.push(format!("{} failed: {}", normalize_tool_name(&name), err));
+            if let Some(line) = user_facing_tool_failure_summary(&name, &payload) {
+                fallback_lines.push(line);
+            }
         }
     }
     let response = if cleaned.trim().is_empty() {
-        trim_text(&fallback_lines.join("\n\n"), 32_000)
+        let joined = fallback_lines.join("\n\n");
+        if joined.trim().is_empty() {
+            "I hit an internal tool issue and could not complete that step in this turn."
+                .to_string()
+        } else {
+            trim_text(&joined, 32_000)
+        }
     } else {
         trim_text(cleaned.trim(), 32_000)
     };
@@ -5613,6 +5779,17 @@ pub fn handle_with_headers(
             .get("contract")
             .cloned()
             .unwrap_or_else(|| json!({}));
+        let termination_condition = clean_text(
+            contract_obj
+                .get("termination_condition")
+                .and_then(Value::as_str)
+                .unwrap_or("task_or_timeout"),
+            80,
+        );
+        let non_expiring_termination = matches!(
+            termination_condition.to_ascii_lowercase().as_str(),
+            "manual" | "task_complete"
+        );
         let expiry_seconds = contract_obj
             .get("expiry_seconds")
             .and_then(Value::as_i64)
@@ -5621,7 +5798,13 @@ pub fn handle_with_headers(
         let auto_terminate_allowed = contract_obj
             .get("auto_terminate_allowed")
             .and_then(Value::as_bool)
-            .unwrap_or(true);
+            .unwrap_or(!non_expiring_termination)
+            && !non_expiring_termination;
+        let idle_terminate_allowed = contract_obj
+            .get("idle_terminate_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(!non_expiring_termination)
+            && !non_expiring_termination;
         let contract_patch = json!({
             "agent_id": agent_id,
             "status": "active",
@@ -5629,9 +5812,10 @@ pub fn handle_with_headers(
             "updated_at": crate::now_iso(),
             "owner": clean_text(contract_obj.get("owner").and_then(Value::as_str).unwrap_or("dashboard_auto"), 80),
             "mission": clean_text(contract_obj.get("mission").and_then(Value::as_str).unwrap_or("Assist with assigned mission."), 200),
-            "termination_condition": clean_text(contract_obj.get("termination_condition").and_then(Value::as_str).unwrap_or("task_or_timeout"), 80),
+            "termination_condition": termination_condition,
             "expiry_seconds": expiry_seconds,
             "auto_terminate_allowed": auto_terminate_allowed,
+            "idle_terminate_allowed": idle_terminate_allowed,
             "parent_agent_id": if parent_agent_id.is_empty() { Value::Null } else { Value::String(parent_agent_id) },
             "conversation_hold": contract_obj.get("conversation_hold").and_then(Value::as_bool).unwrap_or(false),
             "expires_at": clean_text(contract_obj.get("expires_at").and_then(Value::as_str).unwrap_or(""), 80),
@@ -5978,16 +6162,13 @@ pub fn handle_with_headers(
                             normalize_tool_name(&tool_name)
                         )
                     } else {
-                        format!(
-                            "Tool `{}` failed: {}",
-                            normalize_tool_name(&tool_name),
-                            clean_text(
-                                tool_payload
-                                    .get("error")
-                                    .and_then(Value::as_str)
-                                    .unwrap_or("tool_failed"),
-                                240
-                            )
+                        user_facing_tool_failure_summary(&tool_name, &tool_payload).unwrap_or_else(
+                            || {
+                                format!(
+                                    "I couldn't complete `{}` right now.",
+                                    normalize_tool_name(&tool_name)
+                                )
+                            },
                         )
                     };
                 }
@@ -6742,10 +6923,8 @@ pub fn handle_with_headers(
                 || patch.get("system_prompt").is_some()
                 || patch.get("archetype").is_some()
                 || patch.get("profile").is_some();
-            let explicit_role = clean_text(
-                patch.get("role").and_then(Value::as_str).unwrap_or(""),
-                60,
-            );
+            let explicit_role =
+                clean_text(patch.get("role").and_then(Value::as_str).unwrap_or(""), 60);
             let existing_role = clean_text(
                 existing
                     .as_ref()
@@ -6758,13 +6937,18 @@ pub fn handle_with_headers(
                 80,
             )
             .to_ascii_lowercase();
-            let profile_hint =
-                clean_text(patch.get("profile").and_then(Value::as_str).unwrap_or(""), 80)
-                    .to_ascii_lowercase();
+            let profile_hint = clean_text(
+                patch.get("profile").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
             let mut role_hint = format!("{archetype_hint} {profile_hint}");
             if role_hint.trim().is_empty() {
                 role_hint = clean_text(
-                    patch.get("system_prompt").and_then(Value::as_str).unwrap_or(""),
+                    patch
+                        .get("system_prompt")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
                     200,
                 )
                 .to_ascii_lowercase();
@@ -6831,14 +7015,16 @@ pub fn handle_with_headers(
                         map.remove("name");
                     }
                 } else {
-                    let requested_default_like = dashboard_compat_api_agent_identity::
-                        is_default_agent_name_for_agent(&requested_name, &agent_id);
-                    let resolved_name =
-                        dashboard_compat_api_agent_identity::resolve_agent_name(
-                            root,
+                    let requested_default_like =
+                        dashboard_compat_api_agent_identity::is_default_agent_name_for_agent(
                             &requested_name,
-                            &resolved_role,
+                            &agent_id,
                         );
+                    let resolved_name = dashboard_compat_api_agent_identity::resolve_agent_name(
+                        root,
+                        &requested_name,
+                        &resolved_role,
+                    );
                     let treat_as_blank_for_init = should_seed_intro
                         && (requested_default_like
                             || dashboard_compat_api_agent_identity::is_default_agent_name_for_agent(
@@ -6871,14 +7057,13 @@ pub fn handle_with_headers(
                     } else {
                         existing_name.clone()
                     };
-                    let auto_name = dashboard_compat_api_agent_identity::resolve_post_init_agent_name(
-                        root,
-                        &agent_id,
-                        &resolved_role,
-                    );
-                    if !auto_name.is_empty()
-                        && !auto_name.eq_ignore_ascii_case(&previous_name)
-                    {
+                    let auto_name =
+                        dashboard_compat_api_agent_identity::resolve_post_init_agent_name(
+                            root,
+                            &agent_id,
+                            &resolved_role,
+                        );
+                    if !auto_name.is_empty() && !auto_name.eq_ignore_ascii_case(&previous_name) {
                         patch["name"] = Value::String(auto_name.clone());
                         rename_notice = Some(json!({
                             "notice_label": format!("changed name from {previous_name} to {auto_name}"),
@@ -6965,6 +7150,7 @@ pub fn handle_with_headers(
             } else if patch.get("expiry_seconds").is_some()
                 || patch.get("termination_condition").is_some()
                 || patch.get("auto_terminate_allowed").is_some()
+                || patch.get("idle_terminate_allowed").is_some()
             {
                 let _ = upsert_contract_patch(root, &agent_id, &patch);
             }
@@ -7679,7 +7865,8 @@ pub fn handle_with_headers(
                     "parent_agent_id": agent_id,
                     "termination_condition": "task_or_timeout",
                     "expiry_seconds": 3600,
-                    "auto_terminate_allowed": false
+                    "auto_terminate_allowed": false,
+                    "idle_terminate_allowed": false
                 }),
             );
             append_turn_message(root, &new_id, "", "");
