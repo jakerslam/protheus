@@ -43,6 +43,7 @@ PATH_PERSISTED_KIND=""
 PATH_PERSISTED_MIRRORS=""
 PATH_ACTIVATE_FILE=""
 INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-${PROTHEUS_INSTALL_SUDO_SHIMS:-auto}}"
+RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1010,6 +1011,17 @@ prepare_source_fallback_repo() {
     fi
   fi
 
+  archive_url="${SOURCE_ARCHIVE_BASE}/main.tar.gz"
+  if curl -fsSL "$archive_url" -o "$archive"; then
+    if tar -xzf "$archive" -C "$SOURCE_FALLBACK_TMP"; then
+      extracted_dir="$(find "$SOURCE_FALLBACK_TMP" -maxdepth 1 -type d -name "${REPO_NAME}-*" | head -n 1)"
+      if [ -n "$extracted_dir" ] && [ -f "$extracted_dir/core/layer0/ops/Cargo.toml" ]; then
+        SOURCE_FALLBACK_DIR="$extracted_dir"
+        return 0
+      fi
+    fi
+  fi
+
   rm -rf "$SOURCE_FALLBACK_TMP"
   SOURCE_FALLBACK_TMP=""
   SOURCE_FALLBACK_DIR=""
@@ -1201,9 +1213,33 @@ install_client_bundle() {
   return 1
 }
 
-workspace_has_runtime() {
+workspace_has_runtime_dirs() {
   workspace="$1"
   [ -d "$workspace/client/runtime" ] && [ -d "$workspace/client/runtime/config" ]
+}
+
+workspace_has_tier1_runtime() {
+  workspace="$1"
+  workspace_has_runtime_dirs "$workspace" || return 1
+  manifest_path="$workspace/$RUNTIME_MANIFEST_REL"
+  [ -f "$manifest_path" ] || return 1
+
+  while IFS= read -r row || [ -n "$row" ]; do
+    rel="$(printf '%s' "$row" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$rel" ] || continue
+    case "$rel" in
+      \#*) continue ;;
+    esac
+    if ! workspace_runtime_entrypoint_exists "$workspace" "$rel"; then
+      return 1
+    fi
+  done < "$manifest_path"
+  return 0
+}
+
+workspace_has_runtime() {
+  workspace="$1"
+  workspace_has_tier1_runtime "$workspace"
 }
 
 workspace_runtime_root() {
@@ -1266,6 +1302,11 @@ install_workspace_from_source_fallback() {
     return 1
   }
   mkdir -p "$output_dir/local/state" "$output_dir/local/workspace/memory" "$output_dir/local/workspace/assistant"
+  if ! workspace_has_runtime "$output_dir"; then
+    rm -rf "$tmpdir"
+    echo "[infring install] source fallback runtime contract check failed; workspace is incomplete" >&2
+    return 1
+  fi
   rm -rf "$tmpdir"
   echo "[infring install] installed workspace runtime from source fallback"
   return 0
@@ -1325,17 +1366,137 @@ __INFRING_SETUP_SHIM__
   return 0
 }
 
+workspace_runtime_entrypoint_exists() {
+  workspace="$1"
+  rel="$2"
+  [ -f "$workspace/$rel" ] && return 0
+  case "$rel" in
+    *.js)
+      ts_rel="${rel%.js}.ts"
+      [ -f "$workspace/$ts_rel" ] && return 0
+      ;;
+    *.ts)
+      js_rel="${rel%.ts}.js"
+      [ -f "$workspace/$js_rel" ] && return 0
+      ;;
+  esac
+  return 1
+}
+
+verify_workspace_runtime_contract() {
+  workspace="$1"
+  [ -n "$workspace" ] || return 1
+  manifest_rel="${RUNTIME_MANIFEST_REL:-client/runtime/config/install_runtime_manifest_v1.txt}"
+  manifest_path="$workspace/$manifest_rel"
+  if [ ! -f "$manifest_path" ]; then
+    echo "[infring install] runtime integrity check failed: manifest missing" >&2
+    echo "[infring install] missing: $manifest_rel" >&2
+    echo "[infring install] fix: publish runtime bundle/source fallback with manifest and rerun install." >&2
+    return 1
+  fi
+  missing_list=""
+  while IFS= read -r row || [ -n "$row" ]; do
+    rel="$(printf '%s' "$row" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$rel" ] || continue
+    case "$rel" in
+      \#*) continue ;;
+    esac
+    if ! workspace_runtime_entrypoint_exists "$workspace" "$rel"; then
+      missing_list="${missing_list}${rel}\n"
+    fi
+  done < "$manifest_path"
+  if [ -n "$missing_list" ]; then
+    echo "[infring install] runtime integrity check failed: required command entrypoints are missing" >&2
+    printf '%b' "$missing_list" | while IFS= read -r row; do
+      [ -n "$row" ] || continue
+      echo "[infring install] missing: $row" >&2
+    done
+    echo "[infring install] manifest: $manifest_rel" >&2
+    echo "[infring install] fix: rerun with --full after publishing a complete runtime bundle, or set INFRING_VERSION to a release with complete runtime assets." >&2
+    return 1
+  fi
+  echo "[infring install] runtime integrity check: manifest verified ($manifest_rel)"
+  return 0
+}
+
+run_post_install_smoke_command() {
+  smoke_dir="$1"
+  label="$2"
+  shift 2 || true
+  log="$smoke_dir/$label.log"
+  if "$@" >"$log" 2>&1; then
+    echo "[infring install] smoke $label: ok"
+    return 0
+  fi
+  echo "[infring install] smoke $label: failed" >&2
+  cat "$log" >&2 || true
+  return 1
+}
+
+run_post_install_smoke_tests() {
+  install_dir="$1"
+  workspace="$2"
+  [ -x "$install_dir/infring" ] || return 1
+  [ -x "$install_dir/infringctl" ] || return 1
+  smoke_dir="$(mktemp -d)"
+  export INFRING_WORKSPACE_ROOT="$workspace"
+  export PROTHEUS_WORKSPACE_ROOT="$workspace"
+  failures=0
+  run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
+  run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help || failures=$((failures + 1))
+  run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status || failures=$((failures + 1))
+  run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard-ui status --json || failures=$((failures + 1))
+  if node_runtime_meets_minimum; then
+    run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
+  else
+    echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
+  fi
+  if [ "$failures" -ne 0 ]; then
+    echo "[infring install] post-install smoke test failed ($failures checks)" >&2
+    echo "[infring install] smoke logs: $smoke_dir" >&2
+    return 1
+  fi
+  rm -rf "$smoke_dir" >/dev/null 2>&1 || true
+  echo "[infring install] post-install smoke: passed"
+  return 0
+}
+
 write_wrapper() {
   wrapper_name="$1"
   wrapper_body="$2"
   wrapper_path="$INSTALL_DIR/$wrapper_name"
   printf '%s\n' "#!/usr/bin/env sh" > "$wrapper_path"
+  printf '%s\n' "infring_workspace_entry_exists() {" >> "$wrapper_path"
+  printf '%s\n' "  root=\"\$1\"" >> "$wrapper_path"
+  printf '%s\n' "  rel=\"\$2\"" >> "$wrapper_path"
+  printf '%s\n' "  [ -f \"\$root/\$rel\" ] && return 0" >> "$wrapper_path"
+  printf '%s\n' "  case \"\$rel\" in" >> "$wrapper_path"
+  printf '%s\n' "    *.js)" >> "$wrapper_path"
+  printf '%s\n' "      ts_rel=\"\${rel%.js}.ts\"" >> "$wrapper_path"
+  printf '%s\n' "      [ -f \"\$root/\$ts_rel\" ] && return 0" >> "$wrapper_path"
+  printf '%s\n' "      ;;" >> "$wrapper_path"
+  printf '%s\n' "    *.ts)" >> "$wrapper_path"
+  printf '%s\n' "      js_rel=\"\${rel%.ts}.js\"" >> "$wrapper_path"
+  printf '%s\n' "      [ -f \"\$root/\$js_rel\" ] && return 0" >> "$wrapper_path"
+  printf '%s\n' "      ;;" >> "$wrapper_path"
+  printf '%s\n' "  esac" >> "$wrapper_path"
+  printf '%s\n' "  return 1" >> "$wrapper_path"
+  printf '%s\n' "}" >> "$wrapper_path"
   printf '%s\n' "infring_workspace_valid() {" >> "$wrapper_path"
   printf '%s\n' "  candidate=\"\$1\"" >> "$wrapper_path"
   printf '%s\n' "  [ -n \"\$candidate\" ] || return 1" >> "$wrapper_path"
-  printf '%s\n' "  [ -d \"\$candidate/client/runtime\" ] && return 0" >> "$wrapper_path"
-  printf '%s\n' "  [ -d \"\$candidate/protheus-client/client/runtime\" ] && return 0" >> "$wrapper_path"
-  printf '%s\n' "  return 1" >> "$wrapper_path"
+  printf '%s\n' "  [ -d \"\$candidate/client/runtime\" ] || return 1" >> "$wrapper_path"
+  printf '%s\n' "  manifest=\"\$candidate/client/runtime/config/install_runtime_manifest_v1.txt\"" >> "$wrapper_path"
+  printf '%s\n' "  [ -f \"\$manifest\" ] || return 1" >> "$wrapper_path"
+  printf '%s\n' "  while IFS= read -r row || [ -n \"\$row\" ]; do" >> "$wrapper_path"
+  printf '%s\n' "    rel=\"\$(printf '%s' \"\$row\" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')\"" >> "$wrapper_path"
+  printf '%s\n' "    [ -n \"\$rel\" ] || continue" >> "$wrapper_path"
+  printf '%s\n' "    case \"\$rel\" in" >> "$wrapper_path"
+  printf '%s\n' "      \#*) continue ;;" >> "$wrapper_path"
+  printf '%s\n' "    esac" >> "$wrapper_path"
+  printf '%s\n' "    infring_workspace_entry_exists \"\$candidate\" \"\$rel\" || return 1" >> "$wrapper_path"
+  printf '%s\n' "  done < \"\$manifest\"" >> "$wrapper_path"
+  printf '%s\n' "  return 0" >> "$wrapper_path"
   printf '%s\n' "}" >> "$wrapper_path"
   printf '%s\n' "resolve_workspace_root() {" >> "$wrapper_path"
   printf '%s\n' "  if [ -n \"\${INFRING_WORKSPACE_ROOT:-}\" ] && infring_workspace_valid \"\${INFRING_WORKSPACE_ROOT}\"; then" >> "$wrapper_path"
@@ -1505,7 +1666,7 @@ infring_gateway_launchd_write_plist() {
   [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
   [ -x "$dashboard_bin" ] || return 1
   label_xml="$(infring_gateway_xml_escape "$label")"
-  launch_cmd="cd $root && exec $dashboard_bin dashboard-ui serve --host=$host --port=$port"
+  launch_cmd="cd $root && exec $dashboard_bin gateway start --dashboard-host=$host --dashboard-port=$port --dashboard-open=0"
   launch_cmd_xml="$(infring_gateway_xml_escape "$launch_cmd")"
   cat > "$plist" <<__INFRING_PLIST__
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1591,10 +1752,16 @@ infring_gateway_watchdog_stop() {
 infring_gateway_dashboard_match() {
   host="${1:-127.0.0.1}"
   port="${2:-4173}"
-  printf '%s\n' "dashboard-ui serve --host=${host} --port=${port}"
+  printf '%s\n' "gateway start --dashboard-host=${host} --dashboard-port=${port}"
 }
 
 infring_gateway_dashboard_match_legacy() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  printf '%s\n' "dashboard-ui serve --host=${host} --port=${port}"
+}
+
+infring_gateway_dashboard_match_legacy_ts() {
   host="${1:-127.0.0.1}"
   port="${2:-4173}"
   printf '%s\n' "client/runtime/systems/ui/infring_dashboard.ts serve --host=${host} --port=${port}"
@@ -1603,11 +1770,13 @@ infring_gateway_dashboard_match_legacy() {
 infring_gateway_dashboard_process_running() {
   match="$(infring_gateway_dashboard_match "$1" "$2")"
   legacy_match="$(infring_gateway_dashboard_match_legacy "$1" "$2")"
+  legacy_match_ts="$(infring_gateway_dashboard_match_legacy_ts "$1" "$2")"
   if command -v pgrep >/dev/null 2>&1; then
     pgrep -f "$match" >/dev/null 2>&1 && return 0
     pgrep -f "$legacy_match" >/dev/null 2>&1 && return 0
+    pgrep -f "$legacy_match_ts" >/dev/null 2>&1 && return 0
   else
-    ps ax -o command= 2>/dev/null | awk -v m="$match" -v l="$legacy_match" 'index($0,m)>0 || index($0,l)>0 {found=1} END {exit(found?0:1)}'
+    ps ax -o command= 2>/dev/null | awk -v m="$match" -v l="$legacy_match" -v t="$legacy_match_ts" 'index($0,m)>0 || index($0,l)>0 || index($0,t)>0 {found=1} END {exit(found?0:1)}'
     return $?
   fi
   return 1
@@ -1622,9 +1791,11 @@ infring_gateway_pid_matches_dashboard() {
   [ -n "$cmd" ] || return 1
   match="$(infring_gateway_dashboard_match "$host" "$port")"
   legacy_match="$(infring_gateway_dashboard_match_legacy "$host" "$port")"
+  legacy_match_ts="$(infring_gateway_dashboard_match_legacy_ts "$host" "$port")"
   case "$cmd" in
     *"$match"*) return 0 ;;
     *"$legacy_match"*) return 0 ;;
+    *"$legacy_match_ts"*) return 0 ;;
   esac
   return 1
 }
@@ -1844,7 +2015,7 @@ infring_gateway_start_dashboard_fallback() {
   (
     cd "$root" 2>/dev/null || exit 1
     child_pid="$(infring_gateway_spawn_detached_logged /tmp/infring-dashboard-serve.log "$dashboard_bin" \
-      dashboard-ui serve "--host=${host}" "--port=${port}" \
+      gateway start "--dashboard-host=${host}" "--dashboard-port=${port}" "--dashboard-open=0" \
       2>/dev/null || true)"
     if [ -n "$child_pid" ]; then
       printf '%s\n' "$child_pid" > "$(infring_gateway_pidfile "$host" "$port")"
@@ -2241,6 +2412,8 @@ exec \"$ops_bin\" protheusctl \"\$@\""
       exit 1
     fi
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
+    verify_workspace_runtime_contract "$WORKSPACE_DIR" || exit 1
+    run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
 
   echo "[infring install] installed: infring, infringctl, infringd"

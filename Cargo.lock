@@ -1556,6 +1556,7 @@ dependencies = [
  "protheus-autonomy-core-v1",
  "protheus-ops-core-v1",
  "protheus-pure-workspace",
+ "protheus-security-core-v1",
  "protheus-spine-core-v1",
  "protheus-tiny-runtime",
  "rand 0.8.5",
