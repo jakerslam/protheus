@@ -2569,8 +2569,17 @@ fn passive_attention_context_for_message(
             })
             .filter(|term| !term.is_empty())
             .collect::<HashSet<_>>();
-        if !message_terms.is_empty() && !terms.is_empty() && message_terms.is_disjoint(&terms) {
-            continue;
+        let effective_terms = if terms.is_empty() {
+            important_memory_terms(&summary, 16)
+                .into_iter()
+                .collect::<HashSet<_>>()
+        } else {
+            terms
+        };
+        if !message_terms.is_empty() {
+            if effective_terms.is_empty() || message_terms.is_disjoint(&effective_terms) {
+                continue;
+            }
         }
         if !related.iter().any(|item| item == &summary) {
             related.push(summary);
@@ -2591,6 +2600,43 @@ fn passive_attention_context_for_message(
                 .join("\n")
         )
     }
+}
+
+fn response_contains_project_dump_sections(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let markers = [
+        "project overview",
+        "data source",
+        "tools used",
+        "key features",
+        "sql queries",
+        "future work",
+        "how to use",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
+    if response_text.contains("<function=") || response_text.len() < 220 {
+        return false;
+    }
+    if response_contains_project_dump_sections(response_text) {
+        let user_terms = important_memory_terms(user_message, 20)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let response_terms = important_memory_terms(response_text, 48)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        if user_terms.is_empty() || response_terms.is_empty() {
+            return false;
+        }
+        return user_terms.is_disjoint(&response_terms);
+    }
+    false
 }
 
 fn context_keyframes_prompt_context(
@@ -6291,6 +6337,7 @@ pub fn handle_with_headers(
                     let response_had_context_meta =
                         internal_context_metadata_phrase(&response_text);
                     response_text = strip_internal_context_metadata_prefix(&response_text);
+                    response_text = strip_internal_cache_control_markup(&response_text);
                     if response_text.is_empty() && response_had_context_meta {
                         response_text = "I have relevant prior context loaded and can keep going from here. Tell me what you want to do next.".to_string();
                     }
@@ -6399,6 +6446,49 @@ pub fn handle_with_headers(
                     response_text = tool_adjusted_response;
                     if !user_requested_internal_runtime_details(&message) {
                         response_text = abstract_runtime_mechanics_terms(&response_text);
+                    }
+                    response_text = strip_internal_cache_control_markup(&response_text);
+                    if response_is_unrelated_context_dump(&message, &response_text) {
+                        let strict_relevance_prompt = clean_text(
+                            &format!(
+                                "{}\n\nRelevance guard: answer only the latest user request. Ignore unrelated prior snippets and project templates. If the user asks for code, provide direct code first.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        let retried = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &strict_relevance_prompt,
+                            &[],
+                            &message,
+                        )
+                        .ok()
+                        .and_then(|value| {
+                            let mut retried_text = clean_chat_text(
+                                value.get("response").and_then(Value::as_str).unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            if !user_requested_internal_runtime_details(&message) {
+                                retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                            }
+                            if response_is_unrelated_context_dump(&message, &retried_text) {
+                                None
+                            } else {
+                                let cleaned = retried_text.trim().to_string();
+                                if cleaned.is_empty() {
+                                    None
+                                } else {
+                                    Some(cleaned)
+                                }
+                            }
+                        });
+                        response_text = retried.unwrap_or_else(|| {
+                            "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
+                        });
                     }
                     let turn_receipt =
                         append_turn_message(root, &agent_id, &message, &response_text);
