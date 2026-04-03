@@ -10,6 +10,17 @@ Status legend:
 - `blocked` waiting on dependency/decision
 - `done` completed
 
+## Installer Reliability v1.0 Intake (2026-04-03)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-INSTALL-001.1 | done | Preflight dependency contract + deterministic remediation hints (`curl`, `tar`, `chmod`, `mkdir`, `uname`, optional git/unzip/node/cargo) | Fresh-machine installs must fail fast on hard prerequisites and provide copy/paste recovery steps instead of partial side effects. | Installer preflight now validates required host tools before mutation and prints explicit fix commands per-missing dependency in [`install.sh`](/Users/jay/.openclaw/workspace/install.sh) (`run_install_preflight`, `tool_install_hint`). | 10 | 0/1 |
+| V6-INSTALL-001.2 | done | Workspace-scoped runtime module resolution + Node closure install path hardening | Module checks/install failed nondeterministically when resolution did not run from workspace context or when npm shebang resolution drifted from installer-selected Node. | Runtime module checks run in workspace scope (`runtime_module_resolvable`) and node-module closure enforces installer-resolved `node` + PATH precedence during npm install in [`install.sh`](/Users/jay/.openclaw/workspace/install.sh) (`ensure_runtime_node_module_closure`). | 10 | 0/1 |
+| V6-INSTALL-001.3 | done | Rust/cargo bootstrap resilience + rustup default recovery + optional smoke skip for missing default toolchain | Installs should not fail hard for partially configured optional toolchains when core install can still complete safely. | Source fallback prereq path verifies runnable cargo, attempts rustup default repair, and emits deterministic recovery commands on failure (`ensure_source_build_prereqs`, `repair_rustup_default_toolchain`, `print_rust_toolchain_recovery_hint`); `infringctl --help` smoke check is explicitly skippable when rustup default is missing (`run_post_install_smoke_command`, `run_post_install_smoke_tests`). | 10 | 0/1 |
+| V6-INSTALL-001.4 | done | Runtime manifest/Tier-1 contract verification + self-heal path | Release/runtime drift must never produce silent partial installs. | Installer enforces `install_runtime_manifest_v1.txt` contract and verifies Tier-1 runtime entrypoints, then attempts runtime self-heal via bundle/source refresh before failing closed (`verify_workspace_runtime_contract`, `repair_workspace_runtime_contract`) in [`install.sh`](/Users/jay/.openclaw/workspace/install.sh). | 10 | 0/1 |
+| V6-INSTALL-001.5 | done | Post-install smoke suite with dashboard healthz verification and per-check logs | Route-level checks alone are insufficient; real startup/health must be validated and diagnosable on failure. | Post-install smoke now covers `infring --help`, `infring status`, `dashboard status`, `verify-install` (when Node present), and active dashboard `/healthz` checks; failures print machine-readable smoke log path (`run_post_install_smoke_tests`, `run_dashboard_health_smoke`) in [`install.sh`](/Users/jay/.openclaw/workspace/install.sh). | 10 | 0/1/2 |
+| V6-INSTALL-001.6 | done | `infring doctor` / `verify-install` install-integrity domain with deterministic root-cause codes | Operators need one command to diagnose wrappers, runtime assets, route integrity, dashboard health, Node deps, and toolchain posture. | Core install-doctor domain now reports wrappers, runtime-manifest integrity, Tier-1 route/runtime contracts, dashboard process probes, Node module closure state, and Rust toolchain state (cargo/rustup/default) with deterministic root-cause codes in [`core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs) and routed via `doctor`/`verify-install` command shortcuts. | 10 | 0/1/2 |
+
 ## Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
@@ -13765,3 +13776,174 @@ Filtered/normalized decisions:
 | V10-DASH-INTENT-001.1 | done | Latent Tool Discovery + Workspace Hinting Contract | Users should not need to memorize tool surfaces; natural-language intent should surface safe, confirmation-required tool candidates and likely file targets. | Agent message handling now emits deterministic `latent_tool_candidates` and `workspace_hints` payloads, with keyword-ranked workspace file inference and proposed tool inputs (`file_read`, `terminal_exec`, `web_search`, `cron_schedule`, `spawn_subagents`) without bypassing conduit execution gates. Evidence: `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`, tests `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs`. Validation: `cargo test --manifest-path core/layer0/ops/Cargo.toml workspace_hints_and_latent_tool_candidates_surface_security_paths -- --nocapture`. | 9 | 0/1/2/client |
 | V10-DASH-INTENT-001.2 | done | Receipted Turn Undo / Temporal Rollback Contract (`/undo`) | Operators need a fast reversible path for bad turns without manual session surgery. | Added direct and natural undo intent routing (`/undo`, `/rewind`, `undo that`) to `session_rollback_last_turn`; rollback removes the latest conversational turn, writes rollback archives, and returns deterministic rollback metadata/receipts in tool summaries and API payloads. Evidence: `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`, tests `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs`. Validation: `cargo test --manifest-path core/layer0/ops/Cargo.toml direct_intent_parser_supports_undo_routes -- --nocapture`; `cargo test --manifest-path core/layer0/ops/Cargo.toml rollback_tool_removes_recent_turn_and_writes_archive -- --nocapture`. | 9 | 0/1/2/client |
 | V10-MEMORY-032.1 | done | Semantic vs Episodic Prompt Memory Partition + Stale Episodic Prune Contract | Long-running relationships degrade when transient memory clutters prompt context and stable facts are not explicitly prioritized. | Memory prompt context now partitions pinned semantic facts/preferences from recent episodic memory, enforces bounded output slices, and prunes stale unpinned episodic entries by timestamp age while preserving raw memory store/audit continuity. Evidence: `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`, tests `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs`. Validation: `cargo test --manifest-path core/layer0/ops/Cargo.toml memory_prompt_context_partitions_semantic_and_prunes_stale_episodic -- --nocapture`. | 8 | 0/1/2 |
+
+## 10/10 Completion Intake (2026-04-03)
+
+### Features Required for 10/10
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-CORE-001 | queued | Single authoritative command registry (core + experimental tiers, handler type, availability flags) | Dispatch, help, doctor, and release checks currently diverge in command metadata and can mask runtime drift. | Add one Rust-native registry module consumed by `--help`, dispatch guards, dashboard command help, doctor checks, and release gates. Registry must include name, tier, handler type, unsafe/read-write flags, and alias map with collision-safe resolution. | 10 | 0/1/2 |
+| V11-CORE-002 | queued | Rust-native unknown-command handling and deterministic fallback payloads | Unknown command errors should never depend on runtime wrappers and must remain stable regardless of missing JS assets. | Add Rust-native unknown command path with deterministic JSON/text payload, fixed `command_not_found` code, and zero dependency on wrapper presence for this failure mode. | 10 | 0/1/2 |
+| V11-DASH-001 | queued | Canonical dashboard command path (`dashboard`) and alias policy | Ambiguous entry commands (`dashboard-ui serve`) create startup and UX inconsistencies across user and script flows. | Replace user-facing dashboard UX with one canonical command, keep legacy alias internal-only behind explicit compatibility flags, and ensure all launch wrappers call `gateway start --dashboard-host= --dashboard-port=` flow with host validation. | 10 | 0/1/2 |
+| V11-CORE-003 | queued | Command contract validation before script spawn | One missing wrapper or bad route should produce actionable diagnostics, not runtime crash. | Add pre-dispatch route binding check that validates registry target, script availability, and mode compatibility before spawn; include root-cause in command error envelope. | 10 | 0/1/2 |
+| V11-CLEANUP-001 | queued | Stale state hardening (`~/.infring`, launchd labels, env roots) | Stale roots/sockets cause gateway to start against wrong workspace and fail silent health checks. | Add pre-start cleanup: unload stale launchd jobs, clear stale PID files, and verify active service root matches resolved `INFRING_HOME` before success. | 9 | 0/1/2 |
+| V11-INSTALL-001 | queued | Runtime manifest and required entrypoint contract as hard install gate | Existing tags can pass superficial checks while missing Tier-1 command runtime files. | Enforce strict manifest check during install and release pipeline: all Tier-1 commands must have declared runtime assets and entrypoints present in bundle or verified source mode. | 10 | 0/1/2 |
+| V11-INSTALL-002 | queued | Runtime dependency manifest + module-closure verification (e.g., `ws`, `typescript`) | Dashboard launches fail at runtime if modules are missing from packaged closure. | Add machine-readable runtime dependency manifest and a Node closure verifier that checks all dashboard/runtime modules exist before install success/agent launch. | 10 | 0/1/2 |
+| V11-INSTALL-003 | queued | Release artifact integrity and checksum lockfile | Drift between release metadata and actual payload causes silent non-deterministic installs. | Add lockfile with file list + checksums; installer verifies checksums post-download and aborts on mismatch with actionable command to retry from clean state. | 9 | 0/1/2 |
+| V11-INSTALL-004 | queued | Idempotent repair mode and partial-state cleanup | Repair currently risks compounding partial state corruption. | Implement `--repair` that can safely: verify runtime, backup healthy artifacts, remove only broken artifacts, then re-run smoke checks. | 9 | 0/1/2 |
+| V11-INSTALL-005 | queued | Offline/cached install mode | Re-downloading large runtime bundles slows repeated installs and blocks rapid recovery workflows. | Add local cache for verified artifacts; skip network for cache-hit with integrity pass and fallback to network only on cache miss/invalid checksum. | 8 | 0/1/2 |
+| V11-INSTALL-006 | queued | Unified smoke matrix with machine-readable logs and health probe requirement | Route-level checks alone do not prove runtime liveness. | Expand smoke suite to include `infring --help`, `infringctl --help`, `infring status`, `infring gateway status`, and dashboard `/healthz`; write one log per check plus one machine-readable summary. | 10 | 0/1/2 |
+| V11-INSTALL-007 | queued | Optional toolchain recovery policy and fail behavior for cargo/rustup | Missing default toolchain currently creates confusing partial failures. | Define one deterministic policy: either full auto-bootstrap or explicit fail with exact next command. Apply policy consistently in installer and doctor output. | 9 | 0/1/2 |
+| V11-DOCTOR-001 | queued | Expand `infring doctor` (`verify-install`) one-shot health schema | Operators need one command for deterministic root-cause triage across installer, runtime, network, and health states. | `doctor` output includes binary paths, runtime manifest state, module closure status, dashboard probe status, port availability, and machine-friendly root-cause codes. | 10 | 0/1/2 |
+| V11-LLM-001 | queued | Full LLM provider/model discovery + fallback chain | Model list regressed to a minimal static set and blocks provider-level routing quality. | Restore discovery for local Ollama, configured providers, and environment API sources; include freshness stamps, health status, and deterministic fallback ranking. | 10 | 1/2 |
+| V11-LLM-002 | queued | Tool-call output hygiene (no accidental data-return) | Agents were emitting raw metadata blocks to users instead of synthesized answers. | Add policy gate that prevents unbounded metadata echo, enforces answer synthesis before chat output, and surfaces source confidence separately from user-facing answer. | 10 | 0/1/2 |
+| V11-LLM-003 | queued | Context-window safety against cache/key collision contamination | Recent wrong-answer example indicates query context mismatch and cache collision risk. | Add pre-apply semantic sanity checks before cache reuse, include intent classifier guardrail, and quarantine candidate cache on mismatch risk. | 10 | 0/1/2 |
+| V11-LLM-004 | queued | Provider date/knowledge freshness policy | Answers referencing outdated cutoffs reduce trust and correctness. | Add model/fetch metadata contract that tracks knowledge cutoff/version and blocks stale-only completion paths without explicit user warning. | 8 | 1/2 |
+| V11-AGENT-001 | queued | Deterministic agent init naming and role-aware greeting contract | Agents currently reuse generic names/messages and can miss role-specific behavior. | On init, choose name once with optional user override; if unset produce stable `agent-<id>` naming and message template by declared role only (researcher, coder, planner, etc.). | 9 | 0/2 |
+| V11-AGENT-002 | queued | Agent lifecycle integrity: init abort cleanup, permanent flag semantics | Aborted/incomplete inits and “permanent” states currently still archive/retain incorrectly. | Incomplete inits must auto-drop; permanent agents are exempt from auto-archive unless explicit rule says so. Archive action must only trigger by rule + explicit user/daemon trigger path. | 10 | 0/2 |
+| V11-AGENT-003 | queued | Terminal command bubbles in chat with actor labeling | Terminal events currently don’t map cleanly to message semantics. | Every terminal command/message shows as a chat bubble with actor label (`system` or agent name, user as `you`) and terminal visual tokens while preserving normal chat flow. | 10 | 2/client |
+| V11-UX-001 | queued | Sidebar collapsed preview behavior and no default ghost message | Collapsed side panel shows stale/ghost previews on refresh and when nothing is selected. | Render collapsed hover preview only on explicit pointer-hover with actual content; reset hover state on route/scroll/focus changes; never render “no messages yet” as default in collapsed mode. | 10 | 2/client |
+| V11-UX-002 | queued | Terminal and system mode chat chrome parity | Mixed styling currently creates inconsistent message semantics and unreadable UX states. | Normalize terminal bubbles to match chat bubble flow while preserving terminal colors/fonts; hide extra system controls in system chat (plus/tree/context ring etc.) and ensure non-copyable name badges. | 10 | 2/client |
+| V11-THINK-001 | queued | Replace filler “thinking...” bubble chatter with stable streaming semantics | Filler sentence loops lower trust and increase cognitive noise. | Replace chained filler states with deterministic streaming sentence-at-time updates or a minimal spinner without duplicate status spam; ensure thinking state never exits until final deterministic terminal/agent response. | 10 | 0/2/client |
+| V11-AGENT-004 | queued | Duplicate system error suppression and de-duplication | Same system error is currently duplicated and pollutes user-visible chat. | Add dedupe window for identical system errors and elevate a single structured error entry with context, count, and recovery path. | 10 | 0/1/2 |
+| V11-DASH-002 | queued | Persistent gateway/dashboard auto-heal (no manual reconnect required) | Wake/sleep disconnects and transient faults currently break persistence. | Add supervised restart loop with bounded exponential backoff, process health checks, and reconnection policy that only stops on explicit `gateway stop` with user-facing reason codes. | 10 | 0/1/2 |
+| V11-DASH-003 | queued | Reflection and visual effects parity across chat + non-chat pages | Reflection effect is inconsistent by route and can appear incorrect in color/size. | Apply effect only to declared glass surfaces with consistent opacity, color calibration, and width/offset constraints; validate in collapsed and full layouts. | 8 | 2/client |
+| V11-NEXUS-001 | queued | Nexus v1 parser/serializer + module lexicon runtime completion | Nexus compression is central to 10/10 throughput and stable multi-agent communication. | Implement strict parser/serializer with versioned schema, module manifests (core + add-on), and fallback behavior; add perf counters for compression ratio, token burn, queue depth, p95 latency, and ops/sec baselines on each patch. | 10 | 0/1/2 |
+| V11-MEMORY-001 | queued | Compaction v1 (Snip/Micro/Full/Reactive) with auto-trigger policy | Context hitting hard caps remains unstable without staged compaction and pressure-based governance. | Implement four-tier compaction, auto-threshold at ~95% pressure, and optional manual override; include metrics for retained context quality. | 10 | 0/2 |
+| V11-MEMORY-002 | queued | Dream Sequencer auto-cycle (`/dream`) with 4-phase flow | Long sessions need deterministic background cleanup and compression of memory state. | Implement Orient/Gather/Consolidate/Prune with receipts and schedule hooks; allow on-demand and periodic invocation. | 10 | 0/2 |
+| V11-COGN-001 | queued | Deterministic task decomposition + parallel execution planning | Agents still risk monolithic execution patterns that reduce throughput and traceability. | Add explicit decomposition planner that splits user tasks into bounded subtasks with dependency graphs, confidence, and parallelization limits; emit receipts for task-splitting and merge plans. | 10 | 0/1/2 |
+| V11-COGN-002 | queued | Reliable inter-agent orchestration and coordination lane | Reliable multi-agent behavior requires explicit routing, conflict handling, and stateful coordination between agents. | Add coordination primitives for task ownership, dependency handoff, role arbitration, and conflict-free state updates with deterministic handoff/timeout semantics. | 10 | 0/1/2 |
+| V11-AUTONOMY-001 | queued | KAIROS daemon (`kairos`) with bounded autonomy | The system must operate proactively without breaking safety/control boundaries. | Implement interval+event triggers with rate-limited tasks, max-proactive budget, human-override gating, and append-only action/audit logs. | 10 | 1/2 |
+| V11-EXE-001 | queued | Speculative execution overlay and merge/rollback protocol | Complex changes currently execute in-place too often, increasing rollback cost. | Add speculative execution mode with checkpointed overlay state, diff review gates, merge/rollback semantics, and receipts for each accepted merge. | 10 | 0/1/2 |
+| V11-OBS-001 | queued | Continuous perf and drift monitoring with regression gates | Improvements are hard to validate without enforced perf baselines. | Add deterministic metrics stream: compression_ratio, token_burn, queue_depth, p95_latency, ops_per_sec, memory_drift; gate release on no significant regression and positive trend in targeted baselines. | 10 | 0/1/2 |
+| V11-RES-001 | queued | Scalable resource allocation and workload fairness | Unbounded fan-out can starve critical agents and destabilize long-running sessions. | Add quota-aware scheduling with fairness classes, priority bands, burst ceilings, and starvation prevention for critical workflows across agents and queue lanes. | 9 | 0/1/2 |
+| V11-SEC-001 | queued | No-telemetry/local-first default with explicit opt-in for external calls | Trust score drops when external calls are implicit. | Enforce local-first runtime default, block implicit outbound connections unless policy allows, log every egress path and require explicit operator consent for external provider enablement. | 10 | 0/1 |
+| V11-SEC-002 | queued | Release/compatibility gate at pipeline level | Manual checks allow feature drift and missing asset regressions. | Add CI gates for manifest integrity, required entrypoints, release checksum checks, and install smoke in clean container-like home before publish. | 10 | 0/1 |
+| V11-DEC-001 | queued | Transparent decision and rationale surfacing | Users and operators need to trust automation when actions are taken by internal planners. | Every autonomous arbitration, routing, and recovery decision should emit compact rationale payloads with inputs, constraints, confidence, and fallback reason. | 10 | 0/1/2 |
+| V11-UX-003 | queued | Persistent user-intent customization and behavior profiles | One-size-fits-all behavior reduces effectiveness across operator styles and task types. | Add profile-based behavior presets (verbosity, autonomy, risk appetite, and tool boundaries) and per-project overrides with auditable diffs. | 8 | 1/2 |
+| V11-LEARN-001 | queued | Continuous learning from interaction feedback | Quality decay is likely without long-tail learning from outcomes and operator feedback. | Add safe feedback loop for rated completions, recurrent failure patterns, and correction traces to bias future planner routing and surfacing without policy bypass. | 9 | 0/1/2 |
+| V11-STATE-001 | queued | Persistent state durability and recovery lifecycle | State drift and partial failures can destroy continuity if recovery paths are implicit. | Add deterministic checkpointing for critical runtime state, periodic compaction with verification, and explicit recovery runbooks for corrupted/partial states. | 10 | 0/1/2 |
+| V11-UI-001 | queued | Message formatting + terminal list rendering polish | Current bubble/list formatting can feel cramped or inconsistent on compact devices. | Increase list/bubble padding and markdown list render fidelity across normal and terminal messages, including numbered/bulleted continuity. | 8 | 2/client |
+| V11-CORE-004 | queued | File size policy enforcement automation | Oversized files reduce maintainability and increase merge risk. | Add automatic check for file-size caps by path/type with action plan; break 800+ line violations by source module boundaries before feature expansion. | 9 | 0/1 |
+
+### TODO (Non-Feature Work)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Layer |
+| --- | --- | --- | --- | --- | --- |
+| V11-TODO-001 | queued | Changelog and migration ledger for each release gate decision | Operators need deterministic upgrade safety and rollback context. | Create release-to-release migration notes, contract changes, and rollback guidance for each 10/10 feature/contract row. | 1/client |
+| V11-TODO-002 | queued | Shell-specific activation snippets and onboarding copy | New users need consistent startup sequence regardless of shell. | Add shell-specific activation and troubleshooting snippets (bash/zsh/fish/pwsh) in installer output and setup docs. | 2/client |
+| V11-TODO-003 | queued | External machine verification matrix | A reproducible install story must be maintained for non-local contexts. | Maintain weekly matrix checklist for macOS/Linux + arm64/x64 clean-profile install + dashboard start + doctor smoke. | 0/2 |
+| V11-TODO-004 | queued | Structured error codebook and support playbook | Errors are currently hard to triage consistently across modules. | Publish single error catalog used by installer, CLI, gateway, and doctor with deterministic remediation snippets. | 1/2 |
+| V11-TODO-005 | queued | Non-functional naming cleanup for non-essential competitor-style identifiers | Code and docs naming is noisy in comparison references and should reflect architecture. | Normalize naming where it does not change API compatibility and add compatibility notes for any redirect aliases. | 1/2 |
+
+## 10/10 Execution Plan (Priority by Risk and Impact)
+
+### P0 Foundation Stabilizers
+
+1. V11-CORE-001: Add authoritative command registry used by dispatch, help, doctor, and release checks.
+2. V11-CORE-002: Implement Rust-native unknown-command failure path.
+3. V11-CORE-003: Add pre-dispatch route+script contract validation and deterministic root-cause codes.
+4. V11-DASH-001: Canonicalize dashboard command surface (single user command + compatibility policy).
+5. V11-INSTALL-001: Enforce runtime manifest and required entrypoint contract in installer + release packaging.
+6. V11-INSTALL-002: Add runtime dependency manifest and closure verification (`ws`, `typescript`, etc.).
+7. V11-INSTALL-006: Expand smoke matrix with machine-readable results and dashboard health probe.
+8. V11-DOCTOR-001: Finalize `infring doctor` / `verify-install` one-shot integrity schema.
+
+### P1 High-Impact Hardening
+
+1. V11-INSTALL-007: Lock toolchain behavior into one deterministic recovery/fail policy.
+2. V11-INSTALL-003: Add release checksum lockfile + integrity verification gates.
+3. V11-INSTALL-004: Implement idempotent `--repair` for partial-state recovery.
+4. V11-CLEANUP-001: Remove stale launch/env state and verify runtime ownership consistency.
+5. V11-LLM-001: Restore full provider/model discovery and fallback ranking.
+6. V11-LLM-003: Add cache collision/sanity checks before reused-context application.
+7. V11-AGENT-002: Fix lifecycle integrity for aborted init/permanent/archive behavior.
+8. V11-UX-001: Remove collapsed sidebar ghost preview default path.
+9. V11-CORE-004: Enforce file-size policy checks in CI/validation gates.
+
+### P2 Reliability and Maturity
+
+1. V11-DOCTOR-001 and V11-SEC-002: Align doctor and CI release gates around a shared contract map.
+2. V11-DASH-002: Add persistent gateway/dashboard self-heal loop with explicit stop semantics.
+3. V11-LLM-002: Prevent metadata/raw tool payload escape into user chat.
+4. V11-LLM-004: Add knowledge freshness metadata and stale-response guardrails.
+5. V11-AGENT-001: Resolve deterministic naming and role-aware init greetings.
+6. V11-AGENT-003: Normalize terminal bubbles and actor labels as standard message form.
+7. V11-UX-002 and V11-UI-001: Finalize terminal/system chat parity and list/bubble readability.
+8. V11-THINK-001: Replace filler thinking loops with stable sentence/step stream or clean spinner.
+9. V11-AGENT-004: Deduplicate repeated system errors and aggregate for UI.
+10. V11-DEC-001: Enforce transparent rationale outputs with consistent decision metadata format.
+
+### P2 and P3 Reliability Additions (Capability Coverage)
+
+1. V11-COGN-001: Release the task decomposition planner with dependency-aware parallel lanes.
+2. V11-COGN-002: Add orchestration primitives for conflict-free inter-agent ownership and handoff.
+3. V11-STATE-001: Complete durable checkpoint + recovery lifecycle for critical runtime states.
+4. V11-RES-001: Implement fairness-aware scheduling and quota controls for scalable load.
+5. V11-UX-003: Ship behavior customization profiles and profile-scoped defaults.
+6. V11-LEARN-001: Implement feedback-driven adaptation with bounded policy-safe learning surfaces.
+
+### P3 Product Excellence
+
+1. V11-DASH-003: Final visual reflection parity across all glass surfaces.
+2. V11-NEXUS-001: Complete Nexus v1 parser/serializer + module manifest runtime.
+3. V11-MEMORY-001: Add Snip/Micro/Full/Reactive compaction with near-95 pressure auto-trigger.
+4. V11-MEMORY-002: Deliver `/dream` four-phase engine.
+5. V11-AUTONOMY-001: Deliver bounded KAIROS daemon autonomy.
+6. V11-EXE-001: Add speculative execution overlay and merge/rollback path.
+7. V11-OBS-001: Add continuous perf/drift metric enforcement and regression alarms.
+8. V11-SEC-001: Complete local-first/no-telemetry default policy.
+9. V11-OBS-001 and V11-SEC-002: Integrate final release gates and drift checks in release CI.
+
+## 10/10 Workstream Map (Sprint 1 Suggested)
+
+### Wave 1 (Command + install correctness)
+- Owner: `core/layer0/ops`, `install.sh`
+- Deliverables:
+  - V11-CORE-001, V11-CORE-002, V11-CORE-003, V11-INSTALL-001, V11-INSTALL-002, V11-INSTALL-006
+  - V11-DOCTOR-001
+- Go-live evidence: `infring` and `infringctl` command surfaces no longer depend on missing JS for unknown-command failures, installation rejects missing Tier-1 assets deterministically, and dashboard health smoke is green.
+
+### Wave 2 (Toolchain/install resilience + lifecycle)
+- Owner: `core/layer0/ops`, `install.sh`
+- Deliverables:
+  - V11-INSTALL-007, V11-INSTALL-003, V11-INSTALL-004, V11-CLEANUP-001
+  - V11-LLM-001
+- Go-live evidence:
+  - fresh-profile install succeeds/fails with deterministic root-cause guidance,
+  - no stale home/launchd cross-contamination,
+  - provider list is deterministic and non-regressed.
+
+### Wave 3 (UX and reliability)
+- Owner: `client/runtime/systems/ui/infring_static`
+- Deliverables:
+  - V11-UX-001, V11-UX-002, V11-AGENT-003, V11-UI-001, V11-THINK-001
+  - V11-AGENT-001, V11-AGENT-002, V11-AGENT-004, V11-DASH-002
+- Go-live evidence:
+  - no default collapsed-preview ghost,
+  - stable actor-labeling in terminal bubbles,
+  - no thinking-spam regressions,
+  - explicit auto-heal on dashboard/gateway disconnect.
+
+### Wave 4 (Cognitive and memory stack)
+- Owner: `core/layer0/ops`, `core/layer2/ops`, `core/layer0/safety`
+- Deliverables:
+  - V11-NEXUS-001, V11-MEMORY-001, V11-MEMORY-002, V11-AUTONOMY-001, V11-EXE-001
+  - V11-LLM-002, V11-LLM-003, V11-LLM-004
+- Go-live evidence:
+  - measurable compaction behavior,
+  - deterministic speculation/merge,
+  - fewer context collisions,
+  - metadata remains non-visible to users.
+
+### Wave 5 (Governance + observability hardening)
+- Owner: `core/layer0/ops`, `core/layer1/security`, CI
+- Deliverables:
+  - V11-OBS-001, V11-SEC-002, V11-SEC-001, V11-DOCTOR-001, V11-TODO-004
+- Go-live evidence:
+  - regression gates block release on perf drift or integrity failures,
+  - explicit local-first policy and egress audit in checks.
+
+### Non-Feature Carry-Over (do not block Wave 1)
+- V11-TODO-001, V11-TODO-002, V11-TODO-003, V11-TODO-005.
