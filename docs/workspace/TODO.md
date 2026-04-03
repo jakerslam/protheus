@@ -436,6 +436,36 @@ Updated: 2026-04-01T08:02:05.223Z
 ## Actionable SRS Items (Queued/In Progress)
 - [x] none
 
+## Mass Adoption Launch Checklist (Next Pass)
+- [ ] MA-LAUNCH-ONB-001: Define and enforce one canonical install command path in README, GETTING_STARTED, and tests.
+- [ ] MA-LAUNCH-ONB-002: Implement one-command role bootstrapping success criteria with receipts (binary check, gateway status, onboarding receipt).
+- [ ] MA-LAUNCH-ONB-003: Make onboarding receipts explicit and user-visible; guide incomplete setup to `infring setup`.
+- [ ] MA-LAUNCH-ONB-004: Add onboarding smoke script + receipts in machine and JSON modes.
+- [ ] MA-LAUNCH-DOC-001: Consolidate first-run docs so install/setup/gateway flow is identical across docs and role playbooks.
+- [ ] MA-LAUNCH-DOC-002: Add failure decision tree for first-run states (Node/dashboard/stale root/PATH).
+- [ ] MA-LAUNCH-DOC-003: Replace outdated command examples with wrapper-first usage and deprecation warnings.
+- [ ] MA-LAUNCH-DOC-004: Publish explicit references to failure artifacts/logs/runbooks in recovery docs.
+- [ ] MA-LAUNCH-DOC-005: Publish release-mode docs for manifest/entrypoints plus optional surfaces.
+- [ ] MA-LAUNCH-UX-001: Standardize startup output sequence (env ready, runtime contract, gateway command, dashboard status, next step).
+- [ ] MA-LAUNCH-UX-002: Convert non-actionable warnings into recovery hints with exact fix commands.
+- [ ] MA-LAUNCH-UX-003: Improve command-not-found and recovery message quality.
+- [ ] MA-LAUNCH-UX-004: Include verification confidence and JSON pasteable summary in install success output.
+- [ ] MA-LAUNCH-UX-005: Align `help` output with installed mode (pure/tiny-max/full) and unavailable surface messaging.
+- [ ] MA-LAUNCH-SAFE-001: Make Node/tool resolution deterministic and remove bare `node` fallbacks.
+- [ ] MA-LAUNCH-SAFE-002: Gate install success on manifest/runtime reachability and target surface assets in all modes.
+- [ ] MA-LAUNCH-SAFE-003: Enforce conservative defaults for non-interactive startup and opt-in Node surfaces.
+- [ ] MA-LAUNCH-SAFE-004: Prevent stale path leakage and enforce INFRING_WORKSPACE_ROOT-based resolution.
+- [ ] MA-LAUNCH-SAFE-005: Codify mode behavior in docs and code so unavailable features are explicit.
+- [ ] MA-LAUNCH-REC-001: Add stable `infring recover` flow (stop, clear artifacts, restart, doctor, validate).
+- [ ] MA-LAUNCH-REC-002: Add incident precheck-to-action mapping for common dashboard/runtime faults.
+- [ ] MA-LAUNCH-REC-003: Add repair playbook docs with exact artifact evidence paths and commands.
+- [ ] MA-LAUNCH-REC-004: Run recurring clean-home recovery drills for stale-state and persistence defects.
+- [ ] MA-LAUNCH-CRIT-001: Fresh clean install reaches healthy dashboard.
+- [ ] MA-LAUNCH-CRIT-002: `infringctl doctor --json` reports no runtime misses/stale-path leakage.
+- [ ] MA-LAUNCH-CRIT-003: First launch output is deterministic and consistent across OS without false blocking warnings.
+- [ ] MA-LAUNCH-CRIT-004: Recovery flow is tested for Node missing / dashboard down / stale artifacts.
+- [ ] MA-LAUNCH-CRIT-005: First-run onboarding to verified completion works without local Rust toolchain in full mode.
+
 ## External Blockers
 - [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)
 - [ ] `V4-LENS-011` — blocked_external_prepared — LensMap Standalone Suite Program (Google Doc Intake 2026-03-03) (requires external evidence packet / human approval)
@@ -476,4 +506,3 @@ Updated: 2026-04-01T08:02:05.223Z
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
-
