@@ -1765,11 +1765,11 @@
   "devDependencies": {
     "@vitest/coverage-istanbul": "^2.1.9",
     "@vitest/coverage-v8": "^2.1.8",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.8",
-    "ws": "^8.19.0"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
+    "typescript": "^5.9.3",
+    "ws": "^8.19.0",
     "socket.io": "^4.8.3",
     "xml2js": "^0.6.2"
   },

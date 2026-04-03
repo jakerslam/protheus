@@ -155,6 +155,21 @@ describe('conduit primitive wrapper contract', () => {
     }
   });
 
+  test('runtime bootstrap dependencies are shipped as runtime deps', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    const deps = (pkg && pkg.dependencies) || {};
+    const devDeps = (pkg && pkg.devDependencies) || {};
+    expect(typeof deps.typescript).toBe('string');
+    expect(typeof deps.ws).toBe('string');
+    expect(devDeps.typescript).toBeUndefined();
+    expect(devDeps.ws).toBeUndefined();
+  });
+
+  test('installer smoke checks canonical dashboard route', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    expect(source.includes('dashboard status --json')).toBe(true);
+  });
+
   test('protheusctl route map targets are resolvable or explicitly optional-not-shipped', () => {
     const routeSources = [
       'core/layer0/ops/src/protheusctl.rs',
@@ -259,8 +274,8 @@ describe('conduit primitive wrapper contract', () => {
       .filter((line) => line && !line.startsWith('#'));
     expect(manifestEntries.length).toBeGreaterThan(0);
     const bootstrapOnlyEntrypoints = new Set<string>([
-      'client/runtime/systems/ops/protheusd.js',
-      'client/runtime/systems/ops/protheus_unknown_guard.js',
+      'client/runtime/systems/ops/protheusd.ts',
+      'client/runtime/systems/ops/protheus_unknown_guard.ts',
     ]);
 
     for (const entry of manifestEntries) {
