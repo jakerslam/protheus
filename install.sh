@@ -1636,6 +1636,30 @@ workspace_has_runtime() {
   workspace_has_tier1_runtime "$workspace"
 }
 
+workspace_has_xtask_member() {
+  workspace="$1"
+  [ -f "$workspace/Cargo.toml" ] || return 0
+  if ! grep -Eq "\"xtask\"" "$workspace/Cargo.toml"; then
+    return 0
+  fi
+  [ -f "$workspace/xtask/Cargo.toml" ]
+}
+
+ensure_workspace_source_member_closure() {
+  version_tag="$1"
+  workspace="$2"
+  if workspace_has_xtask_member "$workspace"; then
+    return 0
+  fi
+  echo "[infring install] workspace source closure missing (xtask); attempting source fallback refresh"
+  if install_workspace_from_source_fallback "$version_tag" "$workspace" && workspace_has_xtask_member "$workspace"; then
+    echo "[infring install] workspace source closure repaired (xtask restored)"
+    return 0
+  fi
+  echo "[infring install] workspace source closure repair failed (xtask missing)" >&2
+  return 1
+}
+
 workspace_runtime_root() {
   base="$1"
   for candidate in \
@@ -1670,6 +1694,7 @@ install_workspace_from_source_fallback() {
     adapters \
     docs \
     tests \
+    xtask \
     Cargo.toml \
     Cargo.lock \
     package.json \
@@ -1999,6 +2024,8 @@ run_post_install_smoke_tests() {
   smoke_dir="$(mktemp -d)"
   export INFRING_WORKSPACE_ROOT="$workspace"
   export PROTHEUS_WORKSPACE_ROOT="$workspace"
+  export INFRING_WRAPPER_CD_WORKSPACE=1
+  export PROTHEUS_WRAPPER_CD_WORKSPACE=1
   failures=0
   run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
   if rustup_default_toolchain_missing; then
@@ -2990,6 +3017,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
       echo "[infring install] expected workspace runtime root: $WORKSPACE_DIR" >&2
       exit 1
     fi
+    ensure_workspace_source_member_closure "$version" "$WORKSPACE_DIR" || exit 1
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
     if ! verify_workspace_runtime_contract "$WORKSPACE_DIR"; then
       repair_workspace_runtime_contract "$version" "$triple" "$WORKSPACE_DIR" || exit 1

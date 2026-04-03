@@ -374,7 +374,8 @@
     <div
       class="nav-agent-collapsed-hover-float"
       x-cloak
-      x-show="sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && collapsedAgentHover.active && !!String(collapsedAgentHover.id || '').trim() && !!String(collapsedAgentHover.name || '').trim() && !!String(collapsedAgentHover.text || '').trim() && Number(collapsedAgentHover.top || 0) > 0"
+      style="display: none;"
+      x-show="sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && isCollapsedAgentHoverVisible(collapsedAgentHover)"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >

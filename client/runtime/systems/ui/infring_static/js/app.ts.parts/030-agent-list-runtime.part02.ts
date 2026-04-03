@@ -128,6 +128,84 @@
         this.showCollapsedAgentHover(agent, ev);
       }
     },
+    isCollapsedAgentHoverVisible(rawHover) {
+      var hover = rawHover || {};
+      if (!hover.active) return false;
+      if (!hover.top || Number(hover.top) <= 0) return false;
+      var rawId = String(hover.id || '').trim();
+      if (!rawId) return false;
+      if (!this._collapsedAgentIdHasSidebarRow(rawId)) return false;
+      if (String(hover.name || '').trim().toLowerCase() === 'agent') return false;
+      var hoverText = this._normalizeCollapsedAgentHoverText(String(hover.text || ''));
+      if (!hoverText) return false;
+      return true;
+    },
+    _normalizeCollapsedAgentHoverText(rawText) {
+      var text = String(rawText || '').trim();
+      if (!text) return '';
+      if (this._isCollapsedHoverStatePlaceholderText(text)) return '';
+      return text;
+    },
+    _isCollapsedHoverStatePlaceholderText(text) {
+      var normalized = String(text || '').trim().toLowerCase();
+      return normalized === 'no messages yet'
+        || normalized === 'system events and terminal output'
+        || normalized === 'no matching text'
+        || normalized === 'agent';
+    },
+    _collapsedAgentIdHasSidebarRow(rawId) {
+      var id = String(rawId || '').trim();
+      if (!id) return false;
+      if (String(id).toLowerCase() === 'system') return true;
+      if (!Array.isArray(this.chatSidebarRows)) return false;
+      for (var i = 0; i < this.chatSidebarRows.length; i++) {
+        var row = this.chatSidebarRows[i];
+        if (!row) continue;
+        if (String(row.id || '').trim() === id) return true;
+      }
+      return false;
+    },
+    sanitizeCollapsedAgentHoverState() {
+      var hover = this.collapsedAgentHover || {};
+      var rawId = String(hover.id || '').trim();
+      if (!hover.active || !rawId) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var currentTop = Number(hover.top || 0);
+      if (!Number.isFinite(currentTop) || currentTop <= 0) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      if (!this._collapsedAgentIdHasSidebarRow(rawId)) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var isSystemThread = rawId.toLowerCase() === 'system';
+      var previewAgent = isSystemThread
+        ? { id: 'system', is_system_thread: true, name: 'System' }
+        : this.chatSidebarRows.find(function(agent) {
+            return String(agent && agent.id || '').trim() === rawId;
+          }) || { id: rawId };
+      var preview = this.chatSidebarPreview(previewAgent) || {};
+      var previewText = this._normalizeCollapsedAgentHoverText(preview.text || '');
+      if (!previewText) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var previewName = String(hover.name || previewAgent.name || (isSystemThread ? 'System' : rawId)).trim();
+      if (!previewName || previewName.toLowerCase() === 'agent') {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
+        id: rawId,
+        name: previewName,
+        text: previewText,
+        unread: !!preview.unread_response,
+        top: currentTop
+      });
+    },
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
       var eventType = String((ev && ev.type) || '').toLowerCase();
@@ -157,14 +235,17 @@
         return;
       }
       var preview = this.chatSidebarPreview(Object.assign({}, agent, { id: hoverId, is_system_thread: isSystemThread })) || {};
-      var previewText = String(preview.text || '').trim();
-      var isPlaceholderPreview = String(previewText || '').toLowerCase() === 'no messages yet';
-      if (!previewText || isPlaceholderPreview) {
+      var previewText = this._normalizeCollapsedAgentHoverText(preview.text || '');
+      if (!previewText) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      if (!this._collapsedAgentIdHasSidebarRow(hoverId)) {
         this.hideCollapsedAgentHover();
         return;
       }
       var hoverName = String(agent.name || (isSystemThread ? 'System' : hoverId)).trim();
-      if (!hoverName) {
+      if (!hoverName || hoverName.toLowerCase() === 'agent') {
         this.hideCollapsedAgentHover();
         return;
       }
