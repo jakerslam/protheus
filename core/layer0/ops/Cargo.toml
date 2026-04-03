@@ -67,6 +67,7 @@ aes-gcm = { version = "0.10", features = ["aes"] }
 rand = "0.8"
 burn_oracle_budget_gate = { path = "../burn_oracle_budget_gate" }
 persona_dispatch_security_gate = { path = "../persona_dispatch_security_gate" }
+protheus-security-core-v1 = { path = "../security" }
 execution_core = { path = "../../layer2/execution" }
 infring-layer1-security = { path = "../../layer1/security" }
 protheus-autonomy-core-v1 = { path = "../../layer2/autonomy" }
