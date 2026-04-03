@@ -1157,7 +1157,8 @@ install_client_bundle() {
 
   extract_bundle() {
     archive_path="$1"
-    case "$archive_path" in
+    asset_name="${2:-$archive_path}"
+    case "$asset_name" in
       *.tar.zst)
         if command -v unzstd >/dev/null 2>&1; then
           unzstd -c "$archive_path" | tar -xf - -C "$extract_dir"
@@ -1175,6 +1176,17 @@ install_client_bundle() {
         return $?
         ;;
       *)
+        if tar -xzf "$archive_path" -C "$extract_dir" >/dev/null 2>&1; then
+          return 0
+        fi
+        if command -v unzstd >/dev/null 2>&1; then
+          unzstd -c "$archive_path" | tar -xf - -C "$extract_dir" >/dev/null 2>&1
+          return $?
+        fi
+        if command -v zstd >/dev/null 2>&1; then
+          zstd -dc "$archive_path" | tar -xf - -C "$extract_dir" >/dev/null 2>&1
+          return $?
+        fi
         return 1
         ;;
     esac
@@ -1193,7 +1205,7 @@ install_client_bundle() {
     if download_asset "$version_tag" "$asset" "$archive"; then
       rm -rf "$extract_dir"
       mkdir -p "$extract_dir"
-      if extract_bundle "$archive"; then
+      if extract_bundle "$archive" "$asset"; then
         runtime_root="$(workspace_runtime_root "$extract_dir" 2>/dev/null || true)"
         if [ -n "$runtime_root" ]; then
           mkdir -p "$output_dir"
@@ -1545,7 +1557,9 @@ write_wrapper() {
   printf '%s\n' "      fi" >> "$wrapper_path"
   printf '%s\n' "    done" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
-  printf '%s\n' "  cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
+  printf '%s\n' "  if [ \"\${INFRING_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ] || [ \"\${PROTHEUS_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "    cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
+  printf '%s\n' "  fi" >> "$wrapper_path"
   printf '%s\n' "fi" >> "$wrapper_path"
   printf '%s\n' "$wrapper_body" >> "$wrapper_path"
   rendered_path="$(mktemp)"
