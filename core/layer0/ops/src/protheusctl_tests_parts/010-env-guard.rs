@@ -12,6 +12,26 @@ fn env_guard() -> std::sync::MutexGuard<'static, ()> {
 }
 
 #[test]
+fn dispatch_security_gate_exempt_allows_help_surface() {
+    assert!(dispatch_security_gate_exempt(
+        "client/runtime/systems/ops/protheus_command_list.ts",
+        &[]
+    ));
+    assert!(dispatch_security_gate_exempt(
+        "client/runtime/systems/ops/protheus_command_list.js",
+        &[]
+    ));
+}
+
+#[test]
+fn dispatch_security_gate_exempt_rejects_non_help_surface() {
+    assert!(!dispatch_security_gate_exempt(
+        "client/runtime/systems/ops/protheus_setup_wizard.ts",
+        &[]
+    ));
+}
+
+#[test]
 fn resolve_workspace_root_walks_up_to_repo_marker() {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
