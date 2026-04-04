@@ -4104,9 +4104,22 @@ fn message_requests_comparative_answer(message: &str) -> bool {
         || lowered.contains("framework");
     let asks_structure = lowered.contains("table")
         || lowered.contains("rank")
+        || lowered.contains("ranking")
+        || lowered.contains("peer")
+        || lowered.contains("peers")
+        || lowered.contains("among")
         || lowered.contains("top ")
         || lowered.contains("grade");
     asks_compare || asks_structure
+}
+
+fn comparative_no_findings_fallback(message: &str) -> String {
+    let lowered = clean_text(message, 400).to_ascii_lowercase();
+    let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
+    if asks_rank {
+        return "I couldn't verify live web rankings in this turn, but based on stable capabilities Infring is currently strongest in identity persistence, memory continuity, and integrated tool orchestration. Its biggest gap versus top peers is reliability under tool/search failures and response handoff consistency. If you want, I can still produce a provisional ranked table now with confidence levels per row.".to_string();
+    }
+    "I couldn't verify fresh web comparisons in this turn, but based on stable capabilities Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while reliability under tool/search failures and handoff consistency are still the main gaps versus mature peers.".to_string()
 }
 
 fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
@@ -5485,6 +5498,12 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
     let normalized = normalize_tool_name(tool_name);
     let lowered = tool_error_text(payload).to_ascii_lowercase();
     if lowered.is_empty() {
+        if normalized == "system_diagnostic" {
+            return Some(
+                "`system_diagnostic` couldn't run in this turn. I can still diagnose manually from the latest prompt/response and runtime symptoms if you want me to continue."
+                    .to_string(),
+            );
+        }
         return Some(format!("I couldn't complete `{normalized}` right now."));
     }
     if lowered == "tool_explicit_signoff_required" || lowered == "tool_confirmation_required" {
@@ -5499,6 +5518,12 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         return Some(format!(
             "`{normalized}` needs a valid URL before it can run."
         ));
+    }
+    if normalized == "system_diagnostic" {
+        return Some(
+            "`system_diagnostic` couldn't run in this turn. I can still diagnose manually from the latest prompt/response and runtime symptoms if you want me to continue."
+                .to_string(),
+        );
     }
     if lowered.contains("denied_domain")
         || lowered.contains("network_policy")
@@ -7880,6 +7905,13 @@ pub fn handle_with_headers(
                                 }
                             }
                         }
+                    }
+                    if response_is_no_findings_placeholder(&finalized_response)
+                        && message_requests_comparative_answer(&message)
+                    {
+                        finalized_response = comparative_no_findings_fallback(&message);
+                        finalization_outcome =
+                            format!("{finalization_outcome}+comparative_fallback");
                     }
                     response_text = finalized_response;
                     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);

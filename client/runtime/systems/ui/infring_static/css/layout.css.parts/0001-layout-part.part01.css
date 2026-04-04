@@ -354,6 +354,13 @@ button.sidebar-scroll-indicator:hover {
   margin-left: 0;
 }
 
+button.nav-item.nav-sub-item.nav-sub-item-action {
+  background: transparent;
+  border: 1px solid transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .nav-sub-item-controls {
   display: flex;
   align-items: center;
