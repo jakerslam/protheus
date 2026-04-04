@@ -1,0 +1,8 @@
+{
+  "schema_id": "release_compatibility_policy",
+  "schema_version": "1.0",
+  "required_deprecation_days": 90,
+  "require_migration_guide": true,
+  "require_deprecation_notice": true,
+  "registry_path": "client/runtime/config/api_cli_contract_registry.json"
+}

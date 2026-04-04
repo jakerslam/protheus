@@ -1,0 +1,42 @@
+name: Release Post Verify
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-fresh-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fresh install (full + node)
+        env:
+          HOME: /tmp/infring-postverify-home
+          INFRING_HOME: /tmp/infring-postverify-home/.infring
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME"
+          mkdir -p "$HOME"
+          curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node
+          . "$HOME/.infring/env.sh"
+          infring --help
+          infring status
+          infring verify-gateway --dashboard-host=127.0.0.1 --dashboard-port=4173 --wait-max=45
+          infringctl doctor --json > /tmp/infring-postverify-doctor.json
+          cat /tmp/infring-postverify-doctor.json
+
+      - name: Model routing sanity
+        env:
+          HOME: /tmp/infring-postverify-home
+          INFRING_HOME: /tmp/infring-postverify-home/.infring
+        run: |
+          set -euo pipefail
+          . "$HOME/.infring/env.sh"
+          infringctl dashboard route-decision --json > /tmp/infring-postverify-route.json || true
+          cat /tmp/infring-postverify-route.json || true

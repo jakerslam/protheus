@@ -1,0 +1,8 @@
+version: 2
+allow-ghsas: []
+deny-licenses:
+  - GPL-3.0
+  - AGPL-3.0
+fail-on-severity: high
+vulnerability-check: true
+base-ref: main

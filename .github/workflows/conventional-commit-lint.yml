@@ -1,0 +1,46 @@
+name: Conventional Commit Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-commit-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint commit messages (PR range)
+        if: github.event_name == 'pull_request'
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts \
+            --from=${{ github.event.pull_request.base.sha }} \
+            --to=${{ github.event.pull_request.head.sha }} \
+            --strict=1 \
+            --out=core/local/artifacts/conventional_commit_gate_current.json
+
+      - name: Lint commit messages (push range)
+        if: github.event_name != 'pull_request'
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts \
+            --from=${{ github.event.before }} \
+            --to=${{ github.sha }} \
+            --strict=1 \
+            --out=core/local/artifacts/conventional_commit_gate_current.json
