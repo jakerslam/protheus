@@ -2061,10 +2061,19 @@ run_dashboard_health_smoke() {
   log="$smoke_dir/dashboard_health.log"
   [ -x "$install_dir/infring" ] || return 1
 
-  if ! INFRING_DASHBOARD_LAUNCHD=0 "$install_dir/infring" gateway start \
+  if ! run_command_with_timeout 90 env INFRING_DASHBOARD_LAUNCHD=0 \
+    "$install_dir/infring" gateway start \
     "--dashboard-host=${host}" "--dashboard-port=${port}" \
     "--dashboard-open=0" "--gateway-persist=0" >"$log" 2>&1; then
-    echo "[infring install] smoke dashboard_health: failed (gateway start)" >&2
+    start_status=$?
+    run_command_with_timeout 30 env INFRING_DASHBOARD_LAUNCHD=0 \
+      "$install_dir/infring" gateway stop \
+      "--dashboard-host=${host}" "--dashboard-port=${port}" >/dev/null 2>&1 || true
+    if [ "$start_status" = "124" ]; then
+      echo "[infring install] smoke dashboard_health: failed (gateway start timeout)" >&2
+    else
+      echo "[infring install] smoke dashboard_health: failed (gateway start)" >&2
+    fi
     cat "$log" >&2 || true
     return 1
   fi
@@ -2080,7 +2089,8 @@ run_dashboard_health_smoke() {
     i=$((i + 1))
   done
 
-  INFRING_DASHBOARD_LAUNCHD=0 "$install_dir/infring" gateway stop \
+  run_command_with_timeout 30 env INFRING_DASHBOARD_LAUNCHD=0 \
+    "$install_dir/infring" gateway stop \
     "--dashboard-host=${host}" "--dashboard-port=${port}" >/dev/null 2>&1 || true
 
   if [ "$ready" != "1" ]; then
@@ -2090,6 +2100,36 @@ run_dashboard_health_smoke() {
   fi
   echo "[infring install] smoke dashboard_health: ok"
   return 0
+}
+
+run_command_with_timeout() {
+  timeout_s="$1"
+  shift || true
+  [ $# -gt 0 ] || return 2
+  case "$timeout_s" in
+    ''|*[!0-9]*)
+      timeout_s=60
+      ;;
+  esac
+  if [ "$timeout_s" -lt 1 ]; then
+    timeout_s=1
+  fi
+  "$@" &
+  cmd_pid=$!
+  elapsed=0
+  while kill -0 "$cmd_pid" >/dev/null 2>&1; do
+    if [ "$elapsed" -ge "$timeout_s" ]; then
+      kill "$cmd_pid" >/dev/null 2>&1 || true
+      sleep 1
+      kill -9 "$cmd_pid" >/dev/null 2>&1 || true
+      wait "$cmd_pid" >/dev/null 2>&1 || true
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  wait "$cmd_pid"
+  return $?
 }
 
 run_post_install_smoke_tests() {
@@ -3181,6 +3221,9 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
+    # Write activation script before smoke tests so users always have a recovery path
+    # even if a smoke check hangs or fails after artifacts are already installed.
+    write_path_activate_script
     run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
 

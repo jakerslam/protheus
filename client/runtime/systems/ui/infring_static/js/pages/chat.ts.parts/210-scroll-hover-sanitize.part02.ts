@@ -101,7 +101,7 @@
       if (!raw) return '';
       var value = raw.replace(/[ \t]+/g, ' ').trim();
       if (!value) return '';
-      var sentenceMatches = value.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g);
+      var sentenceMatches = value.match(/[^.!?…。！？;:]+[.!?…。！？;:]+(?:["')\]]+)?/g);
       if (sentenceMatches && sentenceMatches.length) {
         var latest = String(sentenceMatches[sentenceMatches.length - 1] || '').trim();
         return latest || '';
@@ -120,7 +120,7 @@
         .replace(/\r/g, '')
         .trim();
       if (!value) return [];
-      var matches = value.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g) || [];
+      var matches = value.match(/[^.!?…。！？;:]+[.!?…。！？;:]+(?:["')\]]+)?/g) || [];
       return matches
         .map(function(part) { return String(part || '').replace(/\s+/g, ' ').trim(); })
         .filter(function(part) { return !!part; });
@@ -131,19 +131,22 @@
       if (!msg || typeof msg !== 'object') {
         return frames[frames.length - 1];
       }
-      var signature = String(thoughtText || '').length + '|' + frames.length + '|' + frames[frames.length - 1];
-      var priorSignature = String(msg._thought_frame_signature || '');
       var nextIndex = Number(msg._thought_frame_index || 0);
       if (!Number.isFinite(nextIndex) || nextIndex < 0) nextIndex = 0;
-      if (priorSignature !== signature) {
-        if (priorSignature) {
-          nextIndex = Math.min(nextIndex + 1, Math.max(0, frames.length - 1));
-        } else {
-          nextIndex = Math.max(0, Math.min(nextIndex, frames.length - 1));
-        }
-        msg._thought_frame_signature = signature;
-        msg._thought_frame_index = nextIndex;
+      var seenCount = Number(msg._thought_frame_seen_count || 0);
+      if (!Number.isFinite(seenCount) || seenCount < 0) seenCount = 0;
+      // Advance the shown thought line only when an additional complete sentence
+      // appears (punctuation-delimited), not on every text delta token.
+      if (seenCount <= 0) {
+        nextIndex = 0;
+      } else if (frames.length > seenCount) {
+        nextIndex = Math.min(nextIndex + (frames.length - seenCount), Math.max(0, frames.length - 1));
+      } else {
+        nextIndex = Math.max(0, Math.min(nextIndex, frames.length - 1));
       }
+      msg._thought_frame_seen_count = frames.length;
+      msg._thought_frame_index = nextIndex;
+      msg._thought_frame_signature = frames.length + '|' + frames[frames.length - 1];
       var frame = String(frames[Math.max(0, Math.min(frames.length - 1, nextIndex))] || '').trim();
       if (frame) msg._thought_last_complete_sentence = frame;
       return frame;
