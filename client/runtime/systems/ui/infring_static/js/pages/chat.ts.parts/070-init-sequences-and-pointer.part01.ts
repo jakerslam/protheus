@@ -100,8 +100,6 @@
       this.suggestionsLoading = true;
 	      try {
 	        var payload = {};
-	        var cleanHint = String(hint || '').trim();
-	        if (/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)) cleanHint = '';
 	        var context = this.collectPromptSuggestionContext();
 	        if (context.signature) payload.recent_context = String(context.signature).trim();
 	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
@@ -116,9 +114,6 @@
 	        }
 	        var gatingContext = String(context.signature || '');
 	        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
-	        if ((!Array.isArray(baseSuggestions) || !baseSuggestions.length) && typeof this.derivePromptSuggestionFallback === 'function') {
-	          baseSuggestions = this.derivePromptSuggestionFallback(agent, cleanHint, gatingContext);
-	        }
 	        var suggestions = this.normalizePromptSuggestions(
 	          Array.isArray(baseSuggestions) ? baseSuggestions : [],
 	          gatingContext,
@@ -137,15 +132,7 @@
 		            this._lastSuggestionsAgentId = agentId;
 		            return;
 		          }
-		          var fallbackRows = [];
-		          if (typeof this.derivePromptSuggestionFallback === 'function') {
-		            fallbackRows = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
-	          }
-	          this.promptSuggestions = this.normalizePromptSuggestions(
-	            Array.isArray(fallbackRows) ? fallbackRows : [],
-	            String(fallbackContext.signature || ''),
-	            this.recentUserSuggestionSamples()
-	          );
+		          this.promptSuggestions = [];
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = agentId;
         }
