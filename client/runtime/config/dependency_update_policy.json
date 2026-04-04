@@ -1,0 +1,12 @@
+{
+  "schema_id": "dependency_update_policy",
+  "schema_version": "1.0",
+  "security_patch_sla_days": 14,
+  "max_critical_vulnerabilities": 0,
+  "max_high_vulnerabilities": 0,
+  "dependabot_required_ecosystems": ["npm", "cargo", "github-actions"],
+  "blocked_packages": [
+    { "ecosystem": "npm", "name": "event-stream", "reason": "historical supply-chain incident" },
+    { "ecosystem": "cargo", "name": "openssl-sys", "reason": "allow only pinned vetted versions via transitive controls" }
+  ]
+}

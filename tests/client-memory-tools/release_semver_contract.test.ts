@@ -31,7 +31,9 @@ function main() {
   assert.strictEqual(typeof payload.next_tag, 'string');
   assert.strictEqual(typeof payload.current_version, 'string');
   assert.strictEqual(typeof payload.bump, 'string');
+  assert.strictEqual(typeof payload.release_channel, 'string');
   assert.ok(['major', 'minor', 'patch', 'none'].includes(payload.bump), 'bump classification should be valid');
+  assert.ok(['alpha', 'beta', 'stable'].includes(payload.release_channel), 'release channel should be valid');
   process.stdout.write(
     `${JSON.stringify(
       {

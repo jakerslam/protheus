@@ -20,7 +20,9 @@
       "name": "legacy-bridge",
       "version": "0.1.0",
       "status": "deprecated",
-      "deprecation_window_days": 120
+      "deprecation_window_days": 120,
+      "deprecation_notice": "Legacy bridge will be removed after deprecation window; migrate to protheus-ops contracts.",
+      "migration_guide": "docs/client/RELEASE_MIGRATION_NOTES.md#legacy-bridge-to-protheus-ops"
     }
   ]
 }

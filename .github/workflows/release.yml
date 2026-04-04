@@ -5,6 +5,16 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      release_channel:
+        description: Release channel
+        required: false
+        default: alpha
+        type: choice
+        options:
+          - alpha
+          - beta
+          - stable
 
 permissions:
   contents: write
@@ -36,22 +46,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve release channel
+        id: channel
+        run: |
+          CHANNEL_INPUT="${{ github.event.inputs.release_channel }}"
+          if [ -z "$CHANNEL_INPUT" ]; then
+            CHANNEL_INPUT="$(node -e 'const fs=require("fs");let ch="alpha";try{const p=JSON.parse(fs.readFileSync("client/runtime/config/release_channel_policy.json","utf8"));if(typeof p.default_channel==="string"&&p.default_channel.trim()) ch=p.default_channel.trim().toLowerCase();}catch{};if(!["alpha","beta","stable"].includes(ch)) ch="alpha";process.stdout.write(ch);')"
+          fi
+          echo "release_channel=${CHANNEL_INPUT}" >> "$GITHUB_OUTPUT"
+          echo "Release channel: ${CHANNEL_INPUT}"
+
+      - name: Conventional commit gate (release range)
+        id: conventional_commit_gate
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts \
+            --to=HEAD \
+            --strict=0 \
+            --out=core/local/artifacts/conventional_commit_gate_current.json
+
       - name: Release Runtime Contract Gate
         run: npm run -s ops:release-contract:gate
 
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |
-          node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts run --strict=1 --write=1 > /tmp/release-plan.json
+          node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts run --strict=1 --write=1 --channel=${{ steps.channel.outputs.release_channel }} > /tmp/release-plan.json
           cat /tmp/release-plan.json
           RELEASE_READY="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(p.release_ready?"1":"0");')"
           TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.next_tag||"none"));')"
           PREVIOUS_TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.previous_tag||"none"));')"
           NEXT_VERSION="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.next_version||"0.0.0"));')"
+          RELEASE_CHANNEL="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.release_channel||"stable"));')"
           echo "release_ready=${RELEASE_READY}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_channel=${RELEASE_CHANNEL}" >> "$GITHUB_OUTPUT"
 
       - name: Stop when no releasable conventional commits
         if: steps.semver.outputs.release_ready != '1'
@@ -71,6 +101,54 @@ jobs:
           fi
           git commit -m "chore(release): ${{ steps.semver.outputs.tag }} [skip ci]"
           git push origin HEAD:main
+
+      - name: Generate release changelog (grouped)
+        if: steps.semver.outputs.release_ready == '1'
+        id: changelog
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_changelog_generate.ts \
+            --previous-tag=${{ steps.semver.outputs.previous_tag }} \
+            --next-tag=${{ steps.semver.outputs.tag }} \
+            --channel=${{ steps.semver.outputs.release_channel }} \
+            --out=client/runtime/local/state/release/CHANGELOG.auto.md
+
+      - name: Release policy + compatibility + migration gate
+        if: steps.semver.outputs.release_ready == '1'
+        id: policy_gate
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_policy_gate.ts \
+            --strict=1 \
+            --out=core/local/artifacts/release_policy_gate_current.json
+
+      - name: Canary gate with rollback enforcement
+        if: steps.semver.outputs.release_ready == '1'
+        id: canary_gate
+        run: |
+          set -euo pipefail
+          mkdir -p core/local/artifacts
+          if cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+            release-gate-canary-rollback-enforcer gate --strict=1 > /tmp/release-canary.json; then
+            cp /tmp/release-canary.json core/local/artifacts/release_canary_gate_current.json
+            cat /tmp/release-canary.json
+            exit 0
+          fi
+          cp /tmp/release-canary.json core/local/artifacts/release_canary_gate_current.json || true
+          cat /tmp/release-canary.json || true
+          if [ "${{ steps.semver.outputs.release_channel }}" = "stable" ]; then
+            echo "::error::Stable channel requires passing canary rollback gate."
+            exit 1
+          fi
+          echo "::warning::Canary gate failed but non-stable channel allows continued release."
+
+      - name: Auto rollback stale tag on canary failure
+        if: failure() && steps.semver.outputs.release_ready == '1'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.semver.outputs.tag }}"
+          if git ls-remote --tags origin "${TAG}" | grep -q "${TAG}$"; then
+            git push origin ":refs/tags/${TAG}" || true
+            echo "::warning::Removed stale tag ${TAG} after failed gate."
+          fi
 
       - name: Setup Nix
         if: steps.semver.outputs.release_ready == '1'
@@ -164,6 +242,18 @@ jobs:
             openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/runtime/local/state/release/signatures/${base}.sig" "$f"
           done
 
+      - name: Generate release scorecard
+        if: steps.semver.outputs.release_ready == '1'
+        id: release_scorecard
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_scorecard_generate.ts \
+            --out=client/runtime/local/state/release/scorecard/release_scorecard.json \
+            --semver=/tmp/release-plan.json \
+            --commit-lint=core/local/artifacts/conventional_commit_gate_current.json \
+            --policy=core/local/artifacts/release_policy_gate_current.json \
+            --canary=core/local/artifacts/release_canary_gate_current.json \
+            --changelog=client/runtime/local/state/release/CHANGELOG.auto.md
+
       - name: Generate release SHA256SUMS
         if: steps.semver.outputs.release_ready == '1'
         run: |
@@ -186,13 +276,16 @@ jobs:
             client/runtime/local/state/release/signatures/protheusd.spdx.json.sig \
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig \
             client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig \
-            client/runtime/local/state/release/signatures/release_public.pem; do
+            client/runtime/local/state/release/signatures/release_public.pem \
+            client/runtime/local/state/release/scorecard/release_scorecard.json; do
             [ -f "$f" ] || continue
             sha256sum "$f" >> "$OUT"
           done
 
       - name: Create release tag
         if: steps.semver.outputs.release_ready == '1'
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
         run: |
           TAG="${{ steps.semver.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -200,7 +293,19 @@ jobs:
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag "${TAG}"
+            if [ -n "${RELEASE_GPG_PRIVATE_KEY:-}" ]; then
+              printf '%s\n' "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import
+              KEY_ID="$(gpg --list-secret-keys --keyid-format=long | awk '/sec/{print $2}' | head -n1 | sed 's#^.*/##')"
+              if [ -n "$KEY_ID" ]; then
+                git tag -s "${TAG}" -u "$KEY_ID" -m "Release ${TAG}"
+              else
+                echo "::warning::GPG key import failed; falling back to annotated tag."
+                git tag -a "${TAG}" -m "Release ${TAG}"
+              fi
+            else
+              echo "::warning::RELEASE_GPG_PRIVATE_KEY not configured; creating annotated tag."
+              git tag -a "${TAG}" -m "Release ${TAG}"
+            fi
             git push origin "${TAG}"
           fi
 
@@ -209,8 +314,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.semver.outputs.tag }}
-          name: Protheus ${{ steps.semver.outputs.tag }}
+          name: Infring ${{ steps.semver.outputs.tag }} (${{ steps.semver.outputs.release_channel }})
           draft: false
+          prerelease: ${{ steps.semver.outputs.release_channel != 'stable' }}
           generate_release_notes: true
           body_path: client/runtime/local/state/release/CHANGELOG.auto.md
           files: |
@@ -231,3 +337,4 @@ jobs:
             client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig
             client/runtime/local/state/release/signatures/release_public.pem
             client/runtime/local/state/release/artifacts/SHA256SUMS
+            client/runtime/local/state/release/scorecard/release_scorecard.json

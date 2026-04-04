@@ -7,6 +7,10 @@ const { execFileSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '../../../../');
 const PACKAGE_JSON_PATH = path.resolve(ROOT, 'package.json');
 const PACKAGE_LOCK_PATH = path.resolve(ROOT, 'package-lock.json');
+const CHANNEL_POLICY_PATH = path.resolve(
+  ROOT,
+  'client/runtime/config/release_channel_policy.json'
+);
 const RUNTIME_VERSION_PATH = path.resolve(
   ROOT,
   'client/runtime/config/runtime_version.json'
@@ -109,7 +113,7 @@ function readCommitRows(rangeExpr) {
 
 function isReleaseChore(subject) {
   const s = cleanText(subject, 220).toLowerCase();
-  return /^chore\(release\):\s*v\d+\.\d+\.\d+/.test(s);
+  return /^chore\(release\):\s*v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?/.test(s);
 }
 
 function conventionalType(subject) {
@@ -183,11 +187,13 @@ function updatePackageLockVersion(version) {
 }
 
 function writeRuntimeVersionData(version, bumpKind, previousTag, nextTag, releaseReady) {
+  const releaseChannel = inferReleaseChannelFromTag(nextTag);
   const payload = {
     schema_version: 1,
     version: version,
     tag: nextTag || `v${version}`,
     previous_tag: previousTag || null,
+    release_channel: releaseChannel,
     bump: bumpKind,
     release_ready: !!releaseReady,
     source: 'release_semver_contract',
@@ -206,6 +212,7 @@ function parseArgs(argv) {
     write: false,
     strict: false,
     pretty: true,
+    channel: '',
   };
   let commandSet = false;
   for (const tokenRaw of Array.isArray(argv) ? argv : []) {
@@ -219,11 +226,37 @@ function parseArgs(argv) {
     if (token.startsWith('--write=')) out.write = parseBool(token.slice(8), false);
     else if (token.startsWith('--strict=')) out.strict = parseBool(token.slice(9), false);
     else if (token.startsWith('--pretty=')) out.pretty = parseBool(token.slice(9), true);
+    else if (token.startsWith('--channel=')) out.channel = cleanText(token.slice(10), 40).toLowerCase();
   }
   return out;
 }
 
-function buildPlan() {
+function normalizeReleaseChannel(raw) {
+  const channel = cleanText(raw, 40).toLowerCase();
+  if (channel === 'alpha' || channel === 'beta' || channel === 'stable') return channel;
+  return 'stable';
+}
+
+function releaseChannelPolicyDefault() {
+  const policy = readJson(CHANNEL_POLICY_PATH, {});
+  return normalizeReleaseChannel(policy?.default_channel || 'stable');
+}
+
+function inferReleaseChannelFromTag(tag) {
+  const raw = cleanText(tag, 120).toLowerCase();
+  if (raw.includes('-alpha')) return 'alpha';
+  if (raw.includes('-beta')) return 'beta';
+  return 'stable';
+}
+
+function tagForChannel(version, channel) {
+  const normalized = normalizeReleaseChannel(channel);
+  if (normalized === 'stable') return `v${version}`;
+  return `v${version}-${normalized}`;
+}
+
+function buildPlan(channelRaw) {
+  const releaseChannel = normalizeReleaseChannel(channelRaw || releaseChannelPolicyDefault());
   const previousTag = latestSemverTag();
   const range = previousTag ? `${previousTag}..HEAD` : 'HEAD';
   const commits = readCommitRows(range).filter((row) => !isReleaseChore(row.subject));
@@ -231,10 +264,11 @@ function buildPlan() {
   const releaseReady = bump !== 'none' && commits.length > 0;
   const base = baseVersionTriplet(previousTag);
   const nextVersion = releaseReady ? bumpVersion(base, bump) : base.normalized;
-  const nextTag = releaseReady ? `v${nextVersion}` : 'none';
+  const nextTag = releaseReady ? tagForChannel(nextVersion, releaseChannel) : 'none';
   return {
     ok: true,
     mode: 'conventional_commits',
+    release_channel: releaseChannel,
     release_ready: releaseReady,
     previous_tag: previousTag || 'none',
     next_tag: nextTag,
@@ -256,7 +290,13 @@ function buildPlan() {
 
 function run(argv = process.argv.slice(2)) {
   const opts = parseArgs(argv);
-  const plan = buildPlan();
+  const requestedChannel = normalizeReleaseChannel(
+    opts.channel ||
+      process.env.INFRING_RELEASE_CHANNEL ||
+      process.env.PROTHEUS_RELEASE_CHANNEL ||
+      releaseChannelPolicyDefault()
+  );
+  const plan = buildPlan(requestedChannel);
   let wroteVersion = false;
   if (opts.write && plan.release_ready) {
     wroteVersion = updatePackageVersion(plan.next_version) || wroteVersion;
