@@ -331,7 +331,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version = read_json(&root.join("package.json"))
         .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_else(|| "0.1.0".to_string());
+        .unwrap_or_else(|| "0.0.0".to_string());
     let listen = {
         let cleaned = clean_text(host_header, 200);
         if cleaned.is_empty() {

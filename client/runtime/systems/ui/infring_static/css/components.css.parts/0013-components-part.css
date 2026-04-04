@@ -1,3 +1,10 @@
+.theme-opt svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+}
+
 .notif-item-msg {
   font-size: 12px;
   line-height: 1.35;

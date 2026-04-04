@@ -55,8 +55,8 @@
                 <!-- Input row -->
                 <div class="input-row">
                 <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="addFiles($event.target.files); $event.target.value = ''" style="display:none">
-                <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked() }" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
-                  <div class="composer-plus-wrap composer-icon-left" x-show="!(isSystemThreadAgent && isSystemThreadAgent(currentAgent))" @click.outside="showAttachMenu = false">
+                <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
+                  <div class="composer-plus-wrap composer-icon-left" x-show="!isSystemThreadActive()" @click.outside="showAttachMenu = false">
                     <button class="composer-icon-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                     </button>
@@ -68,14 +68,14 @@
                       </button>
                       <button
                         class="composer-plus-menu-item composer-plus-menu-item-toggle"
-                        @click="if(!(isSystemThreadAgent && isSystemThreadAgent(currentAgent))){toggleTerminalMode()}"
-                        :disabled="isSystemThreadAgent && isSystemThreadAgent(currentAgent)"
-                        :title="(isSystemThreadAgent && isSystemThreadAgent(currentAgent)) ? 'System thread is terminal-only' : 'Switch compose mode'"
+                        @click="if(!isSystemThreadActive()){toggleTerminalMode()}"
+                        :disabled="isSystemThreadActive()"
+                        :title="isSystemThreadActive() ? 'System thread is terminal-only' : 'Switch compose mode'"
                       >
                         <span class="composer-plus-toggle-label">
                           <svg x-show="terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                           <svg x-show="!terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
-                          <span x-text="(isSystemThreadAgent && isSystemThreadAgent(currentAgent)) ? 'terminal locked' : (terminalMode ? 'chat mode' : 'terminal mode')"></span>
+                          <span x-text="isSystemThreadActive() ? 'terminal locked' : (terminalMode ? 'chat mode' : 'terminal mode')"></span>
                         </span>
                         <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span>
                         <span class="composer-plus-vtoggle" :class="{ active: terminalMode }" aria-hidden="true">
@@ -222,11 +222,7 @@
                 </div>
                 </div>
               </div>
-              <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
-                <span class="chat-archived-banner-text">This agent is archived</span>
-                <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
-              </div>
-              <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !(isSystemThreadAgent && isSystemThreadAgent(currentAgent))">
+              <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !isSystemThreadActive()">
                 <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
                   <button
                     type="button"
@@ -285,6 +281,10 @@
                   <span class="text-xs" x-text="currentTip"></span>
                   <button class="tip-bar-dismiss" @click="dismissTips()" title="Dismiss">&times;</button>
                 </div>
+              </div>
+              <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+                <span class="chat-archived-banner-text">This agent is archived</span>
+                <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
               </div>
               </div>
             </div>

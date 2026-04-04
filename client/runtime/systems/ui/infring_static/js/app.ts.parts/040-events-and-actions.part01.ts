@@ -174,12 +174,16 @@
     },
 
     reconcileArchivedAgentIdsWithLiveAgents() {
-      var liveSet = new Set((this.agents || []).map(function(agent) {
-        return String((agent && agent.id) || '');
+      var activeLiveSet = new Set((this.agents || []).map(function(agent) {
+        if (!agent || !agent.id) return '';
+        if (agent.archived === true) return '';
+        var state = String(agent.state || '').trim().toLowerCase();
+        if (state === 'archived' || state === 'inactive' || state === 'terminated') return '';
+        return String(agent.id || '');
       }).filter(Boolean));
-      if (!liveSet.size || !Array.isArray(this.archivedAgentIds) || this.archivedAgentIds.length === 0) return;
+      if (!activeLiveSet.size || !Array.isArray(this.archivedAgentIds) || this.archivedAgentIds.length === 0) return;
       var next = this.archivedAgentIds.filter(function(id) {
-        return !liveSet.has(String(id || ''));
+        return !activeLiveSet.has(String(id || ''));
       });
       if (next.length !== this.archivedAgentIds.length) {
         this.archivedAgentIds = next;

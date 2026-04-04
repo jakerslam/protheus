@@ -42,21 +42,35 @@ jobs:
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |
-          node tests/client-memory-tools/release_semver_contract.test.ts > /tmp/release-lane.json
-          cat /tmp/release-lane.json
-          cat > /tmp/release-plan.json <<'JSON'
-          {"release_ready":false,"next_tag":"none","previous_tag":"none","mode":"legacy_wrapper"}
-          JSON
+          node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts run --strict=1 --write=1 > /tmp/release-plan.json
           cat /tmp/release-plan.json
-          echo "release_ready=0" >> "$GITHUB_OUTPUT"
-          echo "tag=none" >> "$GITHUB_OUTPUT"
-          echo "previous_tag=none" >> "$GITHUB_OUTPUT"
+          RELEASE_READY="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(p.release_ready?"1":"0");')"
+          TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.next_tag||"none"));')"
+          PREVIOUS_TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.previous_tag||"none"));')"
+          NEXT_VERSION="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-plan.json","utf8"));process.stdout.write(String(p.next_version||"0.0.0"));')"
+          echo "release_ready=${RELEASE_READY}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+          echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Stop when no releasable conventional commits
         if: steps.semver.outputs.release_ready != '1'
         run: |
           echo "No conventional commit requiring a release."
           exit 0
+
+      - name: Persist release version files to main (optional)
+        if: steps.semver.outputs.release_ready == '1' && vars.INFRING_RELEASE_PERSIST_VERSION == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json client/runtime/config/runtime_version.json
+          if git diff --cached --quiet; then
+            echo "No version files changed."
+            exit 0
+          fi
+          git commit -m "chore(release): ${{ steps.semver.outputs.tag }} [skip ci]"
+          git push origin HEAD:main
 
       - name: Setup Nix
         if: steps.semver.outputs.release_ready == '1'

@@ -29,6 +29,7 @@
       { cmd: '/new', desc: 'Reset session (clear history)' },
       { cmd: '/compact', desc: 'Trigger LLM session compaction' },
       { cmd: '/model', desc: 'Show or switch model (/model [name])' },
+      { cmd: '/apikey', desc: 'Add API key or local model path (/apikey [key|path])' },
       { cmd: '/file', desc: 'Render full file output in chat (/file [path])' },
       { cmd: '/folder', desc: 'Render folder tree + downloadable archive (/folder [path])' },
       { cmd: '/stop', desc: 'Cancel current agent run' },

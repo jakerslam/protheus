@@ -167,7 +167,7 @@
                 </span>
               </span>
             </a>
-            <template x-for="agent in chatSidebarRows" :key="'nav-agent-' + agent.id + '-' + (agent._sidebar_search_result ? 'search' : 'live')">
+            <template x-for="agent in chatSidebarVisibleRows" :key="'nav-agent-' + agent.id + '-' + (agent._sidebar_search_result ? 'search' : 'live')">
               <a
                 class="nav-item nav-sub-item nav-agent-row"
                 :data-agent-id="String(agent.id || '')"
@@ -261,6 +261,15 @@
                 </span>
               </a>
             </template>
+            <button
+              type="button"
+              class="nav-item nav-sub-item nav-sub-item-action"
+              x-show="chatSidebarHasMoreRows()"
+              @click="showMoreChatSidebarRows()"
+            >
+              <span class="nav-icon" aria-hidden="true">+</span>
+              <span class="nav-label">Show more</span>
+            </button>
             <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="$store.app.agentsLoading || !$store.app.agentsHydrated">
               <span class="nav-icon nav-loading-icon" aria-hidden="true"></span>
               <span class="nav-label">Loading agents...</span>

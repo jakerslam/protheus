@@ -43,6 +43,12 @@
       var role = String(agent.role || '').trim().toLowerCase();
       return role === 'system';
     },
+    isSidebarArchivedAgent(agent) {
+      if (!agent || typeof agent !== 'object') return false;
+      if (agent.archived === true) return true;
+      var state = String(agent.state || '').trim().toLowerCase();
+      return state === 'archived' || state === 'inactive' || state === 'terminated';
+    },
     isReservedSystemEmoji(rawEmoji) {
       var normalized = String(rawEmoji || '').replace(/\uFE0F/g, '').trim();
       return normalized === '⚙';
@@ -151,6 +157,7 @@
         if (!agent || !agent.id) return false;
         if (self.isSystemSidebarThread(agent)) return false;
         if (pendingFreshId && String(agent.id || '') === pendingFreshId) return false;
+        if (self.isSidebarArchivedAgent(agent)) return false;
         return !archivedSet.has(String(agent.id));
       });
       list.sort(function(a, b) {
@@ -186,6 +193,26 @@
       }
       return [];
     },
+    get chatSidebarVisibleRows() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      var limit = Number(this.chatSidebarVisibleCount || 0);
+      if (!Number.isFinite(limit) || limit <= 0) limit = Number(this.chatSidebarVisibleBase || 7);
+      return rows.slice(0, Math.max(1, Math.floor(limit)));
+    },
+    chatSidebarHasMoreRows() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      return rows.length > Number(this.chatSidebarVisibleCount || this.chatSidebarVisibleBase || 7);
+    },
+    showMoreChatSidebarRows() {
+      var step = Number(this.chatSidebarVisibleStep || 5);
+      if (!Number.isFinite(step) || step <= 0) step = 5;
+      var base = Number(this.chatSidebarVisibleBase || 7);
+      if (!Number.isFinite(base) || base <= 0) base = 7;
+      var current = Number(this.chatSidebarVisibleCount || base);
+      if (!Number.isFinite(current) || current <= 0) current = base;
+      this.chatSidebarVisibleCount = current + Math.floor(step);
+      this.scheduleSidebarScrollIndicators();
+    },
     isChatSidebarSearchActive() {
       return String(this.chatSidebarQuery || '').trim().length > 0;
     },
@@ -202,6 +229,7 @@
     },
     onChatSidebarQueryInput(value) {
       this.chatSidebarQuery = String(value || '');
+      this.chatSidebarVisibleCount = Math.max(1, Math.floor(Number(this.chatSidebarVisibleBase || 7)));
       var query = String(this.chatSidebarQuery || '').trim();
       if (!query) {
         this.clearChatSidebarSearch();

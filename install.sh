@@ -36,6 +36,8 @@ INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-${PROTHEUS_INSTALL_REPAIR:-0}}"
 INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
 INSTALL_NODE="${INFRING_INSTALL_NODE:-${PROTHEUS_INSTALL_NODE:-0}}"
 INSTALL_NODE_AUTO="${INFRING_INSTALL_NODE_AUTO:-${PROTHEUS_INSTALL_NODE_AUTO:-1}}"
+INSTALL_OLLAMA="${INFRING_INSTALL_OLLAMA:-${PROTHEUS_INSTALL_OLLAMA:-0}}"
+INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-${PROTHEUS_INSTALL_OLLAMA_AUTO:-1}}"
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
@@ -451,6 +453,163 @@ ensure_node_runtime_notice() {
   return 1
 }
 
+ollama_runtime_online() {
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  host="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+  case "$host" in
+    http://*|https://*) ;;
+    *) host="http://$host" ;;
+  esac
+  base="${host%/}"
+  if curl -fsS --connect-timeout 2 --max-time 4 "$base/api/tags" >/dev/null 2>&1; then
+    return 0
+  fi
+  if curl -fsS --connect-timeout 2 --max-time 4 "$base/api/version" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+start_ollama_runtime_best_effort() {
+  if ! command -v ollama >/dev/null 2>&1; then
+    return 1
+  fi
+  if ollama_runtime_online; then
+    return 0
+  fi
+  (
+    ollama serve >/dev/null 2>&1 &
+  ) || true
+  i=0
+  while [ "$i" -lt 20 ]; do
+    if ollama_runtime_online; then
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  return 1
+}
+
+detect_ollama_install_command() {
+  os_name="$(norm_os)"
+  case "$os_name" in
+    darwin)
+      if command -v brew >/dev/null 2>&1; then
+        printf '%s\n' "brew install ollama"
+        return 0
+      fi
+      printf '%s\n' "curl -fsSL https://ollama.com/install.sh | sh"
+      return 0
+      ;;
+    linux)
+      printf '%s\n' "curl -fsSL https://ollama.com/install.sh | sh"
+      return 0
+      ;;
+    *)
+      printf '%s\n' "Install Ollama from https://ollama.com/download"
+      return 0
+      ;;
+  esac
+}
+
+install_ollama_runtime() {
+  if command -v ollama >/dev/null 2>&1; then
+    return 0
+  fi
+  install_cmd="$(detect_ollama_install_command)"
+  case "$install_cmd" in
+    Install\ Ollama*)
+      return 1
+      ;;
+  esac
+  if ! sh -c "$install_cmd"; then
+    return 1
+  fi
+  command -v ollama >/dev/null 2>&1
+}
+
+prompt_yes_no_tty() {
+  prompt="$1"
+  default_answer="$2"
+  if [ ! -r /dev/tty ]; then
+    return 2
+  fi
+  while true; do
+    printf '%s' "$prompt" > /dev/tty
+    reply=""
+    if ! IFS= read -r reply < /dev/tty; then
+      return 2
+    fi
+    reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
+    if [ -z "$reply" ]; then
+      reply="$default_answer"
+    fi
+    case "$reply" in
+      y|yes) return 0 ;;
+      n|no) return 1 ;;
+    esac
+    printf '%s\n' "Please answer y or n." > /dev/tty
+  done
+}
+
+ensure_ollama_runtime_notice() {
+  if command -v ollama >/dev/null 2>&1; then
+    ollama_bin="$(command -v ollama 2>/dev/null || true)"
+    echo "[infring install] Ollama check: detected (${ollama_bin:-ollama})"
+    if start_ollama_runtime_best_effort; then
+      echo "[infring install] Ollama runtime: online"
+      return 0
+    fi
+    echo "[infring install] Ollama runtime: offline (install succeeded but daemon not reachable)"
+    echo "[infring install] start it now: ollama serve"
+    return 0
+  fi
+
+  install_cmd="$(detect_ollama_install_command)"
+  echo "[infring install] Ollama check: not detected (recommended for local models out of the box)"
+  install_mode=""
+  if is_truthy "$INSTALL_OLLAMA"; then
+    install_mode="explicit"
+  elif is_truthy "$INSTALL_FULL" && is_truthy "$INSTALL_OLLAMA_AUTO"; then
+    install_mode="prompt"
+  fi
+
+  should_install=0
+  if [ "$install_mode" = "explicit" ]; then
+    should_install=1
+  elif [ "$install_mode" = "prompt" ]; then
+    if prompt_yes_no_tty "[infring install] Install Ollama now to enable local models? [y/N] " "n"; then
+      should_install=1
+    elif [ "$?" = "2" ]; then
+      echo "[infring install] Ollama prompt skipped (no interactive TTY detected)."
+    else
+      echo "[infring install] Ollama install skipped by user."
+    fi
+  fi
+
+  if [ "$should_install" = "1" ]; then
+    if install_ollama_runtime; then
+      echo "[infring install] Ollama install complete."
+      if start_ollama_runtime_best_effort; then
+        echo "[infring install] Ollama runtime: online"
+      else
+        echo "[infring install] Ollama runtime: install complete, start manually with 'ollama serve'"
+      fi
+      return 0
+    fi
+    echo "[infring install] Ollama install failed."
+  fi
+
+  echo "[infring install] install Ollama now:"
+  echo "[infring install]   $install_cmd"
+  echo "[infring install] then pull a model: ollama pull qwen2.5:3b-instruct"
+  echo "[infring install] and verify: ollama list"
+  return 1
+}
+
 curl_fetch() {
   if is_truthy "$INSTALL_DEBUG"; then
     curl -fsSL "$@"
@@ -485,6 +644,9 @@ parse_install_args() {
       --install-node)
         INSTALL_NODE=1
         ;;
+      --install-ollama)
+        INSTALL_OLLAMA=1
+        ;;
       --install-dir)
         shift
         if [ "$#" -eq 0 ]; then
@@ -510,13 +672,14 @@ parse_install_args() {
         INSTALL_TMP_DIR="${arg#--tmp-dir=}"
         ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node] [--install-dir PATH] [--tmp-dir PATH]"
+        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node|--install-ollama] [--install-dir PATH] [--tmp-dir PATH]"
         echo "  --full            install optional client runtime bundle when available"
         echo "  --minimal         install daemon + CLI only (default)"
         echo "  --pure            install pure Rust client + daemon only (no Node/TS surfaces)"
         echo "  --tiny-max        install tiny-max pure profile for old/embedded hardware targets"
         echo "  --repair          clear stale install wrappers + workspace runtime state before install"
         echo "  --install-node    attempt automatic Node.js 22+ install for full CLI command surface"
+        echo "  --install-ollama  attempt automatic Ollama install for local model support"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
         exit 0
@@ -3220,6 +3383,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     fi
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
+    ensure_ollama_runtime_notice || true
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
     # Write activation script before smoke tests so users always have a recovery path
     # even if a smoke check hangs or fails after artifacts are already installed.
@@ -3293,6 +3457,11 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] run: ${quickstart_prefix}infring --help"
   echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
   echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
+  if command -v ollama >/dev/null 2>&1; then
+    echo "[infring install] local models: ollama list"
+  else
+    echo "[infring install] local models setup: install Ollama (https://ollama.com/download), then run 'ollama serve' and 'ollama pull qwen2.5:3b-instruct'"
+  fi
   echo "[infring install] summary log: $INSTALL_SUMMARY_FILE"
   install_summary_note "completed_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
   INSTALL_SUMMARY_STATUS="success"

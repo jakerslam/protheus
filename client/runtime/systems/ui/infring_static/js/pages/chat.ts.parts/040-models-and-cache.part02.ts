@@ -5,6 +5,92 @@
       }, 80);
     },
 
+    availableModelRowsCount: function(rows) {
+      var list = Array.isArray(rows) ? rows : [];
+      var count = 0;
+      for (var i = 0; i < list.length; i += 1) {
+        var row = list[i] || {};
+        if (row.available !== false) count += 1;
+      }
+      return count;
+    },
+
+    noModelsGuidanceText: function() {
+      return [
+        "I don't have any usable models yet.",
+        '',
+        'To enable models now:',
+        '1. Install Ollama: https://ollama.com/download',
+        '2. Start it: `ollama serve`',
+        '3. Pull a model: `ollama pull qwen2.5:3b-instruct`',
+        '4. Or add an API key with `/apikey <key>`',
+        '',
+        'Useful links:',
+        '- Ollama library: https://ollama.com/library',
+        '- OpenRouter keys: https://openrouter.ai/keys',
+        '- OpenAI keys: https://platform.openai.com/api-keys',
+        '- Anthropic keys: https://console.anthropic.com/settings/keys'
+      ].join('\n');
+    },
+
+    injectNoModelsGuidance: function(reason) {
+      if (!this.currentAgent || (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent))) {
+        return null;
+      }
+      if (!this._noModelsGuidanceByAgent || typeof this._noModelsGuidanceByAgent !== 'object') {
+        this._noModelsGuidanceByAgent = {};
+      }
+      var agentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
+      if (!agentId) return null;
+      if (this._noModelsGuidanceByAgent[agentId]) return null;
+      var text = this.noModelsGuidanceText();
+      var row = {
+        id: ++msgId,
+        role: 'agent',
+        text: text,
+        meta: '',
+        tools: [],
+        ts: Date.now(),
+        agent_id: agentId,
+        agent_name: String((this.currentAgent && this.currentAgent.name) || 'Agent'),
+        system_origin: 'models:no_models_available'
+      };
+      var pushed = this.pushAgentMessageDeduped(row, { dedupe_window_ms: 120000 }) || row;
+      this._noModelsGuidanceByAgent[agentId] = {
+        ts: Date.now(),
+        reason: String(reason || ''),
+        id: pushed && pushed.id ? pushed.id : row.id
+      };
+      this.scrollToBottom();
+      this.scheduleConversationPersist();
+      return pushed;
+    },
+
+    refreshModelCatalogAndGuidance: async function(options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var discoverFirst = opts.discover !== false;
+      var includeGuidance = opts.guidance !== false;
+      try {
+        if (discoverFirst) {
+          await InfringAPI.post('/api/models/discover', { input: '__auto__' }).catch(function() { return null; });
+        }
+        var data = await InfringAPI.get('/api/models');
+        var models = this.sanitizeModelCatalogRows((data && data.models) || []);
+        this._modelCache = models;
+        this._modelCacheTime = Date.now();
+        this.modelPickerList = models;
+        if (includeGuidance && this.availableModelRowsCount(models) === 0) {
+          this.injectNoModelsGuidance('refresh');
+        }
+        return models;
+      } catch (err) {
+        if (includeGuidance && (!this.modelPickerList || !this.modelPickerList.length)) {
+          this.injectNoModelsGuidance('refresh_error');
+        }
+        throw err;
+      }
+    },
+
     sanitizeConversationForCache(messages) {
       var source = Array.isArray(messages) ? messages : [];
       var out = [];

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "version": "0.2.1-alpha.1",
+  "tag": "v0.2.1-alpha.1",
+  "previous_tag": null,
+  "bump": "none",
+  "release_ready": false,
+  "source": "bootstrap"
+}

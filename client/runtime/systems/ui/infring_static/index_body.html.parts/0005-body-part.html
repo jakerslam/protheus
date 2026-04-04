@@ -45,6 +45,10 @@
                 </svg>
               </div>
             </div>
+            <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+              <span class="chat-archived-banner-text">This agent is archived</span>
+              <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
+            </div>
           </div>
         </div>
       </div>

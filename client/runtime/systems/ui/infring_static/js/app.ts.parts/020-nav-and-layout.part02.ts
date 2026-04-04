@@ -1,5 +1,8 @@
     chatSidebarDropTargetId: '',
     chatSidebarDropAfter: false,
+    chatSidebarVisibleBase: 7,
+    chatSidebarVisibleStep: 5,
+    chatSidebarVisibleCount: 7,
     collapsedAgentHover: {
       id: '',
       active: false,
@@ -24,7 +27,7 @@
     wsConnected: false,
     connectionState: 'connecting',
     connectionIndicatorState: 'connecting',
-    version: '0.1.0',
+    version: (window.__INFRING_APP_VERSION || '0.0.0'),
     agentCount: 0,
     bootSelectionApplied: false,
     clockTick: Date.now(),

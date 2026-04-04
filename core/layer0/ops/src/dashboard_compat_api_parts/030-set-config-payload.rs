@@ -2949,6 +2949,44 @@ fn finalize_user_facing_response(output: String, findings: Option<String>) -> St
     finalize_user_facing_response_with_outcome(output, findings).0
 }
 
+fn available_model_count(root: &Path, snapshot: &Value) -> usize {
+    crate::dashboard_model_catalog::catalog_payload(root, snapshot)
+        .get("models")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.get("available").and_then(Value::as_bool).unwrap_or(false))
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+fn no_models_available_payload(agent_id: &str) -> Value {
+    json!({
+        "ok": false,
+        "error": "no_models_available",
+        "error_code": "no_models_available",
+        "agent_id": clean_agent_id(agent_id),
+        "hint": "No usable LLMs are available yet. Install Ollama or add an API key.",
+        "setup": {
+            "steps": [
+                "Install Ollama: https://ollama.com/download",
+                "Start Ollama: ollama serve",
+                "Pull at least one model: ollama pull qwen2.5:3b-instruct",
+                "Or add API keys in Settings or via /apikey <key>"
+            ]
+        },
+        "links": [
+            {"label": "Ollama Download", "url": "https://ollama.com/download"},
+            {"label": "Ollama Library", "url": "https://ollama.com/library"},
+            {"label": "OpenRouter Keys", "url": "https://openrouter.ai/keys"},
+            {"label": "OpenAI API Keys", "url": "https://platform.openai.com/api-keys"},
+            {"label": "Anthropic API Keys", "url": "https://console.anthropic.com/settings/keys"},
+            {"label": "Google AI Studio Keys", "url": "https://aistudio.google.com/app/apikey"}
+        ]
+    })
+}
+
 fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -> String {
     let limit = max_items.clamp(1, 8);
     let mut lines = Vec::<String>::new();
@@ -7070,6 +7108,12 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "message_required"}),
                 });
             }
+            if available_model_count(root, snapshot) == 0 {
+                return Some(CompatApiResponse {
+                    status: 503,
+                    payload: no_models_available_payload(&agent_id),
+                });
+            }
             let row = existing.clone().unwrap_or_else(|| json!({}));
             let lowered = message.to_ascii_lowercase();
             let contains_any = |terms: &[&str]| terms.iter().any(|term| lowered.contains(term));
@@ -9184,7 +9228,7 @@ pub fn handle_with_headers(
             "/api/version" => {
                 let version = read_json(&root.join("package.json"))
                     .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
-                    .unwrap_or_else(|| "0.1.0".to_string());
+                    .unwrap_or_else(|| "0.0.0".to_string());
                 json!({
                     "ok": true,
                     "version": version,

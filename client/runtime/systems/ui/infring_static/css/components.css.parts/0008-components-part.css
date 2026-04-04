@@ -448,6 +448,10 @@
   position: absolute;
 }
 
+.composer-shell.system-thread-active .composer-plus-wrap {
+  display: none !important;
+}
+
 .composer-plus-menu {
   position: absolute;
   left: 0;
