@@ -534,13 +534,15 @@ install_ollama_runtime() {
 prompt_yes_no_tty() {
   prompt="$1"
   default_answer="$2"
-  if [ ! -r /dev/tty ]; then
+  if [ ! -t 0 ] || [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
     return 2
   fi
   while true; do
-    printf '%s' "$prompt" > /dev/tty
+    if ! printf '%s' "$prompt" > /dev/tty 2>/dev/null; then
+      return 2
+    fi
     reply=""
-    if ! IFS= read -r reply < /dev/tty; then
+    if ! IFS= read -r reply < /dev/tty 2>/dev/null; then
       return 2
     fi
     reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
@@ -551,7 +553,9 @@ prompt_yes_no_tty() {
       y|yes) return 0 ;;
       n|no) return 1 ;;
     esac
-    printf '%s\n' "Please answer y or n." > /dev/tty
+    if ! printf '%s\n' "Please answer y or n." > /dev/tty 2>/dev/null; then
+      return 2
+    fi
   done
 }
 
