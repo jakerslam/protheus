@@ -327,6 +327,10 @@
       return compact;
     },
     thinkingDisplayText: function(msg) {
+      var toolDialog = typeof this.currentToolDialogLabel === 'function'
+        ? String(this.currentToolDialogLabel(msg) || '').trim()
+        : '';
+      if (toolDialog) return toolDialog;
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
       var rawText = String(msg && msg.text ? msg.text : '').trim();
       var value = rawThought || rawText;
@@ -396,7 +400,7 @@
       if (summary.hasRunning) {
         summary.text = runningNames.length === 1
           ? (runningNames[0] + '...')
-          : ('Running ' + runningNames.length + ' tool steps...');
+          : ('Running ' + runningNames.length + ' tools...');
         var runningBits = [];
         if (doneCount > 0) runningBits.push(doneCount + ' done');
         if (errors > 0) runningBits.push(errors + ' error');

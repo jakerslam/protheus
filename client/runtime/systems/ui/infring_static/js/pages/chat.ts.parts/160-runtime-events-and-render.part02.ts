@@ -168,17 +168,17 @@
           lowered = line.toLowerCase();
         }
         if (/web[_\s-]?search|searching (the )?(web|internet)|duckduckgo|serp/.test(lowered)) {
-          line = 'Searching the internet';
+          line = 'Searching internet';
         } else if (/web[_\s-]?fetch|reading web|browse|browsing/.test(lowered)) {
-          line = 'Reading web sources';
+          line = 'Reading web pages';
         } else if (/read(_|\s)?file|file read|reading files?/.test(lowered)) {
-          line = 'Reading files';
+          line = 'Scanning files';
         } else if (/folder|directory|filesystem scan|scan folders?/.test(lowered)) {
           line = 'Scanning folders';
         } else if (/terminal|shell|command execution|run command/.test(lowered)) {
-          line = 'Running terminal commands';
+          line = 'Running terminal command';
         } else if (/spawn_subagents|spawn_swarm|subagents?|swarm|parallel workers?/.test(lowered)) {
-          line = 'Launching swarm workers';
+          line = 'Summoning agents';
         } else if (/memory.*query|semantic memory|vector search/.test(lowered)) {
           line = 'Searching memory';
         } else if (/context warning|context limit|context window/.test(lowered)) {

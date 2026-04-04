@@ -117,14 +117,14 @@
           if (!lastMsg.tools) lastMsg.tools = [];
           lastMsg.thinking = true;
           lastMsg.streaming = true;
-          lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: '', result: '', is_error: false });
+          lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: data.input || '', result: '', is_error: false });
           lastMsg._stream_updated_at = Date.now();
           if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now();
           var startLabel = typeof this.toolThinkingActionLabel === 'function'
-            ? this.toolThinkingActionLabel({ name: data.tool })
+            ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' })
             : String(data.tool || 'tool');
           if (startLabel) {
-            lastMsg.thinking_status = startLabel + '...';
+            lastMsg.thinking_status = startLabel;
           }
           this._resetTypingTimeout();
           this.scrollToBottom();
@@ -137,6 +137,10 @@
             for (var ti = lastMsg2.tools.length - 1; ti >= 0; ti--) {
               if (lastMsg2.tools[ti].name === data.tool && lastMsg2.tools[ti].running) {
                 lastMsg2.tools[ti].input = data.input || '';
+                var runningLabel = typeof this.toolThinkingActionLabel === 'function'
+                  ? this.toolThinkingActionLabel(lastMsg2.tools[ti])
+                  : '';
+                if (runningLabel) lastMsg2.thinking_status = runningLabel;
                 break;
               }
             }

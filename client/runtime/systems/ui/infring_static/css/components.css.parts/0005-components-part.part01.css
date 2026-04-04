@@ -183,9 +183,9 @@
 }
 
 @keyframes thinking-bubble-scale-pulse {
-  0% { transform: scaleX(1) scaleY(0.95); }
-  50% { transform: scaleX(1) scaleY(1.05); }
-  100% { transform: scaleX(1) scaleY(0.95); }
+  0% { transform: scaleX(1) scaleY(0.90); }
+  50% { transform: scaleX(1) scaleY(1.10); }
+  100% { transform: scaleX(1) scaleY(0.90); }
 }
 
 .message-bubble.message-error {

@@ -36,6 +36,36 @@
         .replace(/[\s-]+/g, '_');
     },
 
+    toolInputPayload: function(tool) {
+      if (!tool || typeof tool !== 'object') return null;
+      var raw = String(tool.input || tool.args || tool.arguments || '').trim();
+      if (!raw) return null;
+      if (raw.indexOf('<function=') >= 0 && raw.indexOf('{') >= 0) {
+        raw = raw.slice(raw.indexOf('{')).trim();
+      }
+      if (!(raw.charAt(0) === '{' || raw.charAt(0) === '[')) return null;
+      try {
+        var parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (_) {
+        return null;
+      }
+    },
+
+    toolPayloadCount: function(payload, keys) {
+      if (!payload || typeof payload !== 'object') return 0;
+      var list = Array.isArray(keys) ? keys : [];
+      for (var i = 0; i < list.length; i++) {
+        var key = list[i];
+        if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
+        var value = payload[key];
+        if (Array.isArray(value)) return value.length;
+        if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.round(value));
+        if (typeof value === 'string' && value.trim()) return 1;
+      }
+      return 0;
+    },
+
     toolDisplayName: function(tool) {
       if (!tool) return 'tool';
       if (this.isThoughtTool(tool)) return 'thought';
@@ -88,35 +118,44 @@
       if (!tool) return '';
       if (this.isThoughtTool(tool)) return 'Thinking';
       var key = this.toolNameKey(tool);
+      var payload = this.toolInputPayload(tool);
       switch (key) {
         case 'web_search':
         case 'search_web':
         case 'search':
         case 'web_query':
-          return 'Searching the internet';
+          return 'Searching internet';
         case 'web_fetch':
         case 'browse':
         case 'web_conduit_fetch':
-          return 'Reading web sources';
+          return 'Reading web pages';
         case 'file_read':
         case 'read_file':
         case 'file':
-          return 'Reading files';
+          var fileCount = this.toolPayloadCount(payload, ['paths', 'files', 'file_paths', 'targets', 'path', 'file']);
+          if (fileCount > 1) return 'Scanning ' + fileCount + ' files';
+          if (fileCount === 1) return 'Scanning 1 file';
+          return 'Scanning files';
         case 'folder_export':
         case 'list_folder':
         case 'folder_tree':
         case 'folder':
+          var folderCount = this.toolPayloadCount(payload, ['folders', 'paths', 'targets', 'path', 'folder']);
+          if (folderCount > 1) return 'Scanning ' + folderCount + ' folders';
+          if (folderCount === 1) return 'Scanning 1 folder';
           return 'Scanning folders';
         case 'terminal_exec':
         case 'run_terminal':
         case 'terminal':
         case 'shell_exec':
-          return 'Running terminal commands';
+          return 'Running terminal command';
         case 'spawn_subagents':
         case 'spawn_swarm':
         case 'agent_spawn':
         case 'sessions_spawn':
-          return 'Launching swarm workers';
+          var spawnCount = this.toolPayloadCount(payload, ['count', 'agent_count', 'num_agents', 'agents']);
+          if (spawnCount > 0) return 'Summoning ' + spawnCount + ' agents';
+          return 'Summoning agents';
         case 'memory_semantic_query':
           return 'Searching memory';
         case 'cron_schedule':
@@ -130,6 +169,16 @@
         default:
           return 'Running ' + this.toolDisplayName(tool);
       }
+    },
+
+    currentToolDialogLabel: function(msg) {
+      if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) return '';
+      for (var i = msg.tools.length - 1; i >= 0; i--) {
+        var tool = msg.tools[i];
+        if (!tool || this.isThoughtTool(tool) || !tool.running) continue;
+        return this.toolThinkingActionLabel(tool);
+      }
+      return '';
     },
 
     thoughtToolDurationSeconds: function(tool) {
