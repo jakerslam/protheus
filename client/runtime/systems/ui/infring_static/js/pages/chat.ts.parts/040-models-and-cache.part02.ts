@@ -15,6 +15,80 @@
       return count;
     },
 
+    providerPayloadToModelCatalogRows: function(payload) {
+      var providers = payload && Array.isArray(payload.providers) ? payload.providers : [];
+      var out = [];
+      for (var i = 0; i < providers.length; i += 1) {
+        var providerRow = providers[i] && typeof providers[i] === 'object' ? providers[i] : {};
+        var provider = String(providerRow.id || '').trim().toLowerCase();
+        if (!provider || provider === 'auto') continue;
+        var isLocal = providerRow.is_local === true;
+        var reachable = providerRow.reachable === true;
+        var supportsChat = providerRow.supports_chat !== false;
+        var needsKey = providerRow.needs_key === true;
+        var authStatus = String(providerRow.auth_status || '').trim().toLowerCase();
+        var authConfigured = authStatus === 'configured' || authStatus === 'set' || authStatus === 'ok';
+        var profiles = providerRow.model_profiles && typeof providerRow.model_profiles === 'object'
+          ? providerRow.model_profiles
+          : {};
+        var names = Object.keys(profiles);
+        for (var j = 0; j < names.length; j += 1) {
+          var modelName = String(names[j] || '').trim();
+          if (!modelName) continue;
+          var modelRef = provider + '/' + modelName;
+          if (this.isPlaceholderModelRef(modelRef)) continue;
+          var profile = profiles[modelName] && typeof profiles[modelName] === 'object' ? profiles[modelName] : {};
+          var deployment = String(profile.deployment_kind || '').trim().toLowerCase();
+          var rowLocal = isLocal || deployment === 'local' || deployment === 'ollama';
+          var available = supportsChat && (rowLocal ? reachable : (!needsKey || authConfigured || reachable));
+          out.push({
+            id: modelRef,
+            provider: provider,
+            model: modelName,
+            model_name: modelName,
+            runtime_model: modelName,
+            display_name: String(profile.display_name || modelName).trim() || modelName,
+            available: !!available,
+            reachable: !!reachable,
+            supports_chat: supportsChat,
+            needs_key: !!needsKey,
+            auth_status: authStatus || 'unknown',
+            is_local: rowLocal,
+            deployment_kind: deployment || (rowLocal ? 'local' : 'api'),
+            context_window: Number(profile.context_window || profile.context_size || profile.context_tokens || 0) || 0,
+            context_window_tokens: Number(profile.context_window || profile.context_size || profile.context_tokens || 0) || 0,
+            power_rating: Number(profile.power_rating || 3) || 3,
+            cost_rating: Number(profile.cost_rating || (rowLocal ? 1 : 3)) || (rowLocal ? 1 : 3),
+            specialty: String(profile.specialty || 'general').trim().toLowerCase() || 'general',
+            specialty_tags: Array.isArray(profile.specialty_tags) ? profile.specialty_tags : ['general'],
+            param_count_billion: Number(profile.param_count_billion || 0) || 0,
+            download_available: profile.download_available === true || rowLocal,
+            local_download_path: String(profile.local_download_path || '').trim(),
+            max_output_tokens: Number(profile.max_output_tokens || 0) || 0,
+          });
+        }
+      }
+      return out;
+    },
+
+    mergeModelCatalogRows: function(primaryRows, fallbackRows) {
+      var merged = [];
+      var seen = {};
+      var add = function(row) {
+        var id = String(row && row.id ? row.id : '').trim();
+        if (!id) return;
+        var key = id.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        merged.push(row);
+      };
+      var primary = Array.isArray(primaryRows) ? primaryRows : [];
+      var fallback = Array.isArray(fallbackRows) ? fallbackRows : [];
+      for (var i = 0; i < primary.length; i += 1) add(primary[i]);
+      for (var j = 0; j < fallback.length; j += 1) add(fallback[j]);
+      return merged;
+    },
+
     noModelsGuidanceText: function() {
       return [
         "I don't have any usable models yet.",
@@ -76,10 +150,24 @@
         }
         var data = await InfringAPI.get('/api/models');
         var models = this.sanitizeModelCatalogRows((data && data.models) || []);
+        var available = this.availableModelRowsCount(models);
+        // Recover from partial catalog responses by rebuilding rows from provider model_profiles.
+        if (models.length < 8 || available < 4) {
+          var providersPayload = await InfringAPI.get('/api/providers').catch(function() { return null; });
+          if (providersPayload) {
+            var providerRows = this.sanitizeModelCatalogRows(
+              this.providerPayloadToModelCatalogRows(providersPayload)
+            );
+            if (providerRows.length) {
+              models = this.mergeModelCatalogRows(models, providerRows);
+              available = this.availableModelRowsCount(models);
+            }
+          }
+        }
         this._modelCache = models;
         this._modelCacheTime = Date.now();
         this.modelPickerList = models;
-        if (includeGuidance && this.availableModelRowsCount(models) === 0) {
+        if (includeGuidance && available === 0) {
           this.injectNoModelsGuidance('refresh');
         }
         return models;

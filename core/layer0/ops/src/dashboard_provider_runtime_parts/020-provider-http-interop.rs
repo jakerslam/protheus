@@ -462,7 +462,7 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
             }
         }
         let key_present = provider_key(root, &provider_id).is_some();
-        let local_reachable = if provider_is_local(&provider_id) {
+        let mut local_reachable = if provider_is_local(&provider_id) {
             if provider_id == "ollama" {
                 probe_ollama_runtime_online(&base_url)
             } else {
@@ -491,9 +491,16 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
             row["auth_status"] = json!("not_set");
         }
         row["supports_chat"] = json!(provider_supports_chat(&provider_id, &base_url));
-        if provider_id == "ollama" && local_reachable {
+        if provider_id == "ollama" {
             let discovered_models = probe_ollama_runtime_models(&base_url);
             if !discovered_models.is_empty() {
+                if !local_reachable {
+                    // When CLI model discovery succeeds, treat the local runtime as reachable
+                    // even if the initial HTTP probe path failed.
+                    local_reachable = true;
+                    row["reachable"] = json!(true);
+                    row["auth_status"] = json!("configured");
+                }
                 if !row.get("model_profiles").map(Value::is_object).unwrap_or(false) {
                     row["model_profiles"] = json!({});
                 }
@@ -719,12 +726,11 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
             400,
         );
         let resolved_base = resolve_ollama_runtime_base_url(&base_url);
-        let online = probe_ollama_runtime_online(&resolved_base);
-        let discovered_models = if online {
-            probe_ollama_runtime_models(&resolved_base)
-        } else {
-            Vec::new()
-        };
+        let mut online = probe_ollama_runtime_online(&resolved_base);
+        let discovered_models = probe_ollama_runtime_models(&resolved_base);
+        if !online && !discovered_models.is_empty() {
+            online = true;
+        }
         let mut registry = load_registry(root);
         let row = ensure_provider_row_mut(&mut registry, &provider);
         row["base_url"] = json!(resolved_base.clone());
@@ -880,6 +886,9 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
 #[cfg(test)]
 mod provider_http_interop_tests {
     use super::*;
+    use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn extract_openai_text_preserves_multiline_list_layout() {
@@ -929,5 +938,52 @@ kimi-k2.5:cloud                  6d1c3246c608    -         7 weeks ago
         let rows = ollama_base_url_candidates("127.0.0.1:11434");
         assert!(rows.iter().any(|row| row == "http://127.0.0.1:11434"));
         assert!(rows.iter().any(|row| row == "http://localhost:11434"));
+    }
+
+    #[test]
+    fn provider_rows_marks_ollama_reachable_when_cli_lists_models() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let bin_dir = tempfile::tempdir().expect("tempdir");
+        let ollama_path = bin_dir.path().join("ollama");
+        let script = r#"#!/bin/sh
+if [ "$1" = "list" ] && [ "$2" = "--json" ]; then
+  printf '[{"name":"qwen3:4b","model":"qwen3:4b"},{"name":"smallthinker:latest","model":"smallthinker:latest"}]\n'
+  exit 0
+fi
+if [ "$1" = "list" ]; then
+  printf 'NAME ID SIZE MODIFIED\nqwen3:4b deadbeef 3.2GB now\n'
+  exit 0
+fi
+exit 1
+"#;
+        fs::write(&ollama_path, script).expect("write ollama stub");
+        #[cfg(unix)]
+        {
+            fs::set_permissions(&ollama_path, fs::Permissions::from_mode(0o755))
+                .expect("chmod ollama stub");
+        }
+        let old_path = std::env::var("PATH").unwrap_or_default();
+        let new_path = format!("{}:{}", bin_dir.path().display(), old_path);
+        std::env::set_var("PATH", new_path);
+
+        let rows = provider_rows(root.path(), &json!({}));
+        let ollama = rows
+            .iter()
+            .find(|row| row.get("id").and_then(Value::as_str) == Some("ollama"))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+
+        std::env::set_var("PATH", old_path);
+
+        assert_eq!(ollama.get("reachable").and_then(Value::as_bool), Some(true));
+        assert!(ollama
+            .get("detected_models")
+            .and_then(Value::as_array)
+            .map(|models| {
+                models
+                    .iter()
+                    .any(|row| row.as_str() == Some("qwen3:4b"))
+            })
+            .unwrap_or(false));
     }
 }
