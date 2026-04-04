@@ -473,3 +473,18 @@
         if (!Number.isFinite(height) || height <= 0) height = 48;
         var bottom = top + height;
         if (bottom >= minY && top <= maxY) next[block.id] = true;
+      }
+      var now = Date.now();
+      var forced = this._forcedHydrateById || {};
+      Object.keys(forced).forEach(function(id) {
+        var until = Number(forced[id] || 0);
+        if (until > now) {
+          next[id] = true;
+        } else {
+          delete forced[id];
+        }
+      });
+      if (this.selectedMessageDomId) next[this.selectedMessageDomId] = true;
+      if (this.hoveredMessageDomId) next[this.hoveredMessageDomId] = true;
+      this.messageHydration = next;
+    },
