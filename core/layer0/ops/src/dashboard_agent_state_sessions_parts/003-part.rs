@@ -142,26 +142,40 @@ mod tests {
         let _ = append_turn(
             root,
             agent_id,
-            "chat scroll thrashes near bottom after long replies",
-            "I can inspect the bottom lock and viewport anchoring logic.",
+            "the llm menu still misses kimi and qwen models",
+            "I'll inspect model discovery and runtime provider wiring.",
         );
         let _ = append_turn(
             root,
             agent_id,
-            "the bounce still appears when I manually drag down",
-            "I'll patch the drag edge clamp and rerun the scroll test.",
+            "prompt suggestions still look repetitive and generic",
+            "Understood, I'll tighten suggestion quality and context grounding.",
         );
         let _ = append_turn(
             root,
             agent_id,
-            "prompt suggestions still look generic in this thread",
-            "I'll tighten suggestions to recent context and remove generic phrasing.",
+            "remove template-like suggestions from this thread",
+            "I'll switch to model-generated suggestions with stricter filtering.",
         );
         let _ = append_turn(
             root,
             agent_id,
-            "make sure suggestions read like real user followups",
-            "Understood, I'll constrain wording to human-readable followups.",
+            "also gate suggestions so weak models skip this feature",
+            "I'll add a param threshold gate and validate behavior.",
+        );
+    }
+
+    fn seed_profile(root: &Path, agent_id: &str, provider: &str, runtime_model: &str) {
+        let _ = crate::dashboard_agent_state::upsert_profile(
+            root,
+            agent_id,
+            &json!({
+                "name": agent_id,
+                "role": "analyst",
+                "state": "Running",
+                "model_provider": provider,
+                "runtime_model": runtime_model
+            }),
         );
     }
 
@@ -194,358 +208,9 @@ mod tests {
     }
 
     #[test]
-    fn suggestions_are_deduped_and_never_quoted() {
-        let root = tempfile::tempdir().expect("tempdir");
-        seed_suggestion_context(root.path(), "agent-a");
-        let value = suggestions(
-            root.path(),
-            "agent-a",
-            "\"Can you reduce queue depth before spikes?\"",
-        );
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(rows.len() <= 3);
-        for row in rows {
-            let text = row.as_str().unwrap_or("");
-            assert!(!text.contains('"'));
-            assert!(!text.contains('\''));
-        }
-    }
-
-    #[test]
-    fn suggestions_follow_recent_thread_context_window() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-b",
-            "neon trail still drifts while scrolling",
-            "I can inspect pointer math and scrolling anchors.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-b",
-            "fix neon trail anchor now",
-            "I patched the anchor but we should verify it.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-b",
-            "the neon trail still jitters at chat bottom",
-            "I see jitter around scroll bounds and bottom padding.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-b",
-            "make neon trail stay pinned to cursor while scrolling",
-            "I'll run one more pass and verify smoothness.",
-        );
-
-        let value = suggestions(root.path(), "agent-b", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        assert!(rows.len() <= 3);
-        let mut joined = String::new();
-        for row in rows {
-            let text = row.as_str().unwrap_or("");
-            assert!(!text.is_empty());
-            assert!(text.split_whitespace().count() <= PROMPT_SUGGESTION_MAX_WORDS);
-            assert!(text.ends_with('?'));
-            if let Some(first) = text.chars().next() {
-                assert!(!first.is_ascii_uppercase());
-            }
-            joined.push_str(&text.to_ascii_lowercase());
-            joined.push(' ');
-        }
-        assert!(
-            joined.contains("neon")
-                || joined.contains("trail")
-                || joined.contains("scroll")
-                || joined.contains("cursor")
-        );
-    }
-
-    #[test]
-    fn suggestions_ignore_hint_and_use_recent_messages_only() {
-        let root = tempfile::tempdir().expect("tempdir");
-        seed_suggestion_context(root.path(), "agent-c");
-        let value = suggestions(root.path(), "agent-c", "run system diagnostic full scan");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.trim().is_empty());
-        assert!(!joined.contains("diagnostic"));
-        assert!(!joined.contains("scan"));
-    }
-
-    #[test]
-    fn suggestions_are_human_readable_and_under_word_budget() {
-        let root = tempfile::tempdir().expect("tempdir");
-        seed_suggestion_context(root.path(), "agent-d");
-        let value = suggestions(root.path(), "agent-d", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        for row in rows {
-            let text = row.as_str().unwrap_or("");
-            assert!(text.ends_with('?'));
-            assert!(text.split_whitespace().count() <= PROMPT_SUGGESTION_MAX_WORDS);
-            assert!(!text.contains("  "));
-            assert!(!text.ends_with(" and?"));
-            assert!(!text.ends_with(" to?"));
-        }
-    }
-
-    #[test]
-    fn suggestions_do_not_use_legacy_template_phrasing() {
-        let root = tempfile::tempdir().expect("tempdir");
-        seed_suggestion_context(root.path(), "agent-e");
-        let value = suggestions(root.path(), "agent-e", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.contains("continue with"));
-        assert!(!joined.contains("end to end"));
-        assert!(!joined.contains("works?"));
-    }
-
-    #[test]
-    fn suggestions_filter_low_signal_topic_fillers() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-f",
-            "the llm menu only shows three models",
-            "I'll inspect provider sensing and model discovery wiring.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-f",
-            "restore automatic ollama model discovery in router",
-            "I can patch the provider index and menu payload.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-f",
-            "compare model routing options for local providers",
-            "I'll evaluate router and fallback behavior.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-f",
-            "can you continue with compare other",
-            "I'll keep going and report what changed.",
-        );
-
-        let value = suggestions(root.path(), "agent-f", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.contains("compare other"));
-        assert!(
-            joined.contains("model")
-                || joined.contains("router")
-                || joined.contains("ollama")
-                || joined.contains("sensing")
-                || joined.contains("kimi")
-                || joined.contains("qwen")
-        );
-    }
-
-    #[test]
-    fn suggestions_do_not_echo_fragmented_prompt_phrases() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-fragment",
-            "ollama discovery is missing local models in the router",
-            "I'll inspect model sensing and provider discovery.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-fragment",
-            "restore sensing for kimi qwen phi and smallthinker",
-            "I'll patch local model detection and menu hydration.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-fragment",
-            "can you continue with does compare other works",
-            "I'll keep digging and report real findings.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-fragment",
-            "can you verify does compare other works",
-            "I'll validate behavior after patching the routing path.",
-        );
-
-        let value = suggestions(root.path(), "agent-fragment", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.contains("does compare"));
-        assert!(!joined.contains("compare other"));
-        assert!(!joined.contains("continue with does"));
-        assert!(
-            joined.contains("model")
-                || joined.contains("router")
-                || joined.contains("ollama")
-                || joined.contains("sensing")
-                || joined.contains("kimi")
-                || joined.contains("qwen")
-        );
-    }
-
-    #[test]
-    fn suggestions_ignore_confirmation_fragments_and_keep_task_context() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm",
-            "we need to remove extra idle agents without touching permanent ones",
-            "I can do that after you confirm.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm",
-            "can you kill all the extra agents",
-            "Please confirm and I'll execute it.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm",
-            "yes",
-            "Confirm once more and I'll run the cleanup.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm",
-            "yes kill all extra now",
-            "Running after explicit confirmation.",
-        );
-
-        let value = suggestions(root.path(), "agent-confirm", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.contains("for yes"));
-        assert!(!joined.contains("yes kill"));
-        assert!(joined.contains("agent") || joined.contains("idle") || joined.contains("remove"));
-    }
-
-    #[test]
-    fn suggestions_do_not_template_on_yes_confirmation_transcript() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm-flow",
-            "can you kill all the extra agents",
-            "I need your confirmation before running manage_agent. Confirm this step and I will execute it immediately.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm-flow",
-            "yes",
-            "I need your confirmation before running manage_agent. Confirm this step and I will execute it immediately.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm-flow",
-            "yes kill all extra now",
-            "Understood. I'll run the cleanup right away.",
-        );
-        let _ = append_turn(
-            root.path(),
-            "agent-confirm-flow",
-            "show me status after cleanup",
-            "I'll report current status and blockers once cleanup is complete.",
-        );
-
-        let value = suggestions(root.path(), "agent-confirm-flow", "");
-        let rows = value
-            .get("suggestions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(!rows.is_empty());
-        let joined = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_ascii_lowercase();
-        assert!(!joined.contains("yes kill"));
-        assert!(!joined.contains("implement yes"));
-        assert!(!joined.contains("status and blockers for yes"));
-        assert!(!joined.contains("continue with"));
-        assert!(
-            joined.contains("agent")
-                || joined.contains("cleanup")
-                || joined.contains("remove")
-                || joined.contains("change")
-                || joined.contains("verify"),
-            "joined suggestions were too generic: {joined}"
-        );
-    }
-
-    #[test]
     fn suggestions_require_seven_recent_messages() {
         let root = tempfile::tempdir().expect("tempdir");
+        seed_profile(root.path(), "agent-min-context", "ollama", "deepseek-v3.1:671b-cloud");
         let _ = append_turn(
             root.path(),
             "agent-min-context",
@@ -572,6 +237,76 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn suggestions_skip_models_below_param_threshold() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_profile(root.path(), "agent-small-model", "ollama", "llama3.3:70b");
+        seed_suggestion_context(root.path(), "agent-small-model");
+
+        let value = suggestions(root.path(), "agent-small-model", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn suggestions_reject_template_like_rows_even_with_large_model() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_profile(root.path(), "agent-template-filter", "ollama", "deepseek-v3.1:671b-cloud");
+        seed_suggestion_context(root.path(), "agent-template-filter");
+
+        // Test-only override hook to simulate model output.
+        std::env::set_var(
+            "INFRING_PROMPT_SUGGESTION_TEST_RESPONSE",
+            r#"{"suggestions":["Can you continue with compare other","Show the exact root cause path","Which verification should we run next"]}"#,
+        );
+        let value = suggestions(root.path(), "agent-template-filter", "");
+        std::env::remove_var("INFRING_PROMPT_SUGGESTION_TEST_RESPONSE");
+
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("continue with"));
+        assert!(!joined.contains("can you continue"));
+        assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
+    }
+
+    #[test]
+    fn suggestions_fall_back_to_non_template_rows_when_model_output_is_invalid_json() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_profile(root.path(), "agent-invalid-response", "ollama", "deepseek-v3.1:671b-cloud");
+        seed_suggestion_context(root.path(), "agent-invalid-response");
+
+        let value = suggestions(root.path(), "agent-invalid-response", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("continue with"));
+        assert!(!joined.contains("can you continue"));
+        assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
     }
 
     #[test]

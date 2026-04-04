@@ -10,6 +10,7 @@ const AGENT_SESSIONS_DIR_REL: &str =
 const PROMPT_SUGGESTION_CONTEXT_WINDOW: usize = 7;
 const PROMPT_SUGGESTION_MAX_WORDS: usize = 10;
 const PROMPT_SUGGESTION_MAX_COUNT: usize = 3;
+const PROMPT_SUGGESTION_MIN_PARAMS_BILLION: i64 = 80;
 
 include!("dashboard_agent_state_sessions_parts/001-part.rs");
 include!("dashboard_agent_state_sessions_parts/002-part.rs");

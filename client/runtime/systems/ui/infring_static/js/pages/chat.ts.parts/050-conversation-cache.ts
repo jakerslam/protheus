@@ -400,25 +400,21 @@
           .replace(/^\s*\[[^\]\n]{2,96}\]\s*/, '')
           .replace(/^\s*(?:\*\*)?(?:agent|assistant|system|model|ai|jarvis|user|human)(?:\*\*)?\s*:\s*/i, '')
           .replace(/^ask\s+[^.?!]{0,140}?\s+to\s+/i, '')
-          .replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, 'Can you ')
-          .replace(/^ask\s+for\s+/i, 'Can you ')
-          .replace(/^request\s+/i, 'Can you ')
-          .replace(/^please\s+request\s+/i, 'Can you ')
-          .replace(/^give me\s+/i, 'Can you ')
-          .replace(/^show me\s+/i, 'Can you show ')
+          .replace(/^ask\s+[^.?!]{0,140}?\s+for\s+/i, '')
+          .replace(/^ask\s+for\s+/i, '')
+          .replace(/^request\s+/i, '')
+          .replace(/^please\s+request\s+/i, '')
           .replace(/\s+/g, ' ')
           .trim();
         row = clampWords(row, 10);
         row = row.replace(/[.!?]+$/g, '').trim();
         if (!row) return '';
-        if (!/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(row)) row = 'Can you ' + row;
-        row = clampWords(row, 10);
-        row = row.replace(/[.!?]+$/g, '').trim();
-        if (!row) return '';
         row = trimTrailingJoiners(row);
         if (!row) return '';
-        row += '?';
-        if (row.length) row = row.charAt(0).toUpperCase() + row.slice(1);
+        if (!/[?.!]$/.test(row)) row += '?';
+        if (row.length && /^[a-z]/.test(row.charAt(0))) {
+          row = row.charAt(0).toUpperCase() + row.slice(1);
+        }
         if (row.length > 180) row = row.substring(0, 177) + '...';
         return row;
       };
