@@ -97,7 +97,7 @@ document.addEventListener('alpine:init', function() {
     statusDegraded: false,
     lastStatusLatencyMs: 0,
     lastStatusAt: '',
-    version: '0.1.0',
+    version: (window.__INFRING_APP_VERSION || '0.0.0'),
     gitBranch: '',
     agentCount: 0,
     pendingAgent: null,
@@ -251,7 +251,12 @@ document.addEventListener('alpine:init', function() {
             }
           }
 
-          var nextAgents = Array.isArray(agents) ? agents.slice() : [];
+          var nextAgents = (Array.isArray(agents) ? agents : []).filter(function(row) {
+            if (!row || !row.id) return false;
+            if (row.archived === true) return false;
+            var state = String(row.state || '').trim().toLowerCase();
+            return !(state === 'archived' || state === 'inactive' || state === 'terminated');
+          });
           var nextById = {};
           for (var ni = 0; ni < nextAgents.length; ni++) {
             var nextRow = nextAgents[ni];
@@ -386,7 +391,7 @@ document.addEventListener('alpine:init', function() {
         this.lastStatusLatencyMs = latencyMs;
         this.lastStatusAt = new Date().toISOString();
         this.lastError = degraded ? String(statusObj.error || statusObj.warning || '') : '';
-        this.version = statusObj.version || '0.1.0';
+        this.version = statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';
         this.gitBranch = statusObj.git_branch ? String(statusObj.git_branch) : (this.gitBranch || '');
         this.agentCount = statusObj.agent_count || 0;
         this.runtimeSync = (statusObj.runtime_sync && typeof statusObj.runtime_sync === 'object') ? statusObj.runtime_sync : null;

@@ -31,6 +31,15 @@
             return;
           }
         }
+        var noModelsError =
+          lowerHttpError.indexOf('no_models_available') >= 0 ||
+          lowerHttpError.indexOf('no models available') >= 0;
+        if (noModelsError) {
+          this.injectNoModelsGuidance('send_error');
+          this._inflightPayload = null;
+          this.scheduleConversationPersist();
+          return;
+        }
         handedOffToRecovery = await this.attemptAutomaticFailoverRecovery(
           'http_error',
           rawHttpError,

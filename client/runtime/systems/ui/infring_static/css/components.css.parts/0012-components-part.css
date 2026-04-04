@@ -109,7 +109,6 @@
   color: var(--accent);
   background: var(--accent-glow);
 }
-
 /* Stable universal top bar for all pages */
 .global-topbar {
   min-height: 46px;

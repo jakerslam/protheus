@@ -67,6 +67,9 @@
             self.scrollToBottom();
           }
           break;
+        case '/apikey':
+          await self.runSlashApiKeyDiscovery(cmdArgs);
+          break;
         case '/file':
           if (!self.currentAgent) {
             self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
@@ -327,6 +330,9 @@
         } else {
           this.loadSession(resolved.id, false);
         }
+        if (!(this.isSystemThreadAgent && this.isSystemThreadAgent(resolved))) {
+          this.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function() {});
+        }
         return;
       }
       if (selectingSystemThread) {
@@ -391,6 +397,7 @@
       }
       this.loadSessions(resolved.id);
       this.requestContextTelemetry(true);
+      this.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function() {});
       if (!forceFreshSession) {
         this.refreshPromptSuggestions(false);
       }

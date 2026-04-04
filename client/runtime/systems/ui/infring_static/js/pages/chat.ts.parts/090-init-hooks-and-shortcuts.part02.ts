@@ -87,16 +87,10 @@
       });
 
       var cacheFresh = Array.isArray(this._modelCache) && (now - this._modelCacheTime) < 300000;
-      if (cacheFresh) return;
-      InfringAPI.post('/api/models/discover', { input: '__auto__' })
-        .catch(function() { return null; })
-        .then(function() { return InfringAPI.get('/api/models'); })
-        .then(function(data) {
-        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
-        self._modelCache = models;
-        self._modelCacheTime = Date.now();
-        self.modelPickerList = models;
-      }).catch(function(e) {
+      var cachedAvailable = self.availableModelRowsCount ? self.availableModelRowsCount(cached) : 0;
+      var shouldRefresh = !cacheFresh || cached.length < 8 || cachedAvailable < 4;
+      if (!shouldRefresh) return;
+      self.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function(e) {
         if (!self.modelPickerList || !self.modelPickerList.length) {
           var active = self.resolveActiveSwitcherModel([]);
           self.modelPickerList = active ? [active] : [];
@@ -138,6 +132,9 @@
         self._modelCache = models;
         self._modelCacheTime = Date.now();
         self.modelPickerList = models;
+        if (self.availableModelRowsCount(models) === 0) {
+          self.injectNoModelsGuidance('discover_key');
+        }
       }).catch(function(e) {
         self.modelApiKeyStatus = '';
         InfringToast.error('Model discovery failed: ' + (e && e.message ? e.message : e));

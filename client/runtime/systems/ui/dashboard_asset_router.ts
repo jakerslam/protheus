@@ -33,6 +33,54 @@ function fileExists(filePath) {
 function readText(filePath, fallback = '') {
   try { return fs.readFileSync(filePath, 'utf8'); } catch { return fallback; }
 }
+function cleanText(value, maxLen = 200) {
+  return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+}
+function findWorkspaceRoot(startDir) {
+  let cursor = path.resolve(startDir || '.');
+  for (let hop = 0; hop < 12; hop += 1) {
+    const packageJsonPath = path.resolve(cursor, 'package.json');
+    if (fileExists(packageJsonPath)) return cursor;
+    const next = path.dirname(cursor);
+    if (!next || next === cursor) break;
+    cursor = next;
+  }
+  return path.resolve(startDir || '.');
+}
+function readBuildVersionInfo(staticDir) {
+  const workspaceRoot = findWorkspaceRoot(staticDir);
+  const runtimeVersionPath = path.resolve(
+    workspaceRoot,
+    'client/runtime/config/runtime_version.json'
+  );
+  const packagePath = path.resolve(workspaceRoot, 'package.json');
+  let version = '0.0.0';
+  let tag = '';
+  let source = 'package_json';
+  try {
+    const runtimeVersion = JSON.parse(readText(runtimeVersionPath, '{}') || '{}');
+    const runtimeVersionValue = cleanText(runtimeVersion && runtimeVersion.version, 80);
+    const runtimeTagValue = cleanText(runtimeVersion && runtimeVersion.tag, 80);
+    if (runtimeVersionValue) {
+      version = runtimeVersionValue;
+      if (runtimeTagValue) tag = runtimeTagValue;
+      source = cleanText(runtimeVersion && runtimeVersion.source, 80) || 'runtime_version_contract';
+    }
+  } catch {}
+  if (!version || version === '0.0.0') {
+    try {
+      const pkg = JSON.parse(readText(packagePath, '{}') || '{}');
+      const pkgVersion = cleanText(pkg && pkg.version, 80);
+      if (pkgVersion) version = pkgVersion;
+    } catch {}
+  }
+  if (!tag && version) tag = `v${version}`;
+  return {
+    version: version || '0.0.0',
+    tag: tag || '',
+    source,
+  };
+}
 function contentTypeForFile(filePath) {
   return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
@@ -153,6 +201,7 @@ function hasPrimaryDashboardUi(staticDir) {
   return (fileExists(headPath) || listSegmentPartFiles(headPath).length > 0) && (fileExists(bodyPath) || listSegmentPartFiles(bodyPath).length > 0);
 }
 function buildPrimaryDashboardHtml(staticDir) {
+  const buildVersion = readBuildVersionInfo(staticDir);
   const head = readSegmentedText(path.resolve(staticDir, 'index_head.html'), '');
   const body = readSegmentedText(path.resolve(staticDir, 'index_body.html'), '');
   if (!head || !body) return '';
@@ -171,7 +220,12 @@ function buildPrimaryDashboardHtml(staticDir) {
     PAGE_SCRIPTS.map((name) => readForkScript(staticDir, `js/pages/${name}`)).filter(Boolean).join('\n'),
   ].filter(Boolean).join('\n');
   const alpine = readForkScript(staticDir, 'vendor/alpine.min');
-  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
+  const versionBootstrap = [
+    'window.__INFRING_BUILD_INFO = ' + JSON.stringify(buildVersion) + ';',
+    'window.__INFRING_APP_VERSION = window.__INFRING_BUILD_INFO.version || "0.0.0";',
+    'window.__INFRING_APP_TAG = window.__INFRING_BUILD_INFO.tag || ("v" + window.__INFRING_APP_VERSION);',
+  ].join('\n');
+  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', versionBootstrap, '</script>', '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
 }
 function readPrimaryDashboardAsset(staticDir, pathname) {
   const requestPath = pathname === '/' || pathname === '/dashboard' || pathname === '/dashboard/' ? '/index_body.html' : pathname;

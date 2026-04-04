@@ -234,6 +234,9 @@
               .then(function() { return InfringAPI.get('/api/models'); })
               .then(function(data) {
               self.modelPickerList = self.sanitizeModelCatalogRows((data && data.models) || []);
+              if (self.availableModelRowsCount(self.modelPickerList) === 0) {
+                self.injectNoModelsGuidance('slash_model');
+              }
               self.showModelPicker = true;
               self.modelPickerIdx = 0;
             }).catch(function() {});
@@ -265,6 +268,8 @@
           : '';
         if (suggested) self.terminalCwd = suggested;
       }).catch(function() {});
+
+      this.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function() {});
 
       if (this._contextTelemetryTimer) clearInterval(this._contextTelemetryTimer);
       this._contextTelemetryTimer = setInterval(function() {
