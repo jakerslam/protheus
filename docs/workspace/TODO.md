@@ -12,6 +12,20 @@ Updated: 2026-04-01T08:02:05.223Z
 - existing_coverage_validated: 2231
 
 ## SRS Section Checklist
+
+## Manual Priority Addendum (2026-04-04)
+- [ ] `V11-ADAPT-001`: Implement per-user hyper-personalization runtime (profile state + bounded adaptation + reset controls).
+- [ ] `V11-MULTI-001`: Ship native multimodal execution loop (image/audio/document/spreadsheet ingestion with artifact provenance).
+- [ ] `V11-TRUST-001`: Add confidence/rationale surfacing and persistent autonomy/verbosity/creativity controls.
+- [ ] `V11-SKILL-001`: Build signed skill marketplace path with scoped permissions and deterministic install receipts.
+- [ ] `V11-EDGE-001`: Deliver offline-first edge profile with deterministic degraded-mode behavior and recovery.
+- [ ] `V11-PROACTIVE-002`: Add consent-scoped proactive assistance loop for calendar/email/project signals.
+- [ ] `V11-TODO-006`: Add first-run personalization calibration checklist.
+- [ ] `V11-TODO-007`: Standardize confidence/rationale copy across UI surfaces.
+- [ ] `V11-TODO-008`: Add multimodal regression fixture corpus.
+- [ ] `V11-TODO-009`: Curate baseline skill catalog metadata.
+- [ ] `V11-TODO-010`: Publish proactive consent messaging templates.
+
 - [ ] Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=3, done=0, existing_coverage_validated=15
 - [x] LLMN Mode + Smart Memory Regression Shield (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=4
 - [ ] Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=2, done=5, existing_coverage_validated=3

@@ -26,6 +26,32 @@ fn start_dashboard_with_config(
 
     let wait_attempts = dashboard_wait_attempts(&cfg);
     let first_spawn = spawn_dashboard(root, &cfg);
+    if let Err(err) = first_spawn.as_ref() {
+        let mut out = json!({
+            "enabled": true,
+            "running": false,
+            "launched": false,
+            "pid": Value::Null,
+            "opened_browser": false,
+            "url": url,
+            "node_binary": cfg.node_binary,
+            "log_path": dashboard_log_path(root).to_string_lossy().to_string(),
+            "ready_timeout_ms": cfg.ready_timeout_ms,
+            "recovery_attempted": false,
+            "recovery": Value::Null,
+            "spawn_error": err,
+            "error": "dashboard_spawn_failed"
+        });
+        if err.contains("node_binary_unavailable") {
+            out["error_code"] = Value::String("dashboard_node_binary_unavailable".to_string());
+        }
+        let tail = dashboard_log_tail(root, 8);
+        if !tail.is_empty() {
+            out["log_tail"] = Value::String(tail);
+        }
+        out["watchdog"] = dashboard_watchdog_status(root);
+        return out;
+    }
     let mut running = wait_for_dashboard_stable(
         cfg.host.as_str(),
         cfg.port,

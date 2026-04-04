@@ -308,6 +308,12 @@ fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> V
 }
 
 fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
+    if !node_binary_usable(cfg.node_binary.as_str()) {
+        return Err(format!(
+            "dashboard_spawn_failed:node_binary_unavailable:{}",
+            cfg.node_binary
+        ));
+    }
     fs::create_dir_all(dashboard_state_dir(root))
         .map_err(|err| format!("dashboard_state_dir_create_failed:{err}"))?;
     let log_path = dashboard_log_path(root);

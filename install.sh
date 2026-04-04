@@ -35,6 +35,7 @@ INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
 INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-${PROTHEUS_INSTALL_REPAIR:-0}}"
 INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
 INSTALL_NODE="${INFRING_INSTALL_NODE:-${PROTHEUS_INSTALL_NODE:-0}}"
+INSTALL_NODE_AUTO="${INFRING_INSTALL_NODE_AUTO:-${PROTHEUS_INSTALL_NODE_AUTO:-1}}"
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
@@ -391,8 +392,18 @@ ensure_node_runtime_notice() {
     echo "[infring install] Node.js check: not detected (requires 22+ for full CLI surface)"
   fi
 
+  auto_node_mode=""
   if is_truthy "$INSTALL_NODE"; then
+    auto_node_mode="explicit"
+  elif is_truthy "$INSTALL_FULL" && is_truthy "$INSTALL_NODE_AUTO"; then
+    auto_node_mode="full_auto"
+  fi
+
+  if [ -n "$auto_node_mode" ]; then
     auto_installed=0
+    if [ "$auto_node_mode" = "full_auto" ]; then
+      echo "[infring install] full mode: attempting automatic portable Node.js runtime bootstrap"
+    fi
     if install_node_runtime_portable >/dev/null 2>&1 && node_runtime_meets_minimum; then
       auto_installed=1
     fi
@@ -402,6 +413,12 @@ ensure_node_runtime_notice() {
       echo "[infring install] Node.js install complete: ${node_ver:-unknown version}"
       [ -n "$node_bin_path" ] && echo "[infring install] Node.js binary: $node_bin_path"
       return 0
+    fi
+    if [ "$auto_node_mode" = "full_auto" ]; then
+      echo "[infring install] warning: portable Node auto-install failed in full mode."
+      echo "[infring install] run manually: $install_cmd"
+      echo "[infring install] fallback: set PROTHEUS_NODE_BINARY to a valid node executable."
+      return 1
     fi
     case "$install_cmd" in
       Install\ Homebrew*|Install\ Node.js*)

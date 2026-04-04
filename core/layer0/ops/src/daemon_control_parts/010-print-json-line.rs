@@ -277,26 +277,92 @@ fn load_recent_verity_drift_events(root: &Path, limit: usize) -> Vec<Value> {
     out
 }
 
-fn resolve_node_binary() -> String {
-    if let Ok(explicit) = std::env::var("PROTHEUS_NODE_BINARY") {
-        let trimmed = explicit.trim();
-        if !trimmed.is_empty() {
-            return trimmed.to_string();
-        }
+fn node_binary_usable(binary: &str) -> bool {
+    let trimmed = binary.trim();
+    if trimmed.is_empty() {
+        return false;
     }
+    Command::new(trimmed)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn resolve_binary_in_path(binary: &str) -> Option<String> {
     let locator = if cfg!(windows) { "where" } else { "which" };
-    if let Ok(out) = Command::new(locator)
-        .arg("node")
+    let out = Command::new(locator)
+        .arg(binary)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .output()
-    {
-        if out.status.success() {
-            let raw = String::from_utf8_lossy(&out.stdout);
-            if let Some(line) = raw.lines().map(str::trim).find(|row| !row.is_empty()) {
-                return line.to_string();
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&out.stdout);
+    raw.lines()
+        .map(str::trim)
+        .find(|row| !row.is_empty())
+        .map(ToString::to_string)
+}
+
+fn infer_infring_home_from_exe() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let bin_dir = exe.parent()?;
+    let home = bin_dir.parent()?;
+    Some(home.to_path_buf())
+}
+
+fn resolve_node_binary() -> String {
+    let mut candidates = Vec::<String>::new();
+
+    for key in ["PROTHEUS_NODE_BINARY", "INFRING_NODE_BINARY"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                candidates.push(trimmed.to_string());
             }
+        }
+    }
+
+    for key in ["INFRING_HOME", "PROTHEUS_HOME"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                let candidate = Path::new(trimmed)
+                    .join("node-runtime")
+                    .join("bin")
+                    .join("node")
+                    .to_string_lossy()
+                    .to_string();
+                candidates.push(candidate);
+            }
+        }
+    }
+
+    if let Some(home) = infer_infring_home_from_exe() {
+        candidates.push(
+            home.join("node-runtime")
+                .join("bin")
+                .join("node")
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+
+    if let Some(path_node) = resolve_binary_in_path("node") {
+        candidates.push(path_node);
+    }
+    candidates.push("node".to_string());
+
+    for candidate in candidates {
+        if node_binary_usable(candidate.as_str()) {
+            return candidate;
         }
     }
     "node".to_string()

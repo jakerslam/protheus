@@ -34,6 +34,91 @@ fn red_tier_tools_require_explicit_signoff() {
 }
 
 #[test]
+fn parent_can_archive_descendant_without_signoff_and_reason_is_persisted() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+
+    let parent_create = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"parent-gate-test","role":"operator"}"#,
+        &snapshot,
+    )
+    .expect("create parent");
+    let parent_id = clean_agent_id(
+        parent_create
+            .payload
+            .get("agent_id")
+            .or_else(|| parent_create.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!parent_id.is_empty());
+
+    let child_payload = serde_json::to_vec(&json!({
+        "name": "child-gate-test",
+        "role": "analyst",
+        "parent_agent_id": parent_id
+    }))
+    .expect("serialize child create");
+    let child_create = handle(root.path(), "POST", "/api/agents", &child_payload, &snapshot)
+        .expect("create child");
+    let child_id = clean_agent_id(
+        child_create
+            .payload
+            .get("agent_id")
+            .or_else(|| child_create.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!child_id.is_empty());
+
+    let archived = execute_tool_call_by_name(
+        root.path(),
+        &snapshot,
+        &parent_id,
+        None,
+        "manage_agent",
+        &json!({"action":"archive", "agent_id": child_id}),
+    );
+    assert_eq!(archived.get("ok").and_then(Value::as_bool), Some(true));
+    assert_ne!(
+        archived.get("error").and_then(Value::as_str),
+        Some("tool_explicit_signoff_required")
+    );
+    assert_eq!(
+        archived.get("reason").and_then(Value::as_str),
+        Some("Archived by parent agent")
+    );
+
+    let archived_state = read_json_loose(
+        &root
+            .path()
+            .join("client/runtime/local/state/ui/infring_dashboard/archived_agents.json"),
+    )
+    .unwrap_or_else(|| json!({}));
+    let reason = archived_state
+        .pointer(&format!("/agents/{child_id}/reason"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert_eq!(reason, "Archived by parent agent");
+
+    let blocked = execute_tool_call_by_name(
+        root.path(),
+        &snapshot,
+        "agent-unrelated",
+        None,
+        "manage_agent",
+        &json!({"action":"archive", "agent_id": child_id}),
+    );
+    assert_eq!(
+        blocked.get("error").and_then(Value::as_str),
+        Some("tool_explicit_signoff_required")
+    );
+}
+
+#[test]
 fn semantic_memory_query_route_returns_matches() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
@@ -155,7 +240,7 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     let snapshot = json!({"ok": true});
     let response =
         "<function=spawn_subagents>{\"count\":3,\"objective\":\"parallelize analysis\"}</function>";
-    let (text, cards) = execute_inline_tool_calls(
+    let (text, cards, pending_confirmation) = execute_inline_tool_calls(
         root.path(),
         &snapshot,
         "agent-inline",
@@ -165,6 +250,7 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     );
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].get("is_error").and_then(Value::as_bool), Some(false));
+    assert!(pending_confirmation.is_none());
     let lowered = text.to_ascii_lowercase();
     assert!(!lowered.contains("tool_explicit_signoff_required"));
     assert!(!lowered.contains("spawn_subagents failed"));
@@ -172,10 +258,106 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
 }
 
 #[test]
+fn pending_confirmation_yes_replays_manage_agent_action() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let parent = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"parent-runtime","role":"operator"}"#,
+        &snapshot,
+    )
+    .expect("parent create");
+    let parent_id = clean_agent_id(
+        parent
+            .payload
+            .get("agent_id")
+            .or_else(|| parent.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!parent_id.is_empty());
+    let child_payload = serde_json::to_vec(&json!({
+        "name": "child-runtime",
+        "role": "analyst",
+        "parent_agent_id": parent_id
+    }))
+    .expect("serialize child");
+    let child = handle(root.path(), "POST", "/api/agents", &child_payload, &snapshot)
+        .expect("child create");
+    let child_id = clean_agent_id(
+        child
+            .payload
+            .get("agent_id")
+            .or_else(|| child.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!child_id.is_empty());
+    let _ = update_profile_patch(
+        root.path(),
+        &parent_id,
+        &json!({
+            "pending_tool_confirmation": {
+                "tool_name": "manage_agent",
+                "input": {"action": "archive", "agent_id": child_id}
+            }
+        }),
+    );
+    let yes_body = serde_json::to_vec(&json!({"message":"yes"})).expect("serialize yes");
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        &yes_body,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(!response_text.contains("need your confirmation"));
+    let archived_state = read_json_loose(
+        &root
+            .path()
+            .join("client/runtime/local/state/ui/infring_dashboard/archived_agents.json"),
+    )
+    .unwrap_or_else(|| json!({}));
+    let reason = archived_state
+        .pointer(&format!("/agents/{child_id}/reason"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert_eq!(reason, "Archived by parent agent");
+    let profile = profiles_map(root.path())
+        .get(&parent_id)
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert!(profile
+        .get("pending_tool_confirmation")
+        .map(Value::is_null)
+        .unwrap_or(true));
+}
+
+#[test]
 fn telemetry_dump_detector_flags_duckduckgo_noise_and_tool_error_codes() {
     let dump = "agentic AI systems architecture at DuckDuckGo All Regions Argentina Australia. spawn_subagents failed: tool_explicit_signoff_required";
     assert!(response_is_unrelated_context_dump(
         "improve this system",
+        dump
+    ));
+}
+
+#[test]
+fn unrelated_dump_detector_flags_peer_review_template_leaks() {
+    let dump = "AIFFEL Campus Online 5th Code Peer Review Templete - 코더 : 최연석 - 리뷰어 : 김연 # PRT(PeerReviewTemplate) 각 항목을 스스로 확인하고 토의하여 작성한 코드에 적용합니다. 코드가 정상적으로 동작하고 주어진 문제를 해결했나요?";
+    assert!(response_is_unrelated_context_dump(
+        "did you format that as a list?",
         dump
     ));
 }
@@ -255,6 +437,38 @@ fn response_tools_summary_drops_ack_only_tool_rows() {
         4,
     );
     assert!(synthesized.is_empty());
+}
+
+#[test]
+fn finalize_user_facing_response_replaces_ack_with_findings() {
+    let finalized = finalize_user_facing_response(
+        "Web search completed.".to_string(),
+        Some("Here's what I found:\n- arxiv.org/abs/2601.12345".to_string()),
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("web search completed"));
+    assert!(lowered.contains("here's what i found"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_replaces_ack_without_findings() {
+    let finalized = finalize_user_facing_response("Web search completed.".to_string(), None);
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("web search completed"));
+    assert!(lowered.contains("no relevant results"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_never_leaks_tool_status_text() {
+    let finalized = finalize_user_facing_response(
+        "Tool call finished.".to_string(),
+        Some("Tool call finished.".to_string()),
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("tool call finished"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
 }
 
 #[test]

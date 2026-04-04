@@ -247,12 +247,17 @@ fn is_focus_stop_word(word: &str) -> bool {
     matches!(
         word,
         "a" | "an"
+            | "after"
+            | "all"
             | "and"
             | "are"
             | "as"
             | "at"
             | "be"
+            | "before"
             | "can"
+            | "confirm"
+            | "confirmed"
             | "could"
             | "do"
             | "for"
@@ -267,10 +272,13 @@ fn is_focus_stop_word(word: &str) -> bool {
             | "my"
             | "now"
             | "of"
+            | "ok"
+            | "okay"
             | "on"
             | "or"
             | "please"
             | "should"
+            | "sure"
             | "that"
             | "the"
             | "then"
@@ -283,6 +291,9 @@ fn is_focus_stop_word(word: &str) -> bool {
             | "why"
             | "with"
             | "would"
+            | "yeah"
+            | "yep"
+            | "yes"
             | "you"
             | "your"
     )
@@ -436,4 +447,3 @@ fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
         prefer_lowercase: (lowercase * 2) >= n,
     }
 }
-

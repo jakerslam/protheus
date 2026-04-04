@@ -378,7 +378,169 @@ mod tests {
             .join(" ")
             .to_ascii_lowercase();
         assert!(!joined.contains("compare other"));
-        assert!(joined.contains("model") || joined.contains("router") || joined.contains("ollama"));
+        assert!(
+            joined.contains("model")
+                || joined.contains("router")
+                || joined.contains("ollama")
+                || joined.contains("sensing")
+                || joined.contains("kimi")
+                || joined.contains("qwen")
+        );
+    }
+
+    #[test]
+    fn suggestions_do_not_echo_fragmented_prompt_phrases() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-fragment",
+            "ollama discovery is missing local models in the router",
+            "I'll inspect model sensing and provider discovery.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-fragment",
+            "restore sensing for kimi qwen phi and smallthinker",
+            "I'll patch local model detection and menu hydration.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-fragment",
+            "can you continue with does compare other works",
+            "I'll keep digging and report real findings.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-fragment",
+            "can you verify does compare other works",
+            "I'll validate behavior after patching the routing path.",
+        );
+
+        let value = suggestions(root.path(), "agent-fragment", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("does compare"));
+        assert!(!joined.contains("compare other"));
+        assert!(!joined.contains("continue with does"));
+        assert!(
+            joined.contains("model")
+                || joined.contains("router")
+                || joined.contains("ollama")
+                || joined.contains("sensing")
+                || joined.contains("kimi")
+                || joined.contains("qwen")
+        );
+    }
+
+    #[test]
+    fn suggestions_ignore_confirmation_fragments_and_keep_task_context() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm",
+            "we need to remove extra idle agents without touching permanent ones",
+            "I can do that after you confirm.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm",
+            "can you kill all the extra agents",
+            "Please confirm and I'll execute it.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm",
+            "yes",
+            "Confirm once more and I'll run the cleanup.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm",
+            "yes kill all extra now",
+            "Running after explicit confirmation.",
+        );
+
+        let value = suggestions(root.path(), "agent-confirm", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("for yes"));
+        assert!(!joined.contains("yes kill"));
+        assert!(joined.contains("agent") || joined.contains("idle") || joined.contains("remove"));
+    }
+
+    #[test]
+    fn suggestions_do_not_template_on_yes_confirmation_transcript() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm-flow",
+            "can you kill all the extra agents",
+            "I need your confirmation before running manage_agent. Confirm this step and I will execute it immediately.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm-flow",
+            "yes",
+            "I need your confirmation before running manage_agent. Confirm this step and I will execute it immediately.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm-flow",
+            "yes kill all extra now",
+            "Understood. I'll run the cleanup right away.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-confirm-flow",
+            "show me status after cleanup",
+            "I'll report current status and blockers once cleanup is complete.",
+        );
+
+        let value = suggestions(root.path(), "agent-confirm-flow", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("yes kill"));
+        assert!(!joined.contains("implement yes"));
+        assert!(!joined.contains("status and blockers for yes"));
+        assert!(!joined.contains("continue with"));
+        assert!(
+            joined.contains("agent")
+                || joined.contains("cleanup")
+                || joined.contains("remove")
+                || joined.contains("change")
+                || joined.contains("verify"),
+            "joined suggestions were too generic: {joined}"
+        );
     }
 
     #[test]

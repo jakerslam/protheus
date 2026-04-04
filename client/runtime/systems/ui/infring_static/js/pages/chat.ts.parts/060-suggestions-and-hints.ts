@@ -29,12 +29,16 @@
         return text;
       };
       var stopWords = {
-        a: true, about: true, an: true, and: true, are: true, as: true, at: true, be: true, can: true, compare: true,
-        continue: true, could: true, do: true, explain: true, finish: true, for: true, from: true, help: true, how: true,
-        i: true, in: true, into: true, is: true, it: true, me: true, my: true, now: true, of: true, on: true, or: true,
-        please: true, respond: true, should: true, so: true, tell: true, test: true, that: true, the: true, then: true,
-        this: true, to: true, us: true, validate: true, verify: true, we: true, what: true, when: true, where: true, why: true,
-        with: true, would: true, you: true, your: true
+        a: true, about: true, all: true, an: true, and: true, are: true, as: true, at: true, be: true, can: true,
+        compare: true, confirm: true, confirmed: true, continue: true, could: true, current: true, did: true, do: true, does: true,
+        explain: true, finish: true, for: true, from: true, help: true, how: true, i: true, implement: true,
+        in: true, into: true, is: true, it: true, kill: true, list: true, me: true, my: true, now: true, of: true, ok: true, okay: true,
+        on: true, or: true, please: true, respond: true, should: true, show: true, so: true, status: true,
+        sure: true, tell: true, test: true, that: true, the: true, then: true, this: true, to: true, us: true,
+        validate: true, verify: true, we: true, what: true, when: true, where: true, why: true, with: true,
+        would: true, yeah: true, yep: true, yes: true, you: true, your: true, blocker: true, blockers: true,
+        remove: true, delete: true, archive: true, cleanup: true, clear: true, drop: true, disable: true, enable: true,
+        extra: true, works: true, working: true
       };
       var trimTrailingJoiners = function(text) {
         var words = String(text == null ? '' : text).trim().split(/\s+/g).filter(Boolean);
@@ -70,9 +74,6 @@
       var styleSuggestion = function(body) {
         var text = clampWords(compact(body || '', 240), 10);
         if (!text) return '';
-        if (!/^(can|could|would|should|what|why|how|when|where|who)\b/i.test(text)) {
-          text = 'Can you ' + text.replace(/^(can|could|would|should)\s+you\s+/i, '');
-        }
         text = clampWords(text, 10);
         if (!text) return '';
         text = text.replace(/[.!?]+$/g, '').trim();
@@ -84,10 +85,10 @@
       var addTemplateRows = function(topic) {
         var seed = topicFromText(topic, 4);
         if (!seed) return;
-        rows.push('Tell me more about ' + seed);
-        rows.push('What are next steps for ' + seed);
-        rows.push('Can you verify ' + seed + ' works');
-        rows.push('Can you explain tradeoffs for ' + seed);
+        rows.push('What is the fastest next step for ' + seed);
+        rows.push('What should we do next for ' + seed);
+        rows.push('What still needs to be resolved for ' + seed);
+        rows.push('What should we verify before closing ' + seed);
       };
       var _hint = hint;
 
@@ -114,8 +115,8 @@
       }).slice(0, 5);
 
       var primaryTopic = '';
-      if (userRows.length) primaryTopic = topicFromText(userRows[userRows.length - 1], 4);
-      if (!primaryTopic && keywords.length) primaryTopic = topicFromText(keywords.slice(0, 3).join(' '), 4);
+      if (keywords.length) primaryTopic = topicFromText(keywords.slice(0, 3).join(' '), 4);
+      if (!primaryTopic && userRows.length) primaryTopic = topicFromText(userRows[userRows.length - 1], 4);
       if (!primaryTopic && history.length) {
         primaryTopic = topicFromText((history[history.length - 1] && history[history.length - 1].text) || '', 4);
       }

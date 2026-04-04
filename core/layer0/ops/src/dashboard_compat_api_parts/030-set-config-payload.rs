@@ -251,6 +251,32 @@ fn actor_can_manage_target(root: &Path, snapshot: &Value, actor_id: &str, target
     false
 }
 
+fn parent_can_archive_descendant_without_signoff(
+    root: &Path,
+    snapshot: &Value,
+    actor_id: &str,
+    normalized_tool: &str,
+    input: &Value,
+) -> bool {
+    if !matches!(normalized_tool, "agent_action" | "manage_agent") {
+        return false;
+    }
+    let action = clean_text(
+        input.get("action").and_then(Value::as_str).unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    if !matches!(action.as_str(), "archive" | "delete") {
+        return false;
+    }
+    let actor = clean_agent_id(actor_id);
+    let target = clean_agent_id(input.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+    if actor.is_empty() || target.is_empty() || actor == target {
+        return false;
+    }
+    actor_can_manage_target(root, snapshot, &actor, &target)
+}
+
 fn parse_rfc3339_utc(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .ok()
@@ -2733,11 +2759,66 @@ fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     hits >= 2
 }
 
+fn response_contains_peer_review_template_dump(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let markers = [
+        "aiffel campus online",
+        "peerreviewtemplate",
+        "prt(peerreviewtemplate)",
+        "코더",
+        "리뷰어",
+        "각 항목을 스스로 확인",
+        "코드가 정상적으로 동작",
+        "chatbotdata.csv",
+        "tensorflow.keras",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn response_contains_large_code_dump_with_low_overlap(user_message: &str, response_text: &str) -> bool {
+    if response_text.len() < 1_400 {
+        return false;
+    }
+    let import_like_lines = response_text
+        .lines()
+        .filter(|line| {
+            let lowered = line.trim_start().to_ascii_lowercase();
+            lowered.starts_with("import ")
+                || lowered.starts_with("from ")
+                || lowered.starts_with("def ")
+                || lowered.starts_with("class ")
+        })
+        .count();
+    if import_like_lines < 5 {
+        return false;
+    }
+    let user_terms = important_memory_terms(user_message, 20)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let response_terms = important_memory_terms(response_text, 48)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if user_terms.is_empty() || response_terms.is_empty() {
+        return false;
+    }
+    user_terms.is_disjoint(&response_terms)
+}
+
 fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
     if response_text.contains("<function=") {
         return false;
     }
     if response_contains_tool_telemetry_dump(response_text) {
+        return true;
+    }
+    if response_contains_peer_review_template_dump(response_text) {
+        return true;
+    }
+    if response_contains_large_code_dump_with_low_overlap(user_message, response_text) {
         return true;
     }
     if response_text.len() < 220 {
@@ -2802,6 +2883,70 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     mentions_tooling
         && !has_rich_findings
         && (token_count <= 80 || mainly_ack_language)
+}
+
+fn no_findings_user_facing_response() -> String {
+    "No relevant results found for that request yet.".to_string()
+}
+
+fn response_is_no_findings_placeholder(text: &str) -> bool {
+    let lowered = clean_text(text, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    lowered.contains("no relevant results found for that request yet")
+        || lowered.contains("couldn't extract usable findings")
+        || lowered.contains("could not extract usable findings")
+        || lowered.contains("couldn't extract reliable findings")
+        || lowered.contains("could not extract reliable findings")
+        || lowered.contains("no usable findings yet")
+}
+
+fn sanitize_findings_for_final_response(findings: Option<String>) -> Option<String> {
+    let raw = findings.unwrap_or_default();
+    let cleaned = clean_text(raw.trim(), 24_000);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if response_looks_like_tool_ack_without_findings(&cleaned) {
+        return None;
+    }
+    Some(cleaned)
+}
+
+fn finalize_user_facing_response_with_outcome(
+    output: String,
+    findings: Option<String>,
+) -> (String, String, bool) {
+    let cleaned = clean_text(output.trim(), 32_000);
+    let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
+    let findings_cleaned = sanitize_findings_for_final_response(findings);
+    if cleaned.is_empty() {
+        if let Some(text) = findings_cleaned {
+            return (text, "replaced_empty_with_findings".to_string(), false);
+        }
+        return (
+            no_findings_user_facing_response(),
+            "replaced_empty_with_no_findings".to_string(),
+            false,
+        );
+    }
+    if input_ack_only {
+        if let Some(text) = findings_cleaned {
+            return (text, "replaced_ack_with_findings".to_string(), true);
+        }
+        return (
+            no_findings_user_facing_response(),
+            "replaced_ack_with_no_findings".to_string(),
+            true,
+        );
+    }
+    (cleaned, "unchanged".to_string(), false)
+}
+
+#[allow(dead_code)]
+fn finalize_user_facing_response(output: String, findings: Option<String>) -> String {
+    finalize_user_facing_response_with_outcome(output, findings).0
 }
 
 fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -> String {
@@ -3735,6 +3880,197 @@ fn input_approval_note(input: &Value) -> String {
     )
 }
 
+fn tool_error_requires_confirmation(payload: &Value) -> bool {
+    matches!(
+        tool_error_text(payload).to_ascii_lowercase().as_str(),
+        "tool_explicit_signoff_required" | "tool_confirmation_required"
+    )
+}
+
+fn message_is_affirmative_confirmation(message: &str) -> bool {
+    let lowered = clean_text(message, 200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let normalized = lowered
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch.is_whitespace() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>();
+    let collapsed = normalized
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
+    if collapsed.is_empty() {
+        return false;
+    }
+    let token_count = collapsed.split_whitespace().count();
+    if token_count > 12 {
+        return false;
+    }
+    matches!(
+        collapsed.as_str(),
+        "y"
+            | "yes"
+            | "yeah"
+            | "yep"
+            | "ok"
+            | "okay"
+            | "confirm"
+            | "confirmed"
+            | "do it"
+            | "go ahead"
+            | "proceed"
+            | "run it"
+            | "execute"
+            | "execute it"
+            | "please do"
+            | "please proceed"
+            | "yes please"
+            | "yes do it"
+    ) || collapsed.starts_with("yes ")
+        || collapsed.starts_with("confirm ")
+}
+
+fn message_is_negative_confirmation(message: &str) -> bool {
+    let lowered = clean_text(message, 200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let normalized = lowered
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch.is_whitespace() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>();
+    let collapsed = normalized
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
+    matches!(
+        collapsed.as_str(),
+        "n"
+            | "no"
+            | "cancel"
+            | "stop"
+            | "skip"
+            | "dont"
+            | "do not"
+            | "no thanks"
+            | "never mind"
+            | "nevermind"
+            | "abort"
+    ) || collapsed.starts_with("cancel ")
+        || collapsed.starts_with("no ")
+}
+
+fn pending_tool_confirmation_payload(root: &Path, agent_id: &str) -> Option<Value> {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return None;
+    }
+    profiles_map(root)
+        .get(&id)
+        .and_then(|row| row.get("pending_tool_confirmation"))
+        .and_then(|value| {
+            if value.is_object() {
+                Some(value.clone())
+            } else {
+                None
+            }
+        })
+}
+
+fn pending_tool_confirmation_call(root: &Path, agent_id: &str) -> Option<(String, Value)> {
+    let payload = pending_tool_confirmation_payload(root, agent_id)?;
+    let tool_name = normalize_tool_name(
+        &clean_text(
+            payload
+                .get("tool")
+                .or_else(|| payload.get("tool_name"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        ),
+    );
+    if tool_name.is_empty() {
+        return None;
+    }
+    let input = payload.get("input").cloned().unwrap_or_else(|| json!({}));
+    Some((tool_name, input))
+}
+
+fn store_pending_tool_confirmation(
+    root: &Path,
+    agent_id: &str,
+    tool_name: &str,
+    input: &Value,
+    source: &str,
+) {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return;
+    }
+    let normalized_tool = normalize_tool_name(tool_name);
+    if normalized_tool.is_empty() {
+        return;
+    }
+    let input_payload = if input.is_object() {
+        input.clone()
+    } else {
+        json!({})
+    };
+    let patch = json!({
+        "pending_tool_confirmation": {
+            "tool_name": normalized_tool,
+            "input": input_payload,
+            "source": clean_text(source, 80),
+            "updated_at": crate::now_iso()
+        }
+    });
+    let _ = update_profile_patch(root, &id, &patch);
+}
+
+fn clear_pending_tool_confirmation(root: &Path, agent_id: &str) {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return;
+    }
+    let _ = update_profile_patch(root, &id, &json!({"pending_tool_confirmation": Value::Null}));
+}
+
+fn message_requests_comparative_answer(message: &str) -> bool {
+    let lowered = clean_text(message, 400).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let asks_compare = lowered.contains("compare")
+        || lowered.contains("comparison")
+        || lowered.contains("vs")
+        || lowered.contains("versus")
+        || lowered.contains("competitor")
+        || lowered.contains("competitors")
+        || lowered.contains("framework");
+    let asks_structure = lowered.contains("table")
+        || lowered.contains("rank")
+        || lowered.contains("top ")
+        || lowered.contains("grade");
+    asks_compare || asks_structure
+}
+
 fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
     match normalized {
         "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => "red",
@@ -3764,10 +4100,20 @@ fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
 
 fn enforce_tool_capability_tier(
     root: &Path,
+    snapshot: &Value,
     actor_agent_id: &str,
     normalized_tool: &str,
     input: &Value,
 ) -> Option<Value> {
+    if parent_can_archive_descendant_without_signoff(
+        root,
+        snapshot,
+        actor_agent_id,
+        normalized_tool,
+        input,
+    ) {
+        return None;
+    }
     let policy = tool_governance_policy(root);
     if !policy
         .get("enabled")
@@ -4015,7 +4361,9 @@ fn execute_tool_call_by_name(
             "error": "actor_agent_required"
         });
     }
-    if let Some(gate_payload) = enforce_tool_capability_tier(root, &actor, &normalized, input) {
+    if let Some(gate_payload) =
+        enforce_tool_capability_tier(root, snapshot, &actor, &normalized, input)
+    {
         return gate_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
@@ -4501,10 +4849,28 @@ fn execute_tool_call_by_name(
             if target.is_empty() || action.is_empty() {
                 return json!({"ok": false, "error": "agent_action_and_target_required"});
             }
+            let parent_archive_override = parent_can_archive_descendant_without_signoff(
+                root,
+                snapshot,
+                &actor,
+                &normalized,
+                input,
+            );
             let (method, path, body) = match action.as_str() {
                 "start" => ("POST", format!("/api/agents/{target}/start"), json!({})),
                 "stop" => ("POST", format!("/api/agents/{target}/stop"), json!({})),
-                "archive" | "delete" => ("DELETE", format!("/api/agents/{target}"), json!({})),
+                "archive" | "delete" => (
+                    "DELETE",
+                    format!("/api/agents/{target}"),
+                    if parent_archive_override {
+                        json!({
+                            "reason": "Archived by parent agent",
+                            "termination_reason": "parent_archived"
+                        })
+                    } else {
+                        json!({})
+                    },
+                ),
                 "clone" => (
                     "POST",
                     format!("/api/agents/{target}/clone"),
@@ -5085,7 +5451,7 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
     }
     if lowered == "tool_explicit_signoff_required" || lowered == "tool_confirmation_required" {
         return Some(format!(
-            "I need your confirmation before running `{normalized}`. Confirm this step and I will execute it immediately."
+            "I need your confirmation before running `{normalized}`. Reply `yes` to execute it now."
         ));
     }
     if lowered.contains("query_required") {
@@ -5252,13 +5618,14 @@ fn execute_inline_tool_calls(
     existing: Option<&Value>,
     response_text: &str,
     user_message: &str,
-) -> (String, Vec<Value>) {
+) -> (String, Vec<Value>, Option<Value>) {
     let (cleaned, calls) = extract_inline_tool_calls(response_text, 6);
     if calls.is_empty() {
-        return (response_text.to_string(), Vec::new());
+        return (response_text.to_string(), Vec::new(), None);
     }
     let mut cards = Vec::<Value>::new();
     let mut fallback_lines = Vec::<String>::new();
+    let mut pending_confirmation: Option<Value> = None;
     for (idx, (name, input, _raw)) in calls.into_iter().enumerate() {
         let mut input_for_call = input.clone();
         let normalized_name = normalize_tool_name(&name);
@@ -5301,6 +5668,17 @@ fn execute_inline_tool_calls(
         );
         let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let result_text = summarize_tool_payload(&name, &payload);
+        if !ok
+            && tool_error_requires_confirmation(&payload)
+            && pending_confirmation.is_none()
+            && !normalized_name.is_empty()
+        {
+            pending_confirmation = Some(json!({
+                "tool_name": normalized_name,
+                "input": input_for_call.clone(),
+                "source": "inline_tool_call"
+            }));
+        }
         cards.push(json!({
             "id": format!("tool-{}-{}", normalize_tool_name(&name), idx),
             "name": normalize_tool_name(&name),
@@ -5332,7 +5710,7 @@ fn execute_inline_tool_calls(
     } else {
         trim_text(cleaned_trimmed, 32_000)
     };
-    (response, cards)
+    (response, cards, pending_confirmation)
 }
 
 fn first_http_url_in_text(text: &str) -> String {
@@ -6464,6 +6842,34 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "agent_not_found", "agent_id": agent_id}),
                 });
             }
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let requested_archive_reason = clean_text(
+                request.get("reason").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            let archive_reason = if requested_archive_reason.is_empty() {
+                "user_archive".to_string()
+            } else {
+                requested_archive_reason
+            };
+            let requested_termination_reason = clean_text(
+                request
+                    .get("termination_reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
+            let archive_reason_lower = archive_reason.to_ascii_lowercase();
+            let termination_reason = if requested_termination_reason == "parent_archived"
+                || archive_reason_lower == "archived by parent agent"
+                || archive_reason_lower == "parent_archived"
+                || archive_reason_lower == "parent_archive"
+            {
+                "parent_archived"
+            } else {
+                "user_archived"
+            };
             let _ = update_profile_patch(
                 root,
                 &agent_id,
@@ -6474,12 +6880,12 @@ pub fn handle_with_headers(
                 &agent_id,
                 &json!({
                     "status": "terminated",
-                    "termination_reason": "user_archived",
+                    "termination_reason": termination_reason,
                     "terminated_at": crate::now_iso(),
                     "updated_at": crate::now_iso()
                 }),
             );
-            let _ = crate::dashboard_agent_state::archive_agent(root, &agent_id, "user_archive");
+            let _ = crate::dashboard_agent_state::archive_agent(root, &agent_id, &archive_reason);
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
@@ -6488,7 +6894,8 @@ pub fn handle_with_headers(
                     "id": agent_id,
                     "agent_id": agent_id,
                     "state": "inactive",
-                    "archived": true
+                    "archived": true,
+                    "reason": archive_reason
                 }),
             });
         }
@@ -6693,7 +7100,31 @@ pub fn handle_with_headers(
             let workspace_hints = workspace_file_hints_for_message(root, Some(&row), &message, 5);
             let latent_tool_candidates =
                 latent_tool_candidates_for_message(&message, &workspace_hints);
-            if let Some((tool_name, tool_input)) = direct_tool_intent_from_user_message(&message) {
+            let mut resolved_tool_intent = direct_tool_intent_from_user_message(&message);
+            let mut replayed_pending_confirmation = false;
+            if let Some((pending_tool_name, mut pending_tool_input)) =
+                pending_tool_confirmation_call(root, &agent_id)
+            {
+                if resolved_tool_intent.is_none() {
+                    if message_is_negative_confirmation(&message) {
+                        clear_pending_tool_confirmation(root, &agent_id);
+                    } else if message_is_affirmative_confirmation(&message) {
+                        if !pending_tool_input.is_object() {
+                            pending_tool_input = json!({});
+                        }
+                        if !input_has_confirmation(&pending_tool_input) {
+                            pending_tool_input["confirm"] = Value::Bool(true);
+                        }
+                        if input_approval_note(&pending_tool_input).is_empty() {
+                            pending_tool_input["approval_note"] =
+                                Value::String("user confirmed pending action".to_string());
+                        }
+                        resolved_tool_intent = Some((pending_tool_name, pending_tool_input));
+                        replayed_pending_confirmation = true;
+                    }
+                }
+            }
+            if let Some((tool_name, tool_input)) = resolved_tool_intent {
                 let tool_payload = execute_tool_call_with_recovery(
                     root,
                     snapshot,
@@ -6706,6 +7137,18 @@ pub fn handle_with_headers(
                     .get("ok")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
+                let requires_confirmation = tool_error_requires_confirmation(&tool_payload);
+                if requires_confirmation {
+                    store_pending_tool_confirmation(
+                        root,
+                        &agent_id,
+                        &tool_name,
+                        &tool_input,
+                        "direct_message",
+                    );
+                } else {
+                    clear_pending_tool_confirmation(root, &agent_id);
+                }
                 let mut response_text = summarize_tool_payload(&tool_name, &tool_payload);
                 if response_text.trim().is_empty() {
                     response_text = if ok {
@@ -6733,7 +7176,38 @@ pub fn handle_with_headers(
                 if !user_requested_internal_runtime_details(&message) {
                     response_text = abstract_runtime_mechanics_terms(&response_text);
                 }
-                let turn_receipt = append_turn_message(root, &agent_id, &message, &response_text);
+                response_text = strip_internal_cache_control_markup(&response_text);
+                let tool_card = json!({
+                    "id": format!("tool-direct-{}", normalize_tool_name(&tool_name)),
+                    "name": normalize_tool_name(&tool_name),
+                    "input": trim_text(&tool_input.to_string(), 4000),
+                    "result": trim_text(&summarize_tool_payload(&tool_name, &tool_payload), 24_000),
+                    "is_error": !ok
+                });
+                let response_tools = vec![tool_card.clone()];
+                let synthesized_findings = response_tools_summary_for_user(&response_tools, 4);
+                let findings = if synthesized_findings.trim().is_empty() {
+                    None
+                } else {
+                    Some(synthesized_findings)
+                };
+                let findings_available = findings.is_some();
+                let (finalized_response, finalization_outcome, initial_ack_only) =
+                    finalize_user_facing_response_with_outcome(response_text, findings);
+                let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
+                response_text = finalized_response;
+                let response_finalization = json!({
+                    "applied": finalization_outcome != "unchanged",
+                    "outcome": finalization_outcome,
+                    "initial_ack_only": initial_ack_only,
+                    "final_ack_only": final_ack_only,
+                    "findings_available": findings_available,
+                    "pending_confirmation_replayed": replayed_pending_confirmation,
+                    "retry_attempted": false,
+                    "retry_used": false
+                });
+                let mut turn_receipt = append_turn_message(root, &agent_id, &message, &response_text);
+                turn_receipt["response_finalization"] = response_finalization.clone();
                 return Some(CompatApiResponse {
                     status: if ok { 200 } else { 400 },
                     payload: json!({
@@ -6747,15 +7221,8 @@ pub fn handle_with_headers(
                         "output_tokens": estimate_tokens(&response_text),
                         "cost_usd": 0.0,
                         "response": response_text,
-                        "tools": [
-                            {
-                                "id": format!("tool-direct-{}", normalize_tool_name(&tool_name)),
-                                "name": normalize_tool_name(&tool_name),
-                                "input": trim_text(&tool_input.to_string(), 4000),
-                                "result": trim_text(&summarize_tool_payload(&tool_name, &tool_payload), 24_000),
-                                "is_error": !ok
-                            }
-                        ],
+                        "tools": response_tools,
+                        "response_finalization": response_finalization,
                         "workspace_hints": workspace_hints,
                         "latent_tool_candidates": latent_tool_candidates,
                         "attention_queue": turn_receipt.get("attention_queue").cloned().unwrap_or_else(|| json!({})),
@@ -7192,7 +7659,8 @@ pub fn handle_with_headers(
                             .to_string()
                         );
                     }
-                    let (tool_adjusted_response, response_tools) = execute_inline_tool_calls(
+                    let (tool_adjusted_response, response_tools, inline_pending_confirmation) =
+                        execute_inline_tool_calls(
                         root,
                         snapshot,
                         &agent_id,
@@ -7201,11 +7669,33 @@ pub fn handle_with_headers(
                         &message,
                     );
                     response_text = tool_adjusted_response;
-                    if response_looks_like_tool_ack_without_findings(&response_text) {
-                        let synthesized = response_tools_summary_for_user(&response_tools, 4);
-                        if !synthesized.is_empty() {
-                            response_text = synthesized;
+                    if let Some(pending) = inline_pending_confirmation {
+                        let pending_tool = clean_text(
+                            pending
+                                .get("tool_name")
+                                .or_else(|| pending.get("tool"))
+                                .and_then(Value::as_str)
+                                .unwrap_or(""),
+                            120,
+                        );
+                        if !pending_tool.is_empty() {
+                            let pending_input =
+                                pending.get("input").cloned().unwrap_or_else(|| json!({}));
+                            store_pending_tool_confirmation(
+                                root,
+                                &agent_id,
+                                &pending_tool,
+                                &pending_input,
+                                pending
+                                    .get("source")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("inline_tool_call"),
+                            );
                         }
+                    } else if !response_tools.is_empty() {
+                        clear_pending_tool_confirmation(root, &agent_id);
+                    } else if message_is_negative_confirmation(&message) {
+                        clear_pending_tool_confirmation(root, &agent_id);
                     }
                     if !user_requested_internal_runtime_details(&message) {
                         response_text = abstract_runtime_mechanics_terms(&response_text);
@@ -7253,8 +7743,115 @@ pub fn handle_with_headers(
                             "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
                         });
                     }
-                    let turn_receipt =
+                    let synthesized_findings = response_tools_summary_for_user(&response_tools, 4);
+                    let findings = if synthesized_findings.trim().is_empty() {
+                        None
+                    } else {
+                        Some(synthesized_findings)
+                    };
+                    let findings_available = findings.is_some();
+                    let (mut finalized_response, mut finalization_outcome, initial_ack_only) =
+                        finalize_user_facing_response_with_outcome(response_text, findings.clone());
+                    let mut retry_attempted = false;
+                    let mut retry_used = false;
+                    if initial_ack_only
+                        && response_looks_like_tool_ack_without_findings(&finalized_response)
+                    {
+                        retry_attempted = true;
+                        let strict_tool_prompt = clean_text(
+                            &format!(
+                                "{}\n\nOutput guard: Return synthesized findings or an explicit no-findings reason. Do not output tool status text like 'Web search completed' or 'Tool call finished'.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &strict_tool_prompt,
+                            &active_messages,
+                            &message,
+                        ) {
+                            let mut retried_text = clean_chat_text(
+                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            if !user_requested_internal_runtime_details(&message) {
+                                retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                            }
+                            let (retry_finalized, retry_outcome, _retry_initial_ack_only) =
+                                finalize_user_facing_response_with_outcome(
+                                    retried_text,
+                                    findings.clone(),
+                                );
+                            finalized_response = retry_finalized;
+                            finalization_outcome =
+                                format!("{finalization_outcome}+retry:{retry_outcome}");
+                            retry_used = true;
+                        }
+                    }
+                    let mut synthesis_retry_used = false;
+                    if response_is_no_findings_placeholder(&finalized_response)
+                        && message_requests_comparative_answer(&message)
+                    {
+                        let synthesis_prompt = clean_text(
+                            &format!(
+                                "{}\n\nFallback guard: if tool extraction failed or returned no usable findings, still answer the user directly using stable knowledge. Prioritize relevance to the latest request and return usable content in the requested format.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &synthesis_prompt,
+                            &active_messages,
+                            &message,
+                        ) {
+                            let mut retried_text = clean_chat_text(
+                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            if !user_requested_internal_runtime_details(&message) {
+                                retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                            }
+                            if !response_is_unrelated_context_dump(&message, &retried_text) {
+                                let (retry_finalized, retry_outcome, _retry_initial_ack_only) =
+                                    finalize_user_facing_response_with_outcome(
+                                        retried_text,
+                                        findings.clone(),
+                                    );
+                                if !response_is_no_findings_placeholder(&retry_finalized) {
+                                    finalized_response = retry_finalized;
+                                    finalization_outcome = format!(
+                                        "{finalization_outcome}+synthesis_retry:{retry_outcome}"
+                                    );
+                                    synthesis_retry_used = true;
+                                }
+                            }
+                        }
+                    }
+                    response_text = finalized_response;
+                    let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
+                    let response_finalization = json!({
+                        "applied": finalization_outcome != "unchanged",
+                        "outcome": finalization_outcome,
+                        "initial_ack_only": initial_ack_only,
+                        "final_ack_only": final_ack_only,
+                        "findings_available": findings_available,
+                        "retry_attempted": retry_attempted,
+                        "retry_used": retry_used,
+                        "synthesis_retry_used": synthesis_retry_used
+                    });
+                    let mut turn_receipt =
                         append_turn_message(root, &agent_id, &message, &response_text);
+                    turn_receipt["response_finalization"] = response_finalization.clone();
                     let runtime_model = clean_text(
                         result
                             .get("runtime_model")
@@ -7289,6 +7886,7 @@ pub fn handle_with_headers(
                     payload["response"] = json!(response_text);
                     payload["runtime_sync"] = runtime_summary;
                     payload["tools"] = Value::Array(response_tools);
+                    payload["response_finalization"] = response_finalization;
                     payload["context_window"] = json!(fallback_window.max(0));
                     payload["context_tokens"] = json!(context_active_tokens.max(0));
                     payload["context_used_tokens"] = json!(context_active_tokens.max(0));
