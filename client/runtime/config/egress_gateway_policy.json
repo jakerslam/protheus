@@ -200,6 +200,7 @@
       ],
       "domains": [
         "api.openai.com",
+        "api.anthropic.com",
         "api.frontier_provider.com",
         "api.x.ai",
         "console.x.ai"

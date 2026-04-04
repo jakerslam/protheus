@@ -174,6 +174,7 @@
                 :class="{
                   active: page === 'chat' && $store.app.activeAgentId === agent.id,
                   'nav-agent-row-archived': !!agent.archived,
+                  'nav-agent-row-timeout': !!agent._timed_out_local,
                   'expiring-pulse': shouldPulseExpiringAgent(agent),
                   'nav-agent-row-draggable': chatSidebarCanReorderTopology(),
                   dragging: chatSidebarCanReorderTopology() && chatSidebarDragAgentId === String(agent.id),
@@ -193,7 +194,7 @@
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
                 <span class="nav-icon nav-agent-icon">
-                  <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent), 'nav-agent-avatar-archived-mask': !!agent.archived }">
+                  <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent), 'nav-agent-avatar-archived-mask': !!agent.archived, 'nav-agent-avatar-timeout-mask': !!agent._timed_out_local, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
                     <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                     <span class="nav-agent-avatar">
                       <img
@@ -236,7 +237,7 @@
                   <span class="nav-agent-bottom">
                     <span
                       class="nav-agent-preview"
-                      :class="{ 'preview-unread': !!chatSidebarPreview(agent).unread_response }"
+                      :class="{ 'preview-unread': !!chatSidebarPreview(agent).unread_response, 'nav-agent-preview-timeout': !!agent._timed_out_local }"
                       x-text="chatSidebarPreview(agent).text || 'No messages yet'"
                     ></span>
                     <button

@@ -272,13 +272,13 @@ fn latest_timestamp(values: &[String]) -> String {
 
 fn message_text(row: &Value) -> String {
     if let Some(text) = row.get("text").and_then(Value::as_str) {
-        return clean_chat_text(text, 4000);
+        return clean_chat_text(text, 64_000);
     }
     if let Some(text) = row.get("content").and_then(Value::as_str) {
-        return clean_chat_text(text, 4000);
+        return clean_chat_text(text, 64_000);
     }
     if let Some(text) = row.as_str() {
-        return clean_chat_text(text, 4000);
+        return clean_chat_text(text, 64_000);
     }
     String::new()
 }
@@ -793,6 +793,35 @@ fn contract_with_runtime_fields(contract: &Value) -> Value {
             .unwrap_or("active"),
         40,
     );
+    let termination_condition = clean_text(
+        out.get("termination_condition")
+            .and_then(Value::as_str)
+            .unwrap_or("task_or_timeout"),
+        80,
+    )
+    .to_ascii_lowercase();
+    let auto_terminate_allowed = out
+        .get("auto_terminate_allowed")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let idle_terminate_allowed = out
+        .get("idle_terminate_allowed")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let non_expiring = matches!(termination_condition.as_str(), "manual" | "task_complete")
+        || (!auto_terminate_allowed && !idle_terminate_allowed);
+    if non_expiring {
+        if out
+            .get("expires_at")
+            .and_then(Value::as_str)
+            .map(|v| v.trim().is_empty())
+            .unwrap_or(true)
+        {
+            out["expires_at"] = Value::String(String::new());
+        }
+        out["remaining_ms"] = Value::Null;
+        return out;
+    }
     let now = Utc::now();
     let created = out
         .get("created_at")
@@ -934,6 +963,18 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             all_ids.insert(id);
         }
     }
+    for key in collab.keys() {
+        let id = clean_agent_id(key);
+        if !id.is_empty() {
+            all_ids.insert(id);
+        }
+    }
+    for key in session_summaries.keys() {
+        let id = clean_agent_id(key);
+        if !id.is_empty() {
+            all_ids.insert(id);
+        }
+    }
     let mut rows = Vec::<Value>::new();
     for agent_id in all_ids {
         if archived.contains(&agent_id) {
@@ -959,7 +1000,40 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             40,
         )
         .to_ascii_lowercase();
-        if !include_terminated && contract_status == "terminated" {
+        let contract_terminated = contract_status == "terminated" && !runtime_active;
+        let termination_condition = clean_text(
+            contract
+                .get("termination_condition")
+                .and_then(Value::as_str)
+                .unwrap_or("task_or_timeout"),
+            80,
+        )
+        .to_ascii_lowercase();
+        let contract_auto_terminate_allowed = contract
+            .get("auto_terminate_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+        let contract_idle_terminate_allowed = contract
+            .get("idle_terminate_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+        let non_expiring_contract = termination_condition.starts_with("manual")
+            || termination_condition == "task_complete"
+            || (!contract_auto_terminate_allowed && !contract_idle_terminate_allowed);
+        let termination_reason = clean_text(
+            contract
+                .get("termination_reason")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        let revive_recommended = contract_terminated
+            && non_expiring_contract
+            && (termination_reason.contains("timeout")
+                || termination_reason.contains("expired")
+                || termination_reason.contains("terminated"));
+        if !include_terminated && contract_terminated && !revive_recommended {
             continue;
         }
         let profile_name = clean_text(
@@ -996,8 +1070,12 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
         let session_message_count = session_summary
             .and_then(|row| row.get("message_count").and_then(Value::as_i64))
             .unwrap_or(0);
-        let state = if contract_status == "terminated" {
-            "Terminated".to_string()
+        let state = if contract_terminated {
+            if revive_recommended {
+                "Idle".to_string()
+            } else {
+                "Terminated".to_string()
+            }
         } else if runtime_active {
             "Running".to_string()
         } else {
@@ -1176,7 +1254,8 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                 "parent_agent_id": profile.get("parent_agent_id").cloned().unwrap_or(Value::Null),
                 "contract": {"parent_agent_id": contract.get("parent_agent_id").cloned().unwrap_or(Value::Null)}
             })),
-            "auto_terminate_allowed": auto_terminate_allowed
+            "auto_terminate_allowed": auto_terminate_allowed,
+            "revive_recommended": revive_recommended
         }));
     }
     rows.sort_by_key(|row| {
@@ -1797,6 +1876,10 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
         .and_then(Value::as_u64)
         .unwrap_or(200)
         .clamp(20, 800) as usize;
+    let persist_compaction_to_session = request
+        .get("persist_compaction_to_session")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
 
     let active_id = clean_text(
         state
@@ -1839,13 +1922,14 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                     estimate_tokens(text)
                 })
                 .sum::<i64>();
+            let mut compacted = messages.clone();
             let target_tokens = ((target_window as f64) * target_ratio).round() as i64;
-            if messages.len() > max_messages {
-                let drain = messages.len().saturating_sub(max_messages);
-                removed_messages.extend(messages.drain(0..drain));
+            if compacted.len() > max_messages {
+                let drain = compacted.len().saturating_sub(max_messages);
+                removed_messages.extend(compacted.drain(0..drain));
             }
-            while messages.len() > min_recent_messages {
-                let current_tokens = messages
+            while compacted.len() > min_recent_messages {
+                let current_tokens = compacted
                     .iter()
                     .map(|item| {
                         let text = item
@@ -1859,12 +1943,12 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                 if current_tokens <= target_tokens {
                     break;
                 }
-                if !messages.is_empty() {
-                    removed_messages.push(messages.remove(0));
+                if !compacted.is_empty() {
+                    removed_messages.push(compacted.remove(0));
                 }
             }
-            after_messages = messages.len();
-            after_tokens = messages
+            after_messages = compacted.len();
+            after_tokens = compacted
                 .iter()
                 .map(|item| {
                     let text = item
@@ -1875,6 +1959,9 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                     estimate_tokens(text)
                 })
                 .sum::<i64>();
+            if persist_compaction_to_session {
+                *messages = compacted;
+            }
             emitted_keyframes = build_context_keyframes_from_removed(&removed_messages, 8);
             if !row
                 .get("context_keyframes")
@@ -1922,6 +2009,7 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
                 }))[..12]),
                 "captured_at": crate::now_iso(),
                 "removed_count": removed_messages.len(),
+                "persisted_to_session": persist_compaction_to_session,
                 "removed_excerpt_count": archive_messages.len(),
                 "removed_messages": archive_messages,
                 "keyframes": emitted_keyframes
@@ -1950,6 +2038,7 @@ fn compact_active_session(root: &Path, agent_id: &str, request: &Value) -> Value
         "before_messages": before_messages,
         "after_messages": after_messages,
         "removed_messages": removed_messages.len(),
+        "persisted_to_session": persist_compaction_to_session,
         "keyframes_emitted": emitted_keyframes.len(),
         "keyframes": emitted_keyframes,
         "message": format!("Compaction complete: {} -> {} tokens", before_tokens, after_tokens)
@@ -2669,6 +2758,100 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
     false
 }
 
+fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
+    let lowered = clean_text(text, 1200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    if lowered.contains("no usable findings")
+        || lowered.contains("couldn't extract reliable findings")
+        || lowered.contains("could not extract reliable findings")
+        || lowered.contains("couldn't extract usable findings")
+        || lowered.contains("could not extract usable findings")
+    {
+        return false;
+    }
+    let token_count = lowered.split_whitespace().count();
+    let mentions_tooling = lowered.contains("search")
+        || lowered.contains("web")
+        || lowered.contains("tool")
+        || lowered.contains("looked up")
+        || lowered.contains("called")
+        || lowered.contains("executed")
+        || lowered.contains("reading files")
+        || lowered.contains("searching the internet")
+        || lowered.contains("running terminal commands");
+    let mainly_ack_language = lowered.contains("i searched")
+        || lowered.contains("searched the internet")
+        || lowered.contains("i looked up")
+        || lowered.contains("i called")
+        || lowered.contains("i executed")
+        || lowered.contains("web search completed")
+        || lowered.contains("tool completed");
+    if !mentions_tooling {
+        return false;
+    }
+    let has_rich_findings = lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains("- ")
+        || lowered.contains("1.")
+        || lowered.contains("2.")
+        || lowered.contains("key finding")
+        || lowered.contains("sources:")
+        || lowered.contains("according to");
+    mentions_tooling
+        && !has_rich_findings
+        && (token_count <= 80 || mainly_ack_language)
+}
+
+fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -> String {
+    let limit = max_items.clamp(1, 8);
+    let mut lines = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for tool in response_tools {
+        let name = clean_text(tool.get("name").and_then(Value::as_str).unwrap_or("tool"), 80)
+            .to_ascii_lowercase();
+        if name.is_empty() || name == "thought_process" {
+            continue;
+        }
+        if tool.get("is_error").and_then(Value::as_bool).unwrap_or(false) {
+            continue;
+        }
+        let raw_result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
+        if raw_result.is_empty() {
+            continue;
+        }
+        let lowered = raw_result.to_ascii_lowercase();
+        if lowered.contains("model attempted this call as text") {
+            continue;
+        }
+        if response_looks_like_tool_ack_without_findings(&raw_result) {
+            continue;
+        }
+        if looks_like_search_engine_chrome_summary(&lowered) {
+            continue;
+        }
+        let snippet = first_sentence(&raw_result, 220);
+        if snippet.is_empty() {
+            continue;
+        }
+        let pretty_name = name.replace('_', " ");
+        let line = format!("- {}: {}", clean_text(&pretty_name, 60), snippet);
+        let key = line.to_ascii_lowercase();
+        if !seen.insert(key) {
+            continue;
+        }
+        lines.push(line);
+        if lines.len() >= limit {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    trim_text(&format!("Here's what I found:\n{}", lines.join("\n")), 32_000)
+}
+
 fn context_keyframes_prompt_context(
     state: &Value,
     max_keyframes: usize,
@@ -2865,6 +3048,172 @@ fn select_active_context_window(
         total = (total - removed).max(0);
     }
     out
+}
+
+fn historical_context_keyframes_prompt_context(
+    pooled_messages: &[Value],
+    active_messages: &[Value],
+    max_keyframes: usize,
+    max_chars: usize,
+) -> String {
+    let target = max_keyframes.clamp(1, 24);
+    let dropped = pooled_messages.len().saturating_sub(active_messages.len());
+    if dropped == 0 {
+        return String::new();
+    }
+    let mut candidates = Vec::<(String, String)>::new();
+    for row in pooled_messages.iter().take(dropped) {
+        let role = clean_text(
+            row.get("role")
+                .or_else(|| row.get("type"))
+                .and_then(Value::as_str)
+                .unwrap_or("assistant"),
+            24,
+        )
+        .to_ascii_lowercase();
+        if role == "system" {
+            continue;
+        }
+        let snippet = first_sentence(&message_text(row), 220);
+        if snippet.is_empty() {
+            continue;
+        }
+        let role_label = if role.contains("user") {
+            "User".to_string()
+        } else {
+            "Agent".to_string()
+        };
+        candidates.push((role_label, snippet));
+    }
+    if candidates.is_empty() {
+        return String::new();
+    }
+    let mut selected = Vec::<(String, String)>::new();
+    if candidates.len() <= target {
+        selected = candidates;
+    } else {
+        selected.push(candidates[0].clone());
+        if target > 2 {
+            let remaining_slots = target.saturating_sub(2);
+            let last_idx = candidates.len().saturating_sub(1);
+            for slot in 0..remaining_slots {
+                let idx = 1 + ((slot + 1) * last_idx.saturating_sub(1)) / (remaining_slots + 1);
+                if idx < last_idx {
+                    selected.push(candidates[idx].clone());
+                }
+            }
+        }
+        selected.push(candidates[candidates.len().saturating_sub(1)].clone());
+    }
+    let mut dedup = HashSet::<String>::new();
+    let mut lines = Vec::<String>::new();
+    for (role, snippet) in selected {
+        let key = format!("{}|{}", role.to_ascii_lowercase(), snippet.to_ascii_lowercase());
+        if !dedup.insert(key) {
+            continue;
+        }
+        lines.push(format!("- [{role}] {snippet}"));
+        if lines.len() >= target {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    trim_text(
+        &format!(
+            "Long-thread keyframes outside the active window (retain for continuity):\n{}",
+            lines.join("\n")
+        ),
+        max_chars.max(400),
+    )
+}
+
+fn historical_relevant_recall_prompt_context(
+    pooled_messages: &[Value],
+    active_messages: &[Value],
+    user_message: &str,
+    max_rows: usize,
+    max_chars: usize,
+) -> String {
+    let target = max_rows.clamp(2, 20);
+    let dropped = pooled_messages.len().saturating_sub(active_messages.len());
+    if dropped == 0 {
+        return String::new();
+    }
+    let user_terms = important_memory_terms(user_message, 24)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let recall_intent = memory_recall_requested(user_message);
+    if user_terms.is_empty() && !recall_intent {
+        return String::new();
+    }
+    let mut scored = Vec::<(i64, String, String)>::new();
+    for (idx, row) in pooled_messages.iter().take(dropped).enumerate() {
+        let role = clean_text(
+            row.get("role")
+                .or_else(|| row.get("type"))
+                .and_then(Value::as_str)
+                .unwrap_or("assistant"),
+            24,
+        )
+        .to_ascii_lowercase();
+        if role == "system" {
+            continue;
+        }
+        let snippet = clean_text(&message_text(row), 360);
+        if snippet.is_empty() {
+            continue;
+        }
+        let role_label = if role.contains("user") {
+            "User".to_string()
+        } else {
+            "Agent".to_string()
+        };
+        let snippet_terms = important_memory_terms(&snippet, 24)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let overlap = if user_terms.is_empty() {
+            0
+        } else {
+            user_terms.intersection(&snippet_terms).count() as i64
+        };
+        if overlap == 0 && !recall_intent {
+            continue;
+        }
+        let recency_score = (idx as i64).min(60);
+        let score = overlap.saturating_mul(8) + recency_score;
+        scored.push((score, role_label, first_sentence(&snippet, 260)));
+    }
+    if scored.is_empty() {
+        return String::new();
+    }
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut dedup = HashSet::<String>::new();
+    let mut lines = Vec::<String>::new();
+    for (_, role, snippet) in scored.into_iter().take(target.saturating_mul(2)) {
+        if snippet.is_empty() {
+            continue;
+        }
+        let key = format!("{}|{}", role.to_ascii_lowercase(), snippet.to_ascii_lowercase());
+        if !dedup.insert(key) {
+            continue;
+        }
+        lines.push(format!("- [{role}] {snippet}"));
+        if lines.len() >= target {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    trim_text(
+        &format!(
+            "Relevant long-thread recall outside the active window (use for continuity):\n{}",
+            lines.join("\n")
+        ),
+        max_chars.max(500),
+    )
 }
 
 fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
@@ -4490,21 +4839,100 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             payload.get("summary").and_then(Value::as_str).unwrap_or(""),
             2_400,
         );
-        let sources = extract_search_result_domains(&summary, 4);
-        if !sources.is_empty() {
-            let _ = query;
-            return format!(
-                "Web search completed. Candidate sources: {}.",
-                sources.join(", ")
+        let content = clean_text(
+            payload.get("content").and_then(Value::as_str).unwrap_or(""),
+            2_400,
+        );
+        let requested_url = clean_text(
+            payload
+                .get("requested_url")
+                .or_else(|| payload.pointer("/receipt/requested_url"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            220,
+        );
+        let domain = clean_text(payload.get("domain").and_then(Value::as_str).unwrap_or(""), 120);
+        if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
+            return trim_text(&summary, 1_200);
+        }
+        let combined = if content.is_empty() {
+            summary.clone()
+        } else if summary.is_empty() {
+            content.clone()
+        } else {
+            format!("{summary}\n{content}")
+        };
+        let findings = extract_search_result_findings(&combined, 3);
+        if !findings.is_empty() {
+            if !query.is_empty() {
+                let mut lines = vec![format!(
+                    "Web search findings for \"{}\":",
+                    trim_text(&query, 120)
+                )];
+                for row in findings {
+                    lines.push(format!("- {row}"));
+                }
+                return trim_text(&lines.join("\n"), 1_200);
+            }
+            return trim_text(
+                &format!(
+                    "Web search findings:\n{}",
+                    findings
+                        .into_iter()
+                        .map(|row| format!("- {row}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ),
+                1_200,
             );
         }
+        let sources = extract_search_result_domains(&combined, 4);
+        if !sources.is_empty() {
+            if !query.is_empty() {
+                return format!(
+                    "Web search for \"{}\" found sources: {}.",
+                    trim_text(&query, 120),
+                    sources.join(", ")
+                );
+            }
+            return format!("Web search candidate sources: {}.", sources.join(", "));
+        }
         if !query.is_empty() {
-            return "Web search completed.".to_string();
+            if !requested_url.is_empty() {
+                return format!(
+                    "I couldn't extract usable findings for \"{}\" yet. The search response came from {}.",
+                    trim_text(&query, 120),
+                    requested_url
+                );
+            }
+            if !domain.is_empty() {
+                return format!(
+                    "I couldn't extract usable findings for \"{}\" yet. The search response came from {}.",
+                    trim_text(&query, 120),
+                    domain
+                );
+            }
+            return format!(
+                "I couldn't extract usable findings for \"{}\" yet.",
+                trim_text(&query, 120)
+            );
         }
         if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
             return trim_text(&summary, 800);
         }
-        return "Web search completed.".to_string();
+        if !requested_url.is_empty() {
+            return format!(
+                "I couldn't extract usable findings from the search response yet (source: {}).",
+                requested_url
+            );
+        }
+        if !domain.is_empty() {
+            return format!(
+                "I couldn't extract usable findings from the search response yet (source: {}).",
+                domain
+            );
+        }
+        return "I couldn't extract usable findings from the search response yet.".to_string();
     }
     if let Ok(raw) = serde_json::to_string_pretty(payload) {
         return trim_text(&raw, 24_000);
@@ -4575,6 +5003,63 @@ fn extract_search_result_domains(summary: &str, max_domains: usize) -> Vec<Strin
     domains
 }
 
+fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String> {
+    if max_items == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let normalized = clean_text(summary, 6_000);
+    for line in normalized
+        .split(|ch| matches!(ch, '\n' | '|' | '•'))
+        .map(|row| clean_text(row, 280))
+    {
+        if line.is_empty() {
+            continue;
+        }
+        if looks_like_search_engine_chrome_summary(&line) {
+            continue;
+        }
+        let lowered = line.to_ascii_lowercase();
+        if lowered.contains("duckduckgo all regions")
+            || lowered.starts_with("all regions ")
+            || lowered.starts_with("safe search ")
+            || lowered.contains(" at duckduckgo")
+            || lowered.contains("site links")
+        {
+            continue;
+        }
+        if lowered.contains(" at ") && lowered.contains("duckduckgo") {
+            continue;
+        }
+        let has_link_hint = lowered.contains("http://")
+            || lowered.contains("https://")
+            || lowered.contains(".org/")
+            || lowered.contains(".com/")
+            || lowered.contains(".ai/")
+            || lowered.contains(".dev/");
+        if lowered.contains("...") && lowered.contains("all regions") {
+            continue;
+        }
+        if !has_link_hint && line.len() < 44 {
+            continue;
+        }
+        let compact = trim_text(&line.replace('\t', " ").replace("  ", " "), 240);
+        if compact.is_empty() {
+            continue;
+        }
+        let key = compact.to_ascii_lowercase();
+        if !seen.insert(key) {
+            continue;
+        }
+        out.push(compact);
+        if out.len() >= max_items {
+            break;
+        }
+    }
+    out
+}
+
 fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
     let lowered = summary.to_ascii_lowercase();
     let markers = [
@@ -4600,7 +5085,7 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
     }
     if lowered == "tool_explicit_signoff_required" || lowered == "tool_confirmation_required" {
         return Some(format!(
-            "I need your confirmation before running `{normalized}`."
+            "I need your confirmation before running `{normalized}`. Confirm this step and I will execute it immediately."
         ));
     }
     if lowered.contains("query_required") {
@@ -4766,6 +5251,7 @@ fn execute_inline_tool_calls(
     actor_agent_id: &str,
     existing: Option<&Value>,
     response_text: &str,
+    user_message: &str,
 ) -> (String, Vec<Value>) {
     let (cleaned, calls) = extract_inline_tool_calls(response_text, 6);
     if calls.is_empty() {
@@ -4774,41 +5260,77 @@ fn execute_inline_tool_calls(
     let mut cards = Vec::<Value>::new();
     let mut fallback_lines = Vec::<String>::new();
     for (idx, (name, input, _raw)) in calls.into_iter().enumerate() {
+        let mut input_for_call = input.clone();
+        let normalized_name = normalize_tool_name(&name);
+        let user_requested_swarm = swarm_intent_requested(user_message)
+            || user_message.to_ascii_lowercase().contains("multi-agent")
+            || user_message.to_ascii_lowercase().contains("multi agent");
+        if user_requested_swarm
+            && matches!(
+                normalized_name.as_str(),
+                "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn"
+            )
+        {
+            if !input_for_call.is_object() {
+                input_for_call = json!({
+                    "objective": clean_text(user_message, 800)
+                });
+            }
+            if !input_has_confirmation(&input_for_call) {
+                input_for_call["confirm"] = Value::Bool(true);
+            }
+            let approval_note = clean_text(
+                input_for_call
+                    .get("approval_note")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                200,
+            );
+            if approval_note.is_empty() {
+                input_for_call["approval_note"] =
+                    Value::String("user requested explicit swarm execution".to_string());
+            }
+        }
         let payload = execute_tool_call_with_recovery(
             root,
             snapshot,
             actor_agent_id,
             existing,
             &name,
-            &input,
+            &input_for_call,
         );
         let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let result_text = summarize_tool_payload(&name, &payload);
         cards.push(json!({
             "id": format!("tool-{}-{}", normalize_tool_name(&name), idx),
             "name": normalize_tool_name(&name),
-            "input": trim_text(&input.to_string(), 4000),
+            "input": trim_text(&input_for_call.to_string(), 4000),
             "result": trim_text(&result_text, 24_000),
             "is_error": !ok
         }));
         if ok && !result_text.trim().is_empty() {
-            fallback_lines.push(result_text);
+            if !response_looks_like_tool_ack_without_findings(&result_text) {
+                fallback_lines.push(result_text);
+            }
         } else if !ok {
             if let Some(line) = user_facing_tool_failure_summary(&name, &payload) {
                 fallback_lines.push(line);
             }
         }
     }
-    let response = if cleaned.trim().is_empty() {
+    let cleaned_trimmed = cleaned.trim();
+    let response = if cleaned_trimmed.is_empty()
+        || (!fallback_lines.is_empty() && response_looks_like_tool_ack_without_findings(cleaned_trimmed))
+    {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
-            "I hit an internal tool issue and could not complete that step in this turn."
+            "I ran the requested tool calls, but they returned no usable findings yet. Ask me to retry with a narrower query or a specific source."
                 .to_string()
         } else {
             trim_text(&joined, 32_000)
         }
     } else {
-        trim_text(cleaned.trim(), 32_000)
+        trim_text(cleaned_trimmed, 32_000)
     };
     (response, cards)
 }
@@ -5779,13 +6301,35 @@ pub fn handle_with_headers(
             .get("contract")
             .cloned()
             .unwrap_or_else(|| json!({}));
-        let termination_condition = clean_text(
+        let contract_lifespan = clean_text(
+            contract_obj
+                .get("lifespan")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
+        let mut termination_condition = clean_text(
             contract_obj
                 .get("termination_condition")
                 .and_then(Value::as_str)
                 .unwrap_or("task_or_timeout"),
             80,
         );
+        let explicit_indefinite = contract_obj
+            .get("indefinite")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || contract_lifespan == "permanent"
+            || contract_lifespan == "indefinite";
+        if explicit_indefinite {
+            termination_condition = "manual".to_string();
+        } else if contract_lifespan == "task" && termination_condition.is_empty() {
+            termination_condition = "task_complete".to_string();
+        }
+        if termination_condition.is_empty() {
+            termination_condition = "task_or_timeout".to_string();
+        }
         let non_expiring_termination = matches!(
             termination_condition.to_ascii_lowercase().as_str(),
             "manual" | "task_complete"
@@ -5818,6 +6362,14 @@ pub fn handle_with_headers(
             "idle_terminate_allowed": idle_terminate_allowed,
             "parent_agent_id": if parent_agent_id.is_empty() { Value::Null } else { Value::String(parent_agent_id) },
             "conversation_hold": contract_obj.get("conversation_hold").and_then(Value::as_bool).unwrap_or(false),
+            "indefinite": explicit_indefinite,
+            "lifespan": if explicit_indefinite {
+                "permanent"
+            } else if termination_condition.eq_ignore_ascii_case("task_complete") {
+                "task"
+            } else {
+                "ephemeral"
+            },
             "expires_at": clean_text(contract_obj.get("expires_at").and_then(Value::as_str).unwrap_or(""), 80),
             "source_user_directive": clean_text(contract_obj.get("source_user_directive").and_then(Value::as_str).unwrap_or(""), 800),
             "source_user_directive_receipt": clean_text(contract_obj.get("source_user_directive_receipt").and_then(Value::as_str).unwrap_or(""), 120)
@@ -6158,7 +6710,7 @@ pub fn handle_with_headers(
                 if response_text.trim().is_empty() {
                     response_text = if ok {
                         format!(
-                            "Executed `{}` successfully.",
+                            "I ran `{}`, but it returned no usable findings yet. Ask me to retry with a narrower input.",
                             normalize_tool_name(&tool_name)
                         )
                     } else {
@@ -6171,6 +6723,12 @@ pub fn handle_with_headers(
                             },
                         )
                     };
+                }
+                if ok && response_looks_like_tool_ack_without_findings(&response_text) {
+                    response_text = format!(
+                        "I ran `{}`, but it returned no usable findings yet. Ask me to retry with a narrower input.",
+                        normalize_tool_name(&tool_name)
+                    );
                 }
                 if !user_requested_internal_runtime_details(&message) {
                     response_text = abstract_runtime_mechanics_terms(&response_text);
@@ -6370,14 +6928,12 @@ pub fn handle_with_headers(
                 .and_then(Value::as_f64)
                 .unwrap_or(row_auto_compact_target_ratio)
                 .clamp(0.40, 0.90);
-            let persist_system_prune = request
-                .get("persist_system_prune")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let persist_auto_compact = request
-                .get("persist_auto_compact")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
+            // Conversation history is authoritative and must not be rewritten as a side effect
+            // of normal message execution. Manual compaction remains available through explicit
+            // compaction routes only.
+            let history_trim_confirmed = false;
+            let persist_system_prune = false;
+            let persist_auto_compact = false;
             let mut messages = all_session_messages(&state);
             let mut pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
             let pre_generation_pruned = pooled_messages.len() != messages.len();
@@ -6471,6 +7027,19 @@ pub fn handle_with_headers(
             let passive_memory_context =
                 passive_attention_context_for_message(root, &agent_id, &message, 6);
             let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
+            let overflow_keyframes_context = historical_context_keyframes_prompt_context(
+                &pooled_messages,
+                &active_messages,
+                10,
+                2_400,
+            );
+            let relevant_recall_context = historical_relevant_recall_prompt_context(
+                &pooled_messages,
+                &active_messages,
+                &message,
+                8,
+                2_800,
+            );
             let identity_hydration_prompt = agent_identity_hydration_prompt(&row);
             let custom_system_prompt = clean_text(
                 row.get("system_prompt")
@@ -6494,6 +7063,12 @@ pub fn handle_with_headers(
             }
             if !keyframe_context.is_empty() {
                 prompt_parts.push(keyframe_context);
+            }
+            if !overflow_keyframes_context.is_empty() {
+                prompt_parts.push(overflow_keyframes_context);
+            }
+            if !relevant_recall_context.is_empty() {
+                prompt_parts.push(relevant_recall_context);
             }
             if !custom_system_prompt.is_empty() {
                 prompt_parts.push(custom_system_prompt);
@@ -6623,8 +7198,15 @@ pub fn handle_with_headers(
                         &agent_id,
                         Some(&row),
                         &response_text,
+                        &message,
                     );
                     response_text = tool_adjusted_response;
+                    if response_looks_like_tool_ack_without_findings(&response_text) {
+                        let synthesized = response_tools_summary_for_user(&response_tools, 4);
+                        if !synthesized.is_empty() {
+                            response_text = synthesized;
+                        }
+                    }
                     if !user_requested_internal_runtime_details(&message) {
                         response_text = abstract_runtime_mechanics_terms(&response_text);
                     }
@@ -6739,6 +7321,7 @@ pub fn handle_with_headers(
                         "context_pressure": context_pressure,
                         "pre_generation_pruning_enabled": true,
                         "pre_generation_pruned": pre_generation_pruned,
+                        "history_trim_confirmed": history_trim_confirmed,
                         "emergency_compact_enabled": true,
                         "emergency_compact": emergency_compact
                     });

@@ -11,10 +11,11 @@
     },
 
     expiryCountdownCritical(agent) {
+      if (agent && agent._timed_out_local === true) return false;
       if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
-      return remainingMs > 0 && remainingMs <= 10000;
+      return remainingMs > 0 && remainingMs <= 60000;
     },
 
     async pollStatus() {

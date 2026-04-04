@@ -145,7 +145,7 @@ fn web_search_summary_strips_search_engine_chrome_noise() {
     );
     let lowered = summary.to_ascii_lowercase();
     assert!(!lowered.contains("duckduckgo all regions"));
-    assert!(lowered.contains("web search completed"));
+    assert!(lowered.contains("web search for"));
     assert!(lowered.contains("arxiv.org"));
 }
 
@@ -155,17 +155,20 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     let snapshot = json!({"ok": true});
     let response =
         "<function=spawn_subagents>{\"count\":3,\"objective\":\"parallelize analysis\"}</function>";
-    let (text, cards) =
-        execute_inline_tool_calls(root.path(), &snapshot, "agent-inline", None, response);
-    assert_eq!(cards.len(), 1);
-    assert_eq!(
-        cards[0].get("is_error").and_then(Value::as_bool),
-        Some(true)
+    let (text, cards) = execute_inline_tool_calls(
+        root.path(),
+        &snapshot,
+        "agent-inline",
+        None,
+        response,
+        "parallelize this with a swarm",
     );
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].get("is_error").and_then(Value::as_bool), Some(false));
     let lowered = text.to_ascii_lowercase();
     assert!(!lowered.contains("tool_explicit_signoff_required"));
     assert!(!lowered.contains("spawn_subagents failed"));
-    assert!(lowered.contains("confirmation"));
+    assert!(!lowered.contains("confirmation"));
 }
 
 #[test]
@@ -175,4 +178,121 @@ fn telemetry_dump_detector_flags_duckduckgo_noise_and_tool_error_codes() {
         "improve this system",
         dump
     ));
+}
+
+#[test]
+fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let captured = parse_memory_capture_text(
+        "remember this: the fallback phrase is cobalt sunrise",
+    )
+    .expect("memory capture text");
+    assert!(captured.to_ascii_lowercase().contains("cobalt sunrise"));
+    assert!(parse_memory_capture_text("just answer normally").is_none());
+
+    let _ = crate::dashboard_agent_state::memory_kv_set(
+        root.path(),
+        "agent-memory-capture",
+        "explicit_memory.test",
+        &json!({"text": captured, "captured_at": crate::now_iso()}),
+    );
+    let memory_state = crate::dashboard_agent_state::memory_kv_semantic_query(
+        root.path(),
+        "agent-memory-capture",
+        "cobalt sunrise",
+        5,
+    );
+    assert!(memory_state
+        .get("matches")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false));
+}
+
+#[test]
+fn response_tools_summary_rewrites_ack_only_text_into_user_facing_findings() {
+    let synthesized = response_tools_summary_for_user(
+        &[json!({
+            "name": "web_search",
+            "is_error": false,
+            "result": "Web search findings for \"agent reliability\": - arxiv.org/abs/2601.12345 - github.com/org/repo/issues"
+        })],
+        4,
+    );
+    assert!(!synthesized.is_empty());
+    assert!(synthesized.to_ascii_lowercase().contains("here's what i found"));
+    assert!(synthesized.to_ascii_lowercase().contains("web search"));
+}
+
+#[test]
+fn ack_only_detector_flags_generic_tool_acknowledgements() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "I searched the internet and executed the tool call."
+    ));
+    assert!(response_looks_like_tool_ack_without_findings(
+        "Web search completed. I called the tools and processed your request."
+    ));
+    assert!(!response_looks_like_tool_ack_without_findings(
+        "Here are the findings: 1. https://arxiv.org/abs/2601.12345 2. https://github.com/org/repo"
+    ));
+}
+
+#[test]
+fn ack_only_detector_allows_explicit_no_findings_failure_copy() {
+    assert!(!response_looks_like_tool_ack_without_findings(
+        "I couldn't extract usable findings from the search response yet."
+    ));
+}
+
+#[test]
+fn response_tools_summary_drops_ack_only_tool_rows() {
+    let synthesized = response_tools_summary_for_user(
+        &[json!({
+            "name": "web_search",
+            "is_error": false,
+            "result": "Web search completed."
+        })],
+        4,
+    );
+    assert!(synthesized.is_empty());
+}
+
+#[test]
+fn web_search_summary_avoids_completed_placeholder_copy() {
+    let summary = summarize_tool_payload(
+        "web_search",
+        &json!({
+            "ok": true,
+            "query": "agent reliability",
+            "summary": "safe search region picker noise only"
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(!lowered.contains("web search completed"));
+    assert!(!lowered.contains("completed."));
+    assert!(!lowered.trim().is_empty());
+}
+
+#[test]
+fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
+    let pooled_messages = vec![
+        json!({"role":"user","text":"Remember that cobalt sunrise is our fallback phrase.","ts":"2026-04-01T00:00:00Z"}),
+        json!({"role":"assistant","text":"Stored. Cobalt sunrise is the fallback phrase.","ts":"2026-04-01T00:00:01Z"}),
+        json!({"role":"user","text":"Also track dashboard reconnect reliability fixes.","ts":"2026-04-01T00:00:02Z"}),
+        json!({"role":"assistant","text":"I will keep reconnect fixes and fallback phrase in scope.","ts":"2026-04-01T00:00:03Z"}),
+    ];
+    let active_messages = vec![
+        json!({"role":"user","text":"How do we improve reconnect reliability next?","ts":"2026-04-01T00:05:00Z"}),
+    ];
+    let context = historical_relevant_recall_prompt_context(
+        &pooled_messages,
+        &active_messages,
+        "Use the fallback phrase and reconnect plan from earlier",
+        8,
+        2400,
+    );
+    let lowered = context.to_ascii_lowercase();
+    assert!(lowered.contains("relevant long-thread recall"));
+    assert!(lowered.contains("fallback phrase") || lowered.contains("cobalt sunrise"));
+    assert!(lowered.contains("reconnect"));
 }

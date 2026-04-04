@@ -2,7 +2,7 @@
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
           var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (last && last.streaming) {
-            if (last.thinking) { last.text = ''; last.thinking = false; }
+            if (!Number.isFinite(Number(last._stream_started_at))) last._stream_started_at = Date.now();
             // If we already detected a text-based tool call, skip further text
             if (last._toolTextDetected) break;
             var deltaText = String(data.content || '');
@@ -16,7 +16,7 @@
               this._clearMessageTypewriter(last);
               last.isHtml = true;
               last.thoughtStreaming = true;
-              last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
+              last.text = this.renderLiveThoughtHtml(streamingSplit.thought, last);
             } else {
               if (last.isHtml) last.isHtml = false;
               last.thoughtStreaming = false;
@@ -34,7 +34,7 @@
                 this._clearMessageTypewriter(last);
                 last.isHtml = true;
                 last.thoughtStreaming = true;
-                last.text = this.renderLiveThoughtHtml(streamingSplit.thought);
+                last.text = this.renderLiveThoughtHtml(streamingSplit.thought, last);
               } else {
                 if (last.isHtml) last.isHtml = false;
                 last.thoughtStreaming = false;
@@ -67,11 +67,14 @@
               role: 'agent',
               text: '',
               meta: '',
+              thinking: true,
               streaming: true,
+              thinking_status: '',
               tools: [],
               _streamRawText: firstChunk,
               _cleanText: firstVisible,
               _thoughtText: firstSplit.thought || '',
+              _stream_started_at: Date.now(),
               _stream_updated_at: Date.now(),
               thoughtStreaming: false,
               ts: Date.now(),
@@ -81,7 +84,7 @@
             if (firstSplit.thought && !firstVisible.trim()) {
               firstMessage.isHtml = true;
               firstMessage.thoughtStreaming = true;
-              firstMessage.text = this.renderLiveThoughtHtml(firstSplit.thought);
+              firstMessage.text = this.renderLiveThoughtHtml(firstSplit.thought, firstMessage);
             }
             this.messages.push(firstMessage);
             if (!firstMessage.isHtml) {
@@ -93,10 +96,37 @@
 
         case 'tool_start':
           var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (lastMsg && lastMsg.streaming) {
-            if (!lastMsg.tools) lastMsg.tools = [];
-            lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: '', result: '', is_error: false });
+          if (!lastMsg || !(lastMsg.thinking || lastMsg.streaming)) {
+            lastMsg = {
+              id: ++msgId,
+              role: 'agent',
+              text: '',
+              meta: '',
+              thinking: true,
+              streaming: true,
+              thinking_status: '',
+              tools: [],
+              _stream_started_at: Date.now(),
+              _stream_updated_at: Date.now(),
+              ts: Date.now(),
+              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+            };
+            this.messages.push(lastMsg);
           }
+          if (!lastMsg.tools) lastMsg.tools = [];
+          lastMsg.thinking = true;
+          lastMsg.streaming = true;
+          lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: '', result: '', is_error: false });
+          lastMsg._stream_updated_at = Date.now();
+          if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now();
+          var startLabel = typeof this.toolThinkingActionLabel === 'function'
+            ? this.toolThinkingActionLabel({ name: data.tool })
+            : String(data.tool || 'tool');
+          if (startLabel) {
+            lastMsg.thinking_status = startLabel + '...';
+          }
+          this._resetTypingTimeout();
           this.scrollToBottom();
           break;
 
@@ -144,7 +174,15 @@
                 break;
               }
             }
+            lastMsg3._stream_updated_at = Date.now();
+            if (!Number.isFinite(Number(lastMsg3._stream_started_at))) lastMsg3._stream_started_at = Date.now();
+            var statusSummary = typeof this.thinkingToolStatusSummary === 'function'
+              ? this.thinkingToolStatusSummary(lastMsg3)
+              : null;
+            var summaryText = String((statusSummary && statusSummary.text) || '').trim();
+            if (summaryText) lastMsg3.thinking_status = summaryText;
           }
+          this._resetTypingTimeout();
           this.scrollToBottom();
           break;
 
@@ -199,8 +237,15 @@
           finalText = this.sanitizeToolText(finalText);
           finalText = this.stripArtifactDirectivesFromText(finalText);
           var collapsedThought = String(streamedThought || '').trim();
-          var maybePlaceholder = /^(thinking|processing|working)\.\.\.$/i.test(String(finalText || '').trim());
-          if (maybePlaceholder && collapsedThought) {
+          var compactFinal = String(finalText || '').replace(/\s+/g, ' ').trim();
+          var maybePlaceholder = /^(thinking|processing|working)\.\.\.$/i.test(compactFinal);
+          if (
+            typeof this.isThinkingPlaceholderText === 'function' &&
+            this.isThinkingPlaceholderText(compactFinal)
+          ) {
+            maybePlaceholder = true;
+          }
+          if (maybePlaceholder) {
             finalText = '';
           }
           if (collapsedThought) {

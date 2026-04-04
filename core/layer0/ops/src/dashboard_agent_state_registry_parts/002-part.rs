@@ -11,8 +11,23 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
         .unwrap_or_else(|| default_contract(&id));
     let mut saw_status_patch = false;
     let mut saw_lifecycle_patch = false;
+    let mut explicit_indefinite = false;
     if let Some(obj) = patch.as_object() {
         for (key, value) in obj {
+            if key == "indefinite" && value.as_bool().unwrap_or(false) {
+                explicit_indefinite = true;
+                saw_lifecycle_patch = true;
+            }
+            if key == "lifespan" {
+                let lifespan = clean_text(value.as_str().unwrap_or(""), 40).to_ascii_lowercase();
+                if lifespan == "permanent" {
+                    explicit_indefinite = true;
+                    saw_lifecycle_patch = true;
+                } else if lifespan == "task" {
+                    contract["termination_condition"] = Value::String("task_complete".to_string());
+                    saw_lifecycle_patch = true;
+                }
+            }
             if matches!(
                 key.as_str(),
                 "mission"
@@ -86,7 +101,47 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
     if contract.get("idle_timeout_seconds").is_none() { contract["idle_timeout_seconds"] = Value::from(DEFAULT_IDLE_TIMEOUT_SECONDS); }
     if contract.get("idle_terminate_allowed").is_none() { contract["idle_terminate_allowed"] = Value::Bool(true); }
     let termination_condition = clean_text(contract.get("termination_condition").and_then(Value::as_str).unwrap_or("task_or_timeout"), 80).to_ascii_lowercase();
-    if matches!(termination_condition.as_str(), "manual" | "task_complete") { contract["auto_terminate_allowed"] = Value::Bool(false); contract["idle_terminate_allowed"] = Value::Bool(false); }
+    if explicit_indefinite {
+        contract["termination_condition"] = Value::String("manual".to_string());
+        contract["auto_terminate_allowed"] = Value::Bool(false);
+        contract["idle_terminate_allowed"] = Value::Bool(false);
+        contract["expires_at"] = Value::String(String::new());
+        contract["indefinite"] = Value::Bool(true);
+        contract["lifespan"] = Value::String("permanent".to_string());
+    } else if termination_condition.starts_with("manual") || termination_condition == "task_complete" {
+        contract["auto_terminate_allowed"] = Value::Bool(false);
+        contract["idle_terminate_allowed"] = Value::Bool(false);
+        if termination_condition == "task_complete" {
+            contract["lifespan"] = Value::String("task".to_string());
+        } else if contract
+            .get("lifespan")
+            .and_then(Value::as_str)
+            .map(|v| v.trim().is_empty())
+            .unwrap_or(true)
+        {
+            contract["lifespan"] = Value::String("permanent".to_string());
+        }
+    }
+    let normalized_status = clean_text(
+        contract.get("status").and_then(Value::as_str).unwrap_or("active"),
+        40,
+    )
+    .to_ascii_lowercase();
+    if normalized_status == "active" {
+        if let Some(obj) = contract.as_object_mut() {
+            obj.remove("terminated_at");
+            if clean_text(
+                obj.get("termination_reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            )
+            .is_empty()
+            {
+                obj.remove("termination_reason");
+            }
+        }
+    }
     if contract
         .get("created_at")
         .and_then(Value::as_str)
@@ -124,7 +179,21 @@ pub fn enforce_expired_contracts(root: &Path) -> Value {
                 .and_then(Value::as_bool)
                 .unwrap_or(true);
             let termination_condition = clean_text(contract.get("termination_condition").and_then(Value::as_str).unwrap_or("task_or_timeout"), 80).to_ascii_lowercase();
-            let non_expiring = matches!(termination_condition.as_str(), "manual" | "task_complete");
+            let lifespan = clean_text(
+                contract.get("lifespan").and_then(Value::as_str).unwrap_or(""),
+                40,
+            )
+            .to_ascii_lowercase();
+            let explicit_indefinite = contract
+                .get("indefinite")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                || lifespan == "permanent"
+                || lifespan == "indefinite";
+            let non_expiring = termination_condition.starts_with("manual")
+                || termination_condition == "task_complete"
+                || explicit_indefinite
+                || (!auto_terminate_allowed && !idle_terminate_allowed);
             let expires_at = contract
                 .get("expires_at")
                 .and_then(Value::as_str)
@@ -422,4 +491,3 @@ pub fn delete_terminated(root: &Path, agent_id: &str, contract_id: Option<&str>)
         "git_cleanup": purged.get("git_cleanup").cloned().unwrap_or_else(|| json!({"ok": false, "error": "cleanup_missing"}))
     })
 }
-

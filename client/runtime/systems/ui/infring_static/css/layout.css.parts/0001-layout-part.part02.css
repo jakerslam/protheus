@@ -143,6 +143,21 @@
   background: color-mix(in srgb, var(--surface2) 72%, transparent);
 }
 
+.nav-agent-row.nav-agent-row-timeout {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface2) 56%, transparent);
+}
+
+.nav-agent-row.nav-agent-row-timeout .nav-agent-name,
+.nav-agent-row.nav-agent-row-timeout .nav-agent-time,
+.nav-agent-row.nav-agent-row-timeout .nav-agent-preview {
+  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+}
+
+.nav-agent-row.nav-agent-row-timeout .nav-agent-preview.nav-agent-preview-timeout {
+  font-style: italic;
+}
+
 .nav-agent-row .nav-icon.nav-agent-icon {
   width: 32px;
   min-width: 32px;

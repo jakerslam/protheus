@@ -236,6 +236,31 @@ jobs:
           fs.writeFileSync('state/release/provenance_bundle/latest.json', JSON.stringify(bundle, null, 2) + '\n');
           NODE
 
+      - name: Generate release SHA256SUMS
+        run: |
+          set -euo pipefail
+          OUT="state/release/provenance/artifacts/SHA256SUMS"
+          : > "$OUT"
+          for f in \
+            state/release/provenance/artifacts/protheusd-x86_64-unknown-linux-musl \
+            state/release/provenance/sbom/protheus-ops.cdx.json \
+            state/release/provenance/sbom/protheus-ops.cdx.sha256 \
+            state/release/provenance/sbom/protheusd.cdx.json \
+            state/release/provenance/sbom/protheusd.cdx.sha256 \
+            state/release/provenance/sbom/conduit_daemon.cdx.json \
+            state/release/provenance/sbom/conduit_daemon.cdx.sha256 \
+            state/release/provenance/signatures/protheus-ops.sig \
+            state/release/provenance/signatures/protheusd.sig \
+            state/release/provenance/signatures/conduit_daemon.sig \
+            state/release/provenance/signing/release_public.pem \
+            state/release/provenance_bundle/dependency_vulnerability_summary.json \
+            state/release/provenance_bundle/latest.json \
+            state/release/provenance_bundle/reproducible_build_equivalence.json \
+            release-notes-${GITHUB_REF_NAME}.md; do
+            [ -f "$f" ] || continue
+            sha256sum "$f" >> "$OUT"
+          done
+
       - name: Generate SLSA provenance attestations
         uses: actions/attest-build-provenance@v2
         with:
@@ -289,3 +314,4 @@ jobs:
             state/release/provenance_bundle/latest.json
             state/release/provenance_bundle/reproducible_build_equivalence.json
             release-notes-${{ github.ref_name }}.md
+            state/release/provenance/artifacts/SHA256SUMS

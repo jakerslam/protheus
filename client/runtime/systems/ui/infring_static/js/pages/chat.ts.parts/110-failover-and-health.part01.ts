@@ -44,11 +44,23 @@
       }).catch(function() { /* silent — use hardcoded list */ });
     },
 
-    // Clear any stuck typing indicator after 120s
+    // Keep thinking indicators alive while work is still in-flight.
+    // Only hard-timeout once no pending activity remains or the request is
+    // genuinely stale far beyond expected runtime.
     _resetTypingTimeout: function() {
       var self = this;
       if (self._typingTimeout) clearTimeout(self._typingTimeout);
       self._typingTimeout = setTimeout(function() {
+        var hasPending = typeof self.hasLivePendingResponse === 'function'
+          ? self.hasLivePendingResponse()
+          : false;
+        var hardStale = typeof self.pendingResponseExceededHardTimeout === 'function'
+          ? self.pendingResponseExceededHardTimeout()
+          : false;
+        if (hasPending && !hardStale) {
+          self._resetTypingTimeout();
+          return;
+        }
         // Transport timeout: do not fabricate assistant content.
         self._clearStreamingTypewriters();
         self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; });
@@ -68,6 +80,41 @@
         self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
         self.scheduleConversationPersist();
       }, 120000);
+    },
+
+    hasLivePendingResponse: function() {
+      var rows = Array.isArray(this.messages) ? this.messages : [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row) continue;
+        if (row.thinking || row.streaming || (row.terminal && row.thinking)) {
+          return true;
+        }
+      }
+      return !!(this._pendingWsRequest && this._pendingWsRequest.agent_id);
+    },
+
+    pendingResponseExceededHardTimeout: function() {
+      var now = Date.now();
+      var startedAt = Number(this._responseStartedAt || 0);
+      if ((!Number.isFinite(startedAt) || startedAt <= 0) && this._pendingWsRequest) {
+        startedAt = Number(this._pendingWsRequest.started_at || 0);
+      }
+      if (!Number.isFinite(startedAt) || startedAt <= 0) {
+        var rows = Array.isArray(this.messages) ? this.messages : [];
+        for (var i = rows.length - 1; i >= 0; i--) {
+          var row = rows[i];
+          if (!row) continue;
+          if (!(row.thinking || row.streaming || (row.terminal && row.thinking))) continue;
+          var rowStartedAt = Number(row._stream_started_at || row._stream_updated_at || row.ts || 0);
+          if (Number.isFinite(rowStartedAt) && rowStartedAt > 0) {
+            startedAt = rowStartedAt;
+            break;
+          }
+        }
+      }
+      if (!Number.isFinite(startedAt) || startedAt <= 0) return false;
+      return Math.max(0, now - startedAt) >= 900000;
     },
 
     _clearTypingTimeout: function() {
@@ -137,7 +184,6 @@
       if (!this.sending) return false;
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
-      var touchedPendingRows = false;
       var now = Date.now();
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
@@ -148,17 +194,24 @@
           // Keep pending rows pending while transport recovers; do not emit
           // premature fallback assistant messages for long-running thoughts.
           hasVisiblePending = true;
-          if (row.thinking && !String(row.text || '').trim() && ageMs >= 12000) {
-            row.text = 'Thinking...';
-            touchedPendingRows = true;
-          }
         }
-      }
-      if (touchedPendingRows) {
-        this.scheduleConversationPersist();
       }
       var pending = this._pendingWsRequest && this._pendingWsRequest.agent_id ? this._pendingWsRequest : null;
       var hasPendingWs = !!pending;
+      if (!hasVisiblePending && hasPendingWs && typeof this.ensureLiveThinkingRow === 'function') {
+        var keepRow = this.ensureLiveThinkingRow({
+          agent_id: String(pending.agent_id || ''),
+          agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : ''
+        });
+        if (keepRow) {
+          keepRow.thinking = true;
+          keepRow.streaming = true;
+          if (!Number.isFinite(Number(keepRow._stream_started_at))) keepRow._stream_started_at = now;
+          keepRow._stream_updated_at = now;
+          if (!String(keepRow.text || '').trim()) keepRow.text = '';
+          hasVisiblePending = true;
+        }
+      }
       if (pending) {
         var pendingAgentId = String(pending.agent_id || '');
         var currentAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
@@ -172,7 +225,9 @@
           if (!this._pendingWsRecovering) {
             this._recoverPendingWsRequest('stale_pending');
           }
-          if (pendingAgeMs >= 30000) {
+          // Keep long-running tasks in pending state; do not clear visible thinking
+          // unless we crossed a true hard-stale boundary.
+          if (pendingAgeMs >= 900000) {
             this._clearPendingWsRequest();
             hasPendingWs = false;
           }
@@ -336,9 +391,9 @@
       var agentId = String(pending.agent_id);
       var startedAt = Number(pending.started_at || Date.now());
       var recoverStartedAt = Date.now();
-      var maxRecoverMs = 60000;
+      var maxRecoverMs = 15000;
       var resolved = false;
-      for (var attempt = 0; attempt < 120; attempt++) {
+      for (var attempt = 0; attempt < 30; attempt++) {
         if (!this._pendingWsRequest || String(this._pendingWsRequest.agent_id || '') !== agentId) {
           break;
         }
@@ -398,7 +453,7 @@
         }
       }
       var pendingAgeMs = Math.max(0, Date.now() - Number(startedAt || Date.now()));
-      if (!resolved && stillActiveAgent && pendingAgeMs < 90000 && InfringAPI && typeof InfringAPI.isWsConnected === 'function' && InfringAPI.isWsConnected()) {
+      if (!resolved && stillActiveAgent && pendingAgeMs < 900000) {
         this._pendingWsRecovering = false;
         return;
       }

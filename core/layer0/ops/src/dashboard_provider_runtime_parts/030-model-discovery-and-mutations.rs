@@ -4,6 +4,56 @@ include!("025-prompt-optimization.rs");
 
 pub fn discover_models(root: &Path, input: &str) -> Value {
     let cleaned = clean_text(input, 4096);
+    let auto_refresh = matches!(
+        cleaned.to_ascii_lowercase().as_str(),
+        "__auto__" | "auto" | "refresh" | "discover"
+    );
+    if auto_refresh {
+        let rows = crate::dashboard_provider_runtime::provider_rows(root, &json!({}));
+        let mut probed = Vec::<Value>::new();
+        let mut discovered_provider_count = 0usize;
+        for row in rows {
+            let provider = clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80);
+            if provider.is_empty() {
+                continue;
+            }
+            let is_local = row.get("is_local").and_then(Value::as_bool).unwrap_or(false);
+            let auth_configured = crate::dashboard_provider_runtime::auth_status_configured(
+                row.get("auth_status").and_then(Value::as_str).unwrap_or(""),
+            );
+            if !is_local && !auth_configured {
+                continue;
+            }
+            let probe = crate::dashboard_provider_runtime::test_provider(root, &provider);
+            if probe.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                discovered_provider_count += 1;
+            }
+            probed.push(json!({
+                "provider": provider,
+                "ok": probe.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                "status": clean_text(probe.get("status").and_then(Value::as_str).unwrap_or(""), 40),
+                "error": clean_text(probe.get("error").and_then(Value::as_str).unwrap_or(""), 220)
+            }));
+        }
+        let catalog = crate::dashboard_model_catalog::catalog_payload(root, &json!({}));
+        let models = catalog
+            .get("models")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let available_models = models
+            .iter()
+            .filter(|row| row.get("available").and_then(Value::as_bool).unwrap_or(false))
+            .count();
+        return json!({
+            "ok": true,
+            "input_kind": "auto_discovery",
+            "provider_count": discovered_provider_count,
+            "probed": probed,
+            "model_count": models.len(),
+            "available_model_count": available_models
+        });
+    }
     if cleaned.is_empty() {
         return json!({"ok": false, "error": "discover_input_required"});
     }
@@ -216,6 +266,36 @@ pub fn download_model(root: &Path, provider_id: &str, model_ref: &str) -> Value 
             }),
             Err(err) => json!({"ok": false, "error": clean_text(&err.to_string(), 280)}),
         };
+    }
+
+    if command_exists("ollama") {
+        let mut bridged_model = if model.contains('/') {
+            clean_text(model.split('/').next_back().unwrap_or(""), 200)
+        } else {
+            model.clone()
+        };
+        if let Some((head, _tail)) = bridged_model.split_once(":free") {
+            bridged_model = clean_text(head, 200);
+        }
+        if let Some((head, _tail)) = bridged_model.split_once(":online") {
+            bridged_model = clean_text(head, 200);
+        }
+        if !bridged_model.is_empty() && !model_id_is_placeholder(&bridged_model) {
+            let output = Command::new("ollama").arg("pull").arg(&bridged_model).output();
+            if let Ok(out) = output {
+                if out.status.success() {
+                    return json!({
+                        "ok": true,
+                        "provider": "ollama",
+                        "requested_provider": provider,
+                        "model": bridged_model,
+                        "requested_model": model,
+                        "method": "ollama_pull_bridge",
+                        "download_path": format!("ollama://{}", bridged_model)
+                    });
+                }
+            }
+        }
     }
 
     let row = provider_row(root, &provider);
@@ -840,6 +920,23 @@ mod tests {
         let out = ensure_model_profile(root.path(), "openrouter", "moonshotai/kimi-k2.5");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("model").and_then(Value::as_str), Some("moonshotai/kimi-k2.5"));
+    }
+
+    #[test]
+    fn discover_models_auto_mode_returns_summary_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = discover_models(root.path(), "__auto__");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("input_kind").and_then(Value::as_str),
+            Some("auto_discovery")
+        );
+        assert!(
+            out.get("model_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
     }
 
     #[test]

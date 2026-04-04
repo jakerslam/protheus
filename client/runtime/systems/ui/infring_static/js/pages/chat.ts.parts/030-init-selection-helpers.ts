@@ -175,18 +175,29 @@
     },
 
     get modelDisplayName() {
-      if (!this.currentAgent) return '';
-      var selected = String(this.currentAgent.model_name || '').trim();
-      var runtime = String(this.currentAgent.runtime_model || '').trim();
+      var selected = String((this.currentAgent && this.currentAgent.model_name) || '').trim();
+      var runtime = String((this.currentAgent && this.currentAgent.runtime_model) || '').trim();
+      var suggestion = this.selectedFreshInitModelSuggestion ? this.selectedFreshInitModelSuggestion() : null;
+      var suggestionRef = this.normalizeFreshInitModelRef ? this.normalizeFreshInitModelRef(suggestion) : '';
+      var providerFallback = String((this.currentAgent && this.currentAgent.model_provider) || '').trim().toLowerCase();
       if (this.isPlaceholderModelRef(selected)) selected = '';
       if (this.isPlaceholderModelRef(runtime)) runtime = '';
+      if (this.isPlaceholderModelRef(suggestionRef)) suggestionRef = '';
       if (selected.toLowerCase() === 'auto') {
-        var resolved = runtime ? runtime.replace(/-\d{8}$/, '') : '';
+        var resolved = this.compactModelLabel(runtime);
         var autoLabel = resolved ? ('Auto: ' + resolved) : 'Auto';
         return autoLabel.length > 24 ? autoLabel.substring(0, 22) + '\u2026' : autoLabel;
       }
-      var short = selected.replace(/-\d{8}$/, '');
-      return short.length > 24 ? short.substring(0, 22) + '\u2026' : short;
+      var active = this.resolveActiveSwitcherModel ? this.resolveActiveSwitcherModel(this._modelCache || []) : null;
+      var activeId = String((active && active.id) || '').trim();
+      var candidates = [selected, runtime, suggestionRef, activeId];
+      for (var ci = 0; ci < candidates.length; ci += 1) {
+        var compactCandidate = this.compactModelLabel(candidates[ci]);
+        if (!compactCandidate) continue;
+        return compactCandidate.length > 24 ? compactCandidate.substring(0, 22) + '\u2026' : compactCandidate;
+      }
+      if (providerFallback === 'auto' || !providerFallback) return 'Auto';
+      return providerFallback.length > 24 ? providerFallback.substring(0, 22) + '\u2026' : providerFallback;
     },
 
     get switcherProviders() {
@@ -240,6 +251,21 @@
         return tail === 'model' || tail === '<model>' || tail === '(model)';
       }
       return false;
+    },
+
+    compactModelLabel: function(value) {
+      var raw = String(value || '').trim();
+      if (!raw || this.isPlaceholderModelRef(raw)) return '';
+      var compact = raw;
+      if (raw.indexOf('/') >= 0) {
+        var parts = raw.split('/');
+        var tail = String(parts[parts.length - 1] || '').trim();
+        var head = String(parts[0] || '').trim();
+        compact = tail || head;
+      }
+      compact = String(compact || '').trim();
+      if (!compact || this.isPlaceholderModelRef(compact)) return '';
+      return compact.replace(/-\d{8}$/, '');
     },
 
     sanitizeModelCatalogRows: function(rows) {
@@ -360,7 +386,7 @@
 
     modelDeploymentKind: function(model) {
       var row = model || {};
-      var deployment = String(row.deployment || '').trim().toLowerCase();
+      var deployment = String(row.deployment || row.deployment_kind || '').trim().toLowerCase();
       if (deployment === 'local' || deployment === 'cloud' || deployment === 'api') return deployment;
       if (row.is_local === true) return 'local';
       var provider = String(row.provider || '').trim().toLowerCase();

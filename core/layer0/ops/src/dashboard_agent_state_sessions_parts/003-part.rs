@@ -62,7 +62,12 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
                     .and_then(|value| value.to_str())
                     .unwrap_or(""),
             );
-            if !file_agent_id.is_empty() && !allowed_ids.contains(&file_agent_id) {
+            // Keep session-backed agents discoverable in fresh state roots where
+            // profile/contract records have not been materialized yet.
+            if !file_agent_id.is_empty()
+                && !allowed_ids.is_empty()
+                && !allowed_ids.contains(&file_agent_id)
+            {
                 continue;
             }
             if let Some(state) = read_json_file(&path) {
@@ -310,6 +315,73 @@ mod tests {
     }
 
     #[test]
+    fn suggestions_do_not_use_legacy_template_phrasing() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_suggestion_context(root.path(), "agent-e");
+        let value = suggestions(root.path(), "agent-e", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("continue with"));
+        assert!(!joined.contains("end to end"));
+        assert!(!joined.contains("works?"));
+    }
+
+    #[test]
+    fn suggestions_filter_low_signal_topic_fillers() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = append_turn(
+            root.path(),
+            "agent-f",
+            "the llm menu only shows three models",
+            "I'll inspect provider sensing and model discovery wiring.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-f",
+            "restore automatic ollama model discovery in router",
+            "I can patch the provider index and menu payload.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-f",
+            "compare model routing options for local providers",
+            "I'll evaluate router and fallback behavior.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-f",
+            "can you continue with compare other",
+            "I'll keep going and report what changed.",
+        );
+
+        let value = suggestions(root.path(), "agent-f", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("compare other"));
+        assert!(joined.contains("model") || joined.contains("router") || joined.contains("ollama"));
+    }
+
+    #[test]
     fn suggestions_require_seven_recent_messages() {
         let root = tempfile::tempdir().expect("tempdir");
         let _ = append_turn(
@@ -367,4 +439,3 @@ mod tests {
         assert!(!ids.iter().any(|id| id == "agent-zombie"));
     }
 }
-

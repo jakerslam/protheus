@@ -138,6 +138,9 @@ fn normalize_provider_id(raw: &str) -> String {
         "google-ai" => "google".to_string(),
         "kimi" => "moonshot".to_string(),
         "moonshot-ai" => "moonshot".to_string(),
+        "anthropic" => "frontier_provider".to_string(),
+        "claude" => "frontier_provider".to_string(),
+        "frontier-provider" => "frontier_provider".to_string(),
         other => other.to_string(),
     }
 }
@@ -146,7 +149,7 @@ fn provider_display_name(provider_id: &str) -> String {
     match provider_id {
         "auto" => "Auto Router".to_string(),
         "openai" => "OpenAI".to_string(),
-        "frontier_provider" => "Frontier Provider".to_string(),
+        "frontier_provider" => "Claude (Anthropic)".to_string(),
         "google" => "Gemini".to_string(),
         "groq" => "Groq".to_string(),
         "moonshot" => "Moonshot".to_string(),
@@ -207,6 +210,15 @@ fn command_exists(command: &str) -> bool {
 
 fn local_provider_reachable(provider_id: &str, row: &Value) -> bool {
     match provider_id {
+        "ollama" => {
+            let base_url = clean_text(
+                row.get("base_url")
+                    .and_then(Value::as_str)
+                    .unwrap_or(&provider_base_url_default("ollama")),
+                400,
+            );
+            probe_ollama_runtime_online(&base_url)
+        }
         "claude-code" => command_exists("claude"),
         "local" => row
             .get("local_model_root")
@@ -251,7 +263,11 @@ fn provider_api_key_env(provider_id: &str) -> String {
 fn provider_key_env_names(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "openai" => &["OPENAI_API_KEY"],
-        "frontier_provider" => &["FRONTIER_PROVIDER_API_KEY"],
+        "frontier_provider" => &[
+            "ANTHROPIC_API_KEY",
+            "FRONTIER_PROVIDER_API_KEY",
+            "CLAUDE_API_KEY",
+        ],
         "google" => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
         "groq" => &["GROQ_API_KEY"],
         "moonshot" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
@@ -298,7 +314,7 @@ fn provider_key(root: &Path, provider_id: &str) -> Option<String> {
 fn provider_base_url_default(provider_id: &str) -> String {
     match provider_id {
         "openai" => "https://api.openai.com/v1".to_string(),
-        "frontier_provider" => "https://api.frontier_provider.com".to_string(),
+        "frontier_provider" => "https://api.anthropic.com".to_string(),
         "google" => "https://generativelanguage.googleapis.com".to_string(),
         "groq" => "https://api.groq.com/openai/v1".to_string(),
         "moonshot" => "https://api.moonshot.ai/v1".to_string(),
@@ -325,7 +341,9 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
         .unwrap_or_default(),
         "frontier_provider" => serde_json::from_value(json!({
             "claude-sonnet-4-20250514": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "api"},
-            "claude-opus-4-20250514": {"power_rating": 5, "cost_rating": 5, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api"}
+            "claude-opus-4-20250514": {"power_rating": 5, "cost_rating": 5, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "api"},
+            "claude-3-7-sonnet-latest": {"power_rating": 4, "cost_rating": 4, "param_count_billion": 0, "specialty": "general", "specialty_tags": ["general", "coding"], "deployment_kind": "api"},
+            "claude-3-5-haiku-latest": {"power_rating": 3, "cost_rating": 2, "param_count_billion": 0, "specialty": "speed", "specialty_tags": ["speed", "general"], "deployment_kind": "api"}
         }))
         .unwrap_or_default(),
         "google" => serde_json::from_value(json!({
@@ -362,7 +380,24 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
         .unwrap_or_default(),
         "ollama" => serde_json::from_value(json!({
             "qwen2.5-coder:7b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 7, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "ollama", "context_window": 131072},
-            "llama3.2:latest": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 128000}
+            "qwen2.5-coder:latest": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 7, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "ollama", "context_window": 131072},
+            "qwen2.5:3b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "qwen3:4b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 4, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "qwen3:8b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 8, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "qwen3:14b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 14, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "smallthinker:latest": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 4, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "ollama", "context_window": 131072},
+            "tinyllama:latest": {"power_rating": 1, "cost_rating": 1, "param_count_billion": 1, "specialty": "speed", "specialty_tags": ["speed", "general"], "deployment_kind": "ollama", "context_window": 32768},
+            "gemma3:4b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 4, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "phi:latest": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 32768},
+            "llama3.2:latest": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 128000},
+            "llama3.3:70b": {"power_rating": 4, "cost_rating": 1, "param_count_billion": 70, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "kimi-k2.5:cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "kimi-k2.5:thinking": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 0, "specialty": "reasoning", "specialty_tags": ["reasoning", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "deepseek-v3.2:cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 0, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "deepseek-v3.1:671b-cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 671, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "qwen3-coder:480b-cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 480, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "qwen3-vl:235b-cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 235, "specialty": "vision", "specialty_tags": ["vision", "general"], "deployment_kind": "cloud", "context_window": 262144},
+            "gpt-oss:120b-cloud": {"power_rating": 5, "cost_rating": 2, "param_count_billion": 120, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "cloud", "context_window": 262144}
         }))
         .unwrap_or_default(),
         "claude-code" => serde_json::from_value(json!({
@@ -543,13 +578,21 @@ fn inferred_model_profile(provider_id: &str, model_id: &str, force_local: bool) 
         }
     }
 
+    let deployment_kind = if model.contains(":cloud") || model.ends_with("-cloud") {
+        "cloud"
+    } else if is_local {
+        "local"
+    } else {
+        "api"
+    };
+
     json!({
         "power_rating": power_rating,
         "cost_rating": cost_rating,
         "param_count_billion": param_count_billion.max(0),
         "specialty": specialty,
         "specialty_tags": specialty_tags,
-        "deployment_kind": if is_local { "local" } else { "api" },
+        "deployment_kind": deployment_kind,
         "context_window": infer_model_context_window(&provider, &model)
     })
 }

@@ -39,6 +39,7 @@
     _sidebarScrollIndicatorRaf: 0,
     _collapsedHoverSuppressedUntil: 0,
     _collapsedHoverNeedsPointerMove: false,
+    _collapsedHoverPointerMovedAt: 0,
     bootSplashVisible: true,
     _bootSplashStartedAt: Date.now(),
     _bootSplashMinMs: 850,

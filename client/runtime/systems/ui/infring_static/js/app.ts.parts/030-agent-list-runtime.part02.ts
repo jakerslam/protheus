@@ -121,6 +121,7 @@
         this.hideCollapsedAgentHover();
         return;
       }
+      this._collapsedHoverPointerMovedAt = Date.now();
       if (this._collapsedHoverNeedsPointerMove) this._collapsedHoverNeedsPointerMove = false;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var hover = this.collapsedAgentHover || {};
@@ -131,6 +132,9 @@
     isCollapsedAgentHoverVisible(rawHover) {
       var hover = rawHover || {};
       if (!hover.active) return false;
+      var movedAt = Number(this._collapsedHoverPointerMovedAt || 0);
+      if (!Number.isFinite(movedAt) || movedAt <= 0) return false;
+      if ((Date.now() - movedAt) > 1500) return false;
       if (!hover.top || Number(hover.top) <= 0) return false;
       var rawId = String(hover.id || '').trim();
       if (!rawId) return false;
@@ -211,6 +215,7 @@
       var eventType = String((ev && ev.type) || '').toLowerCase();
       if (eventType !== 'mousemove' && eventType !== 'pointermove') return;
       if (ev && ev.isTrusted === false) return;
+      this._collapsedHoverPointerMovedAt = Date.now();
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var rawId = String((agent && agent.id) || '').trim();
@@ -258,6 +263,7 @@
       });
     },
     hideCollapsedAgentHover() {
+      this._collapsedHoverPointerMovedAt = 0;
       this.clearCollapsedAgentHoverState();
     },
     runtimeFacadeState() {

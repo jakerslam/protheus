@@ -326,22 +326,18 @@
       if (compact.length > 108) return compact.slice(0, 105) + '...';
       return compact;
     },
-    isThinkingPlaceholderText: function(input) {
-      var value = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\*+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-      if (!value) return true;
-      if (/^(thinking|processing|working|preparing response|reasoning through context)(\.\.\.|…)?$/.test(value)) return true;
-      if (/^(using|calling)\b.+(\.\.\.|…)?$/.test(value)) return true;
-      return false;
-    },
     thinkingDisplayText: function(msg) {
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
       var rawText = String(msg && msg.text ? msg.text : '').trim();
       var value = rawThought || rawText;
       if (!value) return '';
       if (rawThought) {
-        var latestComplete = typeof this.latestCompleteSentence === 'function'
-          ? String(this.latestCompleteSentence(rawThought) || '').trim()
+        var latestComplete = typeof this.nextThoughtSentenceFrame === 'function'
+          ? String(this.nextThoughtSentenceFrame(msg, rawThought) || '').trim()
           : '';
+        if (!latestComplete && typeof this.latestCompleteSentence === 'function') {
+          latestComplete = String(this.latestCompleteSentence(rawThought) || '').trim();
+        }
         if (latestComplete) {
           if (msg && typeof msg === 'object') msg._thought_last_complete_sentence = latestComplete;
           return latestComplete;
@@ -379,7 +375,9 @@
         var tool = msg.tools[i];
         if (!tool || this.isThoughtTool(tool)) continue;
         if (tool.running) {
-          var runningName = this.toolDisplayName(tool);
+          var runningName = typeof this.toolThinkingActionLabel === 'function'
+            ? this.toolThinkingActionLabel(tool)
+            : this.toolDisplayName(tool);
           if (runningName) runningNames.push(runningName);
           continue;
         }
@@ -396,7 +394,9 @@
       summary.hasRunning = runningNames.length > 0;
       var doneCount = completed + errors + blocked;
       if (summary.hasRunning) {
-        summary.text = runningNames.length === 1 ? ('Calling ' + runningNames[0] + '...') : ('Calling ' + runningNames.length + ' tools...');
+        summary.text = runningNames.length === 1
+          ? (runningNames[0] + '...')
+          : ('Running ' + runningNames.length + ' tool steps...');
         var runningBits = [];
         if (doneCount > 0) runningBits.push(doneCount + ' done');
         if (errors > 0) runningBits.push(errors + ' error');
@@ -416,8 +416,25 @@
 
     thinkingStatusText: function(msg) {
       if (!msg || !msg.thinking) return '';
-      var status = String(msg.thinking_status || msg.status_text || '').trim();
+      var status = typeof this.normalizeThinkingStatusCandidate === 'function'
+        ? this.normalizeThinkingStatusCandidate(msg.thinking_status || msg.status_text || '')
+        : String(msg.thinking_status || msg.status_text || '').trim();
       if (this.isThinkingPlaceholderText(status)) status = '';
+      var toolSummary = typeof this.thinkingToolStatusSummary === 'function'
+        ? this.thinkingToolStatusSummary(msg)
+        : { text: '', hasRunning: false };
+      var toolText = String((toolSummary && toolSummary.text) || '').trim();
+      if (toolText) {
+        if (!status) {
+          status = toolText;
+        } else if (toolSummary && toolSummary.hasRunning) {
+          var loweredStatus = status.toLowerCase();
+          var loweredTool = toolText.toLowerCase();
+          if (loweredStatus.indexOf(loweredTool) === -1) {
+            status = toolText + ' · ' + status;
+          }
+        }
+      }
       var progress = msg.progress && Number.isFinite(Number(msg.progress.percent))
         ? Math.max(0, Math.min(100, Math.round(Number(msg.progress.percent))))
         : NaN;
@@ -427,73 +444,10 @@
       } else if (status && Number.isFinite(progress) && !/\b\d{1,3}%\b/.test(status)) {
         status += ' · ' + progress + '%';
       }
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        status = this.normalizeThinkingStatusCandidate(status);
+      }
       if (this.isThinkingPlaceholderText(status)) status = '';
       if (status.length > 220) status = status.slice(0, 217) + '...';
       return status;
     },
-
-    messageGroupRole: function(msg) {
-      if (!msg) return '';
-      if (msg.terminal) return 'terminal';
-      return String(msg.role || '');
-    },
-
-    isStackBoundaryNoticeMessage: function(msg) {
-      if (!msg || msg.terminal) return false;
-      if (msg.is_notice) return true;
-      if (msg.notice_label || msg.notice_type || msg.notice_action) return true;
-      var role = String(msg.role || '').trim().toLowerCase();
-      if (role !== 'system') return false;
-      var text = String(msg.text || '').trim();
-      if (!text) return false;
-      if (this.isModelSwitchNoticeLabel(text)) return true;
-      if (/^changed name from\s+/i.test(text)) return true;
-      if (/^initialized\s+.+\s+as\s+/i.test(text)) return true;
-      return false;
-    },
-
-    messageSourceKey: function(msg) {
-      if (!msg || msg.is_notice) return '';
-      if (this.isStackBoundaryNoticeMessage(msg)) {
-        var noticeLabel = String(msg.notice_label || msg.text || '').trim().toLowerCase();
-        var noticeTs = Number(msg.ts || 0) || 0;
-        return 'notice:' + noticeLabel + ':' + noticeTs;
-      }
-      if (msg.terminal) {
-        var terminalSource = this.terminalMessageSource(msg);
-        if (terminalSource === 'user') return 'terminal:user';
-        if (terminalSource === 'system') return 'terminal:system';
-        var terminalAgentId = String((msg && msg.agent_id) || (this.currentAgent && this.currentAgent.id) || '').trim();
-        return terminalAgentId ? ('terminal:agent:' + terminalAgentId.toLowerCase()) : 'terminal:agent';
-      }
-      var role = String(msg.role || '').trim().toLowerCase();
-      if (!role) return '';
-      if (role === 'user') return 'user';
-      if (role === 'system') {
-        // System rows should stack as one source-run when consecutive, regardless
-        // of internal origin tags (inject:test, runtime:error, slash:status, etc).
-        // This keeps UI grouping consistent for user-facing system narration.
-        return 'system';
-      }
-      if (role === 'agent') {
-        var agentOrigin = String(
-          (msg && msg.agent_origin) ||
-          (msg && msg.source_agent_id) ||
-          (msg && msg.agent_id) ||
-          (msg && msg.actor_id) ||
-          (msg && msg.actor) ||
-          (msg && msg.agent_name) ||
-          ''
-        ).trim();
-        if (!agentOrigin && this.currentAgent && this.currentAgent.id) {
-          agentOrigin = String(this.currentAgent.id || '').trim();
-        }
-        return agentOrigin ? ('agent:' + agentOrigin.toLowerCase()) : 'agent';
-      }
-      var genericOrigin = String(
-        (msg && msg.agent_id) ||
-        (msg && msg.actor_id) ||
-        (msg && msg.actor) ||
-        ''
-      ).trim();
-      return genericOrigin ? (role + ':' + genericOrigin.toLowerCase()) : role;

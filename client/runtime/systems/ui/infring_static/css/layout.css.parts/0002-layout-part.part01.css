@@ -23,6 +23,29 @@
   pointer-events: none;
   z-index: 2;
 }
+
+.nav-agent-avatar-wrap.nav-agent-avatar-timeout-mask {
+  filter: grayscale(0.45);
+  opacity: 0.62;
+}
+
+.nav-agent-avatar-wrap.nav-agent-avatar-expiring-critical::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--error) 76%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--error) 42%, transparent);
+  animation: navAgentCriticalRingPulse 0.9s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes navAgentCriticalRingPulse {
+  0% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 0.28; transform: scale(1.06); }
+  100% { opacity: 0.95; transform: scale(1); }
+}
 .nav-agent-archive {
   width: 16px;
   height: 16px;

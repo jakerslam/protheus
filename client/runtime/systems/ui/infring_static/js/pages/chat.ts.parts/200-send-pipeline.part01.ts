@@ -406,6 +406,13 @@
           httpText = httpSplit.content || '';
         }
         httpText = this.stripArtifactDirectivesFromText(httpText);
+        var httpCompact = String(httpText || '').replace(/\s+/g, ' ').trim();
+        if (
+          typeof this.isThinkingPlaceholderText === 'function' &&
+          this.isThinkingPlaceholderText(httpCompact)
+        ) {
+          httpText = '';
+        }
         if (!String(httpText || '').trim()) {
           httpText = this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }

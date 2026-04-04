@@ -121,6 +121,30 @@
       return false;
     },
 
+    ensureLiveThinkingRow: function(data) {
+      var row = this.messages.length ? this.messages[this.messages.length - 1] : null;
+      if (row && (row.thinking || row.streaming)) {
+        return row;
+      }
+      row = {
+        id: ++msgId,
+        role: 'agent',
+        text: '',
+        meta: '',
+        thinking: true,
+        streaming: true,
+        thinking_status: '',
+        tools: [],
+        _stream_started_at: Date.now(),
+        _stream_updated_at: Date.now(),
+        ts: Date.now(),
+        agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
+        agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
+      };
+      this.messages.push(row);
+      return row;
+    },
+
     // Multi-session: load session list for current agent
     async loadSessions(agentId) {
       try {
@@ -424,18 +448,7 @@
         // Legacy thinking event (backward compat)
         case 'thinking':
           if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-            this.messages.push({
-              id: ++msgId,
-              role: 'agent',
-              text: '',
-              meta: '',
-              thinking: true,
-              streaming: true,
-              thinking_status: '',
-              tools: [],
-              agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
-              agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
-            });
+            this.ensureLiveThinkingRow(data);
             this.scrollToBottom();
             this._resetTypingTimeout();
           }
@@ -446,18 +459,7 @@
           if (data.state === 'start') {
             this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
-              this.messages.push({
-                id: ++msgId,
-                role: 'agent',
-                text: '',
-                meta: '',
-                thinking: true,
-                streaming: true,
-                thinking_status: '',
-                tools: [],
-                agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
-                agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
-              });
+              this.ensureLiveThinkingRow(data);
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
@@ -472,14 +474,29 @@
             }
             this._resetTypingTimeout();
           } else if (data.state === 'stop') {
-            this._clearTypingTimeout();
+            var stillPending = (this.sending === true)
+              || (typeof this.hasLivePendingResponse === 'function' && this.hasLivePendingResponse());
+            if (stillPending) {
+              if (typeof this.ensureLiveThinkingRow === 'function') {
+                var pendingMsg = this.ensureLiveThinkingRow(data);
+                if (pendingMsg) {
+                  pendingMsg.thinking = true;
+                  pendingMsg.streaming = true;
+                  pendingMsg._stream_updated_at = Date.now();
+                  if (!Number.isFinite(Number(pendingMsg._stream_started_at))) {
+                    pendingMsg._stream_started_at = Date.now();
+                  }
+                }
+              }
+              this._resetTypingTimeout();
+            } else this._clearTypingTimeout();
           }
           break;
 
         case 'phase':
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
           // Show tool/phase progress so the user sees the agent is working
-          var phaseMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
+          var phaseMsg = this.ensureLiveThinkingRow(data);
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
             var phaseDetailText = String(data && data.detail ? data.detail : '').trim();
             var phasePercent = Number(

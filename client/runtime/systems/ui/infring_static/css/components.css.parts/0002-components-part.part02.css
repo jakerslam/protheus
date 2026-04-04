@@ -13,6 +13,58 @@
   font-size: 13px;
 }
 
+.chat-loading-fairy {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-loading-fairy-core {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-light) 86%, white 14%);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-light) 52%, transparent);
+  animation: chatLoadingFairyCorePulse 1.15s ease-in-out infinite;
+}
+
+.chat-loading-fairy-ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent-light) 56%, transparent);
+  opacity: 0;
+  animation: chatLoadingFairyRingPulse 1.35s ease-out infinite;
+}
+
+.chat-loading-fairy-ring.ring-1 {
+  inset: 6px;
+  animation-delay: 0s;
+}
+
+.chat-loading-fairy-ring.ring-2 {
+  inset: 2px;
+  animation-delay: 0.24s;
+}
+
+.chat-loading-fairy-ring.ring-3 {
+  inset: -2px;
+  animation-delay: 0.48s;
+}
+
+@keyframes chatLoadingFairyCorePulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.82; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes chatLoadingFairyRingPulse {
+  0% { transform: scale(0.72); opacity: 0; }
+  20% { opacity: 0.68; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+
 .chat-archetype-tiles {
   width: min(820px, 100%);
   margin: 0 auto 10px;

@@ -411,13 +411,12 @@
     },
 
     shouldRenderMessage(msg, idx) {
+      // Reliability-first history visibility: never clip old turns out of view
+      // purely because thread length exceeded a render threshold.
+      void idx;
       if (!msg || msg.is_notice) return true;
       if (!this.currentAgent) return true;
-      var id = this.messageDomId(msg, idx);
-      if (this.messageHydration && this.messageHydration[id]) return true;
-      // Always hydrate newest messages for streaming responsiveness.
-      if (idx >= (this.messages.length - 24)) return true;
-      return false;
+      return true;
     },
 
     forceMessageRender(msg, idx, ttlMs) {

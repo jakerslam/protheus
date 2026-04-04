@@ -190,7 +190,12 @@
           <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">
             <div class="chat-loading-overlay">
               <div class="chat-loading-overlay-content">
-                <div class="spinner"></div>
+                <div class="chat-loading-fairy" aria-hidden="true">
+                  <span class="chat-loading-fairy-core"></span>
+                  <span class="chat-loading-fairy-ring ring-1"></span>
+                  <span class="chat-loading-fairy-ring ring-2"></span>
+                  <span class="chat-loading-fairy-ring ring-3"></span>
+                </div>
                 <span>Loading agents...</span>
               </div>
             </div>
@@ -200,13 +205,23 @@
             <div class="chat-thread-shell">
               <div class="chat-loading-overlay" x-show="sessionLoading">
                 <div class="chat-loading-overlay-content">
-                  <div class="spinner"></div>
+                  <div class="chat-loading-fairy" aria-hidden="true">
+                    <span class="chat-loading-fairy-core"></span>
+                    <span class="chat-loading-fairy-ring ring-1"></span>
+                    <span class="chat-loading-fairy-ring ring-2"></span>
+                    <span class="chat-loading-fairy-ring ring-3"></span>
+                  </div>
                   <span>Loading chat...</span>
                 </div>
               </div>
               <div class="chat-loading-overlay" x-show="showFreshArchetypeTiles && freshInitLaunching">
                 <div class="chat-loading-overlay-content">
-                  <div class="spinner"></div>
+                  <div class="chat-loading-fairy" aria-hidden="true">
+                    <span class="chat-loading-fairy-core"></span>
+                    <span class="chat-loading-fairy-ring ring-1"></span>
+                    <span class="chat-loading-fairy-ring ring-2"></span>
+                    <span class="chat-loading-fairy-ring ring-3"></span>
+                  </div>
                   <span>Launching agent...</span>
                 </div>
               </div>

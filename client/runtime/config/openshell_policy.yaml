@@ -15,6 +15,7 @@ filesystem:
 network:
   allow_hosts:
     - api.openai.com
+    - api.anthropic.com
     - api.frontier_provider.com
     - localhost
     - 127.0.0.1
@@ -25,6 +26,7 @@ credentials:
   required: true
   allow:
     - openai_api_key
+    - anthropic_api_key
     - frontier_provider_api_key
 privacy:
   redact_patterns:

@@ -2203,7 +2203,8 @@ write_wrapper() {
   printf '%s\n' "      fi" >> "$wrapper_path"
   printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
-  printf '%s\n' "  if [ \"\${INFRING_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ] || [ \"\${PROTHEUS_WRAPPER_CD_WORKSPACE:-0}\" = \"1\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "  cd_workspace_mode=\"\${INFRING_WRAPPER_CD_WORKSPACE:-\${PROTHEUS_WRAPPER_CD_WORKSPACE:-1}}\"" >> "$wrapper_path"
+  printf '%s\n' "  if [ \"\$cd_workspace_mode\" != \"0\" ]; then" >> "$wrapper_path"
   printf '%s\n' "    cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
   printf '%s\n' "fi" >> "$wrapper_path"
@@ -2498,12 +2499,18 @@ infring_gateway_stop_dashboard_managed() {
     fi
   fi
   match="$(infring_gateway_dashboard_match "$host" "$port")"
+  legacy_match="$(infring_gateway_dashboard_match_legacy "$host" "$port")"
+  legacy_match_ts="$(infring_gateway_dashboard_match_legacy_ts "$host" "$port")"
   if command -v pkill >/dev/null 2>&1; then
     pkill -f "$match" >/dev/null 2>&1 || true
+    pkill -f "$legacy_match" >/dev/null 2>&1 || true
+    pkill -f "$legacy_match_ts" >/dev/null 2>&1 || true
     sleep 1
     pkill -9 -f "$match" >/dev/null 2>&1 || true
+    pkill -9 -f "$legacy_match" >/dev/null 2>&1 || true
+    pkill -9 -f "$legacy_match_ts" >/dev/null 2>&1 || true
   else
-    pids="$(ps ax -o pid= -o command= 2>/dev/null | awk -v m="$match" 'index($0,m)>0 {print $1}')"
+    pids="$(ps ax -o pid= -o command= 2>/dev/null | awk -v m="$match" -v l="$legacy_match" -v t="$legacy_match_ts" 'index($0,m)>0 || index($0,l)>0 || index($0,t)>0 {print $1}')"
     for row in $pids; do
       kill "$row" >/dev/null 2>&1 || true
     done
@@ -2511,6 +2518,24 @@ infring_gateway_stop_dashboard_managed() {
     for row in $pids; do
       kill -9 "$row" >/dev/null 2>&1 || true
     done
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    case "$port" in
+      ''|*[!0-9]*) ;;
+      *)
+        stale_listeners="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | awk '!seen[$0]++')"
+        for row in $stale_listeners; do
+          cmd="$(ps -p "$row" -o command= 2>/dev/null || true)"
+          case "$cmd" in
+            *infring*|*protheus*|*dashboard-ui*|*infring_dashboard*)
+              kill "$row" >/dev/null 2>&1 || true
+              sleep 1
+              kill -9 "$row" >/dev/null 2>&1 || true
+              ;;
+          esac
+        done
+        ;;
+    esac
   fi
   infring_gateway_pid_clear "$host" "$port"
   return 0
@@ -2684,6 +2709,36 @@ infring_gateway_start_dashboard_fallback() {
   return 0
 }
 
+infring_verify_gateway() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  wait_max="${3:-45}"
+  case "$wait_max" in
+    ''|*[!0-9]*)
+      wait_max=45
+      ;;
+  esac
+  if [ "$wait_max" -lt 5 ]; then
+    wait_max=5
+  fi
+  if [ "$wait_max" -gt 180 ]; then
+    wait_max=180
+  fi
+  if ! infring_gateway_wait_dashboard "$host" "$port" 2; then
+    "$0" gateway start "--dashboard-open=0" "--dashboard-host=${host}" "--dashboard-port=${port}" >/dev/null 2>&1 || true
+  fi
+  if infring_gateway_wait_dashboard_adaptive "$host" "$port" "$wait_max" 1; then
+    echo "[infring verify-gateway] ok: dashboard healthy at http://${host}:${port}/healthz"
+    if infring_gateway_pid_running "$host" "$port"; then
+      echo "[infring verify-gateway] dashboard pid: $(infring_gateway_pid_read "$host" "$port" 2>/dev/null || true)"
+    fi
+    return 0
+  fi
+  echo "[infring verify-gateway] failed: dashboard healthz not ready at http://${host}:${port}/healthz" >&2
+  echo "[infring verify-gateway] tip: run 'infring gateway status --dashboard-host=${host} --dashboard-port=${port}'" >&2
+  return 1
+}
+
 if [ "${1:-}" = "__dashboard-watchdog" ]; then
   shift || true
   watchdog_host="127.0.0.1"
@@ -2704,6 +2759,30 @@ if [ "${1:-}" = "__dashboard-watchdog" ]; then
   done
   infring_gateway_watchdog_loop "$watchdog_host" "$watchdog_port" "$watchdog_interval"
   exit 0
+fi
+
+if [ "${1:-}" = "verify-gateway" ]; then
+  shift || true
+  verify_host="127.0.0.1"
+  verify_port="4173"
+  verify_wait_max="${INFRING_VERIFY_GATEWAY_WAIT_MAX:-45}"
+  for token in "$@"; do
+    case "$token" in
+      --dashboard-host=*)
+        verify_host="${token#*=}"
+        ;;
+      --dashboard-port=*)
+        verify_port="${token#*=}"
+        ;;
+      --wait-max=*)
+        verify_wait_max="${token#*=}"
+        ;;
+    esac
+  done
+  if infring_verify_gateway "$verify_host" "$verify_port" "$verify_wait_max"; then
+    exit 0
+  fi
+  exit 1
 fi
 
 if [ "${1:-}" = "gateway" ]; then
@@ -3007,6 +3086,7 @@ main() {
 Usage: infring <command> [args]
 Primary commands:
   gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics]
+  verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]
   list
   status
   version

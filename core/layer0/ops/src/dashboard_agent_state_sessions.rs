@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 const AGENT_SESSIONS_DIR_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/agent_sessions";
-const MAX_MESSAGES: usize = 4000;
 const PROMPT_SUGGESTION_CONTEXT_WINDOW: usize = 7;
 const PROMPT_SUGGESTION_MAX_WORDS: usize = 10;
 const PROMPT_SUGGESTION_MAX_COUNT: usize = 3;

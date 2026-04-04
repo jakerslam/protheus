@@ -430,7 +430,7 @@ impl LlmProviderAdapter for FrontierProviderAdapter {
         let headers = vec![
             "Content-Type: application/json".to_string(),
             format!("x-api-key: {key}"),
-            "frontier_provider-version: 2023-06-01".to_string(),
+            "anthropic-version: 2023-06-01".to_string(),
         ];
         let (status, value) = curl_json(
             &format!("{}/v1/messages", input.base_url),

@@ -289,7 +289,7 @@
                 <div class="composer-actions-right">
                   <span
                     class="model-inline-label"
-                    x-show="currentAgent && !terminalMode && String(inputText || '').trim().length === 0"
+                    x-show="!terminalMode && String(inputText || '').trim().length === 0 && String(modelDisplayName || '').trim().length > 0"
                     x-text="modelDisplayName"
                   ></span>
                   <div class="model-switcher-inline" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
