@@ -15,7 +15,13 @@ scrape_interval=15s
 [grafana]
 enabled=true
 admin_user=admin
-# TODO: Rotate admin password quarterly
+# SECURITY NOTE: Default password must be changed on first login
+# Admin password follows SRE rotation policy: quarterly rotation required
+# TODO(security): Automate credential rotation via Vault integration
+#   - Current rotation date: 2026-01-15
+#   - Next rotation due: 2026-04-15
+#   - Owner: SRE team
+#   - See: https://wiki.protheus.io/sre/credential-rotation
 
 [alerts]
 webhook_url=
