@@ -12,6 +12,17 @@ Infrastructure automation, monitoring, CI/CD tooling, and release governance for
 
 See `docs/ops/getting-started.md` for initial setup instructions.
 
+## Documentation Quick Reference
+
+| Document | Purpose |
+|----------|---------|
+| `docs/ops/incident-response-runbook.md` | Incident severity levels and escalation |
+| `docs/ops/log-rotation-procedures.md` | Log management and disk space guidelines |
+| `config/monitoring.conf.example` | Monitoring stack configuration template |
+| `scripts/utils/health-check.sh` | Basic health verification script |
+| `scripts/utils/log-rotate.sh` | Automated log rotation utility |
+| `scripts/utils/ssl-expiry-check.sh` | SSL certificate expiration monitoring |
+
 ## Contributing
 
 All changes should be peer-reviewed before merging to main.
