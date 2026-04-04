@@ -1,19 +1,3 @@
-      }
-      var now = Date.now();
-      var forced = this._forcedHydrateById || {};
-      Object.keys(forced).forEach(function(id) {
-        var until = Number(forced[id] || 0);
-        if (until > now) {
-          next[id] = true;
-        } else {
-          delete forced[id];
-        }
-      });
-      if (this.selectedMessageDomId) next[this.selectedMessageDomId] = true;
-      if (this.hoveredMessageDomId) next[this.hoveredMessageDomId] = true;
-      this.messageHydration = next;
-    },
-
     isFreshInitTemplateSelected(templateDef) {
       if (!templateDef) return false;
       var key = String(templateDef.name || '').trim();
