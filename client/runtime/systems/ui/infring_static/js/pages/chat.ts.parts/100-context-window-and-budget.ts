@@ -275,7 +275,9 @@
         'configure app-plane',
         'model backend unavailable',
         'no chat model backend',
-        'app_plane_chat_ui'
+        'app_plane_chat_ui',
+        'did not receive a final answer',
+        'lost the final response handoff'
       ];
       var matched = false;
       for (var i = 0; i < markers.length; i++) {

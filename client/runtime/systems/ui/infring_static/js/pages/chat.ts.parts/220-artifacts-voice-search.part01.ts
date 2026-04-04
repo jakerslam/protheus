@@ -6,7 +6,7 @@
         if (derived) return derived;
         return 'I need one more clarification before I can finalize a reliable answer. Tell me the exact expected outcome.';
       }
-      return 'I hit a response handoff issue and did not receive a final answer. Retry this message and I will continue from the same context.';
+      return 'I lost the final response handoff for this turn. Context is still intact, and I can continue from exactly where this left off.';
     },
 
     deriveUserFacingFromThought: function(thoughtText) {

@@ -472,6 +472,37 @@ fn finalize_user_facing_response_never_leaks_tool_status_text() {
 }
 
 #[test]
+fn comparative_detector_matches_peer_ranking_language() {
+    assert!(message_requests_comparative_answer(
+        "find out how Infring ranks among its peers"
+    ));
+    assert!(message_requests_comparative_answer(
+        "compare infring versus top competitors"
+    ));
+}
+
+#[test]
+fn comparative_no_findings_fallback_is_actionable() {
+    let fallback = comparative_no_findings_fallback("rank infring among peers");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("infring"));
+    assert!(lowered.contains("strongest"));
+    assert!(!response_is_no_findings_placeholder(&fallback));
+}
+
+#[test]
+fn system_diagnostic_failure_summary_is_not_generic_dead_end() {
+    let summary = user_facing_tool_failure_summary(
+        "system_diagnostic",
+        &json!({"ok": false, "error": "request_read_failed"}),
+    )
+    .expect("summary");
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("diagnose manually"));
+    assert!(!lowered.contains("couldn't complete `system_diagnostic` right now"));
+}
+
+#[test]
 fn web_search_summary_avoids_completed_placeholder_copy() {
     let summary = summarize_tool_payload(
         "web_search",
