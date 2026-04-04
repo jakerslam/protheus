@@ -315,12 +315,78 @@
       }).catch(function() {});
     },
 
+    prefersReducedMotion: function() {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+      try {
+        return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      } catch (_) {
+        return false;
+      }
+    },
+
+    captureComposerSendMorph: function(textInput) {
+      if (this.prefersReducedMotion() || this.terminalMode || this.showFreshArchetypeTiles) return null;
+      if (typeof document === 'undefined') return null;
+      var shell = document.querySelector('.input-row .composer-shell');
+      var input = document.getElementById('msg-input');
+      if (!shell || !input) return null;
+      var text = String(textInput == null ? '' : textInput).trim();
+      if (!text) return null;
+      var rect = input.getBoundingClientRect();
+      if (!(rect.width > 80 && rect.height > 24)) return null;
+      var ghost = document.createElement('div');
+      ghost.className = 'composer-send-morph-ghost';
+      ghost.textContent = text.length > 260 ? (text.slice(0, 257) + '...') : text;
+      ghost.style.left = rect.left + 'px';
+      ghost.style.top = rect.top + 'px';
+      ghost.style.width = rect.width + 'px';
+      ghost.style.minHeight = rect.height + 'px';
+      document.body.appendChild(ghost);
+      shell.classList.add('composer-shell-send-morph');
+      return { shell: shell, ghost: ghost };
+    },
+
+    clearComposerSendMorph: function(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object') return;
+      if (snapshot.shell && snapshot.shell.classList) snapshot.shell.classList.remove('composer-shell-send-morph');
+      if (snapshot.ghost && snapshot.ghost.parentNode) snapshot.ghost.parentNode.removeChild(snapshot.ghost);
+    },
+
+    playComposerSendMorphToMessage: function(snapshot, messageId) {
+      if (!snapshot || !snapshot.ghost) return;
+      if (this.prefersReducedMotion()) { snapshot.ghost.style.opacity = '0.56'; setTimeout(this.clearComposerSendMorph.bind(this, snapshot), 240); return; }
+      var row = document.getElementById('chat-msg-' + String(messageId || '').trim());
+      var bubble = row ? row.querySelector('.message-bubble') : null;
+      if (!bubble) {
+        this.clearComposerSendMorph(snapshot);
+        return;
+      }
+      var rect = bubble.getBoundingClientRect();
+      if (!(rect.width > 24 && rect.height > 20)) {
+        this.clearComposerSendMorph(snapshot);
+        return;
+      }
+      var ghost = snapshot.ghost;
+      var self = this;
+      ghost.classList.add('in-flight');
+      var finish = function() { self.clearComposerSendMorph(snapshot); };
+      ghost.addEventListener('transitionend', finish, { once: true });
+      requestAnimationFrame(function() {
+        ghost.style.left = rect.left + 'px';
+        ghost.style.top = rect.top + 'px';
+        ghost.style.width = rect.width + 'px';
+        ghost.style.minHeight = rect.height + 'px';
+        ghost.style.opacity = '0.2';
+      });
+      setTimeout(finish, 760);
+    },
+
     appendUserChatMessage: function(finalText, msgImages, options) {
       var opts = options && typeof options === 'object' ? options : {};
       var text = String(finalText == null ? '' : finalText);
       var images = Array.isArray(msgImages) ? msgImages : [];
       if (!String(text || '').trim() && !images.length) return;
-      this.messages.push({
+      var msg = {
         id: ++msgId,
         role: 'user',
         text: text,
@@ -328,12 +394,14 @@
         tools: [],
         images: images,
         ts: Number.isFinite(Number(opts.ts)) ? Number(opts.ts) : Date.now()
-      });
+      };
+      this.messages.push(msg);
       this._stickToBottom = true;
       this.scrollToBottom({ force: true, stabilize: true });
       localStorage.setItem('of-first-msg', 'true');
       this.promptSuggestions = [];
       if (!opts.deferPersist) this.scheduleConversationPersist();
+      return msg;
     },
 
     // Process queued messages after current response completes
@@ -369,7 +437,7 @@
 
     _appendTerminalMessage: function(entry) {
       var payload = entry || {};
-      var text = String(payload.text || '');
+      var text = String(payload.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^\s+|\s+$/g, '');
       var now = Date.now();
       var ts = Number.isFinite(Number(payload.ts)) ? Number(payload.ts) : now;
       var role = payload.role ? String(payload.role) : 'terminal';
@@ -392,7 +460,7 @@
       if (shouldAppendToLast && last && !last.thinking && last.terminal) {
         if (text) {
           if (last.text && !/\n$/.test(last.text)) last.text += '\n';
-          last.text += text;
+          last.text += text.replace(/^[\r\n]+/, '');
         }
         if (meta) last.meta = meta;
         if (cwd) {

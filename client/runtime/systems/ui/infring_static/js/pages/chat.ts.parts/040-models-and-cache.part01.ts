@@ -424,6 +424,35 @@
       } catch {}
     },
 
+    resolveConversationInputMode(agentId) {
+      var key = String(agentId || '').trim();
+      if (!key) return 'chat';
+      if (this.isSystemThreadId(key)) return 'terminal';
+      var cached = this.conversationCache && this.conversationCache[key];
+      return cached && cached.default_terminal === true ? 'terminal' : 'chat';
+    },
+
+    currentConversationInputMode(agentId) {
+      if (this.isSystemThreadId(agentId)) return 'terminal';
+      return this.terminalMode ? 'terminal' : 'chat';
+    },
+
+    applyConversationInputMode(agentId, options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var hasForced = Object.prototype.hasOwnProperty.call(opts, 'force_terminal');
+      var mode = this.resolveConversationInputMode(agentId);
+      if (hasForced) mode = opts.force_terminal === true ? 'terminal' : 'chat';
+      if (this.isSystemThreadId(agentId)) mode = 'terminal';
+      this.terminalMode = mode === 'terminal';
+      this.showSlashMenu = false;
+      this.showModelPicker = false;
+      this.showModelSwitcher = false;
+      this.terminalCursorFocused = false;
+      if (!this.terminalMode) this.terminalSelectionStart = 0;
+      if (this.terminalMode && !this.terminalCwd) this.terminalCwd = '/workspace';
+      return mode;
+    },
+
     cacheAgentConversation(agentId) {
       if (!agentId) return;
       if (!this.conversationCache) this.conversationCache = {};
@@ -432,6 +461,7 @@
         this.conversationCache[String(agentId)] = {
           saved_at: Date.now(),
           token_count: this.tokenCount || 0,
+          default_terminal: this.currentConversationInputMode(agentId) === 'terminal',
           messages: cachedMessages,
         };
         var appStore = Alpine.store('app');

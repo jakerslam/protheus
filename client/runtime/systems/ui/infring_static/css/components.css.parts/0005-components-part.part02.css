@@ -10,6 +10,98 @@
   justify-content: flex-end;
 }
 
+.message.terminal .message-bubble-content {
+  margin: 0;
+  padding: 0;
+}
+
+.message.terminal .message-bubble::before,
+.message.terminal .message-bubble::after {
+  display: none;
+  pointer-events: none;
+  transform: none;
+  background-clip: padding-box;
+}
+
+.message.terminal.has-tail .message-bubble:not(.message-bubble-thinking)::before,
+.message.terminal.has-tail .message-bubble:not(.message-bubble-thinking)::after {
+  display: block;
+}
+
+.message.terminal.terminal-user .message-bubble::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background: var(--terminal-tail-fill-color);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  z-index: 2;
+}
+
+.message.terminal.terminal-user .message-bubble::before {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background:
+    linear-gradient(var(--terminal-tail-border-color), var(--terminal-tail-border-color)) right top / 1px 100% no-repeat,
+    linear-gradient(
+      to bottom left,
+      transparent calc(50% - 0.5px),
+      var(--terminal-tail-border-color) calc(50% - 0.5px),
+      var(--terminal-tail-border-color) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ) 0 0 / 100% 100% no-repeat;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  z-index: 3;
+}
+
+.message.terminal.terminal-agent .message-bubble::before,
+.message.terminal.terminal-system .message-bubble::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background: var(--terminal-tail-fill-color);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  z-index: 2;
+}
+
+.message.terminal.terminal-agent .message-bubble::after,
+.message.terminal.terminal-system .message-bubble::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 8px;
+  background:
+    linear-gradient(var(--terminal-tail-border-color), var(--terminal-tail-border-color)) left top / 1px 100% no-repeat,
+    linear-gradient(
+      to bottom right,
+      transparent calc(50% - 0.5px),
+      var(--terminal-tail-border-color) calc(50% - 0.5px),
+      var(--terminal-tail-border-color) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ) 0 0 / 100% 100% no-repeat;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  z-index: 3;
+}
+
+.message.terminal.terminal-system .message-bubble {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  margin-right: 0;
+  box-sizing: border-box;
+}
+
 .terminal-toolbox {
   width: auto;
   max-width: min(90%, 760px);

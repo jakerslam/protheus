@@ -318,6 +318,42 @@
   filter: grayscale(0.12) saturate(0.78);
 }
 
+.composer-shell.composer-shell-send-morph {
+  opacity: 0.18;
+  transform: scale(0.994);
+  transition: opacity 260ms var(--ease-smooth), transform 260ms var(--ease-smooth);
+}
+
+.composer-send-morph-ghost {
+  position: fixed;
+  z-index: 12050;
+  pointer-events: none;
+  border-radius: 22px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  opacity: 0.98;
+  transform: scale(1.02);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+  transition: left 860ms cubic-bezier(0.18, 0.9, 0.22, 1), top 860ms cubic-bezier(0.18, 0.9, 0.22, 1), width 860ms cubic-bezier(0.18, 0.9, 0.22, 1), min-height 860ms cubic-bezier(0.18, 0.9, 0.22, 1), opacity 860ms cubic-bezier(0.18, 0.9, 0.22, 1), transform 860ms cubic-bezier(0.18, 0.9, 0.22, 1);
+}
+
+.composer-send-morph-ghost.in-flight {
+  transform: translateY(-18px) scale(0.93);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-send-morph-ghost {
+    transition: none !important;
+  }
+}
+
 .composer-shell .composer-input-disabled {
   opacity: 0.9;
 }

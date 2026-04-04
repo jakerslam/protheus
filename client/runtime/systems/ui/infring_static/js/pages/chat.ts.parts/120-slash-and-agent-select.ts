@@ -301,6 +301,7 @@
         this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
         this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
         if (forceFreshSession) {
+          this.applyConversationInputMode(resolved.id, { force_terminal: false });
           this.messages = [];
           this.contextApproxTokens = 0;
           this.refreshContextPressure();
@@ -339,6 +340,8 @@
       this.contextApproxTokens = 0;
       this.contextPressure = 'low';
       this.setContextWindowFromCurrentAgent();
+      if (forceFreshSession) this.applyConversationInputMode(resolved.id, { force_terminal: false });
+      else this.applyConversationInputMode(resolved.id);
       if (forceFreshSession && this.conversationCache) {
         delete this.conversationCache[String(resolved.id)];
         this.persistConversationCache();

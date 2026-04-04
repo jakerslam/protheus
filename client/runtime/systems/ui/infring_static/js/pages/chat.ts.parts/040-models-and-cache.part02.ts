@@ -75,6 +75,7 @@
       const cached = this.conversationCache[String(agentId)];
       if (!cached || !Array.isArray(cached.messages)) return false;
       try {
+        if (this.applyConversationInputMode) this.applyConversationInputMode(agentId);
         var rawCachedMessages = cached.messages || [];
         var sanitized = this.sanitizeConversationForCache(cached.messages || []);
         var cacheChanged = false;

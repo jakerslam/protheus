@@ -47,11 +47,13 @@ RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
 INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-${PROTHEUS_INSTALL_VERIFY_ASSETS:-1}}"
 INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
+INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-${PROTHEUS_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}}"
 INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-${PROTHEUS_INSTALL_ASSET_CACHE:-1}}"
 INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-${PROTHEUS_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}}"
 CHECKSUM_MANIFEST_PATH=""
 CHECKSUM_MANIFEST_VERSION=""
 CHECKSUM_MANIFEST_TMP_DIR=""
+CHECKSUM_MANIFEST_MISSING_WARNED_VERSION=""
 INSTALL_SUMMARY_STATUS="failed"
 
 need_cmd() {
@@ -75,6 +77,36 @@ is_truthy() {
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
     1|true|yes|on) return 0 ;;
     *) return 1 ;;
+  esac
+}
+
+is_prerelease_version_tag() {
+  version_tag="$1"
+  case "$version_tag" in
+    *-alpha*|*-beta*|*-rc*|*-preview*|*-pre*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+warn_checksum_manifest_missing_once() {
+  version_tag="$1"
+  reason="$2"
+  if [ "$CHECKSUM_MANIFEST_MISSING_WARNED_VERSION" = "$version_tag" ]; then
+    return 0
+  fi
+  CHECKSUM_MANIFEST_MISSING_WARNED_VERSION="$version_tag"
+  case "$reason" in
+    override)
+      echo "[infring install] warning: checksum manifest missing for $version_tag; continuing due to override."
+      ;;
+    prerelease)
+      echo "[infring install] warning: checksum manifest missing for prerelease $version_tag; continuing with unverified assets."
+      echo "[infring install] note: publish SHA256SUMS for $version_tag to re-enable strict verification."
+      echo "[infring install] note: set INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM=1 to fail closed for prereleases."
+      ;;
+    *)
+      echo "[infring install] warning: checksum manifest missing for $version_tag; continuing with unverified assets."
+      ;;
   esac
 }
 
@@ -709,9 +741,18 @@ verify_downloaded_asset() {
     return 1
   fi
   if ! load_release_checksum_manifest "$version_tag"; then
+    allow_unverified=0
+    allow_reason=""
     if is_truthy "$INSTALL_ALLOW_UNVERIFIED_ASSETS"; then
-      echo "[infring install] warning: checksum manifest missing for $version_tag; continuing due to override."
-      install_summary_note "asset_unverified: ${asset_name} (manifest missing)"
+      allow_unverified=1
+      allow_reason="override"
+    elif is_prerelease_version_tag "$version_tag" && ! is_truthy "$INSTALL_STRICT_PRERELEASE_CHECKSUM"; then
+      allow_unverified=1
+      allow_reason="prerelease"
+    fi
+    if [ "$allow_unverified" = "1" ]; then
+      warn_checksum_manifest_missing_once "$version_tag" "$allow_reason"
+      install_summary_note "asset_unverified: ${asset_name} (manifest missing:${allow_reason})"
       return 0
     fi
     echo "[infring install] asset verification failed: checksum manifest unavailable for $version_tag" >&2
@@ -723,6 +764,11 @@ verify_downloaded_asset() {
     if is_truthy "$INSTALL_ALLOW_UNVERIFIED_ASSETS"; then
       echo "[infring install] warning: no checksum entry for $asset_name; continuing due to override."
       install_summary_note "asset_unverified: ${asset_name} (entry missing)"
+      return 0
+    fi
+    if is_prerelease_version_tag "$version_tag" && ! is_truthy "$INSTALL_STRICT_PRERELEASE_CHECKSUM"; then
+      echo "[infring install] warning: no checksum entry for $asset_name in prerelease $version_tag; continuing with unverified asset."
+      install_summary_note "asset_unverified: ${asset_name} (entry missing:prerelease)"
       return 0
     fi
     echo "[infring install] asset verification failed: missing checksum entry for $asset_name" >&2
@@ -1359,12 +1405,24 @@ ensure_source_build_prereqs() {
   return 1
 }
 
+ensure_source_repo_fetch_prereqs() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "[infring install] source fallback unavailable: missing required command 'curl'" >&2
+    return 1
+  fi
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "[infring install] source fallback unavailable: missing required command 'tar'" >&2
+    return 1
+  fi
+  return 0
+}
+
 prepare_source_fallback_repo() {
   version_tag="$1"
   if [ -n "$SOURCE_FALLBACK_DIR" ] && [ -d "$SOURCE_FALLBACK_DIR" ]; then
     return 0
   fi
-  if ! ensure_source_build_prereqs; then
+  if ! ensure_source_repo_fetch_prereqs; then
     return 1
   fi
 
@@ -1421,6 +1479,7 @@ install_binary_from_source_fallback() {
   prepare_source_fallback_repo "$version_tag" || return 1
   repo_dir="$SOURCE_FALLBACK_DIR"
   [ -n "$repo_dir" ] || return 1
+  ensure_source_build_prereqs || return 1
 
   manifest="$repo_dir/core/layer0/ops/Cargo.toml"
   if ! cargo build --release --manifest-path "$manifest" --bin "$bin_name"; then
