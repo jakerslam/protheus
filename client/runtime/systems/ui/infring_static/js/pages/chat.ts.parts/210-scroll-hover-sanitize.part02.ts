@@ -114,8 +114,42 @@
       if (/[.!?…]$/.test(finalLine)) return finalLine;
       return String(lines[lines.length - 2] || '').trim();
     },
-    renderLiveThoughtHtml: function(thoughtText) {
-      var text = this.latestCompleteSentence(thoughtText) || '';
+    thoughtSentenceFrames: function(inputText) {
+      var value = String(inputText || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\r/g, '')
+        .trim();
+      if (!value) return [];
+      var matches = value.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g) || [];
+      return matches
+        .map(function(part) { return String(part || '').replace(/\s+/g, ' ').trim(); })
+        .filter(function(part) { return !!part; });
+    },
+    nextThoughtSentenceFrame: function(msg, thoughtText) {
+      var frames = this.thoughtSentenceFrames(thoughtText);
+      if (!frames.length) return '';
+      if (!msg || typeof msg !== 'object') {
+        return frames[frames.length - 1];
+      }
+      var signature = String(thoughtText || '').length + '|' + frames.length + '|' + frames[frames.length - 1];
+      var priorSignature = String(msg._thought_frame_signature || '');
+      var nextIndex = Number(msg._thought_frame_index || 0);
+      if (!Number.isFinite(nextIndex) || nextIndex < 0) nextIndex = 0;
+      if (priorSignature !== signature) {
+        if (priorSignature) {
+          nextIndex = Math.min(nextIndex + 1, Math.max(0, frames.length - 1));
+        } else {
+          nextIndex = Math.max(0, Math.min(nextIndex, frames.length - 1));
+        }
+        msg._thought_frame_signature = signature;
+        msg._thought_frame_index = nextIndex;
+      }
+      var frame = String(frames[Math.max(0, Math.min(frames.length - 1, nextIndex))] || '').trim();
+      if (frame) msg._thought_last_complete_sentence = frame;
+      return frame;
+    },
+    renderLiveThoughtHtml: function(thoughtText, msg) {
+      var text = this.nextThoughtSentenceFrame(msg, thoughtText) || this.latestCompleteSentence(thoughtText) || '';
       return '<span class="thinking-live-inline"><em>' + escapeHtml(text) + '</em></span>';
     },
 

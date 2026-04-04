@@ -37,6 +37,18 @@ fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<Str
         "report",
         "runtime",
         "update",
+        "other",
+        "others",
+        "thing",
+        "things",
+        "stuff",
+        "issue",
+        "issues",
+        "problem",
+        "problems",
+        "work",
+        "works",
+        "working",
     ];
     let stop_set = stop.into_iter().collect::<HashSet<_>>();
     let mut counts = HashMap::<String, usize>::new();
@@ -58,6 +70,271 @@ fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<Str
     ranked.into_iter().map(|(word, _)| word).collect()
 }
 
+fn is_low_signal_focus_token(word: &str) -> bool {
+    matches!(
+        word,
+        "other"
+            | "others"
+            | "thing"
+            | "things"
+            | "stuff"
+            | "issue"
+            | "issues"
+            | "problem"
+            | "problems"
+            | "work"
+            | "works"
+            | "working"
+            | "item"
+            | "items"
+            | "part"
+            | "parts"
+            | "step"
+            | "steps"
+            | "task"
+            | "tasks"
+            | "chat"
+            | "message"
+            | "messages"
+    )
+}
+
+fn is_action_focus_token(word: &str) -> bool {
+    matches!(
+        word,
+        "add"
+            | "build"
+            | "check"
+            | "compare"
+            | "continue"
+            | "create"
+            | "debug"
+            | "deploy"
+            | "finish"
+            | "fix"
+            | "implement"
+            | "inspect"
+            | "make"
+            | "patch"
+            | "run"
+            | "ship"
+            | "test"
+            | "validate"
+            | "verify"
+    )
+}
+
+fn canonical_action_verb(raw: &str) -> Option<&'static str> {
+    match raw {
+        "fix" | "debug" | "repair" | "resolve" => Some("fix"),
+        "implement" | "build" | "create" | "ship" => Some("implement"),
+        "verify" | "validate" | "check" | "test" => Some("verify"),
+        "compare" | "analyze" | "evaluate" | "assess" => Some("compare"),
+        "continue" | "finish" | "complete" => Some("continue"),
+        "show" | "explain" | "summarize" => Some("show"),
+        _ => None,
+    }
+}
+
+fn dominant_user_action_verbs(recent_thread: &[(String, String)], limit: usize) -> Vec<String> {
+    let mut counts = HashMap::<String, usize>::new();
+    for (role, text) in recent_thread {
+        if role != "user" {
+            continue;
+        }
+        let first = clean_text(text, 120)
+            .to_ascii_lowercase()
+            .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .find(|token| !token.trim().is_empty())
+            .map(|token| token.trim().to_string())
+            .unwrap_or_default();
+        if first.is_empty() {
+            continue;
+        }
+        if let Some(verb) = canonical_action_verb(&first) {
+            *counts.entry(verb.to_string()).or_insert(0) += 1;
+        }
+    }
+    let mut ranked = counts.into_iter().collect::<Vec<_>>();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    ranked
+        .into_iter()
+        .take(limit.max(1))
+        .map(|(verb, _)| verb)
+        .collect::<Vec<_>>()
+}
+
+fn compose_topic_phrase(recent_thread: &[(String, String)], keywords: &[String]) -> String {
+    let mut tokens = Vec::<String>::new();
+    if let Some(last_user) = recent_thread
+        .iter()
+        .rev()
+        .find(|(role, _)| role == "user")
+        .map(|(_, text)| text)
+    {
+        let candidate = extract_focus_tokens(last_user, 4)
+            .into_iter()
+            .filter(|token| !is_low_signal_focus_token(token))
+            .collect::<Vec<_>>();
+        let has_domain_signal = candidate
+            .iter()
+            .any(|token| !is_action_focus_token(token));
+        if has_domain_signal {
+            tokens = candidate;
+        }
+    }
+    if tokens.len() < 2 {
+        for (role, text) in recent_thread.iter().rev() {
+            if role != "user" {
+                continue;
+            }
+            let candidate = extract_focus_tokens(text, 4)
+                .into_iter()
+                .filter(|token| !is_low_signal_focus_token(token))
+                .collect::<Vec<_>>();
+            if candidate.is_empty() {
+                continue;
+            }
+            let has_domain_signal = candidate
+                .iter()
+                .any(|token| !is_action_focus_token(token));
+            if !has_domain_signal {
+                continue;
+            }
+            for token in candidate {
+                if tokens.iter().any(|existing| existing == &token) {
+                    continue;
+                }
+                tokens.push(token);
+                if tokens.len() >= 4 {
+                    break;
+                }
+            }
+            if tokens.len() >= 2 {
+                break;
+            }
+        }
+    }
+    if tokens.len() < 2 {
+        for keyword in keywords {
+            if is_low_signal_focus_token(keyword) {
+                continue;
+            }
+            if tokens.iter().any(|existing| existing == keyword) {
+                continue;
+            }
+            tokens.push(keyword.clone());
+            if tokens.len() >= 4 {
+                break;
+            }
+        }
+    }
+    if tokens.is_empty() {
+        let compact = compact_topic_phrase(recent_thread, keywords);
+        return extract_focus_tokens(&compact, 4)
+            .into_iter()
+            .filter(|token| !is_low_signal_focus_token(token))
+            .collect::<Vec<_>>()
+            .join(" ");
+    }
+    tokens.join(" ")
+}
+
+fn thread_contains_terms(recent_thread: &[(String, String)], terms: &[&str]) -> bool {
+    let mut haystack = String::new();
+    for (_, text) in recent_thread {
+        haystack.push_str(&clean_text(text, 320).to_ascii_lowercase());
+        haystack.push(' ');
+    }
+    terms.iter().any(|term| haystack.contains(term))
+}
+
+fn build_suggestion_candidates(recent_thread: &[(String, String)], topic: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let action_verbs = dominant_user_action_verbs(recent_thread, 3);
+    let lead_verb = action_verbs
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "show".to_string());
+    let has_fix_intent = thread_contains_terms(
+        recent_thread,
+        &[
+            "fix",
+            "bug",
+            "broken",
+            "regression",
+            "error",
+            "fail",
+            "issue",
+            "not working",
+        ],
+    );
+    let has_build_intent = thread_contains_terms(
+        recent_thread,
+        &[
+            "build",
+            "implement",
+            "add",
+            "create",
+            "make",
+            "ship",
+            "patch",
+        ],
+    );
+    let has_analysis_intent = thread_contains_terms(
+        recent_thread,
+        &[
+            "compare",
+            "research",
+            "analyze",
+            "tradeoff",
+            "option",
+            "strategy",
+            "plan",
+        ],
+    );
+    let has_validation_intent = thread_contains_terms(
+        recent_thread,
+        &[
+            "verify",
+            "test",
+            "validate",
+            "check",
+            "proof",
+            "benchmark",
+            "smoke",
+        ],
+    );
+
+    if has_fix_intent {
+        out.push(format!("show the smallest patch to fix {topic}"));
+        out.push(format!(
+            "what caused {topic} and how does the fix prevent regressions"
+        ));
+    }
+    if has_build_intent {
+        out.push(format!("implement {topic} now and show the diff"));
+        out.push(format!("what is the fastest next step to finish {topic}"));
+    }
+    if has_analysis_intent {
+        out.push(format!("compare the strongest options for {topic}"));
+        out.push(format!("what tradeoffs matter most for {topic}"));
+    }
+    if has_validation_intent {
+        out.push(format!(
+            "run a quick validation for {topic} and share the result"
+        ));
+        out.push(format!("add one regression test for {topic}"));
+    }
+
+    out.push(format!("{lead_verb} current status and blockers for {topic}"));
+    out.push(format!("what should we tackle next for {topic}"));
+    out.push(format!(
+        "give me one concrete next action to move {topic} forward"
+    ));
+    out
+}
+
 fn apply_suggestion_style(style: &SuggestionStyle, body: &str) -> String {
     let mut text = clean_text(body, 240);
     if text.is_empty() {
@@ -68,6 +345,13 @@ fn apply_suggestion_style(style: &SuggestionStyle, body: &str) -> String {
         && !lowered.starts_with("can you")
         && !lowered.starts_with("could you")
         && !lowered.starts_with("would you")
+        && !lowered.starts_with("what ")
+        && !lowered.starts_with("which ")
+        && !lowered.starts_with("why ")
+        && !lowered.starts_with("how ")
+        && !lowered.starts_with("is ")
+        && !lowered.starts_with("are ")
+        && !lowered.starts_with("should ")
     {
         text = format!("can you {text}");
     }
@@ -108,7 +392,22 @@ fn apply_suggestion_style(style: &SuggestionStyle, body: &str) -> String {
     } else {
         text = text.trim_end_matches('?').trim().to_string();
     }
-    sanitize_suggestion(&text)
+    let mut out = sanitize_suggestion(&text);
+    if out.is_empty() {
+        return out;
+    }
+    if style.prefer_question_mark {
+        out = out
+            .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':'))
+            .trim()
+            .to_string();
+        if !out.is_empty() && !out.ends_with('?') {
+            out.push('?');
+        }
+    } else {
+        out = out.trim_end_matches('?').trim().to_string();
+    }
+    out
 }
 
 pub fn append_turn(root: &Path, agent_id: &str, user_text: &str, assistant_text: &str) -> Value {
@@ -158,17 +457,15 @@ pub fn append_turn(root: &Path, agent_id: &str, user_text: &str, assistant_text:
             .get_mut("messages")
             .and_then(Value::as_array_mut)
             .expect("messages");
-        let user = clean_chat_text(user_text, 2000);
-        let assistant = clean_chat_text(assistant_text, 4000);
+        // Preserve durable chat history with higher per-message ceilings so
+        // long threads don't silently lose semantic detail.
+        let user = clean_chat_text(user_text, 16_000);
+        let assistant = clean_chat_text(assistant_text, 64_000);
         if has_non_whitespace(&user) {
             messages.push(json!({"role": "user", "text": user, "ts": now_iso()}));
         }
         if has_non_whitespace(&assistant) {
             messages.push(json!({"role": "assistant", "text": assistant, "ts": now_iso()}));
-        }
-        if messages.len() > MAX_MESSAGES {
-            let drain = messages.len() - MAX_MESSAGES;
-            messages.drain(0..drain);
         }
         message_count = messages.len();
         session["updated_at"] = Value::String(now_iso());
@@ -281,10 +578,6 @@ pub fn seed_intro_message(root: &Path, agent_id: &str, role: &str, display_name:
                 appended = true;
             }
         }
-        if messages.len() > MAX_MESSAGES {
-            let drain = messages.len() - MAX_MESSAGES;
-            messages.drain(0..drain);
-        }
         message_count = messages.len();
         session["updated_at"] = Value::String(now_iso());
     }
@@ -359,33 +652,16 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
 
     let base_style = derive_suggestion_style(&recent_thread);
     let style = SuggestionStyle {
-        prefer_can_you: true,
+        prefer_can_you: base_style.prefer_can_you,
         prefer_question_mark: true,
         prefer_lowercase: base_style.prefer_lowercase,
     };
     let keywords = extract_thread_keywords(&recent_thread, 6);
-    let topic = compact_topic_phrase(&recent_thread, &keywords);
+    let topic = compose_topic_phrase(&recent_thread, &keywords);
     if topic.is_empty() {
         return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
     }
-    let last_user = recent_thread
-        .iter()
-        .rev()
-        .find(|(role, _)| role == "user")
-        .map(|(_, text)| sanitize_suggestion(text))
-        .unwrap_or_default();
-
-    let mut candidates = Vec::<String>::new();
-    candidates.push(format!("continue with {topic}"));
-    candidates.push(format!("verify {topic} works"));
-    candidates.push(format!("test {topic} end to end"));
-    candidates.push(format!("finish {topic}"));
-    if keywords.len() >= 2 {
-        candidates.push(format!("compare {} and {}", keywords[0], keywords[1]));
-    }
-    if !last_user.is_empty() {
-        candidates.push(format!("continue with {last_user}"));
-    }
+    let candidates = build_suggestion_candidates(&recent_thread, &topic);
 
     let recent_set = recent_user
         .iter()
@@ -412,4 +688,3 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
 
     json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": out})
 }
-

@@ -139,6 +139,7 @@ Default behavior:
 When Node.js is unavailable, `infring` exposes a reduced but operational command set:
 
 - `gateway [start|stop|restart|status]`
+- `verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]`
 - `start`, `stop`, `restart`
 - `dashboard`, `status`
 - `session <status|register|resume|send|list>`

@@ -88,8 +88,10 @@
 
       var cacheFresh = Array.isArray(this._modelCache) && (now - this._modelCacheTime) < 300000;
       if (cacheFresh) return;
-
-      InfringAPI.get('/api/models').then(function(data) {
+      InfringAPI.post('/api/models/discover', { input: '__auto__' })
+        .catch(function() { return null; })
+        .then(function() { return InfringAPI.get('/api/models'); })
+        .then(function(data) {
         var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;
         self._modelCacheTime = Date.now();

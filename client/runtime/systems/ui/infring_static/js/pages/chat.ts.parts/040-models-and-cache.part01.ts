@@ -52,7 +52,16 @@
 
     isModelDownloadable: function(model) {
       var row = model || {};
-      return !!(row && (row.download_available === true || String(row.local_download_path || '').trim()));
+      var id = String(row.id || row.model || '').trim();
+      var provider = String(row.provider || '').trim().toLowerCase();
+      return !!(
+        row &&
+        (
+          row.download_available === true ||
+          String(row.local_download_path || '').trim() ||
+          (id && provider && provider !== 'auto')
+        )
+      );
     },
 
     isModelDownloadBusy: function(model) {

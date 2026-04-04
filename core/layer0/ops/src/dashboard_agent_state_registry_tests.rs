@@ -266,3 +266,99 @@ fn manual_termination_condition_disables_auto_and_idle_termination_for_legacy_co
         .unwrap_or_default();
     assert!(terminated.is_empty());
 }
+
+#[test]
+fn indefinite_contract_patch_forces_manual_non_expiring_behavior() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created_at = (Utc::now() - Duration::hours(6)).to_rfc3339();
+    let _ = upsert_contract(
+        root.path(),
+        "agent-indefinite",
+        &json!({
+            "created_at": created_at,
+            "status": "active",
+            "termination_condition": "task_or_timeout",
+            "expiry_seconds": 1,
+            "auto_terminate_allowed": true,
+            "idle_timeout_seconds": 30,
+            "idle_terminate_allowed": true,
+            "indefinite": true
+        }),
+    );
+    let out = enforce_expired_contracts(root.path());
+    let terminated = out
+        .get("terminated")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(terminated.is_empty());
+    let contracts = read_json_file(&root.path().join(AGENT_CONTRACTS_REL)).unwrap_or_else(|| json!({}));
+    let row = contracts
+        .pointer("/contracts/agent-indefinite")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(
+        row.get("termination_condition").and_then(Value::as_str),
+        Some("manual")
+    );
+    assert_eq!(
+        row.get("auto_terminate_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        row.get("idle_terminate_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn revive_preserves_non_expiring_permanent_lifecycle() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created_at = (Utc::now() - Duration::hours(4)).to_rfc3339();
+    let _ = upsert_contract(
+        root.path(),
+        "agent-perma-revive",
+        &json!({
+            "created_at": created_at,
+            "status": "terminated",
+            "termination_reason": "idle_timeout",
+            "termination_condition": "manual",
+            "indefinite": true,
+            "lifespan": "permanent",
+            "expiry_seconds": 7200,
+            "auto_terminate_allowed": false,
+            "idle_timeout_seconds": 600,
+            "idle_terminate_allowed": false
+        }),
+    );
+    let revived = revive_agent(root.path(), "agent-perma-revive", "analyst");
+    assert_eq!(revived.get("ok").and_then(Value::as_bool), Some(true));
+    let contracts = read_json_file(&root.path().join(AGENT_CONTRACTS_REL)).unwrap_or_else(|| json!({}));
+    let row = contracts
+        .pointer("/contracts/agent-perma-revive")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(row.get("status").and_then(Value::as_str), Some("active"));
+    assert_eq!(
+        row.get("termination_condition").and_then(Value::as_str),
+        Some("manual")
+    );
+    assert_eq!(row.get("indefinite").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        row.get("lifespan").and_then(Value::as_str),
+        Some("permanent")
+    );
+    assert_eq!(
+        row.get("auto_terminate_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        row.get("idle_terminate_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        row.get("expires_at").and_then(Value::as_str).unwrap_or(""),
+        ""
+    );
+    assert!(row.get("terminated_at").is_none());
+}

@@ -334,7 +334,7 @@
     agentStatusState(agent) {
       if (!agent) return 'offline';
       var state = String(agent.state || '').toLowerCase();
-      var offlineHints = ['offline', 'archived', 'archive', 'terminated', 'stopped', 'crashed', 'error', 'failed', 'dead', 'disabled'];
+      var offlineHints = ['offline', 'archived', 'archive', 'terminated', 'timed out', 'timeout', 'stopped', 'crashed', 'error', 'failed', 'dead', 'disabled'];
       for (var i = 0; i < offlineHints.length; i++) {
         if (state.indexOf(offlineHints[i]) >= 0) return 'offline';
       }

@@ -87,6 +87,12 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
     let _ = unarchive_agent(root, &id);
 
     let mut state = load_contracts_state(root);
+    let previous_contract = state
+        .get("contracts")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.get(&id))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let mut revived_from_contract_id = state
         .get("contracts")
         .and_then(Value::as_object)
@@ -117,6 +123,32 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
     }
     save_contracts_state(root, state);
 
+    let previous_termination_condition = clean_text(
+        previous_contract
+            .get("termination_condition")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let previous_lifespan = clean_text(
+        previous_contract
+            .get("lifespan")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
+    let previous_indefinite = previous_contract
+        .get("indefinite")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        || previous_lifespan == "permanent"
+        || previous_lifespan == "indefinite"
+        || previous_termination_condition.starts_with("manual");
+    let previous_task_bound =
+        previous_termination_condition == "task_complete" || previous_lifespan == "task";
+
     let mut contract_patch = json!({
         "status": "active",
         "created_at": now_iso(),
@@ -125,6 +157,36 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
     });
     if !revived_from_contract_id.is_empty() {
         contract_patch["revived_from_contract_id"] = json!(revived_from_contract_id);
+    }
+    if previous_indefinite {
+        contract_patch["termination_condition"] = json!("manual");
+        contract_patch["indefinite"] = json!(true);
+        contract_patch["lifespan"] = json!("permanent");
+        contract_patch["auto_terminate_allowed"] = json!(false);
+        contract_patch["idle_terminate_allowed"] = json!(false);
+        contract_patch["expires_at"] = json!("");
+        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
+            contract_patch["expiry_seconds"] = json!(expiry.max(60));
+        }
+    } else if previous_task_bound {
+        contract_patch["termination_condition"] = json!("task_complete");
+        contract_patch["lifespan"] = json!("task");
+        contract_patch["auto_terminate_allowed"] = json!(false);
+        contract_patch["idle_terminate_allowed"] = json!(false);
+        contract_patch["expires_at"] = json!("");
+        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
+            contract_patch["expiry_seconds"] = json!(expiry.max(60));
+        }
+    } else {
+        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
+            contract_patch["expiry_seconds"] = json!(expiry.max(60));
+        }
+        if let Some(idle) = previous_contract
+            .get("idle_timeout_seconds")
+            .and_then(Value::as_i64)
+        {
+            contract_patch["idle_timeout_seconds"] = json!(idle.max(30));
+        }
     }
     let contract = upsert_contract(root, &id, &contract_patch);
     json!({

@@ -171,6 +171,73 @@ fn repeated_default_agent_creation_avoids_double_agent_prefix() {
 }
 
 #[test]
+fn permanent_lifespan_agents_do_not_auto_expire() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Permanent","role":"analyst","contract":{"lifespan":"permanent"}}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create permanent agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let details = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("agent details");
+    assert_eq!(
+        details
+            .payload
+            .pointer("/contract/termination_condition")
+            .and_then(Value::as_str)
+            .map(|value| value.to_ascii_lowercase()),
+        Some("manual".to_string())
+    );
+    assert_eq!(
+        details
+            .payload
+            .pointer("/contract/auto_terminate_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        details
+            .payload
+            .pointer("/contract/idle_terminate_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    let enforcement = crate::dashboard_agent_state::enforce_expired_contracts(root.path());
+    let terminated = enforcement
+        .get("terminated")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        !terminated.iter().any(|row| {
+            clean_text(row.get("agent_id").and_then(Value::as_str).unwrap_or(""), 180) == agent_id
+        }),
+        "permanent agent should not be terminated by expiry enforcement"
+    );
+}
+
+#[test]
 fn identity_hydration_prompt_uses_agent_metadata() {
     let row = json!({
         "id": "agent-lucas",

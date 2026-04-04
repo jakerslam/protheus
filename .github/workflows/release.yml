@@ -150,6 +150,33 @@ jobs:
             openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/runtime/local/state/release/signatures/${base}.sig" "$f"
           done
 
+      - name: Generate release SHA256SUMS
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          set -euo pipefail
+          OUT="client/runtime/local/state/release/artifacts/SHA256SUMS"
+          : > "$OUT"
+          for f in \
+            client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu \
+            client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl \
+            client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu \
+            *.tgz \
+            client/runtime/local/state/release/sbom/protheus-ops.spdx.json \
+            client/runtime/local/state/release/sbom/protheusd.spdx.json \
+            client/runtime/local/state/release/sbom/conduit_daemon.spdx.json \
+            client/runtime/local/state/release/sbom/protheus-npm.spdx.json \
+            client/runtime/local/state/release/signatures/protheus-ops-x86_64-unknown-linux-gnu.sig \
+            client/runtime/local/state/release/signatures/protheusd-x86_64-unknown-linux-musl.sig \
+            client/runtime/local/state/release/signatures/conduit_daemon-x86_64-unknown-linux-gnu.sig \
+            client/runtime/local/state/release/signatures/protheus-ops.spdx.json.sig \
+            client/runtime/local/state/release/signatures/protheusd.spdx.json.sig \
+            client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig \
+            client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig \
+            client/runtime/local/state/release/signatures/release_public.pem; do
+            [ -f "$f" ] || continue
+            sha256sum "$f" >> "$OUT"
+          done
+
       - name: Create release tag
         if: steps.semver.outputs.release_ready == '1'
         run: |
@@ -189,3 +216,4 @@ jobs:
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig
             client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig
             client/runtime/local/state/release/signatures/release_public.pem
+            client/runtime/local/state/release/artifacts/SHA256SUMS

@@ -229,7 +229,10 @@
           self.showSlashMenu = false;
           self.modelPickerFilter = modelMatch[1].toLowerCase();
           if (!self.modelPickerList.length) {
-            InfringAPI.get('/api/models').then(function(data) {
+            InfringAPI.post('/api/models/discover', { input: '__auto__' })
+              .catch(function() { return null; })
+              .then(function() { return InfringAPI.get('/api/models'); })
+              .then(function(data) {
               self.modelPickerList = self.sanitizeModelCatalogRows((data && data.models) || []);
               self.showModelPicker = true;
               self.modelPickerIdx = 0;

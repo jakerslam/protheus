@@ -806,4 +806,27 @@ mod tests {
         assert!(rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/qwen2.5-coder:7b")));
         assert!(!rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/model")));
     }
+
+    #[test]
+    fn catalog_default_seed_is_not_truncated_to_three_rows() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let catalog = catalog_payload(root.path(), &json!({"ok": true}));
+        let rows = catalog
+            .get("models")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            rows.len() >= 12,
+            "catalog should expose broad provider/model surface, got {} rows",
+            rows.len()
+        );
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str) == Some("ollama/qwen3:4b")
+        }));
+        assert!(rows.iter().any(|row| {
+            row.get("id").and_then(Value::as_str)
+                == Some("openrouter/google/gemini-2.5-flash")
+        }));
+    }
 }

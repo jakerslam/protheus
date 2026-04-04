@@ -222,6 +222,178 @@ fn models_from_probe_response(provider_id: &str, value: &Value) -> Vec<String> {
     out
 }
 
+fn parse_ollama_list_models(raw: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for line in raw.lines() {
+        let trimmed = clean_text(line, 320);
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.to_ascii_lowercase().starts_with("name ") {
+            continue;
+        }
+        let first = clean_text(trimmed.split_whitespace().next().unwrap_or(""), 240);
+        let model = model_ref_from_probe("ollama", &first);
+        if model.is_empty() || out.iter().any(|row| row == &model) {
+            continue;
+        }
+        out.push(model);
+    }
+    out
+}
+
+fn parse_ollama_list_models_json(raw: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    if let Ok(value) = serde_json::from_str::<Value>(raw) {
+        let rows = if let Some(array) = value.as_array() {
+            array.clone()
+        } else if let Some(array) = value.get("models").and_then(Value::as_array) {
+            array.clone()
+        } else {
+            Vec::new()
+        };
+        for row in rows {
+            if let Some(name) = row
+                .get("model")
+                .and_then(Value::as_str)
+                .or_else(|| row.get("name").and_then(Value::as_str))
+            {
+                let cleaned = model_ref_from_probe("ollama", name);
+                if !cleaned.is_empty() && !out.iter().any(|existing| existing == &cleaned) {
+                    out.push(cleaned);
+                }
+            }
+        }
+        if !out.is_empty() {
+            return out;
+        }
+    }
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(value) = serde_json::from_str::<Value>(trimmed) {
+            if let Some(name) = value
+                .get("model")
+                .and_then(Value::as_str)
+                .or_else(|| value.get("name").and_then(Value::as_str))
+            {
+                let cleaned = model_ref_from_probe("ollama", name);
+                if !cleaned.is_empty() && !out.iter().any(|existing| existing == &cleaned) {
+                    out.push(cleaned);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn canonical_ollama_base_url(raw: &str) -> String {
+    let cleaned = clean_text(raw, 400);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    if cleaned.starts_with("http://") || cleaned.starts_with("https://") {
+        return cleaned.trim_end_matches('/').to_string();
+    }
+    format!("http://{}", cleaned.trim_end_matches('/'))
+}
+
+fn ollama_base_url_candidates(base_url: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut push = |raw: &str| {
+        let candidate = canonical_ollama_base_url(raw);
+        if candidate.is_empty() || out.iter().any(|existing| existing == &candidate) {
+            return;
+        }
+        out.push(candidate);
+    };
+    push(base_url);
+    if let Ok(env_host) = std::env::var("OLLAMA_HOST") {
+        push(&env_host);
+    }
+    push("http://127.0.0.1:11434");
+    push("http://localhost:11434");
+    out
+}
+
+fn probe_ollama_runtime_online(base_url: &str) -> bool {
+    let cleaned = canonical_ollama_base_url(base_url);
+    if cleaned.is_empty() {
+        return false;
+    }
+    for endpoint in ["api/tags", "api/version"] {
+        if let Ok((status, _)) = curl_json(
+            &format!("{}/{}", cleaned.trim_end_matches('/'), endpoint),
+            "GET",
+            &["Content-Type: application/json".to_string()],
+            None,
+            8,
+        ) {
+            if (200..300).contains(&status) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn resolve_ollama_runtime_base_url(base_url: &str) -> String {
+    for candidate in ollama_base_url_candidates(base_url) {
+        if probe_ollama_runtime_online(&candidate) {
+            return candidate;
+        }
+    }
+    canonical_ollama_base_url(base_url)
+}
+
+fn probe_ollama_runtime_models(base_url: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for candidate in ollama_base_url_candidates(base_url) {
+        let tags_url = format!("{}/api/tags", candidate.trim_end_matches('/'));
+        if let Ok((status, value)) = curl_json(
+            &tags_url,
+            "GET",
+            &["Content-Type: application/json".to_string()],
+            None,
+            12,
+        ) {
+            if (200..300).contains(&status) {
+                out = models_from_probe_response("ollama", &value);
+                if !out.is_empty() {
+                    return out;
+                }
+            }
+        }
+    }
+    if !out.is_empty() {
+        return out;
+    }
+    if !command_exists("ollama") {
+        return out;
+    }
+    let cli_json_output = Command::new("ollama").arg("list").arg("--json").output();
+    if let Ok(output) = cli_json_output {
+        if output.status.success() {
+            let parsed = parse_ollama_list_models_json(&String::from_utf8_lossy(&output.stdout));
+            if !parsed.is_empty() {
+                return parsed;
+            }
+        }
+    }
+    let cli_output = Command::new("ollama").arg("list").output();
+    if let Ok(output) = cli_output {
+        if output.status.success() {
+            let parsed = parse_ollama_list_models(&String::from_utf8_lossy(&output.stdout));
+            if !parsed.is_empty() {
+                return parsed;
+            }
+        }
+    }
+    out
+}
+
 pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
     let registry = load_registry(root);
     let mut provider_ids = DEFAULT_PROVIDER_IDS
@@ -278,13 +450,24 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
         {
             row["base_url"] = json!(provider_base_url_default(&provider_id));
         }
-        let base_url = clean_text(
+        let mut base_url = clean_text(
             row.get("base_url").and_then(Value::as_str).unwrap_or(""),
             400,
         );
+        if provider_id == "ollama" {
+            let resolved = resolve_ollama_runtime_base_url(&base_url);
+            if !resolved.is_empty() {
+                base_url = resolved;
+                row["base_url"] = json!(base_url.clone());
+            }
+        }
         let key_present = provider_key(root, &provider_id).is_some();
         let local_reachable = if provider_is_local(&provider_id) {
-            local_provider_reachable(&provider_id, row)
+            if provider_id == "ollama" {
+                probe_ollama_runtime_online(&base_url)
+            } else {
+                local_provider_reachable(&provider_id, row)
+            }
         } else {
             row.get("reachable")
                 .and_then(Value::as_bool)
@@ -308,6 +491,33 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
             row["auth_status"] = json!("not_set");
         }
         row["supports_chat"] = json!(provider_supports_chat(&provider_id, &base_url));
+        if provider_id == "ollama" && local_reachable {
+            let discovered_models = probe_ollama_runtime_models(&base_url);
+            if !discovered_models.is_empty() {
+                if !row.get("model_profiles").map(Value::is_object).unwrap_or(false) {
+                    row["model_profiles"] = json!({});
+                }
+                if let Some(profiles) = row.get_mut("model_profiles").and_then(Value::as_object_mut)
+                {
+                    for model in &discovered_models {
+                        if profiles.contains_key(model) {
+                            continue;
+                        }
+                        profiles.insert(
+                            model.clone(),
+                            inferred_model_profile("ollama", model, true),
+                        );
+                    }
+                }
+                row["detected_models"] = Value::Array(
+                    discovered_models
+                        .into_iter()
+                        .map(Value::String)
+                        .collect::<Vec<_>>(),
+                );
+                row["updated_at"] = json!(crate::now_iso());
+            }
+        }
         let mut profiles = row
             .get("model_profiles")
             .and_then(Value::as_object)
@@ -323,12 +533,23 @@ pub fn provider_rows(root: &Path, _snapshot: &Value) -> Vec<Value> {
         if profiles_missing {
             profiles = model_profiles_for_provider(&provider_id);
         }
+        let mut profiles_seeded = false;
+        let provider_defaults = model_profiles_for_provider(&provider_id);
+        if !provider_defaults.is_empty() {
+            for (model, profile) in provider_defaults {
+                if profiles.contains_key(&model) {
+                    continue;
+                }
+                profiles.insert(model, profile);
+                profiles_seeded = true;
+            }
+        }
         profiles.retain(|model_name, _| {
             let cleaned = clean_text(model_name, 240);
             !cleaned.is_empty() && !model_id_is_placeholder(&cleaned)
         });
         let profiles_enriched = enrich_model_profiles_for_provider(&provider_id, &mut profiles);
-        if profiles_missing || profiles_enriched || profiles_sanitized {
+        if profiles_missing || profiles_enriched || profiles_sanitized || profiles_seeded {
             row["model_profiles"] = Value::Object(profiles);
         }
         let detected = row
@@ -489,6 +710,73 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
         };
     }
 
+    if provider == "ollama" {
+        let row = provider_row(root, &provider);
+        let base_url = clean_text(
+            row.get("base_url")
+                .and_then(Value::as_str)
+                .unwrap_or(&provider_base_url_default(&provider)),
+            400,
+        );
+        let resolved_base = resolve_ollama_runtime_base_url(&base_url);
+        let online = probe_ollama_runtime_online(&resolved_base);
+        let discovered_models = if online {
+            probe_ollama_runtime_models(&resolved_base)
+        } else {
+            Vec::new()
+        };
+        let mut registry = load_registry(root);
+        let row = ensure_provider_row_mut(&mut registry, &provider);
+        row["base_url"] = json!(resolved_base.clone());
+        row["reachable"] = json!(online);
+        if !discovered_models.is_empty() {
+            if !row.get("model_profiles").map(Value::is_object).unwrap_or(false) {
+                row["model_profiles"] = json!({});
+            }
+            if let Some(profiles) = row.get_mut("model_profiles").and_then(Value::as_object_mut) {
+                profiles.retain(|model_name, _| {
+                    let cleaned = clean_text(model_name, 240);
+                    !cleaned.is_empty() && !model_id_is_placeholder(&cleaned)
+                });
+                for model in &discovered_models {
+                    if profiles.contains_key(model) {
+                        continue;
+                    }
+                    profiles.insert(model.clone(), inferred_model_profile("ollama", model, true));
+                }
+            }
+            row["detected_models"] = Value::Array(
+                discovered_models
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        row["updated_at"] = json!(crate::now_iso());
+        save_registry(root, registry);
+        return if online {
+            json!({
+                "ok": true,
+                "status": "ok",
+                "provider": provider,
+                "latency_ms": started.elapsed().as_millis() as i64,
+                "detail": {
+                    "base_url": resolved_base,
+                    "discovered_models": discovered_models,
+                }
+            })
+        } else {
+            json!({
+                "ok": false,
+                "status": "error",
+                "provider": provider,
+                "error": "ollama_runtime_unreachable",
+                "detail": {"base_url": resolved_base}
+            })
+        };
+    }
+
     let row = provider_row(root, &provider);
     let base_url = clean_text(
         row.get("base_url")
@@ -510,7 +798,7 @@ pub fn test_provider(root: &Path, provider_id: &str) -> Value {
                 return json!({"ok": false, "status": "error", "provider": provider, "error": "provider_key_missing"});
             };
             headers.push(format!("x-api-key: {key}"));
-            headers.push("frontier_provider-version: 2023-06-01".to_string());
+            headers.push("anthropic-version: 2023-06-01".to_string());
             format!("{base_url}/v1/models")
         }
         _ => {
@@ -605,5 +893,41 @@ mod provider_http_interop_tests {
         let text = extract_openai_text(&payload);
         assert!(text.contains("1. First item\n2. Second item"));
         assert!(text.contains("\n   - nested detail"));
+    }
+
+    #[test]
+    fn parse_ollama_list_models_reads_name_column() {
+        let raw = "\
+NAME                             ID              SIZE      MODIFIED
+qwen3:8b                         500a1f067a9f    5.2 GB    7 weeks ago
+kimi-k2.5:cloud                  6d1c3246c608    -         7 weeks ago
+";
+        let rows = parse_ollama_list_models(raw);
+        assert_eq!(
+            rows,
+            vec!["qwen3:8b".to_string(), "kimi-k2.5:cloud".to_string()]
+        );
+    }
+
+    #[test]
+    fn parse_ollama_list_models_json_reads_array_rows() {
+        let raw = r#"
+[
+  {"name":"qwen3:8b","model":"qwen3:8b"},
+  {"name":"smallthinker:latest","model":"smallthinker:latest"}
+]
+"#;
+        let rows = parse_ollama_list_models_json(raw);
+        assert_eq!(
+            rows,
+            vec!["qwen3:8b".to_string(), "smallthinker:latest".to_string()]
+        );
+    }
+
+    #[test]
+    fn ollama_base_url_candidates_include_default_loopback() {
+        let rows = ollama_base_url_candidates("127.0.0.1:11434");
+        assert!(rows.iter().any(|row| row == "http://127.0.0.1:11434"));
+        assert!(rows.iter().any(|row| row == "http://localhost:11434"));
     }
 }

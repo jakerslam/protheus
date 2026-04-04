@@ -113,6 +113,17 @@
 
     chatSidebarPreview(agent) {
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
+      if (agent._timed_out_local === true || agent.revive_recommended === true) {
+        return {
+          text: 'Open chat to revive',
+          ts: this.sidebarAgentSortTs(agent),
+          role: 'agent',
+          has_tools: false,
+          tool_state: '',
+          tool_label: '',
+          unread_response: false
+        };
+      }
       var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
       var fallbackText = isSystemThread ? 'System events and terminal output' : 'No messages yet';
       if (typeof this._isCollapsedHoverStatePlaceholderText === 'function' && this._isCollapsedHoverStatePlaceholderText(fallbackText)) {
@@ -326,6 +337,18 @@
       this.navigate('chat');
       this.closeAgentChatsSidebar();
       this.scheduleSidebarScrollIndicators();
+      if (agent._timed_out_local === true || agent.revive_recommended === true) {
+        var reviveId = String(agent.id || '').trim();
+        if (reviveId) {
+          InfringAPI.post('/api/agents/' + encodeURIComponent(reviveId) + '/revive', {
+            reason: agent._timed_out_local === true ? 'sidebar_timeout_revival' : 'sidebar_contract_revival'
+          }).then(function() {
+            if (store && typeof store.refreshAgents === 'function') {
+              store.refreshAgents({ force: true }).catch(function() {});
+            }
+          }).catch(function() {});
+        }
+      }
     },
 
     formatChatSidebarTime(ts) {
@@ -350,7 +373,14 @@
       var branch = String(agent.git_branch || agent.branch || '').trim().toLowerCase();
       if (branch === 'main' || branch === 'master') return false;
       var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      var terminationCondition = String(
+        (contract && contract.termination_condition) ||
+        agent.termination_condition ||
+        ''
+      ).trim().toLowerCase();
+      if (terminationCondition === 'manual' || terminationCondition === 'task_complete') return false;
       if (contract && contract.auto_terminate_allowed === false) return false;
+      if (contract && contract.idle_terminate_allowed === false && contract.auto_terminate_allowed === false) return false;
       return true;
     },
 
@@ -434,18 +464,21 @@
 
     shouldShowInfinityLifespan(agent) {
       if (!agent || typeof agent !== 'object') return false;
+      if (agent._timed_out_local === true) return false;
       if (!this.agentAutoTerminateEnabled(agent)) return true;
       return !this.agentContractHasFiniteExpiry(agent);
     },
 
     shouldPulseExpiringAgent(agent) {
+      if (agent && agent._timed_out_local === true) return false;
       if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
-      return remainingMs > 0 && remainingMs <= 3000;
+      return remainingMs > 0 && remainingMs <= 60000;
     },
 
     shouldShowExpiryCountdown(agent) {
+      if (agent && agent._timed_out_local === true) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
       if (remainingMs <= 0) return this.isAgentPendingTermination(agent);
@@ -453,5 +486,6 @@
     },
 
     expiryCountdownLabel(agent) {
+      if (agent && agent._timed_out_local === true) return 'timed out';
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return '';

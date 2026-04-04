@@ -449,6 +449,8 @@ fn runtime_probe_requested(text: &str) -> bool {
 fn swarm_intent_requested(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
     lowered.contains("swarm")
+        || lowered.contains("summon swarm")
+        || lowered.contains("summon a swarm")
         || lowered.contains("subagent")
         || lowered.contains("sub-agent")
         || lowered.contains("descendant agent")
@@ -456,6 +458,7 @@ fn swarm_intent_requested(text: &str) -> bool {
         || lowered.contains("split into")
         || lowered.contains("spawn agent")
         || lowered.contains("spawn workers")
+        || lowered.contains("spin up agents")
 }
 
 fn spawn_surface_denied_phrase(text: &str) -> bool {
@@ -622,6 +625,9 @@ mod clean_text_swarm_intent_tests {
     fn swarm_intent_requested_detects_parallel_keywords() {
         assert!(swarm_intent_requested(
             "Please split this into parallel subagent lanes and run a swarm."
+        ));
+        assert!(swarm_intent_requested(
+            "summon a swarm to parallelize this audit"
         ));
     }
 
