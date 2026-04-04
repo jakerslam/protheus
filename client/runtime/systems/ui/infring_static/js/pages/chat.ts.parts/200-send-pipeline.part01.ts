@@ -135,7 +135,19 @@
         this.scheduleConversationPersist();
         return;
       }
-      this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });
+      var shouldMorphSend = !!(text && !uploadedFiles.length && !msgImages.length && !fileRefs.length && !this.sending);
+      var morphSnapshot = shouldMorphSend && this.captureComposerSendMorph
+        ? this.captureComposerSendMorph(text)
+        : null;
+      var appended = this.appendUserChatMessage(finalText, msgImages, { deferPersist: true });
+      if (morphSnapshot && appended && appended.id != null && this.playComposerSendMorphToMessage) {
+        var self = this;
+        this.$nextTick(function() {
+          self.playComposerSendMorphToMessage(morphSnapshot, appended.id);
+        });
+      } else if (morphSnapshot && this.clearComposerSendMorph) {
+        this.clearComposerSendMorph(morphSnapshot);
+      }
       this.scheduleConversationPersist();
       this._sendPayload(finalText, uploadedFiles, msgImages, { agent_id: activeAgent.id });
     },

@@ -333,6 +333,8 @@
       var resolvedSystemPrompt = this.resolveFreshInitSystemPrompt(templateDef, launchName, selectedPersonality, selectedVibe);
       var resolvedContract = this.resolveFreshInitContractPayload(launchName);
       this.freshInitLaunching = true;
+      this.freshInitRevealMenu = false;
+      this.freshInitEmojiPickerOpen = false;
       try {
         if (resolvedModelRef) {
           await InfringAPI.put('/api/agents/' + agentId + '/model', {
@@ -391,7 +393,6 @@
         await this.loadSession(agentId, false);
         this.requestContextTelemetry(true);
         this.freshInitStageToken = Number(this.freshInitStageToken || 0) + 1;
-        this.freshInitRevealMenu = false;
         this.showFreshArchetypeTiles = false;
         this.freshInitTemplateDef = null;
         this.freshInitTemplateName = '';
@@ -402,6 +403,7 @@
         InfringToast.success('Launched ' + String(appliedAgentName || 'agent') + ' as ' + launchedRole);
       } catch (e) {
         this.freshInitLaunching = false;
+        this.freshInitRevealMenu = true;
         InfringToast.error('Failed to initialize agent: ' + e.message);
       }
     },

@@ -212,6 +212,12 @@
         if (role !== 'user' && !isTerminal && m && m.assistant != null) textSource = m.assistant;
         var text = typeof textSource === 'string' ? textSource : JSON.stringify(textSource || '');
         text = self.sanitizeToolText(text);
+        if (isTerminal) {
+          text = String(text || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .replace(/^\s+|\s+$/g, '');
+        }
         if (role === 'agent') text = self.stripModelPrefix(text);
         var derivedSystemOrigin = '';
         if (role === 'user' && /^\s*protheus(?:-ops)?\s+/i.test(String(text || ''))) {

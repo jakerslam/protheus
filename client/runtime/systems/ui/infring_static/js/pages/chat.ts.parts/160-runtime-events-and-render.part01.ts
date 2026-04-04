@@ -52,9 +52,11 @@
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
           var stdout = typeof data.stdout === 'string' ? data.stdout : '';
           var stderr = typeof data.stderr === 'string' ? data.stderr : '';
+          var cleanStdout = stdout.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^(?:[ \t]*\n)+|(?:\n[ \t]*)+$/g, '');
+          var cleanStderr = stderr.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^(?:[ \t]*\n)+|(?:\n[ \t]*)+$/g, '');
           var termText = '';
-          if (stdout.trim()) termText += stdout;
-          if (stderr.trim()) termText += (termText ? '\n' : '') + stderr;
+          if (cleanStdout.trim()) termText += cleanStdout;
+          if (cleanStderr.trim()) termText += (termText ? '\n' : '') + cleanStderr;
           if (!termText.trim()) termText = '(no output)';
           var termMeta = 'exit ' + (Number.isFinite(Number(data.exit_code)) ? String(Number(data.exit_code)) : '1');
           var termDuration = this.formatResponseDuration(Number(data.duration_ms || 0));

@@ -177,7 +177,16 @@
 .message.system {
   max-width: 100%;
 }
-.message.thinking .message-bubble { animation: pulse 1.5s infinite; }
+.message.thinking .message-bubble.message-bubble-thinking {
+  animation: thinking-bubble-scale-pulse 1.6s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+@keyframes thinking-bubble-scale-pulse {
+  0% { transform: scaleX(1) scaleY(0.95); }
+  50% { transform: scaleX(1) scaleY(1.05); }
+  100% { transform: scaleX(1) scaleY(0.95); }
+}
 
 .message-bubble.message-error {
   color: var(--error) !important;
@@ -448,13 +457,16 @@
 }
 
 .message.terminal .message-bubble {
+  --terminal-tail-fill-color: color-mix(in srgb, #0a1408 90%, transparent);
+  --terminal-tail-border-color: color-mix(in srgb, #72ff5c 78%, transparent);
   width: auto;
   max-width: min(84ch, 90%);
   display: inline-block;
+  padding: 10px 14px;
   background: #050905;
   color: #99ff72;
-  border: 0.75px solid #72ff5c;
-  border-radius: 10px;
+  border: 1px solid #72ff5c;
+  border-radius: 22px;
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;

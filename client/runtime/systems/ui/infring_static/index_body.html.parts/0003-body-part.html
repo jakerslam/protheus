@@ -204,6 +204,12 @@
                   <span>Loading chat...</span>
                 </div>
               </div>
+              <div class="chat-loading-overlay" x-show="showFreshArchetypeTiles && freshInitLaunching">
+                <div class="chat-loading-overlay-content">
+                  <div class="spinner"></div>
+                  <span>Launching agent...</span>
+                </div>
+              </div>
               <div class="chat-thread" :class="{ 'chat-thread-loading': sessionLoading }">
                 <template x-for="(msg, idx) in messages" :key="messageRenderKey(msg, idx)">
                   <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">
