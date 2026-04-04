@@ -366,6 +366,7 @@ pub fn upsert_profile(root: &Path, agent_id: &str, patch: &Value) -> Value {
                     | "is_master_agent"
                     | "parent_agent_id"
                     | "mode"
+                    | "pending_tool_confirmation"
             ) {
                 current[key] = value.clone();
                 if matches!(
@@ -455,4 +456,3 @@ pub fn unarchive_agent(root: &Path, agent_id: &str) -> Value {
     save_archived_state(root, state);
     json!({"ok": true, "type": "dashboard_agent_unarchive", "agent_id": id, "removed": removed})
 }
-

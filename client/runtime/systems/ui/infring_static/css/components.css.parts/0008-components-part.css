@@ -196,9 +196,7 @@
 }
 
 .chat-input-lane .prompt-queue-row,
-.chat-input-lane .prompt-queue-row *,
-.chat-input-lane .prompt-suggestions-row,
-.chat-input-lane .prompt-suggestions-row * {
+.chat-input-lane .prompt-queue-row * {
   -webkit-user-select: none;
   user-select: none;
 }

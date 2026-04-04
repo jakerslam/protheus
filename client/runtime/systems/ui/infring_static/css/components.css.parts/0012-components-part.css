@@ -155,6 +155,8 @@
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .topbar-brand-title {

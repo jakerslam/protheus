@@ -2,6 +2,20 @@ fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<Str
     let stop = [
         "this",
         "that",
+        "yes",
+        "yep",
+        "yeah",
+        "ok",
+        "okay",
+        "sure",
+        "confirm",
+        "confirmed",
+        "confirmation",
+        "current",
+        "execute",
+        "status",
+        "blocker",
+        "blockers",
         "with",
         "from",
         "your",
@@ -25,6 +39,7 @@ fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<Str
         "just",
         "also",
         "same",
+        "extra",
         "thread",
         "message",
         "messages",
@@ -52,7 +67,10 @@ fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<Str
     ];
     let stop_set = stop.into_iter().collect::<HashSet<_>>();
     let mut counts = HashMap::<String, usize>::new();
-    for (_, text) in thread {
+    for (role, text) in thread {
+        if role != "user" {
+            continue;
+        }
         let lowered = clean_text(text, 320).to_ascii_lowercase();
         for token in
             lowered.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
@@ -94,6 +112,7 @@ fn is_low_signal_focus_token(word: &str) -> bool {
             | "task"
             | "tasks"
             | "chat"
+            | "extra"
             | "message"
             | "messages"
     )
@@ -103,69 +122,81 @@ fn is_action_focus_token(word: &str) -> bool {
     matches!(
         word,
         "add"
+            | "archive"
             | "build"
             | "check"
+            | "clean"
+            | "cleanup"
             | "compare"
             | "continue"
             | "create"
             | "debug"
+            | "delete"
             | "deploy"
+            | "disable"
+            | "drop"
+            | "enable"
             | "finish"
             | "fix"
             | "implement"
             | "inspect"
+            | "kill"
+            | "list"
             | "make"
             | "patch"
+            | "remove"
+            | "revive"
             | "run"
             | "ship"
+            | "show"
             | "test"
             | "validate"
             | "verify"
     )
 }
 
-fn canonical_action_verb(raw: &str) -> Option<&'static str> {
-    match raw {
-        "fix" | "debug" | "repair" | "resolve" => Some("fix"),
-        "implement" | "build" | "create" | "ship" => Some("implement"),
-        "verify" | "validate" | "check" | "test" => Some("verify"),
-        "compare" | "analyze" | "evaluate" | "assess" => Some("compare"),
-        "continue" | "finish" | "complete" => Some("continue"),
-        "show" | "explain" | "summarize" => Some("show"),
-        _ => None,
+fn is_topic_fragment_noise_token(word: &str) -> bool {
+    if is_low_signal_focus_token(word) || is_action_focus_token(word) {
+        return true;
     }
-}
-
-fn dominant_user_action_verbs(recent_thread: &[(String, String)], limit: usize) -> Vec<String> {
-    let mut counts = HashMap::<String, usize>::new();
-    for (role, text) in recent_thread {
-        if role != "user" {
-            continue;
-        }
-        let first = clean_text(text, 120)
-            .to_ascii_lowercase()
-            .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
-            .find(|token| !token.trim().is_empty())
-            .map(|token| token.trim().to_string())
-            .unwrap_or_default();
-        if first.is_empty() {
-            continue;
-        }
-        if let Some(verb) = canonical_action_verb(&first) {
-            *counts.entry(verb.to_string()).or_insert(0) += 1;
-        }
-    }
-    let mut ranked = counts.into_iter().collect::<Vec<_>>();
-    ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-    ranked
-        .into_iter()
-        .take(limit.max(1))
-        .map(|(verb, _)| verb)
-        .collect::<Vec<_>>()
+    matches!(
+        word,
+        "again"
+            | "already"
+            | "after"
+            | "before"
+            | "confirm"
+            | "confirmed"
+            | "does"
+            | "did"
+            | "done"
+            | "doing"
+            | "going"
+            | "keep"
+            | "maybe"
+            | "more"
+            | "next"
+            | "now"
+            | "ok"
+            | "okay"
+            | "same"
+            | "still"
+            | "sure"
+            | "works"
+            | "working"
+            | "extra"
+            | "current"
+            | "status"
+            | "blocker"
+            | "blockers"
+            | "yeah"
+            | "yep"
+            | "yes"
+    )
 }
 
 fn compose_topic_phrase(recent_thread: &[(String, String)], keywords: &[String]) -> String {
-    let mut tokens = Vec::<String>::new();
+    let mut recent_tokens = Vec::<String>::new();
     if let Some(last_user) = recent_thread
         .iter()
         .rev()
@@ -174,68 +205,81 @@ fn compose_topic_phrase(recent_thread: &[(String, String)], keywords: &[String])
     {
         let candidate = extract_focus_tokens(last_user, 4)
             .into_iter()
-            .filter(|token| !is_low_signal_focus_token(token))
+            .filter(|token| !is_topic_fragment_noise_token(token))
             .collect::<Vec<_>>();
-        let has_domain_signal = candidate
-            .iter()
-            .any(|token| !is_action_focus_token(token));
-        if has_domain_signal {
-            tokens = candidate;
+        if !candidate.is_empty() {
+            recent_tokens = candidate;
         }
     }
-    if tokens.len() < 2 {
+    if recent_tokens.len() < 2 {
         for (role, text) in recent_thread.iter().rev() {
             if role != "user" {
                 continue;
             }
             let candidate = extract_focus_tokens(text, 4)
                 .into_iter()
-                .filter(|token| !is_low_signal_focus_token(token))
+                .filter(|token| !is_topic_fragment_noise_token(token))
                 .collect::<Vec<_>>();
             if candidate.is_empty() {
                 continue;
             }
-            let has_domain_signal = candidate
-                .iter()
-                .any(|token| !is_action_focus_token(token));
-            if !has_domain_signal {
-                continue;
-            }
             for token in candidate {
-                if tokens.iter().any(|existing| existing == &token) {
+                if recent_tokens.iter().any(|existing| existing == &token) {
                     continue;
                 }
-                tokens.push(token);
-                if tokens.len() >= 4 {
+                recent_tokens.push(token);
+                if recent_tokens.len() >= 4 {
                     break;
                 }
             }
-            if tokens.len() >= 2 {
+            if recent_tokens.len() >= 2 {
                 break;
             }
         }
     }
-    if tokens.len() < 2 {
-        for keyword in keywords {
-            if is_low_signal_focus_token(keyword) {
-                continue;
-            }
-            if tokens.iter().any(|existing| existing == keyword) {
-                continue;
-            }
-            tokens.push(keyword.clone());
-            if tokens.len() >= 4 {
-                break;
-            }
+
+    // Favor recurring thread keywords first so suggestions stay anchored to
+    // stable conversation context rather than a single fragmented turn.
+    let mut tokens = Vec::<String>::new();
+    for keyword in keywords {
+        if is_topic_fragment_noise_token(keyword) {
+            continue;
+        }
+        if tokens.iter().any(|existing| existing == keyword) {
+            continue;
+        }
+        tokens.push(keyword.clone());
+        if tokens.len() >= 2 {
+            break;
         }
     }
+    for token in recent_tokens {
+        if tokens.iter().any(|existing| existing == &token) {
+            continue;
+        }
+        tokens.push(token);
+        if tokens.len() >= 4 {
+            break;
+        }
+    }
+
     if tokens.is_empty() {
         let compact = compact_topic_phrase(recent_thread, keywords);
-        return extract_focus_tokens(&compact, 4)
+        let filtered = extract_focus_tokens(&compact, 4)
             .into_iter()
-            .filter(|token| !is_low_signal_focus_token(token))
-            .collect::<Vec<_>>()
-            .join(" ");
+            .filter(|token| !is_topic_fragment_noise_token(token))
+            .collect::<Vec<_>>();
+        if !filtered.is_empty() {
+            return filtered.join(" ");
+        }
+        let relaxed = extract_focus_tokens(&compact, 3);
+        if !relaxed.is_empty() {
+            return relaxed.join(" ");
+        }
+        if let Some(keyword) = keywords.first() {
+            return keyword.clone();
+        }
+        return String::new();
     }
     tokens.join(" ")
 }
@@ -251,11 +295,19 @@ fn thread_contains_terms(recent_thread: &[(String, String)], terms: &[&str]) -> 
 
 fn build_suggestion_candidates(recent_thread: &[(String, String)], topic: &str) -> Vec<String> {
     let mut out = Vec::<String>::new();
-    let action_verbs = dominant_user_action_verbs(recent_thread, 3);
-    let lead_verb = action_verbs
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "show".to_string());
+    let has_operation_intent = thread_contains_terms(
+        recent_thread,
+        &[
+            "kill",
+            "remove",
+            "delete",
+            "archive",
+            "cleanup",
+            "clear",
+            "drop",
+            "disable",
+        ],
+    );
     let has_fix_intent = thread_contains_terms(
         recent_thread,
         &[
@@ -306,32 +358,35 @@ fn build_suggestion_candidates(recent_thread: &[(String, String)], topic: &str) 
         ],
     );
 
+    if has_operation_intent {
+        out.push(format!("what is the safest way to apply this change for {topic}"));
+        out.push(format!("what should we verify right after changing {topic}"));
+    }
     if has_fix_intent {
-        out.push(format!("show the smallest patch to fix {topic}"));
-        out.push(format!(
-            "what caused {topic} and how does the fix prevent regressions"
-        ));
+        out.push(format!("where is the root cause in {topic}"));
+        out.push(format!("what is the safest patch for {topic}"));
+        out.push(format!("how should we verify the fix for {topic}"));
     }
     if has_build_intent {
-        out.push(format!("implement {topic} now and show the diff"));
-        out.push(format!("what is the fastest next step to finish {topic}"));
+        out.push(format!("what should we implement first for {topic}"));
+        out.push(format!("which minimal slice of {topic} should we ship next"));
     }
     if has_analysis_intent {
-        out.push(format!("compare the strongest options for {topic}"));
+        out.push(format!("which options for {topic} are strongest right now"));
         out.push(format!("what tradeoffs matter most for {topic}"));
     }
     if has_validation_intent {
-        out.push(format!(
-            "run a quick validation for {topic} and share the result"
-        ));
-        out.push(format!("add one regression test for {topic}"));
+        out.push(format!("what is the quickest validation for {topic}"));
+        out.push(format!("which regression test should we add for {topic}"));
     }
 
-    out.push(format!("{lead_verb} current status and blockers for {topic}"));
-    out.push(format!("what should we tackle next for {topic}"));
-    out.push(format!(
-        "give me one concrete next action to move {topic} forward"
-    ));
+    if out.is_empty() {
+        out.push(format!("what is the highest-impact next step for {topic}"));
+        out.push(format!("which part of {topic} should we tackle first"));
+        out.push(format!("what should we test or implement next for {topic}"));
+    } else {
+        out.push(format!("what should we tackle next for {topic}"));
+    }
     out
 }
 
@@ -652,7 +707,7 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
 
     let base_style = derive_suggestion_style(&recent_thread);
     let style = SuggestionStyle {
-        prefer_can_you: base_style.prefer_can_you,
+        prefer_can_you: false,
         prefer_question_mark: true,
         prefer_lowercase: base_style.prefer_lowercase,
     };
