@@ -139,414 +139,414 @@ skipped_non_runtime	cli/src/utils/mcp.test.ts	test-only file; skipped for direct
 reviewed_candidate	cli/src/utils/mcp.ts	MCP shortcut add/validation flow captured as candidate for safer connector bootstrap UX | deleted_to=.assimilation_deleted
 skipped_non_runtime	cli/src/utils/mode-selection.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/utils/mode-selection.ts	pure deterministic output-mode decision function captured as candidate for environment-adaptive rendering behavior | deleted_to=.assimilation_deleted
-pending	cli/src/utils/openrouter-models.ts	
-pending	cli/src/utils/parser.test.ts	
-pending	cli/src/utils/parser.ts	
-pending	cli/src/utils/path.ts	
-pending	cli/src/utils/piped.test.ts	
-pending	cli/src/utils/piped.ts	
-pending	cli/src/utils/plain-text-task.test.ts	
-pending	cli/src/utils/plain-text-task.ts	
-pending	cli/src/utils/provider-config.ts	
-pending	cli/src/utils/providers.ts	
-pending	cli/src/utils/session-summary.ts	
-pending	cli/src/utils/slash-commands.test.ts	
-pending	cli/src/utils/slash-commands.ts	
-pending	cli/src/utils/task-history.test.ts	
-pending	cli/src/utils/task-history.ts	
-pending	cli/src/utils/task-start-output.ts	
-pending	cli/src/utils/timeout.ts	
-pending	cli/src/utils/tools.ts	
-pending	cli/src/utils/update.ts	
-pending	cli/src/vscode-context.ts	
-pending	cli/src/vscode-shim.ts	
-pending	cli/tsconfig.json	
-pending	cli/tsconfig.lib.json	
-pending	cli/vitest.config.ts	
-pending	cli/workspaceState.json	
-pending	docs/api/authentication.mdx	
-pending	docs/api/chat-completions.mdx	
-pending	docs/api/errors.mdx	
-pending	docs/api/getting-started.mdx	
-pending	docs/api/models.mdx	
-pending	docs/api/overview.mdx	
-pending	docs/api/reference.mdx	
-pending	docs/api/sdk-examples.mdx	
-pending	docs/assets/Cline_Logo-complete_black.png	
-pending	docs/assets/Cline_Logo-complete_white.png	
-pending	docs/assets/hooks/hook-controls.png	
-pending	docs/assets/hooks/hooks-collapsed-view.png	
-pending	docs/assets/hooks/hooks-empty-state.png	
-pending	docs/assets/hooks/hooks-interface-with-dropdown.png	
-pending	docs/assets/hooks/new-hook-dropdown.png	
-pending	docs/assets/jupyter-explain-improve-cell.gif	
-pending	docs/assets/jupyter-generate-cell.gif	
-pending	docs/assets/robot_panel_dark.png	
-pending	docs/assets/robot_panel_light.png	
-pending	docs/assets/workos-invite-email.png	
-pending	docs/cline-cli/acp-editor-integrations.mdx	
-pending	docs/cline-cli/cli-reference.mdx	
-pending	docs/cline-cli/configuration.mdx	
-pending	docs/cline-cli/getting-started.mdx	
-pending	docs/cline-cli/installation.mdx	
-pending	docs/cline-cli/interactive-mode.mdx	
-pending	docs/cline-cli/overview.mdx	
-pending	docs/cline-cli/samples/github-integration.mdx	
-pending	docs/cline-cli/samples/github-issue-rca.mdx	
-pending	docs/cline-cli/samples/github-pr-review.mdx	
-pending	docs/cline-cli/samples/model-orchestration.mdx	
-pending	docs/cline-cli/samples/overview.mdx	
-pending	docs/cline-cli/samples/worktree-workflows.mdx	
-pending	docs/cline-cli/three-core-flows.mdx	
-pending	docs/cline-sdk/overview.md	
-pending	docs/contributing/doc-templates.mdx	
-pending	docs/contributing/documentation-guide.mdx	
-pending	docs/core-features/model-selection-guide.mdx	
-pending	docs/core-workflows/checkpoints.mdx	
-pending	docs/core-workflows/plan-and-act.mdx	
-pending	docs/core-workflows/task-management.mdx	
-pending	docs/core-workflows/using-commands.mdx	
-pending	docs/core-workflows/working-with-files.mdx	
-pending	docs/customization/cline-rules.mdx	
-pending	docs/customization/clineignore.mdx	
-pending	docs/customization/hooks.mdx	
-pending	docs/customization/overview.mdx	
-pending	docs/customization/skills.mdx	
-pending	docs/customization/workflows.mdx	
-pending	docs/docs.json	
-pending	docs/enterprise-solutions/api-reference.mdx	
-pending	docs/enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/mcp-marketplace.mdx	
-pending	docs/enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/yolo-mode.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/aws-bedrock/admin-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/aws-bedrock/member-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/google-vertex/admin-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/google-vertex/member-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/litellm/admin-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/litellm/member-configuration.mdx	
-pending	docs/enterprise-solutions/configuration/remote-configuration/overview.mdx	
-pending	docs/enterprise-solutions/monitoring/opentelemetry.mdx	
-pending	docs/enterprise-solutions/monitoring/overview.mdx	
-pending	docs/enterprise-solutions/monitoring/telemetry.mdx	
-pending	docs/enterprise-solutions/onboarding.mdx	
-pending	docs/enterprise-solutions/overview.mdx	
-pending	docs/enterprise-solutions/sso-setup.mdx	
-pending	docs/enterprise-solutions/team-management/managing-members.mdx	
-pending	docs/features/auto-approve.mdx	
-pending	docs/features/auto-compact.mdx	
-pending	docs/features/background-edit.mdx	
-pending	docs/features/deep-planning.mdx	
-pending	docs/features/focus-chain.mdx	
-pending	docs/features/jupyter-notebooks.mdx	
-pending	docs/features/memory-bank.mdx	
-pending	docs/features/multiroot-workspace.mdx	
-pending	docs/features/subagents.mdx	
-pending	docs/features/web-tools.mdx	
-pending	docs/features/worktrees.mdx	
-pending	docs/getting-started/authorizing-with-cline.mdx	
-pending	docs/getting-started/installing-cline.mdx	
-pending	docs/getting-started/quick-start.mdx	
-pending	docs/getting-started/what-is-cline.mdx	
-pending	docs/getting-started/your-first-project.mdx	
-pending	docs/home.mdx	
-pending	docs/hubspot.js	
-pending	docs/kanban/core-workflow.mdx	
-pending	docs/kanban/features.mdx	
-pending	docs/kanban/getting-started.mdx	
-pending	docs/kanban/overview.mdx	
-pending	docs/mcp/adding-and-configuring-servers.mdx	
-pending	docs/mcp/connecting-to-a-remote-server.mdx	
-pending	docs/mcp/mcp-marketplace.mdx	
-pending	docs/mcp/mcp-overview.mdx	
-pending	docs/mcp/mcp-server-development-protocol.mdx	
-pending	docs/mcp/mcp-transport-mechanisms.mdx	
-pending	docs/model-config/context-windows.mdx	
-pending	docs/package-lock.json	
-pending	docs/package.json	
-pending	docs/provider-config/aihubmix.mdx	
-pending	docs/provider-config/anthropic.mdx	
-pending	docs/provider-config/asksage.mdx	
-pending	docs/provider-config/aws-bedrock/api-key.mdx	
-pending	docs/provider-config/aws-bedrock/cli-profile.mdx	
-pending	docs/provider-config/aws-bedrock/iam-credentials.mdx	
-pending	docs/provider-config/baseten.mdx	
-pending	docs/provider-config/cerebras.mdx	
-pending	docs/provider-config/claude-code.mdx	
-pending	docs/provider-config/deepseek.mdx	
-pending	docs/provider-config/dify.mdx	
-pending	docs/provider-config/doubao.mdx	
-pending	docs/provider-config/fireworks.mdx	
-pending	docs/provider-config/gcp-vertex-ai.mdx	
-pending	docs/provider-config/google-gemini.mdx	
-pending	docs/provider-config/groq.mdx	
-pending	docs/provider-config/hicap.mdx	
-pending	docs/provider-config/huawei-cloud-maas.mdx	
-pending	docs/provider-config/huggingface.mdx	
-pending	docs/provider-config/litellm-and-cline-using-codestral.mdx	
-pending	docs/provider-config/minimax.mdx	
-pending	docs/provider-config/mistral-ai.mdx	
-pending	docs/provider-config/moonshot.mdx	
-pending	docs/provider-config/nebius.mdx	
-pending	docs/provider-config/nousresearch.mdx	
-pending	docs/provider-config/openai-codex.mdx	
-pending	docs/provider-config/openai-compatible.mdx	
-pending	docs/provider-config/openai.mdx	
-pending	docs/provider-config/openrouter.mdx	
-pending	docs/provider-config/oracle-code-assist.mdx	
-pending	docs/provider-config/qwen-code.mdx	
-pending	docs/provider-config/qwen.mdx	
-pending	docs/provider-config/requesty.mdx	
-pending	docs/provider-config/sambanova.mdx	
-pending	docs/provider-config/sap-aicore.mdx	
-pending	docs/provider-config/together.mdx	
-pending	docs/provider-config/vercel-ai-gateway.mdx	
-pending	docs/provider-config/vscode-language-model-api.mdx	
-pending	docs/provider-config/xai-grok.mdx	
-pending	docs/provider-config/zai.mdx	
-pending	docs/running-models-locally/lm-studio.mdx	
-pending	docs/running-models-locally/ollama.mdx	
-pending	docs/running-models-locally/overview.mdx	
-pending	docs/styles.css	
-pending	docs/tools-reference/all-cline-tools.mdx	
-pending	docs/tools-reference/browser-automation.mdx	
-pending	docs/troubleshooting/networking-and-proxies.mdx	
-pending	docs/troubleshooting/task-history-recovery.mdx	
-pending	docs/troubleshooting/terminal-quick-fixes.mdx	
-pending	esbuild.mjs	
-pending	evals/ARCHITECTURE.md	
-pending	evals/README.md	
-pending	evals/analysis/package-lock.json	
-pending	evals/analysis/package.json	
-pending	evals/analysis/patterns/cline-failures.yaml	
-pending	evals/analysis/src/__tests__/classifier.test.ts	
-pending	evals/analysis/src/__tests__/metrics.test.ts	
-pending	evals/analysis/src/classifier.ts	
-pending	evals/analysis/src/cli.ts	
-pending	evals/analysis/src/metrics.ts	
-pending	evals/analysis/src/parsers/harbor.ts	
-pending	evals/analysis/src/parsers/index.ts	
-pending	evals/analysis/src/reporters/index.ts	
-pending	evals/analysis/src/reporters/json.ts	
-pending	evals/analysis/src/reporters/markdown.ts	
-pending	evals/analysis/src/schemas/analysis-output.ts	
-pending	evals/analysis/src/schemas/harbor-output.ts	
-pending	evals/analysis/src/schemas/index.ts	
-pending	evals/analysis/tsconfig.json	
-pending	evals/benchmarks/tool-precision/DEPRECATED.md	
-pending	evals/benchmarks/tool-precision/replace-in-file/ClineWrapper.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/README.md	
-pending	evals/benchmarks/tool-precision/replace-in-file/TestRunner.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/README.md	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/app.py	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/launch.sh	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/pages/02_Bad_Cases.py	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/requirements.txt	
-pending	evals/benchmarks/tool-precision/replace-in-file/dashboard/utils.py	
-pending	evals/benchmarks/tool-precision/replace-in-file/database.md	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/client.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/index.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/operations.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/queries.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/schema.sql	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/test.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/database/types.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-06-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-23-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-25-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-26-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/helpers.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/openRouterModelsHelper.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/parsing/parse-assistant-message-06-06-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/prompts/basicSystemPrompt-06-06-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/prompts/claude4SystemPrompt-06-06-25.ts	
-pending	evals/benchmarks/tool-precision/replace-in-file/run_and_open_dashboard.sh	
-pending	evals/benchmarks/tool-precision/replace-in-file/types.ts	
-pending	evals/e2e/README.md	
-pending	evals/e2e/run-cline-bench.ts	
-pending	evals/package-lock.json	
-pending	evals/package.json	
-pending	evals/smoke-tests/README.md	
-pending	evals/smoke-tests/run-smoke-tests.ts	
-pending	evals/smoke-tests/scenarios/01-create-file/config.json	
-pending	evals/smoke-tests/scenarios/02-edit-file/config.json	
-pending	evals/smoke-tests/scenarios/02-edit-file/template/greeting.txt	
-pending	evals/smoke-tests/scenarios/03-read-summarize/config.json	
-pending	evals/smoke-tests/scenarios/03-read-summarize/template/data.txt	
-pending	evals/smoke-tests/scenarios/04-multi-file/config.json	
-pending	evals/smoke-tests/scenarios/05-typescript-function/config.json	
-pending	evals/smoke-tests/scenarios/06-apply-patch/config.json	
-pending	evals/smoke-tests/scenarios/06-apply-patch/template/config.txt	
-pending	evals/smoke-tests/scenarios/07-edit-gemini/config.json	
-pending	evals/smoke-tests/scenarios/07-edit-gemini/template/greeting.txt	
-pending	evals/smoke-tests/scenarios/08-openai-compat-gpt-oss-edit/config.json	
-pending	evals/smoke-tests/scenarios/08-openai-compat-gpt-oss-edit/template/config.txt	
-pending	evals/tsconfig.json	
-pending	go.work.sum	
-pending	knip.json	
-pending	locales/ar-sa/CODE_OF_CONDUCT.md	
-pending	locales/ar-sa/CONTRIBUTING.md	
-pending	locales/ar-sa/README.md	
-pending	locales/de/CODE_OF_CONDUCT.md	
-pending	locales/de/CONTRIBUTING.md	
-pending	locales/de/README.md	
-pending	locales/es/CODE_OF_CONDUCT.md	
-pending	locales/es/CONTRIBUTING.md	
-pending	locales/es/README.md	
-pending	locales/ja/CODE_OF_CONDUCT.md	
-pending	locales/ja/CONTRIBUTING.md	
-pending	locales/ja/README.md	
-pending	locales/ko/CODE_OF_CONDUCT.md	
-pending	locales/ko/CONTRIBUTING.md	
-pending	locales/ko/README.md	
-pending	locales/pt-BR/CODE_OF_CONDUCT.md	
-pending	locales/pt-BR/CONTRIBUTING.md	
-pending	locales/pt-BR/README.md	
-pending	locales/zh-cn/CODE_OF_CONDUCT.md	
-pending	locales/zh-cn/CONTRIBUTING.md	
-pending	locales/zh-cn/README.md	
-pending	locales/zh-tw/CODE_OF_CONDUCT.md	
-pending	locales/zh-tw/CONTRIBUTING.md	
-pending	locales/zh-tw/README.md	
-pending	package-lock.json	
-pending	package.json	
-pending	playwright.config.ts	
-pending	proto/cline/account.proto	
-pending	proto/cline/browser.proto	
-pending	proto/cline/checkpoints.proto	
-pending	proto/cline/commands.proto	
-pending	proto/cline/common.proto	
-pending	proto/cline/file.proto	
-pending	proto/cline/hooks.proto	
-pending	proto/cline/mcp.proto	
-pending	proto/cline/models.proto	
-pending	proto/cline/oca_account.proto	
-pending	proto/cline/slash.proto	
-pending	proto/cline/state.proto	
-pending	proto/cline/task.proto	
-pending	proto/cline/ui.proto	
-pending	proto/cline/web.proto	
-pending	proto/cline/worktree.proto	
-pending	proto/descriptor_set.pb	
-pending	proto/host/diff.proto	
-pending	proto/host/env.proto	
-pending	proto/host/testing.proto	
-pending	proto/host/window.proto	
-pending	proto/host/workspace.proto	
-pending	scripts/add-endpoints-to-jetbrains.sh	
-pending	scripts/add-endpoints-to-npm.sh	
-pending	scripts/add-endpoints-to-vsix.sh	
-pending	scripts/api-secrets-parser.mjs	
-pending	scripts/build-cli-artifact.sh	
-pending	scripts/build-proto.mjs	
-pending	scripts/build-python-proto.mjs	
-pending	scripts/build-tests.js	
-pending	scripts/download-ripgrep.mjs	
-pending	scripts/file-utils.mjs	
-pending	scripts/generate-host-bridge-client.mjs	
-pending	scripts/generate-protobus-setup.mjs	
-pending	scripts/generate-state-proto.mjs	
-pending	scripts/generate-stubs.js	
-pending	scripts/get-vscode-usages.sh	
-pending	scripts/install.sh	
-pending	scripts/interactive-playwright.ts	
-pending	scripts/package-npm.mjs	
-pending	scripts/package-standalone.mjs	
-pending	scripts/proto-lint.sh	
-pending	scripts/proto-shared-utils.mjs	
-pending	scripts/proto-utils.mjs	
-pending	scripts/publish-nightly.mjs	
-pending	scripts/report-issue.js	
-pending	scripts/run-extension-host.sh	
-pending	scripts/runclinecore.sh	
-pending	scripts/test-bundled-endpoints.sh	
-pending	scripts/test-hostbridge-server.ts	
-pending	scripts/test-install.sh	
-pending	scripts/test-standalone-core-api-server.ts	
-pending	scripts/testing-platform-orchestrator.ts	
-pending	src/__tests__/config.test.ts	
-pending	src/common.ts	
-pending	src/config.ts	
-pending	src/core/README.md	
-pending	src/core/api/adapters/__tests__/adapters.test.ts	
-pending	src/core/api/adapters/diff-editors.ts	
-pending	src/core/api/adapters/index.ts	
-pending	src/core/api/index.ts	
-pending	src/core/api/providers/__tests__/anthropic.test.ts	
-pending	src/core/api/providers/__tests__/bedrock.test.ts	
-pending	src/core/api/providers/__tests__/claude-code.test.ts	
-pending	src/core/api/providers/__tests__/cline.test.ts	
-pending	src/core/api/providers/__tests__/fireworks.test.ts	
-pending	src/core/api/providers/__tests__/gemini.test.ts	
-pending	src/core/api/providers/__tests__/litellm.test.ts	
-pending	src/core/api/providers/__tests__/oca.test.ts	
-pending	src/core/api/providers/__tests__/ollama.test.ts	
-pending	src/core/api/providers/__tests__/openrouter.test.ts	
-pending	src/core/api/providers/__tests__/sapaicore.test.ts	
-pending	src/core/api/providers/__tests__/vercel-ai-gateway.test.ts	
-pending	src/core/api/providers/__tests__/wandb.test.ts	
-pending	src/core/api/providers/aihubmix.ts	
-pending	src/core/api/providers/anthropic.ts	
-pending	src/core/api/providers/asksage.ts	
-pending	src/core/api/providers/baseten.ts	
-pending	src/core/api/providers/bedrock.ts	
-pending	src/core/api/providers/cerebras.ts	
-pending	src/core/api/providers/claude-code.ts	
-pending	src/core/api/providers/cline.ts	
-pending	src/core/api/providers/deepseek.ts	
-pending	src/core/api/providers/dify.ts	
-pending	src/core/api/providers/doubao.ts	
-pending	src/core/api/providers/fireworks.ts	
-pending	src/core/api/providers/gemini-mock.test.ts	
-pending	src/core/api/providers/gemini.ts	
-pending	src/core/api/providers/groq.ts	
-pending	src/core/api/providers/hicap.ts	
-pending	src/core/api/providers/huawei-cloud-maas.ts	
-pending	src/core/api/providers/huggingface.ts	
-pending	src/core/api/providers/litellm.ts	
-pending	src/core/api/providers/lmstudio.ts	
-pending	src/core/api/providers/minimax.ts	
-pending	src/core/api/providers/mistral.ts	
-pending	src/core/api/providers/moonshot.ts	
-pending	src/core/api/providers/nebius.ts	
-pending	src/core/api/providers/nousresearch.ts	
-pending	src/core/api/providers/oca.ts	
-pending	src/core/api/providers/ollama.ts	
-pending	src/core/api/providers/openai-codex.ts	
-pending	src/core/api/providers/openai-native.ts	
-pending	src/core/api/providers/openai.ts	
-pending	src/core/api/providers/openrouter.ts	
-pending	src/core/api/providers/qwen-code.ts	
-pending	src/core/api/providers/qwen.ts	
-pending	src/core/api/providers/requesty.ts	
-pending	src/core/api/providers/sambanova.ts	
-pending	src/core/api/providers/sapaicore.ts	
-pending	src/core/api/providers/together.ts	
-pending	src/core/api/providers/types.ts	
-pending	src/core/api/providers/vercel-ai-gateway.ts	
-pending	src/core/api/providers/vertex.ts	
-pending	src/core/api/providers/vscode-lm.ts	
-pending	src/core/api/providers/wandb.ts	
-pending	src/core/api/providers/xai.ts	
-pending	src/core/api/providers/zai.ts	
-pending	src/core/api/retry.test.ts	
-pending	src/core/api/retry.ts	
-pending	src/core/api/transform/__tests__/openrouter-stream.test.ts	
-pending	src/core/api/transform/__tests__/thinking-traces.test.ts	
-pending	src/core/api/transform/__tests__/tool-call-processor.test.ts	
-pending	src/core/api/transform/__tests__/tool-parsing.test.ts	
-pending	src/core/api/transform/anthropic-format.ts	
-pending	src/core/api/transform/gemini-format.ts	
-pending	src/core/api/transform/mistral-format.ts	
-pending	src/core/api/transform/o1-format.ts	
-pending	src/core/api/transform/ollama-format.ts	
-pending	src/core/api/transform/openai-format.ts	
-pending	src/core/api/transform/openai-response-format.ts	
-pending	src/core/api/transform/openrouter-stream.ts	
-pending	src/core/api/transform/r1-format.ts	
-pending	src/core/api/transform/stream.ts	
-pending	src/core/api/transform/tool-call-processor.ts	
-pending	src/core/api/transform/vercel-ai-gateway-stream.ts	
-pending	src/core/api/transform/vscode-lm-format.test.ts	
-pending	src/core/api/transform/vscode-lm-format.ts	
+reviewed_candidate	cli/src/utils/openrouter-models.ts	OpenRouter model-catalog fetch + in-memory cache/coalesced fetch pattern captured as candidate for resilient external model discovery | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/parser.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/parser.ts	image-path extraction and data-url conversion pipeline captured as candidate for inline image mention parsing in prompt composer | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/path.ts	PATH-first then bundled binary resolution fallback captured as candidate for deterministic tool binary discovery | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/piped.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/piped.ts	stdin pipe/file detection with EOF-driven piped-input read captured as candidate for robust non-TTY pipeline handling | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/plain-text-task.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/plain-text-task.ts	plain-text task runner with stdout/stderr contract and completion-cutoff semantics captured as candidate for CI-safe headless task execution | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/provider-config.ts	shared provider-config apply flow with provider-specific model-info hydration captured as candidate for unified provider setup | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/providers.ts	provider label/order/validation helpers with remote-config filtering captured as candidate for deterministic provider surfaces | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/session-summary.ts	compact interaction/performance/resource session summary renderer captured as candidate for operator diagnostics at session end | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/slash-commands.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/slash-commands.ts	slash-command query extraction/filter/window/standalone execution guards captured as candidate for command-composer reliability | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/task-history.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/task-history.ts	workspace-scoped most-recent-task resolution helper captured as candidate for reliable task resume targeting | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/utils/task-start-output.ts	minimal task-start emitter is straightforward and already covered by existing runtime event output flow | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/utils/timeout.ts	generic polling wait helper duplicates existing timeout/wait primitives in current runtime | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/tools.ts	tool-name normalization + descriptor taxonomy captured as candidate for consistent tool-call phrasing and parsing | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/update.ts	installation-fingerprint update strategy and nightly/stable semver handling captured as candidate for robust self-update UX | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/vscode-context.ts	CLI memento override adapter and storage-context bootstrap captured as candidate for deterministic host-context defaults | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/vscode-shim.ts	large VSCode API compatibility shim is host-specific and not a direct runtime capability import target | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/tsconfig.json	build/test configuration metadata; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/tsconfig.lib.json	build/test configuration metadata; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/vitest.config.ts	test runner configuration metadata; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/workspaceState.json	local/editor workspace metadata; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/authentication.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/chat-completions.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/errors.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/getting-started.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/models.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/overview.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/reference.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/api/sdk-examples.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/Cline_Logo-complete_black.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/Cline_Logo-complete_white.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/hooks/hook-controls.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/hooks/hooks-collapsed-view.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/hooks/hooks-empty-state.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/hooks/hooks-interface-with-dropdown.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/hooks/new-hook-dropdown.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/jupyter-explain-improve-cell.gif	documentation/demo asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/jupyter-generate-cell.gif	documentation/demo asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/robot_panel_dark.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/robot_panel_light.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/assets/workos-invite-email.png	documentation/design asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/acp-editor-integrations.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/cli-reference.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/configuration.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/getting-started.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/installation.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/interactive-mode.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/overview.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/github-integration.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/github-issue-rca.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/github-pr-review.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/model-orchestration.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/overview.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/samples/worktree-workflows.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-cli/three-core-flows.mdx	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/cline-sdk/overview.md	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/contributing/doc-templates.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/contributing/documentation-guide.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-features/model-selection-guide.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-workflows/checkpoints.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-workflows/plan-and-act.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-workflows/task-management.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-workflows/using-commands.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/core-workflows/working-with-files.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/cline-rules.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/clineignore.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/hooks.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/skills.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/customization/workflows.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/docs.json	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/api-reference.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/mcp-marketplace.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/yolo-mode.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/aws-bedrock/admin-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/aws-bedrock/member-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/google-vertex/admin-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/google-vertex/member-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/litellm/admin-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/litellm/member-configuration.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/configuration/remote-configuration/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/monitoring/opentelemetry.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/monitoring/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/monitoring/telemetry.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/onboarding.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/sso-setup.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/enterprise-solutions/team-management/managing-members.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/auto-approve.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/auto-compact.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/background-edit.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/deep-planning.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/focus-chain.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/jupyter-notebooks.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/memory-bank.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/multiroot-workspace.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/subagents.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/web-tools.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/features/worktrees.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/getting-started/authorizing-with-cline.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/getting-started/installing-cline.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/getting-started/quick-start.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/getting-started/what-is-cline.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/getting-started/your-first-project.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/home.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/hubspot.js	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/kanban/core-workflow.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/kanban/features.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/kanban/getting-started.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/kanban/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/adding-and-configuring-servers.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/connecting-to-a-remote-server.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/mcp-marketplace.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/mcp-overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/mcp-server-development-protocol.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/mcp/mcp-transport-mechanisms.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/model-config/context-windows.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/package-lock.json	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/package.json	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/aihubmix.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/anthropic.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/asksage.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/aws-bedrock/api-key.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/aws-bedrock/cli-profile.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/aws-bedrock/iam-credentials.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/baseten.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/cerebras.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/claude-code.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/deepseek.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/dify.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/doubao.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/fireworks.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/gcp-vertex-ai.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/google-gemini.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/groq.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/hicap.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/huawei-cloud-maas.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/huggingface.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/litellm-and-cline-using-codestral.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/minimax.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/mistral-ai.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/moonshot.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/nebius.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/nousresearch.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/openai-codex.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/openai-compatible.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/openai.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/openrouter.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/oracle-code-assist.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/qwen-code.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/qwen.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/requesty.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/sambanova.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/sap-aicore.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/together.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/vercel-ai-gateway.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/vscode-language-model-api.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/xai-grok.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/provider-config/zai.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/running-models-locally/lm-studio.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/running-models-locally/ollama.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/running-models-locally/overview.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/styles.css	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/tools-reference/all-cline-tools.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/tools-reference/browser-automation.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/troubleshooting/networking-and-proxies.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/troubleshooting/task-history-recovery.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/troubleshooting/terminal-quick-fixes.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	esbuild.mjs	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/ARCHITECTURE.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/package-lock.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/package.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/patterns/cline-failures.yaml	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/__tests__/classifier.test.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/__tests__/metrics.test.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/classifier.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/cli.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/metrics.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/parsers/harbor.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/parsers/index.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/reporters/index.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/reporters/json.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/reporters/markdown.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/schemas/analysis-output.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/schemas/harbor-output.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/src/schemas/index.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/analysis/tsconfig.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/DEPRECATED.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/ClineWrapper.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/TestRunner.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/app.py	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/launch.sh	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/pages/02_Bad_Cases.py	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/requirements.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/dashboard/utils.py	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/client.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/index.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/operations.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/queries.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/schema.sql	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/test.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/database/types.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-06-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-23-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-25-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/diff-apply/diff-06-26-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/helpers.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/openRouterModelsHelper.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/parsing/parse-assistant-message-06-06-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/prompts/basicSystemPrompt-06-06-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/prompts/claude4SystemPrompt-06-06-25.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/run_and_open_dashboard.sh	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/benchmarks/tool-precision/replace-in-file/types.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/e2e/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/e2e/run-cline-bench.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/package-lock.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/package.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/run-smoke-tests.ts	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/01-create-file/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/02-edit-file/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/02-edit-file/template/greeting.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/03-read-summarize/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/03-read-summarize/template/data.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/04-multi-file/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/05-typescript-function/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/06-apply-patch/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/06-apply-patch/template/config.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/07-edit-gemini/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/07-edit-gemini/template/greeting.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/08-openai-compat-gpt-oss-edit/config.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/smoke-tests/scenarios/08-openai-compat-gpt-oss-edit/template/config.txt	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	evals/tsconfig.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	go.work.sum	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	knip.json	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ar-sa/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ar-sa/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ar-sa/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/de/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/de/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/de/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/es/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/es/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/es/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ja/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ja/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ja/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ko/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ko/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/ko/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/pt-BR/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/pt-BR/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/pt-BR/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-cn/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-cn/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-cn/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-tw/CODE_OF_CONDUCT.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-tw/CONTRIBUTING.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	locales/zh-tw/README.md	evaluation/localization/build artifact; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	package-lock.json	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	package.json	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	playwright.config.ts	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/account.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/browser.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/checkpoints.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/commands.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/common.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/file.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/hooks.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/mcp.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/models.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/oca_account.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/slash.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/state.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/task.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/ui.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/web.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/cline/worktree.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/descriptor_set.pb	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/host/diff.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/host/env.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/host/testing.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/host/window.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	proto/host/workspace.proto	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/add-endpoints-to-jetbrains.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/add-endpoints-to-npm.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/add-endpoints-to-vsix.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/api-secrets-parser.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/build-cli-artifact.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/build-proto.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/build-python-proto.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/build-tests.js	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/download-ripgrep.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/file-utils.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/generate-host-bridge-client.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/generate-protobus-setup.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/generate-state-proto.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/generate-stubs.js	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/get-vscode-usages.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/install.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/interactive-playwright.ts	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/package-npm.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/package-standalone.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/proto-lint.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/proto-shared-utils.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/proto-utils.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/publish-nightly.mjs	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/report-issue.js	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/run-extension-host.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/runclinecore.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-bundled-endpoints.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-hostbridge-server.ts	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-install.sh	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-standalone-core-api-server.ts	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/testing-platform-orchestrator.ts	build/protocol/tooling asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/__tests__/config.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/common.ts	shared runtime configuration/bootstrap patterns captured as candidate for environment/config hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/config.ts	shared runtime configuration/bootstrap patterns captured as candidate for environment/config hardening | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/README.md	documentation content; skipped for runtime capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/adapters/__tests__/adapters.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/adapters/diff-editors.ts	apply_patch-to-search/replace adapter captured as candidate for diff rendering and patch-tool compatibility | deleted_to=.assimilation_deleted
+reviewed_no_import	src/core/api/adapters/index.ts	barrel/export indirection only; no standalone runtime behavior to import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/index.ts	provider dispatch factory and mode-specific handler wiring captured as candidate for LLM routing robustness | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/anthropic.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/bedrock.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/claude-code.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/cline.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/fireworks.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/gemini.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/litellm.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/oca.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/ollama.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/openrouter.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/sapaicore.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/vercel-ai-gateway.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/__tests__/wandb.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/aihubmix.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/anthropic.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/asksage.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/baseten.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/bedrock.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/cerebras.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/claude-code.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/cline.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/deepseek.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/dify.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/doubao.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/fireworks.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/providers/gemini-mock.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/gemini.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/groq.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/hicap.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/huawei-cloud-maas.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/huggingface.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/litellm.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/lmstudio.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/minimax.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/mistral.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/moonshot.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/nebius.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/nousresearch.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/oca.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/ollama.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/openai-codex.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/openai-native.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/openai.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/openrouter.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/qwen-code.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/qwen.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/requesty.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/sambanova.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/sapaicore.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/together.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/types.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/vercel-ai-gateway.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/vertex.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/vscode-lm.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/wandb.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/xai.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/providers/zai.ts	provider adapter implementations (auth/model/stream/usage semantics) captured as candidate set for routing and provider-surface hardening | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/retry.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/retry.ts	retry decorator with retry-after header handling and exponential backoff captured as candidate for resilient provider calls | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/transform/__tests__/openrouter-stream.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/transform/__tests__/thinking-traces.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/transform/__tests__/tool-call-processor.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	src/core/api/transform/__tests__/tool-parsing.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/anthropic-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/gemini-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/mistral-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/o1-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/ollama-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/openai-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/openai-response-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/openrouter-stream.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/r1-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/stream.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/tool-call-processor.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/vercel-ai-gateway-stream.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/vscode-lm-format.test.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
+reviewed_candidate	src/core/api/transform/vscode-lm-format.ts	stream/message transform pipeline patterns captured as candidate for tool-call and reasoning-stream normalization | deleted_to=.assimilation_deleted
 pending	src/core/api/utils/__tests__/messages_api_support.test.ts	
 pending	src/core/api/utils/messages_api_support.ts	
 pending	src/core/api/utils/responses_api_support.ts	

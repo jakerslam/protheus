@@ -137,3 +137,43 @@
   - MCP add-shortcut flow with transport normalization and strict settings-file validation.
 - `CLINE-CANDIDATE-MODE-SELECTION-001` (from `cli/src/utils/mode-selection.ts`):
   - Pure deterministic mode-selection decision tree (interactive vs plain-text) with explicit reasons.
+- `CLINE-CANDIDATE-OPENROUTER-CATALOG-CACHE-001` (from `cli/src/utils/openrouter-models.ts`):
+  - OpenRouter model catalog fetch with in-memory cache and request coalescing for low-latency repeated model-list hydration.
+- `CLINE-CANDIDATE-IMAGE-PATH-PARSER-001` (from `cli/src/utils/parser.ts`):
+  - Prompt parser that extracts inline absolute image-path mentions and converts valid images into data URLs.
+- `CLINE-CANDIDATE-BINARY-RESOLUTION-FALLBACK-001` (from `cli/src/utils/path.ts`):
+  - PATH-first tool binary resolution with deterministic fallback to bundled binary location.
+- `CLINE-CANDIDATE-STDIN-PIPE-DETECT-001` (from `cli/src/utils/piped.ts`):
+  - Non-TTY stdin detection that distinguishes real pipe/file input and reads until EOF for chained pipelines.
+- `CLINE-CANDIDATE-PLAIN-TEXT-TASK-RUNNER-001` (from `cli/src/utils/plain-text-task.ts`):
+  - Headless task runner with strict stdout/stderr separation and completion-cutoff handling for resumed tasks.
+- `CLINE-CANDIDATE-PROVIDER-CONFIG-APPLY-001` (from `cli/src/utils/provider-config.ts`):
+  - Shared provider configuration apply/hydration flow that updates provider-specific model info and rebuilds active handlers.
+- `CLINE-CANDIDATE-PROVIDER-METADATA-GATE-001` (from `cli/src/utils/providers.ts`):
+  - Deterministic provider label/order utilities with remote-config aware provider filtering.
+- `CLINE-CANDIDATE-SESSION-SUMMARY-METRICS-001` (from `cli/src/utils/session-summary.ts`):
+  - Structured end-of-session performance/resource summary panel pattern for operator diagnostics.
+- `CLINE-CANDIDATE-SLASH-STANDALONE-EXEC-001` (from `cli/src/utils/slash-commands.ts`):
+  - Deterministic standalone slash-command execution gate with slash-query extraction and visible-window list helpers.
+- `CLINE-CANDIDATE-WORKSPACE-TASK-RESUME-001` (from `cli/src/utils/task-history.ts`):
+  - Workspace-aware "most recent task" selector for safe resume targeting across history entries.
+- `CLINE-CANDIDATE-TOOL-NAME-NORMALIZE-001` (from `cli/src/utils/tools.ts`):
+  - Tool-name normalization and descriptor taxonomy useful for consistent tool-call phrasing/parsing.
+- `CLINE-CANDIDATE-SELF-UPDATE-DETECT-001` (from `cli/src/utils/update.ts`):
+  - Install-footprint detection + nightly/stable version comparison strategy for self-update orchestration.
+- `CLINE-CANDIDATE-CLI-MEMENTO-OVERRIDE-001` (from `cli/src/vscode-context.ts`):
+  - CLI state-override memento adapter pattern for deterministic context defaults without mutating stored keys.
+- `CLINE-CANDIDATE-API-CONFIG-BOOTSTRAP-001` (from `src/common.ts` + `src/config.ts`):
+  - Shared API/runtime configuration bootstrap and environment fallback patterns for multi-provider startup consistency.
+- `CLINE-CANDIDATE-PROVIDER-FACTORY-001` (from `src/core/api/index.ts`):
+  - Central provider-factory dispatch with mode-specific option wiring for resilient multi-provider routing.
+- `CLINE-CANDIDATE-PROVIDER-ADAPTER-MATRIX-001` (from `src/core/api/providers/*.ts`):
+  - Broad provider adapter matrix (auth/model/stream/usage semantics) as an intake source for routing-surface parity.
+- `CLINE-CANDIDATE-RETRY-DECORATOR-001` (from `src/core/api/retry.ts`):
+  - Retry decorator with header-aware retry delay and exponential backoff for transient provider failures.
+- `CLINE-CANDIDATE-OPENROUTER-STREAM-NORMALIZER-001` (from `src/core/api/transform/openrouter-stream.ts`):
+  - OpenRouter request/stream normalizer handling reasoning modes, cache-control blocks, provider preference ordering, and usage fallback.
+- `CLINE-CANDIDATE-TOOLCALL-DELTA-ASSEMBLY-001` (from `src/core/api/transform/tool-call-processor.ts`):
+  - Stateful tool-call delta assembly across stream chunks to emit complete tool-call events without duplicate/partial fragmentation.
+- `CLINE-CANDIDATE-APPLY-PATCH-ADAPTER-001` (from `src/core/api/adapters/diff-editors.ts`):
+  - `apply_patch` translation adapter to normalized write/replace diff operations for downstream patch preview/renderer compatibility.
