@@ -43,6 +43,7 @@ const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheus_completion.ts",
     "client/runtime/systems/ops/protheus_repl.ts",
     "client/runtime/systems/ops/protheus_command_list.ts",
+    "client/runtime/systems/ops/protheus_version_cli.ts",
 ];
 
 fn bool_env(name: &str, fallback: bool) -> bool {
@@ -468,7 +469,9 @@ fn dashboard_pid_file(host: &str, port: &str) -> PathBuf {
 fn dashboard_watchdog_pid_file(host: &str, port: &str) -> PathBuf {
     let host_safe = sanitize_dashboard_host_token(host);
     let port_safe = sanitize_dashboard_port_token(port);
-    tmp_root_path().join(format!("infring-dashboard-watchdog-{host_safe}-{port_safe}.pid"))
+    tmp_root_path().join(format!(
+        "infring-dashboard-watchdog-{host_safe}-{port_safe}.pid"
+    ))
 }
 
 fn read_pid_file(path: &Path) -> Option<u32> {
@@ -539,9 +542,9 @@ fn launchd_dashboard_loaded() -> bool {
         .stderr(Stdio::null())
         .output()
     {
-        Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string(),
+        Ok(output) if output.status.success() => {
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        }
         _ => String::new(),
     };
     if uid.is_empty() {
@@ -641,7 +644,9 @@ fn print_node_free_command_list(mode: &str) {
     let missing_runtime = runtime_missing_entrypoints(&effective_workspace_root(&root));
     if !missing_runtime.is_empty() {
         println!();
-        println!("Runtime assets also appear incomplete (manifest: {INSTALL_RUNTIME_MANIFEST_REL}):");
+        println!(
+            "Runtime assets also appear incomplete (manifest: {INSTALL_RUNTIME_MANIFEST_REL}):"
+        );
         for rel in missing_runtime.iter().take(8) {
             println!("  - missing: {rel}");
         }
@@ -738,25 +743,55 @@ fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<
             Some(0)
         }
         "client/runtime/systems/ops/protheus_version_cli.js"
-            if route.args.first().map(String::as_str) == Some("version") =>
-        {
+        | "client/runtime/systems/ops/protheus_version_cli.ts" => {
+            let command = route
+                .args
+                .first()
+                .map(|row| row.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "version".to_string());
             let version =
                 workspace_package_version(root).unwrap_or_else(|| "0.0.0-unknown".to_string());
-            if json_mode {
-                println!(
-                    "{}",
-                    json!({
-                        "ok": true,
-                        "type": "protheusctl_version_fallback",
-                        "version": version,
-                        "node_runtime_detected": false
-                    })
-                );
-            } else {
-                println!("infring {version}");
-                println!("(Node.js not detected; using package.json fallback)");
+            match command.as_str() {
+                "check-quiet" => Some(0),
+                "update" => {
+                    let install_hint = node_install_command_hint();
+                    if json_mode {
+                        println!(
+                            "{}",
+                            json!({
+                                "ok": true,
+                                "type": "protheusctl_update_fallback",
+                                "current_version": version,
+                                "update_check_performed": false,
+                                "node_runtime_detected": false,
+                                "hint": clean(format!("Install Node.js 22+ (try: {install_hint}) to enable `infring update` release checks."), 220)
+                            })
+                        );
+                    } else {
+                        println!("[infring update] Node.js 22+ is required for release checks.");
+                        println!("[infring update] current version: {version}");
+                        println!("[infring update] install Node hint: {install_hint}");
+                    }
+                    Some(0)
+                }
+                _ => {
+                    if json_mode {
+                        println!(
+                            "{}",
+                            json!({
+                                "ok": true,
+                                "type": "protheusctl_version_fallback",
+                                "version": version,
+                                "node_runtime_detected": false
+                            })
+                        );
+                    } else {
+                        println!("infring {version}");
+                        println!("(Node.js not detected; using package.json fallback)");
+                    }
+                    Some(0)
+                }
             }
-            Some(0)
         }
         "client/runtime/systems/edge/mobile_ops_top.ts"
         | "client/runtime/systems/ops/protheus_status_dashboard.ts" => {

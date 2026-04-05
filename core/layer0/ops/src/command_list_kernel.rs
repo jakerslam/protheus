@@ -361,6 +361,15 @@ const COMMANDS: &[CommandItem] = &[
         read_only: true,
         unsafe_surface: false,
     },
+    CommandItem {
+        synopsis: "update",
+        desc: "Check for the latest release and print upgrade guidance.",
+        tier: CommandTier::Tier1,
+        handler: CommandHandlerKind::RuntimeScript,
+        script_rel: "client/runtime/systems/ops/protheus_version_cli.ts",
+        read_only: true,
+        unsafe_surface: false,
+    },
 ];
 
 const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
@@ -393,6 +402,7 @@ const TIER1_RUNTIME_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheus_completion.ts",
     "client/runtime/systems/ops/protheus_repl.ts",
     "client/runtime/systems/ops/protheus_command_list.ts",
+    "client/runtime/systems/ops/protheus_version_cli.ts",
 ];
 
 pub fn command_registry() -> &'static [CommandItem] {
