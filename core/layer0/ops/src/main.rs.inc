@@ -260,6 +260,11 @@ fn main() {
             let exit = protheus_ops_core::context_stacks::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "session-command-discovery-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::session_command_discovery_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "workspace-file-search" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::workspace_file_search::run(&cwd, &rest);
