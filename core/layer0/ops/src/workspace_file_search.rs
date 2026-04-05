@@ -153,13 +153,25 @@ fn normalize_rel_path(raw: &str) -> String {
         .to_string()
 }
 
+fn ripgrep_install_hint() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "brew install ripgrep"
+    } else if cfg!(target_os = "linux") {
+        "sudo apt-get install ripgrep (or use your distro package manager)"
+    } else if cfg!(target_os = "windows") {
+        "winget install BurntSushi.ripgrep"
+    } else {
+        "https://github.com/BurntSushi/ripgrep#installation"
+    }
+}
+
 fn collect_workspace_items(workspace: &WorkspaceSpec, fetch_limit: usize) -> Result<Vec<SearchItem>, String> {
     let rg_binary = std::env::var("PROTHEUS_RG_BINARY")
         .ok()
         .map(|row| row.trim().to_string())
         .filter(|row| !row.is_empty())
         .unwrap_or_else(|| "rg".to_string());
-    let output = Command::new(rg_binary)
+    let output = Command::new(&rg_binary)
         .arg("--files")
         .arg("--follow")
         .arg("--hidden")
@@ -167,7 +179,17 @@ fn collect_workspace_items(workspace: &WorkspaceSpec, fetch_limit: usize) -> Res
         .arg("!**/{node_modules,.git,.github,out,dist,__pycache__,.venv,.env,venv,env,.cache,tmp,temp}/**")
         .current_dir(&workspace.path)
         .output()
-        .map_err(|err| format!("workspace_file_scan_failed:{err}"))?;
+        .map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                format!(
+                    "workspace_file_scan_failed:rg_not_found:{}:install_hint={}",
+                    rg_binary,
+                    ripgrep_install_hint()
+                )
+            } else {
+                format!("workspace_file_scan_failed:{err}")
+            }
+        })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(format!("workspace_file_scan_failed:{stderr}"));
@@ -398,7 +420,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": true,
             "type": "workspace_file_search_status",
             "source": "cline:file-search",
-            "ripgrep_binary": std::env::var("PROTHEUS_RG_BINARY").unwrap_or_else(|_| "rg".to_string())
+            "ripgrep_binary": std::env::var("PROTHEUS_RG_BINARY").unwrap_or_else(|_| "rg".to_string()),
+            "ripgrep_install_hint": ripgrep_install_hint()
         }),
         "list" => run_search(root, &parsed, ""),
         "search" => {
@@ -475,6 +498,43 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(!results.is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn run_search_reports_ripgrep_install_hint_when_missing() {
+        let root = std::env::temp_dir().join(format!(
+            "workspace_file_search_missing_rg_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("root dir");
+        fs::write(root.join("file.txt"), "fixture").expect("fixture");
+        let previous_rg = std::env::var("PROTHEUS_RG_BINARY").ok();
+        std::env::set_var("PROTHEUS_RG_BINARY", "__missing_rg_binary_for_workspace_file_search__");
+        let parsed = crate::parse_args(&[
+            format!("--workspace={}", root.display()),
+            "--q=file".to_string(),
+            "--limit=5".to_string(),
+        ]);
+        let payload = run_search(&root, &parsed, "");
+        let warnings = payload
+            .get("warnings")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            warnings.iter().any(|row| row
+                .as_str()
+                .unwrap_or("")
+                .contains("rg_not_found")),
+            "expected rg_not_found warning with install hint"
+        );
+        if let Some(prev) = previous_rg {
+            std::env::set_var("PROTHEUS_RG_BINARY", prev);
+        } else {
+            std::env::remove_var("PROTHEUS_RG_BINARY");
+        }
         let _ = fs::remove_dir_all(&root);
     }
 }

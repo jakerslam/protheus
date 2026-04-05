@@ -45,40 +45,40 @@ reviewed_candidate	cli/src/agent/messageTranslator.ts	translation matrix and too
 reviewed_candidate	cli/src/agent/permissionHandler.ts	allow-once/always permission mapping and auto-approval tracker captured as policy UX candidate | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/agent/public-types.ts	type surface definitions only; no standalone runtime behavior to port | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/agent/types.ts	internal type definitions only; no standalone runtime behavior to port | deleted_to=.assimilation_deleted
-pending	cli/src/components/AccountInfoView.tsx	
-pending	cli/src/components/ActionButtons.tsx	
-pending	cli/src/components/ApiKeyInput.tsx	
-pending	cli/src/components/App.resize-initial-prompt.test.tsx	
-pending	cli/src/components/App.test.tsx	
-pending	cli/src/components/App.tsx	
-pending	cli/src/components/AsciiMotionCli.tsx	
-pending	cli/src/components/AskPrompt.tsx	
-pending	cli/src/components/AuthView.tsx	
-pending	cli/src/components/BedrockCustomModelFlow.tsx	
-pending	cli/src/components/BedrockSetup.tsx	
-pending	cli/src/components/ChatMessage.markdown.test.tsx	
-pending	cli/src/components/ChatMessage.test.tsx	
-pending	cli/src/components/ChatMessage.tsx	
-pending	cli/src/components/ChatView.test.tsx	
-pending	cli/src/components/ChatView.tsx	
-pending	cli/src/components/Checkbox.tsx	
-pending	cli/src/components/CheckpointMenu.tsx	
-pending	cli/src/components/ConfigView.test.tsx	
-pending	cli/src/components/ConfigView.tsx	
-pending	cli/src/components/ConfigViewComponents.tsx	
-pending	cli/src/components/ConfigViewWrapper.tsx	
-pending	cli/src/components/DiffView.tsx	
-pending	cli/src/components/ErrorBoundary.tsx	
+reviewed_candidate	cli/src/components/AccountInfoView.tsx	provider/account/credits summary panel pattern captured as future dashboard account-card candidate | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ActionButtons.tsx	centralized ask-state to action-button mapping captured as candidate for chat action-bar normalization | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/ApiKeyInput.tsx	simple masked text input pattern already covered in existing dashboard key forms | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/App.resize-initial-prompt.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/App.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/App.tsx	view-router shell pattern already covered in existing runtime UI composition | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/AsciiMotionCli.tsx	generated large animation payload; not a practical runtime capability import target | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/AskPrompt.tsx	prompt-type classifier + input-mode handling captured as candidate for deterministic ask/reply UX | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/AuthView.tsx	staged auth/provider onboarding and config-import flow captured for model onboarding hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/BedrockCustomModelFlow.tsx	custom Bedrock model onboarding flow captured as provider-onboarding candidate | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/BedrockSetup.tsx	staged Bedrock credential/setup UX captured as cloud-provider setup candidate | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/ChatMessage.markdown.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/ChatMessage.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ChatMessage.tsx	tool/result rendering patterns and markdown token handling captured for chat rendering hardening | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/ChatView.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ChatView.tsx	stream-region isolation and interactive-ask gating patterns captured for reliability UX backlog | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/Checkbox.tsx	primitive checkbox component pattern already present in existing UI surfaces | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/CheckpointMenu.tsx	checkpoint restore-mode selection UX captured as conversation recovery candidate | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/ConfigView.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ConfigView.tsx	config governance panel patterns captured for settings UX backlog | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ConfigViewComponents.tsx	config subcomponent composition patterns captured for settings surface hardening | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/ConfigViewWrapper.tsx	wrapper composition pattern already covered by existing page-shell architecture | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/DiffView.tsx	collapsed-context diff renderer pattern captured for patch/diff visualization backlog | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ErrorBoundary.tsx	user-facing crash containment + error capture pattern captured as resilience candidate | deleted_to=.assimilation_deleted
 pending	cli/src/components/FeatureTip.tsx	
-pending	cli/src/components/FeaturedModelPicker.tsx	
-pending	cli/src/components/FileMentionMenu.tsx	
+reviewed_candidate	cli/src/components/FeaturedModelPicker.tsx	curated featured-model picker pattern captured for model-library UX backlog | deleted_to=.assimilation_deleted
+imported	cli/src/components/FileMentionMenu.tsx	CLINE-RG-HINT-001 imported: ripgrep-missing install-hint diagnostics added to Rust workspace-file-search lane | deleted_to=.assimilation_deleted
 pending	cli/src/components/FocusChain.tsx	
 pending	cli/src/components/HelpPanelContent.tsx	
-pending	cli/src/components/HighlightedInput.tsx	
+reviewed_candidate	cli/src/components/HighlightedInput.tsx	mention/slash highlighting with cursor-stable segment parsing captured as composer UX candidate | deleted_to=.assimilation_deleted
 pending	cli/src/components/HistoryPanelContent.tsx	
 pending	cli/src/components/HistoryView.test.tsx	
 pending	cli/src/components/HistoryView.tsx	
-pending	cli/src/components/ImportView.tsx	
+reviewed_candidate	cli/src/components/ImportView.tsx	external CLI key-import wizard pattern captured for provider onboarding backlog | deleted_to=.assimilation_deleted
 pending	cli/src/components/KanbanMigrationView.test.tsx	
 pending	cli/src/components/KanbanMigrationView.tsx	
 pending	cli/src/components/LanguagePicker.tsx	
