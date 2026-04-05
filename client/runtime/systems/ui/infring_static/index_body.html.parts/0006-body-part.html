@@ -282,9 +282,8 @@
                   <button class="tip-bar-dismiss" @click="dismissTips()" title="Dismiss">&times;</button>
                 </div>
               </div>
-              <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
-                <span class="chat-archived-banner-text">This agent is archived</span>
-                <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
+              <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+                <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
               </div>
               </div>
             </div>
@@ -294,10 +293,14 @@
         <!-- MODE 2: Agent picker + Templates (no agent chatting) -->
         <div x-show="!activeChatAgent" class="chat-wrapper">
         <div class="page-header">
-          <h2>Manage Agents</h2>
           <div class="flex gap-2">
             <button class="btn btn-ghost btn-sm" x-show="agents.length" @click="openSpawnWizard()">+ New Agent</button>
             <button class="btn btn-danger btn-sm" x-show="agents.length > 1" @click="killAllAgents()">Stop All</button>
+          </div>
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
+            <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
+            <div class="tab" role="tab" :class="{ active: page === 'approvals' }" @click="navigate('approvals')">Approvals</div>
           </div>
         </div>
         <div class="page-body" style="overflow-y:auto;padding:24px">

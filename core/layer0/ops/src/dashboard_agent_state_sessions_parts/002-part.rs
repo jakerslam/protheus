@@ -434,13 +434,14 @@ fn resolve_prompt_suggestion_model(root: &Path, agent_id: &str) -> Option<(Strin
         "complexity": "general",
         "budget_mode": "balanced"
     });
-    let (resolved_provider, resolved_model, _) = crate::dashboard_model_catalog::resolve_model_selection(
-        root,
-        &snapshot,
-        &provider,
-        &model,
-        &route_request,
-    );
+    let (resolved_provider, resolved_model, _) =
+        crate::dashboard_model_catalog::resolve_model_selection(
+            root,
+            &snapshot,
+            &provider,
+            &model,
+            &route_request,
+        );
     if resolved_provider.is_empty()
         || resolved_model.is_empty()
         || model_id_is_placeholder(&resolved_model)
@@ -454,8 +455,11 @@ fn resolve_prompt_suggestion_model(root: &Path, agent_id: &str) -> Option<(Strin
         .and_then(Value::as_array)
         .and_then(|rows| {
             rows.iter().find(|row| {
-                clean_text(row.get("provider").and_then(Value::as_str).unwrap_or(""), 80)
-                    .eq_ignore_ascii_case(&resolved_provider)
+                clean_text(
+                    row.get("provider").and_then(Value::as_str).unwrap_or(""),
+                    80,
+                )
+                .eq_ignore_ascii_case(&resolved_provider)
                     && clean_text(row.get("model").and_then(Value::as_str).unwrap_or(""), 240)
                         == resolved_model
             })
@@ -501,6 +505,166 @@ fn parse_model_suggestion_rows(raw: &str) -> Vec<String> {
         .filter(|row| !row.is_empty())
         .filter(|row| !is_template_like_suggestion(row))
         .collect::<Vec<_>>()
+}
+
+fn bool_env(name: &str, fallback: bool) -> bool {
+    match std::env::var(name) {
+        Ok(raw) => matches!(
+            clean_text(&raw, 40).to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => fallback,
+    }
+}
+
+fn looks_like_shell_command_line(line: &str) -> bool {
+    let first = clean_text(line, 200)
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    matches!(
+        first.as_str(),
+        "git"
+            | "gh"
+            | "cargo"
+            | "npm"
+            | "npx"
+            | "pnpm"
+            | "node"
+            | "python"
+            | "pytest"
+            | "ls"
+            | "cat"
+            | "rg"
+            | "grep"
+            | "find"
+            | "tree"
+            | "curl"
+            | "wget"
+            | "docker"
+            | "kubectl"
+            | "infring"
+            | "infringctl"
+            | "protheus-ops"
+    )
+}
+
+fn collect_recent_command_candidates(
+    recent_thread: &[(String, String)],
+    max_rows: usize,
+) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for (role, text) in recent_thread.iter().rev() {
+        if role != "user" {
+            continue;
+        }
+        for line in text.lines() {
+            let normalized = clean_text(line.trim_start_matches("$ "), 220);
+            if normalized.is_empty() || !looks_like_shell_command_line(&normalized) {
+                continue;
+            }
+            if out.iter().any(|existing| existing == &normalized) {
+                continue;
+            }
+            out.push(normalized);
+            if out.len() >= max_rows.max(1) {
+                return out;
+            }
+        }
+    }
+    out
+}
+
+fn analytics_prompt_suggestions(
+    root: &Path,
+    agent_id: &str,
+    recent_thread: &[(String, String)],
+) -> Vec<String> {
+    if !bool_env("INFRING_SESSION_ANALYTICS_SUGGESTIONS_ENABLED", true) {
+        return Vec::new();
+    }
+    let mut commands = collect_recent_command_candidates(recent_thread, 8);
+    if let Ok(summary) = crate::session_command_tracking_kernel::summary_for_kernel(
+        root,
+        &json!({"session_id": agent_id, "since_days": 14}),
+    ) {
+        if let Some(top) = summary.get("top_segments").and_then(Value::as_array) {
+            for row in top {
+                let segment = clean_text(
+                    row.get("segment").and_then(Value::as_str).unwrap_or(""),
+                    220,
+                );
+                if segment.is_empty() {
+                    continue;
+                }
+                if commands.iter().any(|existing| existing == &segment) {
+                    continue;
+                }
+                commands.push(segment);
+                if commands.len() >= 12 {
+                    break;
+                }
+            }
+        }
+    }
+    if commands.is_empty() {
+        return Vec::new();
+    }
+    let suggestions =
+        crate::session_command_session_analytics_kernel::follow_up_suggestions_for_kernel(
+            &json!({
+                "session_id": agent_id,
+                "commands": commands
+            }),
+            PROMPT_SUGGESTION_MAX_COUNT,
+        );
+    suggestions
+        .into_iter()
+        .map(|row| sanitize_suggestion(&row))
+        .filter(|row| !row.is_empty() && !is_template_like_suggestion(row))
+        .collect::<Vec<_>>()
+}
+
+fn load_prompt_suggestion_tuning(root: &Path) -> Value {
+    read_json_file(&root.join("local/state/ops/session_command_tracking/nightly_tuning.json"))
+        .unwrap_or_else(|| json!({}))
+}
+
+fn suggestion_matches_tuned_blocklist(text: &str, tuning: &Value) -> bool {
+    let lowered = clean_text(text, 240).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let blocked_phrases = tuning
+        .pointer("/suggestions/blocked_phrases")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in blocked_phrases {
+        let phrase = clean_text(row.as_str().unwrap_or(""), 120).to_ascii_lowercase();
+        if phrase.is_empty() {
+            continue;
+        }
+        if lowered.contains(&phrase) {
+            return true;
+        }
+    }
+    let blocked_stems = tuning
+        .pointer("/suggestions/blocked_stems")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in blocked_stems {
+        let stem = clean_text(row.as_str().unwrap_or(""), 80).to_ascii_lowercase();
+        if stem.is_empty() {
+            continue;
+        }
+        if lowered.starts_with(&stem) {
+            return true;
+        }
+    }
+    false
 }
 
 fn model_generated_prompt_suggestions(
@@ -760,10 +924,7 @@ fn intro_text_for_role(role: &str, display_name: &str) -> String {
     if role_key.contains("research") || role_key.contains("investig") {
         return format!("Hi, I'm {name}. What should we research first?");
     }
-    if role_key.contains("analyst")
-        || role_key.contains("analysis")
-        || role_key.contains("data")
-    {
+    if role_key.contains("analyst") || role_key.contains("analysis") || role_key.contains("data") {
         return format!("Hi, I'm {name}. What should we analyze first?");
     }
     if role_key.contains("writer") || role_key.contains("editor") || role_key.contains("content") {
@@ -927,7 +1088,15 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
         prefer_question_mark: true,
         prefer_lowercase: base_style.prefer_lowercase,
     };
-    let candidates = model_generated_prompt_suggestions(root, &provider, &model, &recent_thread);
+    let mut candidates = analytics_prompt_suggestions(root, &id, &recent_thread);
+    let model_candidates =
+        model_generated_prompt_suggestions(root, &provider, &model, &recent_thread);
+    for row in model_candidates {
+        if candidates.len() >= PROMPT_SUGGESTION_MAX_COUNT.saturating_mul(2) {
+            break;
+        }
+        candidates.push(row);
+    }
     if candidates.is_empty() {
         return json!({"ok": true, "type": "dashboard_agent_suggestions", "agent_id": id, "suggestions": []});
     }
@@ -936,6 +1105,7 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
         .iter()
         .map(|row| sanitize_suggestion(row).to_ascii_lowercase())
         .collect::<HashSet<_>>();
+    let tuning = load_prompt_suggestion_tuning(root);
     let mut out = Vec::<String>::new();
     for raw in candidates {
         let row = apply_suggestion_style(&style, &raw);
@@ -943,6 +1113,9 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
             continue;
         }
         if is_template_like_suggestion(&row) {
+            continue;
+        }
+        if suggestion_matches_tuned_blocklist(&row, &tuning) {
             continue;
         }
         let row_lc = row.to_ascii_lowercase();

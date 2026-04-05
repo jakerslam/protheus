@@ -1558,6 +1558,7 @@ dependencies = [
  "protheus-pure-workspace",
  "protheus-security-core-v1",
  "protheus-spine-core-v1",
+ "protheus-stomach-core-v1",
  "protheus-tiny-runtime",
  "rand 0.8.5",
  "regex",
@@ -1655,6 +1656,17 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "protheus-stomach-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "walkdir",
 ]
 
 [[package]]

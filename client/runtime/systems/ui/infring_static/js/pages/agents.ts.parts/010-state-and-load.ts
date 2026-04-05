@@ -271,6 +271,17 @@ function agentsPage() {
       var store = Alpine.store('app');
       var rows = Array.isArray(store && store.agents) ? store.agents : [];
       var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+      rows = rows.filter(function(agent) {
+        if (!agent || !agent.id) return false;
+        if (store && typeof store.isArchivedLikeAgent === 'function') {
+          if (store.isArchivedLikeAgent(agent)) return false;
+        } else {
+          if (agent.archived === true) return false;
+          var state = String(agent.state || '').trim().toLowerCase();
+          if (state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0) return false;
+        }
+        return true;
+      });
       if (!pendingFreshId) return rows;
       return rows.filter(function(agent) {
         return String((agent && agent.id) || '').trim() !== pendingFreshId;

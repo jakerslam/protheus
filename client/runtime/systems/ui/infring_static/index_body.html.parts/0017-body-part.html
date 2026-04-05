@@ -237,16 +237,21 @@
               </div>
             </div>
           </div>
-
           </div>
         </div>
       </div>
     </template>
-
-    <!-- ─── Runtime page ─── -->
     <template x-if="page === 'runtime'">
       <div x-data="runtimePage">
-        <div class="page-header"><h2>Runtime</h2></div>
+        <div class="page-header">
+          <div>
+            <div class="tabs mt-3" role="tablist">
+              <div class="tab" role="tab" :class="{ active: page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
+              <div class="tab" role="tab" :class="{ active: page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
+              <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
+            </div>
+          </div>
+        </div>
         <div class="page-body" x-init="loadData()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading runtime info...</span></div>
           <div x-show="!loading">
@@ -268,7 +273,6 @@
                 <div class="stat-value" style="font-size:13px" x-text="defaultModel"></div>
               </div>
             </div>
-
             <div class="card" style="margin-bottom:16px">
               <div class="card-header">System</div>
               <table class="table" style="margin-top:8px">
@@ -282,7 +286,6 @@
                 </tbody>
               </table>
             </div>
-
             <div class="card" style="margin-bottom:16px">
               <div class="card-header">Providers</div>
               <table class="table" style="margin-top:8px">
@@ -299,7 +302,6 @@
                 </tbody>
               </table>
             </div>
-
             <div class="card" style="margin-bottom:16px">
               <div class="card-header">Web Conduit</div>
               <table class="table" style="margin-top:8px">
@@ -326,7 +328,6 @@
                 </tbody>
               </table>
             </div>
-
             <div class="flex gap-2">
               <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
             </div>
@@ -334,7 +335,6 @@
         </div>
       </div>
     </template>
-
   </main>
 </div>
 

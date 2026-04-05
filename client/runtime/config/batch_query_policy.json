@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "batch_query": {
+    "enabled_sources": [
+      "web"
+    ],
+    "allow_large": false,
+    "max_parallel_subqueries": 4
+  }
+}

@@ -28,10 +28,14 @@
     <template x-if="page === 'approvals'">
       <div x-data="approvalsPage" x-init="loadData()">
         <div class="page-header">
-          <h2>Execution Approvals</h2>
           <div class="flex items-center gap-2">
             <span class="badge badge-warn" x-show="pendingCount > 0" x-text="pendingCount + ' pending'"></span>
             <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
+          </div>
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
+            <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
+            <div class="tab" role="tab" :class="{ active: page === 'approvals' }" @click="navigate('approvals')">Approvals</div>
           </div>
         </div>
         <div class="page-body">
@@ -81,7 +85,12 @@
     <template x-if="page === 'workflows'">
       <div x-data="{ wfTab: 'list' }">
         <div class="page-header">
-          <h2>Workflows</h2>
+          <div>
+            <div class="tabs mt-3" role="tablist">
+              <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
+              <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
+            </div>
+          </div>
           <div class="flex gap-2">
             <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">List</button>
             <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Visual Builder</button>

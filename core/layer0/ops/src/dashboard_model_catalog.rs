@@ -6,6 +6,9 @@ use std::cmp::Ordering;
 use std::fs;
 use std::path::Path;
 
+const SESSION_ANALYTICS_TUNING_REL: &str =
+    "local/state/ops/session_command_tracking/nightly_tuning.json";
+
 #[cfg(test)]
 const PROVIDER_REGISTRY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
@@ -18,6 +21,43 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .chars()
         .take(max_len)
         .collect::<String>()
+}
+
+fn bool_env(name: &str, fallback: bool) -> bool {
+    match std::env::var(name) {
+        Ok(raw) => matches!(
+            clean_text(&raw, 40).to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => fallback,
+    }
+}
+
+fn read_json(path: &Path) -> Option<Value> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+}
+
+fn load_session_analytics_tuning(root: &Path) -> Value {
+    if !bool_env("INFRING_SESSION_ANALYTICS_ROUTING_ENABLED", true) {
+        return json!({});
+    }
+    read_json(&root.join(SESSION_ANALYTICS_TUNING_REL)).unwrap_or_else(|| json!({}))
+}
+
+fn parse_f64_value(value: Option<&Value>) -> f64 {
+    value
+        .and_then(|row| {
+            row.as_f64()
+                .or_else(|| row.as_i64().map(|num| num as f64))
+                .or_else(|| row.as_u64().map(|num| num as f64))
+                .or_else(|| {
+                    row.as_str()
+                        .and_then(|text| clean_text(text, 40).parse::<f64>().ok())
+                })
+        })
+        .unwrap_or(0.0)
 }
 
 fn parse_i64(value: Option<&Value>, fallback: i64) -> i64 {
@@ -400,6 +440,7 @@ pub fn resolve_model_selection(
 }
 
 pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
+    let tuning = load_session_analytics_tuning(root);
     let catalog = catalog_payload(root, snapshot);
     let mut rows = catalog
         .get("models")
@@ -426,7 +467,7 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         80,
     )
     .to_ascii_lowercase();
-    let budget_mode = clean_text(
+    let mut budget_mode = clean_text(
         request
             .get("budget_mode")
             .and_then(Value::as_str)
@@ -434,6 +475,45 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         40,
     )
     .to_ascii_lowercase();
+    let tuned_budget_mode = clean_text(
+        tuning
+            .pointer("/routing/default_budget_mode")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
+    let default_budget_override_applied =
+        if (budget_mode.is_empty() || budget_mode == "balanced") && !tuned_budget_mode.is_empty() {
+            budget_mode = tuned_budget_mode.clone();
+            true
+        } else {
+            false
+        };
+    let model_biases = tuning
+        .pointer("/routing/model_bias")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    if !model_biases.is_empty() {
+        for row in &mut rows {
+            let provider = clean_text(
+                row.get("provider").and_then(Value::as_str).unwrap_or(""),
+                80,
+            );
+            let model = clean_text(row.get("model").and_then(Value::as_str).unwrap_or(""), 240);
+            let key = format!("{provider}/{model}");
+            let bias = parse_f64_value(
+                model_biases
+                    .get(row.get("id").and_then(Value::as_str).unwrap_or(""))
+                    .or_else(|| model_biases.get(&key))
+                    .or_else(|| model_biases.get(&model)),
+            );
+            if bias.abs() > f64::EPSILON {
+                row["route_bias"] = json!(bias);
+            }
+        }
+    }
     if offline_required {
         rows.retain(|row| parse_bool(row.get("is_local"), false));
         let has_ollama = rows.iter().any(|row| {
@@ -560,6 +640,12 @@ pub fn route_decision_payload(root: &Path, snapshot: &Value, request: &Value) ->
         "selected_model_id": selected.get("id").cloned().unwrap_or_else(|| json!("")),
         "candidates": top,
         "routing_policy": routing_policy,
+        "analytics_tuning": {
+            "enabled": bool_env("INFRING_SESSION_ANALYTICS_ROUTING_ENABLED", true),
+            "default_budget_override_applied": default_budget_override_applied,
+            "default_budget_mode": tuned_budget_mode,
+            "model_bias_entries": model_biases.len()
+        },
         "input": {
             "prefer_local": prefer_local,
             "offline_required": offline_required,
@@ -595,6 +681,7 @@ fn route_score(
         40,
     )
     .to_ascii_lowercase();
+    let route_bias = parse_f64_value(row.get("route_bias"));
 
     let mut score = 0.0;
     score += power
@@ -618,6 +705,7 @@ fn route_score(
     if needs_key && !crate::dashboard_provider_runtime::auth_status_configured(&auth_status) {
         score -= 1.5;
     }
+    score += route_bias;
     score
 }
 
@@ -732,6 +820,82 @@ mod tests {
     }
 
     #[test]
+    fn route_applies_session_analytics_tuning_budget_and_model_bias() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_json(
+            &root.path().join(PROVIDER_REGISTRY_REL),
+            &json!({
+                "providers": {
+                    "ollama": {
+                        "id": "ollama",
+                        "is_local": true,
+                        "needs_key": false,
+                        "auth_status": "ok",
+                        "model_profiles": {
+                            "qwen2.5-coder:7b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 7, "specialty":"coding"},
+                            "smallthinker:4b": {"power_rating": 3, "cost_rating": 3, "param_count_billion": 4, "specialty":"general"}
+                        }
+                    }
+                }
+            }),
+        );
+        write_json(
+            &root.path().join(SESSION_ANALYTICS_TUNING_REL),
+            &json!({
+                "routing": {
+                    "default_budget_mode": "cheap",
+                    "model_bias": {
+                        "ollama/qwen2.5-coder:7b": 1.2
+                    }
+                }
+            }),
+        );
+        let decision = route_decision_payload(
+            root.path(),
+            &json!({"ok": true}),
+            &json!({
+                "task_type": "code",
+                "budget_mode": "balanced",
+                "offline_required": true,
+                "prefer_local": true
+            }),
+        );
+        assert_eq!(
+            decision
+                .pointer("/analytics_tuning/default_budget_override_applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            decision
+                .pointer("/input/budget_mode")
+                .and_then(Value::as_str),
+            Some("cheap")
+        );
+        assert_eq!(
+            decision
+                .pointer("/analytics_tuning/model_bias_entries")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let qwen_row = decision
+            .get("candidates")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 200)
+                        == "ollama/qwen2.5-coder:7b"
+                })
+            })
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            qwen_row.get("route_bias").and_then(Value::as_f64),
+            Some(1.2)
+        );
+    }
+
+    #[test]
     fn hosted_download_stub_stays_unavailable_without_chat_backend() {
         let root = tempfile::tempdir().expect("tempdir");
         write_json(
@@ -803,8 +967,12 @@ mod tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/qwen2.5-coder:7b")));
-        assert!(!rows.iter().any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/model")));
+        assert!(rows
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/qwen2.5-coder:7b")));
+        assert!(!rows
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("ollama/model")));
     }
 
     #[test]
@@ -821,12 +989,11 @@ mod tests {
             "catalog should expose broad provider/model surface, got {} rows",
             rows.len()
         );
+        assert!(rows
+            .iter()
+            .any(|row| { row.get("id").and_then(Value::as_str) == Some("ollama/qwen3:4b") }));
         assert!(rows.iter().any(|row| {
-            row.get("id").and_then(Value::as_str) == Some("ollama/qwen3:4b")
-        }));
-        assert!(rows.iter().any(|row| {
-            row.get("id").and_then(Value::as_str)
-                == Some("openrouter/google/gemini-2.5-flash")
+            row.get("id").and_then(Value::as_str) == Some("openrouter/google/gemini-2.5-flash")
         }));
     }
 }

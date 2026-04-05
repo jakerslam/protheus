@@ -439,11 +439,33 @@
         await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
           role: String(agent.role || 'analyst')
         });
+        this.currentAgent = Object.assign({}, agent, {
+          archived: false,
+          state: 'running'
+        });
         var store = Alpine.store('app');
         if (store) {
+          if (Array.isArray(store.agents)) {
+            store.agents = store.agents.map(function(row) {
+              if (!row || String((row && row.id) || '') !== agentId) return row;
+              return Object.assign({}, row, { archived: false, state: 'running' });
+            });
+          }
           if (store.pendingAgent && String((store.pendingAgent && store.pendingAgent.id) || '') === agentId) {
             store.pendingAgent = null;
             store.pendingFreshAgentId = null;
+          }
+          if (Array.isArray(store.archivedAgentIds)) {
+            store.archivedAgentIds = store.archivedAgentIds.filter(function(id) {
+              return String(id || '') !== agentId;
+            });
+            if (typeof store.persistArchivedAgentIds === 'function') {
+              store.persistArchivedAgentIds();
+            } else {
+              try {
+                localStorage.setItem('infring-archived-agent-ids', JSON.stringify(store.archivedAgentIds));
+              } catch(_) {}
+            }
           }
           if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agentId);
           else store.activeAgentId = agentId;

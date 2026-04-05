@@ -45,9 +45,14 @@
     },
     isSidebarArchivedAgent(agent) {
       if (!agent || typeof agent !== 'object') return false;
+      var store = this.getAppStore();
+      if (store && typeof store.isArchivedLikeAgent === 'function' && store.isArchivedLikeAgent(agent)) return true;
       if (agent.archived === true) return true;
       var state = String(agent.state || '').trim().toLowerCase();
-      return state === 'archived' || state === 'inactive' || state === 'terminated';
+      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
+      var contractStatus = String(contract && contract.status ? contract.status : '').trim().toLowerCase();
+      return state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0 ||
+        contractStatus.indexOf('archived') >= 0 || contractStatus.indexOf('inactive') >= 0 || contractStatus.indexOf('terminated') >= 0;
     },
     isReservedSystemEmoji(rawEmoji) {
       var normalized = String(rawEmoji || '').replace(/\uFE0F/g, '').trim();
@@ -317,7 +322,7 @@
       this.bootSplashVisible = true;
       if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
       this._collapsedHoverNeedsPointerMove = !!this.sidebarCollapsed;
-      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 260) : 0;
+      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 700) : 0;
       if (this._bootSplashMaxTimer) {
         clearTimeout(this._bootSplashMaxTimer);
         this._bootSplashMaxTimer = 0;
@@ -337,6 +342,7 @@
       // Hash routing
       var validPages = ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard'];
       var pageRedirects = {
+        'automation': 'scheduler',
         'templates': 'agents',
         'triggers': 'workflows',
         'cron': 'scheduler',

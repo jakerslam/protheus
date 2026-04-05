@@ -189,16 +189,13 @@
           </template>
           <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">
             <div class="chat-loading-overlay">
-              <div class="chat-loading-overlay-content">
-                <div class="chat-loading-fairy" aria-hidden="true">
-                  <span class="chat-loading-fairy-core"></span>
-                  <span class="chat-loading-fairy-ring ring-1"></span>
-                  <span class="chat-loading-fairy-ring ring-2"></span>
-                  <span class="chat-loading-fairy-ring ring-3"></span>
+                <div class="chat-loading-overlay-content">
+                  <div class="chat-loading-fairy" aria-hidden="true">
+                    <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark">&infin;</span></span>
+                  </div>
+                  <span>Loading agents...</span>
                 </div>
-                <span>Loading agents...</span>
               </div>
-            </div>
           </template>
 
           <template x-if="currentAgent">
@@ -206,10 +203,7 @@
               <div class="chat-loading-overlay" x-show="sessionLoading">
                 <div class="chat-loading-overlay-content">
                   <div class="chat-loading-fairy" aria-hidden="true">
-                    <span class="chat-loading-fairy-core"></span>
-                    <span class="chat-loading-fairy-ring ring-1"></span>
-                    <span class="chat-loading-fairy-ring ring-2"></span>
-                    <span class="chat-loading-fairy-ring ring-3"></span>
+                    <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark">&infin;</span></span>
                   </div>
                   <span>Loading chat...</span>
                 </div>
@@ -217,10 +211,7 @@
               <div class="chat-loading-overlay" x-show="showFreshArchetypeTiles && freshInitLaunching">
                 <div class="chat-loading-overlay-content">
                   <div class="chat-loading-fairy" aria-hidden="true">
-                    <span class="chat-loading-fairy-core"></span>
-                    <span class="chat-loading-fairy-ring ring-1"></span>
-                    <span class="chat-loading-fairy-ring ring-2"></span>
-                    <span class="chat-loading-fairy-ring ring-3"></span>
+                    <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark">&infin;</span></span>
                   </div>
                   <span>Launching agent...</span>
                 </div>
@@ -265,7 +256,7 @@
                         @mouseenter="setHoveredMessage(msg, idx)"
                         @mouseleave="clearHoveredMessage()"
                       >
-                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                        <div class="message-avatar" x-show="msg.role === 'agent' && !(isCurrentAgentArchived && isCurrentAgentArchived())">
                           <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
                         <div class="message-body">
@@ -429,7 +420,7 @@
                     </template>
                     <template x-if="!msg.is_notice && !shouldRenderMessage(msg, idx)">
                       <div class="message message-placeholder-shell" :class="messageRoleClass(msg)">
-                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                        <div class="message-avatar" x-show="msg.role === 'agent' && !(isCurrentAgentArchived && isCurrentAgentArchived())">
                           <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
                         <div class="message-body">

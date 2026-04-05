@@ -7,6 +7,104 @@
 .tab-secondary:hover, .tab-secondary.active { opacity: 1; }
 .tabs-separator { flex: 1; min-width: 16px; }
 
+/* ── Shared Tabs Normalization ── */
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--border) 84%, transparent);
+  background: color-mix(in srgb, var(--surface2) 78%, transparent);
+}
+
+.tab.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  background: color-mix(in srgb, var(--user-bg) 74%, transparent);
+}
+
+/* ── Topbar Icon + Theme Switcher Normalization ── */
+.global-topbar .topbar-icon-btn svg, .global-topbar .theme-opt svg { width: 16px !important; height: 16px !important; stroke-width: 2.15; display: block; flex-shrink: 0; }
+
+.global-topbar .theme-switcher {
+  --theme-opt-size: 24px;
+  --theme-shell-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--theme-shell-color);
+  border-radius: 999px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.global-topbar .theme-switcher::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--theme-opt-size);
+  height: 100%;
+  border-radius: 999px;
+  border: none;
+  background: var(--theme-shell-color);
+  opacity: 0.5;
+  transform: translateX(0);
+  transition: transform 0.2s var(--ease-smooth), background var(--transition-fast);
+}
+
+.global-topbar .theme-switcher[data-mode='system']::before { transform: translateX(calc(var(--theme-opt-size) * 1)); }
+.global-topbar .theme-switcher[data-mode='dark']::before { transform: translateX(calc(var(--theme-opt-size) * 2)); }
+
+.global-topbar .theme-opt {
+  width: var(--theme-opt-size);
+  height: var(--theme-opt-size);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  position: relative;
+  z-index: 1;
+}
+
+.global-topbar .theme-opt:hover,
+.global-topbar .theme-opt.active {
+  background: transparent;
+  color: var(--text);
+}
+
+/* ── Archived Revive Banner (Floating Button) ── */
+.chat-archived-banner.chat-archived-banner-bottom-center {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-width: 0;
+}
+
 /* ── Quick Action Cards ── */
 .quick-action-card {
   display: flex;

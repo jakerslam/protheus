@@ -52,7 +52,11 @@ fn failure_rewrite_pattern() -> &'static Regex {
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.chars().take(max_len).collect::<String>().trim().to_string()
+    raw.chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 pub fn matches_ack_placeholder(raw: &str) -> bool {
@@ -117,8 +121,9 @@ mod tests {
 
     #[test]
     fn rewrites_generic_tool_failure_placeholder_to_actionable_copy() {
-        let rewritten = rewrite_failure_placeholder("I couldn't complete system_diagnostic right now.")
-            .expect("rewrite");
+        let rewritten =
+            rewrite_failure_placeholder("I couldn't complete system_diagnostic right now.")
+                .expect("rewrite");
         assert!(rewritten.0.to_ascii_lowercase().contains("doctor --json"));
         assert_eq!(rewritten.1, "tool_could_not_complete");
     }

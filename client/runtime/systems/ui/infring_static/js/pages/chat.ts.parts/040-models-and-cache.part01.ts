@@ -197,12 +197,14 @@
 
     isArchivedAgentRecord(agent) {
       if (!agent || typeof agent !== 'object') return false;
+      var store = Alpine.store('app');
+      if (store && typeof store.isArchivedLikeAgent === 'function' && store.isArchivedLikeAgent(agent)) return true;
       if (agent.archived === true) return true;
       var state = String(agent.state || '').trim().toLowerCase();
-      if (state === 'archived' || state === 'inactive' || state === 'terminated') return true;
+      if (state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0) return true;
       var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
       var contractStatus = String(contract && contract.status ? contract.status : '').trim().toLowerCase();
-      return contractStatus === 'terminated';
+      return contractStatus.indexOf('archived') >= 0 || contractStatus.indexOf('inactive') >= 0 || contractStatus.indexOf('terminated') >= 0;
     },
 
     isCurrentAgentArchived() {
@@ -288,7 +290,10 @@
     refreshAgentRosterAuthoritative: async function() {
       var store = Alpine.store('app');
       var rows = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
-      var list = Array.isArray(rows) ? rows : [];
+      var list = (Array.isArray(rows) ? rows : []).filter((row) => {
+        if (!row || !row.id) return false;
+        return !(this.isArchivedAgentRecord && this.isArchivedAgentRecord(row));
+      });
       if (store) {
         store.agents = list;
         store.agentsHydrated = true;

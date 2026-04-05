@@ -138,6 +138,12 @@
       <div x-data="eyesPage">
         <div class="page-header">
           <h2>Eyes <span class="badge badge-muted" x-text="activeCount + '/' + eyes.length + ' active'"></span></h2>
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
+            <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>
+            <div class="tab" role="tab" :class="{ active: page === 'eyes' }" @click="navigate('eyes')">Eyes</div>
+            <div class="tab" role="tab" :class="{ active: page === 'hands' }" @click="navigate('hands')">Hands</div>
+          </div>
         </div>
         <div class="page-body" x-init="loadEyes()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading eyes...</span></div>
@@ -233,10 +239,17 @@
       </div>
     </template>
 
-    <!-- Page: Plugins -->
+    <!-- Page: Apps -->
     <template x-if="page === 'skills'">
       <div x-data="skillsPage">
-        <div class="page-header"><h2>Plugins</h2></div>
+        <div class="page-header">
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
+            <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>
+            <div class="tab" role="tab" :class="{ active: page === 'eyes' }" @click="navigate('eyes')">Eyes</div>
+            <div class="tab" role="tab" :class="{ active: page === 'hands' }" @click="navigate('hands')">Hands</div>
+          </div>
+        </div>
         <div class="page-body" x-init="loadSkills()">
           <div class="info-card">
             <h4>Plugins &amp; Ecosystem</h4>

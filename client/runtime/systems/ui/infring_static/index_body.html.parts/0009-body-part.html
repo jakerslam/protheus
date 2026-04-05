@@ -27,10 +27,13 @@
     <template x-if="page === 'scheduler'">
       <div x-data="schedulerPage()">
         <div class="page-header">
-          <h2>Scheduler</h2>
           <div class="flex gap-2">
             <button class="btn btn-primary btn-sm" x-show="tab === 'jobs'" @click="showCreateForm = true">+ New Job</button>
           </div>
+        </div>
+        <div class="tabs mt-3" role="tablist">
+          <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
+          <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
         </div>
         <div class="tabs" role="tablist">
           <div class="tab" role="tab" :class="{ active: tab === 'jobs' }" @click="tab = 'jobs'">
@@ -276,6 +279,12 @@
             <span class="badge badge-success" x-text="nativeChannelCount + ' native'"></span>
             <span class="badge badge-muted" x-show="templateChannelCount > 0" x-text="templateChannelCount + ' templates'"></span>
           </h2>
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
+            <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>
+            <div class="tab" role="tab" :class="{ active: page === 'eyes' }" @click="navigate('eyes')">Eyes</div>
+            <div class="tab" role="tab" :class="{ active: page === 'hands' }" @click="navigate('hands')">Hands</div>
+          </div>
         </div>
         <div class="page-body" x-init="loadChannels()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading channels...</span></div>

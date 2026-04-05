@@ -5,6 +5,7 @@
     chatSidebarVisibleCount: 7,
     collapsedAgentHover: {
       id: '',
+      kind: 'agent',
       active: false,
       name: '',
       text: '',

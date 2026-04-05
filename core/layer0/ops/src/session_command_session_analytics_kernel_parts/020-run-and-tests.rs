@@ -135,4 +135,18 @@ mod tests {
             Some(1)
         );
     }
+
+    #[test]
+    fn follow_up_suggestions_surface_unsupported_route_hint() {
+        let suggestions = follow_up_suggestions_for_kernel(
+            &json!({
+              "session_id":"s1",
+              "commands":["weirdcmd deploy --now","git status"]
+            }),
+            3,
+        );
+        assert!(!suggestions.is_empty());
+        let joined = suggestions.join(" ").to_ascii_lowercase();
+        assert!(joined.contains("supported route") || joined.contains("optimize command flow"));
+    }
 }

@@ -38,6 +38,12 @@ INSTALL_NODE="${INFRING_INSTALL_NODE:-${PROTHEUS_INSTALL_NODE:-0}}"
 INSTALL_NODE_AUTO="${INFRING_INSTALL_NODE_AUTO:-${PROTHEUS_INSTALL_NODE_AUTO:-1}}"
 INSTALL_OLLAMA="${INFRING_INSTALL_OLLAMA:-${PROTHEUS_INSTALL_OLLAMA:-0}}"
 INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-${PROTHEUS_INSTALL_OLLAMA_AUTO:-1}}"
+INSTALL_OLLAMA_PULL="${INFRING_INSTALL_OLLAMA_PULL:-${PROTHEUS_INSTALL_OLLAMA_PULL:-1}}"
+INSTALL_REQUIRE_MODEL_READY="${INFRING_INSTALL_REQUIRE_MODEL_READY:-${PROTHEUS_INSTALL_REQUIRE_MODEL_READY:-0}}"
+OLLAMA_STARTER_MODEL="${INFRING_OLLAMA_STARTER_MODEL:-${PROTHEUS_OLLAMA_STARTER_MODEL:-qwen2.5:3b-instruct}}"
+OLLAMA_PULL_TIMEOUT="${INFRING_OLLAMA_PULL_TIMEOUT:-${PROTHEUS_OLLAMA_PULL_TIMEOUT:-900}}"
+OLLAMA_INSTALL_CONFIRMED=0
+OLLAMA_LAST_MODEL_COUNT=0
 SOURCE_FALLBACK_DIR=""
 SOURCE_FALLBACK_TMP=""
 PATH_SHIM_DIR=""
@@ -531,6 +537,93 @@ install_ollama_runtime() {
   command -v ollama >/dev/null 2>&1
 }
 
+normalize_ollama_model_ref() {
+  raw_ref="$1"
+  trimmed="$(printf '%s' "$raw_ref" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  trimmed="${trimmed#ollama/}"
+  printf '%s\n' "$trimmed"
+}
+
+ollama_list_model_names() {
+  if ! command -v ollama >/dev/null 2>&1; then
+    return 1
+  fi
+  ollama list 2>/dev/null | awk 'NR>1 && $1 != "" {print $1}'
+}
+
+ollama_model_count() {
+  if ! command -v ollama >/dev/null 2>&1; then
+    printf '%s\n' "0"
+    return 0
+  fi
+  count="$(ollama_list_model_names | awk 'END {print NR+0}')"
+  case "$count" in
+    ''|*[!0-9]*) count=0 ;;
+  esac
+  printf '%s\n' "$count"
+  return 0
+}
+
+ollama_model_present() {
+  target_raw="$1"
+  target="$(normalize_ollama_model_ref "$target_raw")"
+  [ -n "$target" ] || return 1
+  if ! command -v ollama >/dev/null 2>&1; then
+    return 1
+  fi
+  ollama_list_model_names | grep -Fqx "$target" >/dev/null 2>&1
+}
+
+ensure_ollama_starter_model() {
+  if ! command -v ollama >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! is_truthy "$INSTALL_OLLAMA_PULL"; then
+    OLLAMA_LAST_MODEL_COUNT="$(ollama_model_count)"
+    echo "[infring install] starter model pull skipped (INFRING_INSTALL_OLLAMA_PULL=0)."
+    return 0
+  fi
+  starter="$(normalize_ollama_model_ref "$OLLAMA_STARTER_MODEL")"
+  if [ -z "$starter" ]; then
+    OLLAMA_LAST_MODEL_COUNT="$(ollama_model_count)"
+    return 0
+  fi
+  if ! start_ollama_runtime_best_effort; then
+    echo "[infring install] starter model pull skipped: Ollama daemon is offline."
+    return 1
+  fi
+  current_count="$(ollama_model_count)"
+  OLLAMA_LAST_MODEL_COUNT="$current_count"
+  if [ "$current_count" -gt 0 ]; then
+    echo "[infring install] Ollama models: $current_count detected (starter pull not required)."
+    return 0
+  fi
+  pull_timeout="$OLLAMA_PULL_TIMEOUT"
+  case "$pull_timeout" in
+    ''|*[!0-9]*) pull_timeout=900 ;;
+  esac
+  if [ "$pull_timeout" -lt 60 ]; then
+    pull_timeout=60
+  fi
+  if [ "$pull_timeout" -gt 3600 ]; then
+    pull_timeout=3600
+  fi
+  pull_log="$(mktemp)"
+  echo "[infring install] pulling starter model for first-run readiness: $starter"
+  if run_command_with_timeout "$pull_timeout" ollama pull "$starter" >"$pull_log" 2>&1; then
+    current_count="$(ollama_model_count)"
+    OLLAMA_LAST_MODEL_COUNT="$current_count"
+    echo "[infring install] starter model pull complete: $starter"
+    rm -f "$pull_log" >/dev/null 2>&1 || true
+    return 0
+  fi
+  pull_status="$?"
+  echo "[infring install] starter model pull failed (${pull_status}): $starter" >&2
+  tail -n 20 "$pull_log" >&2 || true
+  rm -f "$pull_log" >/dev/null 2>&1 || true
+  return 1
+}
+
 prompt_yes_no_tty() {
   prompt="$1"
   default_answer="$2"
@@ -560,15 +653,38 @@ prompt_yes_no_tty() {
 }
 
 ensure_ollama_runtime_notice() {
+  OLLAMA_LAST_MODEL_COUNT=0
+  require_model_ready_now=0
+  if is_truthy "$INSTALL_REQUIRE_MODEL_READY"; then
+    require_model_ready_now=1
+  fi
   if command -v ollama >/dev/null 2>&1; then
     ollama_bin="$(command -v ollama 2>/dev/null || true)"
     echo "[infring install] Ollama check: detected (${ollama_bin:-ollama})"
     if start_ollama_runtime_best_effort; then
       echo "[infring install] Ollama runtime: online"
+      if is_truthy "$INSTALL_FULL"; then
+        if ! ensure_ollama_starter_model; then
+          if [ "$require_model_ready_now" = "1" ]; then
+            echo "[infring install] model readiness: required but starter model bootstrap failed." >&2
+            return 1
+          fi
+        fi
+      else
+        OLLAMA_LAST_MODEL_COUNT="$(ollama_model_count)"
+      fi
+      if [ "$OLLAMA_LAST_MODEL_COUNT" -gt 0 ]; then
+        echo "[infring install] model readiness: ${OLLAMA_LAST_MODEL_COUNT} local model(s) detected"
+      else
+        echo "[infring install] model readiness: no local models detected yet"
+      fi
       return 0
     fi
     echo "[infring install] Ollama runtime: offline (install succeeded but daemon not reachable)"
     echo "[infring install] start it now: ollama serve"
+    if [ "$require_model_ready_now" = "1" ]; then
+      return 1
+    fi
     return 0
   fi
 
@@ -584,9 +700,13 @@ ensure_ollama_runtime_notice() {
   should_install=0
   if [ "$install_mode" = "explicit" ]; then
     should_install=1
+    OLLAMA_INSTALL_CONFIRMED=1
+    require_model_ready_now=1
   elif [ "$install_mode" = "prompt" ]; then
     if prompt_yes_no_tty "[infring install] Install Ollama now to enable local models? [y/N] " "n"; then
       should_install=1
+      OLLAMA_INSTALL_CONFIRMED=1
+      require_model_ready_now=1
     elif [ "$?" = "2" ]; then
       echo "[infring install] Ollama prompt skipped (no interactive TTY detected)."
     else
@@ -599,18 +719,37 @@ ensure_ollama_runtime_notice() {
       echo "[infring install] Ollama install complete."
       if start_ollama_runtime_best_effort; then
         echo "[infring install] Ollama runtime: online"
+        if ensure_ollama_starter_model; then
+          if [ "$OLLAMA_LAST_MODEL_COUNT" -gt 0 ]; then
+            echo "[infring install] model readiness: ${OLLAMA_LAST_MODEL_COUNT} local model(s) detected"
+          fi
+          return 0
+        fi
+        echo "[infring install] model readiness: starter model bootstrap failed." >&2
+        if [ "$require_model_ready_now" = "1" ]; then
+          return 1
+        fi
       else
         echo "[infring install] Ollama runtime: install complete, start manually with 'ollama serve'"
+        if [ "$require_model_ready_now" = "1" ]; then
+          return 1
+        fi
       fi
       return 0
     fi
     echo "[infring install] Ollama install failed."
+    if [ "$require_model_ready_now" = "1" ]; then
+      return 1
+    fi
   fi
 
   echo "[infring install] install Ollama now:"
   echo "[infring install]   $install_cmd"
-  echo "[infring install] then pull a model: ollama pull qwen2.5:3b-instruct"
+  echo "[infring install] then pull a model: ollama pull $(normalize_ollama_model_ref "$OLLAMA_STARTER_MODEL")"
   echo "[infring install] and verify: ollama list"
+  if [ "$require_model_ready_now" = "1" ]; then
+    return 1
+  fi
   return 1
 }
 
@@ -683,7 +822,7 @@ parse_install_args() {
         echo "  --tiny-max        install tiny-max pure profile for old/embedded hardware targets"
         echo "  --repair          clear stale install wrappers + workspace runtime state before install"
         echo "  --install-node    attempt automatic Node.js 22+ install for full CLI command surface"
-        echo "  --install-ollama  attempt automatic Ollama install for local model support"
+        echo "  --install-ollama  attempt automatic Ollama install and starter local model bootstrap"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
         exit 0
@@ -711,6 +850,10 @@ install_summary_init() {
     echo "install_mode_tiny_max: ${INSTALL_TINY_MAX}"
     echo "install_mode_repair: ${INSTALL_REPAIR}"
     echo "install_mode_install_node: ${INSTALL_NODE}"
+    echo "install_mode_install_ollama: ${INSTALL_OLLAMA}"
+    echo "install_mode_install_ollama_auto: ${INSTALL_OLLAMA_AUTO}"
+    echo "install_mode_require_model_ready: ${INSTALL_REQUIRE_MODEL_READY}"
+    echo "ollama_starter_model: ${OLLAMA_STARTER_MODEL}"
     echo "install_dir: ${INSTALL_DIR}"
     echo "workspace_dir: ${WORKSPACE_DIR}"
     echo "status: pending"
@@ -1201,12 +1344,35 @@ path_persist_kind_for_file() {
   esac
 }
 
+strip_marker_block_from_file() {
+  file="$1"
+  marker_begin="$2"
+  marker_end="$3"
+  [ -f "$file" ] || return 0
+  tmp="$(mktemp 2>/dev/null || true)"
+  [ -n "$tmp" ] || return 1
+  if ! awk -v begin="$marker_begin" -v end="$marker_end" '
+    index($0, begin) { skip = 1; next }
+    skip && index($0, end) { skip = 0; next }
+    !skip { print }
+  ' "$file" > "$tmp"; then
+    rm -f "$tmp" >/dev/null 2>&1 || true
+    return 1
+  fi
+  if ! cat "$tmp" > "$file"; then
+    rm -f "$tmp" >/dev/null 2>&1 || true
+    return 1
+  fi
+  rm -f "$tmp" >/dev/null 2>&1 || true
+  return 0
+}
+
 append_path_block_posix() {
   file="$1"
   marker_begin="# >>> infring PATH >>>"
   marker_end="# <<< infring PATH <<<"
   if [ -f "$file" ] && grep -F "$marker_begin" "$file" >/dev/null 2>&1; then
-    return 0
+    strip_marker_block_from_file "$file" "$marker_begin" "$marker_end" || return 1
   fi
   dir_name="$(dirname "$file")"
   mkdir -p "$dir_name"
@@ -1227,7 +1393,7 @@ append_path_block_fish() {
   marker_begin="# >>> infring PATH >>>"
   marker_end="# <<< infring PATH <<<"
   if [ -f "$file" ] && grep -F "$marker_begin" "$file" >/dev/null 2>&1; then
-    return 0
+    strip_marker_block_from_file "$file" "$marker_begin" "$marker_end" || return 1
   fi
   dir_name="$(dirname "$file")"
   mkdir -p "$dir_name"
@@ -2193,8 +2359,8 @@ run_post_install_smoke_command() {
   fi
   case "$label" in
     infringctl_help)
-      if grep -Eq "could not choose a version of cargo to run|no default is configured|run 'rustup default stable'" "$log"; then
-        echo "[infring install] smoke $label: skipped (missing rustup default toolchain)"
+      if grep -Eq "could not choose a version of cargo to run|no default is configured|run 'rustup default stable'|spawnSync cargo ENOENT|command not found: cargo|No such file or directory.*cargo" "$log"; then
+        echo "[infring install] smoke $label: skipped (missing cargo toolchain/runtime)"
         return 0
       fi
       ;;
@@ -2269,6 +2435,77 @@ run_dashboard_health_smoke() {
   return 0
 }
 
+run_model_readiness_smoke() {
+  smoke_dir="$1"
+  require_ready="${2:-0}"
+  log="$smoke_dir/model_readiness.log"
+  status=0
+  {
+    if ! command -v ollama >/dev/null 2>&1; then
+      echo "ollama_missing"
+      exit 20
+    fi
+    if ! start_ollama_runtime_best_effort; then
+      echo "ollama_offline"
+      exit 21
+    fi
+    before_count="$(ollama_model_count)"
+    echo "model_count_before:${before_count}"
+    if [ "$before_count" -lt 1 ]; then
+      if ! ensure_ollama_starter_model; then
+        echo "starter_pull_failed"
+        exit 22
+      fi
+    fi
+    after_count="$(ollama_model_count)"
+    echo "model_count_after:${after_count}"
+    if [ "$after_count" -lt 1 ]; then
+      echo "no_models_detected"
+      exit 23
+    fi
+    exit 0
+  } >"$log" 2>&1 || status="$?"
+  if [ "$status" = "0" ]; then
+    detected_count="$(ollama_model_count)"
+    echo "[infring install] smoke model_readiness: ok (${detected_count} local model(s))"
+    OLLAMA_LAST_MODEL_COUNT="$detected_count"
+    return 0
+  fi
+  case "$status" in
+    20)
+      if [ "$require_ready" = "1" ]; then
+        echo "[infring install] smoke model_readiness: failed (ollama missing)" >&2
+        cat "$log" >&2 || true
+        return 1
+      fi
+      echo "[infring install] smoke model_readiness: skipped (ollama missing)"
+      return 0
+      ;;
+    21)
+      if [ "$require_ready" = "1" ]; then
+        echo "[infring install] smoke model_readiness: failed (ollama offline)" >&2
+        cat "$log" >&2 || true
+        return 1
+      fi
+      echo "[infring install] smoke model_readiness: skipped (ollama offline)"
+      return 0
+      ;;
+    22|23)
+      if [ "$require_ready" = "1" ]; then
+        echo "[infring install] smoke model_readiness: failed (no local runnable models)" >&2
+        cat "$log" >&2 || true
+        return 1
+      fi
+      echo "[infring install] smoke model_readiness: warning (no local runnable models)"
+      cat "$log" >&2 || true
+      return 0
+      ;;
+  esac
+  echo "[infring install] smoke model_readiness: failed" >&2
+  cat "$log" >&2 || true
+  return 1
+}
+
 run_command_with_timeout() {
   timeout_s="$1"
   shift || true
@@ -2330,6 +2567,11 @@ EOF
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
   fi
+  model_ready_required=0
+  if [ "$OLLAMA_INSTALL_CONFIRMED" = "1" ] || is_truthy "$INSTALL_REQUIRE_MODEL_READY"; then
+    model_ready_required=1
+  fi
+  run_model_readiness_smoke "$smoke_dir" "$model_ready_required" || failures=$((failures + 1))
   if [ "$failures" -ne 0 ]; then
     echo "[infring install] post-install smoke test failed ($failures checks)" >&2
     echo "[infring install] smoke logs: $smoke_dir" >&2
@@ -2963,6 +3205,124 @@ infring_verify_gateway() {
   return 1
 }
 
+infring_update_usage() {
+  cat <<'__INFRING_UPDATE_HELP__'
+Usage: infring update [options]
+Options:
+  --repair                 clear stale wrappers/runtime artifacts before reinstall
+  --full|--minimal|--pure|--tiny-max
+                           choose install profile (default: --full)
+  --version <tag>          install a specific release tag (for example: v0.3.1-alpha)
+  --install-node           request portable Node runtime installation
+  --install-ollama         request Ollama install + starter local model bootstrap
+  --help                   show this help
+__INFRING_UPDATE_HELP__
+}
+
+infring_update_run() {
+  update_url="${INFRING_INSTALLER_URL:-https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh}"
+  update_mode="full"
+  update_repair=0
+  update_version=""
+  update_install_node=0
+  update_install_ollama=0
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --repair)
+        update_repair=1
+        ;;
+      --full|--minimal|--pure|--tiny-max)
+        update_mode="${1#--}"
+        ;;
+      --version=*)
+        update_version="${1#*=}"
+        ;;
+      --version)
+        shift || true
+        update_version="${1:-}"
+        if [ -z "$update_version" ]; then
+          echo "[infring update] missing value for --version" >&2
+          return 2
+        fi
+        ;;
+      --install-node)
+        update_install_node=1
+        ;;
+      --install-ollama)
+        update_install_ollama=1
+        ;;
+      --help|-h|help)
+        infring_update_usage
+        return 0
+        ;;
+      *)
+        echo "[infring update] unsupported option: $1" >&2
+        infring_update_usage >&2
+        return 2
+        ;;
+    esac
+    shift || true
+  done
+
+  installer_tmp="$(mktemp "${TMPDIR:-/tmp}/infring-install.XXXXXX")" || {
+    echo "[infring update] failed to allocate installer temp file" >&2
+    return 1
+  }
+
+  if command -v curl >/dev/null 2>&1; then
+    if ! curl -fsSL "$update_url" -o "$installer_tmp"; then
+      rm -f "$installer_tmp" >/dev/null 2>&1 || true
+      echo "[infring update] failed to download installer from $update_url" >&2
+      return 1
+    fi
+  elif command -v wget >/dev/null 2>&1; then
+    if ! wget -qO "$installer_tmp" "$update_url"; then
+      rm -f "$installer_tmp" >/dev/null 2>&1 || true
+      echo "[infring update] failed to download installer from $update_url" >&2
+      return 1
+    fi
+  else
+    rm -f "$installer_tmp" >/dev/null 2>&1 || true
+    echo "[infring update] neither curl nor wget is available; cannot fetch installer" >&2
+    return 1
+  fi
+
+  update_flags="--${update_mode} --install-dir __INSTALL_DIR__"
+  if [ "$update_repair" = "1" ]; then
+    update_flags="$update_flags --repair"
+  fi
+  if [ "$update_install_node" = "1" ]; then
+    update_flags="$update_flags --install-node"
+  fi
+  if [ "$update_install_ollama" = "1" ]; then
+    update_flags="$update_flags --install-ollama"
+  fi
+
+  echo "[infring update] downloading installer: $update_url"
+  echo "[infring update] mode: --${update_mode}"
+  if [ "$update_repair" = "1" ]; then
+    echo "[infring update] repair: enabled"
+  fi
+  if [ -n "$update_version" ]; then
+    echo "[infring update] target version: $update_version"
+    INFRING_HOME="__INFRING_HOME__" PROTHEUS_HOME="__INFRING_HOME__" \
+      INFRING_VERSION="$update_version" PROTHEUS_VERSION="$update_version" \
+      sh "$installer_tmp" $update_flags
+  else
+    INFRING_HOME="__INFRING_HOME__" PROTHEUS_HOME="__INFRING_HOME__" \
+      sh "$installer_tmp" $update_flags
+  fi
+  update_status=$?
+  rm -f "$installer_tmp" >/dev/null 2>&1 || true
+  if [ "$update_status" -ne 0 ]; then
+    echo "[infring update] failed" >&2
+    return "$update_status"
+  fi
+  echo "[infring update] complete"
+  return 0
+}
+
 if [ "${1:-}" = "__dashboard-watchdog" ]; then
   shift || true
   watchdog_host="127.0.0.1"
@@ -2983,6 +3343,13 @@ if [ "${1:-}" = "__dashboard-watchdog" ]; then
   done
   infring_gateway_watchdog_loop "$watchdog_host" "$watchdog_port" "$watchdog_interval"
   exit 0
+fi
+
+if [ "${1:-}" = "update" ] || [ "${1:-}" = "upgrade" ]; then
+  shift || true
+  infring_update_run "$@"
+  update_status=$?
+  exit "$update_status"
 fi
 
 if [ "${1:-}" = "verify-gateway" ]; then
@@ -3310,6 +3677,7 @@ main() {
 Usage: infring <command> [args]
 Primary commands:
   gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics]
+  update [--repair] [--full|--minimal|--pure|--tiny-max] [--version vX.Y.Z]
   verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]
   list
   status
@@ -3387,7 +3755,14 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     fi
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
-    ensure_ollama_runtime_notice || true
+    if ! ensure_ollama_runtime_notice; then
+      if is_truthy "$INSTALL_OLLAMA" || [ "$OLLAMA_INSTALL_CONFIRMED" = "1" ] || is_truthy "$INSTALL_REQUIRE_MODEL_READY"; then
+        echo "[infring install] requested local model bootstrap did not complete; aborting install." >&2
+        exit 1
+      fi
+    fi
+    install_summary_note "ollama_install_confirmed: ${OLLAMA_INSTALL_CONFIRMED}"
+    install_summary_note "ollama_last_model_count: ${OLLAMA_LAST_MODEL_COUNT}"
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
     # Write activation script before smoke tests so users always have a recovery path
     # even if a smoke check hangs or fails after artifacts are already installed.
@@ -3461,10 +3836,29 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] run: ${quickstart_prefix}infring --help"
   echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
   echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
-  if command -v ollama >/dev/null 2>&1; then
-    echo "[infring install] local models: ollama list"
+  node_summary_bin="$(resolve_node_binary_path 2>/dev/null || true)"
+  if [ -n "$node_summary_bin" ]; then
+    node_summary_ver="$("$node_summary_bin" --version 2>/dev/null || true)"
+    install_summary_note "node_binary: ${node_summary_bin}"
+    install_summary_note "node_version: ${node_summary_ver}"
   else
-    echo "[infring install] local models setup: install Ollama (https://ollama.com/download), then run 'ollama serve' and 'ollama pull qwen2.5:3b-instruct'"
+    install_summary_note "node_binary: missing"
+  fi
+  if command -v ollama >/dev/null 2>&1; then
+    ollama_summary_bin="$(command -v ollama 2>/dev/null || true)"
+    OLLAMA_LAST_MODEL_COUNT="$(ollama_model_count)"
+    install_summary_note "ollama_binary: ${ollama_summary_bin:-ollama}"
+    install_summary_note "ollama_model_count: ${OLLAMA_LAST_MODEL_COUNT}"
+    echo "[infring install] local models: ollama list"
+    if [ "$OLLAMA_LAST_MODEL_COUNT" -gt 0 ]; then
+      echo "[infring install] local model readiness: ${OLLAMA_LAST_MODEL_COUNT} model(s) available"
+    else
+      echo "[infring install] local model readiness: 0 models detected (run 'ollama pull $(normalize_ollama_model_ref "$OLLAMA_STARTER_MODEL")')"
+    fi
+  else
+    install_summary_note "ollama_binary: missing"
+    install_summary_note "ollama_model_count: 0"
+    echo "[infring install] local models setup: install Ollama (https://ollama.com/download), then run 'ollama serve' and 'ollama pull $(normalize_ollama_model_ref "$OLLAMA_STARTER_MODEL")'"
   fi
   echo "[infring install] summary log: $INSTALL_SUMMARY_FILE"
   install_summary_note "completed_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"

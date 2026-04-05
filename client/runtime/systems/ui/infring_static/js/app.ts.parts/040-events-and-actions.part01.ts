@@ -176,11 +176,12 @@
     reconcileArchivedAgentIdsWithLiveAgents() {
       var activeLiveSet = new Set((this.agents || []).map(function(agent) {
         if (!agent || !agent.id) return '';
+        if (typeof this.isArchivedLikeAgent === 'function' && this.isArchivedLikeAgent(agent)) return '';
         if (agent.archived === true) return '';
         var state = String(agent.state || '').trim().toLowerCase();
-        if (state === 'archived' || state === 'inactive' || state === 'terminated') return '';
+        if (state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0) return '';
         return String(agent.id || '');
-      }).filter(Boolean));
+      }, this).filter(Boolean));
       if (!activeLiveSet.size || !Array.isArray(this.archivedAgentIds) || this.archivedAgentIds.length === 0) return;
       var next = this.archivedAgentIds.filter(function(id) {
         return !activeLiveSet.has(String(id || ''));
@@ -323,6 +324,9 @@
       this.confirmArchiveAgentId = '';
       var store = this.getAppStore();
       var archived = agent.archived === true;
+      if (!archived && store && typeof store.isArchivedLikeAgent === 'function') {
+        archived = store.isArchivedLikeAgent(agent);
+      }
       if (store && archived) {
         var pending = {
           id: String(agent.id),

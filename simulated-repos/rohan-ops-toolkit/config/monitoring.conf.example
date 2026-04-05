@@ -11,6 +11,9 @@ retention_days=15
 # How frequently to scrape metrics from targets
 # 15s is appropriate for high-frequency trading workloads; adjust if needed
 scrape_interval=15s
+# NOTE: scrape_interval below 10s may cause Prometheus resource exhaustion
+# in high-cardinality environments. If experiencing OOM issues, consider
+# increasing to 30s or implementing recording rules. See PRO-1847 for details.
 
 [grafana]
 enabled=true

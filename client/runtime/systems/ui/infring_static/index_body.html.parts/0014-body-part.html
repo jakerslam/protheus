@@ -383,7 +383,15 @@
     <!-- Page: Analytics -->
     <template x-if="page === 'analytics'">
       <div x-data="analyticsPage">
-        <div class="page-header"><h2>Analytics</h2></div>
+        <div class="page-header">
+          <div>
+            <div class="tabs mt-3" role="tablist">
+              <div class="tab" role="tab" :class="{ active: page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
+              <div class="tab" role="tab" :class="{ active: page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
+              <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
+            </div>
+          </div>
+        </div>
         <div class="page-body" x-init="loadUsage()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading usage data...</span></div>
           <div x-show="!loading && loadError" class="error-state">

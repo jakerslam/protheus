@@ -148,6 +148,17 @@
   gap: 10px;
 }
 
+.chat-archived-banner.chat-archived-banner-bottom-center {
+  margin: 10px auto 8px;
+  width: fit-content;
+  min-width: 190px;
+  justify-content: center;
+  position: sticky;
+  bottom: 12px;
+  z-index: 14;
+  box-shadow: var(--shadow-sm);
+}
+
 .chat-archived-banner-text {
   font-size: 12px;
   color: var(--text-muted);

@@ -398,6 +398,14 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     }))
 }
 
+pub(crate) fn record_batch_for_kernel(root: &Path, payload: &Value) -> Result<Value, String> {
+    record_batch(root, payload_obj(payload))
+}
+
+pub(crate) fn summary_for_kernel(root: &Path, payload: &Value) -> Result<Value, String> {
+    summary(root, payload_obj(payload))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()

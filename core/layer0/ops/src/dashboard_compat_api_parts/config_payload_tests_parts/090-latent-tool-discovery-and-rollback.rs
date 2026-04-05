@@ -44,6 +44,12 @@ fn direct_intent_parser_supports_undo_routes() {
 }
 
 #[test]
+fn direct_intent_parser_does_not_force_semantic_query_for_recall_prompts() {
+    let recall_route = direct_tool_intent_from_user_message("remember our first chat in this session");
+    assert!(recall_route.is_none());
+}
+
+#[test]
 fn rollback_tool_removes_recent_turn_and_writes_archive() {
     let root = tempfile::tempdir().expect("tempdir");
     let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join("agent-rollback.json");

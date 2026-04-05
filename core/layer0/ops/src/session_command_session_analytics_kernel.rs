@@ -408,4 +408,102 @@ fn build_adoption_report(payload: &Map<String, Value>, limit: usize) -> Value {
     })
 }
 
+fn recommendation_suggestions_from_report(
+    payload: &Map<String, Value>,
+    limit: usize,
+) -> Vec<String> {
+    let report = build_adoption_report(payload, limit.max(1));
+    let total = report
+        .get("total_commands")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    if total == 0 {
+        return Vec::new();
+    }
+    let unsupported = report
+        .get("unsupported_commands")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let adoption_pct = report
+        .get("adoption_pct")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let output_tokens = report
+        .get("total_output_tokens")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let commands = command_list_from_payload(payload);
+    let classify = classify_command_list_for_kernel(&commands, 8);
+    let unsupported_base = classify
+        .get("unsupported")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("base_command"))
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 80))
+        .unwrap_or_default();
+    let supported_canonical = classify
+        .get("supported")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("canonical"))
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 80))
+        .unwrap_or_default();
+
+    let mut out = Vec::<String>::new();
+    if unsupported > 0 {
+        if !unsupported_base.is_empty() {
+            out.push(format!(
+                "Want me to map `{}` into a supported route?",
+                unsupported_base
+            ));
+        } else {
+            out.push("Want me to convert unsupported commands into supported routes?".to_string());
+        }
+    }
+    if adoption_pct < 80.0 {
+        out.push("Should I optimize command flow for higher tool hit rate?".to_string());
+    }
+    if output_tokens > 1200 {
+        out.push("Want a concise digest of terminal output and next actions?".to_string());
+    }
+    if !supported_canonical.is_empty() {
+        out.push(format!(
+            "Should I run `{}` as the next safe step?",
+            supported_canonical
+        ));
+    }
+    if out.is_empty() {
+        out.push("Want me to run one focused command and summarize results?".to_string());
+    }
+
+    let mut dedup = Vec::<String>::new();
+    for row in out {
+        let cleaned = clean_text(&row, 180);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if dedup
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(&cleaned))
+        {
+            continue;
+        }
+        dedup.push(cleaned);
+        if dedup.len() >= limit.max(1) {
+            break;
+        }
+    }
+    dedup
+}
+
+pub(crate) fn adoption_report_for_kernel(payload: &Value, limit: usize) -> Value {
+    build_adoption_report(payload_obj(payload), limit)
+}
+
+pub(crate) fn follow_up_suggestions_for_kernel(payload: &Value, limit: usize) -> Vec<String> {
+    recommendation_suggestions_from_report(payload_obj(payload), limit)
+}
+
 include!("session_command_session_analytics_kernel_parts/020-run-and-tests.rs");

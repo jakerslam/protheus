@@ -1,0 +1,47 @@
+- receipt_id: "receipt:stomach-demo:ingested"
+  phase: "ingested"
+  digest_id: "stomach-demo"
+  snapshot_id: "stomach-demo"
+  origin_url: "https://github.com/acme/stomach-demo"
+  tree_hash: "f7d02064fa973ebbae826103d3544ed60ca999180532a95c2296803e4d9cfa09"
+  policy_version: "stomach_policy_v1"
+  ts: "2026-04-05T12:36:50Z"
+
+- receipt_id: "receipt:stomach-demo:analysis"
+  phase: "analyzed"
+  digest_id: "stomach-demo"
+  score:
+    language_fit: 50
+    similarity: 24
+    churn_risk: 8
+    total: 38
+  cravings:
+    - signal: "ast_similarity"
+      score: 24
+      advisory_only: true
+    - signal: "language_fit"
+      score: 50
+      advisory_only: true
+  ts: "2026-04-05T12:36:50Z"
+
+- receipt_id: "receipt:stomach-demo:proposal"
+  phase: "proposed"
+  digest_id: "stomach-demo"
+  proposal_id: "proposal-7686f168e09039f3"
+  transform_kind: "header_injection"
+  target_paths:
+    - "Cargo.toml"
+    - "LICENSE"
+  transformer_version: "stomach_transformer_v1"
+  ts: "2026-04-05T12:36:50Z"
+
+- receipt_id: "receipt:stomach-demo:verified"
+  phase: "verified"
+  digest_id: "stomach-demo"
+  runner_mode: "trusted_isolated_runner_network_disabled"
+  execution_status: "executed"
+  tests:
+    - "policy_gate_pass"
+    - "proposal_bundle_schema_pass"
+    - "trusted_runner_boundary_pass"
+  ts: "2026-04-05T12:36:50Z"

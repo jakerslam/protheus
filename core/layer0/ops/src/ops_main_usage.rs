@@ -30,6 +30,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops web-conduit|browse <status|receipts|fetch|search> [--url=<https://...>] [--query=<terms>] [--human-approved=1] [--summary-only=1] [--limit=<n>]");
     println!("  protheus-ops batch-query <query|status|policy> [--source=web] [--query=<terms>] [--aperture=small|medium]");
     println!("  protheus-ops context-stacks <create|list|archive|tail-merge|tail-promote|render|batch-class|scheduler-check|status|policy> [flags]");
+    println!("  protheus-ops stomach-kernel <run|status|rollback|purge> [flags]");
     println!("  protheus-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report> [--payload=<json>|--payload-base64=<base64_json>]");
     println!("  protheus-ops session-command-discovery-kernel <classify|classify-text> [--payload=<json>|--payload-base64=<base64_json>]");
     println!("  protheus-ops session-command-tracking-kernel <record|summary|status> [--payload=<json>|--payload-base64=<base64_json>]");

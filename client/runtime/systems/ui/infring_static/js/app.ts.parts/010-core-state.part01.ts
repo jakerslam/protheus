@@ -253,9 +253,19 @@ document.addEventListener('alpine:init', function() {
 
           var nextAgents = (Array.isArray(agents) ? agents : []).filter(function(row) {
             if (!row || !row.id) return false;
+            if (typeof store.isArchivedLikeAgent === 'function') return !store.isArchivedLikeAgent(row);
             if (row.archived === true) return false;
             var state = String(row.state || '').trim().toLowerCase();
-            return !(state === 'archived' || state === 'inactive' || state === 'terminated');
+            var contract = row.contract && typeof row.contract === 'object' ? row.contract : null;
+            var contractStatus = String(contract && contract.status ? contract.status : '').trim().toLowerCase();
+            return !(
+              state.indexOf('archived') >= 0 ||
+              state.indexOf('inactive') >= 0 ||
+              state.indexOf('terminated') >= 0 ||
+              contractStatus.indexOf('archived') >= 0 ||
+              contractStatus.indexOf('inactive') >= 0 ||
+              contractStatus.indexOf('terminated') >= 0
+            );
           });
           var nextById = {};
           for (var ni = 0; ni < nextAgents.length; ni++) {

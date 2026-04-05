@@ -73,6 +73,7 @@ infring-layer1-security = { path = "../../layer1/security" }
 protheus-autonomy-core-v1 = { path = "../../layer2/autonomy" }
 protheus-ops-core-v1 = { path = "../../layer2/ops" }
 protheus-spine-core-v1 = { path = "../../layer2/spine" }
+protheus-stomach-core-v1 = { path = "../../layer2/stomach" }
 llm_runtime = { path = "../../layer1/llm_runtime" }
 exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
 mimalloc = { version = "0.1", default-features = false, optional = true }

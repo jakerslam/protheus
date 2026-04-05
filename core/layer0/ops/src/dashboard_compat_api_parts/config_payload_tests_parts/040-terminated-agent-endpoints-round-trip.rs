@@ -1,4 +1,3 @@
-
 #[test]
 fn terminated_agent_endpoints_round_trip() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -151,21 +150,19 @@ fn archive_all_agents_endpoint_archives_visible_roster() {
     assert!(archived_labels.contains(&alpha_id));
     assert!(archived_labels.contains(&beta_id));
 
-    let listed = handle(
-        root.path(),
-        "GET",
-        "/api/agents",
-        &[],
-        &json!({"ok": true}),
-    )
-    .expect("list active");
+    let listed =
+        handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list active");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows
         .iter()
-        .all(|row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != alpha_id));
+        .all(
+            |row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != alpha_id
+        ));
     assert!(rows
         .iter()
-        .all(|row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != beta_id));
+        .all(
+            |row| clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != beta_id
+        ));
 }
 
 #[test]
@@ -294,7 +291,10 @@ fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
     assert!(!ids.iter().any(|id| id == "agent-archived"));
 
     let status = handle(root.path(), "GET", "/api/status", &[], &snapshot).expect("status");
-    assert_eq!(status.payload.get("agent_count").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        status.payload.get("agent_count").and_then(Value::as_u64),
+        Some(1)
+    );
 
     let terminated =
         handle(root.path(), "GET", "/api/agents/terminated", &[], &snapshot).expect("terminated");
@@ -305,8 +305,10 @@ fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
         .cloned()
         .unwrap_or_default();
     assert!(terminated_rows.iter().any(|row| {
-        clean_text(row.get("agent_id").and_then(Value::as_str).unwrap_or(""), 180)
-            == "agent-archived"
+        clean_text(
+            row.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+            180,
+        ) == "agent-archived"
     }));
 }
 
@@ -362,6 +364,18 @@ fn terminal_endpoints_round_trip() {
             .get("command_translated")
             .and_then(Value::as_bool),
         Some(false)
+    );
+    assert_eq!(
+        ran.payload
+            .pointer("/permission_gate/verdict")
+            .and_then(Value::as_str),
+        Some("allow")
+    );
+    assert_eq!(
+        ran.payload
+            .pointer("/tool_summary/status")
+            .and_then(Value::as_str),
+        Some("ok")
     );
 }
 
@@ -452,6 +466,66 @@ fn agent_terminal_routes_through_command_router() {
             .and_then(Value::as_str),
         Some("translated_infring_cli_alias_to_protheus_ops")
     );
+}
+
+#[test]
+fn agent_terminal_blocks_policy_denied_command_with_structured_summary() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Ops","role":"operator"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create agent");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let blocked = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/terminal"),
+        br#"{"command":"git reset --hard HEAD"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("blocked");
+    assert_eq!(blocked.status, 200);
+    assert_eq!(
+        blocked.payload.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        blocked.payload.get("blocked").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        blocked
+            .payload
+            .pointer("/permission_gate/verdict")
+            .and_then(Value::as_str),
+        Some("deny")
+    );
+    assert_eq!(
+        blocked
+            .payload
+            .pointer("/tool_summary/status")
+            .and_then(Value::as_str),
+        Some("blocked")
+    );
+    assert!(blocked
+        .payload
+        .get("recovery_hints")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false));
 }
 
 #[test]
