@@ -1,4 +1,3 @@
-
 #[test]
 fn persona_blocked_path_fails_closed_before_security_core() {
     let _guard = env_guard();
@@ -99,6 +98,42 @@ fn node_missing_fallback_supports_version_surface() {
     let route = Route {
         script_rel: "client/runtime/systems/ops/protheus_version_cli.js".to_string(),
         args: vec!["version".to_string()],
+        forward_stdin: false,
+    };
+    assert_eq!(node_missing_fallback(&base, &route, true), Some(0));
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn node_missing_fallback_supports_version_surface_ts_route() {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base = std::env::temp_dir().join(format!("protheusctl_version_fallback_ts_{nonce}"));
+    fs::create_dir_all(&base).expect("mkdir");
+    fs::write(base.join("package.json"), r#"{"version":"1.2.3-ts"}"#).expect("package");
+    let route = Route {
+        script_rel: "client/runtime/systems/ops/protheus_version_cli.ts".to_string(),
+        args: vec!["version".to_string()],
+        forward_stdin: false,
+    };
+    assert_eq!(node_missing_fallback(&base, &route, true), Some(0));
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn node_missing_fallback_supports_update_surface() {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base = std::env::temp_dir().join(format!("protheusctl_update_fallback_{nonce}"));
+    fs::create_dir_all(&base).expect("mkdir");
+    fs::write(base.join("package.json"), r#"{"version":"2.4.6-update"}"#).expect("package");
+    let route = Route {
+        script_rel: "client/runtime/systems/ops/protheus_version_cli.ts".to_string(),
+        args: vec!["update".to_string()],
         forward_stdin: false,
     };
     assert_eq!(node_missing_fallback(&base, &route, true), Some(0));
@@ -221,11 +256,8 @@ fn dispatch_security_embedded_engine_passes_without_cargo_manifest() {
     let base = std::env::temp_dir().join(format!("protheusctl_embedded_security_{nonce}"));
     fs::create_dir_all(&base).expect("mkdir");
 
-    let verdict = evaluate_dispatch_security(
-        &base,
-        "core://daemon-control",
-        &["status".to_string()],
-    );
+    let verdict =
+        evaluate_dispatch_security(&base, "core://daemon-control", &["status".to_string()]);
     assert!(
         verdict.ok,
         "embedded security engine should avoid cargo/rustup dependency: {}",

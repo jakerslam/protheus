@@ -22,6 +22,12 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-CLINE-004 | done | Workspace file mention-insertion primitive (`workspace-file-search mention`) | Composer mention flows need deterministic, machine-readable path insertion tokens and explicit no-results behavior instead of ad hoc parsing in UI-only code. | `core/layer0/ops/src/workspace_file_search.rs` now supports `mention` subcommand with insertable token output (`@<path>` default), explicit `status=no_results`, and mention receipts; usage surface updated in `core/layer0/ops/src/ops_main_usage.rs`; regression coverage includes `run_mention_returns_insertable_path` and `run_mention_reports_no_results_state`. | 8 | 0/1/2 |
 
+## Version Update CLI Reliability Intake (2026-04-05)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-OPS-UPDATE-001 | done | Version/update runtime lane (`protheus_version_cli`) with JS compatibility shim and node-missing fallback coverage | Fresh installs and degraded node scenarios need deterministic `version`/`update` behavior instead of route gaps and script-missing errors. | Runtime manifest + Tier1 entrypoints include `protheus_version_cli.ts`; `command_list_kernel` exposes `update`; node-missing fallback in `protheusctl_parts/010-bool-env.rs` handles both TS/JS version routes including `update`/`check-quiet`; new runtime scripts at `client/runtime/systems/ops/protheus_version_cli.ts` and `client/runtime/systems/ops/protheus_version_cli.js`; regression tests added in `protheusctl_tests_parts/060-persona-blocked-path-fails-closed.rs`. | 9 | 0/1/2 |
+
 ## Installer Reliability v1.0 Intake (2026-04-03)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
