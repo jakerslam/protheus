@@ -554,6 +554,7 @@ fn comparative_no_findings_fallback_is_actionable() {
     let lowered = fallback.to_ascii_lowercase();
     assert!(lowered.contains("infring"));
     assert!(lowered.contains("strongest"));
+    assert!(lowered.contains("batch_query"));
     assert!(!response_is_no_findings_placeholder(&fallback));
 }
 
@@ -570,6 +571,27 @@ fn system_diagnostic_failure_summary_is_not_generic_dead_end() {
 }
 
 #[test]
+fn web_search_request_read_failed_summary_is_actionable() {
+    let summary = user_facing_tool_failure_summary(
+        "web_search",
+        &json!({"ok": false, "error": "request_read_failed:Resource temporarily unavailable (os error 35)"}),
+    )
+    .expect("summary");
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("retry transient failures"));
+    assert!(lowered.contains("doctor --json"));
+    assert!(lowered.contains("request_read_failed"));
+}
+
+#[test]
+fn transient_tool_failure_detects_request_read_failed_signature() {
+    assert!(transient_tool_failure(&json!({
+        "ok": false,
+        "error": "request_read_failed:Resource temporarily unavailable (os error 35)"
+    })));
+}
+
+#[test]
 fn web_search_summary_avoids_completed_placeholder_copy() {
     let summary = summarize_tool_payload(
         "web_search",
@@ -583,6 +605,38 @@ fn web_search_summary_avoids_completed_placeholder_copy() {
     assert!(!lowered.contains("web search completed"));
     assert!(!lowered.contains("completed."));
     assert!(!lowered.trim().is_empty());
+}
+
+#[test]
+fn web_search_summary_reports_root_cause_without_legacy_no_findings_template() {
+    let summary = summarize_tool_payload(
+        "web_search",
+        &json!({
+            "ok": true,
+            "query": "ai assistant systems comparison 2024 capabilities landscape",
+            "requested_url": "https://duckduckgo.com/html/?q=ai+assistant+systems+comparison",
+            "domain": "duckduckgo.com",
+            "summary": "AI assistant systems comparison 2024 capabilities landscape at DuckDuckGo All Regions Argentina Australia Safe search Any time"
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("low-signal"));
+    assert!(lowered.contains("batch_query"));
+    assert!(!lowered.contains("search response came from"));
+    assert!(!lowered.contains("couldn't extract usable findings"));
+}
+
+#[test]
+fn finalize_user_facing_response_rewrites_raw_placeholder_dump() {
+    let finalized = finalize_user_facing_response(
+        "Example Domain This domain is for use in documentation examples without needing permission."
+            .to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("raw web output"));
+    assert!(lowered.contains("batch_query"));
+    assert!(!lowered.contains("without needing permission"));
 }
 
 #[test]
