@@ -196,12 +196,12 @@ imported	src/core/toml_filter.rs	RTK-TOML-MATCH-001 imported: match-output short
 pending	src/core/tracking.rs	not yet reviewed
 pending	src/core/utils.rs	not yet reviewed
 reviewed_no_import	src/discover/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-pending	src/discover/lexer.rs	not yet reviewed
+imported	src/discover/lexer.rs	imported as V11-RTK-002 session command discovery lexer/tokenizer contract | deleted_to=.assimilation_deleted
 reviewed_candidate	src/discover/mod.rs	session command discovery aggregation captured as future diagnostics candidate | deleted_to=.assimilation_deleted
-pending	src/discover/provider.rs	not yet reviewed
-pending	src/discover/registry.rs	not yet reviewed
-pending	src/discover/report.rs	not yet reviewed
-pending	src/discover/rules.rs	not yet reviewed
+reviewed_candidate	src/discover/provider.rs	provider log extraction reviewed for future import (provider-specific claude session schema)
+imported	src/discover/registry.rs	imported as V11-RTK-002 command classification/normalization contract | deleted_to=.assimilation_deleted
+imported	src/discover/report.rs	imported as V11-RTK-002 deterministic supported/unsupported report + savings summary contract | deleted_to=.assimilation_deleted
+imported	src/discover/rules.rs	imported as V11-RTK-002 rule table pattern for command support mapping | deleted_to=.assimilation_deleted
 reviewed_no_import	src/filters/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/filters/ansible-playbook.toml	not yet reviewed
 pending	src/filters/basedpyright.toml	not yet reviewed

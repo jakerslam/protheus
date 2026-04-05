@@ -30,6 +30,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops web-conduit|browse <status|receipts|fetch|search> [--url=<https://...>] [--query=<terms>] [--human-approved=1] [--summary-only=1] [--limit=<n>]");
     println!("  protheus-ops batch-query <query|status|policy> [--source=web] [--query=<terms>] [--aperture=small|medium]");
     println!("  protheus-ops context-stacks <create|list|archive|tail-merge|tail-promote|render|batch-class|scheduler-check|status|policy> [flags]");
+    println!("  protheus-ops session-command-discovery-kernel <classify|classify-text> [--payload=<json>|--payload-base64=<base64_json>]");
     println!("  protheus-ops workspace-file-search <search|list|mention|status> [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--q=<query>] [--type=file|folder]");
     println!("  protheus-ops adaptive-layer-store-kernel <paths|is-within-root|resolve-path|read-json|ensure-json|set-json|delete-path> [--payload-base64=<base64_json>]");
     println!("  protheus-ops catalog-store-kernel <paths|default-state|normalize-state|read-state|ensure-state|set-state> [--payload-base64=<base64_json>]");

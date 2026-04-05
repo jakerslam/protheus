@@ -23,8 +23,8 @@
 - Ledger notes include `deleted_to=.assimilation_deleted`.
 
 ## Current Intake State
-- `pending` rows: 150
-- Active files left outside `.assimilation_deleted`: 150
+- `pending` rows: 145
+- Active files left outside `.assimilation_deleted`: 145
 
 ## Imported Capability
 - `RTK-TOML-MATCH-001` (from `src/core/toml_filter.rs`):
@@ -35,9 +35,21 @@
   - Adds deterministic rewrite for generic tool-failure placeholder:
     - `I couldn't complete <tool> right now.` → actionable retry/doctor guidance.
   - Adds DuckDuckGo findings-placeholder suppression for ack-only no-findings copy.
+- `RTK-DISCOVER-001` (from `src/discover/{lexer.rs,registry.rs,rules.rs,report.rs}`):
+  - Imported RTK-style command discovery/classification lane for deterministic shell telemetry triage.
+  - New kernel module:
+    - `core/layer0/ops/src/session_command_discovery_kernel.rs`
+  - Wired command surface:
+    - `core/layer0/ops/src/main.rs.inc`
+    - `core/layer0/ops/src/lib.rs.inc`
+    - `core/layer0/ops/src/ops_main_usage.rs`
+  - Capability:
+    - Quote-aware command-chain splitting.
+    - Env/global-option/path normalization before classification.
+    - Supported/unsupported report with estimated token-savings summary and deterministic receipts.
 
 ## Captured Candidates (Not Yet Imported)
-- `RTK-CANDIDATE-DISCOVER-001` (from `src/discover/mod.rs`):
-  - Session command discovery/aggregation report lane for future diagnostics.
+- `RTK-CANDIDATE-DISCOVER-002` (from `src/discover/provider.rs`):
+  - Provider-specific session log extraction (Claude schema) reviewed; defer until we define provider-agnostic session source contracts.
 - `RTK-CANDIDATE-CODE-FILTER-001` (from `src/core/filter.rs`):
   - Language-aware comment/boilerplate filter strategy as future read/summarize import.
