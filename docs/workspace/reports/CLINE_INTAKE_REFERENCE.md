@@ -73,3 +73,11 @@
   - Source-detected key import wizard flow (selection, confirm, apply, error recovery).
 - `CLINE-CANDIDATE-HIGHLIGHTED-COMPOSER-001` (from `cli/src/components/HighlightedInput.tsx`):
   - Cursor-stable segment parser for mention/slash highlighting in live input composer.
+- `CLINE-CANDIDATE-FEATURE-TIP-001` (from `cli/src/components/FeatureTip.tsx`):
+  - Delayed rotating feature-tip strip during long thinking/acting phases to improve discoverability without blocking flow.
+- `CLINE-CANDIDATE-FOCUS-CHAIN-001` (from `cli/src/components/FocusChain.tsx`):
+  - Checklist parser with current-step/progress visualization for deterministic task-progress transparency.
+- `CLINE-CANDIDATE-HISTORY-PANEL-001` (from `cli/src/components/HistoryPanelContent.tsx`):
+  - Inline searchable keyboard-driven history panel with centered selection window and scroll indicators.
+- `CLINE-CANDIDATE-HISTORY-VIEW-001` (from `cli/src/components/HistoryView.tsx`):
+  - Adaptive visible-window history rendering with pagination controls and bounded row usage.
