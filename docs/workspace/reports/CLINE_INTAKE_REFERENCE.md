@@ -115,3 +115,25 @@
   - Processed-message tracking and completion-signal detection for ask/say event dedupe.
 - `CLINE-CANDIDATE-TEXT-INPUT-SHORTCUTS-001` (from `cli/src/hooks/useTextInput.ts`):
   - Word-level cursor movement and Ctrl-shortcut editing behavior for power-user input handling.
+- `CLINE-CANDIDATE-REVIEW-COMMENT-STREAM-001` (from `cli/src/controllers/CliCommentReviewController.ts`):
+  - Streaming review-comment accumulator with per-file-range thread bucketing and end-of-stream commit.
+- `CLINE-CANDIDATE-CLI-HOST-BRIDGE-FALLBACK-001` (from `cli/src/controllers/index.ts`):
+  - Host-bridge compatibility stubs that preserve command flow while emitting concise CLI-safe summaries.
+- `CLINE-CANDIDATE-DIFF-COMPUTER-001` (from `cli/src/utils/DiffComputer.ts`):
+  - Search/replace and apply-patch diff parser for structured line-level patch preview rendering.
+- `CLINE-CANDIDATE-AUTH-MIGRATION-GUARD-001` (from `cli/src/utils/auth.ts`):
+  - First-run onboarding completion inference from any configured provider credentials.
+- `CLINE-CANDIDATE-CONSOLE-SUPPRESS-001` (from `cli/src/utils/console.ts`):
+  - Verbose-gated console suppression with safe restoration of original console bindings.
+- `CLINE-CANDIDATE-CURSOR-MULTILINE-001` (from `cli/src/utils/cursor.ts`):
+  - Position-preserving cursor movement helpers for multiline input editing.
+- `CLINE-CANDIDATE-MENTION-INSERT-001` (from `cli/src/utils/file-search.ts`):
+  - Mention-mode query extraction and path insertion helpers for file-context composer UX.
+- `CLINE-CANDIDATE-CROSS-CLI-KEY-IMPORT-001` (from `cli/src/utils/import-configs.ts`):
+  - API-key import detection/mapping from adjacent CLI ecosystems to accelerate onboarding.
+- `CLINE-CANDIDATE-INPUT-NORMALIZE-001` (from `cli/src/utils/input.ts`):
+  - Mouse-sequence filtering and cross-platform Enter normalization for stable keyboard handlers.
+- `CLINE-CANDIDATE-MCP-SHORTCUT-VALIDATE-001` (from `cli/src/utils/mcp.ts`):
+  - MCP add-shortcut flow with transport normalization and strict settings-file validation.
+- `CLINE-CANDIDATE-MODE-SELECTION-001` (from `cli/src/utils/mode-selection.ts`):
+  - Pure deterministic mode-selection decision tree (interactive vs plain-text) with explicit reasons.
