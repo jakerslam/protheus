@@ -2840,8 +2840,12 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
 }
 
 fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
-    let lowered = clean_text(text, 1200).to_ascii_lowercase();
+    let cleaned = clean_text(text, 1200);
+    let lowered = cleaned.to_ascii_lowercase();
     if lowered.is_empty() {
+        return true;
+    }
+    if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
         return true;
     }
     if lowered.contains("no usable findings")
@@ -2919,6 +2923,15 @@ fn finalize_user_facing_response_with_outcome(
     findings: Option<String>,
 ) -> (String, String, bool) {
     let cleaned = clean_text(output.trim(), 32_000);
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
+    {
+        return (
+            rewritten,
+            format!("rewrote_failure_placeholder:{rule_id}"),
+            false,
+        );
+    }
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
     let findings_cleaned = sanitize_findings_for_final_response(findings);
     if cleaned.is_empty() {
@@ -4473,17 +4486,28 @@ fn execute_tool_call_by_name(
             .map(|response| response.payload)
             .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
-        "web_search" | "search_web" | "search" | "web_query" => {
-            let body = if input.is_object() {
+        "batch_query" | "batch-query" | "web_search" | "search_web" | "search" | "web_query" => {
+            let mut body = if input.is_object() {
                 input.clone()
             } else {
                 json!({"query": clean_text(input.as_str().unwrap_or(""), 600)})
             };
+            if body.get("source").and_then(Value::as_str).unwrap_or("").is_empty() {
+                body["source"] = json!("web");
+            }
+            if body
+                .get("aperture")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                body["aperture"] = json!("medium");
+            }
             let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
             handle_with_headers(
                 root,
                 "POST",
-                "/api/web/search",
+                "/api/batch-query",
                 &body_bytes,
                 &headers,
                 snapshot,
@@ -5239,6 +5263,50 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return trim_text(body, 24_000);
         }
     }
+    if normalized == "batch_query" || normalized == "batch-query" {
+        let status = clean_text(payload.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2400);
+        if status == "blocked" {
+            if !summary.is_empty() {
+                return trim_text(&summary, 1200);
+            }
+            return "Batch query was blocked by policy.".to_string();
+        }
+        if !summary.is_empty() && !response_looks_like_tool_ack_without_findings(&summary) {
+            return trim_text(&summary, 1200);
+        }
+        let evidence_refs = payload
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if !evidence_refs.is_empty() {
+            let mut lines = vec!["Batch query evidence:".to_string()];
+            for row in evidence_refs.into_iter().take(4) {
+                let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 180);
+                let locator = clean_text(
+                    row.get("locator").and_then(Value::as_str).unwrap_or(""),
+                    220,
+                );
+                if title.is_empty() && locator.is_empty() {
+                    continue;
+                }
+                if locator.is_empty() {
+                    lines.push(format!("- {title}"));
+                } else if title.is_empty() {
+                    lines.push(format!("- {locator}"));
+                } else {
+                    lines.push(format!("- {title} ({locator})"));
+                }
+            }
+            return trim_text(&lines.join("\n"), 1200);
+        }
+        if status == "no_results" {
+            return no_findings_user_facing_response();
+        }
+        return "Search returned no useful information.".to_string();
+    }
     if normalized == "web_search"
         || normalized == "search_web"
         || normalized == "search"
@@ -5930,8 +5998,8 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
             let query = clean_text(&trimmed[prefix.len()..], 600);
             if !query.is_empty() {
                 return Some((
-                    "web_search".to_string(),
-                    json!({"query": query, "summary_only": true}),
+                    "batch_query".to_string(),
+                    json!({"source": "web", "query": query, "aperture": "medium"}),
                 ));
             }
         }
@@ -6017,8 +6085,18 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 None
             } else {
                 Some((
-                    "web_search".to_string(),
-                    json!({"query": arg, "summary_only": true}),
+                    "batch_query".to_string(),
+                    json!({"source": "web", "query": arg, "aperture": "medium"}),
+                ))
+            }
+        }
+        "/batch" => {
+            if arg.is_empty() {
+                None
+            } else {
+                Some((
+                    "batch_query".to_string(),
+                    json!({"source": "web", "query": arg, "aperture": "medium"}),
                 ))
             }
         }
@@ -9215,6 +9293,31 @@ pub fn handle_with_headers(
                 );
                 crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}))
             }
+            "/api/batch-query" => {
+                let source = clean_text(
+                    query_value(path, "source").as_deref().unwrap_or("web"),
+                    40,
+                );
+                let query = clean_text(
+                    query_value(path, "q")
+                        .or_else(|| query_value(path, "query"))
+                        .as_deref()
+                        .unwrap_or(""),
+                    600,
+                );
+                let aperture = clean_text(
+                    query_value(path, "aperture").as_deref().unwrap_or("medium"),
+                    20,
+                );
+                crate::batch_query_primitive::api_batch_query(
+                    root,
+                    &json!({
+                        "source": source,
+                        "query": query,
+                        "aperture": aperture
+                    }),
+                )
+            }
             "/api/telemetry/alerts" => proactive_telemetry_alerts_payload(root, snapshot),
             "/api/continuity" | "/api/continuity/pending" => {
                 continuity_pending_payload(root, snapshot)
@@ -9284,6 +9387,7 @@ pub fn handle_with_headers(
                     ("file_read", "green"),
                     ("folder_export", "green"),
                     ("web_fetch", "green"),
+                    ("batch_query", "green"),
                     ("web_search", "green"),
                     ("memory_kv_get", "green"),
                     ("memory_kv_list", "green"),
@@ -9327,6 +9431,7 @@ pub fn handle_with_headers(
                     {"cmd": "/continuity", "command": "/continuity", "desc": "Show pending actions across sessions/channels/tasks", "description": "Show pending actions across sessions/channels/tasks"},
                     {"cmd": "/browse <url>", "command": "/browse <url>", "desc": "Fetch and summarize a web URL via governed web conduit", "description": "Fetch and summarize a web URL via governed web conduit"},
                     {"cmd": "/search <query>", "command": "/search <query>", "desc": "Search the web with governed web conduit and summarize results", "description": "Search the web with governed web conduit and summarize results"},
+                    {"cmd": "/batch <query>", "command": "/batch <query>", "desc": "Run governed batch query primitive (source=web, aperture=medium)", "description": "Run governed batch query primitive (source=web, aperture=medium)"},
                     {"cmd": "/cron", "command": "/cron list | /cron schedule <interval> <message> | /cron run <job_id> | /cron cancel <job_id>", "desc": "Manage agent-owned scheduled jobs", "description": "Manage agent-owned scheduled jobs"},
                     {"cmd": "/memory query <text>", "command": "/memory query <text>", "desc": "Semantic memory lookup over persisted KV entries", "description": "Semantic memory lookup over persisted KV entries"},
                     {"cmd": "/undo", "command": "/undo", "desc": "Undo the last conversational turn with receipted rollback", "description": "Undo the last conversational turn with receipted rollback"},
@@ -9412,6 +9517,18 @@ pub fn handle_with_headers(
                     200
                 } else {
                     400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/batch-query" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = crate::batch_query_primitive::api_batch_query(root, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("status").and_then(Value::as_str) == Some("blocked") {
+                    400
+                } else {
+                    200
                 },
                 payload,
             });

@@ -427,6 +427,13 @@ fn ack_only_detector_allows_explicit_no_findings_failure_copy() {
 }
 
 #[test]
+fn ack_only_detector_flags_duckduckgo_findings_placeholder_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "I couldn't extract usable findings for this yet. The search response came from https://duckduckgo.com/html/?q=agent+systems"
+    ));
+}
+
+#[test]
 fn response_tools_summary_drops_ack_only_tool_rows() {
     let synthesized = response_tools_summary_for_user(
         &[json!({
@@ -458,6 +465,17 @@ fn finalize_user_facing_response_replaces_ack_without_findings() {
     assert!(!lowered.contains("web search completed"));
     assert!(lowered.contains("no relevant results"));
     assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_rewrites_generic_tool_failure_placeholder() {
+    let finalized = finalize_user_facing_response(
+        "I couldn't complete system_diagnostic right now.".to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("doctor --json"));
+    assert!(!lowered.contains("couldn't complete system_diagnostic right now"));
 }
 
 #[test]

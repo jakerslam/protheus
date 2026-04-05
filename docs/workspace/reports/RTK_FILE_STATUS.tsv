@@ -1,0 +1,290 @@
+status	path	notes
+skipped_non_runtime	.claude/agents/code-reviewer.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/agents/debugger.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/agents/rtk-testing-specialist.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/agents/rust-rtk.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/agents/system-architect.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/agents/technical-writer.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/clean-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/clean-worktrees.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/diagnose.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/audit-codebase.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/clean-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/clean-worktrees.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/codereview.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/remove-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/worktree-status.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/tech/worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/test-routing.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/worktree-status.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/commands/worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/hooks/bash/pre-commit-format.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/hooks/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/hooks/rtk-suggest.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/rules/cli-testing.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/rules/rust-patterns.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/rules/search-strategy.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/code-simplifier/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/design-patterns/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/issue-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/issue-triage/templates/issue-comment.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/performance.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/performance/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/pr-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/pr-triage/templates/review-comment.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/repo-recap.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/rtk-tdd/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/rtk-tdd/references/testing-patterns.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/rtk-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/security-guardian.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/ship.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.claude/skills/tdd-rust/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/PULL_REQUEST_TEMPLATE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/copilot-instructions.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/hooks/rtk-rewrite.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/workflows/CICD.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/workflows/cd.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/workflows/ci.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/workflows/pr-target-check.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.github/workflows/release.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.gitignore	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	.release-please-manifest.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	ARCHITECTURE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	CHANGELOG.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	CLAUDE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	CONTRIBUTING.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	Cargo.lock	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	Cargo.toml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	Formula/rtk.rb	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	INSTALL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	LICENSE	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README_es.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README_fr.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README_ja.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README_ko.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	README_zh.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	ROADMAP.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	SECURITY.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	build.rs	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/AUDIT_GUIDE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/FEATURES.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/TECHNICAL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/TROUBLESHOOTING.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/filter-workflow.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/images/gain-dashboard.jpg	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/maintainers/MAINTAINERS_APPLY.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	docs/tracking.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/claude/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/claude/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/claude/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/claude/test-rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/cline/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/cline/rules.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/codex/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/codex/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/copilot/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/copilot/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/copilot/test-rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/cursor/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/cursor/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/opencode/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/opencode/rtk.ts	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/windsurf/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	hooks/windsurf/rules.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	install.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	openclaw/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	openclaw/index.ts	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	openclaw/openclaw.plugin.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	openclaw/package.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	release-please-config.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/benchmark.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/check-installation.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/check-test-presence.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/install-local.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/rtk-economics.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-all.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-aristote.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-ruby.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/test-tracking.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/update-readme-metrics.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	scripts/validate-docs.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+pending	src/analytics/README.md	not yet reviewed
+pending	src/analytics/cc_economics.rs	not yet reviewed
+pending	src/analytics/ccusage.rs	not yet reviewed
+pending	src/analytics/gain.rs	not yet reviewed
+pending	src/analytics/mod.rs	not yet reviewed
+pending	src/analytics/session_cmd.rs	not yet reviewed
+pending	src/cmds/README.md	not yet reviewed
+pending	src/cmds/cloud/README.md	not yet reviewed
+pending	src/cmds/cloud/aws_cmd.rs	not yet reviewed
+pending	src/cmds/cloud/container.rs	not yet reviewed
+pending	src/cmds/cloud/curl_cmd.rs	not yet reviewed
+pending	src/cmds/cloud/mod.rs	not yet reviewed
+pending	src/cmds/cloud/psql_cmd.rs	not yet reviewed
+pending	src/cmds/cloud/wget_cmd.rs	not yet reviewed
+pending	src/cmds/dotnet/README.md	not yet reviewed
+pending	src/cmds/dotnet/binlog.rs	not yet reviewed
+pending	src/cmds/dotnet/dotnet_cmd.rs	not yet reviewed
+pending	src/cmds/dotnet/dotnet_format_report.rs	not yet reviewed
+pending	src/cmds/dotnet/dotnet_trx.rs	not yet reviewed
+pending	src/cmds/dotnet/mod.rs	not yet reviewed
+pending	src/cmds/git/README.md	not yet reviewed
+pending	src/cmds/git/diff_cmd.rs	not yet reviewed
+pending	src/cmds/git/gh_cmd.rs	not yet reviewed
+pending	src/cmds/git/git.rs	not yet reviewed
+pending	src/cmds/git/gt_cmd.rs	not yet reviewed
+pending	src/cmds/git/mod.rs	not yet reviewed
+pending	src/cmds/go/README.md	not yet reviewed
+pending	src/cmds/go/go_cmd.rs	not yet reviewed
+pending	src/cmds/go/golangci_cmd.rs	not yet reviewed
+pending	src/cmds/go/mod.rs	not yet reviewed
+pending	src/cmds/js/README.md	not yet reviewed
+pending	src/cmds/js/lint_cmd.rs	not yet reviewed
+pending	src/cmds/js/mod.rs	not yet reviewed
+pending	src/cmds/js/next_cmd.rs	not yet reviewed
+pending	src/cmds/js/npm_cmd.rs	not yet reviewed
+pending	src/cmds/js/playwright_cmd.rs	not yet reviewed
+pending	src/cmds/js/pnpm_cmd.rs	not yet reviewed
+pending	src/cmds/js/prettier_cmd.rs	not yet reviewed
+pending	src/cmds/js/prisma_cmd.rs	not yet reviewed
+pending	src/cmds/js/tsc_cmd.rs	not yet reviewed
+pending	src/cmds/js/vitest_cmd.rs	not yet reviewed
+pending	src/cmds/mod.rs	not yet reviewed
+pending	src/cmds/python/README.md	not yet reviewed
+pending	src/cmds/python/mod.rs	not yet reviewed
+pending	src/cmds/python/mypy_cmd.rs	not yet reviewed
+pending	src/cmds/python/pip_cmd.rs	not yet reviewed
+pending	src/cmds/python/pytest_cmd.rs	not yet reviewed
+pending	src/cmds/python/ruff_cmd.rs	not yet reviewed
+pending	src/cmds/ruby/README.md	not yet reviewed
+pending	src/cmds/ruby/mod.rs	not yet reviewed
+pending	src/cmds/ruby/rake_cmd.rs	not yet reviewed
+pending	src/cmds/ruby/rspec_cmd.rs	not yet reviewed
+pending	src/cmds/ruby/rubocop_cmd.rs	not yet reviewed
+pending	src/cmds/rust/README.md	not yet reviewed
+pending	src/cmds/rust/cargo_cmd.rs	not yet reviewed
+pending	src/cmds/rust/mod.rs	not yet reviewed
+pending	src/cmds/rust/runner.rs	not yet reviewed
+pending	src/cmds/system/README.md	not yet reviewed
+pending	src/cmds/system/constants.rs	not yet reviewed
+pending	src/cmds/system/deps.rs	not yet reviewed
+pending	src/cmds/system/env_cmd.rs	not yet reviewed
+pending	src/cmds/system/find_cmd.rs	not yet reviewed
+pending	src/cmds/system/format_cmd.rs	not yet reviewed
+pending	src/cmds/system/grep_cmd.rs	not yet reviewed
+pending	src/cmds/system/json_cmd.rs	not yet reviewed
+reviewed_no_import	src/cmds/system/local_llm.rs	heuristic smart summary reviewed; no direct import in this pass | deleted_to=.assimilation_deleted
+pending	src/cmds/system/log_cmd.rs	not yet reviewed
+pending	src/cmds/system/ls.rs	not yet reviewed
+pending	src/cmds/system/mod.rs	not yet reviewed
+pending	src/cmds/system/read.rs	not yet reviewed
+pending	src/cmds/system/summary.rs	not yet reviewed
+pending	src/cmds/system/tree.rs	not yet reviewed
+pending	src/cmds/system/wc_cmd.rs	not yet reviewed
+reviewed_no_import	src/core/README.md	module overview doc reviewed; no direct runtime import | deleted_to=.assimilation_deleted
+pending	src/core/config.rs	not yet reviewed
+pending	src/core/constants.rs	not yet reviewed
+pending	src/core/display_helpers.rs	not yet reviewed
+reviewed_candidate	src/core/filter.rs	language/comment filter strategy patterns captured as follow-up candidate for read/summarize surfaces | deleted_to=.assimilation_deleted
+pending	src/core/mod.rs	not yet reviewed
+pending	src/core/runner.rs	not yet reviewed
+pending	src/core/tee.rs	not yet reviewed
+pending	src/core/telemetry.rs	not yet reviewed
+imported	src/core/toml_filter.rs	RTK-TOML-MATCH-001 imported: match-output short-circuit rule contract adapted into core tool placeholder filter lane | deleted_to=.assimilation_deleted
+pending	src/core/tracking.rs	not yet reviewed
+pending	src/core/utils.rs	not yet reviewed
+pending	src/discover/README.md	not yet reviewed
+pending	src/discover/lexer.rs	not yet reviewed
+reviewed_candidate	src/discover/mod.rs	session command discovery aggregation captured as future diagnostics candidate | deleted_to=.assimilation_deleted
+pending	src/discover/provider.rs	not yet reviewed
+pending	src/discover/registry.rs	not yet reviewed
+pending	src/discover/report.rs	not yet reviewed
+pending	src/discover/rules.rs	not yet reviewed
+pending	src/filters/README.md	not yet reviewed
+pending	src/filters/ansible-playbook.toml	not yet reviewed
+pending	src/filters/basedpyright.toml	not yet reviewed
+pending	src/filters/biome.toml	not yet reviewed
+pending	src/filters/brew-install.toml	not yet reviewed
+pending	src/filters/bundle-install.toml	not yet reviewed
+pending	src/filters/composer-install.toml	not yet reviewed
+pending	src/filters/df.toml	not yet reviewed
+pending	src/filters/dotnet-build.toml	not yet reviewed
+pending	src/filters/du.toml	not yet reviewed
+pending	src/filters/fail2ban-client.toml	not yet reviewed
+pending	src/filters/gcc.toml	not yet reviewed
+pending	src/filters/gcloud.toml	not yet reviewed
+pending	src/filters/gradle.toml	not yet reviewed
+pending	src/filters/hadolint.toml	not yet reviewed
+pending	src/filters/helm.toml	not yet reviewed
+pending	src/filters/iptables.toml	not yet reviewed
+pending	src/filters/jira.toml	not yet reviewed
+pending	src/filters/jj.toml	not yet reviewed
+pending	src/filters/jq.toml	not yet reviewed
+pending	src/filters/just.toml	not yet reviewed
+pending	src/filters/make.toml	not yet reviewed
+pending	src/filters/markdownlint.toml	not yet reviewed
+pending	src/filters/mise.toml	not yet reviewed
+pending	src/filters/mix-compile.toml	not yet reviewed
+pending	src/filters/mix-format.toml	not yet reviewed
+pending	src/filters/mvn-build.toml	not yet reviewed
+pending	src/filters/nx.toml	not yet reviewed
+pending	src/filters/ollama.toml	not yet reviewed
+pending	src/filters/oxlint.toml	not yet reviewed
+pending	src/filters/ping.toml	not yet reviewed
+pending	src/filters/pio-run.toml	not yet reviewed
+pending	src/filters/poetry-install.toml	not yet reviewed
+pending	src/filters/pre-commit.toml	not yet reviewed
+pending	src/filters/ps.toml	not yet reviewed
+pending	src/filters/quarto-render.toml	not yet reviewed
+pending	src/filters/rsync.toml	not yet reviewed
+pending	src/filters/shellcheck.toml	not yet reviewed
+pending	src/filters/shopify-theme.toml	not yet reviewed
+pending	src/filters/skopeo.toml	not yet reviewed
+pending	src/filters/sops.toml	not yet reviewed
+pending	src/filters/spring-boot.toml	not yet reviewed
+pending	src/filters/ssh.toml	not yet reviewed
+pending	src/filters/stat.toml	not yet reviewed
+pending	src/filters/swift-build.toml	not yet reviewed
+pending	src/filters/systemctl-status.toml	not yet reviewed
+pending	src/filters/task.toml	not yet reviewed
+pending	src/filters/terraform-plan.toml	not yet reviewed
+pending	src/filters/tofu-fmt.toml	not yet reviewed
+pending	src/filters/tofu-init.toml	not yet reviewed
+pending	src/filters/tofu-plan.toml	not yet reviewed
+pending	src/filters/tofu-validate.toml	not yet reviewed
+pending	src/filters/trunk-build.toml	not yet reviewed
+pending	src/filters/turbo.toml	not yet reviewed
+pending	src/filters/ty.toml	not yet reviewed
+pending	src/filters/uv-sync.toml	not yet reviewed
+pending	src/filters/xcodebuild.toml	not yet reviewed
+pending	src/filters/yadm.toml	not yet reviewed
+pending	src/filters/yamllint.toml	not yet reviewed
+pending	src/hooks/README.md	not yet reviewed
+pending	src/hooks/constants.rs	not yet reviewed
+pending	src/hooks/hook_audit_cmd.rs	not yet reviewed
+pending	src/hooks/hook_check.rs	not yet reviewed
+pending	src/hooks/hook_cmd.rs	not yet reviewed
+pending	src/hooks/init.rs	not yet reviewed
+pending	src/hooks/integrity.rs	not yet reviewed
+pending	src/hooks/mod.rs	not yet reviewed
+pending	src/hooks/permissions.rs	not yet reviewed
+pending	src/hooks/rewrite_cmd.rs	not yet reviewed
+pending	src/hooks/trust.rs	not yet reviewed
+pending	src/hooks/verify_cmd.rs	not yet reviewed
+pending	src/learn/README.md	not yet reviewed
+pending	src/learn/detector.rs	not yet reviewed
+pending	src/learn/mod.rs	not yet reviewed
+pending	src/learn/report.rs	not yet reviewed
+reviewed_no_import	src/main.rs	router/CLI wiring reviewed for intake map only; no direct import | deleted_to=.assimilation_deleted
+pending	src/parser/README.md	not yet reviewed
+pending	src/parser/formatter.rs	not yet reviewed
+pending	src/parser/mod.rs	not yet reviewed
+pending	src/parser/types.rs	not yet reviewed
+skipped_non_runtime	tests/fixtures/dotnet/build_failed.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	tests/fixtures/dotnet/format_changes.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	tests/fixtures/dotnet/format_empty.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	tests/fixtures/dotnet/format_success.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	tests/fixtures/dotnet/test_failed.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	tests/fixtures/golangci_v2_json.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
