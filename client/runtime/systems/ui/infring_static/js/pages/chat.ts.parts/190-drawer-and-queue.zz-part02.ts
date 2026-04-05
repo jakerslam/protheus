@@ -171,6 +171,38 @@
       }
     },
 
+    ensureStreamingToolCard: function(msg, toolName, toolInput, options) {
+      if (!msg || typeof msg !== 'object') return null;
+      if (!Array.isArray(msg.tools)) msg.tools = [];
+      var name = String(toolName || '').trim();
+      if (!name) name = 'tool';
+      var opts = options && typeof options === 'object' ? options : {};
+      var markRunning = opts.running !== false;
+      for (var i = msg.tools.length - 1; i >= 0; i--) {
+        var card = msg.tools[i];
+        if (!card || String(card.name || '') !== name) continue;
+        if (markRunning && card.running) {
+          if (typeof toolInput === 'string') card.input = toolInput;
+          return card;
+        }
+        if (!markRunning && card.running) {
+          if (typeof toolInput === 'string') card.input = toolInput;
+          return card;
+        }
+      }
+      var created = {
+        id: name + '-' + Date.now(),
+        name: name,
+        running: markRunning,
+        expanded: false,
+        input: typeof toolInput === 'string' ? toolInput : '',
+        result: '',
+        is_error: false
+      };
+      msg.tools.push(created);
+      return created;
+    },
+
     currentToolDialogLabel: function(msg) {
       if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) return '';
       for (var i = msg.tools.length - 1; i >= 0; i--) {

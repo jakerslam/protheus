@@ -2830,57 +2830,22 @@ fn passive_attention_context_for_message(
 
 fn response_contains_project_dump_sections(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let markers = [
-        "project overview",
-        "data source",
-        "tools used",
-        "key features",
-        "sql queries",
-        "future work",
-        "how to use",
-    ];
-    let hits = markers
-        .iter()
-        .filter(|marker| lowered.contains(**marker))
-        .count();
+    let markers = ["project overview", "data source", "tools used", "key features", "sql queries", "future work", "how to use"];
+    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
     hits >= 2
 }
 
 fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let noisy_markers = [
-        "at duckduckgo all regions",
-        "duckduckgo all regions",
-        "all regions argentina",
-        "all regions australia",
-        "spawn_subagents failed:",
-        "tool_explicit_signoff_required",
-        "tool_confirmation_required",
-    ];
-    let hits = noisy_markers
-        .iter()
-        .filter(|marker| lowered.contains(**marker))
-        .count();
+    let noisy_markers = ["at duckduckgo all regions", "duckduckgo all regions", "all regions argentina", "all regions australia", "spawn_subagents failed:", "tool_explicit_signoff_required", "tool_confirmation_required"];
+    let hits = noisy_markers.iter().filter(|marker| lowered.contains(**marker)).count();
     hits >= 2
 }
 
 fn response_contains_peer_review_template_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let markers = [
-        "aiffel campus online",
-        "peerreviewtemplate",
-        "prt(peerreviewtemplate)",
-        "코더",
-        "리뷰어",
-        "각 항목을 스스로 확인",
-        "코드가 정상적으로 동작",
-        "chatbotdata.csv",
-        "tensorflow.keras",
-    ];
-    let hits = markers
-        .iter()
-        .filter(|marker| lowered.contains(**marker))
-        .count();
+    let markers = ["aiffel campus online", "peerreviewtemplate", "prt(peerreviewtemplate)", "코더", "리뷰어", "각 항목을 스스로 확인", "코드가 정상적으로 동작", "chatbotdata.csv", "tensorflow.keras"];
+    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
     hits >= 2
 }
 
@@ -5754,24 +5719,10 @@ fn looks_like_navigation_chrome_payload(text: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    let marker_count = [
-        "skip to content",
-        "home",
-        "news",
-        "sport",
-        "business",
-        "technology",
-        "health",
-        "culture",
-        "travel",
-        "audio",
-        "video",
-        "live",
-        "all regions",
-    ]
-    .iter()
-    .filter(|marker| lowered.contains(**marker))
-    .count();
+    let marker_count = ["skip to content", "home", "news", "sport", "business", "technology", "health", "culture", "travel", "audio", "video", "live", "all regions"]
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     marker_count >= 5 && lowered.split_whitespace().count() >= 14
 }
 
@@ -5847,18 +5798,8 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
 
 fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
     let lowered = summary.to_ascii_lowercase();
-    let markers = [
-        "duckduckgo all regions",
-        "all regions argentina",
-        "all regions australia",
-        "all regions canada",
-        "safe search",
-        "any time",
-    ];
-    let hits = markers
-        .iter()
-        .filter(|marker| lowered.contains(**marker))
-        .count();
+    let markers = ["duckduckgo all regions", "all regions argentina", "all regions australia", "all regions canada", "safe search", "any time"];
+    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
     hits >= 2
 }
 
@@ -6012,6 +5953,11 @@ fn execute_tool_call_with_recovery(
     tool_name: &str,
     input: &Value,
 ) -> Value {
+    if let Some(blocked) =
+        crate::dashboard_tool_turn_loop::pre_tool_permission_gate(root, tool_name, input)
+    {
+        return blocked;
+    }
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
     let mut recovery_strategy = "none".to_string();
@@ -6046,6 +5992,12 @@ fn execute_tool_call_with_recovery(
             }
         }
     }
+    crate::dashboard_tool_turn_loop::annotate_tool_payload_tracking(
+        root,
+        actor_agent_id,
+        tool_name,
+        &mut payload,
+    );
     let audit_receipt = append_tool_decision_audit(
         root,
         actor_agent_id,
@@ -7699,6 +7651,12 @@ pub fn handle_with_headers(
                     "retry_attempted": false,
                     "retry_used": false
                 });
+                let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
+                    "complete",
+                    "complete",
+                    "complete",
+                    "complete",
+                );
                 let mut turn_receipt =
                     append_turn_message(root, &agent_id, &message, &response_text);
                 turn_receipt["response_finalization"] = response_finalization.clone();
@@ -7717,6 +7675,7 @@ pub fn handle_with_headers(
                         "response": response_text,
                         "tools": response_tools,
                         "response_finalization": response_finalization,
+                        "turn_transaction": turn_transaction,
                         "workspace_hints": workspace_hints,
                         "latent_tool_candidates": latent_tool_candidates,
                         "attention_queue": turn_receipt.get("attention_queue").cloned().unwrap_or_else(|| json!({})),
@@ -7900,6 +7859,7 @@ pub fn handle_with_headers(
             let persist_system_prune = false;
             let persist_auto_compact = false;
             let mut messages = context_source_messages(&state, include_all_sessions_context);
+            let all_session_history_count = context_source_messages(&state, true).len();
             let mut pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
             let pre_generation_pruned = pooled_messages.len() != messages.len();
             if pre_generation_pruned && persist_system_prune {
@@ -7908,6 +7868,12 @@ pub fn handle_with_headers(
                 state = load_session_state(root, &agent_id);
                 messages = context_source_messages(&state, include_all_sessions_context);
                 pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
+            }
+            if all_session_history_count > 0 && messages.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 503,
+                    payload: crate::dashboard_tool_turn_loop::hydration_failed_payload(&agent_id),
+                });
             }
             let mut active_messages = select_active_context_window(
                 &pooled_messages,
@@ -8315,6 +8281,16 @@ pub fn handle_with_headers(
                         "retry_used": retry_used,
                         "synthesis_retry_used": synthesis_retry_used
                     });
+                    let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
+                        "complete",
+                        if response_tools.is_empty() {
+                            "none"
+                        } else {
+                            "complete"
+                        },
+                        "complete",
+                        "complete",
+                    );
                     let mut turn_receipt =
                         append_turn_message(root, &agent_id, &message, &response_text);
                     turn_receipt["response_finalization"] = response_finalization.clone();
@@ -8353,6 +8329,7 @@ pub fn handle_with_headers(
                     payload["runtime_sync"] = runtime_summary;
                     payload["tools"] = Value::Array(response_tools);
                     payload["response_finalization"] = response_finalization;
+                    payload["turn_transaction"] = turn_transaction;
                     payload["context_window"] = json!(fallback_window.max(0));
                     payload["context_tokens"] = json!(context_active_tokens.max(0));
                     payload["context_used_tokens"] = json!(context_active_tokens.max(0));
@@ -8530,7 +8507,10 @@ pub fn handle_with_headers(
                     .get("ok")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
-                let message = summarize_tool_payload(&tool_name, &tool_payload);
+                let message = finalize_user_facing_response(
+                    summarize_tool_payload(&tool_name, &tool_payload),
+                    None,
+                );
                 return Some(CompatApiResponse {
                     status: if ok { 200 } else { 400 },
                     payload: json!({
