@@ -35,6 +35,9 @@ fn usage() {
     println!(
         "  protheus-ops workspace-file-search list [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--type=file|folder] [--limit=<n>] [--fetch-limit=<n>] [--allow-external=1]"
     );
+    println!(
+        "  protheus-ops workspace-file-search mention [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--q=<query>] [--type=file|folder] [--mention-prefix=@] [--allow-external=1]"
+    );
     println!("  protheus-ops workspace-file-search status");
 }
 
@@ -45,7 +48,12 @@ fn truthy(value: Option<&String>) -> bool {
         .unwrap_or(false)
 }
 
-fn parse_usize_flag(parsed: &crate::ParsedArgs, key: &str, default: usize, max_value: usize) -> usize {
+fn parse_usize_flag(
+    parsed: &crate::ParsedArgs,
+    key: &str,
+    default: usize,
+    max_value: usize,
+) -> usize {
     let parsed_value = parsed
         .flags
         .get(key)
@@ -55,14 +63,18 @@ fn parse_usize_flag(parsed: &crate::ParsedArgs, key: &str, default: usize, max_v
 }
 
 fn canonical_dir(path: &Path) -> Result<PathBuf, String> {
-    let canonical = fs::canonicalize(path).map_err(|err| format!("workspace_resolve_failed:{err}"))?;
+    let canonical =
+        fs::canonicalize(path).map_err(|err| format!("workspace_resolve_failed:{err}"))?;
     if !canonical.is_dir() {
         return Err(format!("workspace_not_directory:{}", canonical.display()));
     }
     Ok(canonical)
 }
 
-fn resolve_workspace_specs(root: &Path, parsed: &crate::ParsedArgs) -> Result<Vec<WorkspaceSpec>, String> {
+fn resolve_workspace_specs(
+    root: &Path,
+    parsed: &crate::ParsedArgs,
+) -> Result<Vec<WorkspaceSpec>, String> {
     let root_canonical = canonical_dir(root)?;
     let allow_external = truthy(parsed.flags.get("allow-external"));
     let workspace_hint = parsed
@@ -73,8 +85,8 @@ fn resolve_workspace_specs(root: &Path, parsed: &crate::ParsedArgs) -> Result<Ve
 
     let mut specs = Vec::<WorkspaceSpec>::new();
     if let Some(raw) = parsed.flags.get("workspace-roots-json") {
-        let value: Value =
-            serde_json::from_str(raw).map_err(|err| format!("workspace_roots_json_invalid:{err}"))?;
+        let value: Value = serde_json::from_str(raw)
+            .map_err(|err| format!("workspace_roots_json_invalid:{err}"))?;
         let rows = value
             .as_array()
             .ok_or_else(|| "workspace_roots_json_invalid:not_array".to_string())?;
@@ -165,7 +177,10 @@ fn ripgrep_install_hint() -> &'static str {
     }
 }
 
-fn collect_workspace_items(workspace: &WorkspaceSpec, fetch_limit: usize) -> Result<Vec<SearchItem>, String> {
+fn collect_workspace_items(
+    workspace: &WorkspaceSpec,
+    fetch_limit: usize,
+) -> Result<Vec<SearchItem>, String> {
     let rg_binary = std::env::var("PROTHEUS_RG_BINARY")
         .ok()
         .map(|row| row.trim().to_string())
@@ -231,17 +246,19 @@ fn collect_workspace_items(workspace: &WorkspaceSpec, fetch_limit: usize) -> Res
         }
     }
 
-    out.extend(dirs.into_iter().map(|dir| SearchItem {
-        workspace_name: workspace.name.clone(),
-        label: Path::new(&dir)
-            .file_name()
-            .and_then(|row| row.to_str())
-            .map(|row| crate::clean(row, 240))
-            .unwrap_or_else(|| dir.clone()),
-        path: dir,
-        item_type: "folder".to_string(),
-        score_span: None,
-        score_gaps: None,
+    out.extend(dirs.into_iter().map(|dir| {
+        SearchItem {
+            workspace_name: workspace.name.clone(),
+            label: Path::new(&dir)
+                .file_name()
+                .and_then(|row| row.to_str())
+                .map(|row| crate::clean(row, 240))
+                .unwrap_or_else(|| dir.clone()),
+            path: dir,
+            item_type: "folder".to_string(),
+            score_span: None,
+            score_gaps: None,
+        }
     }));
     Ok(out)
 }
@@ -404,6 +421,104 @@ fn run_search(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> V
     })
 }
 
+fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> Value {
+    let search_payload = run_search(root, parsed, default_query);
+    if !search_payload
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return json!({
+            "ok": false,
+            "status": "blocked",
+            "type": "workspace_file_search_mention",
+            "error": search_payload
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("workspace_file_search_failed"),
+            "source": "cline:file-search-mention",
+        });
+    }
+
+    let mention_prefix = parsed
+        .flags
+        .get("mention-prefix")
+        .map(|row| crate::clean(row, 8))
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(|| "@".to_string());
+    let query = search_payload
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let warnings = search_payload
+        .get("warnings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let results = search_payload
+        .get("results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    if let Some(first) = results.first() {
+        let path = first
+            .get("path")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let mention = format!("{mention_prefix}{path}");
+        let receipt = json!({
+            "type": "workspace_file_search_mention_receipt",
+            "ts": crate::now_iso(),
+            "source": "cline/src/utils/file-search.ts",
+            "query": query,
+            "mention": mention,
+            "path": path,
+            "workspace_name": first
+                .get("workspace_name")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            "result_item_type": first
+                .get("item_type")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            "warnings": warnings,
+        });
+        append_receipt(root, &receipt);
+        return json!({
+            "ok": true,
+            "status": "ok",
+            "type": "workspace_file_search_mention",
+            "source": "cline:file-search-mention",
+            "query": query,
+            "mention": mention,
+            "path": path,
+            "workspace_name": first
+                .get("workspace_name")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            "item_type": first
+                .get("item_type")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            "warnings": warnings,
+        });
+    }
+
+    json!({
+        "ok": true,
+        "status": "no_results",
+        "type": "workspace_file_search_mention",
+        "source": "cline:file-search-mention",
+        "query": query,
+        "mention": Value::Null,
+        "path": Value::Null,
+        "warnings": warnings,
+    })
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = crate::parse_args(argv);
     let command = parsed
@@ -434,7 +549,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .join(" ");
             run_search(root, &parsed, &default_query)
         }
-        _ => json!({"ok": false, "status": "blocked", "error": "workspace_file_search_unknown_command", "command": command}),
+        "mention" => {
+            let default_query = parsed
+                .positional
+                .iter()
+                .skip(1)
+                .map(|row| crate::clean(row, 200))
+                .collect::<Vec<_>>()
+                .join(" ");
+            run_mention(root, &parsed, &default_query)
+        }
+        _ => {
+            json!({"ok": false, "status": "blocked", "error": "workspace_file_search_unknown_command", "command": command})
+        }
     };
 
     println!(
@@ -452,6 +579,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn test_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn fuzzy_score_prefers_tighter_match() {
@@ -462,9 +595,13 @@ mod tests {
 
     #[test]
     fn workspace_outside_root_is_blocked_by_default() {
-        let root = std::env::temp_dir().join(format!("workspace_file_search_root_{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("workspace_file_search_root_{}", std::process::id()));
         let inside = root.join("inside");
-        let outside = std::env::temp_dir().join(format!("workspace_file_search_outside_{}", std::process::id()));
+        let outside = std::env::temp_dir().join(format!(
+            "workspace_file_search_outside_{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&outside);
         fs::create_dir_all(&inside).expect("inside dir");
@@ -478,10 +615,14 @@ mod tests {
 
     #[test]
     fn run_search_returns_match_for_workspace_file() {
+        let _guard = test_env_lock()
+            .lock()
+            .expect("workspace_file_search test lock");
         if Command::new("rg").arg("--version").output().is_err() {
             return;
         }
-        let root = std::env::temp_dir().join(format!("workspace_file_search_run_{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("workspace_file_search_run_{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).expect("root dir");
         fs::write(root.join("context-stacks-proof.txt"), "proof").expect("fixture");
@@ -503,6 +644,9 @@ mod tests {
 
     #[test]
     fn run_search_reports_ripgrep_install_hint_when_missing() {
+        let _guard = test_env_lock()
+            .lock()
+            .expect("workspace_file_search test lock");
         let root = std::env::temp_dir().join(format!(
             "workspace_file_search_missing_rg_{}",
             std::process::id()
@@ -511,7 +655,10 @@ mod tests {
         fs::create_dir_all(&root).expect("root dir");
         fs::write(root.join("file.txt"), "fixture").expect("fixture");
         let previous_rg = std::env::var("PROTHEUS_RG_BINARY").ok();
-        std::env::set_var("PROTHEUS_RG_BINARY", "__missing_rg_binary_for_workspace_file_search__");
+        std::env::set_var(
+            "PROTHEUS_RG_BINARY",
+            "__missing_rg_binary_for_workspace_file_search__",
+        );
         let parsed = crate::parse_args(&[
             format!("--workspace={}", root.display()),
             "--q=file".to_string(),
@@ -524,10 +671,9 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(
-            warnings.iter().any(|row| row
-                .as_str()
-                .unwrap_or("")
-                .contains("rg_not_found")),
+            warnings
+                .iter()
+                .any(|row| row.as_str().unwrap_or("").contains("rg_not_found")),
             "expected rg_not_found warning with install hint"
         );
         if let Some(prev) = previous_rg {
@@ -535,6 +681,69 @@ mod tests {
         } else {
             std::env::remove_var("PROTHEUS_RG_BINARY");
         }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn run_mention_returns_insertable_path() {
+        let _guard = test_env_lock()
+            .lock()
+            .expect("workspace_file_search test lock");
+        if Command::new("rg").arg("--version").output().is_err() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!(
+            "workspace_file_search_mention_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).expect("src dir");
+        fs::write(root.join("src").join("main.rs"), "fn main() {}").expect("fixture");
+        let parsed = crate::parse_args(&[
+            format!("--workspace={}", root.display()),
+            "--q=main".to_string(),
+            "--limit=5".to_string(),
+        ]);
+        let payload = run_mention(&root, &parsed, "");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(payload.get("status").and_then(Value::as_str), Some("ok"));
+        let mention = payload
+            .get("mention")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        assert!(mention.starts_with('@'));
+        assert!(mention.contains("main.rs"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn run_mention_reports_no_results_state() {
+        let _guard = test_env_lock()
+            .lock()
+            .expect("workspace_file_search test lock");
+        if Command::new("rg").arg("--version").output().is_err() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!(
+            "workspace_file_search_mention_no_results_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("root dir");
+        fs::write(root.join("alpha.txt"), "fixture").expect("fixture");
+        let parsed = crate::parse_args(&[
+            format!("--workspace={}", root.display()),
+            "--q=zzzzzz".to_string(),
+            "--limit=5".to_string(),
+        ]);
+        let payload = run_mention(&root, &parsed, "");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        assert!(payload.get("mention").map(Value::is_null).unwrap_or(false));
         let _ = fs::remove_dir_all(&root);
     }
 }
