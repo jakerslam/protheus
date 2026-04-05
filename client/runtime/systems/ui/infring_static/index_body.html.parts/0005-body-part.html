@@ -45,9 +45,8 @@
                 </svg>
               </div>
             </div>
-            <div class="chat-archived-banner" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
-              <span class="chat-archived-banner-text">This agent is archived</span>
-              <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive</button>
+            <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+              <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
             </div>
           </div>
         </div>
@@ -178,7 +177,7 @@
                         @mouseenter="setHoveredMessage(msg, idx)"
                         @mouseleave="clearHoveredMessage()"
                       >
-                        <div class="message-avatar" x-show="msg.role === 'agent'">
+                        <div class="message-avatar" x-show="msg.role === 'agent' && !(isCurrentAgentArchived && isCurrentAgentArchived())">
                           <span class="agent-mark" aria-hidden="true">&infin;</span>
                         </div>
                         <div class="message-body">

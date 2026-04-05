@@ -3,7 +3,12 @@
         }
         var resolved = this.resolveAgent(agentId);
         if (resolved) {
-          this.currentAgent = resolved;
+          this.currentAgent = Object.assign({}, resolved, {
+            archived: false,
+            state: String(resolved.state || 'running')
+          });
+        } else if (this.currentAgent && String((this.currentAgent && this.currentAgent.id) || '') === agentId) {
+          this.currentAgent = Object.assign({}, this.currentAgent, { archived: false, state: 'running' });
         }
         this.showAgentDrawer = false;
         this.showFreshArchetypeTiles = false;

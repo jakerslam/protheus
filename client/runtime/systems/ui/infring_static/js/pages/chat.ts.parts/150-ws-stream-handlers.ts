@@ -93,7 +93,6 @@
           }
           this.scrollToBottom();
           break;
-
         case 'tool_start':
           var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!lastMsg || !(lastMsg.thinking || lastMsg.streaming)) {
@@ -129,7 +128,6 @@
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
-
         case 'tool_end':
           // Tool call parsed by LLM — update tool card with input params
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
@@ -146,7 +144,6 @@
             }
           }
           break;
-
         case 'tool_result':
           // Tool execution completed — update tool card with result
           var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
@@ -189,7 +186,6 @@
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
-
         case 'response':
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');

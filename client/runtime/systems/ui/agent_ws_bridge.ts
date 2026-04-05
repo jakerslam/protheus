@@ -96,11 +96,33 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             body: JSON.stringify({ command, cwd: cleanText(payload.cwd || '', 4000) }),
           }, 120000);
           const out = await res.json().catch(() => ({}));
-          if (!res.ok || out.ok === false) {
+          if (!res.ok) {
             send(ws, { type: 'terminal_error', agent_id: targetAgent, message: cleanText(out.error || out.message || `backend_http_${res.status}`, 260) });
             return;
           }
-          send(ws, { type: 'terminal_output', agent_id: targetAgent, stdout: String(out.stdout || ''), stderr: String(out.stderr || ''), exit_code: toNum(out.exit_code || 0, 0), duration_ms: toNum(out.duration_ms || 0, 0), cwd: cleanText(out.cwd || '', 4000) });
+          const stdout = String(out.stdout || '');
+          const stderrBase = String(out.stderr || '');
+          const stderr = stderrBase || (out.ok === false ? cleanText(out.message || out.error || '', 4000) : '');
+          send(ws, {
+            type: 'terminal_output',
+            agent_id: targetAgent,
+            stdout,
+            stderr,
+            exit_code: toNum(out.exit_code || (out.ok === false ? 1 : 0), 0),
+            duration_ms: toNum(out.duration_ms || 0, 0),
+            cwd: cleanText(out.cwd || '', 4000),
+            requested_command: cleanText(out.requested_command || command, 16000),
+            executed_command: cleanText(out.executed_command || command, 16000),
+            command_translated: !!out.command_translated,
+            translation_reason: cleanText(out.translation_reason || '', 240),
+            suggestions: Array.isArray(out.suggestions) ? out.suggestions : [],
+            permission_gate: out.permission_gate || null,
+            filter_events: Array.isArray(out.filter_events) ? out.filter_events : [],
+            low_signal_output: !!out.low_signal_output,
+            recovery_hints: Array.isArray(out.recovery_hints) ? out.recovery_hints : [],
+            tool_summary: out.tool_summary || null,
+            tracking: out.tracking || null,
+          });
           return;
         }
         if (msgType === 'command') {

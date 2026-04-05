@@ -67,7 +67,7 @@
       this.hideCollapsedAgentHover();
       this._collapsedHoverNeedsPointerMove = !!nextCollapsed;
       // Prevent synthetic hover events during collapse animation from showing preview immediately.
-      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 260) : 0;
+      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 700) : 0;
       if (!nextCollapsed) {
         var anchor = (this._sidebarChatAnchorForExpand && this._sidebarChatAnchorForExpand.id)
           ? this._sidebarChatAnchorForExpand
@@ -102,6 +102,7 @@
     clearCollapsedAgentHoverState() {
       this.collapsedAgentHover = {
         id: '',
+        kind: 'agent',
         active: false,
         name: '',
         text: '',
@@ -117,16 +118,31 @@
     },
     handleCollapsedAgentHoverMove(agent, ev) {
       this.updateCollapsedAgentHoverPosition(ev);
-      if (!this.sidebarCollapsed || !agent) {
-        this.hideCollapsedAgentHover();
-        return;
-      }
-      this._collapsedHoverPointerMovedAt = Date.now();
-      if (this._collapsedHoverNeedsPointerMove) this._collapsedHoverNeedsPointerMove = false;
-      if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
+      if (!this.sidebarCollapsed || !agent) return this.hideCollapsedAgentHover();
+      var now = Date.now();
+      if (this._collapsedHoverNeedsPointerMove) return;
+      this._collapsedHoverPointerMovedAt = now;
+      if (Number(this._collapsedHoverSuppressedUntil || 0) > now) return;
       var hover = this.collapsedAgentHover || {};
       if (!hover.active || String(hover.id || '') !== String(agent.id || '')) {
         this.showCollapsedAgentHover(agent, ev);
+      }
+    },
+    handleCollapsedNavHoverMove(label, ev) {
+      this.updateCollapsedAgentHoverPosition(ev);
+      if (!this.sidebarCollapsed) return this.hideCollapsedAgentHover();
+      var now = Date.now();
+      if (this._collapsedHoverNeedsPointerMove) return;
+      this._collapsedHoverPointerMovedAt = now;
+      if (Number(this._collapsedHoverSuppressedUntil || 0) > now) return;
+      var navLabel = String(label || '').trim();
+      if (!navLabel) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var hover = this.collapsedAgentHover || {};
+      if (!hover.active || String(hover.kind || '') !== 'nav' || String(hover.name || '') !== navLabel) {
+        this.showCollapsedNavHover(navLabel, ev);
       }
     },
     isCollapsedAgentHoverVisible(rawHover) {
@@ -136,6 +152,9 @@
       if (!Number.isFinite(movedAt) || movedAt <= 0) return false;
       if ((Date.now() - movedAt) > 1500) return false;
       if (!hover.top || Number(hover.top) <= 0) return false;
+      if (String(hover.kind || '').toLowerCase() === 'nav') {
+        return String(hover.name || '').trim().length > 0;
+      }
       var rawId = String(hover.id || '').trim();
       if (!rawId) return false;
       if (!this._collapsedAgentIdHasSidebarRow(rawId)) return false;
@@ -172,6 +191,7 @@
     sanitizeCollapsedAgentHoverState() {
       var hover = this.collapsedAgentHover || {};
       var rawId = String(hover.id || '').trim();
+      var kind = String(hover.kind || 'agent').toLowerCase();
       if (!hover.active || !rawId) {
         this.hideCollapsedAgentHover();
         return;
@@ -179,6 +199,22 @@
       var currentTop = Number(hover.top || 0);
       if (!Number.isFinite(currentTop) || currentTop <= 0) {
         this.hideCollapsedAgentHover();
+        return;
+      }
+      if (kind === 'nav') {
+        var navName = String(hover.name || '').trim();
+        if (!navName) {
+          this.hideCollapsedAgentHover();
+          return;
+        }
+        this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
+          kind: 'nav',
+          id: rawId,
+          name: navName,
+          text: '',
+          unread: false,
+          top: currentTop
+        });
         return;
       }
       if (!this._collapsedAgentIdHasSidebarRow(rawId)) {
@@ -204,6 +240,7 @@
       }
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
         id: rawId,
+        kind: 'agent',
         name: previewName,
         text: previewText,
         unread: !!preview.unread_response,
@@ -256,10 +293,40 @@
       }
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
         id: hoverId,
+        kind: 'agent',
         active: true,
         name: hoverName,
         text: previewText,
         unread: !!preview.unread_response
+      });
+    },
+    showCollapsedNavHover(label, ev) {
+      if (!this.sidebarCollapsed) return;
+      var eventType = String((ev && ev.type) || '').toLowerCase();
+      if (eventType !== 'mousemove' && eventType !== 'pointermove') return;
+      if (ev && ev.isTrusted === false) return;
+      this._collapsedHoverPointerMovedAt = Date.now();
+      if (this._collapsedHoverNeedsPointerMove) return;
+      if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
+      var navLabel = String(label || '').trim();
+      if (!navLabel) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      this.updateCollapsedAgentHoverPosition(ev);
+      var currentTop = Number((this.collapsedAgentHover && this.collapsedAgentHover.top) || 0);
+      if (!Number.isFinite(currentTop) || currentTop <= 0) {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, {
+        id: 'nav:' + navLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
+        kind: 'nav',
+        active: true,
+        name: navLabel,
+        text: '',
+        unread: false,
+        top: currentTop
       });
     },
     hideCollapsedAgentHover() {

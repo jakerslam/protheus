@@ -90,6 +90,14 @@
           return;
         }
       }
+      var availableModels = typeof this.ensureUsableModelsForChatSend === 'function'
+        ? await this.ensureUsableModelsForChatSend('chat_send')
+        : (typeof this.currentAvailableModelCount === 'function' ? this.currentAvailableModelCount() : 0);
+      if (availableModels <= 0) {
+        if (typeof this.injectNoModelsGuidance === 'function') this.injectNoModelsGuidance('chat_send');
+        if (typeof this.addNoModelsRecoveryNotice === 'function') this.addNoModelsRecoveryNotice('chat_send', 'model_discover');
+        return;
+      }
       this.inputText = '';
       var ta = document.getElementById('msg-input');
       if (ta) ta.style.height = '';
@@ -199,6 +207,17 @@
           exit_code: Number(res && res.exit_code != null ? res.exit_code : 1),
           duration_ms: Number(res && res.duration_ms ? res.duration_ms : 0),
           cwd: res && res.cwd ? String(res.cwd) : this.terminalPromptPath,
+          requested_command: res && res.requested_command ? String(res.requested_command) : String(command || ''),
+          executed_command: res && res.executed_command ? String(res.executed_command) : String(command || ''),
+          command_translated: !!(res && res.command_translated),
+          translation_reason: res && res.translation_reason ? String(res.translation_reason) : '',
+          suggestions: res && Array.isArray(res.suggestions) ? res.suggestions : [],
+          permission_gate: res && res.permission_gate ? res.permission_gate : null,
+          filter_events: res && Array.isArray(res.filter_events) ? res.filter_events : [],
+          low_signal_output: !!(res && res.low_signal_output),
+          recovery_hints: res && Array.isArray(res.recovery_hints) ? res.recovery_hints : [],
+          tool_summary: res && res.tool_summary ? res.tool_summary : null,
+          tracking: res && res.tracking ? res.tracking : null,
         });
       } catch (e) {
         this.handleWsMessage({
@@ -270,7 +289,16 @@
           cwd: this.terminalPromptPath,
           terminal_source: 'system',
           requested_command: response && response.requested_command ? String(response.requested_command) : '',
-          executed_command: response && response.executed_command ? String(response.executed_command) : ''
+          executed_command: response && response.executed_command ? String(response.executed_command) : '',
+          command_translated: !!(response && response.command_translated),
+          translation_reason: response && response.translation_reason ? String(response.translation_reason) : '',
+          suggestions: response && Array.isArray(response.suggestions) ? response.suggestions : [],
+          permission_gate: response && response.permission_gate ? response.permission_gate : null,
+          filter_events: response && Array.isArray(response.filter_events) ? response.filter_events : [],
+          low_signal_output: !!(response && response.low_signal_output),
+          recovery_hints: response && Array.isArray(response.recovery_hints) ? response.recovery_hints : [],
+          tool_summary: response && response.tool_summary ? response.tool_summary : null,
+          tracking: response && response.tracking ? response.tracking : null
         });
       } catch (error) {
         this.handleWsMessage({

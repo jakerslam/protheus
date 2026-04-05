@@ -1750,6 +1750,7 @@
     "ops:alpha:status": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- alpha-readiness status",
     "ops:benchmark:sanity": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/benchmark_sanity_gate.ts --strict=1",
     "ops:benchmark:repro": "npm run -s ops:benchmark:refresh && npm run -s ops:benchmark:sanity",
+    "ops:nightly:turn-loop-analytics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nightly_turn_loop_analytics.ts",
     "ops:flaky:quarantine:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/flaky_quarantine_audit.ts --strict=1",
     "ops:test-priority:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/test_priority_manifest_audit.ts --strict=1",
     "ops:strategic-contracts:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/strategic_contract_registry_audit.ts --strict=1",

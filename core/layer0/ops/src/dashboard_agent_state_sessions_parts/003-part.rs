@@ -26,8 +26,11 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
         if normalized.is_empty() {
             continue;
         }
-        let status = clean_text(contract.get("status").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
+        let status = clean_text(
+            contract.get("status").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
         if status != "terminated" {
             allowed_ids.insert(normalized);
         }
@@ -39,8 +42,11 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
         }
     }
     for (id, profile) in &profiles {
-        let state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
+        let state = clean_text(
+            profile.get("state").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
         if state == "archived" {
             let normalized = normalize_agent_id(id);
             if !normalized.is_empty() {
@@ -210,7 +216,12 @@ mod tests {
     #[test]
     fn suggestions_require_seven_recent_messages() {
         let root = tempfile::tempdir().expect("tempdir");
-        seed_profile(root.path(), "agent-min-context", "ollama", "deepseek-v3.1:671b-cloud");
+        seed_profile(
+            root.path(),
+            "agent-min-context",
+            "ollama",
+            "deepseek-v3.1:671b-cloud",
+        );
         let _ = append_turn(
             root.path(),
             "agent-min-context",
@@ -257,7 +268,12 @@ mod tests {
     #[test]
     fn suggestions_reject_template_like_rows_even_with_large_model() {
         let root = tempfile::tempdir().expect("tempdir");
-        seed_profile(root.path(), "agent-template-filter", "ollama", "deepseek-v3.1:671b-cloud");
+        seed_profile(
+            root.path(),
+            "agent-template-filter",
+            "ollama",
+            "deepseek-v3.1:671b-cloud",
+        );
         seed_suggestion_context(root.path(), "agent-template-filter");
 
         // Test-only override hook to simulate model output.
@@ -288,7 +304,12 @@ mod tests {
     #[test]
     fn suggestions_fall_back_to_non_template_rows_when_model_output_is_invalid_json() {
         let root = tempfile::tempdir().expect("tempdir");
-        seed_profile(root.path(), "agent-invalid-response", "ollama", "deepseek-v3.1:671b-cloud");
+        seed_profile(
+            root.path(),
+            "agent-invalid-response",
+            "ollama",
+            "deepseek-v3.1:671b-cloud",
+        );
         seed_suggestion_context(root.path(), "agent-invalid-response");
 
         let value = suggestions(root.path(), "agent-invalid-response", "");
@@ -307,6 +328,57 @@ mod tests {
         assert!(!joined.contains("continue with"));
         assert!(!joined.contains("can you continue"));
         assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
+    }
+
+    #[test]
+    fn suggestions_include_analytics_grounded_follow_ups_for_command_like_context() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_profile(
+            root.path(),
+            "agent-analytics-suggestions",
+            "ollama",
+            "deepseek-v3.1:671b-cloud",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-analytics-suggestions",
+            "git status",
+            "I can check that.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-analytics-suggestions",
+            "cargo test --workspace",
+            "Running tests.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-analytics-suggestions",
+            "docker logs api",
+            "Collecting logs.",
+        );
+        let _ = append_turn(
+            root.path(),
+            "agent-analytics-suggestions",
+            "infring gateway status",
+            "Checking gateway status now.",
+        );
+
+        let value = suggestions(root.path(), "agent-analytics-suggestions", "");
+        let rows = value
+            .get("suggestions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty());
+        let joined = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        assert!(!joined.contains("can you continue"));
+        assert!(joined.contains("infring") || joined.contains("command flow"));
     }
 
     #[test]

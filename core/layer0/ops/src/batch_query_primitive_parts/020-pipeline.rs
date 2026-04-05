@@ -1,0 +1,216 @@
+fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidate, String> {
+    let payload = fixture_payload_for_query(query).unwrap_or_else(|| {
+        crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}))
+    });
+    candidate_from_search_payload(query, &payload)
+}
+
+fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
+    let query_tokens = query
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| token.len() > 2)
+        .map(|token| token.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    let haystack = format!("{} {}", candidate.title, candidate.snippet).to_ascii_lowercase();
+    let overlap = query_tokens
+        .iter()
+        .filter(|token| haystack.contains(token.as_str()))
+        .count() as f64;
+    let overlap_norm = if query_tokens.is_empty() {
+        0.0
+    } else {
+        overlap / query_tokens.len() as f64
+    };
+    let locator_bonus = if candidate.locator.is_empty() { 0.0 } else { 0.2 };
+    let status_bonus = if (200..400).contains(&candidate.status_code) {
+        0.2
+    } else {
+        0.0
+    };
+    (0.6 * overlap_norm + locator_bonus + status_bonus).clamp(0.0, 1.0)
+}
+
+pub fn api_batch_query(root: &Path, request: &Value) -> Value {
+    let started = Instant::now();
+    let policy = load_policy(root);
+    let source = normalize_source(request.get("source").and_then(Value::as_str).unwrap_or("web"));
+    let query = clean_text(
+        request
+            .get("query")
+            .or_else(|| request.get("q"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        600,
+    );
+    let aperture = normalize_aperture(
+        request
+            .get("aperture")
+            .and_then(Value::as_str)
+            .unwrap_or("medium"),
+    );
+    if query.is_empty() {
+        return json!({"ok": false, "status": "blocked", "summary": "Query is required.", "evidence_refs": [], "receipt_id": "", "error": "query_required"});
+    }
+    if !enabled_sources(&policy).iter().any(|row| row == &source) {
+        return json!({"ok": false, "status": "blocked", "summary": format!("Source `{source}` is not allowed by policy."), "evidence_refs": [], "receipt_id": "", "error": "source_blocked"});
+    }
+    if aperture == "large" && !allow_large(&policy) {
+        return json!({"ok": false, "status": "blocked", "summary": "Aperture `large` is blocked by policy.", "evidence_refs": [], "receipt_id": "", "error": "aperture_blocked"});
+    }
+    let budget = match aperture_budget(&aperture) {
+        Some(value) => value,
+        None => return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"}),
+    };
+
+    let (queries, rewrite_set, rewrite_applied) = build_query_plan(&query, budget);
+    let parallel_allowed = source == "web" && rewrite_applied && queries.len() > 1;
+    let mut candidates = Vec::<Candidate>::new();
+    let mut partial_failures = Vec::<String>::new();
+    if parallel_allowed {
+        let limit = max_parallel_subqueries(&policy).max(1);
+        let mut offset = 0usize;
+        while offset < queries.len() {
+            let end = (offset + limit).min(queries.len());
+            let handles = queries[offset..end]
+                .iter()
+                .map(|q| {
+                    let query_item = q.clone();
+                    let root_buf = root.to_path_buf();
+                    thread::spawn(move || {
+                        (
+                            query_item.clone(),
+                            retrieve_web_candidate_for_query(&root_buf, &query_item),
+                        )
+                    })
+                })
+                .collect::<Vec<_>>();
+            for handle in handles {
+                if let Ok((q, out)) = handle.join() {
+                    match out {
+                        Ok(candidate) => candidates.push(candidate),
+                        Err(err) => partial_failures.push(format!("{}:{err}", clean_text(&q, 120))),
+                    }
+                } else {
+                    partial_failures.push("thread_join_failed".to_string());
+                }
+            }
+            offset = end;
+        }
+    } else {
+        for q in &queries {
+            match retrieve_web_candidate_for_query(root, q) {
+                Ok(candidate) => candidates.push(candidate),
+                Err(err) => partial_failures.push(format!("{}:{err}", clean_text(q, 120))),
+            }
+        }
+    }
+
+    let before_dedup = candidates.len();
+    let mut seen = HashSet::<String>::new();
+    candidates.retain(|row| {
+        let key = format!(
+            "{}|{}|{}",
+            row.locator.to_ascii_lowercase(),
+            row.title.to_ascii_lowercase(),
+            row.excerpt_hash
+        );
+        if seen.contains(&key) {
+            false
+        } else {
+            seen.insert(key);
+            true
+        }
+    });
+    candidates.truncate(budget.max_candidates);
+
+    let mut ranked = candidates
+        .iter()
+        .cloned()
+        .map(|row| {
+            let score = rerank_score(&query, &row);
+            (row, score)
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.title.cmp(&b.0.title))
+    });
+    ranked.truncate(budget.max_evidence);
+
+    let evidence_refs = ranked
+        .iter()
+        .map(|(row, score)| EvidenceRef {
+            source_kind: row.source_kind.clone(),
+            title: row.title.clone(),
+            locator: row.locator.clone(),
+            excerpt_hash: row.excerpt_hash.clone(),
+            score: (*score * 100.0).round() / 100.0,
+            timestamp: row.timestamp.clone(),
+            permissions: row.permissions.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    let status = if evidence_refs.is_empty() {
+        "no_results"
+    } else if partial_failures.is_empty() {
+        "ok"
+    } else {
+        "partial"
+    };
+    let summary = if evidence_refs.is_empty() {
+        "Search returned no useful information.".to_string()
+    } else {
+        let mut lines = vec![format!("Key findings for \"{}\":", trim_words(&query, 32))];
+        for (candidate, _) in &ranked {
+            lines.push(format!("- {}", trim_words(&candidate.snippet, 42)));
+        }
+        trim_words(&lines.join("\n"), budget.max_summary_tokens)
+    };
+
+    let provider_snapshot = json!({
+        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries})),
+        "source": source,
+        "adapter_version": "web_conduit_v1",
+        "disposable": true
+    });
+    let receipt = json!({
+        "type": "batch_query_receipt",
+        "ts": crate::now_iso(),
+        "source": source,
+        "query": query,
+        "aperture": aperture,
+        "rewrite_set": rewrite_set,
+        "query_plan": queries,
+        "adapter_version": "web_conduit_v1",
+        "provider_snapshot": provider_snapshot,
+        "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
+        "candidate_count": before_dedup,
+        "dedup_count": before_dedup.saturating_sub(candidates.len()),
+        "evidence_count": evidence_refs.len(),
+        "cache_status": "miss",
+        "latency_ms": started.elapsed().as_millis() as u64,
+        "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
+        "parallel_retrieval_used": parallel_allowed,
+        "partial_failure_details": partial_failures,
+        "status": status
+    });
+    let receipt_id = crate::deterministic_receipt_hash(&receipt);
+    let mut receipt_with_id = receipt.clone();
+    receipt_with_id["receipt_id"] = Value::String(receipt_id.clone());
+    let _ = append_jsonl(&receipts_path(root), &receipt_with_id);
+
+    json!({
+        "ok": status != "blocked",
+        "type": "batch_query",
+        "status": status,
+        "source": source,
+        "query": query,
+        "aperture": aperture,
+        "summary": summary,
+        "evidence_refs": evidence_refs,
+        "receipt_id": receipt_id,
+        "parallel_retrieval_used": parallel_allowed,
+        "rewrite_set": rewrite_set
+    })
+}

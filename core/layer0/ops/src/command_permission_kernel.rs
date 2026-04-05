@@ -15,14 +15,14 @@ use crate::session_command_discovery_kernel::split_command_chain_for_kernel;
 use crate::{deterministic_receipt_hash, now_iso};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PermissionVerdict {
+pub(crate) enum PermissionVerdict {
     Allow,
     Deny,
     Ask,
 }
 
 impl PermissionVerdict {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Allow => "allow",
             Self::Deny => "deny",
@@ -230,6 +230,14 @@ fn evaluate_with_rules(
     } else {
         (PermissionVerdict::Allow, matched)
     }
+}
+
+pub(crate) fn evaluate_command_permission_for_kernel(
+    command: &str,
+    deny_rules: &[String],
+    ask_rules: &[String],
+) -> (PermissionVerdict, Vec<Value>) {
+    evaluate_with_rules(command, deny_rules, ask_rules)
 }
 
 pub fn run(_root: &Path, argv: &[String]) -> i32 {

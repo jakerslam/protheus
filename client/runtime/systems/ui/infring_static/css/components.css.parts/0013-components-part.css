@@ -5,6 +5,12 @@
   flex-shrink: 0;
 }
 
+.global-topbar .topbar-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
 .notif-item-msg {
   font-size: 12px;
   line-height: 1.35;

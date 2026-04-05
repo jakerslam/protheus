@@ -15,11 +15,27 @@
 
 .chat-loading-fairy {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.chat-loading-fairy-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  --agent-pulse-inset: -4px;
+  --agent-pulse-border: 1.4px;
+  --agent-pulse-glow: 12px;
+  --agent-pulse-glow-mid: 15px;
+  --agent-pulse-glow-end: 18px;
 }
 
 .chat-loading-fairy-core {

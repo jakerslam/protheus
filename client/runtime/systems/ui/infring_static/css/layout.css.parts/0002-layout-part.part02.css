@@ -7,6 +7,10 @@
   background: var(--sidebar-bg, var(--chrome-bg));
 }
 
+.sidebar-pulltab {
+  color: var(--text);
+}
+
 .sidebar-pulltab-icon {
   width: 14px;
   height: 14px;

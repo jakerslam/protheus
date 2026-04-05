@@ -402,3 +402,133 @@ fn message_ignores_unrelated_passive_memory_when_term_index_is_missing() {
         "legacy unrelated context row should not steer coding request replies"
     );
 }
+
+#[test]
+fn context_defaults_to_minimum_recent_window_floor() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let context = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/command"),
+        br#"{"command":"context","silent":true}"#,
+        &json!({"ok": true}),
+    )
+    .expect("context command");
+    assert_eq!(context.status, 200);
+    assert_eq!(
+        context
+            .payload
+            .pointer("/context_pool/min_recent_messages")
+            .and_then(Value::as_u64),
+        Some(28),
+    );
+}
+
+#[test]
+fn memory_recall_prefers_active_session_earliest_turn_for_first_chat_queries() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"first-marker-alpha: we discussed memory continuity"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("seed first");
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"later-marker-beta: we then discussed tool routing"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("seed second");
+    let recall = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"can you remember our first chat?"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("recall");
+    let text = recall
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(text.contains("first-marker-alpha"));
+}
+
+#[test]
+fn memory_recall_stays_scoped_to_active_session_history() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"default-session-marker-alpha"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("seed default");
+    let second = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/sessions"),
+        br#"{"label":"Other"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create second");
+    let sid = clean_text(
+        second
+            .payload
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    assert!(!sid.is_empty());
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/sessions/{sid}/switch"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("switch second");
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"other-session-marker-beta"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("seed second");
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/sessions/default/switch"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("switch default");
+    let recall = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"remember our first chat in this session"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("recall");
+    let text = recall
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(text.contains("default-session-marker-alpha"));
+    assert!(!text.contains("other-session-marker-beta"));
+}

@@ -15,7 +15,7 @@
             aria-label="Open agents"
           ></button>
         </div>
-        <div class="theme-switcher">
+        <div class="theme-switcher" :data-mode="themeMode">
           <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"></circle>

@@ -62,11 +62,9 @@
       var minFrames = hasSessionMessages ? 2 : 1;
       var maxFrames = hasSessionMessages ? 42 : 6;
       var messagesEl = null;
-
       // Let Alpine commit template updates before probing for rendered blocks.
       await this.waitForAnimationFrame();
       await this.waitForAnimationFrame();
-
       for (var frame = 0; frame < maxFrames; frame++) {
         if (self._sessionLoadSeq !== loadSeq) return;
         if (!self.currentAgent || String(self.currentAgent.id || '') !== expectedAgent) return;
@@ -75,9 +73,7 @@
           await self.waitForAnimationFrame();
           continue;
         }
-
         self.scheduleMessageRenderWindowUpdate(messagesEl);
-
         if (!hasSessionMessages) {
           if (frame >= minFrames) return;
           await self.waitForAnimationFrame();
@@ -89,7 +85,6 @@
         if (blockCount > 0 && renderedCount > 0 && frame >= minFrames) {
           return;
         }
-
         await self.waitForAnimationFrame();
       }
     },

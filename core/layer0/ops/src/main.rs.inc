@@ -260,6 +260,11 @@ fn main() {
             let exit = protheus_ops_core::context_stacks::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "stomach-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::stomach_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "session-command-session-analytics-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit =

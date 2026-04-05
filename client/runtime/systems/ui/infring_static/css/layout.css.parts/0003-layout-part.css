@@ -1,5 +1,33 @@
 }
 
+.page-header.manage-sessions-header {
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.manage-sessions-header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 260px;
+  flex: 0 0 auto;
+}
+
+.manage-sessions-header-filter {
+  flex: 1 1 320px;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manage-sessions-header-filter .form-input {
+  width: min(340px, 100%);
+}
+
 .page-header h2 {
   font-size: 15px;
   font-weight: 600;
@@ -68,6 +96,10 @@
 /* Mobile small screen */
 @media (max-width: 480px) {
   .page-header { flex-direction: column; gap: 8px; align-items: flex-start; padding: 12px 16px; }
+  .page-header.manage-sessions-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .manage-sessions-header-left { min-width: 0; width: 100%; }
+  .manage-sessions-header-filter { width: 100%; min-width: 0; justify-content: flex-start; }
+  .manage-sessions-header-filter .form-input { width: 100%; }
   .page-body { padding: 12px; }
   .stats-row { flex-wrap: wrap; }
   .stat-card { min-width: 80px; flex: 1 1 40%; }
@@ -94,4 +126,3 @@
 .app-layout.focus-mode .sidebar-overlay { display: none; }
 .app-layout.focus-mode .main-content { max-width: 100%; margin-left: 0; }
 .app-layout.focus-mode .mobile-menu-btn { display: none !important; }
-

@@ -108,6 +108,9 @@ curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.s
 
 # Repair + full
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --full
+
+# In-place update from an existing install
+infring update --repair --full
 ```
 
 ## Gateway + Dashboard Operations
@@ -139,6 +142,7 @@ Default behavior:
 When Node.js is unavailable, `infring` exposes a reduced but operational command set:
 
 - `gateway [start|stop|restart|status]`
+- `update [--repair] [--full|--minimal|--pure|--tiny-max] [--version vX.Y.Z]`
 - `verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]`
 - `start`, `stop`, `restart`
 - `dashboard`, `status`

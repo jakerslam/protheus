@@ -232,9 +232,17 @@
     <!-- Page: Sessions -->
     <template x-if="page === 'sessions'">
       <div x-data="sessionsPage">
-        <div class="page-header">
-          <h2>Sessions</h2>
-          <input class="form-input" style="width:200px" placeholder="Filter by agent..." x-model="searchFilter" x-show="tab === 'sessions'">
+        <div class="page-header manage-sessions-header">
+          <div class="manage-sessions-header-left">
+            <div class="tabs mt-3" role="tablist">
+              <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
+              <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
+              <div class="tab" role="tab" :class="{ active: page === 'approvals' }" @click="navigate('approvals')">Approvals</div>
+            </div>
+          </div>
+          <div class="manage-sessions-header-filter" x-show="tab === 'sessions'">
+            <input class="form-input" placeholder="Filter by agent..." x-model="searchFilter">
+          </div>
         </div>
         <div class="tabs">
           <div class="tab" :class="{ active: tab === 'sessions' }" @click="tab = 'sessions'">Sessions</div>
@@ -373,7 +381,13 @@
     <template x-if="page === 'logs'">
       <div x-data="logsPage">
         <div class="page-header">
-          <h2>Logs</h2>
+          <div>
+            <div class="tabs mt-3" role="tablist">
+              <div class="tab" role="tab" :class="{ active: page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
+              <div class="tab" role="tab" :class="{ active: page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
+              <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
+            </div>
+          </div>
           <div class="flex gap-2 items-center" x-show="tab === 'live'">
             <!-- Connection status indicator -->
             <span class="live-indicator" :class="connectionClass">

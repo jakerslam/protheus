@@ -225,6 +225,7 @@ pub mod spine_conduit_bridge_kernel;
 pub mod state_artifact_contract_kernel;
 pub mod state_kernel;
 pub mod stock_market_collector_kernel;
+pub mod stomach_kernel;
 pub mod strategy_campaign_scheduler_kernel;
 pub mod strategy_mode_governor;
 pub mod strategy_resolver;

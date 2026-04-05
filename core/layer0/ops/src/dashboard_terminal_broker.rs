@@ -4,9 +4,12 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
+use std::time::Instant;
 
 const TERMINAL_STATE_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/terminal_broker.json";
+const TERMINAL_PERMISSION_POLICY_REL: &str =
+    "client/runtime/config/terminal_command_permission_policy.json";
 const OUTPUT_MAX_BYTES: usize = 32 * 1024;
 const OUTPUT_TRUNCATION_MARKER: &str = "\n... (output truncated) ...\n";
 
@@ -194,6 +197,315 @@ fn truncate_output(text: &str) -> String {
     format!("{strict_head}{marker}{strict_tail}")
 }
 
+fn bool_env(name: &str, fallback: bool) -> bool {
+    match std::env::var(name) {
+        Ok(raw) => matches!(
+            clean_text(&raw, 40).to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => fallback,
+    }
+}
+
+fn primitives_enabled() -> bool {
+    bool_env("INFRING_TURN_LOOP_PRIMITIVES_ENABLED", true)
+}
+
+fn pre_tool_gate_enabled() -> bool {
+    primitives_enabled() && bool_env("INFRING_TOOL_PRE_GATE_ENABLED", true)
+}
+
+fn post_tool_filter_enabled() -> bool {
+    primitives_enabled() && bool_env("INFRING_TOOL_POST_FILTER_ENABLED", true)
+}
+
+fn tracking_enabled() -> bool {
+    primitives_enabled() && bool_env("INFRING_TOOL_TRACKING_ENABLED", true)
+}
+
+fn tool_summary_enabled() -> bool {
+    primitives_enabled() && bool_env("INFRING_TOOL_SUMMARY_ENABLED", true)
+}
+
+fn recovery_hints_enabled() -> bool {
+    primitives_enabled() && bool_env("INFRING_TOOL_RECOVERY_HINTS_ENABLED", true)
+}
+
+fn extract_rule(raw: &str) -> String {
+    let cleaned = clean_text(raw, 320);
+    if let Some(inner) = cleaned.strip_prefix("Bash(") {
+        if let Some(pattern) = inner.strip_suffix(')') {
+            return clean_text(pattern, 240);
+        }
+    }
+    clean_text(&cleaned, 240)
+}
+
+fn rules_from_value(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(extract_rule))
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>()
+}
+
+fn default_deny_rules() -> Vec<String> {
+    vec![
+        "rm -rf /".to_string(),
+        "rm -rf /*".to_string(),
+        "sudo rm -rf /".to_string(),
+        "git reset --hard*".to_string(),
+        "git checkout -- *".to_string(),
+        "shutdown*".to_string(),
+        "reboot*".to_string(),
+    ]
+}
+
+fn default_ask_rules() -> Vec<String> {
+    vec![
+        "git push*".to_string(),
+        "gh pr create*".to_string(),
+        "gh repo create*".to_string(),
+        "curl *".to_string(),
+        "wget *".to_string(),
+        "scp *".to_string(),
+        "ssh *".to_string(),
+    ]
+}
+
+fn load_permission_rules(root: &Path, request: &Value) -> (Vec<String>, Vec<String>) {
+    let mut deny = default_deny_rules();
+    let mut ask = default_ask_rules();
+    if let Some(policy) = read_json(&root.join(TERMINAL_PERMISSION_POLICY_REL)) {
+        deny.extend(rules_from_value(
+            policy
+                .get("deny_rules")
+                .or_else(|| policy.pointer("/permissions/deny")),
+        ));
+        ask.extend(rules_from_value(
+            policy
+                .get("ask_rules")
+                .or_else(|| policy.pointer("/permissions/ask")),
+        ));
+    }
+    deny.extend(rules_from_value(
+        request
+            .get("deny_rules")
+            .or_else(|| request.pointer("/permissions/deny")),
+    ));
+    ask.extend(rules_from_value(
+        request
+            .get("ask_rules")
+            .or_else(|| request.pointer("/permissions/ask")),
+    ));
+    deny.sort();
+    deny.dedup();
+    ask.sort();
+    ask.dedup();
+    (deny, ask)
+}
+
+fn permission_gate_payload(root: &Path, request: &Value, command: &str) -> Value {
+    let (deny_rules, ask_rules) = load_permission_rules(root, request);
+    let (verdict, matched) =
+        crate::command_permission_kernel::evaluate_command_permission_for_kernel(
+            command,
+            &deny_rules,
+            &ask_rules,
+        );
+    json!({
+        "verdict": verdict.as_str(),
+        "matched": matched,
+        "deny_rules_count": deny_rules.len(),
+        "ask_rules_count": ask_rules.len()
+    })
+}
+
+fn output_tokens_estimate(stdout: &str, stderr: &str) -> usize {
+    (stdout.len() + stderr.len()) / 4
+}
+
+fn command_recovery_hints(command: &str, exit_code: i64, permission_verdict: &str) -> Vec<String> {
+    let mut hints = Vec::<String>::new();
+    if permission_verdict == "deny" {
+        hints.push(
+            "Blocked by command policy. Try a safer read-only command or explicit approval."
+                .to_string(),
+        );
+    } else if permission_verdict == "ask" {
+        hints.push("Confirmation required for this command before execution.".to_string());
+    }
+    let detail =
+        crate::session_command_discovery_kernel::classify_command_detail_for_kernel(command);
+    if detail
+        .get("ignored")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        hints.push(
+            "This command often returns little output. Add `&& ls` to verify context.".to_string(),
+        );
+    } else if !detail
+        .get("supported")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        let base = clean_text(
+            detail
+                .get("base_command")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        if !base.is_empty() {
+            hints.push(format!(
+                "Unsupported `{base}` flow detected; consider `infring {base}` or `/help`."
+            ));
+        }
+    } else if let Some(canonical) = detail.get("canonical").and_then(Value::as_str) {
+        let canonical_clean = clean_text(canonical, 120);
+        if !canonical_clean.is_empty() {
+            hints.push(format!(
+                "Try `{canonical_clean}` for a deterministic wrapper lane."
+            ));
+        }
+    }
+    if exit_code != 0 {
+        hints.push(
+            "Command exited non-zero. Re-run with `--help` or inspect stderr details.".to_string(),
+        );
+    }
+    hints.truncate(3);
+    hints
+}
+
+fn apply_post_tool_output_filter(
+    stdout: String,
+    stderr: String,
+) -> (String, String, Vec<String>, bool) {
+    if !post_tool_filter_enabled() {
+        return (stdout, stderr, Vec::new(), false);
+    }
+    let mut stdout_out = stdout;
+    let mut stderr_out = stderr;
+    let mut filter_events = Vec::<String>::new();
+    let mut low_signal = false;
+
+    let stdout_trimmed = clean_text(&stdout_out, 8_000);
+    if crate::tool_output_match_filter::matches_ack_placeholder(&stdout_trimmed) {
+        filter_events.push("stdout_ack_placeholder".to_string());
+        stdout_out.clear();
+        low_signal = true;
+    } else if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_failure_placeholder(&stdout_trimmed)
+    {
+        stdout_out = rewritten;
+        filter_events.push(format!("stdout_rewrite:{rule_id}"));
+    }
+
+    let stderr_trimmed = clean_text(&stderr_out, 8_000);
+    if crate::tool_output_match_filter::matches_ack_placeholder(&stderr_trimmed) {
+        filter_events.push("stderr_ack_placeholder".to_string());
+        stderr_out.clear();
+        low_signal = true;
+    } else if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_failure_placeholder(&stderr_trimmed)
+    {
+        stderr_out = rewritten;
+        filter_events.push(format!("stderr_rewrite:{rule_id}"));
+    }
+
+    if clean_text(&stdout_out, 200).is_empty() && clean_text(&stderr_out, 200).is_empty() {
+        low_signal = true;
+    }
+    (stdout_out, stderr_out, filter_events, low_signal)
+}
+
+fn maybe_track_command(
+    root: &Path,
+    session_id: &str,
+    command: &str,
+    output_tokens: usize,
+) -> Option<Value> {
+    if !tracking_enabled() {
+        return None;
+    }
+    let payload = json!({
+        "session_id": clean_text(session_id, 120),
+        "records": [
+            {
+                "session_id": clean_text(session_id, 120),
+                "command": clean_text(command, 3000),
+                "output_tokens": output_tokens as u64
+            }
+        ]
+    });
+    crate::session_command_tracking_kernel::record_batch_for_kernel(root, &payload).ok()
+}
+
+fn build_tool_summary(
+    status: &str,
+    cwd: &Path,
+    requested_command: &str,
+    executed_command: &str,
+    command_translated: bool,
+    translation_reason: &str,
+    permission_gate: &Value,
+    exit_code: i64,
+    duration_ms: i64,
+    stdout: &str,
+    stderr: &str,
+    filter_events: &[String],
+    low_signal: bool,
+    recovery_hints: &[String],
+) -> Value {
+    let found = match (
+        !clean_text(stdout, 200).is_empty(),
+        !clean_text(stderr, 200).is_empty(),
+    ) {
+        (true, true) => "stdout+stderr",
+        (true, false) => "stdout",
+        (false, true) => "stderr",
+        (false, false) => "none",
+    };
+    let mut out = json!({
+        "status": clean_text(status, 40),
+        "cwd": cwd.to_string_lossy().to_string(),
+        "requested_command": clean_text(requested_command, 4000),
+        "executed_command": clean_text(executed_command, 4000),
+        "command_translated": command_translated,
+        "translation_reason": clean_text(translation_reason, 240),
+        "permission_verdict": clean_text(
+            permission_gate.get("verdict").and_then(Value::as_str).unwrap_or("allow"),
+            40
+        ),
+        "permission_matches": permission_gate
+            .get("matched")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new())),
+        "exit_code": exit_code,
+        "duration_ms": duration_ms,
+        "found": found,
+        "low_signal": low_signal,
+        "filter_events": filter_events,
+        "recovery_hints": recovery_hints
+    });
+    if status == "blocked" {
+        out["blocked"] = Value::Bool(true);
+        out["blocked_reason"] = Value::String(clean_text(
+            permission_gate
+                .get("verdict")
+                .and_then(Value::as_str)
+                .unwrap_or("policy"),
+            40,
+        ));
+    }
+    out
+}
+
 fn memory_context_verify_command() -> String {
     [
         "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.1",
@@ -280,20 +592,21 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
             requested_command: requested,
             resolved_command: resolved.clone(),
             translated: true,
-            translation_reason:
-                "translated_infring_help_surface_to_command_list_help".to_string(),
+            translation_reason: "translated_infring_help_surface_to_command_list_help".to_string(),
             suggestions: vec![resolved],
         });
     }
 
-    if lowered == "protheus-ops help" || lowered == "protheus-ops --help" || lowered == "protheus-ops -h" {
+    if lowered == "protheus-ops help"
+        || lowered == "protheus-ops --help"
+        || lowered == "protheus-ops -h"
+    {
         let resolved = "protheus-ops command-list-kernel --mode=help".to_string();
         return Ok(CommandResolution {
             requested_command: requested,
             resolved_command: resolved.clone(),
             translated: true,
-            translation_reason:
-                "translated_protheus_help_surface_to_command_list_help".to_string(),
+            translation_reason: "translated_protheus_help_surface_to_command_list_help".to_string(),
             suggestions: vec![resolved],
         });
     }
@@ -455,6 +768,110 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
     if !cwd_allowed(root, &cwd) {
         return json!({"ok": false, "error": "cwd_outside_workspace"});
     }
+    let permission_gate = if pre_tool_gate_enabled() {
+        permission_gate_payload(root, request, &executed_command)
+    } else {
+        json!({"verdict":"allow","matched":[],"deny_rules_count":0,"ask_rules_count":0})
+    };
+    let permission_verdict = clean_text(
+        permission_gate
+            .get("verdict")
+            .and_then(Value::as_str)
+            .unwrap_or("allow"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let started = Instant::now();
+    if pre_tool_gate_enabled() && (permission_verdict == "deny" || permission_verdict == "ask") {
+        let blocked_error = if permission_verdict == "ask" {
+            "permission_confirmation_required"
+        } else {
+            "permission_denied_by_policy"
+        };
+        let blocked_message = if permission_verdict == "ask" {
+            "Command requires confirmation before execution."
+        } else {
+            "Command blocked by terminal command policy."
+        };
+        let recovery_hints = if recovery_hints_enabled() {
+            command_recovery_hints(&executed_command, 126, &permission_verdict)
+        } else {
+            Vec::new()
+        };
+        let tracking = maybe_track_command(root, &sid, &executed_command, 0);
+        let tool_summary = if tool_summary_enabled() {
+            build_tool_summary(
+                "blocked",
+                &cwd,
+                &requested_command,
+                &executed_command,
+                command_translated,
+                &translation_reason,
+                &permission_gate,
+                126,
+                started.elapsed().as_millis() as i64,
+                "",
+                "",
+                &[],
+                true,
+                &recovery_hints,
+            )
+        } else {
+            Value::Null
+        };
+
+        session["cwd"] = Value::String(cwd.to_string_lossy().to_string());
+        session["updated_at"] = Value::String(now_iso());
+        session["last_exit_code"] = json!(126);
+        session["last_output"] = Value::String(String::new());
+        session["last_error"] = Value::String(blocked_message.to_string());
+        session["last_requested_command"] = Value::String(requested_command.clone());
+        session["last_executed_command"] = Value::String(executed_command.clone());
+        session["last_command_translated"] = Value::Bool(command_translated);
+        session["last_translation_reason"] = Value::String(translation_reason.clone());
+        session["last_permission_verdict"] = Value::String(permission_verdict.clone());
+
+        let history = as_array_mut(&mut state, "history");
+        history.push(json!({
+            "session_id": sid,
+            "ts": now_iso(),
+            "command": requested_command,
+            "requested_command": requested_command,
+            "executed_command": executed_command,
+            "translated": command_translated,
+            "translation_reason": translation_reason,
+            "permission_verdict": permission_verdict,
+            "exit_code": 126,
+            "ok": false,
+            "blocked": true
+        }));
+        if history.len() > 500 {
+            let drain = history.len() - 500;
+            history.drain(0..drain);
+        }
+        save_state(root, state);
+        return json!({
+            "ok": false,
+            "type": "dashboard_terminal_exec",
+            "error": blocked_error,
+            "message": blocked_message,
+            "blocked": true,
+            "session_id": request.get("session_id").or_else(|| request.get("sessionId")).cloned().unwrap_or_else(|| Value::String(String::new())),
+            "exit_code": 126,
+            "requested_command": requested_command,
+            "executed_command": executed_command,
+            "command_translated": command_translated,
+            "translation_reason": translation_reason,
+            "suggestions": suggestions,
+            "stdout": "",
+            "stderr": "",
+            "permission_gate": permission_gate,
+            "recovery_hints": recovery_hints,
+            "tool_summary": tool_summary,
+            "tracking": tracking.unwrap_or(Value::Null)
+        });
+    }
+
     let output = Command::new("zsh")
         .arg("-lc")
         .arg(&executed_command)
@@ -475,16 +892,60 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
             clean_text(&err.to_string(), 2000),
         ),
     };
+    let (filtered_stdout, filtered_stderr, filter_events, mut low_signal) =
+        apply_post_tool_output_filter(stdout, stderr);
+    if clean_text(&filtered_stdout, 200).is_empty() && clean_text(&filtered_stderr, 200).is_empty()
+    {
+        low_signal = true;
+    }
+    let recovery_hints = if recovery_hints_enabled() && (low_signal || code != 0) {
+        command_recovery_hints(&executed_command, code as i64, &permission_verdict)
+    } else {
+        Vec::new()
+    };
+    let tracking = maybe_track_command(
+        root,
+        &sid,
+        &executed_command,
+        output_tokens_estimate(&filtered_stdout, &filtered_stderr),
+    );
+    let tool_summary = if tool_summary_enabled() {
+        build_tool_summary(
+            if ok { "ok" } else { "error" },
+            &cwd,
+            &requested_command,
+            &executed_command,
+            command_translated,
+            &translation_reason,
+            &permission_gate,
+            code as i64,
+            started.elapsed().as_millis() as i64,
+            &filtered_stdout,
+            &filtered_stderr,
+            &filter_events,
+            low_signal,
+            &recovery_hints,
+        )
+    } else {
+        Value::Null
+    };
 
     session["cwd"] = Value::String(cwd.to_string_lossy().to_string());
     session["updated_at"] = Value::String(now_iso());
     session["last_exit_code"] = json!(code);
-    session["last_output"] = Value::String(stdout.clone());
-    session["last_error"] = Value::String(stderr.clone());
+    session["last_output"] = Value::String(filtered_stdout.clone());
+    session["last_error"] = Value::String(filtered_stderr.clone());
     session["last_requested_command"] = Value::String(requested_command.clone());
     session["last_executed_command"] = Value::String(executed_command.clone());
     session["last_command_translated"] = Value::Bool(command_translated);
     session["last_translation_reason"] = Value::String(translation_reason.clone());
+    session["last_permission_verdict"] = Value::String(permission_verdict.clone());
+    session["last_filter_events"] = Value::Array(
+        filter_events
+            .iter()
+            .map(|row| Value::String(clean_text(row, 120)))
+            .collect::<Vec<_>>(),
+    );
 
     let history = as_array_mut(&mut state, "history");
     history.push(json!({
@@ -495,8 +956,10 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         "executed_command": executed_command,
         "translated": command_translated,
         "translation_reason": translation_reason,
+        "permission_verdict": permission_verdict,
         "exit_code": code,
-        "ok": ok
+        "ok": ok,
+        "low_signal": low_signal
     }));
     if history.len() > 500 {
         let drain = history.len() - 500;
@@ -513,8 +976,16 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         "command_translated": command_translated,
         "translation_reason": translation_reason,
         "suggestions": suggestions,
-        "stdout": stdout,
-        "stderr": stderr
+        "stdout": filtered_stdout,
+        "stderr": filtered_stderr,
+        "permission_gate": permission_gate,
+        "filter_events": filter_events,
+        "low_signal_output": low_signal,
+        "recovery_hints": recovery_hints,
+        "tool_summary": tool_summary,
+        "duration_ms": started.elapsed().as_millis() as i64,
+        "cwd": cwd.to_string_lossy().to_string(),
+        "tracking": tracking.unwrap_or(Value::Null)
     })
 }
 
@@ -588,6 +1059,44 @@ mod tests {
         assert_eq!(
             out.get("error").and_then(Value::as_str),
             Some("cwd_outside_workspace")
+        );
+    }
+
+    #[test]
+    fn terminal_exec_pre_tool_gate_blocks_denied_command() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = create_session(root.path(), &json!({"id":"term-a"}));
+        let out = exec_command(
+            root.path(),
+            &json!({"session_id":"term-a","command":"git reset --hard HEAD"}),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(out.get("blocked").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("permission_denied_by_policy")
+        );
+        assert_eq!(out.get("exit_code").and_then(Value::as_i64), Some(126));
+        assert_eq!(
+            out.pointer("/permission_gate/verdict")
+                .and_then(Value::as_str),
+            Some("deny")
+        );
+    }
+
+    #[test]
+    fn terminal_exec_post_tool_filter_suppresses_ack_placeholder() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = create_session(root.path(), &json!({"id":"term-a"}));
+        let out = exec_command(
+            root.path(),
+            &json!({"session_id":"term-a","command":"printf 'Web search completed.'"}),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("stdout").and_then(Value::as_str).unwrap_or(""), "");
+        assert_eq!(
+            out.get("low_signal_output").and_then(Value::as_bool),
+            Some(true)
         );
     }
 
