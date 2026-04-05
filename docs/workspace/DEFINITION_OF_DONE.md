@@ -27,6 +27,7 @@ An item may be marked `done` only if all checks are true:
 7. Touched source files comply with `docs/workspace/codex_enforcer.md` file-size caps, or include a valid time-bounded exception per policy.
 8. Touched source files comply with the language allowlist in `docs/workspace/codex_enforcer.md` (no authored JavaScript).
 9. Any new authority introduced by the change is implemented in `core/**` (client stays thin wrapper/UX only).
+10. Any net-new functionality in the revision has a matching SRS row/update in `docs/workspace/SRS.md` with acceptance criteria and regression evidence pointers.
 
 ## Prohibited
 
