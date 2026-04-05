@@ -1,50 +1,50 @@
 status	path	notes
 reviewed_no_import	CHANGELOG.md	no direct runtime capability port candidate | deleted_to=.assimilation_deleted
 reviewed_candidate	CLAUDE.md	agent workflow notes candidate for later policy UX imports | deleted_to=.assimilation_deleted
-pending	CODE_OF_CONDUCT.md	
-pending	CONTRIBUTING.md	
-pending	LICENSE	
+skipped_non_runtime	CODE_OF_CONDUCT.md	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	CONTRIBUTING.md	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	LICENSE	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
 reviewed_candidate	README.md	feature map reviewed for intake prioritization | deleted_to=.assimilation_deleted
-pending	SECURITY.md	
-pending	assets/docs/demo.gif	
-pending	assets/icons/cline-bot.svg	
-pending	assets/icons/cline-bot.ttf	
-pending	assets/icons/cline-bot.woff	
-pending	assets/icons/icon.png	
-pending	assets/icons/icon.svg	
-pending	assets/icons/robot_panel_dark.png	
-pending	assets/icons/robot_panel_light.png	
-pending	assets/icons/sleepy-cline.svg	
-pending	assets/icons/social/discord.svg	
-pending	assets/icons/social/github.svg	
-pending	assets/icons/social/linkedin.svg	
-pending	assets/icons/social/reddit.svg	
-pending	assets/icons/social/x.svg	
-pending	biome.jsonc	
-pending	buf.yaml	
-pending	cli/CHANGELOG.md	
-pending	cli/DEVELOPMENT.md	
-pending	cli/README.md	
-pending	cli/cline.rb	
-pending	cli/esbuild.mts	
-pending	cli/man/cline.1	
-pending	cli/man/cline.1.md	
-pending	cli/package.json	
-pending	cli/scripts/update-brew-formula.mts	
-pending	cli/src/acp/ACPDiffViewProvider.ts	
-pending	cli/src/acp/ACPHostBridgeClientProvider.ts	
-pending	cli/src/acp/AcpAgent.ts	
-pending	cli/src/acp/AcpTerminalManager.ts	
-pending	cli/src/acp/index.ts	
-pending	cli/src/acp/streamUtils.ts	
-pending	cli/src/agent/ClineAgent.ts	
-pending	cli/src/agent/ClineSessionEmitter.test.ts	
-pending	cli/src/agent/ClineSessionEmitter.ts	
-pending	cli/src/agent/messageTranslator.test.ts	
-pending	cli/src/agent/messageTranslator.ts	
-pending	cli/src/agent/permissionHandler.ts	
-pending	cli/src/agent/public-types.ts	
-pending	cli/src/agent/types.ts	
+skipped_non_runtime	SECURITY.md	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/docs/demo.gif	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/cline-bot.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/cline-bot.ttf	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/cline-bot.woff	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/icon.png	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/icon.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/robot_panel_dark.png	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/robot_panel_light.png	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/sleepy-cline.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/social/discord.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/social/github.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/social/linkedin.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/social/reddit.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	assets/icons/social/x.svg	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	biome.jsonc	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	buf.yaml	non-runtime file; skipped for capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/CHANGELOG.md	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/DEVELOPMENT.md	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/README.md	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/cline.rb	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/esbuild.mts	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/man/cline.1	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/man/cline.1.md	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/package.json	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/scripts/update-brew-formula.mts	non-runtime distribution/docs file; skipped | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/acp/ACPDiffViewProvider.ts	ACP fs bridge is client-protocol specific; no safe core-runtime import in this pass | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/acp/ACPHostBridgeClientProvider.ts	primarily ACP stubs/placeholders; no production-grade capability to port directly | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/acp/AcpAgent.ts	session-update forwarding pattern captured as future candidate for stream harmonization | deleted_to=.assimilation_deleted
+imported	cli/src/acp/AcpTerminalManager.ts	CLINE-TERMINAL-TRUNCATION-001 imported: head+tail terminal output truncation with explicit marker and UTF-8-safe boundaries | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/acp/index.ts	ACP stdio bootstrap is protocol-wrapper specific and not directly reusable in current runtime lane | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/acp/streamUtils.ts	Node/Web stream bridge utility is ACP transport specific; no direct runtime gap addressed this pass | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/agent/ClineAgent.ts	session concurrency guard + streaming delta/tool-id dedupe patterns captured for future runtime import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/agent/ClineSessionEmitter.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/agent/ClineSessionEmitter.ts	typed EventEmitter wrapper pattern already covered by existing event bus surfaces | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/agent/messageTranslator.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/agent/messageTranslator.ts	translation matrix and tool-call lifecycle mapping captured as candidate for stream bridge hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/agent/permissionHandler.ts	allow-once/always permission mapping and auto-approval tracker captured as policy UX candidate | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/agent/public-types.ts	type surface definitions only; no standalone runtime behavior to port | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/agent/types.ts	internal type definitions only; no standalone runtime behavior to port | deleted_to=.assimilation_deleted
 pending	cli/src/components/AccountInfoView.tsx	
 pending	cli/src/components/ActionButtons.tsx	
 pending	cli/src/components/ApiKeyInput.tsx	

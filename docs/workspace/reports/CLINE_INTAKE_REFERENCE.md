@@ -29,3 +29,16 @@
     - fuzzy ranking (tight-match preference)
     - multi-root input support
     - workspace boundary gate (`workspace_outside_root` unless explicitly allowed)
+- `CLINE-TERMINAL-TRUNCATION-001` (from `cli/src/acp/AcpTerminalManager.ts`):
+  - Imported head+tail terminal output truncation semantics into core terminal broker:
+    - explicit truncation marker (`... (output truncated) ...`)
+    - preserves both early and recent output context (instead of tail-only clipping)
+    - UTF-8 boundary-safe slicing and byte-budget enforcement
+
+## Captured Candidates (Not Yet Imported)
+- `CLINE-CANDIDATE-SESSION-GUARD-001` (from `cli/src/agent/ClineAgent.ts`):
+  - Per-session "already processing" prompt gate to prevent overlapping request races.
+- `CLINE-CANDIDATE-STREAM-DEDUPE-001` (from `cli/src/agent/ClineAgent.ts` + `messageTranslator.ts`):
+  - Stable mapping between streaming message timestamps and tool-call IDs to avoid duplicate tool events.
+- `CLINE-CANDIDATE-PERMISSION-AUTOALLOW-001` (from `cli/src/agent/permissionHandler.ts`):
+  - Scoped auto-approval tracker for repeated command/tool/server approvals.
