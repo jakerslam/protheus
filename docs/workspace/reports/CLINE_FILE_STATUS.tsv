@@ -69,15 +69,15 @@ reviewed_candidate	cli/src/components/ConfigViewComponents.tsx	config subcompone
 reviewed_no_import	cli/src/components/ConfigViewWrapper.tsx	wrapper composition pattern already covered by existing page-shell architecture | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/DiffView.tsx	collapsed-context diff renderer pattern captured for patch/diff visualization backlog | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/ErrorBoundary.tsx	user-facing crash containment + error capture pattern captured as resilience candidate | deleted_to=.assimilation_deleted
-pending	cli/src/components/FeatureTip.tsx	
+reviewed_candidate	cli/src/components/FeatureTip.tsx	rotating delayed feature-tip pattern during thinking captured as UX candidate for onboarding visibility | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/FeaturedModelPicker.tsx	curated featured-model picker pattern captured for model-library UX backlog | deleted_to=.assimilation_deleted
 imported	cli/src/components/FileMentionMenu.tsx	CLINE-RG-HINT-001 imported: ripgrep-missing install-hint diagnostics added to Rust workspace-file-search lane | deleted_to=.assimilation_deleted
-pending	cli/src/components/FocusChain.tsx	
-pending	cli/src/components/HelpPanelContent.tsx	
+reviewed_candidate	cli/src/components/FocusChain.tsx	checklist parser + current-step progress rendering pattern captured as candidate for deterministic task-progress visibility | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/HelpPanelContent.tsx	static terminal help panel content and keymap copy; no direct runtime capability import needed | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/HighlightedInput.tsx	mention/slash highlighting with cursor-stable segment parsing captured as composer UX candidate | deleted_to=.assimilation_deleted
-pending	cli/src/components/HistoryPanelContent.tsx	
-pending	cli/src/components/HistoryView.test.tsx	
-pending	cli/src/components/HistoryView.tsx	
+reviewed_candidate	cli/src/components/HistoryPanelContent.tsx	searchable keyboard-navigable inline history panel pattern captured as candidate for in-chat history recall UX | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/HistoryView.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/HistoryView.tsx	adaptive-window history list with pagination and bounded terminal-row rendering captured as candidate for history surface hardening | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/ImportView.tsx	external CLI key-import wizard pattern captured for provider onboarding backlog | deleted_to=.assimilation_deleted
 pending	cli/src/components/KanbanMigrationView.test.tsx	
 pending	cli/src/components/KanbanMigrationView.tsx	
