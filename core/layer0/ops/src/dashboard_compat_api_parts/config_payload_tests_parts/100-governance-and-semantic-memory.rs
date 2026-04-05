@@ -662,3 +662,56 @@ fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
     assert!(lowered.contains("fallback phrase") || lowered.contains("cobalt sunrise"));
     assert!(lowered.contains("reconnect"));
 }
+
+#[test]
+fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let mut out = json!({
+        "ok": true,
+        "summary": "Web search completed."
+    });
+    crate::dashboard_tool_turn_loop::annotate_tool_payload_tracking(
+        root.path(),
+        "agent-turnloop-tracking",
+        "web_search",
+        &mut out,
+    );
+    let lowered = out
+        .get("summary")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(lowered.contains("no relevant results"));
+    assert!(out.get("turn_loop_post_filter").is_some());
+    assert!(out.get("turn_loop_tracking").is_some());
+}
+
+#[test]
+fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let policy_path = root.path().join("client/runtime/config/terminal_command_permission_policy.json");
+    std::fs::create_dir_all(
+        policy_path
+            .parent()
+            .expect("terminal permission policy parent"),
+    )
+    .expect("mkdir");
+    std::fs::write(&policy_path, r#"{"ask_rules":["Bash(echo *)"]}"#).expect("write policy");
+    let out = execute_tool_call_with_recovery(
+        root.path(),
+        &snapshot,
+        "agent-turnloop-pre-gate",
+        None,
+        "terminal_exec",
+        &json!({"command":"echo hello"}),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("tool_confirmation_required")
+    );
+    assert_eq!(
+        out.pointer("/permission_gate/verdict").and_then(Value::as_str),
+        Some("ask")
+    );
+}

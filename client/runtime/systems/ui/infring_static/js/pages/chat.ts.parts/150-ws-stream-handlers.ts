@@ -3,7 +3,6 @@
           var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (last && last.streaming) {
             if (!Number.isFinite(Number(last._stream_started_at))) last._stream_started_at = Date.now();
-            // If we already detected a text-based tool call, skip further text
             if (last._toolTextDetected) break;
             var deltaText = String(data.content || '');
             last._streamRawText = String(last._streamRawText || '') + deltaText;
@@ -22,7 +21,6 @@
               last.thoughtStreaming = false;
               this._queueStreamTypingRender(last, visibleText);
             }
-            // Detect function-call patterns streamed as text and convert to tool cards
             var toolScanText = String(last._cleanText || '');
             var fcIdx = toolScanText.search(/\w+<\/function[=,>]/);
             if (fcIdx === -1) fcIdx = toolScanText.search(/<function=\w+>/);
@@ -44,17 +42,17 @@
               last._cleanText = trimmedVisible;
               last._toolTextDetected = true;
               if (toolMatch) {
-                if (!last.tools) last.tools = [];
                 var inputMatch = fcPart.match(/[=,>]\s*(\{[\s\S]*)/);
-                last.tools.push({
-                  id: toolMatch[1] + '-txt-' + Date.now(),
-                  name: toolMatch[1],
-                  running: true,
-                  expanded: false,
-                  input: inputMatch ? inputMatch[1].replace(/<\/function>?\s*$/, '').trim() : '',
-                  result: '',
-                  is_error: false
-                });
+                var leakTool = this.ensureStreamingToolCard(
+                  last,
+                  toolMatch[1],
+                  inputMatch ? inputMatch[1].replace(/<\/function>?\s*$/, '').trim() : '',
+                  { running: true }
+                );
+                var leakLabel = typeof this.toolThinkingActionLabel === 'function'
+                  ? this.toolThinkingActionLabel(leakTool || { name: toolMatch[1], input: '' })
+                  : String(toolMatch[1] || 'tool');
+                if (leakLabel) last.thinking_status = leakLabel;
               }
             }
             this.tokenCount = Math.round(String(last._cleanText || '').length / 4);
@@ -113,10 +111,9 @@
             };
             this.messages.push(lastMsg);
           }
-          if (!lastMsg.tools) lastMsg.tools = [];
           lastMsg.thinking = true;
           lastMsg.streaming = true;
-          lastMsg.tools.push({ id: data.tool + '-' + Date.now(), name: data.tool, running: true, expanded: false, input: data.input || '', result: '', is_error: false });
+          this.ensureStreamingToolCard(lastMsg, data.tool, data.input || '', { running: true });
           lastMsg._stream_updated_at = Date.now();
           if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now();
           var startLabel = typeof this.toolThinkingActionLabel === 'function'
@@ -129,50 +126,41 @@
           this.scrollToBottom();
           break;
         case 'tool_end':
-          // Tool call parsed by LLM — update tool card with input params
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (lastMsg2 && lastMsg2.tools) {
-            for (var ti = lastMsg2.tools.length - 1; ti >= 0; ti--) {
-              if (lastMsg2.tools[ti].name === data.tool && lastMsg2.tools[ti].running) {
-                lastMsg2.tools[ti].input = data.input || '';
-                var runningLabel = typeof this.toolThinkingActionLabel === 'function'
-                  ? this.toolThinkingActionLabel(lastMsg2.tools[ti])
-                  : '';
-                if (runningLabel) lastMsg2.thinking_status = runningLabel;
-                break;
-              }
-            }
+          if (lastMsg2) {
+            var runningTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: true });
+            var runningLabel = typeof this.toolThinkingActionLabel === 'function'
+              ? this.toolThinkingActionLabel(runningTool || { name: data.tool, input: data.input || '' })
+              : String(data.tool || 'tool');
+            if (runningLabel) lastMsg2.thinking_status = runningLabel;
+            lastMsg2._stream_updated_at = Date.now();
+            if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
           }
+          this._resetTypingTimeout();
+          this.scrollToBottom();
           break;
         case 'tool_result':
-          // Tool execution completed — update tool card with result
           var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (lastMsg3 && lastMsg3.tools) {
-            for (var ri = lastMsg3.tools.length - 1; ri >= 0; ri--) {
-              if (lastMsg3.tools[ri].name === data.tool && lastMsg3.tools[ri].running) {
-                lastMsg3.tools[ri].running = false;
-                lastMsg3.tools[ri].result = data.result || '';
-                lastMsg3.tools[ri].is_error = !!data.is_error;
-                // Extract image URLs from image_generate or browser_screenshot results
-                if ((data.tool === 'image_generate' || data.tool === 'browser_screenshot') && !data.is_error) {
-                  try {
-                    var parsed = JSON.parse(data.result);
-                    if (parsed.image_urls && parsed.image_urls.length) {
-                      lastMsg3.tools[ri]._imageUrls = parsed.image_urls;
-                    }
-                  } catch(e) { /* not JSON */ }
-                }
-                // Extract audio file path from text_to_speech results
-                if (data.tool === 'text_to_speech' && !data.is_error) {
-                  try {
-                    var ttsResult = JSON.parse(data.result);
-                    if (ttsResult.saved_to) {
-                      lastMsg3.tools[ri]._audioFile = ttsResult.saved_to;
-                      lastMsg3.tools[ri]._audioDuration = ttsResult.duration_estimate_ms;
-                    }
-                  } catch(e) { /* not JSON */ }
-                }
-                break;
+          if (lastMsg3) {
+            var resultTool = this.ensureStreamingToolCard(lastMsg3, data.tool, data.input || '', { running: true });
+            if (resultTool) {
+              resultTool.running = false;
+              resultTool.result = data.result || '';
+              resultTool.is_error = !!data.is_error;
+              if ((data.tool === 'image_generate' || data.tool === 'browser_screenshot') && !data.is_error) {
+                try {
+                  var parsed = JSON.parse(data.result);
+                  if (parsed.image_urls && parsed.image_urls.length) resultTool._imageUrls = parsed.image_urls;
+                } catch(e) {}
+              }
+              if (data.tool === 'text_to_speech' && !data.is_error) {
+                try {
+                  var ttsResult = JSON.parse(data.result);
+                  if (ttsResult.saved_to) {
+                    resultTool._audioFile = ttsResult.saved_to;
+                    resultTool._audioDuration = ttsResult.duration_estimate_ms;
+                  }
+                } catch(e) {}
               }
             }
             lastMsg3._stream_updated_at = Date.now();
@@ -201,7 +189,6 @@
           var streamedThought = envelope.thought;
           streamedTools.forEach(function(t) {
             t.running = false;
-            // Text-detected tool calls (model leaked as text) — mark as not executed
             if (t.id && t.id.indexOf('-txt-') !== -1 && !t.result) {
               t.result = 'Model attempted this call as text (not executed via tool system)';
               t.is_error = true;
@@ -220,7 +207,6 @@
           if (wsDuration) meta += ' | ' + wsDuration;
           var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
           if (wsRouteMeta) meta += ' | ' + wsRouteMeta;
-          // Use server response if non-empty, otherwise preserve accumulated streamed text
           var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
           finalText = this.stripModelPrefix(finalText);
           var artifactDirectives = this.extractArtifactDirectives(finalText);
@@ -233,7 +219,6 @@
             }
             finalText = finalSplit.content || '';
           }
-          // Strip raw function-call JSON that some models leak as text
           finalText = this.sanitizeToolText(finalText);
           finalText = this.stripArtifactDirectivesFromText(finalText);
           var collapsedThought = String(streamedThought || '').trim();

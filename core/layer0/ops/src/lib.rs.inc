@@ -94,6 +94,7 @@ pub mod dashboard_model_catalog;
 pub mod dashboard_provider_runtime;
 pub mod dashboard_release_update;
 pub mod dashboard_terminal_broker;
+pub mod dashboard_tool_turn_loop;
 pub mod dashboard_ui;
 pub mod dify_bridge;
 pub mod directive_kernel;
