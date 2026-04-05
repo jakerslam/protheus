@@ -8,6 +8,7 @@ use std::process::Command;
 const TERMINAL_STATE_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/terminal_broker.json";
 const OUTPUT_MAX_BYTES: usize = 32 * 1024;
+const OUTPUT_TRUNCATION_MARKER: &str = "\n... (output truncated) ...\n";
 
 #[derive(Debug, Clone)]
 pub struct CommandResolution {
@@ -141,13 +142,56 @@ fn cwd_allowed(root: &Path, cwd: &Path) -> bool {
     cwd.starts_with(root)
 }
 
+fn utf8_prefix_by_bytes(text: &str, max_bytes: usize) -> &str {
+    if text.as_bytes().len() <= max_bytes {
+        return text;
+    }
+    let mut end = max_bytes.min(text.len());
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+fn utf8_suffix_by_bytes(text: &str, max_bytes: usize) -> &str {
+    if text.as_bytes().len() <= max_bytes {
+        return text;
+    }
+    let mut start = text.len().saturating_sub(max_bytes);
+    while start < text.len() && !text.is_char_boundary(start) {
+        start += 1;
+    }
+    &text[start..]
+}
+
 fn truncate_output(text: &str) -> String {
-    let bytes = text.as_bytes();
-    if bytes.len() <= OUTPUT_MAX_BYTES {
+    if text.as_bytes().len() <= OUTPUT_MAX_BYTES {
         return text.to_string();
     }
-    let tail = &bytes[bytes.len() - OUTPUT_MAX_BYTES..];
-    String::from_utf8_lossy(tail).to_string()
+    let marker = OUTPUT_TRUNCATION_MARKER;
+    let marker_len = marker.as_bytes().len();
+    if OUTPUT_MAX_BYTES <= marker_len + 8 {
+        return utf8_suffix_by_bytes(text, OUTPUT_MAX_BYTES).to_string();
+    }
+    let budget = OUTPUT_MAX_BYTES - marker_len;
+    let head_budget = budget / 2;
+    let tail_budget = budget - head_budget;
+    let head = utf8_prefix_by_bytes(text, head_budget);
+    let tail = utf8_suffix_by_bytes(text, tail_budget);
+    if head.len() + tail.len() >= text.len() {
+        return text.to_string();
+    }
+    let mut truncated = String::with_capacity(OUTPUT_MAX_BYTES);
+    truncated.push_str(head);
+    truncated.push_str(marker);
+    truncated.push_str(tail);
+    if truncated.as_bytes().len() <= OUTPUT_MAX_BYTES {
+        return truncated;
+    }
+    let strict_budget = OUTPUT_MAX_BYTES - marker_len;
+    let strict_head = utf8_prefix_by_bytes(text, strict_budget / 2);
+    let strict_tail = utf8_suffix_by_bytes(text, strict_budget - strict_head.as_bytes().len());
+    format!("{strict_head}{marker}{strict_tail}")
 }
 
 fn memory_context_verify_command() -> String {
@@ -617,5 +661,28 @@ mod tests {
             out.translation_reason,
             "translated_infring_help_surface_to_command_list_help"
         );
+    }
+
+    #[test]
+    fn truncate_output_preserves_head_and_tail_context() {
+        let text = format!(
+            "head-marker:{}:{}tail-marker",
+            "x".repeat(OUTPUT_MAX_BYTES),
+            "y".repeat(OUTPUT_MAX_BYTES)
+        );
+        let out = truncate_output(&text);
+        assert!(out.contains("head-marker"));
+        assert!(out.contains("tail-marker"));
+        assert!(out.contains("... (output truncated) ..."));
+        assert!(out.as_bytes().len() <= OUTPUT_MAX_BYTES);
+    }
+
+    #[test]
+    fn truncate_output_handles_utf8_boundaries() {
+        let text = format!("前置{}后置", "界".repeat(OUTPUT_MAX_BYTES));
+        let out = truncate_output(&text);
+        assert!(out.contains("后置"));
+        assert!(out.contains("... (output truncated) ..."));
+        assert!(out.as_bytes().len() <= OUTPUT_MAX_BYTES);
     }
 }
