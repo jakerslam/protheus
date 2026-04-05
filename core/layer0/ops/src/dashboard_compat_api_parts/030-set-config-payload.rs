@@ -502,6 +502,111 @@ fn all_session_messages(state: &Value) -> Vec<Value> {
     rows
 }
 
+const ACTIVE_CONTEXT_MIN_RECENT_FLOOR: usize = 28;
+
+fn active_session_messages_sorted(state: &Value) -> Vec<Value> {
+    let mut rows = session_messages(state);
+    rows.sort_by_key(message_timestamp_iso);
+    rows
+}
+
+fn context_source_messages(state: &Value, include_all_sessions: bool) -> Vec<Value> {
+    if include_all_sessions {
+        all_session_messages(state)
+    } else {
+        active_session_messages_sorted(state)
+    }
+}
+
+fn recall_prefers_earliest(user_message: &str) -> bool {
+    let lowered = clean_text(user_message, 800).to_ascii_lowercase();
+    lowered.contains("first chat")
+        || lowered.contains("first conversation")
+        || lowered.contains("first message")
+        || lowered.contains("very first")
+        || lowered.contains("earliest")
+        || lowered.contains("at the start")
+        || lowered.contains("from the beginning")
+}
+
+fn recall_message_candidate(row: &Value, require_remember_term: bool) -> Option<String> {
+    let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 20)
+        .to_ascii_lowercase();
+    if role != "user" {
+        return None;
+    }
+    let text = message_text(row);
+    if text.is_empty() {
+        return None;
+    }
+    if require_remember_term && !text.to_ascii_lowercase().contains("remember") {
+        return None;
+    }
+    Some(text)
+}
+
+fn collect_user_recall_messages(
+    messages: &[Value],
+    prefer_earliest: bool,
+    require_remember_term: bool,
+    limit: usize,
+) -> Vec<String> {
+    let take_limit = limit.clamp(1, 8);
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    if prefer_earliest {
+        for row in messages {
+            let Some(text) = recall_message_candidate(row, require_remember_term) else {
+                continue;
+            };
+            let key = clean_text(&text, 320).to_ascii_lowercase();
+            if key.is_empty() || !seen.insert(key) {
+                continue;
+            }
+            out.push(text);
+            if out.len() >= take_limit {
+                break;
+            }
+        }
+        return out;
+    }
+    for row in messages.iter().rev() {
+        let Some(text) = recall_message_candidate(row, require_remember_term) else {
+            continue;
+        };
+        let key = clean_text(&text, 320).to_ascii_lowercase();
+        if key.is_empty() || !seen.insert(key) {
+            continue;
+        }
+        out.push(text);
+        if out.len() >= take_limit {
+            break;
+        }
+    }
+    out
+}
+
+fn build_memory_recall_response(state: &Value, pooled_messages: &[Value], message: &str) -> String {
+    let prefer_earliest = recall_prefers_earliest(message);
+    let active_history_messages = active_session_messages_sorted(state);
+    let mut remembered =
+        collect_user_recall_messages(&active_history_messages, prefer_earliest, true, 4);
+    if remembered.is_empty() {
+        remembered = collect_user_recall_messages(&active_history_messages, prefer_earliest, false, 4);
+    }
+    if remembered.is_empty() {
+        remembered = collect_user_recall_messages(pooled_messages, prefer_earliest, true, 3);
+    }
+    if remembered.is_empty() {
+        remembered = collect_user_recall_messages(pooled_messages, prefer_earliest, false, 3);
+    }
+    if remembered.is_empty() {
+        "I don't have enough earlier context to reference yet. Share what you want me to track, and I'll carry it forward.".to_string()
+    } else {
+        format!("Here's what I remember from earlier: {}", remembered.join(" | "))
+    }
+}
+
 fn memory_kv_pairs_from_state(state: &Value) -> Vec<Value> {
     let mut out = state
         .get("memory_kv")
@@ -2933,6 +3038,13 @@ fn finalize_user_facing_response_with_outcome(
             false,
         );
     }
+    if response_looks_like_raw_web_artifact_dump(&cleaned) {
+        return (
+            "I only have raw web output (placeholder or page/search chrome), not synthesized findings yet. I can rerun with `batch_query` or a narrower query and return a concise answer with sources.".to_string(),
+            "rewrote_raw_web_artifact_dump".to_string(),
+            false,
+        );
+    }
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
     let findings_cleaned = sanitize_findings_for_final_response(findings);
     if cleaned.is_empty() {
@@ -3253,7 +3365,7 @@ fn select_active_context_window(
     min_recent: usize,
 ) -> Vec<Value> {
     let cap = target_tokens.max(1_024);
-    let floor = min_recent.clamp(1, 128);
+    let floor = min_recent.clamp(1, 256);
     let mut out = messages.to_vec();
     let mut total = total_message_tokens(&out);
     while out.len() > floor && total > cap {
@@ -3475,7 +3587,11 @@ fn context_command_payload(
         .and_then(Value::as_array)
         .map(|rows| rows.len())
         .unwrap_or(0);
-    let messages = all_session_messages(&state);
+    let include_all_sessions_context = request
+        .get("include_all_sessions_context")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let messages = context_source_messages(&state, include_all_sessions_context);
     let row_system_context_limit = row
         .get("system_context_tokens")
         .or_else(|| row.get("context_pool_limit_tokens"))
@@ -3508,8 +3624,8 @@ fn context_command_payload(
         .get("active_context_min_recent_messages")
         .or_else(|| request.get("min_recent_messages"))
         .and_then(Value::as_u64)
-        .unwrap_or(16)
-        .clamp(4, 128) as usize;
+        .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
+        .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
     let row_auto_compact_threshold_ratio = row
         .get("auto_compact_threshold_ratio")
         .and_then(Value::as_f64)
@@ -3554,8 +3670,8 @@ fn context_command_payload(
             .get("emergency_min_recent_messages")
             .or_else(|| request.get("min_recent_messages"))
             .and_then(Value::as_u64)
-            .unwrap_or(active_context_min_recent.min(4) as u64)
-            .clamp(2, 128) as usize;
+            .unwrap_or(active_context_min_recent as u64)
+            .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
         let emergency_messages = select_active_context_window(
             &pooled_messages,
             emergency_target_tokens,
@@ -3607,6 +3723,7 @@ fn context_command_payload(
             "active_tokens": context_tokens,
             "active_messages": active_messages.len(),
             "min_recent_messages": active_context_min_recent,
+            "include_all_sessions_context": include_all_sessions_context,
             "pre_generation_pruning_enabled": true,
             "pre_generation_pruned": pre_generation_pruned,
             "emergency_compact_enabled": true,
@@ -4156,9 +4273,35 @@ fn comparative_no_findings_fallback(message: &str) -> String {
     let lowered = clean_text(message, 400).to_ascii_lowercase();
     let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
     if asks_rank {
-        return "I couldn't verify live web rankings in this turn, but based on stable capabilities Infring is currently strongest in identity persistence, memory continuity, and integrated tool orchestration. Its biggest gap versus top peers is reliability under tool/search failures and response handoff consistency. If you want, I can still produce a provisional ranked table now with confidence levels per row.".to_string();
+        return "Live web retrieval was low-signal in this turn (search-engine chrome without extractable findings). Provisional comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration; top peers are currently stronger on tool/search failure recovery and handoff consistency. Ask me to rerun `batch_query` with named competitors and I will return a source-backed ranked table.".to_string();
     }
-    "I couldn't verify fresh web comparisons in this turn, but based on stable capabilities Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while reliability under tool/search failures and handoff consistency are still the main gaps versus mature peers.".to_string()
+    "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()
+}
+
+fn response_looks_like_raw_web_artifact_dump(text: &str) -> bool {
+    let cleaned = clean_text(text, 4_000);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let has_explanatory_frame = lowered.contains("this means")
+        || lowered.contains("this suggests")
+        || lowered.contains("root cause")
+        || lowered.contains("because ")
+        || lowered.contains("in short");
+    if has_explanatory_frame {
+        return false;
+    }
+    if looks_like_placeholder_fetch_content(&cleaned, "") {
+        return true;
+    }
+    if looks_like_navigation_chrome_payload(&cleaned) || looks_like_search_engine_chrome_summary(&cleaned)
+    {
+        return true;
+    }
+    lowered.contains("hacker news")
+        && lowered.contains("new | past | comments")
+        && lowered.contains("points by")
 }
 
 fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
@@ -5416,42 +5559,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             }
             return format!("Web search candidate sources: {}.", sources.join(", "));
         }
-        if !query.is_empty() {
-            if !requested_url.is_empty() {
-                return format!(
-                    "I couldn't extract usable findings for \"{}\" yet. The search response came from {}.",
-                    trim_text(&query, 120),
-                    requested_url
-                );
-            }
-            if !domain.is_empty() {
-                return format!(
-                    "I couldn't extract usable findings for \"{}\" yet. The search response came from {}.",
-                    trim_text(&query, 120),
-                    domain
-                );
-            }
-            return format!(
-                "I couldn't extract usable findings for \"{}\" yet.",
-                trim_text(&query, 120)
-            );
-        }
-        if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
-            return trim_text(&summary, 800);
-        }
-        if !requested_url.is_empty() {
-            return format!(
-                "I couldn't extract usable findings from the search response yet (source: {}).",
-                requested_url
-            );
-        }
-        if !domain.is_empty() {
-            return format!(
-                "I couldn't extract usable findings from the search response yet (source: {}).",
-                domain
-            );
-        }
-        return "I couldn't extract usable findings from the search response yet.".to_string();
+        return web_search_no_findings_fallback(&query, &combined, &requested_url, &domain);
     }
     if let Ok(raw) = serde_json::to_string_pretty(payload) {
         return trim_text(&raw, 24_000);
@@ -5520,6 +5628,54 @@ fn extract_search_result_domains(summary: &str, max_domains: usize) -> Vec<Strin
         }
     }
     domains
+}
+
+fn web_search_no_findings_fallback(
+    query: &str,
+    combined: &str,
+    requested_url: &str,
+    domain: &str,
+) -> String {
+    let query_label = if query.is_empty() {
+        "this query".to_string()
+    } else {
+        format!("\"{}\"", trim_text(query, 120))
+    };
+    let source = if domain.trim().is_empty() {
+        source_label_from_url(requested_url)
+    } else {
+        clean_text(domain, 120)
+    };
+    let lowered = clean_text(combined, 4_000).to_ascii_lowercase();
+    let search_chrome_like = looks_like_search_engine_chrome_summary(&lowered)
+        || lowered.contains("all regions ")
+        || lowered.contains("safe search")
+        || lowered.contains("any time")
+        || lowered.contains(" at duckduckgo");
+    if search_chrome_like {
+        if source.is_empty() {
+            return format!(
+                "Web search for {} returned low-signal search-engine chrome with no extractable findings. This is a retrieval/parsing miss, not a confirmed no-answer. Retry with `batch_query` or provide one specific source URL.",
+                query_label
+            );
+        }
+        return format!(
+            "Web search for {} returned low-signal search-engine chrome from {} with no extractable findings. This is a retrieval/parsing miss, not a confirmed no-answer. Retry with `batch_query` or provide one specific source URL.",
+            query_label,
+            trim_text(&source, 120)
+        );
+    }
+    if source.is_empty() {
+        return format!(
+            "Web search for {} completed but produced no extractable findings. Retry with a narrower query or ask for a provisional answer without live sources.",
+            query_label
+        );
+    }
+    format!(
+        "Web search for {} completed but produced no extractable findings from {}. Retry with a narrower query or ask for a provisional answer without live sources.",
+        query_label,
+        trim_text(&source, 120)
+    )
 }
 
 fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String> {
@@ -5745,13 +5901,21 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
             "`{normalized}` was blocked by network policy for this request."
         ));
     }
+    if lowered.contains("request_read_failed")
+        || lowered.contains("resource temporarily unavailable")
+        || lowered.contains("os error 35")
+    {
+        return Some(format!(
+            "`{normalized}` hit temporary runtime I/O pressure (`request_read_failed`). I already retry transient failures automatically; retry once, then run `infringctl doctor --json` if it persists."
+        ));
+    }
     if lowered.contains("timeout")
         || lowered.contains("timed out")
         || lowered.contains("unavailable")
         || lowered.contains("connection")
     {
         return Some(format!(
-            "`{normalized}` hit a temporary network issue. Please retry."
+            "`{normalized}` hit a temporary network/runtime issue. Retry once; if it repeats, run `infringctl doctor --json`."
         ));
     }
     Some(format!("I couldn't complete `{normalized}` right now."))
@@ -5771,6 +5935,9 @@ fn transient_tool_failure(payload: &Value) -> bool {
         || lowered.contains("connection")
         || lowered.contains("retry")
         || lowered.contains("econnreset")
+        || lowered.contains("request_read_failed")
+        || lowered.contains("resource temporarily unavailable")
+        || lowered.contains("os error 35")
 }
 
 fn fallback_memory_query_payload(
@@ -5848,21 +6015,35 @@ fn execute_tool_call_with_recovery(
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
     let mut recovery_strategy = "none".to_string();
+    let mut recovery_attempts = 0_u64;
     if transient_tool_failure(&payload) {
-        std::thread::sleep(std::time::Duration::from_millis(180));
-        let retry =
-            execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
-        if retry.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        for delay_ms in [180_u64, 360, 720] {
+            recovery_attempts += 1;
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            let retry = execute_tool_call_by_name(
+                root,
+                snapshot,
+                actor_agent_id,
+                existing,
+                tool_name,
+                input,
+            );
+            if retry.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                payload = retry;
+                recovery_strategy = format!("retry_backoff_attempt_{recovery_attempts}");
+                break;
+            }
             payload = retry;
-            recovery_strategy = "retry_backoff".to_string();
-        } else if let Some(fallback_payload) =
-            fallback_memory_query_payload(root, &clean_agent_id(actor_agent_id), tool_name, input)
-        {
-            payload = fallback_payload;
-            recovery_strategy = "semantic_memory_fallback".to_string();
-        } else {
-            payload = retry;
-            recovery_strategy = "retry_backoff_failed".to_string();
+        }
+        if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            if let Some(fallback_payload) =
+                fallback_memory_query_payload(root, &clean_agent_id(actor_agent_id), tool_name, input)
+            {
+                payload = fallback_payload;
+                recovery_strategy = "semantic_memory_fallback".to_string();
+            } else {
+                recovery_strategy = "retry_backoff_exhausted".to_string();
+            }
         }
     }
     let audit_receipt = append_tool_decision_audit(
@@ -5882,6 +6063,7 @@ fn execute_tool_call_with_recovery(
             "decision_audit_receipt".to_string(),
             Value::String(audit_receipt),
         );
+        obj.insert("recovery_attempts".to_string(), json!(recovery_attempts));
     }
     payload
 }
@@ -6176,11 +6358,11 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
         if let Some(route) = natural_web_intent_from_user_message(trimmed) {
             return Some(route);
         }
+        if memory_recall_requested(trimmed) {
+            return None;
+        }
         let lowered = clean_text(trimmed, 120).to_ascii_lowercase();
-        if lowered.contains("what did we decide")
-            || lowered.starts_with("recall ")
-            || lowered.starts_with("remember ")
-        {
+        if lowered.contains("what did we decide") && lowered.contains("about") {
             return Some((
                 "memory_semantic_query".to_string(),
                 json!({"query": clean_text(trimmed, 600), "limit": 8}),
@@ -7677,8 +7859,12 @@ pub fn handle_with_headers(
                 .get("active_context_min_recent_messages")
                 .or_else(|| request.get("min_recent_messages"))
                 .and_then(Value::as_u64)
-                .unwrap_or(16)
-                .clamp(4, 128) as usize;
+                .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
+                .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
+            let include_all_sessions_context = request
+                .get("include_all_sessions_context")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let row_system_context_limit = row
                 .get("system_context_tokens")
                 .or_else(|| row.get("context_pool_limit_tokens"))
@@ -7713,14 +7899,14 @@ pub fn handle_with_headers(
             let history_trim_confirmed = false;
             let persist_system_prune = false;
             let persist_auto_compact = false;
-            let mut messages = all_session_messages(&state);
+            let mut messages = context_source_messages(&state, include_all_sessions_context);
             let mut pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
             let pre_generation_pruned = pooled_messages.len() != messages.len();
             if pre_generation_pruned && persist_system_prune {
                 set_active_session_messages(&mut state, &pooled_messages);
                 save_session_state(root, &agent_id, &state);
                 state = load_session_state(root, &agent_id);
-                messages = all_session_messages(&state);
+                messages = context_source_messages(&state, include_all_sessions_context);
                 pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
             }
             let mut active_messages = select_active_context_window(
@@ -7749,8 +7935,8 @@ pub fn handle_with_headers(
                     .get("emergency_min_recent_messages")
                     .or_else(|| request.get("min_recent_messages"))
                     .and_then(Value::as_u64)
-                    .unwrap_or(active_context_min_recent.min(4) as u64)
-                    .clamp(2, 128) as usize;
+                    .unwrap_or(active_context_min_recent as u64)
+                    .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
                 let emergency_messages = select_active_context_window(
                     &pooled_messages,
                     emergency_target_tokens,
@@ -7889,60 +8075,7 @@ pub fn handle_with_headers(
                     if memory_recall_requested(&message)
                         || persistent_memory_denied_phrase(&response_text)
                     {
-                        let mut remembered = pooled_messages
-                            .iter()
-                            .rev()
-                            .filter_map(|row| {
-                                let role = clean_text(
-                                    row.get("role").and_then(Value::as_str).unwrap_or(""),
-                                    20,
-                                )
-                                .to_ascii_lowercase();
-                                if role != "user" {
-                                    return None;
-                                }
-                                let text = message_text(row);
-                                if text.is_empty() {
-                                    return None;
-                                }
-                                if text.to_ascii_lowercase().contains("remember") {
-                                    return Some(text);
-                                }
-                                None
-                            })
-                            .take(3)
-                            .collect::<Vec<_>>();
-                        if remembered.is_empty() {
-                            remembered = pooled_messages
-                                .iter()
-                                .rev()
-                                .filter_map(|row| {
-                                    let role = clean_text(
-                                        row.get("role").and_then(Value::as_str).unwrap_or(""),
-                                        20,
-                                    )
-                                    .to_ascii_lowercase();
-                                    if role != "user" {
-                                        return None;
-                                    }
-                                    let text = message_text(row);
-                                    if text.is_empty() {
-                                        None
-                                    } else {
-                                        Some(text)
-                                    }
-                                })
-                                .take(3)
-                                .collect::<Vec<_>>();
-                        }
-                        if remembered.is_empty() {
-                            response_text = "I don't have enough earlier context to reference yet. Share what you want me to track, and I'll carry it forward.".to_string();
-                        } else {
-                            response_text = format!(
-                                "Here's what I remember from earlier: {}",
-                                remembered.join(" | ")
-                            );
-                        }
+                        response_text = build_memory_recall_response(&state, &pooled_messages, &message);
                     }
                     let explicit_parallel_directive = swarm_intent_requested(&message)
                         || message.to_ascii_lowercase().contains("multi-agent")
@@ -8163,6 +8296,13 @@ pub fn handle_with_headers(
                             format!("{finalization_outcome}+comparative_fallback");
                     }
                     response_text = finalized_response;
+                    if memory_recall_requested(&message)
+                        && (response_is_no_findings_placeholder(&response_text)
+                            || response_looks_like_tool_ack_without_findings(&response_text))
+                    {
+                        response_text =
+                            build_memory_recall_response(&state, &pooled_messages, &message);
+                    }
                     let final_ack_only =
                         response_looks_like_tool_ack_without_findings(&response_text);
                     let response_finalization = json!({
@@ -8240,6 +8380,7 @@ pub fn handle_with_headers(
                         "active_tokens": context_active_tokens,
                         "active_messages": active_messages.len(),
                         "min_recent_messages": active_context_min_recent,
+                        "include_all_sessions_context": include_all_sessions_context,
                         "context_window": fallback_window.max(0),
                         "context_ratio": context_ratio,
                         "context_pressure": context_pressure,
