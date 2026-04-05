@@ -25,6 +25,7 @@ For every incoming user prompt:
 - Authorized modification scope includes `core/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
+- Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
 - No new authority may be introduced in `client/**`:
   - Client code is wrapper/UX/integration only.
   - Any new decision logic, policy logic, state mutation authority, or security-critical logic must land in `core/**`.
@@ -50,6 +51,7 @@ Completion requires all of the following:
    - At least 1 regression test.
    - At least 1 sovereignty/security check.
 4. Runtime/functionality evidence (CLI output, artifact path, or state output).
+5. If functionality is new, a same-revision SRS entry/update in `docs/workspace/SRS.md` with explicit regression-insurance acceptance criteria and evidence paths.
 
 ## Backlog Discipline
 - Do not move queued work to `done` without proof and operator audit readiness.
