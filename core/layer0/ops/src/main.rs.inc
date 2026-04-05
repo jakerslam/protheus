@@ -250,6 +250,21 @@ fn main() {
             let exit = protheus_ops_core::web_conduit::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "batch-query" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::batch_query_primitive::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "context-stacks" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::context_stacks::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "workspace-file-search" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::workspace_file_search::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "adaptive-layer-store-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::adaptive_layer_store_kernel::run(&cwd, &rest);

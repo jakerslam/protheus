@@ -51,6 +51,8 @@ pub mod backlog_runtime_anchor;
 pub mod baremetal_substrate;
 pub mod benchmark_autonomy_gate;
 pub mod benchmark_matrix;
+pub mod batch_query_primitive;
+pub mod context_stacks;
 pub mod binary_blob_runtime;
 pub mod binary_vuln_plane;
 pub mod bird_x_collector_kernel;
@@ -250,6 +252,7 @@ pub mod venom_containment_layer;
 pub mod verity_plane;
 pub mod vertical_plane;
 pub mod web_conduit;
+pub mod workspace_file_search;
 pub mod workflow_controller;
 pub mod workflow_executor;
 

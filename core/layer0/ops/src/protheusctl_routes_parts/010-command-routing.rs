@@ -207,6 +207,32 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "stack" | "context-stacks" => {
+            let mut args = Vec::<String>::new();
+            if rest.is_empty() {
+                args.push("list".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://context-stacks".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "workspace-search" | "workspace-files" => {
+            let mut args = Vec::<String>::new();
+            if rest.is_empty() {
+                args.push("list".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://workspace-file-search".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "doctor" | "verify-install" => {
             let mut args = vec![cmd.to_string()];
             args.extend(rest.iter().cloned());

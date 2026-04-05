@@ -89,6 +89,42 @@ fn core_shortcut_routes_verify_install_to_install_doctor_domain() {
 }
 
 #[test]
+fn core_shortcut_routes_stack_default_to_context_stacks_list() {
+    let route = resolve_core_shortcuts("stack", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://context-stacks");
+    assert_eq!(route.args, vec!["list"]);
+}
+
+#[test]
+fn core_shortcut_routes_context_stacks_passthrough_subcommand() {
+    let route = resolve_core_shortcuts(
+        "context-stacks",
+        &["create".to_string(), "--stack-id=demo".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://context-stacks");
+    assert_eq!(route.args, vec!["create", "--stack-id=demo"]);
+}
+
+#[test]
+fn core_shortcut_routes_workspace_search_default_to_list() {
+    let route = resolve_core_shortcuts("workspace-search", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://workspace-file-search");
+    assert_eq!(route.args, vec!["list"]);
+}
+
+#[test]
+fn core_shortcut_routes_workspace_files_passthrough_subcommand() {
+    let route = resolve_core_shortcuts(
+        "workspace-files",
+        &["search".to_string(), "--q=router".to_string()],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://workspace-file-search");
+    assert_eq!(route.args, vec!["search", "--q=router"]);
+}
+
+#[test]
 fn tier1_route_contracts_resolve_to_expected_core_targets() {
     for row in crate::command_list_kernel::tier1_route_contracts() {
         let rest = row
