@@ -23,8 +23,8 @@
 - Ledger notes include `deleted_to=.assimilation_deleted`.
 
 ## Current Intake State
-- `pending` rows: 145
-- Active files left outside `.assimilation_deleted`: 145
+- `pending` rows: 0
+- Active files left outside `.assimilation_deleted`: 0
 
 ## Imported Capability
 - `RTK-TOML-MATCH-001` (from `src/core/toml_filter.rs`):
@@ -51,5 +51,11 @@
 ## Captured Candidates (Not Yet Imported)
 - `RTK-CANDIDATE-DISCOVER-002` (from `src/discover/provider.rs`):
   - Provider-specific session log extraction (Claude schema) reviewed; defer until we define provider-agnostic session source contracts.
+- `RTK-CANDIDATE-ANALYTICS-001` (from `src/analytics/session_cmd.rs`):
+  - Session-level adoption trend reporting over discovered command telemetry.
+- `RTK-CANDIDATE-TRACKING-001` (from `src/core/tracking.rs`):
+  - SQLite-backed token/time savings telemetry model for longitudinal command analytics.
+- `RTK-CANDIDATE-HOOKS-001` (from `src/hooks/permissions.rs`):
+  - External deny/ask rule evaluation bridge pattern for permission-profile interoperability.
 - `RTK-CANDIDATE-CODE-FILTER-001` (from `src/core/filter.rs`):
   - Language-aware comment/boilerplate filter strategy as future read/summarize import.
