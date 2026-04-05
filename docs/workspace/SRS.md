@@ -16,6 +16,12 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-GOV-001 | done | SRS regression-insurance gate for net-new functionality | New features can regress silently when implementation lands without canonical backlog acceptance criteria and evidence paths. | `docs/workspace/codex_enforcer.md` and `docs/workspace/DEFINITION_OF_DONE.md` now require a same-revision SRS entry/update for all net-new functionality before `done` status is allowed. | 9 | 1/2 |
 
+## Cline Capability Assimilation Intake (2026-04-05)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-CLINE-004 | done | Workspace file mention-insertion primitive (`workspace-file-search mention`) | Composer mention flows need deterministic, machine-readable path insertion tokens and explicit no-results behavior instead of ad hoc parsing in UI-only code. | `core/layer0/ops/src/workspace_file_search.rs` now supports `mention` subcommand with insertable token output (`@<path>` default), explicit `status=no_results`, and mention receipts; usage surface updated in `core/layer0/ops/src/ops_main_usage.rs`; regression coverage includes `run_mention_returns_insertable_path` and `run_mention_reports_no_results_state`. | 8 | 0/1/2 |
+
 ## Installer Reliability v1.0 Intake (2026-04-03)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |

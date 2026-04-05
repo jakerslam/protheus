@@ -44,6 +44,12 @@
     - emits `rg_not_found` warning with platform install hint
     - exposes install hint in `workspace-file-search status`
     - covered by regression test `run_search_reports_ripgrep_install_hint_when_missing`
+- `CLINE-MENTION-INSERT-001` (from `cli/src/utils/file-search.ts`):
+  - Imported mention-insertion helper into Rust `workspace-file-search mention`:
+    - returns deterministic insertable mention token (`@<path>` by default)
+    - preserves workspace/file metadata for composer routing
+    - returns explicit `status=no_results` with empty mention instead of opaque failure
+    - covered by regression tests `run_mention_returns_insertable_path` and `run_mention_reports_no_results_state`
 
 ## Captured Candidates (Not Yet Imported)
 - `CLINE-CANDIDATE-SESSION-GUARD-001` (from `cli/src/agent/ClineAgent.ts`):
@@ -132,8 +138,6 @@
   - Verbose-gated console suppression with safe restoration of original console bindings.
 - `CLINE-CANDIDATE-CURSOR-MULTILINE-001` (from `cli/src/utils/cursor.ts`):
   - Position-preserving cursor movement helpers for multiline input editing.
-- `CLINE-CANDIDATE-MENTION-INSERT-001` (from `cli/src/utils/file-search.ts`):
-  - Mention-mode query extraction and path insertion helpers for file-context composer UX.
 - `CLINE-CANDIDATE-CROSS-CLI-KEY-IMPORT-001` (from `cli/src/utils/import-configs.ts`):
   - API-key import detection/mapping from adjacent CLI ecosystems to accelerate onboarding.
 - `CLINE-CANDIDATE-INPUT-NORMALIZE-001` (from `cli/src/utils/input.ts`):

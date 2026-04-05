@@ -129,7 +129,7 @@ reviewed_candidate	cli/src/utils/console.ts	console suppression/restore guard ca
 reviewed_candidate	cli/src/utils/cursor.ts	multi-line cursor up/down position-preserving helpers captured as candidate for advanced text input UX | deleted_to=.assimilation_deleted
 skipped_non_runtime	cli/src/utils/display.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/utils/display.ts	terminal message formatting taxonomy captured as candidate for consistent role/event formatting contracts | deleted_to=.assimilation_deleted
-reviewed_candidate	cli/src/utils/file-search.ts	workspace mention-query extraction/insertion and ripgrep-fallback file search patterns captured as candidate for composer mention UX | deleted_to=.assimilation_deleted
+imported	cli/src/utils/file-search.ts	CLINE-MENTION-INSERT-001 imported: workspace-file-search mention command now returns insertable mention token + no-results state for composer flows | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/utils/fuzzy-search.ts	generic fzf-backed fuzzy filtering helper captured as candidate for picker/search consistency | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/utils/import-configs.ts	cross-tool API-key import detection (Codex/OpenCode) captured as candidate for onboarding acceleration | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/utils/input.ts	mouse-sequence filtering + cross-platform enter-key normalization captured as candidate for input robustness hardening | deleted_to=.assimilation_deleted
