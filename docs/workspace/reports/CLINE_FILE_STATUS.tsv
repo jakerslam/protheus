@@ -79,44 +79,44 @@ reviewed_candidate	cli/src/components/HistoryPanelContent.tsx	searchable keyboar
 skipped_non_runtime	cli/src/components/HistoryView.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/HistoryView.tsx	adaptive-window history list with pagination and bounded terminal-row rendering captured as candidate for history surface hardening | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/components/ImportView.tsx	external CLI key-import wizard pattern captured for provider onboarding backlog | deleted_to=.assimilation_deleted
-pending	cli/src/components/KanbanMigrationView.test.tsx	
-pending	cli/src/components/KanbanMigrationView.tsx	
-pending	cli/src/components/LanguagePicker.tsx	
-pending	cli/src/components/ModelPicker.tsx	
-pending	cli/src/components/OcaEmployeeCheck.tsx	
-pending	cli/src/components/OrganizationPicker.tsx	
-pending	cli/src/components/Panel.tsx	
-pending	cli/src/components/ProviderPicker.tsx	
-pending	cli/src/components/QuitCommand.test.tsx	
-pending	cli/src/components/SearchableList.tsx	
-pending	cli/src/components/SelectList.tsx	
-pending	cli/src/components/SessionSummary.tsx	
-pending	cli/src/components/SettingsPanelContent.tsx	
-pending	cli/src/components/SkillsPanelContent.test.tsx	
-pending	cli/src/components/SkillsPanelContent.tsx	
-pending	cli/src/components/SlashCommandMenu.tsx	
-pending	cli/src/components/Spinner.tsx	
-pending	cli/src/components/StatusBar.tsx	
-pending	cli/src/components/SubagentMessage.tsx	
-pending	cli/src/components/TaskJsonView.tsx	
-pending	cli/src/components/ThinkingIndicator.tsx	
-pending	cli/src/constants/colors.ts	
-pending	cli/src/constants/featured-models.test.ts	
-pending	cli/src/constants/featured-models.ts	
-pending	cli/src/constants/keyboard.ts	
-pending	cli/src/context/StdinContext.tsx	
-pending	cli/src/context/TaskContext.tsx	
+skipped_non_runtime	cli/src/components/KanbanMigrationView.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/KanbanMigrationView.tsx	product-migration announcement view; not a portable runtime capability for current dashboard surface | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/LanguagePicker.tsx	static language list wrapped by generic searchable list already covered by existing selector surfaces | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ModelPicker.tsx	async provider-specific model refresh/loading pattern captured as candidate for model-menu resiliency hardening | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/OcaEmployeeCheck.tsx	provider-specific oracle auth UX; no direct capability import for current provider stack | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/OrganizationPicker.tsx	personal-vs-org selector with role suffixes captured as candidate for account scope visibility | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/Panel.tsx	generic terminal panel shell pattern already covered by existing dashboard modal/layout primitives | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ProviderPicker.tsx	configured-status suffix + provider compatibility map captured as candidate for provider onboarding clarity | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/QuitCommand.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SearchableList.tsx	fuzzy searchable selector with bounded window + keyboard navigation captured as candidate for picker UX consistency | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/SelectList.tsx	simple arrow-key select list already represented by existing list-picker primitives | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SessionSummary.tsx	compact end-of-session runtime metrics block captured as candidate for operator diagnostics summary | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SettingsPanelContent.tsx	tabbed settings orchestration flow captured as candidate for consolidated provider+feature settings UX | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/components/SkillsPanelContent.test.tsx	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SkillsPanelContent.tsx	interactive skills panel (toggle/use/marketplace) captured as candidate for skill-management surface hardening | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SlashCommandMenu.tsx	truncated visible-window slash command menu pattern captured for command palette clarity under small terminals | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/components/Spinner.tsx	minimal dots spinner with static label; no unique runtime capability to import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/StatusBar.tsx	compact status bar pattern (branch/model/context/cost) captured as candidate for low-noise runtime telemetry strip | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/SubagentMessage.tsx	tree-structured subagent progress rendering (status + per-agent stats) captured as candidate for swarm transparency UX | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/TaskJsonView.tsx	stdout JSON event stream task view captured as candidate for script-friendly non-UI execution mode | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/components/ThinkingIndicator.tsx	shimmer spinner + elapsed timer + interrupt hint pattern captured as candidate for thinking-state clarity | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/constants/colors.ts	terminal theme constants only; no runtime capability import required | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/constants/featured-models.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/constants/featured-models.ts	upstream-recommended-model fallback mapping captured as candidate for resilient featured-model metadata hydration | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/constants/keyboard.ts	terminal escape-sequence constants are CLI-specific and not portable to browser dashboard input paths | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/context/StdinContext.tsx	stdin raw-mode guard is terminal-runtime specific | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/context/TaskContext.tsx	streaming partial-message merge context captured as candidate for resilient task-state synchronization | deleted_to=.assimilation_deleted
 pending	cli/src/controllers/CliCommentReviewController.ts	
 pending	cli/src/controllers/CliWebviewProvider.ts	
 pending	cli/src/controllers/index.ts	
 pending	cli/src/exports.ts	
-pending	cli/src/hooks/useClineFeaturedModels.ts	
-pending	cli/src/hooks/useHomeEndKeys.ts	
-pending	cli/src/hooks/useOcaAuth.ts	
-pending	cli/src/hooks/useScrollableList.ts	
-pending	cli/src/hooks/useStateSubscriber.ts	
-pending	cli/src/hooks/useTerminalSize.ts	
-pending	cli/src/hooks/useTextInput.ts	
+reviewed_candidate	cli/src/hooks/useClineFeaturedModels.ts	recommended-model refresh hook with fallback preservation captured as candidate for robust featured-model feed updates | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/hooks/useHomeEndKeys.ts	raw stdin key interception hook is terminal-specific and not reusable in browser UI | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/hooks/useOcaAuth.ts	provider-specific OCA auth helper; no general runtime import for current stack | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/hooks/useScrollableList.ts	bounded selection window algorithm captured as candidate for consistent long-list navigation surfaces | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/hooks/useStateSubscriber.ts	completion-signal and processed-message tracking pattern captured as candidate for stream/event dedupe hardening | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/hooks/useTerminalSize.ts	terminal resize-remount workaround targets Ink rendering artifacts and is not applicable to browser dashboard | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/hooks/useTextInput.ts	word-level cursor/edit shortcut handler captured as candidate for power-user terminal input parity surfaces | deleted_to=.assimilation_deleted
 pending	cli/src/index.test.ts	
 pending	cli/src/index.ts	
 pending	cli/src/lib-import.test.ts	

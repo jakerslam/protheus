@@ -81,3 +81,37 @@
   - Inline searchable keyboard-driven history panel with centered selection window and scroll indicators.
 - `CLINE-CANDIDATE-HISTORY-VIEW-001` (from `cli/src/components/HistoryView.tsx`):
   - Adaptive visible-window history rendering with pagination controls and bounded row usage.
+- `CLINE-CANDIDATE-MODEL-PICKER-ASYNC-001` (from `cli/src/components/ModelPicker.tsx`):
+  - Provider-specific async model refresh/loading path with graceful empty-state handling for dynamic catalogs.
+- `CLINE-CANDIDATE-PROVIDER-CONFIG-BADGE-001` (from `cli/src/components/ProviderPicker.tsx`):
+  - Provider picker status suffix for configured providers to improve onboarding and provider readiness clarity.
+- `CLINE-CANDIDATE-ORG-SCOPE-PICKER-001` (from `cli/src/components/OrganizationPicker.tsx`):
+  - Personal-versus-organization selector with concise role suffix prioritization (`Owner`/`Admin`/`Member`).
+- `CLINE-CANDIDATE-SEARCHABLE-LIST-001` (from `cli/src/components/SearchableList.tsx`):
+  - Generic fuzzy-search list picker with bounded windowing and keyboard-first navigation.
+- `CLINE-CANDIDATE-SESSION-SUMMARY-001` (from `cli/src/components/SessionSummary.tsx`):
+  - Compact end-of-session performance/resource summary for operator diagnostics.
+- `CLINE-CANDIDATE-SETTINGS-PANEL-ORCH-001` (from `cli/src/components/SettingsPanelContent.tsx`):
+  - Tabbed settings orchestration pattern unifying providers, models, auto-approve, features, and account flows.
+- `CLINE-CANDIDATE-SKILLS-PANEL-001` (from `cli/src/components/SkillsPanelContent.tsx`):
+  - Interactive skills manager (toggle/use/marketplace) with optimistic updates and keyboard workflow.
+- `CLINE-CANDIDATE-SLASH-MENU-WINDOW-001` (from `cli/src/components/SlashCommandMenu.tsx`):
+  - Width-aware visible-window slash-command renderer with truncation-safe descriptions.
+- `CLINE-CANDIDATE-STATUSBAR-TELEMETRY-001` (from `cli/src/components/StatusBar.tsx`):
+  - Low-noise compact status bar including branch/model/context occupancy/cost indicators.
+- `CLINE-CANDIDATE-SUBAGENT-TREE-STATUS-001` (from `cli/src/components/SubagentMessage.tsx`):
+  - Tree-formatted subagent status renderer with per-branch progress and compact tool/token/cost stats.
+- `CLINE-CANDIDATE-TASK-JSON-STREAM-001` (from `cli/src/components/TaskJsonView.tsx`):
+  - Structured JSON output mode for task events/completion suitable for automation and CI adapters.
+- `CLINE-CANDIDATE-THINKING-ELAPSED-001` (from `cli/src/components/ThinkingIndicator.tsx`):
+  - Thinking indicator pattern with elapsed timer and explicit interrupt affordance during long-running turns.
+- `CLINE-CANDIDATE-FEATURED-MODEL-FALLBACK-001` (from `cli/src/constants/featured-models.ts` + `hooks/useClineFeaturedModels.ts`):
+  - Recommended-model feed hydration with resilient fallback metadata preservation when upstream payloads are sparse.
+- `CLINE-CANDIDATE-TASK-CONTEXT-SYNC-001` (from `cli/src/context/TaskContext.tsx`):
+  - Controller-to-view state synchronization with partial-message merge path for streaming updates.
+- `CLINE-CANDIDATE-SCROLL-WINDOW-001` (from `cli/src/hooks/useScrollableList.ts`):
+  - Shared bounded-window list algorithm with top/bottom overflow indicators.
+- `CLINE-CANDIDATE-STREAM-SIGNAL-TRACKER-001` (from `cli/src/hooks/useStateSubscriber.ts`):
+  - Processed-message tracking and completion-signal detection for ask/say event dedupe.
+- `CLINE-CANDIDATE-TEXT-INPUT-SHORTCUTS-001` (from `cli/src/hooks/useTextInput.ts`):
+  - Word-level cursor movement and Ctrl-shortcut editing behavior for power-user input handling.
