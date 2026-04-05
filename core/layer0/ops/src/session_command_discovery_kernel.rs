@@ -671,4 +671,41 @@ fn classify_command_list(input: &[String], limit: usize) -> Value {
         "unsupported": unsupported_rows,
     })
 }
+
+pub(crate) fn split_command_chain_for_kernel(raw: &str) -> Vec<String> {
+    split_command_chain(raw)
+}
+
+pub(crate) fn classify_command_detail_for_kernel(raw: &str) -> Value {
+    match classify_command(raw) {
+        Classification::Supported {
+            command_key,
+            canonical,
+            category,
+            savings_pct,
+            status,
+        } => json!({
+            "supported": true,
+            "ignored": false,
+            "command_key": command_key,
+            "canonical": canonical,
+            "category": category,
+            "estimated_savings_pct": savings_pct,
+            "status": status.as_str(),
+        }),
+        Classification::Unsupported { base_command } => json!({
+            "supported": false,
+            "ignored": false,
+            "base_command": base_command,
+        }),
+        Classification::Ignored => json!({
+            "supported": false,
+            "ignored": true,
+        }),
+    }
+}
+
+pub(crate) fn classify_command_list_for_kernel(input: &[String], limit: usize) -> Value {
+    classify_command_list(input, limit)
+}
 include!("session_command_discovery_kernel_parts/020-run-and-tests.rs");

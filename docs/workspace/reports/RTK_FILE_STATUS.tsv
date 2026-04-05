@@ -115,7 +115,7 @@ reviewed_no_import	src/analytics/cc_economics.rs	reviewed analytics/reporting he
 reviewed_no_import	src/analytics/ccusage.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/analytics/gain.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/analytics/mod.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
-reviewed_candidate	src/analytics/session_cmd.rs	candidate: session-level adoption trend reporting from discovered command telemetry (future analytics lane) | deleted_to=.assimilation_deleted
+imported	src/analytics/session_cmd.rs	imported as V11-RTK-003 session adoption reporting lane in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
 reviewed_no_import	src/cmds/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/cmds/cloud/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/cmds/cloud/aws_cmd.rs	reviewed command wrapper implementation; overlaps with existing protheus-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
@@ -187,18 +187,18 @@ reviewed_no_import	src/core/README.md	module overview doc reviewed; no direct ru
 reviewed_no_import	src/core/config.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/constants.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/display_helpers.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_candidate	src/core/filter.rs	language/comment filter strategy patterns captured as follow-up candidate for read/summarize surfaces | deleted_to=.assimilation_deleted
+imported	src/core/filter.rs	imported as V11-RTK-006 language-aware filter-level compaction lane in source_comment_filter_kernel | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/mod.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/runner.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/tee.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/telemetry.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 imported	src/core/toml_filter.rs	RTK-TOML-MATCH-001 imported: match-output short-circuit rule contract adapted into core tool placeholder filter lane | deleted_to=.assimilation_deleted
-reviewed_candidate	src/core/tracking.rs	candidate: SQLite-backed token/time savings telemetry model for longitudinal command analytics | deleted_to=.assimilation_deleted
+imported	src/core/tracking.rs	imported as V11-RTK-004 SQLite-backed command telemetry summary lane in session_command_tracking_kernel | deleted_to=.assimilation_deleted
 reviewed_no_import	src/core/utils.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
 reviewed_no_import	src/discover/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 imported	src/discover/lexer.rs	imported as V11-RTK-002 session command discovery lexer/tokenizer contract | deleted_to=.assimilation_deleted
-reviewed_candidate	src/discover/mod.rs	session command discovery aggregation captured as future diagnostics candidate | deleted_to=.assimilation_deleted
-reviewed_candidate	src/discover/provider.rs	provider log extraction reviewed for future import (provider-specific claude session schema)
+imported	src/discover/mod.rs	imported as V11-RTK-003 session aggregation/adoption rollup in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
+imported	src/discover/provider.rs	imported as V11-RTK-003 provider-style transcript extraction in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
 imported	src/discover/registry.rs	imported as V11-RTK-002 command classification/normalization contract | deleted_to=.assimilation_deleted
 imported	src/discover/report.rs	imported as V11-RTK-002 deterministic supported/unsupported report + savings summary contract | deleted_to=.assimilation_deleted
 imported	src/discover/rules.rs	imported as V11-RTK-002 rule table pattern for command support mapping | deleted_to=.assimilation_deleted
@@ -269,7 +269,7 @@ reviewed_no_import	src/hooks/hook_cmd.rs	reviewed hook wiring/runtime guard logi
 reviewed_no_import	src/hooks/init.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
 reviewed_no_import	src/hooks/integrity.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
 reviewed_no_import	src/hooks/mod.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_candidate	src/hooks/permissions.rs	candidate: deny/ask rule evaluation bridge pattern for external permission profile interoperability | deleted_to=.assimilation_deleted
+imported	src/hooks/permissions.rs	imported as V11-RTK-005 deny/ask wildcard permission evaluator in command_permission_kernel | deleted_to=.assimilation_deleted
 reviewed_no_import	src/hooks/rewrite_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
 reviewed_no_import	src/hooks/trust.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
 reviewed_no_import	src/hooks/verify_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted

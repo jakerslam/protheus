@@ -260,9 +260,30 @@ fn main() {
             let exit = protheus_ops_core::context_stacks::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "session-command-session-analytics-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit =
+                protheus_ops_core::session_command_session_analytics_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "session-command-discovery-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::session_command_discovery_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "session-command-tracking-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::session_command_tracking_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "command-permission-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::command_permission_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "source-comment-filter-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::source_comment_filter_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "workspace-file-search" => {

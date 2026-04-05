@@ -47,15 +47,30 @@
     - Quote-aware command-chain splitting.
     - Env/global-option/path normalization before classification.
     - Supported/unsupported report with estimated token-savings summary and deterministic receipts.
+- `RTK-SESSION-ANALYTICS-001` (from `src/discover/provider.rs`, `src/discover/mod.rs`, `src/analytics/session_cmd.rs`):
+  - Imported provider-style transcript extraction (`tool_use`/`tool_result`) and session adoption analytics.
+  - New kernel module:
+    - `core/layer0/ops/src/session_command_session_analytics_kernel.rs`
+  - Command surface:
+    - `protheus-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report>`
+- `RTK-TRACKING-001` (from `src/core/tracking.rs`):
+  - Imported SQLite-backed command telemetry persistence and aggregate summary surfaces.
+  - New kernel module:
+    - `core/layer0/ops/src/session_command_tracking_kernel.rs`
+  - Command surface:
+    - `protheus-ops session-command-tracking-kernel <record|summary|status>`
+- `RTK-PERMISSIONS-001` (from `src/hooks/permissions.rs`):
+  - Imported deny/ask wildcard permission profile evaluator with compound-command support.
+  - New kernel module:
+    - `core/layer0/ops/src/command_permission_kernel.rs`
+  - Command surface:
+    - `protheus-ops command-permission-kernel <evaluate|match-pattern|extract-pattern>`
+- `RTK-FILTER-001` (from `src/core/filter.rs`):
+  - Imported language-aware filter-level compaction primitive for source text.
+  - New kernel module:
+    - `core/layer0/ops/src/source_comment_filter_kernel.rs`
+  - Command surface:
+    - `protheus-ops source-comment-filter-kernel <filter|detect-language>`
 
 ## Captured Candidates (Not Yet Imported)
-- `RTK-CANDIDATE-DISCOVER-002` (from `src/discover/provider.rs`):
-  - Provider-specific session log extraction (Claude schema) reviewed; defer until we define provider-agnostic session source contracts.
-- `RTK-CANDIDATE-ANALYTICS-001` (from `src/analytics/session_cmd.rs`):
-  - Session-level adoption trend reporting over discovered command telemetry.
-- `RTK-CANDIDATE-TRACKING-001` (from `src/core/tracking.rs`):
-  - SQLite-backed token/time savings telemetry model for longitudinal command analytics.
-- `RTK-CANDIDATE-HOOKS-001` (from `src/hooks/permissions.rs`):
-  - External deny/ask rule evaluation bridge pattern for permission-profile interoperability.
-- `RTK-CANDIDATE-CODE-FILTER-001` (from `src/core/filter.rs`):
-  - Language-aware comment/boilerplate filter strategy as future read/summarize import.
+- None (all `reviewed_candidate` RTK rows were assimilated in this pass).
