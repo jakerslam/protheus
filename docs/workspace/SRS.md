@@ -22,6 +22,12 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-CLINE-004 | done | Workspace file mention-insertion primitive (`workspace-file-search mention`) | Composer mention flows need deterministic, machine-readable path insertion tokens and explicit no-results behavior instead of ad hoc parsing in UI-only code. | `core/layer0/ops/src/workspace_file_search.rs` now supports `mention` subcommand with insertable token output (`@<path>` default), explicit `status=no_results`, and mention receipts; usage surface updated in `core/layer0/ops/src/ops_main_usage.rs`; regression coverage includes `run_mention_returns_insertable_path` and `run_mention_reports_no_results_state`. | 8 | 0/1/2 |
 
+## RTK Capability Assimilation Intake (2026-04-05)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-RTK-001 | done | Match-output short-circuit placeholder filter for tool responses (RTK `match_output` pattern import) | Agents can still leak placeholder tool text (`Web search completed`, generic `couldn't complete <tool>`) instead of user-meaningful output. | Added Rust-core `tool_output_match_filter` matcher/rewrite lane in [`core/layer0/ops/src/tool_output_match_filter.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/tool_output_match_filter.rs) and wired it into finalization/ack detection in [`core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs); regression coverage added in [`core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs) plus module unit tests. | 9 | 0/1/2 |
+
 ## Version Update CLI Reliability Intake (2026-04-05)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |

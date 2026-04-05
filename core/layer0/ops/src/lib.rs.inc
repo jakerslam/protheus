@@ -237,6 +237,7 @@ pub mod system_health_audit_runner_kernel;
 pub mod t0_invariants_kernel;
 pub mod ternary_belief_kernel;
 pub mod tool_response_compactor_kernel;
+pub mod tool_output_match_filter;
 pub mod top1_assurance;
 pub mod top50_roi_sweep_kernel;
 pub mod trainability_matrix_kernel;
