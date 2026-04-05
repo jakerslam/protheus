@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Format Guard
         run: node tests/client-memory-tools/org_code_format_guard.test.ts
 
@@ -35,6 +38,20 @@ jobs:
 
       - name: Test
         run: npm run test
+
+      - name: Reliability Turn Loop Gauntlet
+        run: npm run -s ops:reliability:gauntlet
+
+      - name: Upload Reliability Gauntlet Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-turn-loop-gauntlet-artifacts
+          path: |
+            artifacts/reliability_turn_loop_gauntlet_report_*.json
+            artifacts/reliability_turn_loop_gauntlet_report_latest.json
+            local/state/ops/reliability_turn_loop_gauntlet/latest.json
+          if-no-files-found: warn
 
       - name: Release Contract Gate
         run: npm run -s ops:release-contract:gate

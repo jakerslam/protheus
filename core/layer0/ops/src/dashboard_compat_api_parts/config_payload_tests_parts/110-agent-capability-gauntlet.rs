@@ -13,6 +13,22 @@ fn tool_used(payload: &Value, tool_name: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn tool_names(payload: &Value) -> Vec<String> {
+    payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    row.get("name")
+                        .and_then(Value::as_str)
+                        .map(|name| name.to_string())
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
 fn record_gauntlet_task(
     results: &mut Vec<(String, bool, String)>,
     task: &str,
@@ -156,11 +172,14 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         .as_ref()
         .map(|row| row.payload.clone())
         .unwrap_or_else(|| json!({}));
+    let search_routed = tool_used(&web_search_payload, "web_search")
+        || tool_used(&web_search_payload, "batch_query");
+    let search_tools = tool_names(&web_search_payload).join(",");
     record_gauntlet_task(
         &mut results,
         "05_web_search_natural_intent",
-        matches!(web_search_status, 200 | 400) && tool_used(&web_search_payload, "web_search"),
-        format!("status={web_search_status}"),
+        matches!(web_search_status, 200 | 400) && search_routed,
+        format!("status={web_search_status} tools={search_tools}"),
     );
 
     // 06) Persist semantic memory via slash memory set.
