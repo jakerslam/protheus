@@ -110,37 +110,37 @@ skipped_non_runtime	scripts/test-ruby.sh	non-runtime docs/config/tooling file; s
 skipped_non_runtime	scripts/test-tracking.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	scripts/update-readme-metrics.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	scripts/validate-docs.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-pending	src/analytics/README.md	not yet reviewed
+reviewed_no_import	src/analytics/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/analytics/cc_economics.rs	not yet reviewed
 pending	src/analytics/ccusage.rs	not yet reviewed
 pending	src/analytics/gain.rs	not yet reviewed
 pending	src/analytics/mod.rs	not yet reviewed
 pending	src/analytics/session_cmd.rs	not yet reviewed
-pending	src/cmds/README.md	not yet reviewed
-pending	src/cmds/cloud/README.md	not yet reviewed
+reviewed_no_import	src/cmds/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
+reviewed_no_import	src/cmds/cloud/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/cloud/aws_cmd.rs	not yet reviewed
 pending	src/cmds/cloud/container.rs	not yet reviewed
 pending	src/cmds/cloud/curl_cmd.rs	not yet reviewed
 pending	src/cmds/cloud/mod.rs	not yet reviewed
 pending	src/cmds/cloud/psql_cmd.rs	not yet reviewed
 pending	src/cmds/cloud/wget_cmd.rs	not yet reviewed
-pending	src/cmds/dotnet/README.md	not yet reviewed
+reviewed_no_import	src/cmds/dotnet/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/dotnet/binlog.rs	not yet reviewed
 pending	src/cmds/dotnet/dotnet_cmd.rs	not yet reviewed
 pending	src/cmds/dotnet/dotnet_format_report.rs	not yet reviewed
 pending	src/cmds/dotnet/dotnet_trx.rs	not yet reviewed
 pending	src/cmds/dotnet/mod.rs	not yet reviewed
-pending	src/cmds/git/README.md	not yet reviewed
+reviewed_no_import	src/cmds/git/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/git/diff_cmd.rs	not yet reviewed
 pending	src/cmds/git/gh_cmd.rs	not yet reviewed
 pending	src/cmds/git/git.rs	not yet reviewed
 pending	src/cmds/git/gt_cmd.rs	not yet reviewed
 pending	src/cmds/git/mod.rs	not yet reviewed
-pending	src/cmds/go/README.md	not yet reviewed
+reviewed_no_import	src/cmds/go/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/go/go_cmd.rs	not yet reviewed
 pending	src/cmds/go/golangci_cmd.rs	not yet reviewed
 pending	src/cmds/go/mod.rs	not yet reviewed
-pending	src/cmds/js/README.md	not yet reviewed
+reviewed_no_import	src/cmds/js/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/js/lint_cmd.rs	not yet reviewed
 pending	src/cmds/js/mod.rs	not yet reviewed
 pending	src/cmds/js/next_cmd.rs	not yet reviewed
@@ -152,22 +152,22 @@ pending	src/cmds/js/prisma_cmd.rs	not yet reviewed
 pending	src/cmds/js/tsc_cmd.rs	not yet reviewed
 pending	src/cmds/js/vitest_cmd.rs	not yet reviewed
 pending	src/cmds/mod.rs	not yet reviewed
-pending	src/cmds/python/README.md	not yet reviewed
+reviewed_no_import	src/cmds/python/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/python/mod.rs	not yet reviewed
 pending	src/cmds/python/mypy_cmd.rs	not yet reviewed
 pending	src/cmds/python/pip_cmd.rs	not yet reviewed
 pending	src/cmds/python/pytest_cmd.rs	not yet reviewed
 pending	src/cmds/python/ruff_cmd.rs	not yet reviewed
-pending	src/cmds/ruby/README.md	not yet reviewed
+reviewed_no_import	src/cmds/ruby/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/ruby/mod.rs	not yet reviewed
 pending	src/cmds/ruby/rake_cmd.rs	not yet reviewed
 pending	src/cmds/ruby/rspec_cmd.rs	not yet reviewed
 pending	src/cmds/ruby/rubocop_cmd.rs	not yet reviewed
-pending	src/cmds/rust/README.md	not yet reviewed
+reviewed_no_import	src/cmds/rust/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/rust/cargo_cmd.rs	not yet reviewed
 pending	src/cmds/rust/mod.rs	not yet reviewed
 pending	src/cmds/rust/runner.rs	not yet reviewed
-pending	src/cmds/system/README.md	not yet reviewed
+reviewed_no_import	src/cmds/system/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/cmds/system/constants.rs	not yet reviewed
 pending	src/cmds/system/deps.rs	not yet reviewed
 pending	src/cmds/system/env_cmd.rs	not yet reviewed
@@ -195,14 +195,14 @@ pending	src/core/telemetry.rs	not yet reviewed
 imported	src/core/toml_filter.rs	RTK-TOML-MATCH-001 imported: match-output short-circuit rule contract adapted into core tool placeholder filter lane | deleted_to=.assimilation_deleted
 pending	src/core/tracking.rs	not yet reviewed
 pending	src/core/utils.rs	not yet reviewed
-pending	src/discover/README.md	not yet reviewed
+reviewed_no_import	src/discover/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/discover/lexer.rs	not yet reviewed
 reviewed_candidate	src/discover/mod.rs	session command discovery aggregation captured as future diagnostics candidate | deleted_to=.assimilation_deleted
 pending	src/discover/provider.rs	not yet reviewed
 pending	src/discover/registry.rs	not yet reviewed
 pending	src/discover/report.rs	not yet reviewed
 pending	src/discover/rules.rs	not yet reviewed
-pending	src/filters/README.md	not yet reviewed
+reviewed_no_import	src/filters/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/filters/ansible-playbook.toml	not yet reviewed
 pending	src/filters/basedpyright.toml	not yet reviewed
 pending	src/filters/biome.toml	not yet reviewed
@@ -261,7 +261,7 @@ pending	src/filters/uv-sync.toml	not yet reviewed
 pending	src/filters/xcodebuild.toml	not yet reviewed
 pending	src/filters/yadm.toml	not yet reviewed
 pending	src/filters/yamllint.toml	not yet reviewed
-pending	src/hooks/README.md	not yet reviewed
+reviewed_no_import	src/hooks/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/hooks/constants.rs	not yet reviewed
 pending	src/hooks/hook_audit_cmd.rs	not yet reviewed
 pending	src/hooks/hook_check.rs	not yet reviewed
@@ -273,12 +273,12 @@ pending	src/hooks/permissions.rs	not yet reviewed
 pending	src/hooks/rewrite_cmd.rs	not yet reviewed
 pending	src/hooks/trust.rs	not yet reviewed
 pending	src/hooks/verify_cmd.rs	not yet reviewed
-pending	src/learn/README.md	not yet reviewed
+reviewed_no_import	src/learn/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/learn/detector.rs	not yet reviewed
 pending	src/learn/mod.rs	not yet reviewed
 pending	src/learn/report.rs	not yet reviewed
 reviewed_no_import	src/main.rs	router/CLI wiring reviewed for intake map only; no direct import | deleted_to=.assimilation_deleted
-pending	src/parser/README.md	not yet reviewed
+reviewed_no_import	src/parser/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
 pending	src/parser/formatter.rs	not yet reviewed
 pending	src/parser/mod.rs	not yet reviewed
 pending	src/parser/types.rs	not yet reviewed

@@ -23,8 +23,8 @@
 - Ledger notes include `deleted_to=.assimilation_deleted`.
 
 ## Current Intake State
-- `pending` rows: 166
-- Active files left outside `.assimilation_deleted`: 166
+- `pending` rows: 150
+- Active files left outside `.assimilation_deleted`: 150
 
 ## Imported Capability
 - `RTK-TOML-MATCH-001` (from `src/core/toml_filter.rs`):
