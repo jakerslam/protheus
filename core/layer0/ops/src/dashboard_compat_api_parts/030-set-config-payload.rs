@@ -2779,7 +2779,10 @@ fn response_contains_peer_review_template_dump(text: &str) -> bool {
     hits >= 2
 }
 
-fn response_contains_large_code_dump_with_low_overlap(user_message: &str, response_text: &str) -> bool {
+fn response_contains_large_code_dump_with_low_overlap(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
     if response_text.len() < 1_400 {
         return false;
     }
@@ -2884,9 +2887,7 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
         || lowered.contains("key finding")
         || lowered.contains("sources:")
         || lowered.contains("according to");
-    mentions_tooling
-        && !has_rich_findings
-        && (token_count <= 80 || mainly_ack_language)
+    mentions_tooling && !has_rich_findings && (token_count <= 80 || mainly_ack_language)
 }
 
 fn no_findings_user_facing_response() -> String {
@@ -2968,7 +2969,11 @@ fn available_model_count(root: &Path, snapshot: &Value) -> usize {
         .and_then(Value::as_array)
         .map(|rows| {
             rows.iter()
-                .filter(|row| row.get("available").and_then(Value::as_bool).unwrap_or(false))
+                .filter(|row| {
+                    row.get("available")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                })
                 .count()
         })
         .unwrap_or(0)
@@ -3005,15 +3010,25 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
     let mut lines = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
     for tool in response_tools {
-        let name = clean_text(tool.get("name").and_then(Value::as_str).unwrap_or("tool"), 80)
-            .to_ascii_lowercase();
+        let name = clean_text(
+            tool.get("name").and_then(Value::as_str).unwrap_or("tool"),
+            80,
+        )
+        .to_ascii_lowercase();
         if name.is_empty() || name == "thought_process" {
             continue;
         }
-        if tool.get("is_error").and_then(Value::as_bool).unwrap_or(false) {
+        if tool
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             continue;
         }
-        let raw_result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
+        let raw_result = clean_text(
+            tool.get("result").and_then(Value::as_str).unwrap_or(""),
+            2_000,
+        );
         if raw_result.is_empty() {
             continue;
         }
@@ -3045,7 +3060,10 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
     if lines.is_empty() {
         return String::new();
     }
-    trim_text(&format!("Here's what I found:\n{}", lines.join("\n")), 32_000)
+    trim_text(
+        &format!("Here's what I found:\n{}", lines.join("\n")),
+        32_000,
+    )
 }
 
 fn context_keyframes_prompt_context(
@@ -3304,7 +3322,11 @@ fn historical_context_keyframes_prompt_context(
     let mut dedup = HashSet::<String>::new();
     let mut lines = Vec::<String>::new();
     for (role, snippet) in selected {
-        let key = format!("{}|{}", role.to_ascii_lowercase(), snippet.to_ascii_lowercase());
+        let key = format!(
+            "{}|{}",
+            role.to_ascii_lowercase(),
+            snippet.to_ascii_lowercase()
+        );
         if !dedup.insert(key) {
             continue;
         }
@@ -3391,7 +3413,11 @@ fn historical_relevant_recall_prompt_context(
         if snippet.is_empty() {
             continue;
         }
-        let key = format!("{}|{}", role.to_ascii_lowercase(), snippet.to_ascii_lowercase());
+        let key = format!(
+            "{}|{}",
+            role.to_ascii_lowercase(),
+            snippet.to_ascii_lowercase()
+        );
         if !dedup.insert(key) {
             continue;
         }
@@ -3968,8 +3994,7 @@ fn message_is_affirmative_confirmation(message: &str) -> bool {
     }
     matches!(
         collapsed.as_str(),
-        "y"
-            | "yes"
+        "y" | "yes"
             | "yeah"
             | "yep"
             | "ok"
@@ -4013,8 +4038,7 @@ fn message_is_negative_confirmation(message: &str) -> bool {
         .to_string();
     matches!(
         collapsed.as_str(),
-        "n"
-            | "no"
+        "n" | "no"
             | "cancel"
             | "stop"
             | "skip"
@@ -4047,16 +4071,14 @@ fn pending_tool_confirmation_payload(root: &Path, agent_id: &str) -> Option<Valu
 
 fn pending_tool_confirmation_call(root: &Path, agent_id: &str) -> Option<(String, Value)> {
     let payload = pending_tool_confirmation_payload(root, agent_id)?;
-    let tool_name = normalize_tool_name(
-        &clean_text(
-            payload
-                .get("tool")
-                .or_else(|| payload.get("tool_name"))
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            120,
-        ),
-    );
+    let tool_name = normalize_tool_name(&clean_text(
+        payload
+            .get("tool")
+            .or_else(|| payload.get("tool_name"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    ));
     if tool_name.is_empty() {
         return None;
     }
@@ -4100,7 +4122,11 @@ fn clear_pending_tool_confirmation(root: &Path, agent_id: &str) {
     if id.is_empty() {
         return;
     }
-    let _ = update_profile_patch(root, &id, &json!({"pending_tool_confirmation": Value::Null}));
+    let _ = update_profile_patch(
+        root,
+        &id,
+        &json!({"pending_tool_confirmation": Value::Null}),
+    );
 }
 
 fn message_requests_comparative_answer(message: &str) -> bool {
@@ -4492,7 +4518,12 @@ fn execute_tool_call_by_name(
             } else {
                 json!({"query": clean_text(input.as_str().unwrap_or(""), 600)})
             };
-            if body.get("source").and_then(Value::as_str).unwrap_or("").is_empty() {
+            if body
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
                 body["source"] = json!("web");
             }
             if body
@@ -5252,21 +5283,21 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         }
     }
     if normalized == "web_fetch" || normalized == "browse" || normalized == "web_conduit_fetch" {
-        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
-        let content = payload.get("content").and_then(Value::as_str).unwrap_or("");
-        let body = if !summary.trim().is_empty() {
-            summary
-        } else {
-            content
-        };
-        if !body.trim().is_empty() {
-            return trim_text(body, 24_000);
+        let summary = summarize_web_fetch_payload(payload);
+        if !summary.is_empty() {
+            return trim_text(&summary, 1_200);
         }
     }
     if normalized == "batch_query" || normalized == "batch-query" {
-        let status = clean_text(payload.get("status").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
-        let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2400);
+        let status = clean_text(
+            payload.get("status").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
+        let summary = clean_text(
+            payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+            2400,
+        );
         if status == "blocked" {
             if !summary.is_empty() {
                 return trim_text(&summary, 1200);
@@ -5336,7 +5367,10 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
                 .unwrap_or(""),
             220,
         );
-        let domain = clean_text(payload.get("domain").and_then(Value::as_str).unwrap_or(""), 120);
+        let domain = clean_text(
+            payload.get("domain").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
         if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
             return trim_text(&summary, 1_200);
         }
@@ -5543,6 +5577,116 @@ fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String
         }
     }
     out
+}
+
+fn looks_like_placeholder_fetch_content(text: &str, requested_url: &str) -> bool {
+    let lowered = clean_text(text, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let requested = clean_text(requested_url, 400).to_ascii_lowercase();
+    if requested.contains("example.com") {
+        return true;
+    }
+    lowered.contains("example domain")
+        && lowered.contains("for use in documentation examples")
+        && lowered.contains("without needing permission")
+}
+
+fn looks_like_navigation_chrome_payload(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_count = [
+        "skip to content",
+        "home",
+        "news",
+        "sport",
+        "business",
+        "technology",
+        "health",
+        "culture",
+        "travel",
+        "audio",
+        "video",
+        "live",
+        "all regions",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_count >= 5 && lowered.split_whitespace().count() >= 14
+}
+
+fn source_label_from_url(raw: &str) -> String {
+    let cleaned = clean_text(raw, 2200);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    if let Some(rest) = cleaned
+        .strip_prefix("https://")
+        .or_else(|| cleaned.strip_prefix("http://"))
+    {
+        return clean_text(rest.split('/').next().unwrap_or(""), 200);
+    }
+    clean_text(cleaned.split('/').next().unwrap_or(""), 200)
+}
+
+fn summarize_web_fetch_payload(payload: &Value) -> String {
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return user_facing_tool_failure_summary("web_fetch", payload)
+            .unwrap_or_else(|| "Web fetch couldn't complete right now.".to_string());
+    }
+    let requested_url = clean_text(
+        payload
+            .get("requested_url")
+            .or_else(|| payload.pointer("/receipt/requested_url"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2200,
+    );
+    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 4_000);
+    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    let body = if summary.is_empty() {
+        content.clone()
+    } else {
+        summary.clone()
+    };
+    if body.is_empty() {
+        if requested_url.is_empty() {
+            return "I fetched the page, but it returned no readable content.".to_string();
+        }
+        return format!(
+            "I fetched {}, but it returned no readable content.",
+            trim_text(&requested_url, 220)
+        );
+    }
+    if looks_like_placeholder_fetch_content(&body, &requested_url) {
+        return "The fetched page is placeholder/test content (for example, `example.com`), so it doesn't provide real findings. Ask me to run a web search query or fetch a specific real source URL.".to_string();
+    }
+    if looks_like_navigation_chrome_payload(&body) || looks_like_search_engine_chrome_summary(&body)
+    {
+        let source = source_label_from_url(&requested_url);
+        if !source.is_empty() {
+            return format!(
+                "I fetched {}, but the response was mostly page navigation/chrome instead of answer-ready findings. Ask me to run `batch_query` or `web_search` for your question.",
+                trim_text(&source, 120)
+            );
+        }
+        return "I fetched the page, but the response was mostly navigation/chrome instead of answer-ready findings. Ask me to run `batch_query` or `web_search` for your question.".to_string();
+    }
+    let snippet = first_sentence(&body, 320);
+    if snippet.is_empty() {
+        return "I fetched the page, but couldn't extract a reliable summary sentence from it yet."
+            .to_string();
+    }
+    let source = source_label_from_url(&requested_url);
+    if source.is_empty() {
+        snippet
+    } else {
+        format!("From {}: {}", trim_text(&source, 120), snippet)
+    }
 }
 
 fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
@@ -5829,7 +5973,8 @@ fn execute_inline_tool_calls(
     }
     let cleaned_trimmed = cleaned.trim();
     let response = if cleaned_trimmed.is_empty()
-        || (!fallback_lines.is_empty() && response_looks_like_tool_ack_without_findings(cleaned_trimmed))
+        || (!fallback_lines.is_empty()
+            && response_looks_like_tool_ack_without_findings(cleaned_trimmed))
     {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
@@ -6003,6 +6148,24 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
                 ));
             }
         }
+    }
+    let asks_market_or_peer_compare = (lowered.contains("competitor")
+        || lowered.contains("competitors")
+        || lowered.contains("peer")
+        || lowered.contains("peers")
+        || lowered.contains("framework")
+        || lowered.contains("rank")
+        || lowered.contains("ranking"))
+        && (lowered.contains("compare")
+            || lowered.contains("versus")
+            || lowered.contains(" vs ")
+            || lowered.contains("among")
+            || lowered.contains("top "));
+    if asks_market_or_peer_compare {
+        return Some((
+            "batch_query".to_string(),
+            json!({"source": "web", "query": clean_text(trimmed, 600), "aperture": "medium"}),
+        ));
     }
     None
 }
@@ -7341,7 +7504,8 @@ pub fn handle_with_headers(
                 let findings_available = findings.is_some();
                 let (finalized_response, finalization_outcome, initial_ack_only) =
                     finalize_user_facing_response_with_outcome(response_text, findings);
-                let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
+                let final_ack_only =
+                    response_looks_like_tool_ack_without_findings(&finalized_response);
                 response_text = finalized_response;
                 let response_finalization = json!({
                     "applied": finalization_outcome != "unchanged",
@@ -7353,7 +7517,8 @@ pub fn handle_with_headers(
                     "retry_attempted": false,
                     "retry_used": false
                 });
-                let mut turn_receipt = append_turn_message(root, &agent_id, &message, &response_text);
+                let mut turn_receipt =
+                    append_turn_message(root, &agent_id, &message, &response_text);
                 turn_receipt["response_finalization"] = response_finalization.clone();
                 return Some(CompatApiResponse {
                     status: if ok { 200 } else { 400 },
@@ -7808,13 +7973,13 @@ pub fn handle_with_headers(
                     }
                     let (tool_adjusted_response, response_tools, inline_pending_confirmation) =
                         execute_inline_tool_calls(
-                        root,
-                        snapshot,
-                        &agent_id,
-                        Some(&row),
-                        &response_text,
-                        &message,
-                    );
+                            root,
+                            snapshot,
+                            &agent_id,
+                            Some(&row),
+                            &response_text,
+                            &message,
+                        );
                     response_text = tool_adjusted_response;
                     if let Some(pending) = inline_pending_confirmation {
                         let pending_tool = clean_text(
@@ -7921,7 +8086,10 @@ pub fn handle_with_headers(
                             &message,
                         ) {
                             let mut retried_text = clean_chat_text(
-                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                retried
+                                    .get("response")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
                                 32_000,
                             );
                             retried_text = strip_internal_context_metadata_prefix(&retried_text);
@@ -7960,7 +8128,10 @@ pub fn handle_with_headers(
                             &message,
                         ) {
                             let mut retried_text = clean_chat_text(
-                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                retried
+                                    .get("response")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
                                 32_000,
                             );
                             retried_text = strip_internal_context_metadata_prefix(&retried_text);
@@ -7992,7 +8163,8 @@ pub fn handle_with_headers(
                             format!("{finalization_outcome}+comparative_fallback");
                     }
                     response_text = finalized_response;
-                    let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
+                    let final_ack_only =
+                        response_looks_like_tool_ack_without_findings(&response_text);
                     let response_finalization = json!({
                         "applied": finalization_outcome != "unchanged",
                         "outcome": finalization_outcome,
@@ -8883,21 +9055,6 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "command_required"}),
                 });
             }
-            let resolution =
-                match crate::dashboard_terminal_broker::resolve_operator_command(&command) {
-                    Ok(resolution) => resolution,
-                    Err(err) => {
-                        return Some(CompatApiResponse {
-                            status: 400,
-                            payload: err,
-                        });
-                    }
-                };
-            let requested_command = resolution.requested_command.clone();
-            let executed_command = resolution.resolved_command.clone();
-            let command_translated = resolution.translated;
-            let translation_reason = resolution.translation_reason.clone();
-            let suggestions = resolution.suggestions.clone();
             let workspace_base = workspace_base_for_agent(root, existing.as_ref());
             let requested_cwd = clean_text(
                 request.get("cwd").and_then(Value::as_str).unwrap_or(""),
@@ -8909,76 +9066,29 @@ pub fn handle_with_headers(
                 resolve_workspace_path(&workspace_base, &requested_cwd)
                     .unwrap_or(workspace_base.clone())
             };
-            let started = Instant::now();
-            let output = if cfg!(windows) {
-                Command::new("cmd")
-                    .args(["/C", &executed_command])
-                    .current_dir(&cwd)
-                    .output()
-            } else {
-                Command::new("sh")
-                    .args(["-lc", &executed_command])
-                    .current_dir(&cwd)
-                    .output()
+            let session_id = format!("agent-{}", clean_agent_id(&agent_id));
+            let _ = crate::dashboard_terminal_broker::create_session(
+                root,
+                &json!({
+                    "id": session_id,
+                    "cwd": workspace_base.to_string_lossy().to_string()
+                }),
+            );
+            let payload = crate::dashboard_terminal_broker::exec_command(
+                root,
+                &json!({
+                    "session_id": session_id,
+                    "command": command,
+                    "cwd": cwd.to_string_lossy().to_string()
+                }),
+            );
+            let status = match payload.get("error").and_then(Value::as_str).unwrap_or("") {
+                "session_id_and_command_required"
+                | "session_not_found"
+                | "cwd_outside_workspace" => 400,
+                _ => 200,
             };
-            match output {
-                Ok(out) => {
-                    let (stdout, stdout_truncated) = truncate_utf8_lossy(&out.stdout, 128 * 1024);
-                    let (stderr, stderr_truncated) = truncate_utf8_lossy(&out.stderr, 128 * 1024);
-                    let mut effective_cwd = cwd.clone();
-                    if let Some(last_line) = stdout
-                        .lines()
-                        .rev()
-                        .map(str::trim)
-                        .find(|line| !line.is_empty())
-                    {
-                        if last_line.starts_with('/') {
-                            let parsed = normalize_lexical(&PathBuf::from(last_line));
-                            if parsed.is_dir()
-                                && (parsed == workspace_base || parsed.starts_with(&workspace_base))
-                            {
-                                effective_cwd = parsed;
-                            }
-                        }
-                    }
-                    return Some(CompatApiResponse {
-                        status: 200,
-                        payload: json!({
-                            "ok": true,
-                            "stdout": stdout,
-                            "stderr": stderr,
-                            "stdout_truncated": stdout_truncated,
-                            "stderr_truncated": stderr_truncated,
-                            "exit_code": out.status.code().unwrap_or(1),
-                            "duration_ms": started.elapsed().as_millis() as i64,
-                            "cwd": effective_cwd.to_string_lossy().to_string(),
-                            "requested_command": requested_command,
-                            "executed_command": executed_command,
-                            "command_translated": command_translated,
-                            "translation_reason": translation_reason,
-                            "suggestions": suggestions
-                        }),
-                    });
-                }
-                Err(err) => {
-                    return Some(CompatApiResponse {
-                        status: 500,
-                        payload: json!({
-                            "ok": false,
-                            "error": "terminal_exec_failed",
-                            "message": clean_text(&err.to_string(), 500),
-                            "exit_code": 1,
-                            "duration_ms": started.elapsed().as_millis() as i64,
-                            "cwd": cwd.to_string_lossy().to_string(),
-                            "requested_command": requested_command,
-                            "executed_command": executed_command,
-                            "command_translated": command_translated,
-                            "translation_reason": translation_reason,
-                            "suggestions": suggestions
-                        }),
-                    });
-                }
-            }
+            return Some(CompatApiResponse { status, payload });
         }
 
         if method == "POST" && segments.len() == 1 && segments[0] == "upload" {
@@ -9294,10 +9404,8 @@ pub fn handle_with_headers(
                 crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}))
             }
             "/api/batch-query" => {
-                let source = clean_text(
-                    query_value(path, "source").as_deref().unwrap_or("web"),
-                    40,
-                );
+                let source =
+                    clean_text(query_value(path, "source").as_deref().unwrap_or("web"), 40);
                 let query = clean_text(
                     query_value(path, "q")
                         .or_else(|| query_value(path, "query"))

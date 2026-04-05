@@ -235,6 +235,55 @@ fn web_search_summary_strips_search_engine_chrome_noise() {
 }
 
 #[test]
+fn web_fetch_summary_suppresses_example_domain_placeholder_dump() {
+    let summary = summarize_tool_payload(
+        "web_fetch",
+        &json!({
+            "ok": true,
+            "requested_url": "https://example.com",
+            "summary": "Example Domain This domain is for use in documentation examples without needing permission."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("placeholder"));
+    assert!(lowered.contains("example.com"));
+    assert!(!lowered.contains("without needing permission"));
+}
+
+#[test]
+fn web_fetch_summary_converts_navigation_chrome_into_actionable_hint() {
+    let summary = summarize_tool_payload(
+        "web_fetch",
+        &json!({
+            "ok": true,
+            "requested_url": "https://www.bbc.com/",
+            "summary": "BBC News - Breaking news. Skip to content. Home News Sport Business Technology Health Culture Arts Travel Audio Video Live."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("navigation/chrome"));
+    assert!(lowered.contains("batch_query") || lowered.contains("web_search"));
+    assert!(!lowered.contains("skip to content"));
+}
+
+#[test]
+fn natural_web_intent_routes_peer_comparisons_to_batch_query() {
+    let route = natural_web_intent_from_user_message(
+        "Compare Infring to its competitors and rank it among peers in a table",
+    )
+    .expect("route");
+    assert_eq!(route.0, "batch_query");
+    assert_eq!(
+        route.1.get("source").and_then(Value::as_str),
+        Some("web")
+    );
+    assert_eq!(
+        route.1.get("aperture").and_then(Value::as_str),
+        Some("medium")
+    );
+}
+
+#[test]
 fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
