@@ -106,10 +106,10 @@ reviewed_candidate	cli/src/constants/featured-models.ts	upstream-recommended-mod
 reviewed_no_import	cli/src/constants/keyboard.ts	terminal escape-sequence constants are CLI-specific and not portable to browser dashboard input paths | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/context/StdinContext.tsx	stdin raw-mode guard is terminal-runtime specific | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/context/TaskContext.tsx	streaming partial-message merge context captured as candidate for resilient task-state synchronization | deleted_to=.assimilation_deleted
-pending	cli/src/controllers/CliCommentReviewController.ts	
-pending	cli/src/controllers/CliWebviewProvider.ts	
-pending	cli/src/controllers/index.ts	
-pending	cli/src/exports.ts	
+reviewed_candidate	cli/src/controllers/CliCommentReviewController.ts	streaming code-review comment aggregation/flush pattern captured as candidate for CLI review UX parity | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/controllers/CliWebviewProvider.ts	CLI webview shim is host-specific glue without direct runtime capability import value | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/controllers/index.ts	CLI host-bridge fallback patterns (multi-file diff summary + env/window stubs) captured as compatibility candidate | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/exports.ts	public package export surface only; no standalone runtime behavior to import | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/hooks/useClineFeaturedModels.ts	recommended-model refresh hook with fallback preservation captured as candidate for robust featured-model feed updates | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/hooks/useHomeEndKeys.ts	raw stdin key interception hook is terminal-specific and not reusable in browser UI | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/hooks/useOcaAuth.ts	provider-specific OCA auth helper; no general runtime import for current stack | deleted_to=.assimilation_deleted
@@ -117,28 +117,28 @@ reviewed_candidate	cli/src/hooks/useScrollableList.ts	bounded selection window a
 reviewed_candidate	cli/src/hooks/useStateSubscriber.ts	completion-signal and processed-message tracking pattern captured as candidate for stream/event dedupe hardening | deleted_to=.assimilation_deleted
 reviewed_no_import	cli/src/hooks/useTerminalSize.ts	terminal resize-remount workaround targets Ink rendering artifacts and is not applicable to browser dashboard | deleted_to=.assimilation_deleted
 reviewed_candidate	cli/src/hooks/useTextInput.ts	word-level cursor/edit shortcut handler captured as candidate for power-user terminal input parity surfaces | deleted_to=.assimilation_deleted
-pending	cli/src/index.test.ts	
-pending	cli/src/index.ts	
-pending	cli/src/lib-import.test.ts	
-pending	cli/src/stub-devtools.js	
-pending	cli/src/utils/DiffComputer.ts	
-pending	cli/src/utils/__tests__/DiffComputer.test.ts	
-pending	cli/src/utils/auth.ts	
-pending	cli/src/utils/browser.ts	
-pending	cli/src/utils/console.ts	
-pending	cli/src/utils/cursor.ts	
-pending	cli/src/utils/display.test.ts	
-pending	cli/src/utils/display.ts	
-pending	cli/src/utils/file-search.ts	
-pending	cli/src/utils/fuzzy-search.ts	
-pending	cli/src/utils/import-configs.ts	
-pending	cli/src/utils/input.ts	
-pending	cli/src/utils/kanban.test.ts	
-pending	cli/src/utils/kanban.ts	
-pending	cli/src/utils/mcp.test.ts	
-pending	cli/src/utils/mcp.ts	
-pending	cli/src/utils/mode-selection.test.ts	
-pending	cli/src/utils/mode-selection.ts	
+skipped_non_runtime	cli/src/index.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/index.ts	CLI entry orchestration captured as candidate source for deterministic mode selection and startup flow gating patterns | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/lib-import.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/stub-devtools.js	legacy JS compatibility stub; skipped for runtime capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/DiffComputer.ts	search/replace + apply-patch diff computation captured as candidate for patch-preview rendering parity | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/__tests__/DiffComputer.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/auth.ts	onboarding-auth migration guard (welcome-completed from provider config) captured as candidate for first-run reliability | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/utils/browser.ts	minimal URL-open wrapper already covered by existing browser-open utility surfaces | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/console.ts	console suppression/restore guard captured as candidate for cleaner non-verbose runtime output control | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/cursor.ts	multi-line cursor up/down position-preserving helpers captured as candidate for advanced text input UX | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/display.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/display.ts	terminal message formatting taxonomy captured as candidate for consistent role/event formatting contracts | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/file-search.ts	workspace mention-query extraction/insertion and ripgrep-fallback file search patterns captured as candidate for composer mention UX | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/fuzzy-search.ts	generic fzf-backed fuzzy filtering helper captured as candidate for picker/search consistency | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/import-configs.ts	cross-tool API-key import detection (Codex/OpenCode) captured as candidate for onboarding acceleration | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/input.ts	mouse-sequence filtering + cross-platform enter-key normalization captured as candidate for input robustness hardening | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/kanban.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_no_import	cli/src/utils/kanban.ts	product-specific kanban launch/migration utility; not a direct runtime capability target for current dashboard lane | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/mcp.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/mcp.ts	MCP shortcut add/validation flow captured as candidate for safer connector bootstrap UX | deleted_to=.assimilation_deleted
+skipped_non_runtime	cli/src/utils/mode-selection.test.ts	test-only file; skipped for direct capability import | deleted_to=.assimilation_deleted
+reviewed_candidate	cli/src/utils/mode-selection.ts	pure deterministic output-mode decision function captured as candidate for environment-adaptive rendering behavior | deleted_to=.assimilation_deleted
 pending	cli/src/utils/openrouter-models.ts	
 pending	cli/src/utils/parser.test.ts	
 pending	cli/src/utils/parser.ts	
