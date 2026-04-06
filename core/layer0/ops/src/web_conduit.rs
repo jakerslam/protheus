@@ -478,16 +478,29 @@ fn web_search_lite_url(query: &str) -> String {
 }
 
 fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
-    raw.as_array()
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|row| row.as_str().map(|v| clean_text(v, 180).to_ascii_lowercase()))
+    let rows = if let Some(array) = raw.as_array() {
+        array
+            .iter()
+            .filter_map(|row| row.as_str().map(|v| v.to_string()))
+            .collect::<Vec<_>>()
+    } else if let Some(single) = raw.as_str() {
+        single
+            .split(|ch: char| ch == ',' || ch.is_ascii_whitespace())
+            .map(str::trim)
+            .filter(|row| !row.is_empty())
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    rows.into_iter()
+        .map(|v| clean_text(v.as_str(), 180).to_ascii_lowercase())
         .map(|row| {
             row.trim()
                 .trim_start_matches("http://")
                 .trim_start_matches("https://")
                 .trim_start_matches("www.")
+                .trim_start_matches("*.")
                 .split('/')
                 .next()
                 .unwrap_or("")
@@ -509,14 +522,20 @@ fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
         })
 }
 
-fn scoped_search_query(query: &str, allowed_domains: &[String]) -> String {
+fn scoped_search_query(query: &str, allowed_domains: &[String], exclude_subdomains: bool) -> String {
     let cleaned = clean_text(query, 600);
     if cleaned.is_empty() || allowed_domains.is_empty() {
         return cleaned;
     }
     let scope = allowed_domains
         .iter()
-        .map(|domain| format!("site:{domain}"))
+        .map(|domain| {
+            if exclude_subdomains {
+                format!("(site:{domain} -site:*.{domain})")
+            } else {
+                format!("site:{domain}")
+            }
+        })
         .collect::<Vec<_>>()
         .join(" OR ");
     clean_text(format!("({scope}) {cleaned}").as_str(), 900)
@@ -995,7 +1014,12 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     let allowed_domains = normalize_allowed_domains(
         request.get("allowed_domains").unwrap_or(&Value::Null),
     );
-    let scoped_query = scoped_search_query(&query, &allowed_domains);
+    let exclude_subdomains = request
+        .get("exclude_subdomains")
+        .or_else(|| request.get("exact_domain_only"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
     let primary_url = web_search_url(&scoped_query);
     let fallback_url = web_search_lite_url(&scoped_query);
     let summary_only = request
@@ -1061,6 +1085,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         obj.insert("query".to_string(), Value::String(query.clone()));
         obj.insert("effective_query".to_string(), Value::String(scoped_query));
         obj.insert("allowed_domains".to_string(), json!(allowed_domains));
+        obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
         obj.insert(
             "provider".to_string(),
             Value::String(if used_lite_fallback {
@@ -1128,10 +1153,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")),
                 600,
             );
+            let allowed_domains = parsed
+                .flags
+                .get("allowed-domains")
+                .or_else(|| parsed.flags.get("allowed_domains"))
+                .cloned()
+                .unwrap_or_default();
             api_search(
                 root,
                 &json!({
                     "query": query,
+                    "allowed_domains": normalize_allowed_domains(&json!(allowed_domains)),
+                    "exclude_subdomains": parse_bool(parsed.flags.get("exclude-subdomains")) || parse_bool(parsed.flags.get("exclude_subdomains")) || parse_bool(parsed.flags.get("exact-domain-only")) || parse_bool(parsed.flags.get("exact_domain_only")),
                     "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
                     "approval_id": clean_text(
                         parsed
@@ -1305,6 +1338,7 @@ mod tests {
         let scoped = scoped_search_query(
             "agent reliability",
             &vec!["github.com".to_string(), "docs.rs".to_string()],
+            false,
         );
         assert!(scoped.contains("site:github.com"));
         assert!(scoped.contains("site:docs.rs"));
@@ -1313,7 +1347,7 @@ mod tests {
 
     #[test]
     fn scoped_search_query_leaves_plain_query_when_domains_empty() {
-        let scoped = scoped_search_query("agent reliability", &[]);
+        let scoped = scoped_search_query("agent reliability", &[], false);
         assert_eq!(scoped, "agent reliability");
     }
 
@@ -1326,5 +1360,25 @@ mod tests {
             "not a domain"
         ]));
         assert_eq!(domains, vec!["github.com".to_string(), "docs.rs".to_string()]);
+    }
+
+    #[test]
+    fn scoped_search_query_supports_exact_domain_mode() {
+        let scoped = scoped_search_query("agent reliability", &vec!["example.com".to_string()], true);
+        assert!(scoped.contains("site:example.com"));
+        assert!(scoped.contains("-site:*.example.com"));
+    }
+
+    #[test]
+    fn normalize_allowed_domains_supports_comma_string() {
+        let domains = normalize_allowed_domains(&json!("https://www.github.com, docs.rs *.example.com"));
+        assert_eq!(
+            domains,
+            vec![
+                "github.com".to_string(),
+                "docs.rs".to_string(),
+                "example.com".to_string()
+            ]
+        );
     }
 }
