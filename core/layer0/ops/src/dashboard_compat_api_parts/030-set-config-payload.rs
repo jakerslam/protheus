@@ -586,7 +586,7 @@ fn collect_user_recall_messages(
     out
 }
 
-fn build_memory_recall_response(state: &Value, pooled_messages: &[Value], message: &str) -> String {
+fn build_memory_recall_response(state: &Value, history_messages: &[Value], message: &str) -> String {
     let prefer_earliest = recall_prefers_earliest(message);
     let active_history_messages = active_session_messages_sorted(state);
     let mut remembered =
@@ -596,10 +596,10 @@ fn build_memory_recall_response(state: &Value, pooled_messages: &[Value], messag
             collect_user_recall_messages(&active_history_messages, prefer_earliest, false, 4);
     }
     if remembered.is_empty() {
-        remembered = collect_user_recall_messages(pooled_messages, prefer_earliest, true, 3);
+        remembered = collect_user_recall_messages(history_messages, prefer_earliest, true, 3);
     }
     if remembered.is_empty() {
-        remembered = collect_user_recall_messages(pooled_messages, prefer_earliest, false, 3);
+        remembered = collect_user_recall_messages(history_messages, prefer_earliest, false, 3);
     }
     if remembered.is_empty() {
         "I don't have enough earlier context to reference yet. Share what you want me to track, and I'll carry it forward.".to_string()
@@ -3461,230 +3461,7 @@ fn agent_identity_hydration_prompt(row: &Value) -> String {
     clean_text(&lines.join(" "), 1_600)
 }
 
-fn message_token_cost(row: &Value) -> i64 {
-    estimate_tokens(&message_text(row))
-}
-
-fn total_message_tokens(rows: &[Value]) -> i64 {
-    rows.iter().map(message_token_cost).sum::<i64>().max(0)
-}
-
-fn context_pressure_label(ratio: f64) -> &'static str {
-    if !ratio.is_finite() || ratio <= 0.0 {
-        "low"
-    } else if ratio >= 0.96 {
-        "critical"
-    } else if ratio >= 0.82 {
-        "high"
-    } else if ratio >= 0.55 {
-        "medium"
-    } else {
-        "low"
-    }
-}
-
-fn trim_context_pool(messages: &[Value], limit_tokens: i64) -> Vec<Value> {
-    let cap = limit_tokens.max(2_048);
-    let mut out = messages.to_vec();
-    let mut total = total_message_tokens(&out);
-    while out.len() > 1 && total > cap {
-        let removed = message_token_cost(&out[0]);
-        out.remove(0);
-        total = (total - removed).max(0);
-    }
-    out
-}
-
-fn select_active_context_window(
-    messages: &[Value],
-    target_tokens: i64,
-    min_recent: usize,
-) -> Vec<Value> {
-    let cap = target_tokens.max(1_024);
-    let floor = min_recent.clamp(1, 256);
-    let mut out = messages.to_vec();
-    let mut total = total_message_tokens(&out);
-    while out.len() > floor && total > cap {
-        let removed = message_token_cost(&out[0]);
-        out.remove(0);
-        total = (total - removed).max(0);
-    }
-    out
-}
-
-fn historical_context_keyframes_prompt_context(
-    pooled_messages: &[Value],
-    active_messages: &[Value],
-    max_keyframes: usize,
-    max_chars: usize,
-) -> String {
-    let target = max_keyframes.clamp(1, 24);
-    let dropped = pooled_messages.len().saturating_sub(active_messages.len());
-    if dropped == 0 {
-        return String::new();
-    }
-    let mut candidates = Vec::<(String, String)>::new();
-    for row in pooled_messages.iter().take(dropped) {
-        let role = clean_text(
-            row.get("role")
-                .or_else(|| row.get("type"))
-                .and_then(Value::as_str)
-                .unwrap_or("assistant"),
-            24,
-        )
-        .to_ascii_lowercase();
-        if role == "system" {
-            continue;
-        }
-        let snippet = first_sentence(&message_text(row), 220);
-        if snippet.is_empty() {
-            continue;
-        }
-        let role_label = if role.contains("user") {
-            "User".to_string()
-        } else {
-            "Agent".to_string()
-        };
-        candidates.push((role_label, snippet));
-    }
-    if candidates.is_empty() {
-        return String::new();
-    }
-    let mut selected = Vec::<(String, String)>::new();
-    if candidates.len() <= target {
-        selected = candidates;
-    } else {
-        selected.push(candidates[0].clone());
-        if target > 2 {
-            let remaining_slots = target.saturating_sub(2);
-            let last_idx = candidates.len().saturating_sub(1);
-            for slot in 0..remaining_slots {
-                let idx = 1 + ((slot + 1) * last_idx.saturating_sub(1)) / (remaining_slots + 1);
-                if idx < last_idx {
-                    selected.push(candidates[idx].clone());
-                }
-            }
-        }
-        selected.push(candidates[candidates.len().saturating_sub(1)].clone());
-    }
-    let mut dedup = HashSet::<String>::new();
-    let mut lines = Vec::<String>::new();
-    for (role, snippet) in selected {
-        let key = format!(
-            "{}|{}",
-            role.to_ascii_lowercase(),
-            snippet.to_ascii_lowercase()
-        );
-        if !dedup.insert(key) {
-            continue;
-        }
-        lines.push(format!("- [{role}] {snippet}"));
-        if lines.len() >= target {
-            break;
-        }
-    }
-    if lines.is_empty() {
-        return String::new();
-    }
-    trim_text(
-        &format!(
-            "Long-thread keyframes outside the active window (retain for continuity):\n{}",
-            lines.join("\n")
-        ),
-        max_chars.max(400),
-    )
-}
-
-fn historical_relevant_recall_prompt_context(
-    pooled_messages: &[Value],
-    active_messages: &[Value],
-    user_message: &str,
-    max_rows: usize,
-    max_chars: usize,
-) -> String {
-    let target = max_rows.clamp(2, 20);
-    let dropped = pooled_messages.len().saturating_sub(active_messages.len());
-    if dropped == 0 {
-        return String::new();
-    }
-    let user_terms = important_memory_terms(user_message, 24)
-        .into_iter()
-        .collect::<HashSet<_>>();
-    let recall_intent = memory_recall_requested(user_message);
-    if user_terms.is_empty() && !recall_intent {
-        return String::new();
-    }
-    let mut scored = Vec::<(i64, String, String)>::new();
-    for (idx, row) in pooled_messages.iter().take(dropped).enumerate() {
-        let role = clean_text(
-            row.get("role")
-                .or_else(|| row.get("type"))
-                .and_then(Value::as_str)
-                .unwrap_or("assistant"),
-            24,
-        )
-        .to_ascii_lowercase();
-        if role == "system" {
-            continue;
-        }
-        let snippet = clean_text(&message_text(row), 360);
-        if snippet.is_empty() {
-            continue;
-        }
-        let role_label = if role.contains("user") {
-            "User".to_string()
-        } else {
-            "Agent".to_string()
-        };
-        let snippet_terms = important_memory_terms(&snippet, 24)
-            .into_iter()
-            .collect::<HashSet<_>>();
-        let overlap = if user_terms.is_empty() {
-            0
-        } else {
-            user_terms.intersection(&snippet_terms).count() as i64
-        };
-        if overlap == 0 && !recall_intent {
-            continue;
-        }
-        let recency_score = (idx as i64).min(60);
-        let score = overlap.saturating_mul(8) + recency_score;
-        scored.push((score, role_label, first_sentence(&snippet, 260)));
-    }
-    if scored.is_empty() {
-        return String::new();
-    }
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
-    let mut dedup = HashSet::<String>::new();
-    let mut lines = Vec::<String>::new();
-    for (_, role, snippet) in scored.into_iter().take(target.saturating_mul(2)) {
-        if snippet.is_empty() {
-            continue;
-        }
-        let key = format!(
-            "{}|{}",
-            role.to_ascii_lowercase(),
-            snippet.to_ascii_lowercase()
-        );
-        if !dedup.insert(key) {
-            continue;
-        }
-        lines.push(format!("- [{role}] {snippet}"));
-        if lines.len() >= target {
-            break;
-        }
-    }
-    if lines.is_empty() {
-        return String::new();
-    }
-    trim_text(
-        &format!(
-            "Relevant long-thread recall outside the active window (use for continuity):\n{}",
-            lines.join("\n")
-        ),
-        max_chars.max(500),
-    )
-}
+include!("031-context-window-and-recall.rs");
 
 fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
     let active_id = clean_text(
@@ -3738,8 +3515,8 @@ fn context_command_payload(
         .and_then(Value::as_i64)
         .unwrap_or(row_system_context_limit)
         .clamp(32_000, 2_000_000);
-    let pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
-    let pre_generation_pruned = pooled_messages.len() != messages.len();
+    let pooled_messages_unfloored = trim_context_pool(&messages, context_pool_limit_tokens);
+    let pre_generation_pruned = pooled_messages_unfloored.len() != messages.len();
     let row_context_window = row
         .get("context_window_tokens")
         .or_else(|| row.get("context_window"))
@@ -3763,6 +3540,12 @@ fn context_command_payload(
         .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
         .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
         as usize;
+    let (pooled_messages, recent_floor_injected) = enforce_recent_context_floor(
+        &messages,
+        &pooled_messages_unfloored,
+        active_context_min_recent,
+    );
+    let recent_floor_enforced = recent_floor_injected > 0;
     let row_auto_compact_threshold_ratio = row
         .get("auto_compact_threshold_ratio")
         .and_then(Value::as_f64)
@@ -3864,6 +3647,8 @@ fn context_command_payload(
             "include_all_sessions_context": include_all_sessions_context,
             "pre_generation_pruning_enabled": true,
             "pre_generation_pruned": pre_generation_pruned,
+            "recent_floor_enforced": recent_floor_enforced,
+            "recent_floor_injected": recent_floor_injected,
             "emergency_compact_enabled": true,
             "emergency_compact": emergency_compact
         },
@@ -8234,6 +8019,13 @@ pub fn handle_with_headers(
                 messages = context_source_messages(&state, include_all_sessions_context);
                 pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
             }
+            let (pooled_messages_with_floor, recent_floor_injected) = enforce_recent_context_floor(
+                &messages,
+                &pooled_messages,
+                active_context_min_recent,
+            );
+            let recent_floor_enforced = recent_floor_injected > 0;
+            pooled_messages = pooled_messages_with_floor;
             if all_session_history_count > 0 && messages.is_empty() {
                 return Some(CompatApiResponse {
                     status: 503,
@@ -8325,13 +8117,13 @@ pub fn handle_with_headers(
                 passive_attention_context_for_message(root, &agent_id, &message, 6);
             let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
             let overflow_keyframes_context = historical_context_keyframes_prompt_context(
-                &pooled_messages,
+                &messages,
                 &active_messages,
                 10,
                 2_400,
             );
             let relevant_recall_context = historical_relevant_recall_prompt_context(
-                &pooled_messages,
+                &messages,
                 &active_messages,
                 &message,
                 8,
@@ -8407,8 +8199,7 @@ pub fn handle_with_headers(
                     if memory_recall_requested(&message)
                         || persistent_memory_denied_phrase(&response_text)
                     {
-                        response_text =
-                            build_memory_recall_response(&state, &pooled_messages, &message);
+                        response_text = build_memory_recall_response(&state, &messages, &message);
                     }
                     let explicit_parallel_directive = swarm_intent_requested(&message)
                         || message.to_ascii_lowercase().contains("multi-agent")
@@ -8644,8 +8435,7 @@ pub fn handle_with_headers(
                         && (response_is_no_findings_placeholder(&response_text)
                             || response_looks_like_tool_ack_without_findings(&response_text))
                     {
-                        response_text =
-                            build_memory_recall_response(&state, &pooled_messages, &message);
+                        response_text = build_memory_recall_response(&state, &messages, &message);
                     }
                     let final_ack_only =
                         response_looks_like_tool_ack_without_findings(&response_text);
@@ -8743,6 +8533,8 @@ pub fn handle_with_headers(
                         "context_pressure": context_pressure,
                         "pre_generation_pruning_enabled": true,
                         "pre_generation_pruned": pre_generation_pruned,
+                        "recent_floor_enforced": recent_floor_enforced,
+                        "recent_floor_injected": recent_floor_injected,
                         "history_trim_confirmed": history_trim_confirmed,
                         "emergency_compact_enabled": true,
                         "emergency_compact": emergency_compact

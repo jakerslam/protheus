@@ -532,3 +532,58 @@ fn memory_recall_stays_scoped_to_active_session_history() {
     assert!(text.contains("default-session-marker-alpha"));
     assert!(!text.contains("other-session-marker-beta"));
 }
+
+#[test]
+fn context_command_reports_recent_floor_reinjection_when_pool_trim_is_aggressive() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let agent_id = create_context_test_agent(root.path());
+    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let dense_messages = (0..240)
+        .map(|idx| {
+            json!({
+                "id": idx + 1,
+                "role": if idx % 2 == 0 { "user" } else { "agent" },
+                "text": format!("floor-reinject-{idx} {}", "token ".repeat(1200)),
+                "ts": crate::now_iso()
+            })
+        })
+        .collect::<Vec<_>>();
+    write_json(
+        &session_path,
+        &json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [
+                {
+                    "session_id": "default",
+                    "updated_at": crate::now_iso(),
+                    "messages": dense_messages
+                }
+            ]
+        }),
+    );
+    let context = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/command"),
+        br#"{"command":"context","silent":true,"context_pool_limit_tokens":32000,"active_context_min_recent_messages":64}"#,
+        &json!({"ok": true}),
+    )
+    .expect("context command");
+    assert_eq!(context.status, 200);
+    assert_eq!(
+        context
+            .payload
+            .pointer("/context_pool/recent_floor_enforced")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        context
+            .payload
+            .pointer("/context_pool/recent_floor_injected")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+    );
+}

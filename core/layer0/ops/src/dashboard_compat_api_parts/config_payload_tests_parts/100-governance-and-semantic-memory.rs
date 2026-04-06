@@ -725,6 +725,77 @@ fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
 }
 
 #[test]
+fn recent_floor_enforcement_rehydrates_tail_after_pool_trim() {
+    let messages = (0..36)
+        .map(|idx| {
+            json!({
+                "id": idx + 1,
+                "role": if idx % 2 == 0 { "user" } else { "agent" },
+                "text": format!("context-floor-{idx} {}", "token ".repeat(180)),
+                "ts": format!("2026-04-01T00:{idx:02}:00Z")
+            })
+        })
+        .collect::<Vec<_>>();
+    let pooled = trim_context_pool(&messages, 2048);
+    let floor = 14usize;
+    assert!(pooled.len() < floor, "pool should trim below floor for this fixture");
+    let (rehydrated, injected) = enforce_recent_context_floor(&messages, &pooled, floor);
+    assert!(injected > 0, "expected floor reinjection");
+    assert!(rehydrated.len() >= floor, "recent floor should be restored");
+    let required_tail_ids = messages
+        .iter()
+        .rev()
+        .take(floor)
+        .filter_map(|row| row.get("id").and_then(Value::as_i64))
+        .collect::<Vec<_>>();
+    for id in required_tail_ids {
+        assert!(
+            rehydrated
+                .iter()
+                .any(|row| row.get("id").and_then(Value::as_i64) == Some(id)),
+            "missing reinjected tail message id={id}"
+        );
+    }
+}
+
+#[test]
+fn relevant_recall_uses_full_history_even_when_pool_drops_older_facts() {
+    let mut history = vec![json!({
+        "id": 1,
+        "role": "user",
+        "text": "Remember the nebula ledger anchor phrase for later continuity.",
+        "ts": "2026-04-01T00:00:00Z"
+    })];
+    for idx in 0..32 {
+        history.push(json!({
+            "id": idx + 2,
+            "role": if idx % 2 == 0 { "agent" } else { "user" },
+            "text": format!("filler-{idx} {}", "alpha ".repeat(180)),
+            "ts": format!("2026-04-01T00:{:02}:00Z", (idx + 1) % 60)
+        }));
+    }
+    let pooled = trim_context_pool(&history, 2048);
+    assert!(
+        !pooled
+            .iter()
+            .any(|row| message_text(row).to_ascii_lowercase().contains("nebula ledger")),
+        "fixture failed: pooled context still contains the anchor fact"
+    );
+    let (pooled_with_floor, _) = enforce_recent_context_floor(&history, &pooled, 14);
+    let active = select_active_context_window(&pooled_with_floor, 1536, 14);
+    let recall = historical_relevant_recall_prompt_context(
+        &history,
+        &active,
+        "Recall the nebula ledger anchor from earlier.",
+        8,
+        2400,
+    );
+    let lowered = recall.to_ascii_lowercase();
+    assert!(lowered.contains("relevant long-thread recall"));
+    assert!(lowered.contains("nebula ledger"), "recall={recall}");
+}
+
+#[test]
 fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
     let root = tempfile::tempdir().expect("tempdir");
     let mut out = json!({
