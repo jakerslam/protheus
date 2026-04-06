@@ -246,4 +246,48 @@ mod tests {
         assert!(!lowered.contains("<svg"));
         assert!(!lowered.contains("data:image"));
     }
+
+    #[test]
+    fn batch_query_emits_nexus_connection_metadata() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = with_fixture(
+            json!({"nexus route test":{"ok":true,"summary":"Route metadata fixture.","requested_url":"https://example.com/nexus","status_code":200}}),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":"nexus route test","aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.pointer("/nexus_connection/source")
+                .and_then(Value::as_str),
+            Some("client_ingress")
+        );
+        assert_eq!(
+            out.pointer("/nexus_connection/target")
+                .and_then(Value::as_str),
+            Some("context_stacks")
+        );
+    }
+
+    #[test]
+    fn batch_query_fails_closed_when_ingress_lifecycle_blocks_new_leases() {
+        let _guard = TEST_ENV_MUTEX.lock().expect("lock");
+        std::env::set_var(
+            "PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE",
+            "quiesced",
+        );
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_batch_query(
+            tmp.path(),
+            &json!({"source":"web","query":"lifecycle deny path","aperture":"small"}),
+        );
+        std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE");
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("blocked"));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("batch_query_nexus_delivery_denied")
+        );
+    }
 }
