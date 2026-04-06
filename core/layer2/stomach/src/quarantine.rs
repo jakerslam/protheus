@@ -13,6 +13,7 @@ pub struct IngestPolicy {
     pub allow_network_during_fetch: bool,
     pub allowed_hosts: Vec<String>,
     pub forbid_hooks: bool,
+    pub forbid_filters: bool,
     pub forbid_submodules: bool,
     pub forbid_lfs_materialization: bool,
     pub forbid_symlinks: bool,
@@ -24,6 +25,7 @@ impl Default for IngestPolicy {
             allow_network_during_fetch: true,
             allowed_hosts: vec!["github.com".to_string(), "gitlab.com".to_string()],
             forbid_hooks: true,
+            forbid_filters: true,
             forbid_submodules: true,
             forbid_lfs_materialization: true,
             forbid_symlinks: true,
@@ -40,6 +42,26 @@ pub struct SnapshotMetadata {
     pub file_count: usize,
     pub symlink_count: usize,
     pub captured_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BlobHash {
+    pub rel_path: String,
+    pub sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FetchMetadata {
+    pub snapshot_id: String,
+    pub origin_url: String,
+    pub host: String,
+    pub commit_hash: String,
+    pub fetched_refs: Vec<String>,
+    pub policy_version: String,
+    pub fetch_network_allowed: bool,
+    pub fetched_at: String,
+    pub fetch_receipt_link: String,
+    pub blob_hashes: Vec<BlobHash>,
 }
 
 fn now_iso() -> String {
@@ -87,13 +109,130 @@ pub fn origin_allowed(policy: &IngestPolicy, origin_url: &str) -> bool {
         .any(|row| row == host)
 }
 
+fn read_text_if_exists(path: &Path) -> Option<String> {
+    fs::read_to_string(path).ok()
+}
+
+fn source_root_canonical(source: &Path) -> Result<PathBuf, String> {
+    source
+        .canonicalize()
+        .map_err(|e| format!("quarantine_source_canonicalize_failed:{e}"))
+}
+
+fn enforce_source_policy(source_root: &Path, policy: &IngestPolicy) -> Result<(), String> {
+    if policy.forbid_hooks {
+        let hooks = source_root.join(".git").join("hooks");
+        if hooks.is_dir() {
+            for entry in
+                fs::read_dir(&hooks).map_err(|e| format!("quarantine_hooks_read_failed:{e}"))?
+            {
+                let entry = entry.map_err(|e| format!("quarantine_hooks_entry_failed:{e}"))?;
+                if entry.path().is_file() {
+                    return Err("quarantine_hooks_forbidden".to_string());
+                }
+            }
+        }
+    }
+    if policy.forbid_submodules && source_root.join(".gitmodules").is_file() {
+        return Err("quarantine_submodules_forbidden".to_string());
+    }
+    if policy.forbid_filters || policy.forbid_lfs_materialization {
+        if let Some(attrs) = read_text_if_exists(&source_root.join(".gitattributes")) {
+            let lowered = attrs.to_ascii_lowercase();
+            if policy.forbid_filters && lowered.contains("filter=") {
+                return Err("quarantine_filters_forbidden".to_string());
+            }
+            if policy.forbid_lfs_materialization && lowered.contains("filter=lfs") {
+                return Err("quarantine_lfs_materialization_forbidden".to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn capture_blob_hashes(source_root: &Path) -> Result<Vec<BlobHash>, String> {
+    let canonical_root = source_root_canonical(source_root)?;
+    let mut out = Vec::<BlobHash>::new();
+    for entry in WalkDir::new(source_root).into_iter().filter_map(Result::ok) {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let rel = path
+            .strip_prefix(source_root)
+            .map_err(|e| format!("quarantine_blob_rel_failed:{e}"))?;
+        if rel
+            .components()
+            .any(|c| c.as_os_str() == ".git" || c.as_os_str() == ".github")
+        {
+            continue;
+        }
+        let canonical_path = path
+            .canonicalize()
+            .map_err(|e| format!("quarantine_blob_canonicalize_failed:{e}"))?;
+        if !canonical_path.starts_with(&canonical_root) {
+            return Err("quarantine_path_escape_detected".to_string());
+        }
+        let mut file =
+            fs::File::open(path).map_err(|e| format!("quarantine_blob_open_failed:{e}"))?;
+        let mut buf = Vec::<u8>::new();
+        file.read_to_end(&mut buf)
+            .map_err(|e| format!("quarantine_blob_read_failed:{e}"))?;
+        out.push(BlobHash {
+            rel_path: rel.display().to_string(),
+            sha256: stable_hash(&buf),
+        });
+    }
+    out.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+    Ok(out)
+}
+
+pub fn record_fetch_phase(
+    snapshot_id: &str,
+    source_root: &Path,
+    origin_url: &str,
+    commit_hash: &str,
+    fetched_refs: &[String],
+    policy: &IngestPolicy,
+    policy_version: &str,
+    fetch_receipt_link: &str,
+) -> Result<FetchMetadata, String> {
+    if !origin_allowed(policy, origin_url) {
+        return Err("quarantine_origin_not_allowlisted".to_string());
+    }
+    enforce_source_policy(source_root, policy)?;
+    let host =
+        extract_host(origin_url).ok_or_else(|| "quarantine_origin_host_invalid".to_string())?;
+    let blob_hashes = capture_blob_hashes(source_root)?;
+    if blob_hashes.is_empty() {
+        return Err("quarantine_blob_hashes_empty".to_string());
+    }
+    Ok(FetchMetadata {
+        snapshot_id: snapshot_id.to_string(),
+        origin_url: origin_url.to_string(),
+        host,
+        commit_hash: commit_hash.trim().to_string(),
+        fetched_refs: fetched_refs.to_vec(),
+        policy_version: policy_version.trim().to_string(),
+        fetch_network_allowed: policy.allow_network_during_fetch,
+        fetched_at: now_iso(),
+        fetch_receipt_link: fetch_receipt_link.trim().to_string(),
+        blob_hashes,
+    })
+}
+
 fn copy_tree_denying_symlinks(
     source: &Path,
     target: &Path,
     forbid_symlinks: bool,
 ) -> Result<(), String> {
+    let canonical_source = source_root_canonical(source)?;
     for entry in WalkDir::new(source).into_iter().filter_map(Result::ok) {
         let path = entry.path();
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        if !canonical.starts_with(&canonical_source) {
+            return Err("quarantine_path_escape_detected".to_string());
+        }
         let rel = match path.strip_prefix(source) {
             Ok(v) => v,
             Err(_) => continue,
@@ -178,6 +317,7 @@ pub fn create_quarantine_snapshot(
     if !origin_allowed(policy, origin_url) {
         return Err("quarantine_origin_not_allowlisted".to_string());
     }
+    enforce_source_policy(source_root, policy)?;
     let snapshot_key = sanitize_segment(snapshot_id);
     if snapshot_key.is_empty() {
         return Err("quarantine_snapshot_id_invalid".to_string());
@@ -242,5 +382,42 @@ mod tests {
         .expect("snapshot");
         assert!(out.file_count >= 1);
         assert!(!out.tree_hash.is_empty());
+    }
+
+    #[test]
+    fn record_fetch_phase_captures_blob_hashes_and_blocks_filters() {
+        let root = tempdir().expect("tmp");
+        let src = root.path().join("src");
+        fs::create_dir_all(&src).expect("mkdir");
+        fs::write(src.join("a.txt"), "hello").expect("write");
+        fs::write(src.join(".gitattributes"), "*.bin filter=lfs\n").expect("attrs");
+        let mut policy = IngestPolicy::default();
+        policy.forbid_filters = true;
+        let blocked = record_fetch_phase(
+            "demo",
+            &src,
+            "https://github.com/acme/repo",
+            "abc123",
+            &["refs/heads/main".to_string()],
+            &policy,
+            "policy-v1",
+            "receipt:demo:fetch",
+        );
+        assert!(blocked.is_err());
+
+        fs::remove_file(src.join(".gitattributes")).expect("rm attrs");
+        let out = record_fetch_phase(
+            "demo",
+            &src,
+            "https://github.com/acme/repo",
+            "abc123",
+            &["refs/heads/main".to_string()],
+            &policy,
+            "policy-v1",
+            "receipt:demo:fetch",
+        )
+        .expect("fetch");
+        assert_eq!(out.host, "github.com");
+        assert!(!out.blob_hashes.is_empty());
     }
 }

@@ -913,3 +913,28 @@ fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
         Some("ask")
     );
 }
+
+#[test]
+fn execute_tool_recovery_emits_nexus_connection_metadata() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let out = execute_tool_call_with_recovery(
+        root.path(),
+        &snapshot,
+        "agent-nexus-route",
+        None,
+        "file_read",
+        &json!({"path":"README.md"}),
+    );
+    assert!(out.get("nexus_connection").is_some());
+    assert_eq!(
+        out.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.pointer("/nexus_connection/delivery/allowed")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+}

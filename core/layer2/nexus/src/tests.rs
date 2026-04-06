@@ -314,3 +314,90 @@ fn template_instantiation_is_receipted_and_issues_lease() {
         .iter()
         .any(|row| row.kind == NexusReceiptKind::TemplateInstantiation));
 }
+
+fn upsert_stomach_context_template(nexus: &mut MainNexusControlPlane) {
+    nexus
+        .upsert_template(
+            "tester",
+            ConnectionTemplate {
+                template_id: "stomach_ctx_bridge".to_string(),
+                version: 1,
+                source: "stomach".to_string(),
+                target: "context_stacks".to_string(),
+                schema_ids: vec!["context_stacks.batch_query".to_string()],
+                verbs: vec!["invoke".to_string()],
+                required_verity: VerityClass::High,
+                trust_class: TrustClass::InterModuleData,
+                default_ttl_ms: 75_000,
+            },
+        )
+        .expect("upsert stomach->context template");
+}
+
+#[test]
+fn stomach_context_template_route_authorizes_direct_delivery() {
+    let mut nexus = test_plane();
+    nexus.register_v1_adapters("tester").expect("adapters");
+    upsert_stomach_context_template(&mut nexus);
+    let lease = nexus
+        .issue_route_lease_from_template("tester", "stomach_ctx_bridge", 1, None)
+        .expect("template lease");
+    let auth = nexus.authorize_direct_delivery(
+        "tester",
+        DeliveryAuthorizationInput {
+            lease_id: Some(lease.lease_id),
+            source: "stomach".to_string(),
+            target: "context_stacks".to_string(),
+            schema_id: "context_stacks.batch_query".to_string(),
+            verb: "invoke".to_string(),
+            offered_verity: VerityClass::Critical,
+            now_ms: None,
+        },
+    );
+    assert!(auth.allowed);
+    assert!(!auth.local_resolution);
+}
+
+#[test]
+fn stomach_context_template_lease_revokes_when_target_quiesced() {
+    let mut nexus = test_plane();
+    nexus.register_v1_adapters("tester").expect("adapters");
+    upsert_stomach_context_template(&mut nexus);
+    let lease = nexus
+        .issue_route_lease_from_template("tester", "stomach_ctx_bridge", 1, None)
+        .expect("template lease");
+    nexus
+        .set_module_lifecycle("tester", "context_stacks", ModuleLifecycleState::Quiesced)
+        .expect("quiesce target");
+    let current = nexus
+        .active_leases()
+        .into_iter()
+        .find(|row| row.lease_id == lease.lease_id)
+        .expect("lease");
+    assert_eq!(
+        current.revocation_cause,
+        Some(RevocationCause::TargetQuiesced)
+    );
+}
+
+#[test]
+fn stomach_context_template_lease_revokes_when_target_detached() {
+    let mut nexus = test_plane();
+    nexus.register_v1_adapters("tester").expect("adapters");
+    upsert_stomach_context_template(&mut nexus);
+    let lease = nexus
+        .issue_route_lease_from_template("tester", "stomach_ctx_bridge", 1, None)
+        .expect("template lease");
+    nexus
+        .set_module_lifecycle("tester", "context_stacks", ModuleLifecycleState::Detached)
+        .expect("detach target");
+    let current = nexus
+        .active_leases()
+        .into_iter()
+        .find(|row| row.lease_id == lease.lease_id)
+        .expect("lease");
+    assert_eq!(
+        current.revocation_cause,
+        Some(RevocationCause::TargetDetached)
+    );
+}

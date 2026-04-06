@@ -12,7 +12,9 @@ pub mod runner;
 pub mod state;
 
 use proposal::{validate_proposal_bundle, ProposalBundle, TransformRequest};
-use quarantine::{create_quarantine_snapshot, IngestPolicy, SnapshotMetadata};
+use quarantine::{
+    create_quarantine_snapshot, record_fetch_phase, FetchMetadata, IngestPolicy, SnapshotMetadata,
+};
 use runner::{execute_proposal_in_trusted_runner, ExecutionReceipt, RunnerPolicy};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -51,6 +53,10 @@ pub struct AutonomyLadder {
     pub staged_acceptance_floor: f64,
     pub bounded_auto_merge_acceptance_floor: f64,
     pub bounded_auto_merge_min_reviews: u32,
+    pub broader_autonomy_min_reviews: u32,
+    pub broader_autonomy_rollback_success_floor: f64,
+    pub broader_autonomy_benchmark_coverage_floor: f64,
+    pub require_fixed_policy_analyzer_versions: bool,
 }
 
 impl Default for AutonomyLadder {
@@ -61,6 +67,10 @@ impl Default for AutonomyLadder {
             staged_acceptance_floor: 0.70,
             bounded_auto_merge_acceptance_floor: 0.85,
             bounded_auto_merge_min_reviews: 50,
+            broader_autonomy_min_reviews: 80,
+            broader_autonomy_rollback_success_floor: 0.99,
+            broader_autonomy_benchmark_coverage_floor: 0.95,
+            require_fixed_policy_analyzer_versions: true,
         }
     }
 }
@@ -71,6 +81,11 @@ pub struct ReviewWindowMetrics {
     pub accepted_proposals: u32,
     pub regressions: u32,
     pub policy_escapes: u32,
+    pub rollback_success_rate: f64,
+    pub benchmark_coverage_rate: f64,
+    pub repos_observed: u32,
+    pub policy_version: String,
+    pub analyzer_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -79,17 +94,34 @@ pub enum AutonomyStage {
     Shadow,
     Staged,
     BoundedAutoMerge,
+    BroaderAutonomy,
 }
 
 pub fn evaluate_autonomy_stage(
     config: &AutonomyLadder,
     metrics: &ReviewWindowMetrics,
+    expected_policy_version: &str,
+    expected_analyzer_version: &str,
 ) -> AutonomyStage {
     if !config.enabled {
         return AutonomyStage::Shadow;
     }
+    let versions_match = metrics.policy_version == expected_policy_version
+        && metrics.analyzer_version == expected_analyzer_version;
+    if config.require_fixed_policy_analyzer_versions && !versions_match {
+        return AutonomyStage::Shadow;
+    }
     let denom = metrics.reviewed_proposals.max(1) as f64;
     let acceptance = metrics.accepted_proposals as f64 / denom;
+    if metrics.regressions == 0
+        && metrics.policy_escapes == 0
+        && metrics.reviewed_proposals >= config.broader_autonomy_min_reviews
+        && metrics.rollback_success_rate >= config.broader_autonomy_rollback_success_floor
+        && metrics.benchmark_coverage_rate >= config.broader_autonomy_benchmark_coverage_floor
+        && metrics.repos_observed > 1
+    {
+        return AutonomyStage::BroaderAutonomy;
+    }
     if metrics.regressions == 0
         && metrics.policy_escapes == 0
         && metrics.reviewed_proposals >= config.bounded_auto_merge_min_reviews
@@ -109,6 +141,7 @@ pub fn evaluate_autonomy_stage(
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StomachDaemonOutput {
+    pub fetch: FetchMetadata,
     pub snapshot: SnapshotMetadata,
     pub provenance: provenance::ProvenanceRecord,
     pub analysis: analyzer::AnalysisReport,
@@ -135,6 +168,16 @@ pub fn run_stomach_cycle(
     transform: &TransformRequest,
     config: &StomachConfig,
 ) -> Result<StomachDaemonOutput, String> {
+    let fetch = record_fetch_phase(
+        digest_id,
+        source_root,
+        origin_url,
+        commit_hash,
+        fetched_refs,
+        &config.ingest_policy,
+        &config.policy_version,
+        &format!("receipt:{digest_id}:fetch"),
+    )?;
     let snapshot = create_quarantine_snapshot(
         state_root,
         digest_id,
@@ -144,10 +187,8 @@ pub fn run_stomach_cycle(
     )?;
     let provenance = provenance::build_provenance(
         &snapshot,
-        commit_hash,
-        fetched_refs.to_vec(),
+        &fetch,
         spdx,
-        &config.policy_version,
         &config.analyzer_version,
         &format!("receipt:{digest_id}:ingest"),
     );
@@ -159,6 +200,11 @@ pub fn run_stomach_cycle(
         &snapshot,
         Path::new(&snapshot.quarantine_root),
         transform,
+        &analysis
+            .cravings
+            .iter()
+            .map(|row| row.signal.clone())
+            .collect::<Vec<_>>(),
         &[format!("receipt:{digest_id}:analysis")],
         &config.transformer_version,
     )?;
@@ -198,6 +244,7 @@ pub fn run_stomach_cycle(
     }
 
     Ok(StomachDaemonOutput {
+        fetch,
         snapshot,
         provenance,
         analysis,
@@ -221,9 +268,14 @@ mod tests {
             accepted_proposals: 200,
             regressions: 0,
             policy_escapes: 0,
+            rollback_success_rate: 1.0,
+            benchmark_coverage_rate: 1.0,
+            repos_observed: 3,
+            policy_version: "stomach_policy_v1".to_string(),
+            analyzer_version: "stomach_analyzer_v1".to_string(),
         };
         assert_eq!(
-            evaluate_autonomy_stage(&cfg, &metrics),
+            evaluate_autonomy_stage(&cfg, &metrics, "stomach_policy_v1", "stomach_analyzer_v1"),
             AutonomyStage::Shadow
         );
     }

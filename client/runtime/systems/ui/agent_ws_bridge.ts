@@ -67,21 +67,90 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     }
     return out;
   };
-  const replayToolTimeline = async (ws, agentId, tools) => {
+  const normalizeToolCompletionSteps = (rawCompletion) => {
+    if (!rawCompletion || typeof rawCompletion !== 'object') return [];
+    const rows = Array.isArray(rawCompletion.live_tool_steps)
+      ? rawCompletion.live_tool_steps
+      : [];
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] && typeof rows[i] === 'object' ? rows[i] : {};
+      const tool = cleanText(row.tool || row.name || '', 120).toLowerCase();
+      const status = cleanText(row.status || row.tool_status || '', 220);
+      if (!tool || !status) continue;
+      out.push({
+        tool,
+        status,
+        is_error: !!row.is_error,
+      });
+      if (out.length >= 16) break;
+    }
+    return out;
+  };
+  const toolStatusFromCompletion = (toolName, toolIndex, completionSteps, fallbackStatus) => {
+    if (Array.isArray(completionSteps) && completionSteps.length > 0) {
+      const byIndex = completionSteps[toolIndex] || null;
+      if (
+        byIndex &&
+        String(byIndex.tool || '').toLowerCase() === String(toolName || '').toLowerCase() &&
+        byIndex.status
+      ) {
+        return cleanText(byIndex.status, 220);
+      }
+      for (let i = 0; i < completionSteps.length; i++) {
+        const row = completionSteps[i] || {};
+        if (
+          String(row.tool || '').toLowerCase() === String(toolName || '').toLowerCase() &&
+          row.status
+        ) {
+          return cleanText(row.status, 220);
+        }
+      }
+    }
+    return cleanText(fallbackStatus || '', 220);
+  };
+  const replayToolTimeline = async (ws, agentId, tools, toolCompletion) => {
     if (!Array.isArray(tools) || tools.length < 1) return;
     const replayCount = Math.min(tools.length, 8);
-    const basePauseMs = replayCount > 4 ? 42 : 55;
+    const completionSteps = normalizeToolCompletionSteps(toolCompletion);
+    const fallbackToolStatus = cleanText(
+      toolCompletion && typeof toolCompletion === 'object'
+        ? toolCompletion.live_tool_status || ''
+        : '',
+      220
+    );
+    const basePauseMs = replayCount > 4 ? 90 : 120;
     for (let i = 0; i < replayCount; i++) {
       const tool = tools[i] || {};
       const toolName = cleanText(tool.name || 'tool', 120).toLowerCase() || 'tool';
       const toolInput = cleanText(tool.input || '', 16000);
       const toolResult = cleanText(tool.result || '', 24000);
       const toolError = !!tool.is_error;
+      const toolStatus = toolStatusFromCompletion(
+        toolName,
+        i,
+        completionSteps,
+        i === 0 ? fallbackToolStatus : ''
+      );
       send(ws, {
         type: 'tool_start',
         agent_id: agentId,
         tool: toolName,
         input: toolInput,
+        tool_status: toolStatus,
+      });
+      if (toolStatus) {
+        send(ws, {
+          type: 'phase',
+          agent_id: agentId,
+          phase: 'tool_running',
+          detail: toolStatus,
+          tool: toolName,
+          source: 'tool_completion_receipt',
+          progress_percent: Math.round(((i + 1) / replayCount) * 100),
+          tool_step_index: i + 1,
+          tool_step_total: replayCount,
+        });
       });
       const thoughtLines =
         toolName === 'thought_process'
@@ -103,12 +172,14 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         input: toolInput,
         result: toolResult,
         is_error: toolError,
+        tool_status: toolStatus,
       });
       send(ws, {
         type: 'tool_end',
         agent_id: agentId,
         tool: toolName,
         input: toolInput,
+        tool_status: toolStatus,
       });
       await sleep(basePauseMs);
     }
@@ -177,6 +248,13 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             return;
           }
           const toolRows = normalizeToolRows(out.tools);
+          const toolCompletion =
+            out &&
+            out.response_finalization &&
+            out.response_finalization.tool_completion &&
+            typeof out.response_finalization.tool_completion === 'object'
+              ? out.response_finalization.tool_completion
+              : null;
           if (toolRows.length > 0) {
             send(ws, {
               type: 'phase',
@@ -184,7 +262,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
               phase: 'planning',
               detail: 'Preparing tool findings',
             });
-            await replayToolTimeline(ws, targetAgent, toolRows);
+            await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
           send(ws, {
             type: 'response',

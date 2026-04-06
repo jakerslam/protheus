@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: client/runtime/systems/ops (authoritative setup compatibility lane)
+// Layer ownership: core/layer0/ops (authoritative setup state + policy lane)
+// Thin TypeScript UX wrapper only.
 
-const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const readline = require('readline');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const STATE_PATH = path.join(
+const OPS_WRAPPER = path.join(
+  ROOT,
+  'client',
+  'runtime',
+  'systems',
+  'ops',
+  'run_protheus_ops.ts'
+);
+const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
+const DEFAULT_STATE_PATH = path.join(
   ROOT,
   'local',
   'state',
@@ -16,10 +26,6 @@ const STATE_PATH = path.join(
   'protheus_setup_wizard',
   'latest.json'
 );
-
-function nowIso() {
-  return new Date().toISOString();
-}
 
 function cleanText(raw, maxLen = 120) {
   return String(raw || '')
@@ -34,6 +40,61 @@ function asBool(raw, fallback = false) {
   if (['1', 'true', 'yes', 'on', 'y'].includes(value)) return true;
   if (['0', 'false', 'no', 'off', 'n'].includes(value)) return false;
   return fallback;
+}
+
+function encodeBase64(value) {
+  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
+}
+
+function parseLastJson(stdout) {
+  const lines = String(stdout || '')
+    .split('\n')
+    .map((line) => String(line || '').trim())
+    .filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (!line.startsWith('{')) continue;
+    try {
+      return JSON.parse(line);
+    } catch (_) {}
+  }
+  return null;
+}
+
+function invokeSetupWizardKernel(payload) {
+  const serialized = JSON.stringify(payload && typeof payload === 'object' ? payload : {});
+  const run = spawnSync(
+    process.execPath,
+    [
+      TS_ENTRYPOINT,
+      OPS_WRAPPER,
+      'state-kernel',
+      'setup-wizard',
+      `--payload-base64=${encodeBase64(serialized)}`
+    ],
+    {
+      cwd: ROOT,
+      env: { ...process.env },
+      encoding: 'utf8'
+    }
+  );
+  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  const receipt = parseLastJson(run.stdout);
+  const payloadOut = receipt && typeof receipt === 'object'
+    && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+  if (status !== 0 || !payloadOut || typeof payloadOut !== 'object') {
+    return {
+      ok: false,
+      type: 'protheus_setup_wizard',
+      error: cleanText(
+        run && run.stderr ? String(run.stderr) : 'setup_wizard_kernel_bridge_failed',
+        240
+      )
+    };
+  }
+  return payloadOut;
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -96,22 +157,6 @@ function parseArgs(argv = process.argv.slice(2)) {
   return out;
 }
 
-function readState() {
-  try {
-    const raw = fs.readFileSync(STATE_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return parsed;
-    }
-  } catch (_) {}
-  return null;
-}
-
-function writeState(payload) {
-  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-  fs.writeFileSync(STATE_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-}
-
 function pickInteraction(raw) {
   const normalized = cleanText(raw, 40).toLowerCase();
   if (['silent', 'quiet'].includes(normalized)) return 'silent';
@@ -149,29 +194,12 @@ function ask(prompt, fallback) {
 }
 
 async function runWizard(opts) {
-  const existing = readState();
-  if (existing && existing.completed === true && !opts.force) {
-    const payload = {
-      ok: true,
-      type: 'protheus_setup_wizard',
-      command: 'run',
-      skipped: true,
-      reason: 'already_completed',
-      state_path: STATE_PATH,
-      state: existing
-    };
-    emit(opts.json, payload, '[infring setup] already completed');
-    return 0;
-  }
-
   const nonInteractive = opts.yes || opts.defaults || !process.stdin.isTTY || !process.stdout.isTTY;
   let covenantAck = true;
   let interaction = pickInteraction(opts.interaction || 'proactive');
   let notifications = pickNotifications(opts.notifications || 'critical');
-  let completionMode = nonInteractive ? 'defaults' : 'interactive';
 
   if (opts.skip) {
-    completionMode = 'skipped';
     covenantAck = false;
     interaction = 'silent';
     notifications = 'none';
@@ -193,54 +221,56 @@ async function runWizard(opts) {
     notifications = pickNotifications(notificationsInput);
   }
 
-  const payload = {
-    type: 'protheus_setup_wizard_state',
-    completed: true,
-    completed_at: nowIso(),
-    completion_mode: completionMode,
-    covenant_acknowledged: covenantAck,
-    interaction_style: interaction,
+  const payload = invokeSetupWizardKernel({
+    command: 'run',
+    force: !!opts.force,
+    skip: !!opts.skip,
+    defaults: !!opts.defaults,
+    yes: !!opts.yes,
+    interaction,
     notifications,
-    profile: {
-      interaction_style: interaction,
-      notifications
-    },
-    version: 1
-  };
-  writeState(payload);
+    covenant_acknowledged: covenantAck
+  });
+  if (!payload || payload.ok !== true) {
+    const error = cleanText(payload && payload.error ? payload.error : 'setup_wizard_kernel_failed', 240);
+    emit(opts.json, payload || { ok: false, type: 'protheus_setup_wizard', error }, '');
+    if (!opts.json) process.stderr.write(`${error}\n`);
+    return 1;
+  }
+  if (payload.skipped === true && String(payload.reason || '') === 'already_completed') {
+    emit(opts.json, payload, '[infring setup] already completed');
+    return 0;
+  }
 
   emit(
     opts.json,
-    {
-      ok: true,
-      type: 'protheus_setup_wizard',
-      command: 'run',
-      state_path: STATE_PATH,
-      state: payload
-    },
+    payload,
     `[infring setup] saved profile (interaction=${interaction}, notifications=${notifications})`
   );
   return 0;
 }
 
 function statusWizard(opts) {
-  const existing = readState();
-  const payload = {
-    ok: true,
-    type: 'protheus_setup_wizard',
-    command: 'status',
-    state_path: STATE_PATH,
-    state: existing || {
-      type: 'protheus_setup_wizard_state',
-      completed: false,
-      version: 1
-    }
+  const payload = invokeSetupWizardKernel({ command: 'status' });
+  const fallbackState = {
+    type: 'protheus_setup_wizard_state',
+    completed: false,
+    version: 1
   };
+  const state = payload && payload.state && typeof payload.state === 'object'
+    ? payload.state
+    : fallbackState;
   if (opts.json) {
-    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    process.stdout.write(`${JSON.stringify(payload || {
+      ok: false,
+      type: 'protheus_setup_wizard',
+      command: 'status',
+      state_path: DEFAULT_STATE_PATH,
+      state
+    })}\n`);
     return 0;
   }
-  if (existing && existing.completed === true) {
+  if (state && state.completed === true) {
     process.stdout.write('[infring setup] completed\n');
   } else {
     process.stdout.write('[infring setup] pending\n');
@@ -249,37 +279,26 @@ function statusWizard(opts) {
 }
 
 function resetWizard(opts) {
-  let removed = false;
-  try {
-    fs.unlinkSync(STATE_PATH);
-    removed = true;
-  } catch (_) {}
-  const payload = {
-    ok: true,
-    type: 'protheus_setup_wizard',
-    command: 'reset',
-    state_path: STATE_PATH,
-    removed
-  };
-  emit(opts.json, payload, removed ? '[infring setup] reset complete' : '[infring setup] nothing to reset');
+  const payload = invokeSetupWizardKernel({ command: 'reset' });
+  const removed = !!(payload && payload.removed);
+  emit(opts.json, payload || { ok: false, type: 'protheus_setup_wizard', command: 'reset' }, removed ? '[infring setup] reset complete' : '[infring setup] nothing to reset');
   return 0;
 }
 
 async function main(argv = process.argv.slice(2)) {
   const opts = parseArgs(argv);
   if (opts.command === 'help' || opts.command === '--help' || opts.command === '-h') {
-    const usage = {
-      ok: true,
-      type: 'protheus_setup_wizard_help',
-      usage: [
-        'protheus setup [run|status|reset] [--json]',
-        'protheus setup run [--force] [--yes] [--defaults] [--interaction=<proactive|silent>] [--notifications=<all|critical|none>]',
-        'protheus setup run --skip',
-        'protheus setup status',
-        'protheus setup reset'
-      ]
-    };
-    emit(opts.json, usage, usage.usage.join('\n'));
+    const usage = invokeSetupWizardKernel({ command: 'help' });
+    const lines = usage && Array.isArray(usage.usage)
+      ? usage.usage
+      : [
+          'protheus setup [run|status|reset] [--json]',
+          'protheus setup run [--force] [--yes] [--defaults] [--interaction=<proactive|silent>] [--notifications=<all|critical|none>]',
+          'protheus setup run --skip',
+          'protheus setup status',
+          'protheus setup reset'
+        ];
+    emit(opts.json, usage, lines.join('\n'));
     return 0;
   }
 
@@ -312,6 +331,5 @@ module.exports = {
   parseArgs,
   runWizard,
   statusWizard,
-  resetWizard,
-  STATE_PATH
+  resetWizard
 };

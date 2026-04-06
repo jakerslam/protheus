@@ -9,6 +9,7 @@ pub struct RunnerPolicy {
     pub trusted_isolated_runner: bool,
     pub allow_network: bool,
     pub allow_repo_hooks: bool,
+    pub allow_repo_generators: bool,
     pub allow_submodule_materialization: bool,
     pub allow_lfs_materialization: bool,
 }
@@ -19,6 +20,7 @@ impl Default for RunnerPolicy {
             trusted_isolated_runner: true,
             allow_network: false,
             allow_repo_hooks: false,
+            allow_repo_generators: false,
             allow_submodule_materialization: false,
             allow_lfs_materialization: false,
         }
@@ -31,6 +33,7 @@ pub struct ExecutionReceipt {
     pub status: String,
     pub executed: bool,
     pub runner_mode: String,
+    pub execution_boundary: String,
     pub blocked_reason: Option<String>,
     pub tests: Vec<String>,
 }
@@ -41,6 +44,9 @@ pub fn verify_runner_policy(policy: &RunnerPolicy) -> Result<(), String> {
     }
     if policy.allow_repo_hooks {
         return Err("runner_policy_repo_hooks_forbidden_in_v1".to_string());
+    }
+    if policy.allow_repo_generators {
+        return Err("runner_policy_repo_generators_forbidden_in_v1".to_string());
     }
     if policy.allow_submodule_materialization {
         return Err("runner_policy_submodule_materialization_forbidden_in_v1".to_string());
@@ -66,6 +72,7 @@ pub fn execute_proposal_in_trusted_runner(
                 "trusted_isolated_runner_network_disabled"
             }
             .to_string(),
+            execution_boundary: "trusted_isolated_runner_after_proposal_generation".to_string(),
             blocked_reason: None,
             tests: vec![
                 "policy_gate_pass".to_string(),
@@ -78,6 +85,7 @@ pub fn execute_proposal_in_trusted_runner(
             status: "blocked".to_string(),
             executed: false,
             runner_mode: "runner_rejected".to_string(),
+            execution_boundary: "trusted_isolated_runner_after_proposal_generation".to_string(),
             blocked_reason: Some(reason),
             tests: vec!["policy_gate_fail".to_string()],
         },
@@ -124,5 +132,17 @@ mod tests {
         let out = execute_proposal_in_trusted_runner(&sample_bundle(), &policy);
         assert!(!out.executed);
         assert_eq!(out.status, "blocked");
+    }
+
+    #[test]
+    fn runner_blocks_repo_generators_in_v1() {
+        let mut policy = RunnerPolicy::default();
+        policy.allow_repo_generators = true;
+        let out = execute_proposal_in_trusted_runner(&sample_bundle(), &policy);
+        assert!(!out.executed);
+        assert_eq!(
+            out.blocked_reason.as_deref(),
+            Some("runner_policy_repo_generators_forbidden_in_v1")
+        );
     }
 }

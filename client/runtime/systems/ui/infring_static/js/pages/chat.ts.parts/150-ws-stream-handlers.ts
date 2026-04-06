@@ -116,12 +116,10 @@
           this.ensureStreamingToolCard(lastMsg, data.tool, data.input || '', { running: true });
           lastMsg._stream_updated_at = Date.now();
           if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now();
-          var startLabel = typeof this.toolThinkingActionLabel === 'function'
-            ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' })
-            : String(data.tool || 'tool');
-          if (startLabel) {
-            lastMsg.thinking_status = startLabel;
-          }
+          var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
+          if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel);
+          var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
+          if (startLabel) lastMsg.thinking_status = startLabel;
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
@@ -129,9 +127,9 @@
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
             var runningTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: true });
-            var runningLabel = typeof this.toolThinkingActionLabel === 'function'
-              ? this.toolThinkingActionLabel(runningTool || { name: data.tool, input: data.input || '' })
-              : String(data.tool || 'tool');
+            var receiptRunningLabel = String(data && data.tool_status ? data.tool_status : '').trim();
+            if (receiptRunningLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptRunningLabel = this.normalizeThinkingStatusCandidate(receiptRunningLabel);
+            var runningLabel = receiptRunningLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel(runningTool || { name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
             if (runningLabel) lastMsg2.thinking_status = runningLabel;
             lastMsg2._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
