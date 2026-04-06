@@ -144,6 +144,74 @@ mod tests {
     }
 
     #[test]
+    fn instructional_prompt_rewrite_focuses_query_topic() {
+        let query = "Verify web search and fetch capabilities by researching current AI agent framework benchmarks. Report top 3 performance metrics found.";
+        let rewrite = normalize_instructional_query(query).expect("rewrite");
+        assert!(rewrite.contains("agent"));
+        assert!(rewrite.contains("benchmarks"));
+        assert!(rewrite.contains("metrics"));
+        assert!(!rewrite.contains("verify"));
+        assert!(!rewrite.contains("report"));
+        let budget = aperture_budget("medium").expect("budget");
+        let (plan, rewrite_set, rewrite_applied) = build_query_plan(query, budget);
+        assert!(rewrite_applied);
+        assert_eq!(plan.len(), 2);
+        assert_eq!(rewrite_set.len(), 1);
+        assert_eq!(plan[1], rewrite);
+    }
+
+    #[test]
+    fn benchmark_intent_skips_definition_noise_and_synthesizes_metrics() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "Verify web search and fetch capabilities by researching current AI agent framework benchmarks. Report top 3 performance metrics found.";
+        let rewrite = normalize_instructional_query(query).expect("rewrite");
+        let mut fixture = Map::new();
+        fixture.insert(
+            query.to_string(),
+            json!({
+                "ok": true,
+                "summary": "VERIFY Definition & Meaning - Merriam-Webster",
+                "requested_url": "https://www.merriam-webster.com/dictionary/verify",
+                "status_code": 200
+            }),
+        );
+        fixture.insert(
+            rewrite,
+            json!({
+                "ok": true,
+                "summary": "Latest benchmark run reports median latency 820ms, throughput 48 tokens/s, and task success rate 86% across top agent frameworks.",
+                "requested_url": "https://artificialanalysis.ai/benchmarks/agent-frameworks",
+                "status_code": 200
+            }),
+        );
+        let out = with_fixture(Value::Object(fixture), || {
+            api_batch_query(
+                tmp.path(),
+                &json!({"source":"web","query":query,"aperture":"medium"}),
+            )
+        });
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("web benchmark synthesis"));
+        assert!(lowered.contains("latency") || lowered.contains("tokens/s"));
+        assert!(!lowered.contains("merriam-webster"));
+        let evidence = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!evidence.is_empty());
+        let has_metric_locator = evidence.iter().any(|row| {
+            row.get("locator")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("artificialanalysis.ai")
+        });
+        assert!(has_metric_locator);
+    }
+
+    #[test]
     fn exact_match_query_disables_rewrite_and_parallel() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = with_fixture(

@@ -365,6 +365,7 @@
       if (compact.length > 108) return compact.slice(0, 105) + '...';
       return compact;
     },
+
     thinkingDisplayText: function(msg) {
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
       if (!rawThought) return '';

@@ -314,6 +314,10 @@ mod tests {
             .to_ascii_lowercase();
         assert!(!joined.contains("continue with"));
         assert!(!joined.contains("can you continue"));
+        assert!(rows
+            .iter()
+            .filter_map(Value::as_str)
+            .all(|row| !row.trim_end().ends_with('?')));
         assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
     }
 
@@ -343,6 +347,10 @@ mod tests {
             .to_ascii_lowercase();
         assert!(!joined.contains("continue with"));
         assert!(!joined.contains("can you continue"));
+        assert!(rows
+            .iter()
+            .filter_map(Value::as_str)
+            .all(|row| !row.trim_end().ends_with('?')));
         assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
     }
 
@@ -394,6 +402,10 @@ mod tests {
             .join(" ")
             .to_ascii_lowercase();
         assert!(!joined.contains("can you continue"));
+        assert!(rows
+            .iter()
+            .filter_map(Value::as_str)
+            .all(|row| !row.trim_end().ends_with('?')));
         assert!(joined.contains("infring") || joined.contains("command flow"));
     }
 

@@ -4,6 +4,7 @@ param(
   [switch]$Pure,
   [switch]$TinyMax,
   [switch]$Repair,
+  [switch]$Force,
   [string]$InstallDir,
   [string]$TmpDir
 )
@@ -74,6 +75,15 @@ if ($TinyMax) {
   $InstallFull = $false
 }
 if ($Repair) { $InstallRepair = $true }
+if ($Force) {
+  # Compatibility shim for operators accustomed to `-Force`.
+  # Treat this as an explicit repair pass and bias to `-Full` unless the caller
+  # already selected a constrained mode.
+  $InstallRepair = $true
+  if (-not ($Minimal -or $Pure -or $TinyMax)) {
+    $InstallFull = $true
+  }
+}
 
 if ($TmpDir) {
   New-Item -ItemType Directory -Force -Path $TmpDir | Out-Null
@@ -772,6 +782,7 @@ Write-Host "[infring install] run in this shell: infring --help"
 Write-Host "[infring install] quickstart: infring gateway"
 Write-Host "[infring install] stop: infring gateway stop"
 Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"
+Write-Host "[infring install] if script execution is restricted, relaunch PowerShell with process-only bypass: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force"
 
 if ($script:SourceFallbackTmp -and (Test-Path $script:SourceFallbackTmp.FullName)) {
   Remove-Item -Force -Recurse $script:SourceFallbackTmp.FullName

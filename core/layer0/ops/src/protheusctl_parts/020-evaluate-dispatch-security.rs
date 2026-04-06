@@ -887,11 +887,37 @@ fn enforce_command_center_boundary(cmd: &str, route: &Route) -> Result<(), Strin
     Ok(())
 }
 
-fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String]) {
+fn suppress_pre_dispatch_side_effects(cmd: &str, json_mode: bool) -> bool {
+    if json_mode {
+        return true;
+    }
+    matches!(
+        cmd,
+        "list"
+            | "status"
+            | "doctor"
+            | "verify-install"
+            | "gateway"
+            | "dashboard"
+            | "setup"
+            | "version"
+            | "update"
+            | "help"
+            | "--help"
+            | "-h"
+            | "completion"
+            | "repl"
+    )
+}
+
+fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String], json_mode: bool) {
     if bool_env("PROTHEUS_GLOBAL_QUIET", false) {
         return;
     }
     if !bool_env("PROTHEUS_CLI_SUGGESTIONS", true) {
+        return;
+    }
+    if suppress_pre_dispatch_side_effects(cmd, json_mode) {
         return;
     }
     if matches!(
@@ -953,9 +979,9 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String]) {
         .arg(format!("--cmd={}", clean(cmd, 60)))
         .arg(format!("--argv-json={request_json}"))
         .current_dir(root)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status();
 }
 
@@ -963,16 +989,10 @@ fn maybe_run_update_checker(root: &Path, cmd: &str, json_mode: bool) {
     if bool_env("PROTHEUS_GLOBAL_QUIET", false) {
         return;
     }
-    if json_mode {
-        return;
-    }
     if bool_env("PROTHEUS_UPDATE_CHECKER_DISABLED", false) {
         return;
     }
-    if matches!(
-        cmd,
-        "version" | "update" | "help" | "--help" | "-h" | "doctor" | "verify-install"
-    ) {
+    if suppress_pre_dispatch_side_effects(cmd, json_mode) {
         return;
     }
     let script_js = root.join("client/runtime/systems/ops/protheus_version_cli.js");

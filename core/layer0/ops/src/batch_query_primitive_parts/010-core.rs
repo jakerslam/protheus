@@ -195,6 +195,104 @@ fn is_exact_match_pattern(query: &str) -> bool {
     exact_match_regexes().iter().any(|re| re.is_match(query))
 }
 
+fn instruction_frame_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(?:verify|check|test|research(?:ing)?|find(?:\s+out)?|report|return|provide|show|summarize|compare|assess|evaluate|investigate|answer)\b",
+        )
+        .expect("instruction-frame")
+    })
+}
+
+fn instruction_tail_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(?:verify|check|test|research(?:ing)?|find(?:\s+out)?|report|return|provide|show|summarize|compare|assess|evaluate|investigate|answer)\b.{0,120}?\b(?:by|about|on)\b\s+(.+)$",
+        )
+        .expect("instruction-tail")
+    })
+}
+
+fn looks_like_instructional_query(query: &str) -> bool {
+    let base = clean_text(query, 600);
+    if base.is_empty() {
+        return false;
+    }
+    let word_count = base.split_whitespace().count();
+    if word_count < 9 {
+        return false;
+    }
+    instruction_frame_regex().is_match(&base)
+}
+
+fn is_instruction_stop_token(token: &str) -> bool {
+    matches!(
+        token,
+        "please"
+            | "kindly"
+            | "verify"
+            | "check"
+            | "test"
+            | "research"
+            | "researching"
+            | "find"
+            | "found"
+            | "report"
+            | "return"
+            | "provide"
+            | "show"
+            | "summarize"
+            | "answer"
+            | "question"
+            | "questions"
+            | "results"
+            | "result"
+            | "using"
+            | "with"
+            | "into"
+            | "actual"
+            | "proper"
+            | "web"
+            | "search"
+            | "fetch"
+            | "tool"
+            | "tools"
+            | "functionality"
+            | "capabilities"
+    )
+}
+
+fn normalize_instructional_query(query: &str) -> Option<String> {
+    let base = clean_text(query, 600);
+    if base.is_empty() {
+        return None;
+    }
+    let lowered = base.to_ascii_lowercase();
+    let focus_seed = instruction_tail_regex()
+        .captures(&lowered)
+        .and_then(|caps| caps.get(1).map(|row| row.as_str().to_string()))
+        .unwrap_or(lowered);
+    let tokens = focus_seed
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+        .filter(|token| token.len() > 2 || token.chars().all(|ch| ch.is_ascii_digit()))
+        .map(|token| token.to_ascii_lowercase())
+        .filter(|token| !is_instruction_stop_token(token.as_str()))
+        .collect::<Vec<_>>();
+    if tokens.len() < 3 {
+        return None;
+    }
+    let candidate = clean_text(&tokens.join(" "), 600);
+    if candidate.is_empty() {
+        None
+    } else {
+        Some(candidate)
+    }
+}
+
 fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<String>, bool) {
     let base = clean_text(query, 600);
     if base.is_empty() {
@@ -204,7 +302,11 @@ fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<St
     if exact || budget.max_query_rewrites == 0 {
         return (vec![base], Vec::new(), false);
     }
-    let rewrite = clean_text(&format!("{base} overview"), 600);
+    let rewrite = if looks_like_instructional_query(&base) {
+        normalize_instructional_query(&base).unwrap_or_else(|| clean_text(&format!("{base} overview"), 600))
+    } else {
+        clean_text(&format!("{base} overview"), 600)
+    };
     if rewrite == base {
         return (vec![base], Vec::new(), false);
     }
@@ -270,6 +372,110 @@ fn looks_like_source_only_snippet(text: &str) -> bool {
         }
     }
     false
+}
+
+fn is_benchmark_or_comparison_intent(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    [
+        "benchmark",
+        "benchmarks",
+        "compare",
+        "comparison",
+        "competitor",
+        "competitors",
+        "versus",
+        " vs ",
+        "ranking",
+        "landscape",
+        "performance metrics",
+        "top ",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn metric_number_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\b\d+(?:\.\d+)?\s*(?:%|ms|s|sec|seconds|minutes|x|qps|tps|ops/?sec|tokens/?s)\b")
+            .expect("metric-number")
+    })
+}
+
+fn looks_like_metric_rich_text(text: &str) -> bool {
+    let lowered = clean_text(text, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    if metric_number_regex().is_match(&lowered) {
+        return true;
+    }
+    let metric_term_hits = [
+        "latency",
+        "throughput",
+        "accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "ops/sec",
+        "tokens/s",
+        "qps",
+        "memory",
+        "cpu",
+        "cost",
+        "benchmark",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    metric_term_hits >= 2
+}
+
+fn looks_like_definition_candidate(candidate: &Candidate) -> bool {
+    let lowered = clean_text(
+        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    [
+        "dictionary",
+        "definition",
+        "meaning",
+        "thesaurus",
+        "merriam-webster",
+        "dictionary.com",
+        "cambridge.org/dictionary",
+        "collinsdictionary",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn extract_metric_focused_fragment(text: &str) -> String {
+    let cleaned = clean_text(text, 1_200);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    for segment in cleaned.split(['.', ';', '\n', '|']) {
+        let segment_clean = clean_text(segment, 400);
+        if segment_clean.is_empty() {
+            continue;
+        }
+        if looks_like_metric_rich_text(&segment_clean) {
+            return segment_clean;
+        }
+    }
+    cleaned
+}
+
+fn candidate_domain_hint(candidate: &Candidate) -> String {
+    if let Some(domain) = extract_domains_from_text(&candidate.locator, 1).into_iter().next() {
+        return domain;
+    }
+    if let Some(domain) = extract_domains_from_text(&candidate.title, 1).into_iter().next() {
+        return domain;
+    }
+    "source".to_string()
 }
 
 fn skip_duckduckgo_fallback_for_error(primary_err: &str) -> bool {

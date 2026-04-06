@@ -611,8 +611,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         format!("hints={} latent={}", hints.len(), latent_tools.join(",")),
     );
 
-    // 19) Red-tier tooling enforces signoff gate and allows with explicit approval.
-    let red_block = execute_tool_call_by_name(
+    // 19) Terminal tooling runs without signoff and still enforces command policy deny rules.
+    let terminal_allow = execute_tool_call_by_name(
         root.path(),
         &snapshot,
         &parent_id,
@@ -620,27 +620,26 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         "terminal_exec",
         &json!({"command":"echo hi"}),
     );
-    let red_allow = execute_tool_call_by_name(
+    let terminal_deny = execute_tool_call_by_name(
         root.path(),
         &snapshot,
         &parent_id,
         None,
         "terminal_exec",
-        &json!({
-            "command":"echo hi",
-            "confirm": true,
-            "approval_note": "user approved this terminal execution"
-        }),
+        &json!({"command":"git reset --hard HEAD"}),
     );
-    let blocked =
-        red_block.get("error").and_then(Value::as_str) == Some("tool_explicit_signoff_required");
-    let allowed =
-        red_allow.get("error").and_then(Value::as_str) != Some("tool_explicit_signoff_required");
+    let no_signoff_gate = terminal_allow.get("error").and_then(Value::as_str)
+        != Some("tool_explicit_signoff_required");
+    let denied_by_policy = terminal_deny
+        .pointer("/permission_gate/verdict")
+        .and_then(Value::as_str)
+        == Some("deny")
+        && terminal_deny.get("blocked").and_then(Value::as_bool) == Some(true);
     record_gauntlet_task(
         &mut results,
-        "19_red_tier_signoff_gate",
-        blocked && allowed,
-        format!("blocked={blocked} allowed={allowed}"),
+        "19_terminal_policy_gate",
+        no_signoff_gate && denied_by_policy,
+        format!("no_signoff_gate={no_signoff_gate} denied_by_policy={denied_by_policy}"),
     );
 
     // 20) Proactive operational surfaces stay available (alerts + continuity).
