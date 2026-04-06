@@ -503,6 +503,41 @@ fn workspace_package_version(root: &Path) -> Option<String> {
         .map(ToString::to_string)
 }
 
+fn workspace_install_release_version(root: &Path) -> Option<String> {
+    let meta_path = root
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("install_release_meta.json");
+    if let Ok(raw) = std::fs::read_to_string(&meta_path) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&raw) {
+            if let Some(value) = parsed
+                .get("release_version_normalized")
+                .and_then(Value::as_str)
+                .or_else(|| parsed.get("release_tag").and_then(Value::as_str))
+            {
+                let normalized = value.trim().trim_start_matches(['v', 'V']).to_string();
+                if !normalized.is_empty() {
+                    return Some(normalized);
+                }
+            }
+        }
+    }
+
+    let tag_path = root
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("install_release_tag.txt");
+    let raw = std::fs::read_to_string(tag_path).ok()?;
+    let normalized = raw.trim().trim_start_matches(['v', 'V']).to_string();
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
 fn command_list_mode(args: &[String]) -> String {
     args.iter()
         .find_map(|arg| arg.strip_prefix("--mode=").map(|value| value.to_string()))
@@ -645,8 +680,9 @@ fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<
                 .first()
                 .map(|row| row.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "version".to_string());
-            let version =
-                workspace_package_version(root).unwrap_or_else(|| "0.0.0-unknown".to_string());
+            let version = workspace_install_release_version(root)
+                .or_else(|| workspace_package_version(root))
+                .unwrap_or_else(|| "0.0.0-unknown".to_string());
             match command.as_str() {
                 "check-quiet" => Some(0),
                 "update" => {
@@ -683,7 +719,7 @@ fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<
                         );
                     } else {
                         println!("infring {version}");
-                        println!("(Node.js not detected; using package.json fallback)");
+                        println!("(Node.js not detected; using install metadata fallback)");
                     }
                     Some(0)
                 }

@@ -138,9 +138,14 @@
       var dx = x - Number(this._pointerTrailLastX || x);
       var dy = y - Number(this._pointerTrailLastY || y);
       var dist = Math.sqrt(dx * dx + dy * dy);
-      // Denser sampling for a smoother neon trail.
-      var spacing = 0.13;
-      var steps = Math.max(1, Math.min(52, Math.ceil(dist / spacing)));
+      var profile = typeof this.pointerTrailProfile === 'function'
+        ? this.pointerTrailProfile()
+        : null;
+      var spacing = Number(profile && profile.spacing);
+      if (!Number.isFinite(spacing) || spacing <= 0) spacing = 0.13;
+      var maxSteps = Number(profile && profile.max_steps);
+      if (!Number.isFinite(maxSteps) || maxSteps < 1) maxSteps = 52;
+      var steps = Math.max(1, Math.min(maxSteps, Math.ceil(dist / spacing)));
       for (var i = 1; i <= steps; i++) {
         var t0 = (i - 1) / steps;
         var t1 = i / steps;
@@ -149,7 +154,19 @@
         var sx1 = this._pointerTrailLastX + (dx * t1);
         var sy1 = this._pointerTrailLastY + (dy * t1);
         var progress = t1;
-        var thickness = 2.05 + (progress * 1.85);
-        var alpha = 0.32 + (progress * 0.45);
-        var hueShift = -4 + (progress * 8);
+        var thickness = Number(profile && profile.segment_thickness_base);
+        if (!Number.isFinite(thickness)) thickness = 2.05;
+        var thicknessGain = Number(profile && profile.segment_thickness_gain);
+        if (!Number.isFinite(thicknessGain)) thicknessGain = 1.85;
+        thickness += (progress * thicknessGain);
+        var alpha = Number(profile && profile.segment_opacity_base);
+        if (!Number.isFinite(alpha)) alpha = 0.32;
+        var alphaGain = Number(profile && profile.segment_opacity_gain);
+        if (!Number.isFinite(alphaGain)) alphaGain = 0.45;
+        alpha += (progress * alphaGain);
+        var hueShift = Number(profile && profile.segment_hue_base);
+        if (!Number.isFinite(hueShift)) hueShift = -4;
+        var hueGain = Number(profile && profile.segment_hue_gain);
+        if (!Number.isFinite(hueGain)) hueGain = 8;
+        hueShift += (progress * hueGain);
         this.spawnPointerTrailSegment(host, sx0, sy0, sx1, sy1, {

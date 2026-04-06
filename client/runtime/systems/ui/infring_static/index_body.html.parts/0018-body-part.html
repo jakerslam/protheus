@@ -220,8 +220,12 @@
     var dx = x - Number(lastX || x);
     var dy = y - Number(lastY || y);
     var dist = Math.sqrt(dx * dx + dy * dy);
-    var spacing = 0.13;
-    var steps = Math.max(1, Math.min(52, Math.ceil(dist / spacing)));
+    var profile = pointerTrailProfile();
+    var spacing = Number(profile && profile.spacing);
+    if (!Number.isFinite(spacing) || spacing <= 0) spacing = 0.13;
+    var maxSteps = Number(profile && profile.max_steps);
+    if (!Number.isFinite(maxSteps) || maxSteps < 1) maxSteps = 52;
+    var steps = Math.max(1, Math.min(maxSteps, Math.ceil(dist / spacing)));
     for (var i = 1; i <= steps; i++) {
       var t0 = (i - 1) / steps;
       var t1 = i / steps;
@@ -230,26 +234,42 @@
       var sx1 = lastX + (dx * t1);
       var sy1 = lastY + (dy * t1);
       var progress = t1;
-      var thickness = 2.05 + (progress * 1.85);
-      var alpha = 0.32 + (progress * 0.45);
-      var hueShift = -4 + (progress * 8);
+      var thickness = Number(profile && profile.segment_thickness_base);
+      if (!Number.isFinite(thickness)) thickness = 2.05;
+      var thicknessGain = Number(profile && profile.segment_thickness_gain);
+      if (!Number.isFinite(thicknessGain)) thicknessGain = 1.85;
+      thickness += (progress * thicknessGain);
+      var alpha = Number(profile && profile.segment_opacity_base);
+      if (!Number.isFinite(alpha)) alpha = 0.32;
+      var alphaGain = Number(profile && profile.segment_opacity_gain);
+      if (!Number.isFinite(alphaGain)) alphaGain = 0.45;
+      alpha += (progress * alphaGain);
+      var hueShift = Number(profile && profile.segment_hue_base);
+      if (!Number.isFinite(hueShift)) hueShift = -4;
+      var hueGain = Number(profile && profile.segment_hue_gain);
+      if (!Number.isFinite(hueGain)) hueGain = 8;
+      hueShift += (progress * hueGain);
       spawnSegment(sx0, sy0, sx1, sy1, {
         thickness: thickness,
         opacity: alpha,
         hueShift: hueShift
       });
     }
-    var canSpawnHead = (now - Number(lastHeadAt || 0)) >= 28;
+    var headInterval = Number(profile && profile.head_interval_ms);
+    if (!Number.isFinite(headInterval) || headInterval < 1) headInterval = 28;
+    var canSpawnHead = (now - Number(lastHeadAt || 0)) >= headInterval;
     if (canSpawnHead || dist < 1.5) {
       var invDist = dist > 0.0001 ? (1 / dist) : 0;
       var nx = dist > 0.0001 ? (dx * invDist) : 1;
       var ny = dist > 0.0001 ? (dy * invDist) : 0;
-      var pxTrail = [
-        { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
-        { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
-        { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
-        { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 }
-      ];
+      var pxTrail = Array.isArray(profile && profile.head_particles) && profile.head_particles.length
+        ? profile.head_particles
+        : [
+            { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
+            { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
+            { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
+            { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 }
+          ];
       for (var j = 0; j < pxTrail.length; j++) {
         var p = pxTrail[j];
         var px = x - (nx * p.back) + (-ny * p.lateral);

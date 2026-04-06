@@ -4672,10 +4672,19 @@ fn response_looks_like_raw_web_artifact_dump(text: &str) -> bool {
         && lowered.contains("points by")
 }
 
+fn tool_is_autonomous_spawn(normalized: &str) -> bool {
+    matches!(
+        normalized,
+        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn"
+    )
+}
+
 fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
+    if tool_is_autonomous_spawn(normalized) {
+        return "green";
+    }
     match normalized {
         "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => "red",
-        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => "red",
         "agent_action" | "manage_agent" => {
             let action = clean_text(
                 input.get("action").and_then(Value::as_str).unwrap_or(""),
@@ -10698,7 +10707,7 @@ pub fn handle_with_headers(
                     ("cron_cancel", "yellow"),
                     ("manage_agent", "yellow"),
                     ("terminal_exec", "red"),
-                    ("spawn_subagents", "red"),
+                    ("spawn_subagents", "green"),
                 ];
                 json!({
                     "ok": true,

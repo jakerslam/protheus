@@ -69,12 +69,12 @@ assert.ok(
   'chat ws response handler must recover thought content from thought_process tool cards'
 );
 assert.ok(
-  bodyPartSource.includes("thinkingStatusText(msg) || 'Working...'") &&
+  bodyPartSource.includes("thinkingStatusText(msg) || 'Thinking'") &&
     !bodyPartSource.includes('thinking-trace-list'),
   'thinking bubble template must render a single primary status line without stacked trace rows'
 );
 assert.ok(
-  renderSource.includes('msg._thought_latest_chunk') &&
-    renderSource.includes("return String(msg._thinking_last_line || '').trim();"),
-  'thinking runtime must keep one sticky single-line sentence instead of composing multi-line status stacks'
+  renderSource.includes('nextThoughtSentenceFrame') &&
+    renderSource.includes("return 'Thinking';"),
+  'thinking runtime must keep one single-line sentence and default to Thinking when no active line exists'
 );
