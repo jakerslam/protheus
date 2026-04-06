@@ -296,3 +296,144 @@ fn historical_relevant_recall_prompt_context(
         max_chars.max(500),
     )
 }
+
+fn append_tool_completion_outcome(current: &str, event: &str) -> String {
+    let cleaned_current = clean_text(current, 200);
+    let cleaned_event = clean_text(event, 120);
+    if cleaned_event.is_empty() {
+        return if cleaned_current.is_empty() {
+            "unchanged".to_string()
+        } else {
+            cleaned_current
+        };
+    }
+    if cleaned_current.is_empty() || cleaned_current == "unchanged" {
+        return cleaned_event;
+    }
+    format!("{cleaned_current}+{cleaned_event}")
+}
+
+fn has_actionable_tool_reason(text: &str) -> bool {
+    let lowered = clean_text(text, 1200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let confirmation_reason = lowered.contains("need your confirmation")
+        || lowered.contains("requires confirmation")
+        || lowered.contains("reply `yes`")
+        || lowered.contains("reply yes")
+        || lowered.contains("permission");
+    let precondition_reason = lowered.contains("before running")
+        || lowered.contains("before i can run")
+        || lowered.contains("to execute it now")
+        || lowered.contains("confirm this step");
+    confirmation_reason && precondition_reason
+}
+
+fn enforce_tool_completion_contract(response_text: String, response_tools: &[Value]) -> (String, Value) {
+    let raw_actionable_reason = has_actionable_tool_reason(&response_text);
+    let mut tools_present = 0usize;
+    let mut successful_tools = 0usize;
+    let mut error_tools = 0usize;
+    for tool in response_tools {
+        let name = clean_text(tool.get("name").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        if name.is_empty() || name == "thought_process" {
+            continue;
+        }
+        tools_present += 1;
+        if tool
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            error_tools += 1;
+        } else {
+            successful_tools += 1;
+        }
+    }
+    let findings = {
+        let candidate = response_tools_summary_for_user(response_tools, 4);
+        let cleaned = clean_text(&candidate, 24_000);
+        if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned)
+        }
+    };
+    let findings_available = findings.is_some();
+    let (mut finalized, mut outcome, initial_ack_only) =
+        finalize_user_facing_response_with_outcome(response_text, findings.clone());
+    let mut applied = outcome != "unchanged";
+
+    if tools_present > 0 {
+        let finalized_cleaned = clean_text(&finalized, 32_000);
+        let actionable_reason = raw_actionable_reason || has_actionable_tool_reason(&finalized_cleaned);
+        if actionable_reason && !findings_available {
+            finalized = clean_text(&finalized_cleaned, 32_000);
+            if response_is_no_findings_placeholder(&finalized) {
+                finalized = clean_text(
+                    "I need your confirmation before running this command. Reply `yes` to continue.",
+                    32_000,
+                );
+            }
+            outcome = append_tool_completion_outcome(&outcome, "tool_completion_preserved_reason");
+            applied = true;
+        }
+        if findings_available
+            && (finalized_cleaned.is_empty()
+                || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
+                || response_is_no_findings_placeholder(&finalized_cleaned))
+        {
+            finalized = findings.unwrap_or_else(no_findings_user_facing_response);
+            outcome = append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_findings");
+            applied = true;
+        } else if !findings_available
+            && !actionable_reason
+            && (finalized_cleaned.is_empty()
+                || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
+                || response_is_no_findings_placeholder(&finalized_cleaned))
+        {
+            finalized = no_findings_user_facing_response();
+            outcome =
+                append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_no_findings");
+            applied = true;
+        }
+        if response_looks_like_tool_ack_without_findings(&finalized)
+            && !has_actionable_tool_reason(&finalized)
+        {
+            finalized = no_findings_user_facing_response();
+            outcome = append_tool_completion_outcome(&outcome, "tool_completion_forced_no_findings");
+            applied = true;
+        }
+    }
+
+    let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized);
+    let final_no_findings = response_is_no_findings_placeholder(&finalized);
+    let completion_state = if tools_present == 0 {
+        "not_applicable"
+    } else if findings_available {
+        "reported_findings"
+    } else if final_no_findings {
+        "reported_no_findings"
+    } else {
+        "reported_reason"
+    };
+
+    (
+        finalized,
+        json!({
+            "applied": applied,
+            "outcome": clean_text(&outcome, 200),
+            "tools_present": tools_present > 0,
+            "tool_count": tools_present,
+            "successful_tools": successful_tools,
+            "error_tools": error_tools,
+            "findings_available": findings_available,
+            "initial_ack_only": initial_ack_only,
+            "final_ack_only": final_ack_only,
+            "final_no_findings": final_no_findings,
+            "completion_state": completion_state
+        }),
+    )
+}

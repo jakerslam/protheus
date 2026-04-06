@@ -6208,7 +6208,8 @@ fn execute_inline_tool_calls(
     } else {
         trim_text(cleaned_trimmed, 32_000)
     };
-    (response, cards, pending_confirmation)
+    let (contracted_response, _contract_report) = enforce_tool_completion_contract(response, &cards);
+    (contracted_response, cards, pending_confirmation)
 }
 
 fn first_http_url_in_text(text: &str) -> String {
@@ -7769,18 +7770,18 @@ pub fn handle_with_headers(
                     "is_error": !ok
                 });
                 let response_tools = vec![tool_card.clone()];
-                let synthesized_findings = response_tools_summary_for_user(&response_tools, 4);
-                let findings = if synthesized_findings.trim().is_empty() {
-                    None
-                } else {
-                    Some(synthesized_findings)
-                };
-                let findings_available = findings.is_some();
-                let (finalized_response, finalization_outcome, initial_ack_only) =
-                    finalize_user_facing_response_with_outcome(response_text, findings);
+                let (finalized_response, tool_completion) =
+                    enforce_tool_completion_contract(response_text, &response_tools);
                 let mut tooling_fallback_used = false;
                 let mut finalized_response = finalized_response;
-                let mut finalization_outcome = finalization_outcome;
+                let mut finalization_outcome = clean_text(
+                    tool_completion
+                        .get("outcome")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unchanged"),
+                    180,
+                );
+                let mut tool_completion = tool_completion;
                 if let Some(tooling_fallback) =
                     maybe_tooling_failure_fallback(&message, &finalized_response, "")
                 {
@@ -7788,6 +7789,17 @@ pub fn handle_with_headers(
                     finalization_outcome =
                         format!("{finalization_outcome}+tooling_failure_fallback");
                     tooling_fallback_used = true;
+                    let (contracted, report) =
+                        enforce_tool_completion_contract(finalized_response, &response_tools);
+                    finalized_response = contracted;
+                    tool_completion = report;
+                    finalization_outcome = clean_text(
+                        tool_completion
+                            .get("outcome")
+                            .and_then(Value::as_str)
+                            .unwrap_or(&finalization_outcome),
+                        180,
+                    );
                 }
                 let final_ack_only =
                     response_looks_like_tool_ack_without_findings(&finalized_response);
@@ -7795,9 +7807,16 @@ pub fn handle_with_headers(
                 let response_finalization = json!({
                     "applied": finalization_outcome != "unchanged",
                     "outcome": finalization_outcome,
-                    "initial_ack_only": initial_ack_only,
+                    "initial_ack_only": tool_completion
+                        .get("initial_ack_only")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                     "final_ack_only": final_ack_only,
-                    "findings_available": findings_available,
+                    "findings_available": tool_completion
+                        .get("findings_available")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    "tool_completion": tool_completion,
                     "pending_confirmation_replayed": replayed_pending_confirmation,
                     "tooling_fallback_used": tooling_fallback_used,
                     "retry_attempted": false,
@@ -8312,19 +8331,26 @@ pub fn handle_with_headers(
                             "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
                         });
                     }
-                    let synthesized_findings = response_tools_summary_for_user(&response_tools, 4);
-                    let findings = if synthesized_findings.trim().is_empty() {
-                        None
-                    } else {
-                        Some(synthesized_findings)
-                    };
-                    let findings_available = findings.is_some();
-                    let (mut finalized_response, mut finalization_outcome, initial_ack_only) =
-                        finalize_user_facing_response_with_outcome(response_text, findings.clone());
+                    let (mut finalized_response, mut tool_completion) =
+                        enforce_tool_completion_contract(response_text, &response_tools);
+                    let mut finalization_outcome = clean_text(
+                        tool_completion
+                            .get("outcome")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unchanged"),
+                        200,
+                    );
+                    let initial_ack_only = tool_completion
+                        .get("initial_ack_only")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
                     let mut retry_attempted = false;
                     let mut retry_used = false;
                     if initial_ack_only
-                        && response_looks_like_tool_ack_without_findings(&finalized_response)
+                        && tool_completion
+                            .get("final_ack_only")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false)
                     {
                         retry_attempted = true;
                         let strict_tool_prompt = clean_text(
@@ -8354,11 +8380,15 @@ pub fn handle_with_headers(
                             if !user_requested_internal_runtime_details(&message) {
                                 retried_text = abstract_runtime_mechanics_terms(&retried_text);
                             }
-                            let (retry_finalized, retry_outcome, _retry_initial_ack_only) =
-                                finalize_user_facing_response_with_outcome(
-                                    retried_text,
-                                    findings.clone(),
-                                );
+                            let (retry_finalized, retry_report) =
+                                enforce_tool_completion_contract(retried_text, &response_tools);
+                            let retry_outcome = clean_text(
+                                retry_report
+                                    .get("outcome")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("unchanged"),
+                                120,
+                            );
                             finalized_response = retry_finalized;
                             finalization_outcome =
                                 format!("{finalization_outcome}+retry:{retry_outcome}");
@@ -8397,11 +8427,17 @@ pub fn handle_with_headers(
                                 retried_text = abstract_runtime_mechanics_terms(&retried_text);
                             }
                             if !response_is_unrelated_context_dump(&message, &retried_text) {
-                                let (retry_finalized, retry_outcome, _retry_initial_ack_only) =
-                                    finalize_user_facing_response_with_outcome(
-                                        retried_text,
-                                        findings.clone(),
-                                    );
+                                let (retry_finalized, retry_report) = enforce_tool_completion_contract(
+                                    retried_text,
+                                    &response_tools,
+                                );
+                                let retry_outcome = clean_text(
+                                    retry_report
+                                        .get("outcome")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("unchanged"),
+                                    120,
+                                );
                                 if !response_is_no_findings_placeholder(&retry_finalized) {
                                     finalized_response = retry_finalized;
                                     finalization_outcome = format!(
@@ -8430,6 +8466,17 @@ pub fn handle_with_headers(
                             format!("{finalization_outcome}+tooling_failure_fallback");
                         tooling_fallback_used = true;
                     }
+                    let (contract_finalized, contract_report) =
+                        enforce_tool_completion_contract(finalized_response, &response_tools);
+                    finalized_response = contract_finalized;
+                    tool_completion = contract_report;
+                    finalization_outcome = clean_text(
+                        tool_completion
+                            .get("outcome")
+                            .and_then(Value::as_str)
+                            .unwrap_or(&finalization_outcome),
+                        200,
+                    );
                     response_text = finalized_response;
                     if memory_recall_requested(&message)
                         && (response_is_no_findings_placeholder(&response_text)
@@ -8444,7 +8491,11 @@ pub fn handle_with_headers(
                         "outcome": finalization_outcome,
                         "initial_ack_only": initial_ack_only,
                         "final_ack_only": final_ack_only,
-                        "findings_available": findings_available,
+                        "findings_available": tool_completion
+                            .get("findings_available")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false),
+                        "tool_completion": tool_completion,
                         "retry_attempted": retry_attempted,
                         "retry_used": retry_used,
                         "synthesis_retry_used": synthesis_retry_used,
@@ -8679,10 +8730,16 @@ pub fn handle_with_headers(
                     .get("ok")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
-                let message = finalize_user_facing_response(
-                    summarize_tool_payload(&tool_name, &tool_payload),
-                    None,
-                );
+                let tool_summary = summarize_tool_payload(&tool_name, &tool_payload);
+                let response_tools = vec![json!({
+                    "id": format!("tool-command-{}", normalize_tool_name(&tool_name)),
+                    "name": normalize_tool_name(&tool_name),
+                    "input": trim_text(&tool_input.to_string(), 4000),
+                    "result": trim_text(&tool_summary, 24_000),
+                    "is_error": !ok
+                })];
+                let (message, tool_completion) =
+                    enforce_tool_completion_contract(tool_summary, &response_tools);
                 return Some(CompatApiResponse {
                     status: if ok { 200 } else { 400 },
                     payload: json!({
@@ -8697,6 +8754,10 @@ pub fn handle_with_headers(
                         } else {
                             message
                         },
+                        "response_finalization": {
+                            "tool_completion": tool_completion
+                        },
+                        "tools": response_tools,
                         "result": tool_payload
                     }),
                 });
