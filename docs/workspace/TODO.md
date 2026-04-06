@@ -1,14 +1,14 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-05T01:33:09.859Z
+Updated: 2026-04-06T13:10:00.000Z
 
 ## Global Rollup
 - total_rows: 3361
-- queued: 117
+- queued: 115
 - in_progress: 9
 - blocked: 0
 - blocked_external_prepared: 31
-- done: 973
+- done: 975
 - existing_coverage_validated: 2231
 
 ## SRS Section Checklist
@@ -448,9 +448,9 @@ Updated: 2026-04-05T01:33:09.859Z
 - [ ] External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Internal Conversation Search + Archived Chat View Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
-- [ ] 10/10 Completion Intake (2026-04-03) — queued=43, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] 10/10 Completion Intake (2026-04-03) — queued=42, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=10, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=9, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
 - [ ] `V10-EXT-AGENT-001.1` — in_progress — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
@@ -542,7 +542,7 @@ Updated: 2026-04-05T01:33:09.859Z
 - [ ] `V6-SWARM-005.6` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-SWARM-005.8` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V11-DASH-003` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-INSTALL-005` — queued — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-INSTALL-005` — done — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-LLM-004` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-MASS-CRIT-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-DOC-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
@@ -570,7 +570,7 @@ Updated: 2026-04-05T01:33:09.859Z
 - [ ] `V6-SWARM-005.7` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V10-WEB-CONDUIT-001.4` — in_progress — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V11-TODO-001` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-002` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-002` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V11-TODO-003` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V11-TODO-004` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V11-TODO-005` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
@@ -620,4 +620,3 @@ Updated: 2026-04-05T01:33:09.859Z
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
-

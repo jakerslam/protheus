@@ -80,6 +80,21 @@ Fallback (direct path):
 "$HOME/.infring/bin/infring" --help
 ```
 
+Shell-specific activation snippets:
+
+```bash
+# zsh / bash
+. "$HOME/.infring/env.sh" && hash -r 2>/dev/null || true && infring --help
+
+# fish
+set -gx PATH "$HOME/.infring/bin" $PATH; and command -q rehash; and rehash; and infring --help
+```
+
+```powershell
+# PowerShell
+$env:Path = "$HOME/.infring/bin;$env:Path"; infring --help
+```
+
 Installer behavior:
 
 - Persists `PATH` to shell startup file(s)
@@ -111,6 +126,9 @@ curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.s
 
 # In-place update from an existing install
 infring update --repair --full
+
+# Offline update from cached release artifacts (must pin version)
+infring update --offline --version v0.3.1-alpha --full
 ```
 
 ## Gateway + Dashboard Operations
