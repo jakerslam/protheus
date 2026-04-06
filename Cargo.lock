@@ -1518,6 +1518,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "protheus-nexus-core-v1"
+version = "0.1.0"
+dependencies = [
+ "conduit",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "protheus-observability-core-v1"
 version = "0.1.0"
 dependencies = [
@@ -1554,6 +1564,7 @@ dependencies = [
  "persona_dispatch_security_gate",
  "proptest",
  "protheus-autonomy-core-v1",
+ "protheus-nexus-core-v1",
  "protheus-ops-core-v1",
  "protheus-pure-workspace",
  "protheus-security-core-v1",
