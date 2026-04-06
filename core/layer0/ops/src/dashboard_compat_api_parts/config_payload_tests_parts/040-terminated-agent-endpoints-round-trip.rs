@@ -1,3 +1,5 @@
+static WEB_ENDPOINT_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn terminated_agent_endpoints_round_trip() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -1045,6 +1047,113 @@ fn direct_search_slash_routes_through_web_search_tool() {
             })
         })
         .unwrap_or(false));
+}
+
+#[test]
+fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let out = handle(
+        root.path(),
+        "GET",
+        "/api/web/search?q=",
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("web search get");
+    assert_eq!(out.status, 200);
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/target")
+            .and_then(Value::as_str),
+        Some("context_stacks")
+    );
+}
+
+#[test]
+fn direct_web_search_post_endpoint_emits_nexus_connection_metadata() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        "/api/web/search",
+        br#"{"query":""}"#,
+        &json!({"ok": true}),
+    )
+    .expect("web search post");
+    assert_eq!(out.status, 400);
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/target")
+            .and_then(Value::as_str),
+        Some("context_stacks")
+    );
+}
+
+#[test]
+fn direct_web_fetch_post_endpoint_emits_nexus_connection_metadata() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        "/api/web/fetch",
+        br#"{"url":""}"#,
+        &json!({"ok": true}),
+    )
+    .expect("web fetch post");
+    assert_eq!(out.status, 400);
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/target")
+            .and_then(Value::as_str),
+        Some("context_stacks")
+    );
+}
+
+#[test]
+fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::set_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", "1");
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        "/api/web/search",
+        br#"{"query":"nexus deny check"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("web search denied");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    assert_eq!(out.status, 403);
+    assert_eq!(
+        out.payload.get("error").and_then(Value::as_str),
+        Some("web_search_nexus_delivery_denied")
+    );
 }
 
 #[test]

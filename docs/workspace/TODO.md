@@ -1,6 +1,6 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-06T13:10:00.000Z
+Updated: 2026-04-06T14:57:10.000Z
 
 ## Global Rollup
 - total_rows: 3361
@@ -10,6 +10,56 @@ Updated: 2026-04-06T13:10:00.000Z
 - blocked_external_prepared: 31
 - done: 975
 - existing_coverage_validated: 2231
+
+## Hierarchical Nexus Full-System Rewire Ledger (2026-04-06)
+- scope: Rust authority ingress/cross-module runtime surfaces
+- total_modules: 40
+- rewired: 13
+- remaining: 27
+
+Rewired (13):
+- [x] `core/layer2/nexus/src/main_nexus.rs`
+- [x] `core/layer2/nexus/src/sub_nexus.rs`
+- [x] `core/layer2/nexus/src/conduit_manager.rs`
+- [x] `core/layer2/nexus/src/route_lease.rs`
+- [x] `core/layer2/nexus/src/template.rs`
+- [x] `core/layer2/nexus/src/policy.rs`
+- [x] `core/layer2/nexus/src/registry.rs`
+- [x] `core/layer0/ops/src/dashboard_tool_turn_loop.rs`
+- [x] `core/layer0/ops/src/dashboard_terminal_broker.rs`
+- [x] `core/layer0/ops/src/stomach_kernel.rs`
+- [x] `core/layer0/ops/src/memory/stacks/045-run.rs`
+- [x] `core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`
+
+Remaining (27):
+- [ ] `core/layer0/ops/src/web_conduit.rs`
+- [ ] `core/layer0/ops/src/context_stacks.rs`
+- [ ] `core/layer0/ops/src/batch_query_primitive.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api_channels.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api_comms.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api_hands.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api_settings_ops.rs`
+- [ ] `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/030-sidebar-route-handler.rs`
+- [ ] `core/layer0/ops/src/dashboard_channel_catalog.rs`
+- [ ] `core/layer0/ops/src/dashboard_model_catalog.rs`
+- [ ] `core/layer0/ops/src/dashboard_provider_runtime.rs`
+- [ ] `core/layer0/ops/src/dashboard_release_update.rs`
+- [ ] `core/layer0/ops/src/dashboard_agent_state_registry.rs`
+- [ ] `core/layer0/ops/src/dashboard_agent_state_sessions.rs`
+- [ ] `core/layer0/ops/src/command_list_kernel.rs`
+- [ ] `core/layer0/ops/src/directive_kernel.rs`
+- [ ] `core/layer0/ops/src/protheusctl.rs`
+- [ ] `core/layer0/ops/src/protheusctl_routes.rs`
+- [ ] `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
+- [ ] `core/layer0/ops/src/daemon_control.rs`
+- [ ] `core/layer0/ops/src/continuity_runtime.rs`
+- [ ] `core/layer0/ops/src/autonomy_controller.rs`
+- [ ] `core/layer0/ops/src/collab_plane.rs`
+- [ ] `core/layer0/ops/src/company_plane.rs`
+- [ ] `core/layer0/ops/src/business_plane.rs`
+- [ ] `core/layer0/ops/src/app_plane.rs`
 
 ## SRS Section Checklist
 - [x] Installer Reliability v1.0 Intake (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
