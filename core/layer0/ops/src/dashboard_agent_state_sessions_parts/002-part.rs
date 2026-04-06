@@ -1085,7 +1085,7 @@ pub fn suggestions(root: &Path, agent_id: &str, _user_hint: &str) -> Value {
     let base_style = derive_suggestion_style(&recent_thread);
     let style = SuggestionStyle {
         prefer_can_you: false,
-        prefer_question_mark: true,
+        prefer_question_mark: false,
         prefer_lowercase: base_style.prefer_lowercase,
     };
     let mut candidates = analytics_prompt_suggestions(root, &id, &recent_thread);

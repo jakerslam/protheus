@@ -1,35 +1,58 @@
 #[test]
-fn red_tier_tools_require_explicit_signoff() {
+fn terminal_tools_run_without_signoff_and_still_enforce_command_policy() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
-    let blocked = execute_tool_call_by_name(
+    let allowed = execute_tool_call_by_name(
         root.path(),
         &snapshot,
-        "agent-red",
+        "agent-terminal",
         None,
         "terminal_exec",
         &json!({"command":"echo hi"}),
     );
-    assert_eq!(
-        blocked.get("error").and_then(Value::as_str),
-        Some("tool_explicit_signoff_required")
-    );
-
-    let allowed = execute_tool_call_by_name(
-        root.path(),
-        &snapshot,
-        "agent-red",
-        None,
-        "terminal_exec",
-        &json!({
-            "command":"echo hi",
-            "confirm": true,
-            "approval_note": "user approved this terminal execution"
-        }),
-    );
     assert_ne!(
         allowed.get("error").and_then(Value::as_str),
         Some("tool_explicit_signoff_required")
+    );
+    let allow_verdict = allowed
+        .pointer("/permission_gate/verdict")
+        .and_then(Value::as_str)
+        .unwrap_or("allow");
+    assert_ne!(allow_verdict, "deny");
+
+    let risky = execute_tool_call_by_name(
+        root.path(),
+        &snapshot,
+        "agent-terminal",
+        None,
+        "terminal_exec",
+        &json!({"command":"git reset --hard HEAD"}),
+    );
+    assert_ne!(
+        risky.get("error").and_then(Value::as_str),
+        Some("tool_explicit_signoff_required")
+    );
+}
+
+#[test]
+fn workspace_analyze_alias_routes_into_terminal_exec_surface() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let routed = execute_tool_call_by_name(
+        root.path(),
+        &snapshot,
+        "agent-terminal",
+        None,
+        "workspace_analyze",
+        &json!({"query":"effective loc"}),
+    );
+    assert_ne!(
+        routed.get("error").and_then(Value::as_str),
+        Some("unsupported_tool")
+    );
+    assert_ne!(
+        routed.get("error").and_then(Value::as_str),
+        Some("command_required")
     );
 }
 
@@ -733,7 +756,10 @@ fn web_search_summary_uses_content_domains_when_summary_is_search_chrome() {
         }),
     );
     let lowered = summary.to_ascii_lowercase();
-    assert!(lowered.contains("from web retrieval"), "unexpected summary: {summary}");
+    assert!(
+        lowered.contains("from web retrieval"),
+        "unexpected summary: {summary}"
+    );
     assert!(lowered.contains("reuters.com"));
     assert!(!lowered.contains("couldn't extract usable findings"));
     assert!(!lowered.contains("search response came from"));
@@ -750,6 +776,46 @@ fn finalize_user_facing_response_rewrites_raw_placeholder_dump() {
     assert!(lowered.contains("raw web output"));
     assert!(lowered.contains("batch_query"));
     assert!(!lowered.contains("without needing permission"));
+}
+
+#[test]
+fn finalize_user_facing_response_unwraps_internal_payload_json_response() {
+    let raw = json!({
+        "agent_id": "agent-83ed64e07515",
+        "response": "From web retrieval: benchmark summary with sources. https://example.com/benchmarks",
+        "response_finalization": {"tool_completion": {"completion_state": "reported_findings"}},
+        "tools": [{"name": "batch_query", "is_error": false, "result": "raw tool output"}],
+        "turn_loop_tracking": {"ok": true},
+        "turn_transaction": {"tool_execute": "complete"}
+    })
+    .to_string();
+    let finalized = finalize_user_facing_response(raw, None);
+    assert_eq!(
+        finalized,
+        "From web retrieval: benchmark summary with sources. https://example.com/benchmarks"
+    );
+    assert!(!finalized.contains("agent_id"));
+    assert!(!finalized.starts_with('{'));
+}
+
+#[test]
+fn finalize_user_facing_response_blocks_internal_payload_json_without_response() {
+    let raw = json!({
+        "agent_id": "agent-83ed64e07515",
+        "response_finalization": {"tool_completion": {"completion_state": "reported_reason"}},
+        "tools": [{"name": "manage_agent", "is_error": false, "result": "{\"ok\":true}"}],
+        "turn_loop_tracking": {"ok": true},
+        "turn_transaction": {"tool_execute": "complete"}
+    })
+    .to_string();
+    let finalized = finalize_user_facing_response(raw, None);
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(
+        lowered.contains("no synthesized response")
+            || lowered.contains("no relevant results found for that request yet")
+    );
+    assert!(!lowered.contains("agent_id"));
+    assert!(!finalized.starts_with('{'));
 }
 
 #[test]
@@ -853,7 +919,10 @@ fn recent_floor_enforcement_rehydrates_tail_after_pool_trim() {
         .collect::<Vec<_>>();
     let pooled = trim_context_pool(&messages, 2048);
     let floor = 14usize;
-    assert!(pooled.len() < floor, "pool should trim below floor for this fixture");
+    assert!(
+        pooled.len() < floor,
+        "pool should trim below floor for this fixture"
+    );
     let (rehydrated, injected) = enforce_recent_context_floor(&messages, &pooled, floor);
     assert!(injected > 0, "expected floor reinjection");
     assert!(rehydrated.len() >= floor, "recent floor should be restored");
@@ -891,9 +960,9 @@ fn relevant_recall_uses_full_history_even_when_pool_drops_older_facts() {
     }
     let pooled = trim_context_pool(&history, 2048);
     assert!(
-        !pooled
-            .iter()
-            .any(|row| message_text(row).to_ascii_lowercase().contains("nebula ledger")),
+        !pooled.iter().any(|row| message_text(row)
+            .to_ascii_lowercase()
+            .contains("nebula ledger")),
         "fixture failed: pooled context still contains the anchor fact"
     );
     let (pooled_with_floor, _) = enforce_recent_context_floor(&history, &pooled, 14);

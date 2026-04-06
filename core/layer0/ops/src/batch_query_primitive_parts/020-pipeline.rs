@@ -52,6 +52,7 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
 }
 
 fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
+    let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let query_tokens = query
         .split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|token| token.len() > 2)
@@ -77,7 +78,21 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
-    (0.6 * overlap_norm + locator_bonus + status_bonus).clamp(0.0, 1.0)
+    let metric_bonus = if benchmark_intent && looks_like_metric_rich_text(&candidate.snippet) {
+        0.24
+    } else {
+        0.0
+    };
+    let definition_penalty = if benchmark_intent && looks_like_definition_candidate(candidate) {
+        0.72
+    } else {
+        0.0
+    };
+    let mut score = 0.6 * overlap_norm + locator_bonus + status_bonus + metric_bonus - definition_penalty;
+    if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
+        score -= 0.12;
+    }
+    score.clamp(0.0, 1.0)
 }
 
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
@@ -201,11 +216,17 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     });
     candidates.truncate(budget.max_candidates);
 
+    let rerank_query = if rewrite_applied {
+        queries.last().cloned().unwrap_or_else(|| query.clone())
+    } else {
+        query.clone()
+    };
+    let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
     let mut ranked = candidates
         .iter()
         .cloned()
         .map(|row| {
-            let score = rerank_score(&query, &row);
+            let score = rerank_score(&rerank_query, &row);
             (row, score)
         })
         .collect::<Vec<_>>();
@@ -224,6 +245,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !looks_like_ack_only(&snippet)
                 && !looks_like_low_signal_search_summary(&snippet)
                 && !looks_like_source_only_snippet(&snippet)
+                && !(benchmark_intent && looks_like_definition_candidate(row))
         })
         .collect::<Vec<_>>();
 
@@ -250,28 +272,44 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let summary = if evidence_refs.is_empty() {
         "Search returned no useful information.".to_string()
     } else {
-        let mut snippets = Vec::<String>::new();
+        let mut synthesized_insights = Vec::<String>::new();
         for (candidate, _) in &actionable_ranked {
-            let snippet = trim_words(&clean_text(&candidate.snippet, 1_200), 42);
+            let snippet_raw = if benchmark_intent {
+                extract_metric_focused_fragment(&candidate.snippet)
+            } else {
+                clean_text(&candidate.snippet, 1_200)
+            };
+            let snippet = trim_words(&snippet_raw, if benchmark_intent { 30 } else { 42 });
             if snippet.is_empty() {
                 continue;
             }
-            if snippets
+            let domain = candidate_domain_hint(candidate);
+            let insight = if domain == "source" {
+                snippet.clone()
+            } else {
+                format!("{domain}: {snippet}")
+            };
+            if synthesized_insights
                 .iter()
-                .any(|existing| existing.eq_ignore_ascii_case(&snippet))
+                .any(|existing| existing.eq_ignore_ascii_case(&insight))
             {
                 continue;
             }
-            snippets.push(snippet);
-            if snippets.len() >= budget.max_evidence.max(1) {
+            synthesized_insights.push(insight);
+            if synthesized_insights.len() >= budget.max_evidence.max(1) {
                 break;
             }
         }
-        if snippets.is_empty() {
+        if synthesized_insights.is_empty() {
             "Search returned no useful information.".to_string()
         } else {
+            let prefix = if benchmark_intent {
+                "Web benchmark synthesis:"
+            } else {
+                "From web retrieval:"
+            };
             trim_words(
-                &format!("From web retrieval: {}", snippets.join(" ")),
+                &format!("{prefix} {}", synthesized_insights.join(" ")),
                 budget.max_summary_tokens,
             )
         }

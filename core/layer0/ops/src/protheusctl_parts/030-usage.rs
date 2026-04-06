@@ -169,7 +169,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     maybe_run_update_checker(root, &cmd, global_json);
-    maybe_run_cli_suggestion_engine(root, &cmd, &rest);
+    maybe_run_cli_suggestion_engine(root, &cmd, &rest, global_json);
 
     let mut route = if cmd == "assimilate" {
         resolve_assimilate_route(&rest)

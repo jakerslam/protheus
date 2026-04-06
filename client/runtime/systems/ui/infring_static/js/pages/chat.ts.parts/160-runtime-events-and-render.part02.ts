@@ -120,6 +120,26 @@
       return this.messagePreview(msg);
     },
 
+    appendAgentTerminalTranscript: function(rows) {
+      if (!Array.isArray(rows) || !rows.length || typeof this._appendTerminalMessage !== 'function') return false;
+      var appended = false;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i] || {};
+        var cwd = row.cwd ? String(row.cwd) : this.terminalPromptPath;
+        var command = row.command ? String(row.command).trim() : '';
+        var output = row.output ? String(row.output).trim() : '';
+        if (command) {
+          this._appendTerminalMessage({ role: 'terminal', text: this._terminalPromptLine(cwd, command), meta: cwd, tools: [], ts: Date.now(), terminal_source: 'agent', cwd: cwd });
+          appended = true;
+        }
+        if (output) {
+          this._appendTerminalMessage({ role: 'terminal', text: output, meta: row.is_error ? 'command failed' : 'command output', tools: [], ts: Date.now(), terminal_source: 'system', cwd: cwd, _terminal_compact: output.length > 500 });
+          appended = true;
+        }
+      }
+      return appended;
+    },
+
     isThinkingPlaceholderText: function(input) {
       var value = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\*+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
       if (!value) return true;

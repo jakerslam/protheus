@@ -206,6 +206,8 @@
               is_error: !!(t && (t.is_error || t.error || t.blocked))
             };
           }) : [];
+          var hasAgentTerminalTranscript = !!(Array.isArray(data.terminal_transcript) && data.terminal_transcript.length && typeof this.appendAgentTerminalTranscript === 'function' && this.appendAgentTerminalTranscript(data.terminal_transcript));
+          if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
           if (!streamedThought && responseTools.length) {
             var thoughtTool = responseTools.find(function(rtool) {
@@ -226,9 +228,7 @@
           if (data.iterations) meta += ' | ' + data.iterations + ' iter';
           if (data.fallback_model) meta += ' | fallback: ' + data.fallback_model;
           var wsDurationMs = Number(data.duration_ms || data.elapsed_ms || data.response_ms || 0);
-          if (!wsDurationMs && this._responseStartedAt) {
-            wsDurationMs = Math.max(0, Date.now() - this._responseStartedAt);
-          }
+          if (!wsDurationMs && this._responseStartedAt) wsDurationMs = Math.max(0, Date.now() - this._responseStartedAt);
           var wsDuration = this.formatResponseDuration(wsDurationMs); if (wsDuration) meta += ' | ' + wsDuration;
           var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
           if (wsRouteMeta) meta += ' | ' + wsRouteMeta;

@@ -54,10 +54,21 @@ infring gateway
 ### Windows (PowerShell)
 
 ```powershell
+# Use process-scoped bypass so locked-down execution policies do not block install.
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
-& $tmp -Full
+& $tmp -Repair -Full
 Remove-Item $tmp -Force
+infring gateway
+```
+
+If script execution is still restricted in your environment, use a no-file fallback:
+
+```powershell
+$env:INFRING_INSTALL_REPAIR = "1"
+$env:INFRING_INSTALL_FULL = "1"
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
 infring gateway
 ```
 

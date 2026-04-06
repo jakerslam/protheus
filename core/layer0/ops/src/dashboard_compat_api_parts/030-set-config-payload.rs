@@ -586,7 +586,11 @@ fn collect_user_recall_messages(
     out
 }
 
-fn build_memory_recall_response(state: &Value, history_messages: &[Value], message: &str) -> String {
+fn build_memory_recall_response(
+    state: &Value,
+    history_messages: &[Value],
+    message: &str,
+) -> String {
     let prefer_earliest = recall_prefers_earliest(message);
     let active_history_messages = active_session_messages_sorted(state);
     let mut remembered =
@@ -2882,9 +2886,10 @@ fn guess_mime_type_for_file(path: &Path, bytes: &[u8]) -> String {
         "txt" | "log" | "toml" | "yaml" | "yml" | "json" | "jsonl" | "csv" | "tsv" => {
             "text/plain; charset=utf-8"
         }
-        "rs" | "ts" | "tsx" | "py" | "sh" | "zsh" | "bash" | "js" | "cjs" | "mjs" | "c"
-        | "h" | "cpp" | "hpp" | "go" | "java" | "kt" | "swift" | "sql" | "css" | "html"
-        | "xml" => "text/plain; charset=utf-8",
+        "rs" | "ts" | "tsx" | "py" | "sh" | "zsh" | "bash" | "js" | "cjs" | "mjs" | "c" | "h"
+        | "cpp" | "hpp" | "go" | "java" | "kt" | "swift" | "sql" | "css" | "html" | "xml" => {
+            "text/plain; charset=utf-8"
+        }
         "pdf" => "application/pdf",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -3068,6 +3073,85 @@ fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     hits >= 2
 }
 
+fn parse_json_payload_dump(text: &str) -> Option<Value> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let mut candidate = trimmed.to_string();
+    if candidate.starts_with("```") && candidate.ends_with("```") {
+        candidate = candidate
+            .trim_start_matches("```json")
+            .trim_start_matches("```JSON")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+            .to_string();
+    }
+    serde_json::from_str::<Value>(&candidate).ok()
+}
+
+fn looks_like_internal_agent_payload_dump(payload: &Value) -> bool {
+    let Value::Object(map) = payload else {
+        return false;
+    };
+    let marker_keys = [
+        "agent_id",
+        "decision_audit_receipt",
+        "response_finalization",
+        "turn_loop_tracking",
+        "turn_transaction",
+        "tools",
+        "nexus_connection",
+        "latent_tool_candidates",
+        "workspace_hints",
+        "input_tokens",
+        "output_tokens",
+        "runtime_model",
+        "provider",
+    ];
+    let hits = marker_keys
+        .iter()
+        .filter(|key| map.contains_key(**key))
+        .count();
+    hits >= 3 || (map.contains_key("tools") && map.contains_key("turn_transaction"))
+}
+
+fn normalize_raw_response_payload_dump(text: &str) -> Option<String> {
+    let payload = parse_json_payload_dump(text)?;
+    if !looks_like_internal_agent_payload_dump(&payload) {
+        return None;
+    }
+    let synthesized = clean_text(
+        payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        32_000,
+    );
+    if !synthesized.is_empty() {
+        return Some(synthesized);
+    }
+    Some(
+        "I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string(),
+    )
+}
+
+fn with_payload_normalization_outcome(outcome: &str, payload_normalized: bool) -> String {
+    let cleaned = clean_text(outcome, 200);
+    if !payload_normalized {
+        return if cleaned.is_empty() {
+            "unchanged".to_string()
+        } else {
+            cleaned
+        };
+    }
+    if cleaned.is_empty() || cleaned == "unchanged" {
+        return "normalized_raw_payload_json".to_string();
+    }
+    format!("normalized_raw_payload_json+{cleaned}")
+}
+
 fn response_contains_peer_review_template_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
     let markers = [
@@ -3238,20 +3322,28 @@ fn finalize_user_facing_response_with_outcome(
     output: String,
     findings: Option<String>,
 ) -> (String, String, bool) {
-    let cleaned = clean_text(output.trim(), 32_000);
+    let mut cleaned = clean_text(output.trim(), 32_000);
+    let mut payload_normalized = false;
+    if let Some(unwrapped) = normalize_raw_response_payload_dump(&cleaned) {
+        cleaned = clean_text(unwrapped.trim(), 32_000);
+        payload_normalized = true;
+    }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
         return (
             rewritten,
-            format!("rewrote_failure_placeholder:{rule_id}"),
+            with_payload_normalization_outcome(
+                &format!("rewrote_failure_placeholder:{rule_id}"),
+                payload_normalized,
+            ),
             false,
         );
     }
     if response_looks_like_raw_web_artifact_dump(&cleaned) {
         return (
             "I only have raw web output (placeholder or page/search chrome), not synthesized findings yet. I can rerun with `batch_query` or a narrower query and return a concise answer with sources.".to_string(),
-            "rewrote_raw_web_artifact_dump".to_string(),
+            with_payload_normalization_outcome("rewrote_raw_web_artifact_dump", payload_normalized),
             false,
         );
     }
@@ -3259,25 +3351,46 @@ fn finalize_user_facing_response_with_outcome(
     let findings_cleaned = sanitize_findings_for_final_response(findings);
     if cleaned.is_empty() {
         if let Some(text) = findings_cleaned {
-            return (text, "replaced_empty_with_findings".to_string(), false);
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_empty_with_findings",
+                    payload_normalized,
+                ),
+                false,
+            );
         }
         return (
             no_findings_user_facing_response(),
-            "replaced_empty_with_no_findings".to_string(),
+            with_payload_normalization_outcome(
+                "replaced_empty_with_no_findings",
+                payload_normalized,
+            ),
             false,
         );
     }
     if input_ack_only {
         if let Some(text) = findings_cleaned {
-            return (text, "replaced_ack_with_findings".to_string(), true);
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_ack_with_findings",
+                    payload_normalized,
+                ),
+                true,
+            );
         }
         return (
             no_findings_user_facing_response(),
-            "replaced_ack_with_no_findings".to_string(),
+            with_payload_normalization_outcome("replaced_ack_with_no_findings", payload_normalized),
             true,
         );
     }
-    (cleaned, "unchanged".to_string(), false)
+    (
+        cleaned,
+        with_payload_normalization_outcome("unchanged", payload_normalized),
+        false,
+    )
 }
 
 #[allow(dead_code)]
@@ -3448,8 +3561,10 @@ fn tool_completion_status_for_tool(tool_name: &str, tool_input: &str) -> String 
         }
         "web_fetch" | "browse" | "web_conduit_fetch" => "Reading web pages".to_string(),
         "file_read" | "read_file" | "file" => {
-            let count =
-                tool_payload_count(&payload, &["paths", "files", "file_paths", "targets", "path", "file"]);
+            let count = tool_payload_count(
+                &payload,
+                &["paths", "files", "file_paths", "targets", "path", "file"],
+            );
             if count > 1 {
                 format!("Scanning {count} files")
             } else if count == 1 {
@@ -3469,7 +3584,8 @@ fn tool_completion_status_for_tool(tool_name: &str, tool_input: &str) -> String 
             }
         }
         "folder_export" | "list_folder" | "folder_tree" | "folder" => {
-            let count = tool_payload_count(&payload, &["folders", "paths", "targets", "path", "folder"]);
+            let count =
+                tool_payload_count(&payload, &["folders", "paths", "targets", "path", "folder"]);
             if count > 1 {
                 format!("Scanning {count} folders")
             } else if count == 1 {
@@ -3482,7 +3598,8 @@ fn tool_completion_status_for_tool(tool_name: &str, tool_input: &str) -> String 
             "Running terminal command".to_string()
         }
         "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
-            let count = tool_payload_count(&payload, &["count", "agent_count", "num_agents", "agents"]);
+            let count =
+                tool_payload_count(&payload, &["count", "agent_count", "num_agents", "agents"]);
             if count > 0 {
                 format!("Summoning {count} agents")
             } else {
@@ -3513,7 +3630,10 @@ fn tool_completion_live_steps(response_tools: &[Value]) -> Vec<Value> {
         if name.is_empty() || name == "thought_process" {
             continue;
         }
-        let input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 12_000);
+        let input = clean_text(
+            tool.get("input").and_then(Value::as_str).unwrap_or(""),
+            12_000,
+        );
         let status = tool_completion_status_for_tool(&name, &input);
         if status.is_empty() {
             continue;
@@ -3531,6 +3651,53 @@ fn tool_completion_live_steps(response_tools: &[Value]) -> Vec<Value> {
         }
     }
     out
+}
+
+fn tool_terminal_transcript(response_tools: &[Value]) -> Vec<Value> {
+    let mut rows = Vec::<Value>::new();
+    for tool in response_tools {
+        let name = normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or(""));
+        if !is_terminal_tool_name(&name) {
+            continue;
+        }
+        let parsed_input =
+            serde_json::from_str::<Value>(tool.get("input").and_then(Value::as_str).unwrap_or(""))
+                .unwrap_or_else(|_| json!({}));
+        let command = clean_text(
+            parsed_input
+                .get("command")
+                .or_else(|| parsed_input.get("cmd"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            12_000,
+        );
+        let output = trim_text(
+            tool.get("result").and_then(Value::as_str).unwrap_or(""),
+            24_000,
+        );
+        let cwd = clean_text(
+            parsed_input
+                .get("cwd")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            4_000,
+        );
+        let is_error = tool
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if command.is_empty() && output.trim().is_empty() {
+            continue;
+        }
+        rows.push(json!({
+            "tool": name,
+            "command": command,
+            "output": output,
+            "cwd": cwd,
+            "is_error": is_error
+        }));
+    }
+    rows
 }
 
 fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Value]) -> Value {
@@ -3564,7 +3731,8 @@ mod tool_completion_live_status_tests {
             "result": "ok",
             "is_error": false
         })];
-        let enriched = enrich_tool_completion_receipt(json!({"completion_state":"reported_findings"}), &tools);
+        let enriched =
+            enrich_tool_completion_receipt(json!({"completion_state":"reported_findings"}), &tools);
         assert_eq!(
             enriched
                 .get("live_tool_status")
@@ -3588,7 +3756,8 @@ mod tool_completion_live_status_tests {
             "result": "",
             "is_error": false
         })];
-        let enriched = enrich_tool_completion_receipt(json!({"completion_state":"reported_reason"}), &tools);
+        let enriched =
+            enrich_tool_completion_receipt(json!({"completion_state":"reported_reason"}), &tools);
         let steps = enriched
             .get("live_tool_steps")
             .and_then(Value::as_array)
@@ -3602,6 +3771,23 @@ mod tool_completion_live_status_tests {
                 .unwrap_or(""),
             ""
         );
+    }
+
+    #[test]
+    fn builds_terminal_transcript_rows_from_terminal_tools() {
+        let rows = tool_terminal_transcript(&[json!({
+            "name": "terminal_exec",
+            "input": "{\"command\":\"printf 'ok'\",\"cwd\":\"/tmp\"}",
+            "result": "ok",
+            "is_error": false
+        })]);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].get("command").and_then(Value::as_str),
+            Some("printf 'ok'")
+        );
+        assert_eq!(rows[0].get("output").and_then(Value::as_str), Some("ok"));
+        assert_eq!(rows[0].get("cwd").and_then(Value::as_str), Some("/tmp"));
     }
 }
 
@@ -4086,7 +4272,10 @@ fn resolve_tool_name_fallback(normalized: &str, input: &Value) -> String {
     if normalized.contains("search") || normalized.contains("web_query") {
         return "batch_query".to_string();
     }
-    if normalized.contains("browse") || normalized.contains("web_fetch") || normalized.contains("fetch_url") {
+    if normalized.contains("browse")
+        || normalized.contains("web_fetch")
+        || normalized.contains("fetch_url")
+    {
         return "web_fetch".to_string();
     }
     if normalized.contains("file") && (normalized.contains("read") || normalized.contains("open")) {
@@ -4096,8 +4285,18 @@ fn resolve_tool_name_fallback(normalized: &str, input: &Value) -> String {
             "file_read".to_string()
         };
     }
-    if normalized.contains("folder") && (normalized.contains("list") || normalized.contains("tree")) {
+    if normalized.contains("folder") && (normalized.contains("list") || normalized.contains("tree"))
+    {
         return "folder_export".to_string();
+    }
+    if normalized == "workspace_analyze"
+        || (normalized.contains("workspace")
+            && (normalized.contains("analy")
+                || normalized.contains("metric")
+                || normalized.contains("stat")
+                || normalized.contains("loc")))
+    {
+        return "terminal_exec".to_string();
     }
     if normalized.contains("terminal")
         || normalized.contains("shell")
@@ -4110,6 +4309,50 @@ fn resolve_tool_name_fallback(normalized: &str, input: &Value) -> String {
         return "spawn_subagents".to_string();
     }
     normalized.to_string()
+}
+
+fn is_terminal_tool_name(normalized: &str) -> bool {
+    matches!(
+        normalized,
+        "terminal_exec" | "run_terminal" | "terminal" | "shell_exec"
+    )
+}
+
+fn input_text_hint_for_terminal_alias(input: &Value) -> String {
+    clean_text(
+        input
+            .get("query")
+            .or_else(|| input.get("objective"))
+            .or_else(|| input.get("message"))
+            .or_else(|| input.get("prompt"))
+            .or_else(|| input.get("task"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        400,
+    )
+}
+
+fn terminal_alias_command_for_tool(normalized_tool: &str, input: &Value) -> Option<String> {
+    if normalized_tool == "workspace_analyze"
+        || (normalized_tool.contains("workspace")
+            && (normalized_tool.contains("analy")
+                || normalized_tool.contains("metric")
+                || normalized_tool.contains("stat")
+                || normalized_tool.contains("loc")))
+    {
+        let hint = input_text_hint_for_terminal_alias(input).to_ascii_lowercase();
+        if hint.contains("loc")
+            || hint.contains("line count")
+            || hint.contains("linecount")
+            || hint.contains("lines of code")
+            || hint.contains("effective loc")
+            || hint.contains("effective lines")
+        {
+            return Some("git ls-files | xargs wc -l | tail -n 1".to_string());
+        }
+        return Some("infring workspace-search status --workspace=. --json".to_string());
+    }
+    None
 }
 
 #[cfg(test)]
@@ -4130,6 +4373,22 @@ mod tool_name_fallback_tests {
             resolve_tool_name_fallback("open_file_reader", &json!({"paths": ["README.md"]})),
             "file_read_many"
         );
+    }
+
+    #[test]
+    fn resolves_workspace_analyze_names_to_terminal_exec() {
+        assert_eq!(
+            resolve_tool_name_fallback("workspace_analyze", &json!({"query":"effective loc"})),
+            "terminal_exec"
+        );
+    }
+
+    #[test]
+    fn terminal_alias_prefers_loc_command_for_line_count_prompts() {
+        let cmd =
+            terminal_alias_command_for_tool("workspace_analyze", &json!({"query":"effective loc"}))
+                .unwrap_or_default();
+        assert!(cmd.contains("git ls-files"));
     }
 
     #[test]
@@ -4683,8 +4942,10 @@ fn tool_capability_tier(normalized: &str, input: &Value) -> &'static str {
     if tool_is_autonomous_spawn(normalized) {
         return "green";
     }
+    if is_terminal_tool_name(normalized) {
+        return "green";
+    }
     match normalized {
-        "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => "red",
         "agent_action" | "manage_agent" => {
             let action = clean_text(
                 input.get("action").and_then(Value::as_str).unwrap_or(""),
@@ -5025,11 +5286,40 @@ fn execute_tool_call_by_name(
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
         "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => {
-            let body = if input.is_object() {
+            let mut body = if input.is_object() {
                 input.clone()
             } else {
                 json!({"command": clean_text(input.as_str().unwrap_or(""), 12000)})
             };
+            let current_command = clean_text(
+                body.get("command")
+                    .or_else(|| body.get("cmd"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                12_000,
+            );
+            if current_command.is_empty() {
+                if let Some(fallback_command) = terminal_alias_command_for_tool(&normalized, input)
+                {
+                    body["command"] = Value::String(fallback_command);
+                }
+            }
+            let has_command = !clean_text(
+                body.get("command")
+                    .or_else(|| body.get("cmd"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                12_000,
+            )
+            .is_empty();
+            if !has_command {
+                return json!({
+                    "ok": false,
+                    "error": "command_required",
+                    "tool": resolved,
+                    "next_step": "Provide `command` in the terminal tool input."
+                });
+            }
             let path = format!("/api/agents/{actor}/terminal");
             let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
             handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
@@ -5843,11 +6133,22 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         let mut sections = Vec::<String>::new();
         for entry in files.iter().take(3) {
             let path = clean_text(entry.get("path").and_then(Value::as_str).unwrap_or(""), 220);
-            let content = clean_text(entry.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+            let content = clean_text(
+                entry.get("content").and_then(Value::as_str).unwrap_or(""),
+                4_000,
+            );
             if content.is_empty() {
                 continue;
             }
-            sections.push(format!("[{}]\n{}", if path.is_empty() { "file".to_string() } else { path }, content));
+            sections.push(format!(
+                "[{}]\n{}",
+                if path.is_empty() {
+                    "file".to_string()
+                } else {
+                    path
+                },
+                content
+            ));
         }
         if !sections.is_empty() {
             return trim_text(sections.join("\n\n").as_str(), 24_000);
@@ -6399,7 +6700,9 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         || normalized == "batch_file_read"
     {
         if lowered.contains("paths_required") || lowered.contains("path_required") {
-            return Some("I need one or more workspace file paths before batch read can run.".to_string());
+            return Some(
+                "I need one or more workspace file paths before batch read can run.".to_string(),
+            );
         }
         if lowered.contains("path_outside_workspace") {
             return Some(
@@ -6720,7 +7023,8 @@ fn execute_inline_tool_calls(
     } else {
         trim_text(cleaned_trimmed, 32_000)
     };
-    let (contracted_response, _contract_report) = enforce_tool_completion_contract(response, &cards);
+    let (contracted_response, _contract_report) =
+        enforce_tool_completion_contract(response, &cards);
     (contracted_response, cards, pending_confirmation)
 }
 
@@ -8648,12 +8952,8 @@ pub fn handle_with_headers(
             let passive_memory_context =
                 passive_attention_context_for_message(root, &agent_id, &message, 6);
             let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
-            let overflow_keyframes_context = historical_context_keyframes_prompt_context(
-                &messages,
-                &active_messages,
-                10,
-                2_400,
-            );
+            let overflow_keyframes_context =
+                historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400);
             let relevant_recall_context = historical_relevant_recall_prompt_context(
                 &messages,
                 &active_messages,
@@ -8940,10 +9240,8 @@ pub fn handle_with_headers(
                                 retried_text = abstract_runtime_mechanics_terms(&retried_text);
                             }
                             if !response_is_unrelated_context_dump(&message, &retried_text) {
-                                let (retry_finalized, retry_report) = enforce_tool_completion_contract(
-                                    retried_text,
-                                    &response_tools,
-                                );
+                                let (retry_finalized, retry_report) =
+                                    enforce_tool_completion_contract(retried_text, &response_tools);
                                 let retry_outcome = clean_text(
                                     retry_report
                                         .get("outcome")
@@ -9055,6 +9353,7 @@ pub fn handle_with_headers(
                         }
                     }
                     let _ = update_profile_patch(root, &agent_id, &runtime_patch);
+                    let terminal_transcript = tool_terminal_transcript(&response_tools);
                     let mut payload = result.clone();
                     payload["ok"] = json!(true);
                     payload["agent_id"] = json!(agent_id);
@@ -9064,6 +9363,7 @@ pub fn handle_with_headers(
                     payload["response"] = json!(response_text);
                     payload["runtime_sync"] = runtime_summary;
                     payload["tools"] = Value::Array(response_tools);
+                    payload["terminal_transcript"] = Value::Array(terminal_transcript);
                     payload["response_finalization"] = response_finalization;
                     payload["turn_transaction"] = turn_transaction;
                     payload["context_window"] = json!(fallback_window.max(0));
@@ -9982,11 +10282,7 @@ pub fn handle_with_headers(
                     continue;
                 }
                 let bytes = fs::read(&target_path).unwrap_or_default();
-                let file_max_bytes = if full {
-                    bytes.len().max(1)
-                } else {
-                    max_bytes
-                };
+                let file_max_bytes = if full { bytes.len().max(1) } else { max_bytes };
                 let binary = bytes_look_binary(&bytes);
                 let content_type = guess_mime_type_for_file(&target_path, &bytes);
                 if binary && !allow_binary {
@@ -10083,10 +10379,7 @@ pub fn handle_with_headers(
             if let Some(meta) = nexus_connection {
                 payload["nexus_connection"] = meta;
             }
-            return Some(CompatApiResponse {
-                status,
-                payload,
-            });
+            return Some(CompatApiResponse { status, payload });
         }
 
         if method == "POST"
@@ -10706,7 +10999,7 @@ pub fn handle_with_headers(
                     ("cron_run", "yellow"),
                     ("cron_cancel", "yellow"),
                     ("manage_agent", "yellow"),
-                    ("terminal_exec", "red"),
+                    ("terminal_exec", "green"),
                     ("spawn_subagents", "green"),
                 ];
                 json!({
