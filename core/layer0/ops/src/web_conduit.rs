@@ -18,6 +18,14 @@ const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
 const RECEIPTS_REL: &str = "client/runtime/local/state/web_conduit/receipts.jsonl";
 const APPROVALS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/approvals.json";
 const ARTIFACTS_DIR_REL: &str = "client/runtime/local/state/web_conduit/artifacts";
+const DEFAULT_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+const DEFAULT_REFERER: &str = "https://www.google.com/";
+const DEFAULT_WEB_USER_AGENTS: &[&str] = &[
+    "Infring-WebConduit/1.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+];
 
 fn usage() {
     println!("web-conduit commands:");
@@ -469,6 +477,51 @@ fn web_search_lite_url(query: &str) -> String {
     )
 }
 
+fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
+    raw.as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(|v| clean_text(v, 180).to_ascii_lowercase()))
+        .map(|row| {
+            row.trim()
+                .trim_start_matches("http://")
+                .trim_start_matches("https://")
+                .trim_start_matches("www.")
+                .split('/')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        })
+        .filter(|row| {
+            !row.is_empty()
+                && row.contains('.')
+                && row
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-'))
+        })
+        .fold(Vec::<String>::new(), |mut acc, row| {
+            if !acc.iter().any(|existing| existing == &row) {
+                acc.push(row);
+            }
+            acc
+        })
+}
+
+fn scoped_search_query(query: &str, allowed_domains: &[String]) -> String {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() || allowed_domains.is_empty() {
+        return cleaned;
+    }
+    let scope = allowed_domains
+        .iter()
+        .map(|domain| format!("site:{domain}"))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    clean_text(format!("({scope}) {cleaned}").as_str(), 900)
+}
+
 fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     let combined = format!("{summary}\n{content}").to_ascii_lowercase();
     if combined.is_empty() {
@@ -486,7 +539,12 @@ fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     .any(|marker| combined.contains(marker))
 }
 
-fn fetch_with_curl(url: &str, timeout_ms: u64, max_response_bytes: usize) -> Value {
+fn fetch_with_curl(
+    url: &str,
+    timeout_ms: u64,
+    max_response_bytes: usize,
+    user_agent: &str,
+) -> Value {
     let timeout_sec = ((timeout_ms as f64) / 1000.0).ceil() as u64;
     let output = Command::new("curl")
         .arg("-sS")
@@ -499,7 +557,11 @@ fn fetch_with_curl(url: &str, timeout_ms: u64, max_response_bytes: usize) -> Val
         .arg("--max-time")
         .arg(timeout_sec.max(1).to_string())
         .arg("-A")
-        .arg("Infring-WebConduit/1.0")
+        .arg(clean_text(user_agent, 260))
+        .arg("-H")
+        .arg(format!("Accept-Language: {DEFAULT_ACCEPT_LANGUAGE}"))
+        .arg("-e")
+        .arg(DEFAULT_REFERER)
         .arg("-w")
         .arg("\n__STATUS__:%{http_code}\n__CTYPE__:%{content_type}")
         .arg(url)
@@ -521,12 +583,14 @@ fn fetch_with_curl(url: &str, timeout_ms: u64, max_response_bytes: usize) -> Val
             };
             let status_code = status_raw.parse::<i64>().unwrap_or(0);
             let body = clip_bytes(&body_raw, max_response_bytes.max(256));
+            let status_ok = (200..400).contains(&status_code);
             json!({
-                "ok": run.status.success() && status_code > 0,
+                "ok": run.status.success() && status_ok,
                 "status_code": status_code,
                 "content_type": content_type,
                 "body": body,
-                "stderr": if stderr.is_empty() { Value::Null } else { Value::String(stderr) }
+                "stderr": if stderr.is_empty() { Value::Null } else { Value::String(stderr) },
+                "user_agent": clean_text(user_agent, 260)
             })
         }
         Err(err) => json!({
@@ -534,9 +598,81 @@ fn fetch_with_curl(url: &str, timeout_ms: u64, max_response_bytes: usize) -> Val
             "status_code": 0,
             "content_type": "",
             "body": "",
-            "stderr": format!("curl_spawn_failed:{err}")
+            "stderr": format!("curl_spawn_failed:{err}"),
+            "user_agent": clean_text(user_agent, 260)
         }),
     }
+}
+
+fn is_retryable_fetch_result(row: &Value) -> bool {
+    let status = row.get("status_code").and_then(Value::as_i64).unwrap_or(0);
+    if matches!(status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
+        return true;
+    }
+    let error = clean_text(row.get("stderr").and_then(Value::as_str).unwrap_or(""), 220).to_ascii_lowercase();
+    error.contains("timed out")
+        || error.contains("timeout")
+        || error.contains("econnreset")
+        || error.contains("temporarily unavailable")
+        || error.contains("could not resolve host")
+        || error.contains("empty reply")
+}
+
+fn content_type_is_textual(content_type: &str) -> bool {
+    let lowered = clean_text(content_type, 120).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    lowered.starts_with("text/")
+        || lowered.contains("json")
+        || lowered.contains("xml")
+        || lowered.contains("javascript")
+        || lowered.contains("yaml")
+        || lowered.contains("csv")
+}
+
+fn fetch_with_curl_retry(
+    url: &str,
+    timeout_ms: u64,
+    max_response_bytes: usize,
+    max_attempts: usize,
+) -> Value {
+    let mut attempts = 0usize;
+    let mut best = json!({
+        "ok": false,
+        "status_code": 0,
+        "content_type": "",
+        "body": "",
+        "stderr": "fetch_not_attempted"
+    });
+    let target_attempts = max_attempts.clamp(1, 4);
+    for idx in 0..target_attempts {
+        attempts += 1;
+        let ua = DEFAULT_WEB_USER_AGENTS
+            .get(idx % DEFAULT_WEB_USER_AGENTS.len())
+            .copied()
+            .unwrap_or(DEFAULT_WEB_USER_AGENTS[0]);
+        let current = fetch_with_curl(url, timeout_ms, max_response_bytes, ua);
+        let current_ok = current.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        best = current;
+        if current_ok {
+            break;
+        }
+        if !is_retryable_fetch_result(&best) || idx + 1 >= target_attempts {
+            break;
+        }
+        let sleep_ms = match idx {
+            0 => 180_u64,
+            1 => 360_u64,
+            _ => 720_u64,
+        };
+        std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
+    }
+    if let Some(obj) = best.as_object_mut() {
+        obj.insert("retry_attempts".to_string(), json!(attempts));
+        obj.insert("retry_used".to_string(), json!(attempts > 1));
+    }
+    best
 }
 
 fn build_receipt(
@@ -699,14 +835,42 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
         .pointer("/policy/max_response_bytes")
         .and_then(Value::as_u64)
         .unwrap_or(350_000) as usize;
-    let fetched = fetch_with_curl(&requested_url, timeout_ms, max_response_bytes);
+    let retry_attempts = policy_eval
+        .pointer("/policy/retry_attempts")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(1, 4) as usize;
+    let fetched = fetch_with_curl_retry(&requested_url, timeout_ms, max_response_bytes, retry_attempts);
     let status_code = fetched
         .get("status_code")
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let content_type = clean_text(
+        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        180,
+    );
     let fetched_body = fetched.get("body").and_then(Value::as_str).unwrap_or("");
-    let content = clean_html_content(fetched_body, max_response_bytes.min(240_000));
-    let summary = summarize_text(&content, 900);
+    let content_is_textual = content_type_is_textual(&content_type);
+    let content = if content_is_textual {
+        clean_html_content(fetched_body, max_response_bytes.min(240_000))
+    } else {
+        String::new()
+    };
+    let summary = if content_is_textual {
+        summarize_text(&content, 900)
+    } else if requested_url.is_empty() {
+        format!("Fetched non-text content ({}).", if content_type.is_empty() { "binary/unknown" } else { content_type.as_str() })
+    } else {
+        format!(
+            "Fetched non-text content from {} ({}).",
+            clean_text(&requested_url, 220),
+            if content_type.is_empty() {
+                "binary/unknown"
+            } else {
+                content_type.as_str()
+            }
+        )
+    };
     let response_hash = if content.is_empty() {
         String::new()
     } else {
@@ -721,8 +885,12 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
     } else {
         None
     };
-    let fetch_ok =
-        fetched.get("ok").and_then(Value::as_bool).unwrap_or(false) && !content.is_empty();
+    let fetch_ok = fetched.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && if content_is_textual {
+            !content.is_empty()
+        } else {
+            status_code >= 200 && status_code < 400
+        };
     let error_value = fetched
         .get("stderr")
         .and_then(Value::as_str)
@@ -750,9 +918,12 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
         "ok": fetch_ok,
         "requested_url": requested_url,
         "status_code": status_code,
-        "content_type": fetched.get("content_type").cloned().unwrap_or_else(|| json!("")),
+        "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
         "summary": summary,
         "content": if summary_only { Value::String(String::new()) } else { Value::String(content.clone()) },
+        "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
+        "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
+        "user_agent": fetched.get("user_agent").cloned().unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
         "response_hash": response_hash,
         "artifact": artifact.clone().unwrap_or(Value::Null),
         "policy_decision": policy_eval,
@@ -821,8 +992,12 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "receipt": receipt
         });
     }
-    let primary_url = web_search_url(&query);
-    let fallback_url = web_search_lite_url(&query);
+    let allowed_domains = normalize_allowed_domains(
+        request.get("allowed_domains").unwrap_or(&Value::Null),
+    );
+    let scoped_query = scoped_search_query(&query, &allowed_domains);
+    let primary_url = web_search_url(&scoped_query);
+    let fallback_url = web_search_lite_url(&scoped_query);
     let summary_only = request
         .get("summary_only")
         .or_else(|| request.get("summary"))
@@ -883,7 +1058,9 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "type".to_string(),
             Value::String("web_conduit_search".to_string()),
         );
-        obj.insert("query".to_string(), Value::String(query));
+        obj.insert("query".to_string(), Value::String(query.clone()));
+        obj.insert("effective_query".to_string(), Value::String(scoped_query));
+        obj.insert("allowed_domains".to_string(), json!(allowed_domains));
         obj.insert(
             "provider".to_string(),
             Value::String(if used_lite_fallback {
@@ -1121,5 +1298,33 @@ mod tests {
             "Tech News | Today's Latest Technology News | Reuters",
             "www.reuters.com/technology/ Find latest technology news from every corner of the globe."
         ));
+    }
+
+    #[test]
+    fn scoped_search_query_applies_domain_filters() {
+        let scoped = scoped_search_query(
+            "agent reliability",
+            &vec!["github.com".to_string(), "docs.rs".to_string()],
+        );
+        assert!(scoped.contains("site:github.com"));
+        assert!(scoped.contains("site:docs.rs"));
+        assert!(scoped.contains("agent reliability"));
+    }
+
+    #[test]
+    fn scoped_search_query_leaves_plain_query_when_domains_empty() {
+        let scoped = scoped_search_query("agent reliability", &[]);
+        assert_eq!(scoped, "agent reliability");
+    }
+
+    #[test]
+    fn normalize_allowed_domains_sanitizes_urls_and_duplicates() {
+        let domains = normalize_allowed_domains(&json!([
+            "https://www.github.com/openai",
+            "docs.rs",
+            "github.com",
+            "not a domain"
+        ]));
+        assert_eq!(domains, vec!["github.com".to_string(), "docs.rs".to_string()]);
     }
 }
