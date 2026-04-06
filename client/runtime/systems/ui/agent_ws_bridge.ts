@@ -151,7 +151,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           tool_step_index: i + 1,
           tool_step_total: replayCount,
         });
-      });
+      }
       const thoughtLines =
         toolName === 'thought_process'
           ? splitThoughtSentences(toolInput || toolResult, 3)
@@ -210,39 +210,14 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           const content = String(payload.content == null ? '' : payload.content).slice(0, 12000);
           if (!content.trim()) { send(ws, { type: 'error', content: 'message_required', agent_id: targetAgent }); return; }
           send(ws, { type: 'typing', state: 'start', agent_id: targetAgent });
-          const phaseCycle = [
-            'Analyzing request',
-            'Planning next step',
-            'Working through tools',
-          ];
-          let phaseCursor = 0;
-          send(ws, {
-            type: 'phase',
-            agent_id: targetAgent,
-            phase: 'thinking',
-            detail: phaseCycle[phaseCursor],
-          });
-          const phaseTimer = setInterval(() => {
-            phaseCursor = (phaseCursor + 1) % phaseCycle.length;
-            send(ws, {
-              type: 'phase',
-              agent_id: targetAgent,
-              phase: 'thinking',
-              detail: phaseCycle[phaseCursor],
-            });
-          }, 2300);
           let res = null;
           let out = {};
-          try {
-            res = await fetchBackend(flags, `/api/agents/${enc(targetAgent)}/message`, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ message: content, attachments: Array.isArray(payload.attachments) ? payload.attachments : [] }),
-            }, 180000);
-            out = await res.json().catch(() => ({}));
-          } finally {
-            clearInterval(phaseTimer);
-          }
+          res = await fetchBackend(flags, `/api/agents/${enc(targetAgent)}/message`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ message: content, attachments: Array.isArray(payload.attachments) ? payload.attachments : [] }),
+          }, 180000);
+          out = await res.json().catch(() => ({}));
           if (!res.ok || out.ok === false) {
             send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(out.error || `backend_http_${res.status}`, 260) });
             return;
@@ -256,12 +231,6 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
               ? out.response_finalization.tool_completion
               : null;
           if (toolRows.length > 0) {
-            send(ws, {
-              type: 'phase',
-              agent_id: targetAgent,
-              phase: 'planning',
-              detail: 'Preparing tool findings',
-            });
             await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
           send(ws, {

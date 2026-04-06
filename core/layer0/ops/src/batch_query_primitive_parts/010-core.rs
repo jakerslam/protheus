@@ -254,6 +254,24 @@ fn looks_like_low_signal_search_summary(text: &str) -> bool {
     marker_hits >= 2
 }
 
+fn looks_like_source_only_snippet(text: &str) -> bool {
+    let lowered = clean_text(text, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    if lowered.starts_with("potential sources:")
+        || lowered.starts_with("candidate sources:")
+        || lowered.starts_with("found sources:")
+    {
+        let domain_hits = extract_domains_from_text(&lowered, 8).len();
+        let word_count = lowered.split_whitespace().count();
+        if domain_hits > 0 && word_count <= 28 {
+            return true;
+        }
+    }
+    false
+}
+
 fn skip_duckduckgo_fallback_for_error(primary_err: &str) -> bool {
     let lowered = clean_text(primary_err, 240).to_ascii_lowercase();
     lowered.contains("policy_blocked")
@@ -534,9 +552,6 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         } else {
             String::new()
         };
-    if snippet.is_empty() && !domains.is_empty() {
-        snippet = format!("Potential sources: {}.", domains.join(", "));
-    }
     if snippet.is_empty()
         && !content_normalized.is_empty()
         && !looks_like_ack_only(&content_normalized)
@@ -551,6 +566,9 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         snippet = trim_words(&summary, 56);
     }
     if snippet.is_empty() {
+        return Err("no_usable_summary".to_string());
+    }
+    if looks_like_source_only_snippet(&snippet) {
         return Err("no_usable_summary".to_string());
     }
     let locator = clean_text(

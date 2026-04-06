@@ -52,7 +52,7 @@
                 var leakLabel = typeof this.toolThinkingActionLabel === 'function'
                   ? this.toolThinkingActionLabel(leakTool || { name: toolMatch[1], input: '' })
                   : String(toolMatch[1] || 'tool');
-                if (leakLabel) last.thinking_status = leakLabel;
+                if (leakLabel && last.thinking_status !== leakLabel) last.thinking_status = leakLabel;
               }
             }
             this.tokenCount = Math.round(String(last._cleanText || '').length / 4);
@@ -119,7 +119,7 @@
           var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
           if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel);
           var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
-          if (startLabel) lastMsg.thinking_status = startLabel;
+          if (startLabel && lastMsg.thinking_status !== startLabel) lastMsg.thinking_status = startLabel;
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
@@ -130,7 +130,7 @@
             var receiptRunningLabel = String(data && data.tool_status ? data.tool_status : '').trim();
             if (receiptRunningLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptRunningLabel = this.normalizeThinkingStatusCandidate(receiptRunningLabel);
             var runningLabel = receiptRunningLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel(runningTool || { name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
-            if (runningLabel) lastMsg2.thinking_status = runningLabel;
+            if (runningLabel && lastMsg2.thinking_status !== runningLabel) lastMsg2.thinking_status = runningLabel;
             lastMsg2._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
           }
@@ -167,7 +167,7 @@
               ? this.thinkingToolStatusSummary(lastMsg3)
               : null;
             var summaryText = String((statusSummary && statusSummary.text) || '').trim();
-            if (summaryText) lastMsg3.thinking_status = summaryText;
+            if (summaryText && lastMsg3.thinking_status !== summaryText) lastMsg3.thinking_status = summaryText;
           }
           this._resetTypingTimeout();
           this.scrollToBottom();

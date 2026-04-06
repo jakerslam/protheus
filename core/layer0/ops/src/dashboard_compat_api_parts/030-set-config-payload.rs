@@ -2783,7 +2783,7 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
             "web_search",
             "search web",
             "Message implies live web research intent.",
-            json!({"query": clean_text(message, 600), "summary_only": true}),
+            json!({"query": clean_text(message, 600), "summary_only": false}),
         );
     }
 
@@ -3154,7 +3154,24 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
 fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     let cleaned = clean_text(text, 1200);
     let lowered = cleaned.to_ascii_lowercase();
+    let potential_source_mentions = lowered.matches("potential sources:").count();
     if lowered.is_empty() {
+        return true;
+    }
+    if lowered.contains("key findings for") && potential_source_mentions >= 1 {
+        return true;
+    }
+    if potential_source_mentions >= 1
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
+        return true;
+    }
+    if lowered.starts_with("web search for")
+        && lowered.contains("found sources:")
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
         return true;
     }
     if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
@@ -3182,11 +3199,8 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     }
     let has_rich_findings = lowered.contains("http://")
         || lowered.contains("https://")
-        || lowered.contains("- ")
         || lowered.contains("1.")
         || lowered.contains("2.")
-        || lowered.contains("key finding")
-        || lowered.contains("sources:")
         || lowered.contains("according to");
     mentions_tooling && !has_rich_findings && (token_count <= 80 || mainly_ack_language)
 }
@@ -5961,7 +5975,10 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             payload.get("domain").and_then(Value::as_str).unwrap_or(""),
             120,
         );
-        if !summary.is_empty() && !looks_like_search_engine_chrome_summary(&summary) {
+        if !summary.is_empty()
+            && !looks_like_search_engine_chrome_summary(&summary)
+            && !response_looks_like_tool_ack_without_findings(&summary)
+        {
             return trim_text(&summary, 1_200);
         }
         let combined = if content.is_empty() {
@@ -5973,38 +5990,20 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         };
         let findings = extract_search_result_findings(&combined, 3);
         if !findings.is_empty() {
-            if !query.is_empty() {
-                let mut lines = vec![format!(
-                    "Web search findings for \"{}\":",
-                    trim_text(&query, 120)
-                )];
-                for row in findings {
-                    lines.push(format!("- {row}"));
-                }
-                return trim_text(&lines.join("\n"), 1_200);
-            }
             return trim_text(
-                &format!(
-                    "Web search findings:\n{}",
-                    findings
-                        .into_iter()
-                        .map(|row| format!("- {row}"))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                ),
+                &format!("From web retrieval: {}", findings.join(" ")),
                 1_200,
             );
         }
         let sources = extract_search_result_domains(&combined, 4);
         if !sources.is_empty() {
-            if !query.is_empty() {
-                return format!(
-                    "Web search for \"{}\" found sources: {}.",
-                    trim_text(&query, 120),
-                    sources.join(", ")
-                );
-            }
-            return format!("Web search candidate sources: {}.", sources.join(", "));
+            let joined = sources.join(", ");
+            return web_search_no_findings_fallback(
+                &query,
+                &format!("{combined}\n{joined}"),
+                &requested_url,
+                &domain,
+            );
         }
         return web_search_no_findings_fallback(&query, &combined, &requested_url, &domain);
     }
@@ -6148,6 +6147,8 @@ fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String
             || lowered.starts_with("safe search ")
             || lowered.contains(" at duckduckgo")
             || lowered.contains("site links")
+            || lowered.contains("key findings for")
+            || lowered.contains("potential sources:")
         {
             continue;
         }
@@ -6300,6 +6301,29 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
 
 fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
     let lowered = summary.to_ascii_lowercase();
+    let potential_source_mentions = lowered.matches("potential sources:").count();
+    if lowered.contains("unfortunately, bots use duckduckgo too")
+        || lowered.contains("please complete the following challenge")
+        || lowered.contains("select all squares containing a duck")
+        || lowered.contains("error-lite@duckduckgo.com")
+    {
+        return true;
+    }
+    if lowered.contains("key findings for") && potential_source_mentions >= 1 {
+        return true;
+    }
+    if potential_source_mentions >= 1
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
+        return true;
+    }
+    if lowered.contains("key findings for")
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
+        return true;
+    }
     let markers = [
         "duckduckgo all regions",
         "all regions argentina",
@@ -10559,8 +10583,10 @@ pub fn handle_with_headers(
                         .unwrap_or(""),
                     600,
                 );
-                let mut payload =
-                    crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}));
+                let mut payload = crate::web_conduit::api_search(
+                    root,
+                    &json!({"query": query, "summary_only": false}),
+                );
                 if let Some(meta) = nexus_connection {
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("nexus_connection".to_string(), meta);

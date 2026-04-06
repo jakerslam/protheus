@@ -111,9 +111,22 @@
       };
     },
     updateCollapsedAgentHoverPosition(ev) {
-      if (!ev || !ev.currentTarget || typeof ev.currentTarget.getBoundingClientRect !== 'function') return;
-      var rect = ev.currentTarget.getBoundingClientRect();
-      var top = Math.max(48, Math.round(rect.top + (rect.height / 2)));
+      var top = 0;
+      var pointerTop = ev && typeof ev.clientY === 'number' ? Number(ev.clientY) : NaN;
+      if (Number.isFinite(pointerTop) && pointerTop > 0) {
+        top = Math.round(pointerTop);
+      } else if (ev && ev.currentTarget && typeof ev.currentTarget.getBoundingClientRect === 'function') {
+        var rect = ev.currentTarget.getBoundingClientRect();
+        top = Math.round(rect.top + (rect.height / 2));
+      }
+      if (!Number.isFinite(top) || top <= 0) return;
+      var viewportHeight = Number(
+        typeof window !== 'undefined' && window && window.innerHeight ? window.innerHeight : 0
+      );
+      top = Math.max(16, top);
+      if (viewportHeight > 0) {
+        top = Math.min(Math.max(16, viewportHeight - 16), top);
+      }
       this.collapsedAgentHover = Object.assign({}, this.collapsedAgentHover || {}, { top: top });
     },
     handleCollapsedAgentHoverMove(agent, ev) {

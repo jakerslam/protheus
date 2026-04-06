@@ -231,7 +231,7 @@
           pendingRow.thinking = true;
           pendingRow.streaming = true;
           if (!String(pendingRow.text || '').trim()) pendingRow.text = '';
-          pendingRow.thinking_status = nextStatus;
+          if (nextStatus && pendingRow.thinking_status !== nextStatus) pendingRow.thinking_status = nextStatus;
           pendingRow._stream_updated_at = Date.now();
         }
       };

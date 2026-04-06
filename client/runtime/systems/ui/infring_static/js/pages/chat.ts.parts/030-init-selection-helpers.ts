@@ -175,13 +175,46 @@
     },
 
     get modelDisplayName() {
-      var selected = String((this.currentAgent && this.currentAgent.model_name) || '').trim();
-      var runtime = String((this.currentAgent && this.currentAgent.runtime_model) || '').trim();
+      var readModelField = function(agent, keys) {
+        var row = agent && typeof agent === 'object' ? agent : null;
+        if (!row) return '';
+        for (var i = 0; i < keys.length; i += 1) {
+          var key = String(keys[i] || '').trim();
+          if (!key) continue;
+          var value = String(row[key] || '').trim();
+          if (value) return value;
+        }
+        return '';
+      };
+      var store = typeof this.getAppStore === 'function' ? this.getAppStore() : null;
+      var currentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
+      var storeAgent = null;
+      if (store && Array.isArray(store.agents) && currentId) {
+        for (var ai = 0; ai < store.agents.length; ai += 1) {
+          var row = store.agents[ai];
+          if (row && String(row.id || '').trim() === currentId) {
+            storeAgent = row;
+            break;
+          }
+        }
+      }
+      var selected = readModelField(this.currentAgent, ['model_name', 'selected_model', 'model', 'selected_model_id']);
+      var runtime = readModelField(this.currentAgent, ['runtime_model', 'current_model', 'resolved_model']);
+      var modelOverride = readModelField(this.currentAgent, ['model_override', 'active_model_ref']);
+      var storeSelected = readModelField(storeAgent, ['model_name', 'selected_model', 'model', 'selected_model_id']);
+      var storeRuntime = readModelField(storeAgent, ['runtime_model', 'current_model', 'resolved_model']);
+      var storeOverride = readModelField(storeAgent, ['model_override', 'active_model_ref']);
       var suggestion = this.selectedFreshInitModelSuggestion ? this.selectedFreshInitModelSuggestion() : null;
       var suggestionRef = this.normalizeFreshInitModelRef ? this.normalizeFreshInitModelRef(suggestion) : '';
-      var providerFallback = String((this.currentAgent && this.currentAgent.model_provider) || '').trim().toLowerCase();
+      var providerFallback = readModelField(this.currentAgent, ['model_provider', 'provider', 'selected_provider']);
+      if (!providerFallback) providerFallback = readModelField(storeAgent, ['model_provider', 'provider', 'selected_provider']);
+      providerFallback = String(providerFallback || '').trim().toLowerCase();
       if (this.isPlaceholderModelRef(selected)) selected = '';
       if (this.isPlaceholderModelRef(runtime)) runtime = '';
+      if (this.isPlaceholderModelRef(modelOverride)) modelOverride = '';
+      if (this.isPlaceholderModelRef(storeSelected)) storeSelected = '';
+      if (this.isPlaceholderModelRef(storeRuntime)) storeRuntime = '';
+      if (this.isPlaceholderModelRef(storeOverride)) storeOverride = '';
       if (this.isPlaceholderModelRef(suggestionRef)) suggestionRef = '';
       if (selected.toLowerCase() === 'auto') {
         var resolved = this.compactModelLabel(runtime);
@@ -190,7 +223,7 @@
       }
       var active = this.resolveActiveSwitcherModel ? this.resolveActiveSwitcherModel(this._modelCache || []) : null;
       var activeId = String((active && active.id) || '').trim();
-      var candidates = [selected, runtime, suggestionRef, activeId];
+      var candidates = [selected, runtime, modelOverride, storeSelected, storeRuntime, storeOverride, suggestionRef, activeId];
       for (var ci = 0; ci < candidates.length; ci += 1) {
         var compactCandidate = this.compactModelLabel(candidates[ci]);
         if (!compactCandidate) continue;

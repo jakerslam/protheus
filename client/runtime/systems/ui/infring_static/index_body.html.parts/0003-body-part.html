@@ -272,17 +272,7 @@
                               <span class="thinking-orb-link-dot thinking-orb-link-dot-2"></span>
                               <span class="thinking-orb-link-dot thinking-orb-link-dot-3"></span>
                             </div>
-                            <div class="thinking-inline-text" x-show="thinkingDisplayText(msg)"><em x-text="thinkingDisplayText(msg)"></em></div>
-                            <div class="thinking-status-line" x-show="thinkingStatusText(msg)" x-text="thinkingStatusText(msg)"></div>
-                            <div class="thinking-trace-list" x-show="thinkingTraceRows(msg).length">
-                              <template x-for="trace in thinkingTraceRows(msg)" :key="trace.id">
-                                <div class="thinking-trace-row" :class="'state-' + trace.state">
-                                  <span class="thinking-trace-dot" aria-hidden="true"></span>
-                                  <span class="thinking-trace-label" x-text="trace.label"></span>
-                                  <span class="thinking-trace-state" x-text="trace.state_label"></span>
-                                </div>
-                              </template>
-                            </div>
+                            <div class="thinking-inline-text"><em x-text="thinkingStatusText(msg) || 'Working...'"></em></div>
                             <div class="typing-dots"><span></span><span></span><span></span></div>
                           </div>
                           <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, messages)">

@@ -65,6 +65,12 @@ CHECKSUM_MANIFEST_VERSION=""
 CHECKSUM_MANIFEST_TMP_DIR=""
 CHECKSUM_MANIFEST_MISSING_WARNED_VERSION=""
 INSTALL_SUMMARY_STATUS="failed"
+INSTALL_SUMMARY_COMPLETED_AT=""
+INSTALL_SUMMARY_FAILED_AT=""
+INSTALL_SUMMARY_EXIT_CODE=""
+INSTALL_SUMMARY_FAILURE_REASON=""
+INSTALL_SUMMARY_LAST_NOTE=""
+INSTALL_DASHBOARD_SMOKE_PASSED=0
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -830,6 +836,7 @@ parse_install_args() {
         echo "  --offline         disable network fetch; require cached verified release artifacts"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
+        echo "  --verify-install-summary-contract  verify INFRING_INSTALL_SUMMARY_FILE status/completed_at contract"
         exit 0
         ;;
       *)
@@ -844,7 +851,7 @@ parse_install_args() {
 install_summary_init() {
   summary_file="$INSTALL_SUMMARY_FILE"
   summary_dir="$(dirname "$summary_file")"
-  mkdir -p "$summary_dir" >/dev/null 2>&1 || true
+  mkdir -p "$summary_dir"
   {
     echo "infring_install_summary_v1"
     echo "timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
@@ -862,35 +869,122 @@ install_summary_init() {
     echo "ollama_starter_model: ${OLLAMA_STARTER_MODEL}"
     echo "install_dir: ${INSTALL_DIR}"
     echo "workspace_dir: ${WORKSPACE_DIR}"
-    echo "status: pending"
-  } > "$summary_file" 2>/dev/null || true
+    echo "status: failed"
+  } > "$summary_file"
 }
 
 install_summary_note() {
   note="$1"
   [ -n "$note" ] || return 0
+  INSTALL_SUMMARY_LAST_NOTE="$(printf '%s' "$note" | tr '\r\n' ' ' | tr -s ' ')"
   {
     printf '%s\n' "$note"
   } >> "$INSTALL_SUMMARY_FILE" 2>/dev/null || true
 }
 
-install_summary_finalize() {
+install_summary_sync() {
   summary_file="$INSTALL_SUMMARY_FILE"
-  [ -f "$summary_file" ] || return 0
+  summary_dir="$(dirname "$summary_file")"
+  mkdir -p "$summary_dir" >/dev/null 2>&1 || true
+  if [ ! -f "$summary_file" ]; then
+    {
+      echo "infring_install_summary_v1"
+      echo "timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+      echo "repo: ${REPO_OWNER}/${REPO_NAME}"
+      echo "requested_version: ${REQUESTED_VERSION}"
+      echo "install_dir: ${INSTALL_DIR}"
+      echo "workspace_dir: ${WORKSPACE_DIR}"
+    } > "$summary_file" 2>/dev/null || return 1
+  fi
   tmp_file="${summary_file}.tmp"
   (
     while IFS= read -r line || [ -n "$line" ]; do
       case "$line" in
-        status:*)
-          echo "status: ${INSTALL_SUMMARY_STATUS}"
+        status:*|completed_at:*|failed_at:*|exit_code:*|failure_reason:*|last_note:*)
           ;;
         *)
           echo "$line"
           ;;
       esac
     done < "$summary_file"
-  ) > "$tmp_file" 2>/dev/null || return 0
-  mv "$tmp_file" "$summary_file" >/dev/null 2>&1 || true
+    if [ -n "$INSTALL_SUMMARY_COMPLETED_AT" ]; then
+      echo "completed_at: ${INSTALL_SUMMARY_COMPLETED_AT}"
+    fi
+    if [ "$INSTALL_SUMMARY_STATUS" != "success" ]; then
+      if [ -n "$INSTALL_SUMMARY_FAILED_AT" ]; then
+        echo "failed_at: ${INSTALL_SUMMARY_FAILED_AT}"
+      fi
+      if [ -n "$INSTALL_SUMMARY_EXIT_CODE" ]; then
+        echo "exit_code: ${INSTALL_SUMMARY_EXIT_CODE}"
+      fi
+      if [ -n "$INSTALL_SUMMARY_FAILURE_REASON" ]; then
+        echo "failure_reason: ${INSTALL_SUMMARY_FAILURE_REASON}"
+      fi
+      if [ -n "$INSTALL_SUMMARY_LAST_NOTE" ]; then
+        echo "last_note: ${INSTALL_SUMMARY_LAST_NOTE}"
+      fi
+    fi
+    echo "status: ${INSTALL_SUMMARY_STATUS}"
+  ) > "$tmp_file" 2>/dev/null || return 1
+  mv "$tmp_file" "$summary_file" >/dev/null 2>&1 || return 1
+  return 0
+}
+
+install_summary_mark_success() {
+  INSTALL_SUMMARY_STATUS="success"
+  INSTALL_SUMMARY_COMPLETED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+  INSTALL_SUMMARY_FAILED_AT=""
+  INSTALL_SUMMARY_EXIT_CODE=""
+  INSTALL_SUMMARY_FAILURE_REASON=""
+  install_summary_sync
+}
+
+verify_install_summary_success_contract() {
+  summary_file="$INSTALL_SUMMARY_FILE"
+  if [ ! -f "$summary_file" ]; then
+    echo "[infring install] summary contract failed: missing $summary_file" >&2
+    return 1
+  fi
+  status_line="$(grep -E '^status:' "$summary_file" 2>/dev/null | tail -n 1 | tr -d '\r' || true)"
+  if [ "$status_line" != "status: success" ]; then
+    echo "[infring install] summary contract failed: expected status: success, got '${status_line:-missing}'" >&2
+    return 1
+  fi
+  last_line="$(awk 'NF{line=$0} END{print line}' "$summary_file" 2>/dev/null | tr -d '\r' || true)"
+  if [ "$last_line" != "status: success" ]; then
+    echo "[infring install] summary contract failed: status is not final line" >&2
+    return 1
+  fi
+  if ! grep -q '^completed_at:' "$summary_file" 2>/dev/null; then
+    echo "[infring install] summary contract failed: completed_at missing" >&2
+    return 1
+  fi
+  echo "[infring install] summary contract: ok"
+  return 0
+}
+
+install_summary_finalize() {
+  exit_code="${1:-1}"
+  if [ "$exit_code" = "0" ]; then
+    INSTALL_SUMMARY_STATUS="success"
+    if [ -z "$INSTALL_SUMMARY_COMPLETED_AT" ]; then
+      INSTALL_SUMMARY_COMPLETED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+    fi
+    INSTALL_SUMMARY_FAILED_AT=""
+    INSTALL_SUMMARY_EXIT_CODE=""
+    INSTALL_SUMMARY_FAILURE_REASON=""
+  else
+    INSTALL_SUMMARY_STATUS="failed"
+    INSTALL_SUMMARY_COMPLETED_AT=""
+    if [ -z "$INSTALL_SUMMARY_FAILED_AT" ]; then
+      INSTALL_SUMMARY_FAILED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+    fi
+    INSTALL_SUMMARY_EXIT_CODE="$exit_code"
+    if [ -z "$INSTALL_SUMMARY_FAILURE_REASON" ]; then
+      INSTALL_SUMMARY_FAILURE_REASON="installer_exit_nonzero"
+    fi
+  fi
+  install_summary_sync || true
 }
 
 tool_install_hint() {
@@ -2666,6 +2760,7 @@ run_post_install_smoke_tests() {
   export PROTHEUS_WORKSPACE_ROOT="$workspace"
   export INFRING_WRAPPER_CD_WORKSPACE=1
   export PROTHEUS_WRAPPER_CD_WORKSPACE=1
+  INSTALL_DASHBOARD_SMOKE_PASSED=0
   failures=0
   run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
   if rustup_default_toolchain_missing; then
@@ -2683,7 +2778,11 @@ EOF
   if node_runtime_meets_minimum; then
     run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
     smoke_port="$((4400 + ($$ % 1000)))"
-    run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port" || failures=$((failures + 1))
+    if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
+      INSTALL_DASHBOARD_SMOKE_PASSED=1
+    else
+      failures=$((failures + 1))
+    fi
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
   fi
@@ -3709,12 +3808,18 @@ EOF
 }
 
 main() {
+  if [ "${1:-}" = "--verify-install-summary-contract" ]; then
+    if verify_install_summary_success_contract; then
+      exit 0
+    fi
+    exit 1
+  fi
   parse_install_args "$@"
   if is_truthy "$INSTALL_OFFLINE"; then
     INSTALL_ASSET_CACHE=1
   fi
   install_summary_init
-  trap 'install_summary_finalize' EXIT
+  trap 'install_summary_finalize "$?"' EXIT
   resolve_install_dir_default
   run_install_preflight || exit 1
 
@@ -3989,6 +4094,14 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] run: ${quickstart_prefix}infring --help"
   echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
   echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
+  if [ "$INSTALL_DASHBOARD_SMOKE_PASSED" = "1" ]; then
+    echo "[infring install] dashboard smoke passed"
+  else
+    echo "[infring install] dashboard smoke skipped or not run in this install mode"
+  fi
+  echo "[infring install] note: installer validates dashboard startup but does not keep it running"
+  echo "[infring install] start dashboard now: ${quickstart_prefix}infring gateway"
+  echo "[infring install] stop dashboard: ${quickstart_prefix}infring gateway stop"
   print_shell_activation_snippets
   node_summary_bin="$(resolve_node_binary_path 2>/dev/null || true)"
   if [ -n "$node_summary_bin" ]; then
@@ -4014,9 +4127,16 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     install_summary_note "ollama_model_count: 0"
     echo "[infring install] local models setup: install Ollama (https://ollama.com/download), then run 'ollama serve' and 'ollama pull $(normalize_ollama_model_ref "$OLLAMA_STARTER_MODEL")'"
   fi
+  if ! install_summary_mark_success; then
+    INSTALL_SUMMARY_FAILURE_REASON="summary_sync_failed_after_success"
+    echo "[infring install] summary contract failed: could not write success summary" >&2
+    exit 1
+  fi
+  if ! verify_install_summary_success_contract; then
+    INSTALL_SUMMARY_FAILURE_REASON="summary_contract_verification_failed"
+    exit 1
+  fi
   echo "[infring install] summary log: $INSTALL_SUMMARY_FILE"
-  install_summary_note "completed_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
-  INSTALL_SUMMARY_STATUS="success"
 
   if [ -n "$SOURCE_FALLBACK_TMP" ] && [ -d "$SOURCE_FALLBACK_TMP" ]; then
     rm -rf "$SOURCE_FALLBACK_TMP"

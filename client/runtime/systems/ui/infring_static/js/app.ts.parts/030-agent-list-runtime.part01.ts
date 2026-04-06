@@ -160,11 +160,25 @@
       var pendingFreshId = String((this.getAppStore() && this.getAppStore().pendingFreshAgentId) || '').trim();
       list = list.filter(function(agent) {
         if (!agent || !agent.id) return false;
-        if (self.isSystemSidebarThread(agent)) return false;
         if (pendingFreshId && String(agent.id || '') === pendingFreshId) return false;
         if (self.isSidebarArchivedAgent(agent)) return false;
         return !archivedSet.has(String(agent.id));
       });
+      var hasSystemThread = list.some(function(agent) {
+        return self.isSystemSidebarThread(agent);
+      });
+      if (!hasSystemThread) {
+        list.push({
+          id: 'system',
+          name: 'System',
+          is_system_thread: true,
+          state: 'running',
+          role: 'system',
+          model_provider: 'system',
+          model_name: 'terminal',
+          identity: { emoji: '\u2699\ufe0f' }
+        });
+      }
       list.sort(function(a, b) {
         return self.chatSidebarSortComparator(a, b);
       });

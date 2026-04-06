@@ -213,8 +213,36 @@ fn is_trailing_query_filler(word: &str) -> bool {
     )
 }
 
+fn normalize_suggestion_voice(value: &str) -> String {
+    let mut normalized = clean_text(value, 220)
+        .trim_end_matches('?')
+        .trim()
+        .to_string();
+    if normalized.is_empty() {
+        return String::new();
+    }
+    let lowered = normalized.to_ascii_lowercase();
+    let prefixes = [
+        "should i ",
+        "want me to ",
+        "do you want me to ",
+        "would you like me to ",
+        "can you ",
+        "could you ",
+    ];
+    for prefix in prefixes {
+        if lowered.starts_with(prefix) {
+            normalized = normalized.chars().skip(prefix.len()).collect::<String>();
+            break;
+        }
+    }
+    clean_text(&normalized, 220)
+}
+
 fn sanitize_suggestion(value: &str) -> String {
-    let cleaned = clean_text(value, 220).replace('"', "").replace('\'', "");
+    let cleaned = normalize_suggestion_voice(value)
+        .replace('"', "")
+        .replace('\'', "");
     if cleaned.is_empty() {
         return String::new();
     }

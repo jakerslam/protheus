@@ -492,6 +492,13 @@ fn ack_only_detector_flags_explicit_no_findings_failure_copy() {
 }
 
 #[test]
+fn ack_only_detector_flags_key_findings_source_scaffold_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "Key findings for \"Infring AI vs competitors comparison 2024\": - Potential sources: hai.stanford.edu, artificialanalysis.ai, epoch.ai."
+    ));
+}
+
+#[test]
 fn ack_only_detector_flags_duckduckgo_findings_placeholder_copy() {
     assert!(response_looks_like_tool_ack_without_findings(
         "I couldn't extract usable findings for this yet. The search response came from https://duckduckgo.com/html/?q=agent+systems"
@@ -505,6 +512,19 @@ fn response_tools_summary_drops_ack_only_tool_rows() {
             "name": "web_search",
             "is_error": false,
             "result": "Web search completed."
+        })],
+        4,
+    );
+    assert!(synthesized.is_empty());
+}
+
+#[test]
+fn response_tools_summary_drops_key_findings_source_scaffold_rows() {
+    let synthesized = response_tools_summary_for_user(
+        &[json!({
+            "name": "batch_query",
+            "is_error": false,
+            "result": "Key findings for \"Infring AI vs competitors comparison 2024\": - Potential sources: hai.stanford.edu, artificialanalysis.ai, epoch.ai."
         })],
         4,
     );
@@ -664,6 +684,22 @@ fn web_search_summary_reports_root_cause_without_legacy_no_findings_template() {
 }
 
 #[test]
+fn web_search_summary_discards_potential_sources_scaffold_output() {
+    let summary = summarize_tool_payload(
+        "web_search",
+        &json!({
+            "ok": true,
+            "query": "Infring AI agent platform capabilities features 2024",
+            "summary": "Key findings for \"Infring AI agent platform capabilities features 2024\":\n- Potential sources: nlplogix.com, gartner.com, insightpartners.com.\n- Potential sources: salesforce.com, microsoft.com, lyzr.ai."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(!lowered.contains("potential sources:"));
+    assert!(!lowered.contains("key findings for"));
+    assert!(lowered.contains("low-signal") || lowered.contains("no extractable findings"));
+}
+
+#[test]
 fn web_search_summary_uses_content_domains_when_summary_is_search_chrome() {
     let summary = summarize_tool_payload(
         "web_search",
@@ -676,12 +712,7 @@ fn web_search_summary_uses_content_domains_when_summary_is_search_chrome() {
         }),
     );
     let lowered = summary.to_ascii_lowercase();
-    assert!(
-        lowered.contains("web search findings")
-            || lowered.contains("found sources")
-            || lowered.contains("candidate sources"),
-        "unexpected summary: {summary}"
-    );
+    assert!(lowered.contains("from web retrieval"), "unexpected summary: {summary}");
     assert!(lowered.contains("reuters.com"));
     assert!(!lowered.contains("couldn't extract usable findings"));
     assert!(!lowered.contains("search response came from"));

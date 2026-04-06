@@ -19,6 +19,18 @@ const wsHandlerSource = read(
     'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts'
   )
 );
+const renderSource = read(
+  path.resolve(
+    ROOT,
+    'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts'
+  )
+);
+const bodyPartSource = read(
+  path.resolve(
+    ROOT,
+    'client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html'
+  )
+);
 
 assert.ok(
   bridgeSource.includes("type: 'phase'"),
@@ -40,6 +52,10 @@ assert.ok(
   'agent ws bridge must use tool_completion receipt status for live tool sentence sync'
 );
 assert.ok(
+  !bridgeSource.includes('phaseCycle'),
+  'agent ws bridge must not run synthetic rotating phase carousel text'
+);
+assert.ok(
   wsHandlerSource.includes('var responseTools = Array.isArray(data.tools)') &&
     wsHandlerSource.includes('streamedTools = responseTools;'),
   'chat ws response handler must hydrate fallback tool cards from response.tools'
@@ -51,4 +67,14 @@ assert.ok(
 assert.ok(
   wsHandlerSource.includes("rtool.name || '').toLowerCase() === 'thought_process'"),
   'chat ws response handler must recover thought content from thought_process tool cards'
+);
+assert.ok(
+  bodyPartSource.includes("thinkingStatusText(msg) || 'Working...'") &&
+    !bodyPartSource.includes('thinking-trace-list'),
+  'thinking bubble template must render a single primary status line without stacked trace rows'
+);
+assert.ok(
+  renderSource.includes('msg._thought_latest_chunk') &&
+    renderSource.includes("return String(msg._thinking_last_line || '').trim();"),
+  'thinking runtime must keep one sticky single-line sentence instead of composing multi-line status stacks'
 );

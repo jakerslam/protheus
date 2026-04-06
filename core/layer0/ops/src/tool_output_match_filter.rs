@@ -30,6 +30,10 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
                 unless: Some(r"(?is)\b(?:key finding|sources?:|according to)\b"),
             },
             MatchRule {
+                pattern: r"(?is)key findings for .*potential sources:",
+                unless: Some(r"(?is)https?://"),
+            },
+            MatchRule {
                 pattern: r"(?is)could(?:n't| not) extract (?:usable|reliable) findings.*search response came from https?://duckduckgo\.com/html/\?q=",
                 unless: Some(r"(?is)\b(?:key finding|sources?:|according to)\b"),
             },
@@ -127,6 +131,13 @@ mod tests {
     fn detects_plain_no_findings_placeholder_without_sources() {
         assert!(matches_ack_placeholder(
             "I couldn't extract usable findings from that search yet."
+        ));
+    }
+
+    #[test]
+    fn detects_key_findings_potential_sources_scaffold_without_urls() {
+        assert!(matches_ack_placeholder(
+            "Key findings for \"Infring AI\": - Potential sources: nlplogix.com, gartner.com."
         ));
     }
 

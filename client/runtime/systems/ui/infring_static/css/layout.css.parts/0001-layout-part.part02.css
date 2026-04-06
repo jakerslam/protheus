@@ -57,7 +57,7 @@
 
 .nav-sub-sort-btn.active {
   color: var(--text);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: transparent;
   background: color-mix(in srgb, var(--user-bg) 78%, transparent);
 }
 
@@ -126,26 +126,40 @@
 }
 
 .sidebar.collapsed .nav-sub-item.nav-sub-item-action.nav-sub-item-action-collapsed {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  margin: 2px auto 8px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  margin: 2px auto 10px;
   padding: 0;
-  border-radius: 9px;
-  border: none;
-  background: transparent;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
   color: var(--text);
-  transition: color var(--transition-fast), transform var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.sidebar.collapsed .nav-sub-item.nav-sub-item-action.nav-sub-item-action-collapsed.nav-sub-item-action-new-agent {
+  margin-left: auto;
+  margin-right: auto;
+  align-self: center;
 }
 
 .sidebar.collapsed .nav-sub-item.nav-sub-item-action.nav-sub-item-action-collapsed:hover {
-  border: none;
-  background: transparent;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
   color: var(--text);
   transform: none;
+}
+
+.sidebar.collapsed .nav-sub-item.nav-sub-item-action.nav-sub-item-action-collapsed .nav-icon.new-agent-plus-icon-wrap {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-agent-row {

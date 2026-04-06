@@ -8,6 +8,27 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
             if skip_duckduckgo_fallback_for_error(&primary_err) {
                 return Err(primary_err);
             }
+            let bing_payload = fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
+                crate::web_conduit::api_search(
+                    root,
+                    &json!({
+                        "query": query,
+                        "provider": "bing",
+                        "summary_only": false
+                    }),
+                )
+            });
+            if let Ok(candidate) = candidate_from_search_payload(query, &bing_payload) {
+                return Ok(candidate);
+            }
+            let bing_err = clean_text(
+                bing_payload
+                    .get("error")
+                    .or_else(|| bing_payload.pointer("/result/error"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("bing_rss_no_usable_summary"),
+                220,
+            );
             let fallback_url = duckduckgo_instant_answer_url(query);
             let fallback_payload = fixture_payload_for_stage_query("duckduckgo_instant", query)
                 .unwrap_or_else(|| {
@@ -22,7 +43,9 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
             match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload)
             {
                 Ok(candidate) => Ok(candidate),
-                Err(fallback_err) => Err(format!("{primary_err}|fallback:{fallback_err}")),
+                Err(fallback_err) => Err(format!(
+                    "{primary_err}|bing:{bing_err}|fallback:{fallback_err}"
+                )),
             }
         }
     }
@@ -193,7 +216,18 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     });
     ranked.truncate(budget.max_evidence);
 
-    let evidence_refs = ranked
+    let actionable_ranked = ranked
+        .into_iter()
+        .filter(|(row, _)| {
+            let snippet = clean_text(&row.snippet, 1_200);
+            !snippet.is_empty()
+                && !looks_like_ack_only(&snippet)
+                && !looks_like_low_signal_search_summary(&snippet)
+                && !looks_like_source_only_snippet(&snippet)
+        })
+        .collect::<Vec<_>>();
+
+    let evidence_refs = actionable_ranked
         .iter()
         .map(|(row, score)| EvidenceRef {
             source_kind: row.source_kind.clone(),
@@ -216,11 +250,31 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let summary = if evidence_refs.is_empty() {
         "Search returned no useful information.".to_string()
     } else {
-        let mut lines = vec![format!("Key findings for \"{}\":", trim_words(&query, 32))];
-        for (candidate, _) in &ranked {
-            lines.push(format!("- {}", trim_words(&candidate.snippet, 42)));
+        let mut snippets = Vec::<String>::new();
+        for (candidate, _) in &actionable_ranked {
+            let snippet = trim_words(&clean_text(&candidate.snippet, 1_200), 42);
+            if snippet.is_empty() {
+                continue;
+            }
+            if snippets
+                .iter()
+                .any(|existing| existing.eq_ignore_ascii_case(&snippet))
+            {
+                continue;
+            }
+            snippets.push(snippet);
+            if snippets.len() >= budget.max_evidence.max(1) {
+                break;
+            }
         }
-        trim_words(&lines.join("\n"), budget.max_summary_tokens)
+        if snippets.is_empty() {
+            "Search returned no useful information.".to_string()
+        } else {
+            trim_words(
+                &format!("From web retrieval: {}", snippets.join(" ")),
+                budget.max_summary_tokens,
+            )
+        }
     };
 
     let provider_snapshot = json!({
