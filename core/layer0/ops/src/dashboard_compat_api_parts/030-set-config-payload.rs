@@ -9726,6 +9726,23 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "path_required"}),
                 });
             }
+            let nexus_connection =
+                match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                    "file_read",
+                ) {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 403,
+                            payload: json!({
+                                "ok": false,
+                                "error": "file_read_nexus_delivery_denied",
+                                "message": "File read blocked by hierarchical nexus ingress policy.",
+                                "nexus_error": clean_text(&err, 240)
+                            }),
+                        })
+                    }
+                };
             let workspace_base = workspace_base_for_agent(root, existing.as_ref());
             let target = resolve_workspace_path(&workspace_base, &requested_path);
             let Some(target_path) = target else {
@@ -9810,26 +9827,30 @@ pub fn handle_with_headers(
                     .unwrap_or("download.txt"),
                 180,
             );
+            let mut payload = json!({
+                "ok": true,
+                "file": {
+                    "ok": true,
+                    "path": target_path.to_string_lossy().to_string(),
+                    "content": content,
+                    "content_base64": content_base64,
+                    "truncated": truncated,
+                    "bytes": bytes.len(),
+                    "max_bytes": max_bytes,
+                    "full": full,
+                    "binary": binary,
+                    "allow_binary": allow_binary,
+                    "download_url": download_url,
+                    "file_name": file_name,
+                    "content_type": content_type
+                }
+            });
+            if let Some(meta) = nexus_connection {
+                payload["nexus_connection"] = meta;
+            }
             return Some(CompatApiResponse {
                 status: 200,
-                payload: json!({
-                    "ok": true,
-                    "file": {
-                        "ok": true,
-                        "path": target_path.to_string_lossy().to_string(),
-                        "content": content,
-                        "content_base64": content_base64,
-                        "truncated": truncated,
-                        "bytes": bytes.len(),
-                        "max_bytes": max_bytes,
-                        "full": full,
-                        "binary": binary,
-                        "allow_binary": allow_binary,
-                        "download_url": download_url,
-                        "file_name": file_name,
-                        "content_type": content_type
-                    }
-                }),
+                payload,
             });
         }
 
@@ -9868,6 +9889,23 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "paths_required"}),
                 });
             }
+            let nexus_connection =
+                match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                    "file_read_many",
+                ) {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 403,
+                            payload: json!({
+                                "ok": false,
+                                "error": "file_read_many_nexus_delivery_denied",
+                                "message": "File read-many blocked by hierarchical nexus ingress policy.",
+                                "nexus_error": clean_text(&err, 240)
+                            }),
+                        })
+                    }
+                };
             let workspace_base = workspace_base_for_agent(root, existing.as_ref());
             let full = request
                 .get("full")
@@ -9987,30 +10025,34 @@ pub fn handle_with_headers(
                     .and_then(|row| row.get("status").and_then(Value::as_u64))
                     .unwrap_or(400) as u16
             };
+            let mut payload = json!({
+                "ok": ok,
+                "type": "file_read_many",
+                "files": files,
+                "failed": failed,
+                "unclassified": unclassified,
+                "partial": ok && (!failed.is_empty() || !unclassified.is_empty()),
+                "groups": {
+                    "text": grouped_text,
+                    "binary": grouped_binary,
+                    "unclassified": grouped_unclassified
+                },
+                "counts": {
+                    "requested": paths.len(),
+                    "ok": files.len(),
+                    "failed": failed.len(),
+                    "unclassified": unclassified.len(),
+                    "text": grouped_text.len(),
+                    "binary": grouped_binary.len(),
+                    "group_unclassified": grouped_unclassified.len()
+                }
+            });
+            if let Some(meta) = nexus_connection {
+                payload["nexus_connection"] = meta;
+            }
             return Some(CompatApiResponse {
                 status,
-                payload: json!({
-                    "ok": ok,
-                    "type": "file_read_many",
-                    "files": files,
-                    "failed": failed,
-                    "unclassified": unclassified,
-                    "partial": ok && (!failed.is_empty() || !unclassified.is_empty()),
-                    "groups": {
-                        "text": grouped_text,
-                        "binary": grouped_binary,
-                        "unclassified": grouped_unclassified
-                    },
-                    "counts": {
-                        "requested": paths.len(),
-                        "ok": files.len(),
-                        "failed": failed.len(),
-                        "unclassified": unclassified.len(),
-                        "text": grouped_text.len(),
-                        "binary": grouped_binary.len(),
-                        "group_unclassified": grouped_unclassified.len()
-                    }
-                }),
+                payload,
             });
         }
 
