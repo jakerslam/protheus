@@ -9647,6 +9647,9 @@ pub fn handle_with_headers(
             let mut files = Vec::<Value>::new();
             let mut failed = Vec::<Value>::new();
             let mut unclassified = Vec::<Value>::new();
+            let mut grouped_text = Vec::<String>::new();
+            let mut grouped_binary = Vec::<String>::new();
+            let mut grouped_unclassified = Vec::<String>::new();
             for requested_path in &paths {
                 let target = resolve_workspace_path(&workspace_base, requested_path);
                 let Some(target_path) = target else {
@@ -9655,14 +9658,17 @@ pub fn handle_with_headers(
                         "error": "path_outside_workspace",
                         "status": 400
                     }));
+                    grouped_unclassified.push(requested_path.clone());
                     continue;
                 };
                 if !target_path.is_file() {
+                    let rendered = target_path.to_string_lossy().to_string();
                     unclassified.push(json!({
-                        "path": target_path.to_string_lossy().to_string(),
+                        "path": rendered,
                         "error": "file_not_found",
                         "status": 404
                     }));
+                    grouped_unclassified.push(target_path.to_string_lossy().to_string());
                     continue;
                 }
                 let bytes = fs::read(&target_path).unwrap_or_default();
@@ -9682,6 +9688,7 @@ pub fn handle_with_headers(
                         "bytes": bytes.len(),
                         "content_type": content_type
                     }));
+                    grouped_binary.push(target_path.to_string_lossy().to_string());
                     continue;
                 }
                 let (content, truncated) = if binary {
@@ -9709,9 +9716,15 @@ pub fn handle_with_headers(
                         .unwrap_or("download.txt"),
                     180,
                 );
+                let rendered_path = target_path.to_string_lossy().to_string();
+                if binary {
+                    grouped_binary.push(rendered_path.clone());
+                } else {
+                    grouped_text.push(rendered_path.clone());
+                }
                 files.push(json!({
                     "ok": true,
-                    "path": target_path.to_string_lossy().to_string(),
+                    "path": rendered_path,
                     "content": content,
                     "content_base64": content_base64,
                     "truncated": truncated,
@@ -9744,11 +9757,19 @@ pub fn handle_with_headers(
                     "failed": failed,
                     "unclassified": unclassified,
                     "partial": ok && (!failed.is_empty() || !unclassified.is_empty()),
+                    "groups": {
+                        "text": grouped_text,
+                        "binary": grouped_binary,
+                        "unclassified": grouped_unclassified
+                    },
                     "counts": {
                         "requested": paths.len(),
                         "ok": files.len(),
                         "failed": failed.len(),
-                        "unclassified": unclassified.len()
+                        "unclassified": unclassified.len(),
+                        "text": grouped_text.len(),
+                        "binary": grouped_binary.len(),
+                        "group_unclassified": grouped_unclassified.len()
                     }
                 }),
             });
