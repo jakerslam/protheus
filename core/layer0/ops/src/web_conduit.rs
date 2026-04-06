@@ -26,6 +26,7 @@ const DEFAULT_WEB_USER_AGENTS: &[&str] = &[
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
 ];
+const SERPER_SEARCH_URL: &str = "https://google.serper.dev/search";
 
 fn usage() {
     println!("web-conduit commands:");
@@ -33,7 +34,7 @@ fn usage() {
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
     println!("  protheus-ops web-conduit fetch --url=<https://...> [--human-approved=1] [--approval-id=<id>] [--summary-only=1]");
     println!(
-        "  protheus-ops web-conduit search --query=<terms> [--human-approved=1] [--summary-only=1]"
+        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
     );
     println!("  protheus-ops browse fetch --url=<https://...>");
 }
@@ -103,6 +104,23 @@ fn parse_u64(value: Option<&String>, fallback: u64, min: u64, max: u64) -> u64 {
         .and_then(|raw| raw.trim().parse::<u64>().ok())
         .unwrap_or(fallback)
         .clamp(min, max)
+}
+
+fn serper_api_key() -> Option<String> {
+    for key in [
+        "INFRING_SERPERDEV_API_KEY",
+        "SERPERDEV_API_KEY",
+        "INFRING_SERPER_API_KEY",
+        "SERPER_API_KEY",
+    ] {
+        if let Ok(raw) = std::env::var(key) {
+            let cleaned = clean_text(&raw, 600);
+            if !cleaned.is_empty() {
+                return Some(cleaned);
+            }
+        }
+    }
+    None
 }
 
 fn policy_path(root: &Path) -> PathBuf {
@@ -541,6 +559,118 @@ fn scoped_search_query(query: &str, allowed_domains: &[String], exclude_subdomai
     clean_text(format!("({scope}) {cleaned}").as_str(), 900)
 }
 
+fn domain_matches_filter(domain: &str, filter: &str, exclude_subdomains: bool) -> bool {
+    if domain == filter {
+        return true;
+    }
+    if exclude_subdomains {
+        return false;
+    }
+    domain
+        .strip_suffix(filter)
+        .map(|prefix| prefix.ends_with('.'))
+        .unwrap_or(false)
+}
+
+fn domain_allowed_for_scope(
+    raw_url: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+) -> bool {
+    if allowed_domains.is_empty() {
+        return true;
+    }
+    let domain = extract_domain(raw_url);
+    if domain.is_empty() {
+        return false;
+    }
+    allowed_domains
+        .iter()
+        .any(|filter| domain_matches_filter(&domain, filter, exclude_subdomains))
+}
+
+fn render_serper_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    let parsed = match serde_json::from_str::<Value>(body) {
+        Ok(value) => value,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "serper_decode_failed",
+                "summary": "",
+                "content": "",
+                "links": [],
+                "content_domains": [],
+                "provider_raw_count": 0,
+                "provider_filtered_count": 0
+            });
+        }
+    };
+    let organic = parsed
+        .get("organic")
+        .or_else(|| parsed.get("results"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    for row in &organic {
+        let link = clean_text(row.get("link").and_then(Value::as_str).unwrap_or(""), 2200);
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains) {
+            continue;
+        }
+        let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 220);
+        let snippet = clean_text(row.get("snippet").and_then(Value::as_str).unwrap_or(""), 420);
+        let rendered = if title.is_empty() && snippet.is_empty() {
+            clean_text(&link, 1200)
+        } else if snippet.is_empty() {
+            clean_text(format!("{title} — {link}").as_str(), 1200)
+        } else if title.is_empty() {
+            clean_text(format!("{link} — {snippet}").as_str(), 1200)
+        } else {
+            clean_text(format!("{title} — {link} — {snippet}").as_str(), 1200)
+        };
+        if rendered.is_empty() {
+            continue;
+        }
+        lines.push(rendered);
+        links.push(link.clone());
+        let domain = extract_domain(&link);
+        if !domain.is_empty() && !domains.iter().any(|existing| existing == &domain) {
+            domains.push(domain);
+        }
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok {
+            summarize_text(&content, 900)
+        } else {
+            "No relevant results found for that request yet.".to_string()
+        },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": organic.len(),
+        "provider_filtered_count": lines.len(),
+        "error": if ok {
+            Value::Null
+        } else {
+            Value::String("no_relevant_results".to_string())
+        }
+    })
+}
+
 fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     let combined = format!("{summary}\n{content}").to_ascii_lowercase();
     if combined.is_empty() {
@@ -623,6 +753,81 @@ fn fetch_with_curl(
     }
 }
 
+fn fetch_serper_with_curl(
+    api_key: &str,
+    query: &str,
+    timeout_ms: u64,
+    max_response_bytes: usize,
+    user_agent: &str,
+    top_k: usize,
+) -> Value {
+    let timeout_sec = ((timeout_ms as f64) / 1000.0).ceil() as u64;
+    let payload = json!({
+        "q": clean_text(query, 900),
+        "num": top_k.clamp(1, 12)
+    });
+    let payload_raw = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+    let output = Command::new("curl")
+        .arg("-sS")
+        .arg("-L")
+        .arg("--compressed")
+        .arg("--proto")
+        .arg("=http,https")
+        .arg("--connect-timeout")
+        .arg(timeout_sec.max(1).to_string())
+        .arg("--max-time")
+        .arg(timeout_sec.max(1).to_string())
+        .arg("-A")
+        .arg(clean_text(user_agent, 260))
+        .arg("-H")
+        .arg("Accept: application/json")
+        .arg("-H")
+        .arg("Content-Type: application/json")
+        .arg("-H")
+        .arg(format!("X-API-KEY: {}", clean_text(api_key, 600)))
+        .arg("-d")
+        .arg(payload_raw)
+        .arg("-w")
+        .arg("\n__STATUS__:%{http_code}\n__CTYPE__:%{content_type}")
+        .arg(SERPER_SEARCH_URL)
+        .output();
+    match output {
+        Ok(run) => {
+            let stdout = String::from_utf8_lossy(&run.stdout).to_string();
+            let stderr = clean_text(&String::from_utf8_lossy(&run.stderr), 320);
+            let status_marker = "\n__STATUS__:";
+            let ctype_marker = "\n__CTYPE__:";
+            let (body_and_status, content_type) = match stdout.rsplit_once(ctype_marker) {
+                Some((left, right)) => (left.to_string(), clean_text(right, 120)),
+                None => (stdout, String::new()),
+            };
+            let (body_raw, status_raw) = match body_and_status.rsplit_once(status_marker) {
+                Some((left, right)) => (left.to_string(), clean_text(right, 12)),
+                None => (body_and_status, "0".to_string()),
+            };
+            let status_code = status_raw.parse::<i64>().unwrap_or(0);
+            let body = clip_bytes(&body_raw, max_response_bytes.max(256));
+            let status_ok = (200..300).contains(&status_code);
+            json!({
+                "ok": run.status.success() && status_ok,
+                "status_code": status_code,
+                "content_type": content_type,
+                "body": body,
+                "stderr": if stderr.is_empty() { Value::Null } else { Value::String(stderr) },
+                "user_agent": clean_text(user_agent, 260)
+            })
+        }
+        Err(err) => json!({
+            "ok": false,
+            "status_code": 0,
+            "content_type": "",
+            "body": "",
+            "stderr": format!("serper_curl_spawn_failed:{err}"),
+            "user_agent": clean_text(user_agent, 260)
+        }),
+    }
+}
+
 fn is_retryable_fetch_result(row: &Value) -> bool {
     let status = row.get("status_code").and_then(Value::as_i64).unwrap_or(0);
     if matches!(status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
@@ -672,6 +877,59 @@ fn fetch_with_curl_retry(
             .copied()
             .unwrap_or(DEFAULT_WEB_USER_AGENTS[0]);
         let current = fetch_with_curl(url, timeout_ms, max_response_bytes, ua);
+        let current_ok = current.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        best = current;
+        if current_ok {
+            break;
+        }
+        if !is_retryable_fetch_result(&best) || idx + 1 >= target_attempts {
+            break;
+        }
+        let sleep_ms = match idx {
+            0 => 180_u64,
+            1 => 360_u64,
+            _ => 720_u64,
+        };
+        std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
+    }
+    if let Some(obj) = best.as_object_mut() {
+        obj.insert("retry_attempts".to_string(), json!(attempts));
+        obj.insert("retry_used".to_string(), json!(attempts > 1));
+    }
+    best
+}
+
+fn fetch_serper_with_retry(
+    api_key: &str,
+    query: &str,
+    timeout_ms: u64,
+    max_response_bytes: usize,
+    max_attempts: usize,
+    top_k: usize,
+) -> Value {
+    let mut attempts = 0usize;
+    let mut best = json!({
+        "ok": false,
+        "status_code": 0,
+        "content_type": "",
+        "body": "",
+        "stderr": "serper_not_attempted"
+    });
+    let target_attempts = max_attempts.clamp(1, 4);
+    for idx in 0..target_attempts {
+        attempts += 1;
+        let ua = DEFAULT_WEB_USER_AGENTS
+            .get(idx % DEFAULT_WEB_USER_AGENTS.len())
+            .copied()
+            .unwrap_or(DEFAULT_WEB_USER_AGENTS[0]);
+        let current = fetch_serper_with_curl(
+            api_key,
+            query,
+            timeout_ms,
+            max_response_bytes,
+            ua,
+            top_k,
+        );
         let current_ok = current.get("ok").and_then(Value::as_bool).unwrap_or(false);
         best = current;
         if current_ok {
@@ -985,6 +1243,170 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
     })
 }
 
+fn api_search_serper(
+    root: &Path,
+    query: &str,
+    summary_only: bool,
+    human_approved: bool,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+) -> Value {
+    let requested_url = SERPER_SEARCH_URL.to_string();
+    let Some(api_key) = serper_api_key() else {
+        return json!({
+            "ok": false,
+            "error": "serper_api_key_missing",
+            "requested_url": requested_url,
+            "provider": "serperdev"
+        });
+    };
+    let (policy, _policy_path_value) = load_policy(root);
+    let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
+        root,
+        &json!({
+            "requested_url": requested_url,
+            "domain": extract_domain(&requested_url),
+            "human_approved": human_approved,
+            "requests_last_minute": requests_last_minute(root)
+        }),
+        &policy,
+    );
+    let allow = policy_eval
+        .get("allow")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let reason = clean_text(
+        policy_eval
+            .get("reason")
+            .and_then(Value::as_str)
+            .unwrap_or("policy_denied"),
+        180,
+    );
+    if !allow {
+        let receipt = build_receipt(
+            &requested_url,
+            "deny",
+            None,
+            0,
+            &reason,
+            Some("policy_denied"),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "web_conduit_policy_denied",
+            "requested_url": requested_url,
+            "policy_decision": policy_eval,
+            "provider": "serperdev",
+            "receipt": receipt
+        });
+    }
+    let timeout_ms = policy_eval
+        .pointer("/policy/timeout_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(9000);
+    let max_response_bytes = policy_eval
+        .pointer("/policy/max_response_bytes")
+        .and_then(Value::as_u64)
+        .unwrap_or(350_000) as usize;
+    let retry_attempts = policy_eval
+        .pointer("/policy/retry_attempts")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(1, 4) as usize;
+    let fetched = fetch_serper_with_retry(
+        &api_key,
+        query,
+        timeout_ms,
+        max_response_bytes,
+        retry_attempts,
+        top_k,
+    );
+    let status_code = fetched
+        .get("status_code")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let content_type = clean_text(
+        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        180,
+    );
+    let parsed = render_serper_payload(
+        fetched.get("body").and_then(Value::as_str).unwrap_or(""),
+        allowed_domains,
+        exclude_subdomains,
+        top_k,
+        max_response_bytes,
+    );
+    let content = clean_text(parsed.get("content").and_then(Value::as_str).unwrap_or(""), max_response_bytes);
+    let summary = clean_text(parsed.get("summary").and_then(Value::as_str).unwrap_or(""), 900);
+    let response_hash = if content.is_empty() {
+        String::new()
+    } else {
+        sha256_hex(&content)
+    };
+    let materialize_artifact = true;
+    let artifact = if materialize_artifact {
+        persist_artifact(root, &requested_url, &response_hash, &content)
+    } else {
+        None
+    };
+    let fetch_ok = fetched.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && parsed.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && !summary.is_empty();
+    let mut error_value = clean_text(
+        fetched.get("stderr").and_then(Value::as_str).unwrap_or(""),
+        320,
+    );
+    if error_value.is_empty() {
+        error_value = clean_text(parsed.get("error").and_then(Value::as_str).unwrap_or(""), 220);
+    }
+    let receipt = build_receipt(
+        &requested_url,
+        "allow",
+        if response_hash.is_empty() {
+            None
+        } else {
+            Some(response_hash.as_str())
+        },
+        status_code,
+        &reason,
+        if error_value.is_empty() {
+            None
+        } else {
+            Some(error_value.as_str())
+        },
+    );
+    let _ = append_jsonl(&receipts_path(root), &receipt);
+    json!({
+        "ok": fetch_ok,
+        "requested_url": requested_url,
+        "status_code": status_code,
+        "content_type": if content_type.is_empty() { Value::String("application/json".to_string()) } else { Value::String(content_type) },
+        "summary": summary,
+        "content": if summary_only { Value::String(String::new()) } else { Value::String(content) },
+        "links": parsed.get("links").cloned().unwrap_or_else(|| json!([])),
+        "content_domains": parsed.get("content_domains").cloned().unwrap_or_else(|| json!([])),
+        "provider_raw_count": parsed.get("provider_raw_count").cloned().unwrap_or_else(|| json!(0)),
+        "provider_filtered_count": parsed.get("provider_filtered_count").cloned().unwrap_or_else(|| json!(0)),
+        "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
+        "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
+        "user_agent": fetched.get("user_agent").cloned().unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
+        "response_hash": response_hash,
+        "artifact": artifact.clone().unwrap_or(Value::Null),
+        "policy_decision": policy_eval,
+        "receipt": receipt,
+        "provider": "serperdev",
+        "error": if fetch_ok {
+            Value::Null
+        } else if error_value.is_empty() {
+            Value::String("serper_search_failed".to_string())
+        } else {
+            Value::String(error_value)
+        }
+    })
+}
+
 pub fn api_search(root: &Path, request: &Value) -> Value {
     let query = clean_text(
         request
@@ -1019,6 +1441,23 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .or_else(|| request.get("exact_domain_only"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let provider_hint = clean_text(
+        request
+            .get("provider")
+            .or_else(|| request.get("source"))
+            .or_else(|| request.get("search_provider"))
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let top_k = request
+        .get("top_k")
+        .or_else(|| request.get("max_results"))
+        .or_else(|| request.get("num"))
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .clamp(1, 12) as usize;
     let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
     let primary_url = web_search_url(&scoped_query);
     let fallback_url = web_search_lite_url(&scoped_query);
@@ -1027,23 +1466,57 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .or_else(|| request.get("summary"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let mut out = api_fetch(
-        root,
-        &json!({
-            "url": primary_url,
-            "summary_only": summary_only,
-            "human_approved": request
-                .get("human_approved")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
-            "approval_id": request
-                .get("approval_id")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-        }),
-    );
+    let human_approved = request
+        .get("human_approved")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let approval_id = request
+        .get("approval_id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let mut used_serper = false;
+    let mut serper_error = String::new();
+    let mut out = if provider_hint != "duckduckgo" && provider_hint != "ddg" {
+        let candidate = api_search_serper(
+            root,
+            &scoped_query,
+            summary_only,
+            human_approved,
+            &allowed_domains,
+            exclude_subdomains,
+            top_k,
+        );
+        if candidate.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            used_serper = true;
+            candidate
+        } else {
+            serper_error = clean_text(
+                candidate.get("error").and_then(Value::as_str).unwrap_or(""),
+                220,
+            );
+            api_fetch(
+                root,
+                &json!({
+                    "url": primary_url,
+                    "summary_only": summary_only,
+                    "human_approved": human_approved,
+                    "approval_id": approval_id
+                }),
+            )
+        }
+    } else {
+        api_fetch(
+            root,
+            &json!({
+                "url": primary_url,
+                "summary_only": summary_only,
+                "human_approved": human_approved,
+                "approval_id": approval_id
+            }),
+        )
+    };
     let mut used_lite_fallback = false;
-    if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+    if !used_serper && out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         let summary = clean_text(out.get("summary").and_then(Value::as_str).unwrap_or(""), 2400);
         let content = clean_text(out.get("content").and_then(Value::as_str).unwrap_or(""), 4000);
         if looks_like_search_challenge_payload(&summary, &content) {
@@ -1052,14 +1525,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 &json!({
                     "url": fallback_url,
                     "summary_only": summary_only,
-                    "human_approved": request
-                        .get("human_approved")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
-                    "approval_id": request
-                        .get("approval_id")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
+                    "human_approved": human_approved,
+                    "approval_id": approval_id
                 }),
             );
             if lite_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -1086,15 +1553,22 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         obj.insert("effective_query".to_string(), Value::String(scoped_query));
         obj.insert("allowed_domains".to_string(), json!(allowed_domains));
         obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
+        obj.insert("top_k".to_string(), json!(top_k));
         obj.insert(
             "provider".to_string(),
-            Value::String(if used_lite_fallback {
+            Value::String(if used_serper {
+                "serperdev".to_string()
+            } else if used_lite_fallback {
                 "duckduckgo_lite".to_string()
             } else {
                 "duckduckgo".to_string()
             }),
         );
         obj.insert("search_lite_fallback".to_string(), json!(used_lite_fallback));
+        obj.insert("provider_hint".to_string(), Value::String(provider_hint));
+        if !serper_error.is_empty() {
+            obj.insert("serper_error".to_string(), Value::String(serper_error));
+        }
     }
     out
 }
@@ -1159,11 +1633,35 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .or_else(|| parsed.flags.get("allowed_domains"))
                 .cloned()
                 .unwrap_or_default();
+            let provider = clean_text(
+                parsed
+                    .flags
+                    .get("provider")
+                    .or_else(|| parsed.flags.get("source"))
+                    .or_else(|| parsed.flags.get("search-provider"))
+                    .or_else(|| parsed.flags.get("search_provider"))
+                    .map(String::as_str)
+                    .unwrap_or("auto"),
+                40,
+            );
+            let top_k = parse_u64(
+                parsed
+                    .flags
+                    .get("top-k")
+                    .or_else(|| parsed.flags.get("top_k"))
+                    .or_else(|| parsed.flags.get("max-results"))
+                    .or_else(|| parsed.flags.get("max_results")),
+                8,
+                1,
+                12,
+            );
             api_search(
                 root,
                 &json!({
                     "query": query,
                     "allowed_domains": normalize_allowed_domains(&json!(allowed_domains)),
+                    "provider": provider,
+                    "top_k": top_k,
                     "exclude_subdomains": parse_bool(parsed.flags.get("exclude-subdomains")) || parse_bool(parsed.flags.get("exclude_subdomains")) || parse_bool(parsed.flags.get("exact-domain-only")) || parse_bool(parsed.flags.get("exact_domain_only")),
                     "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
                     "approval_id": clean_text(
@@ -1379,6 +1877,82 @@ mod tests {
                 "docs.rs".to_string(),
                 "example.com".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn domain_allowed_scope_respects_exact_domain_mode() {
+        let filters = vec!["example.com".to_string()];
+        assert!(domain_allowed_for_scope(
+            "https://example.com/docs",
+            &filters,
+            true
+        ));
+        assert!(!domain_allowed_for_scope(
+            "https://blog.example.com/post",
+            &filters,
+            true
+        ));
+        assert!(domain_allowed_for_scope(
+            "https://blog.example.com/post",
+            &filters,
+            false
+        ));
+    }
+
+    #[test]
+    fn render_serper_payload_filters_domains_and_builds_content() {
+        let body = serde_json::to_string(&json!({
+            "organic": [
+                {
+                    "title": "Main",
+                    "link": "https://example.com/main",
+                    "snippet": "Main domain snippet"
+                },
+                {
+                    "title": "Subdomain",
+                    "link": "https://blog.example.com/post",
+                    "snippet": "Subdomain snippet"
+                },
+                {
+                    "title": "Other",
+                    "link": "https://other.com/page",
+                    "snippet": "Other domain snippet"
+                }
+            ]
+        }))
+        .expect("encode");
+        let rendered =
+            render_serper_payload(&body, &vec!["example.com".to_string()], true, 8, 12_000);
+        assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            rendered
+                .get("provider_raw_count")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(
+            rendered
+                .get("provider_filtered_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let links = rendered
+            .get("links")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].as_str(), Some("https://example.com/main"));
+    }
+
+    #[test]
+    fn render_serper_payload_handles_invalid_json() {
+        let rendered = render_serper_payload("not-json", &[], false, 8, 12_000);
+        assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            rendered.get("error").and_then(Value::as_str),
+            Some("serper_decode_failed")
         );
     }
 }

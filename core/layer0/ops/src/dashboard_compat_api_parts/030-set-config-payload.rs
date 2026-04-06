@@ -3839,6 +3839,77 @@ fn normalize_tool_name(raw: &str) -> String {
     clean_text(raw, 80).to_ascii_lowercase().replace('-', "_")
 }
 
+fn resolve_tool_name_fallback(normalized: &str, input: &Value) -> String {
+    if normalized.is_empty() {
+        return normalized.to_string();
+    }
+    let looks_like_batch = input.is_array()
+        || input
+            .get("paths")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false);
+    if normalized.contains("batch") && normalized.contains("query") {
+        return "batch_query".to_string();
+    }
+    if normalized.contains("search") || normalized.contains("web_query") {
+        return "batch_query".to_string();
+    }
+    if normalized.contains("browse") || normalized.contains("web_fetch") || normalized.contains("fetch_url") {
+        return "web_fetch".to_string();
+    }
+    if normalized.contains("file") && (normalized.contains("read") || normalized.contains("open")) {
+        return if looks_like_batch {
+            "file_read_many".to_string()
+        } else {
+            "file_read".to_string()
+        };
+    }
+    if normalized.contains("folder") && (normalized.contains("list") || normalized.contains("tree")) {
+        return "folder_export".to_string();
+    }
+    if normalized.contains("terminal")
+        || normalized.contains("shell")
+        || normalized.contains("command_exec")
+        || normalized.contains("run_command")
+    {
+        return "terminal_exec".to_string();
+    }
+    if normalized.contains("spawn") && normalized.contains("agent") {
+        return "spawn_subagents".to_string();
+    }
+    normalized.to_string()
+}
+
+#[cfg(test)]
+mod tool_name_fallback_tests {
+    use super::*;
+
+    #[test]
+    fn resolves_search_like_names_to_batch_query() {
+        assert_eq!(
+            resolve_tool_name_fallback("internet_search_now", &json!({"query": "status"})),
+            "batch_query"
+        );
+    }
+
+    #[test]
+    fn resolves_file_read_batch_from_paths_payload() {
+        assert_eq!(
+            resolve_tool_name_fallback("open_file_reader", &json!({"paths": ["README.md"]})),
+            "file_read_many"
+        );
+    }
+
+    #[test]
+    fn leaves_unmapped_names_unchanged() {
+        assert_eq!(
+            resolve_tool_name_fallback("memory_semantic_query", &json!({})),
+            "memory_semantic_query"
+        );
+    }
+}
+
 fn find_json_object_span(raw: &str, from_index: usize) -> Option<(usize, usize)> {
     let mut start = None;
     for (idx, ch) in raw.char_indices().skip_while(|(idx, _)| *idx < from_index) {
@@ -4653,6 +4724,7 @@ fn execute_tool_call_by_name(
     input: &Value,
 ) -> Value {
     let normalized = normalize_tool_name(tool_name);
+    let resolved = resolve_tool_name_fallback(&normalized, input);
     let actor = clean_agent_id(actor_agent_id);
     if actor.is_empty() {
         return json!({
@@ -4661,12 +4733,12 @@ fn execute_tool_call_by_name(
         });
     }
     if let Some(gate_payload) =
-        enforce_tool_capability_tier(root, snapshot, &actor, &normalized, input)
+        enforce_tool_capability_tier(root, snapshot, &actor, &resolved, input)
     {
         return gate_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
-    match normalized.as_str() {
+    match resolved.as_str() {
         "file_read" | "read_file" | "file" => {
             let body = if input.is_object() {
                 input.clone()
@@ -5271,7 +5343,8 @@ fn execute_tool_call_by_name(
         _ => json!({
             "ok": false,
             "error": "unsupported_tool",
-            "tool": tool_name
+            "tool": tool_name,
+            "resolved_tool": resolved
         }),
     }
 }
