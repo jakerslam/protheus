@@ -267,6 +267,29 @@
                 .and_then(Value::as_str),
             Some("binary_file_requires_opt_in")
         );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/counts/text")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/counts/binary")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/groups/text/0")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("plan.txt"),
+            true
+        );
 
         let file_read_many_binary = handle(
             root.path(),
@@ -291,6 +314,13 @@
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .is_empty()
+        );
+        assert_eq!(
+            file_read_many_binary
+                .payload
+                .pointer("/counts/binary")
+                .and_then(Value::as_u64),
+            Some(1)
         );
 
         let folder_export = handle(
