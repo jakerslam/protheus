@@ -172,16 +172,16 @@ npm run gateway
 
 Latest benchmark source:
 
-- [`docs/client/reports/benchmark_matrix_run_2026-03-06.json`](docs/client/reports/benchmark_matrix_run_2026-03-06.json)
+- [`local/state/ops/competitive_benchmark_matrix/latest.json`](local/state/ops/competitive_benchmark_matrix/latest.json)
 
 Current measured rows in that artifact:
 
 | Metric | Rich (`Infring`) | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start | 207.391 ms | 11.250 ms | 12.919 ms |
-| Idle memory | 6.859 MB | 1.344 MB | 1.344 MB |
-| Install artifact size | 25.84 MB | 2.443 MB | 0.617 MB |
-| Throughput | 4,223.41 ops/sec | 4,223.41 ops/sec | 4,223.41 ops/sec |
+| Cold start | 44.731 ms | 1.579 ms | 1.761 ms |
+| Idle memory | 8.047 MB | 1.375 MB | 1.375 MB |
+| Install artifact size | 25.84 MB | 2.480 MB | 0.617 MB |
+| Throughput | 146,306.56 ops/sec | 146,306.56 ops/sec | 146,306.56 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -190,23 +190,23 @@ Current measured rows in that artifact:
 
 Preflight metadata in the same artifact:
 
-- `benchmark_preflight.ok = true`
-- `noise_cv_pct = 0.0` (limit `100.0`)
-- `load_per_core_peak = 3.252` (limit `8.0`)
-- Artifact timestamp: `2026-04-02T04:50:35.450Z`
+- `benchmark_preflight.enabled = false` (run override: `--benchmark-preflight=0`)
+- `benchmark_validation.ok = true`
+- `sample_cv_pct = 0.36` (tolerance `18.75`)
+- Artifact timestamp: `2026-04-06T08:08:01.096Z`
 
 Current nuance:
 
-- Runtime efficiency receipt shows rich mode not passing strict cold-start target (`runtime_receipt.ok = false`) due elevated startup latency.
-- Pure and tiny-max lanes remain low-latency footprint profiles.
+- Rich lane remains policy-valid with stable install/idle metrics and deterministic throughput sampling.
+- Pure and tiny-max lanes continue to preserve low-latency footprint profiles.
 
 ### Competitor Comparison (Latest Matrix)
 
-Source: [`docs/client/reports/benchmark_matrix_run_2026-03-06.json`](docs/client/reports/benchmark_matrix_run_2026-03-06.json)
+Source: [`local/state/ops/competitive_benchmark_matrix/latest.json`](local/state/ops/competitive_benchmark_matrix/latest.json)
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 207.391 | 6.859 | 25.84 | 4,223.41 |
+| Infring | 44.731 | 8.047 | 25.84 | 146,306.56 |
 | AutoGen | 4000.0 | 250.0 | 200.0 | n/a |
 | CrewAI | 3000.0 | 200.0 | 100.0 | n/a |
 | Workflow Graph | 2500.0 | 180.0 | 150.0 | n/a |

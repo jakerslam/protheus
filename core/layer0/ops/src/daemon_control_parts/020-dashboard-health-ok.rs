@@ -308,7 +308,7 @@ fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> V
 }
 
 fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
-    if !node_binary_usable(cfg.node_binary.as_str()) {
+    if !crate::contract_lane_utils::node_binary_usable(cfg.node_binary.as_str()) {
         return Err(format!(
             "dashboard_spawn_failed:node_binary_unavailable:{}",
             cfg.node_binary

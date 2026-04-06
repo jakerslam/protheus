@@ -1,10 +1,9 @@
 use regex::Regex;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::thread;
@@ -47,12 +46,7 @@ struct Candidate {
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .chars()
-        .take(max_len.max(1))
-        .collect::<String>()
+    crate::contract_lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn trim_words(raw: &str, max_words: usize) -> String {
@@ -66,10 +60,7 @@ fn trim_words(raw: &str, max_words: usize) -> String {
 }
 
 fn read_json_or(path: &Path, fallback: Value) -> Value {
-    match fs::read_to_string(path) {
-        Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(fallback),
-        Err(_) => fallback,
-    }
+    crate::contract_lane_utils::read_json(path).unwrap_or(fallback)
 }
 
 fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
@@ -90,19 +81,8 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("batch_query_create_state_dir_failed:{err}"))?;
-    }
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("batch_query_open_receipts_failed:{err}"))?;
-    let line = serde_json::to_string(row)
-        .map_err(|err| format!("batch_query_encode_receipt_failed:{err}"))?;
-    writeln!(file, "{line}").map_err(|err| format!("batch_query_append_receipt_failed:{err}"))?;
-    Ok(())
+    crate::contract_lane_utils::append_jsonl(path, row)
+        .map_err(|err| format!("batch_query_append_receipt_failed:{err}"))
 }
 
 fn default_policy() -> Value {
@@ -274,6 +254,72 @@ fn looks_like_low_signal_search_summary(text: &str) -> bool {
     marker_hits >= 2
 }
 
+fn skip_duckduckgo_fallback_for_error(primary_err: &str) -> bool {
+    let lowered = clean_text(primary_err, 240).to_ascii_lowercase();
+    lowered.contains("policy_blocked")
+        || lowered.contains("source_blocked")
+        || lowered.contains("aperture_blocked")
+        || lowered.contains("domain_blocked")
+}
+
+fn looks_like_html_markup(text: &str) -> bool {
+    static HTML_HINT_RE: OnceLock<Regex> = OnceLock::new();
+    let re = HTML_HINT_RE.get_or_init(|| {
+        Regex::new(r"(?is)<!doctype\s+html|<html|<head|<body|<div\b|<p\b|<a\s+href=|<script\b")
+            .expect("html-hint")
+    });
+    re.is_match(text)
+}
+
+fn html_slimdown_regexes() -> &'static [Regex] {
+    static REGEXES: OnceLock<Vec<Regex>> = OnceLock::new();
+    REGEXES.get_or_init(|| {
+        vec![
+            Regex::new(r"(?is)<script[^>]*>.*?</script>").expect("html-script"),
+            Regex::new(r"(?is)<style[^>]*>.*?</style>").expect("html-style"),
+            Regex::new(r"(?is)<svg[^>]*>.*?</svg>").expect("html-svg"),
+            Regex::new(r"(?is)<img[^>]*>").expect("html-img"),
+            Regex::new(r#"(?is)<[^>]*(?:href|src)\s*=\s*["']data:[^"']*["'][^>]*>"#)
+                .expect("html-data-uri"),
+        ]
+    })
+}
+
+fn html_anchor_href_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r#"(?is)<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>"#).expect("html-anchor-href")
+    })
+}
+
+fn html_tag_attr_strip_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?is)<([a-z0-9]+)\s+[^>]*>").expect("html-tag-attr-strip"))
+}
+
+fn html_all_tags_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?is)<[^>]+>").expect("html-all-tags"))
+}
+
+fn normalize_htmlish_content_for_snippet(raw: &str) -> String {
+    if !looks_like_html_markup(raw) {
+        return clean_text(raw, 12_000);
+    }
+    let mut slim = raw.to_string();
+    for re in html_slimdown_regexes() {
+        slim = re.replace_all(&slim, " ").to_string();
+    }
+    slim = html_anchor_href_regex()
+        .replace_all(&slim, r#"<a href="$1">"#)
+        .to_string();
+    slim = html_tag_attr_strip_regex()
+        .replace_all(&slim, "<$1>")
+        .to_string();
+    slim = html_all_tags_regex().replace_all(&slim, " ").to_string();
+    clean_text(&slim, 12_000)
+}
+
 fn search_domain_capture_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -311,42 +357,197 @@ fn extract_domains_from_text(text: &str, max_domains: usize) -> Vec<String> {
 }
 
 fn fixture_payload_for_query(query: &str) -> Option<Value> {
+    let fixtures = fixture_payload_map()?;
+    fixtures
+        .get(query)
+        .cloned()
+        .or_else(|| fixtures.get("*").cloned())
+        .or_else(|| fixtures.get("default").cloned())
+}
+
+fn fixture_payload_for_stage_query(stage: &str, query: &str) -> Option<Value> {
+    let fixtures = fixture_payload_map()?;
+    let key = format!("{stage}::{query}");
+    fixtures.get(&key).cloned()
+}
+
+fn fixture_payload_map() -> Option<Map<String, Value>> {
     let raw = std::env::var("INFRING_BATCH_QUERY_TEST_FIXTURE_JSON").ok()?;
     let decoded = serde_json::from_str::<Value>(&raw).ok()?;
-    let obj = decoded.as_object()?;
-    obj.get(query)
-        .cloned()
-        .or_else(|| obj.get("*").cloned())
-        .or_else(|| obj.get("default").cloned())
+    decoded.as_object().cloned()
+}
+
+fn duckduckgo_instant_answer_url(query: &str) -> String {
+    let cleaned = clean_text(query, 600);
+    let encoded = urlencoding::encode(&cleaned);
+    format!("https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1")
+}
+
+fn first_related_topic_summary(rows: &[Value]) -> Option<(String, String)> {
+    for row in rows {
+        let text = clean_text(row.get("Text").and_then(Value::as_str).unwrap_or(""), 1_600);
+        let locator = clean_text(
+            row.get("FirstURL").and_then(Value::as_str).unwrap_or(""),
+            2_200,
+        );
+        if !text.is_empty() {
+            return Some((text, locator));
+        }
+        if let Some(children) = row.get("Topics").and_then(Value::as_array) {
+            if let Some(found) = first_related_topic_summary(children) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+fn candidate_from_duckduckgo_instant_payload(
+    query: &str,
+    fallback_url: &str,
+    payload: &Value,
+) -> Result<Candidate, String> {
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return Err(clean_text(
+            payload
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("duckduckgo_instant_fetch_failed"),
+            220,
+        ));
+    }
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        64_000,
+    );
+    let decoded = serde_json::from_str::<Value>(&content).unwrap_or(Value::Null);
+    let mut snippet = clean_text(
+        decoded
+            .get("AbstractText")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        1_800,
+    );
+    if snippet.is_empty() {
+        snippet = clean_text(
+            decoded.get("Answer").and_then(Value::as_str).unwrap_or(""),
+            1_200,
+        );
+    }
+    if snippet.is_empty() {
+        snippet = clean_text(
+            decoded
+                .get("Definition")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            1_800,
+        );
+    }
+    let mut locator = clean_text(
+        decoded
+            .get("AbstractURL")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2_200,
+    );
+    if snippet.is_empty() {
+        if let Some(related) = decoded.get("RelatedTopics").and_then(Value::as_array) {
+            if let Some((related_text, related_locator)) = first_related_topic_summary(related) {
+                snippet = related_text;
+                if locator.is_empty() {
+                    locator = related_locator;
+                }
+            }
+        }
+    }
+    if snippet.is_empty() {
+        let summary = clean_text(
+            payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+            1_200,
+        );
+        if !summary.is_empty()
+            && !looks_like_ack_only(&summary)
+            && !looks_like_low_signal_search_summary(&summary)
+        {
+            snippet = summary;
+        }
+    }
+    if snippet.is_empty() {
+        return Err("duckduckgo_instant_no_usable_summary".to_string());
+    }
+    let mut title = clean_text(
+        decoded.get("Heading").and_then(Value::as_str).unwrap_or(""),
+        160,
+    );
+    if title.is_empty() {
+        title = format!("Instant web result for {}", clean_text(query, 120));
+    }
+    if locator.is_empty() {
+        locator = clean_text(fallback_url, 2_200);
+    }
+    Ok(Candidate {
+        source_kind: "web".to_string(),
+        title,
+        locator,
+        snippet: snippet.clone(),
+        excerpt_hash: sha256_hex(&snippet),
+        timestamp: Some(crate::now_iso()),
+        permissions: Some("public_web".to_string()),
+        status_code: payload
+            .get("status_code")
+            .and_then(Value::as_i64)
+            .unwrap_or(0),
+    })
 }
 
 fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candidate, String> {
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         return Err(clean_text(
-            payload.get("error").and_then(Value::as_str).unwrap_or("adapter_failed"),
+            payload
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("adapter_failed"),
             200,
         ));
     }
-    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 1800);
-    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 6_000);
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        1800,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        6_000,
+    );
+    let content_normalized = normalize_htmlish_content_for_snippet(&content);
     let summary_low_signal = looks_like_low_signal_search_summary(&summary);
     let domains = extract_domains_from_text(
-        if content.is_empty() { &summary } else { &content },
+        if content.is_empty() {
+            &summary
+        } else {
+            &content
+        },
         5,
     );
-    let mut snippet = if !summary.is_empty() && !looks_like_ack_only(&summary) && !summary_low_signal
-    {
-        summary.clone()
-    } else {
-        String::new()
-    };
+    let mut snippet =
+        if !summary.is_empty() && !looks_like_ack_only(&summary) && !summary_low_signal {
+            summary.clone()
+        } else {
+            String::new()
+        };
     if snippet.is_empty() && !domains.is_empty() {
         snippet = format!("Potential sources: {}.", domains.join(", "));
     }
-    if snippet.is_empty() && !content.is_empty() && !looks_like_ack_only(&content) {
-        snippet = trim_words(&content, 56);
+    if snippet.is_empty()
+        && !content_normalized.is_empty()
+        && !looks_like_ack_only(&content_normalized)
+    {
+        snippet = trim_words(&content_normalized, 56);
     }
-    if snippet.is_empty() && !summary.is_empty() && !looks_like_ack_only(&summary) {
+    if snippet.is_empty()
+        && !summary.is_empty()
+        && !looks_like_ack_only(&summary)
+        && !summary_low_signal
+    {
         snippet = trim_words(&summary, 56);
     }
     if snippet.is_empty() {
@@ -375,6 +576,9 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         excerpt_hash: sha256_hex(&snippet),
         timestamp: Some(crate::now_iso()),
         permissions: Some("public_web".to_string()),
-        status_code: payload.get("status_code").and_then(Value::as_i64).unwrap_or(0),
+        status_code: payload
+            .get("status_code")
+            .and_then(Value::as_i64)
+            .unwrap_or(0),
     })
 }
