@@ -896,6 +896,111 @@ fn direct_slash_tool_routes_through_agent_message() {
 }
 
 #[test]
+fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let _ = fs::create_dir_all(root.path().join("notes"));
+    let _ = fs::write(root.path().join("notes/plan.txt"), "ship it");
+
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"File Agent","role":"operator"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/file/read"),
+        br#"{"path":"notes/plan.txt"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("file read");
+    assert_eq!(out.status, 200);
+    assert_eq!(out.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        out.payload.pointer("/file/content").and_then(Value::as_str),
+        Some("ship it")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/target")
+            .and_then(Value::as_str),
+        Some("context_stacks")
+    );
+}
+
+#[test]
+fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let _ = fs::create_dir_all(root.path().join("notes"));
+    let _ = fs::write(root.path().join("notes/plan-a.txt"), "a");
+    let _ = fs::write(root.path().join("notes/plan-b.txt"), "b");
+
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"File Agent 2","role":"operator"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create");
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let out = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/file/read-many"),
+        br#"{"paths":["notes/plan-a.txt","notes/plan-b.txt"]}"#,
+        &json!({"ok": true}),
+    )
+    .expect("file read many");
+    assert_eq!(out.status, 200);
+    assert_eq!(out.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        out.payload
+            .pointer("/counts/ok")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/target")
+            .and_then(Value::as_str),
+        Some("context_stacks")
+    );
+}
+
+#[test]
 fn direct_search_slash_routes_through_web_search_tool() {
     let root = tempfile::tempdir().expect("tempdir");
     init_git_repo(root.path());
