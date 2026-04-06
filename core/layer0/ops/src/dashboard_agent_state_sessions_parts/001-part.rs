@@ -223,16 +223,38 @@ fn normalize_suggestion_voice(value: &str) -> String {
     }
     let lowered = normalized.to_ascii_lowercase();
     let prefixes = [
-        "should i ",
-        "want me to ",
-        "do you want me to ",
-        "would you like me to ",
-        "can you ",
-        "could you ",
+        "should i",
+        "should we",
+        "want me to",
+        "do you want me to",
+        "would you like me to",
+        "do you want us to",
+        "would you like us to",
+        "can i",
+        "could i",
+        "can we",
+        "could we",
+        "i can",
+        "i could",
+        "i will",
+        "i'll",
+        "we can",
+        "we could",
+        "we will",
+        "we'll",
+        "let me",
+        "let us",
+        "can you",
+        "could you",
     ];
     for prefix in prefixes {
-        if lowered.starts_with(prefix) {
+        if lowered == prefix || lowered.starts_with(&format!("{prefix} ")) {
             normalized = normalized.chars().skip(prefix.len()).collect::<String>();
+            normalized = normalized
+                .trim_start_matches(|ch: char| {
+                    ch.is_whitespace() || matches!(ch, ':' | ';' | ',' | '-' | '.')
+                })
+                .to_string();
             break;
         }
     }

@@ -39,7 +39,8 @@ const STATE_PATH = path.join(
   'protheus_version_cli',
   'latest.json'
 );
-const RELEASE_API_URL = 'https://api.github.com/repos/protheuslabs/InfRing/releases/latest';
+const RELEASES_API_URL = 'https://api.github.com/repos/protheuslabs/InfRing/releases?per_page=12';
+const RELEASE_LATEST_API_URL = 'https://api.github.com/repos/protheuslabs/InfRing/releases/latest';
 const INSTALL_COMMAND =
   'curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -210,7 +211,55 @@ function readReleaseChannelMetadata() {
   };
 }
 
-function fetchLatestRelease(timeoutMs = 1800) {
+function parseReleasePayload(payload) {
+  const latestVersion = normalizeVersion(payload && payload.tag_name ? payload.tag_name : payload.name);
+  if (!latestVersion) {
+    return null;
+  }
+  const parsedVersion = parseSemver(latestVersion);
+  return {
+    latestVersion,
+    changelogLine: firstMeaningfulLine(payload && payload.body ? payload.body : '', ''),
+    releasedAt: cleanText(
+      (payload && (payload.published_at || payload.created_at)) || '',
+      40
+    ),
+    prerelease:
+      asBool(payload && payload.prerelease, false) || Boolean(parsedVersion && parsedVersion.prerelease),
+    draft: asBool(payload && payload.draft, false)
+  };
+}
+
+function selectReleaseCandidate(releases, opts = {}) {
+  const preferPrerelease = asBool(opts.preferPrerelease, false);
+  const candidates = Array.isArray(releases)
+    ? releases.map(parseReleasePayload).filter(Boolean).filter((row) => !row.draft)
+    : [];
+  if (!candidates.length) {
+    return null;
+  }
+  const eligible = candidates.filter((row) => (preferPrerelease ? true : !row.prerelease));
+  const pool = eligible.length > 0 ? eligible : candidates;
+  let best = null;
+  for (const row of pool) {
+    if (!best) {
+      best = row;
+      continue;
+    }
+    const semverCmp = compareSemver(row.latestVersion, best.latestVersion);
+    if (semverCmp > 0) {
+      best = row;
+      continue;
+    }
+    if (semverCmp === 0 && row.releasedAt > best.releasedAt) {
+      best = row;
+    }
+  }
+  return best;
+}
+
+function fetchLatestRelease(timeoutMs = 1800, opts = {}) {
+  const preferPrerelease = asBool(opts.preferPrerelease, false);
   return new Promise((resolve) => {
     let settled = false;
     const done = (payload) => {
@@ -218,61 +267,84 @@ function fetchLatestRelease(timeoutMs = 1800) {
       settled = true;
       resolve(payload);
     };
+    const handleResponse = (source) => (res) => {
+      const status = Number(res && res.statusCode ? res.statusCode : 0);
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        body += String(chunk || '');
+        if (body.length > 512000) {
+          body = body.slice(0, 512000);
+        }
+      });
+      res.on('end', () => {
+        if (status < 200 || status >= 300) {
+          done({
+            ok: false,
+            error: `github_release_status_${status || 0}`
+          });
+          return;
+        }
+        try {
+          const parsed = JSON.parse(body || '[]');
+          const release = Array.isArray(parsed)
+            ? selectReleaseCandidate(parsed, { preferPrerelease })
+            : parseReleasePayload(parsed);
+          if (!release || !release.latestVersion) {
+            done({ ok: false, error: 'github_release_tag_missing' });
+            return;
+          }
+          done({
+            ok: true,
+            latestVersion: release.latestVersion,
+            changelogLine: cleanText(release.changelogLine || '', 240),
+            releasedAt: cleanText(release.releasedAt || '', 40),
+            prerelease: asBool(release.prerelease, false),
+            source
+          });
+        } catch (_) {
+          done({ ok: false, error: 'github_release_parse_failed' });
+        }
+      });
+    };
+
     const req = https.get(
-      RELEASE_API_URL,
+      RELEASES_API_URL,
       {
         headers: {
           Accept: 'application/vnd.github+json',
           'User-Agent': 'infring-version-cli'
         }
       },
-      (res) => {
-        const status = Number(res && res.statusCode ? res.statusCode : 0);
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          body += String(chunk || '');
-          if (body.length > 512000) {
-            body = body.slice(0, 512000);
-          }
-        });
-        res.on('end', () => {
-          if (status < 200 || status >= 300) {
-            done({
-              ok: false,
-              error: `github_release_status_${status || 0}`
-            });
-            return;
-          }
-          try {
-            const parsed = JSON.parse(body || '{}');
-            const latestVersion = normalizeVersion(
-              parsed && parsed.tag_name ? parsed.tag_name : parsed.name
-            );
-            if (!latestVersion) {
-              done({ ok: false, error: 'github_release_tag_missing' });
-              return;
-            }
-            done({
-              ok: true,
-              latestVersion,
-              changelogLine: firstMeaningfulLine(parsed.body, ''),
-              releasedAt: cleanText(parsed.published_at || parsed.created_at || '', 40),
-              prerelease: asBool(parsed.prerelease, false)
-            });
-          } catch (_) {
-            done({ ok: false, error: 'github_release_parse_failed' });
-          }
-        });
-      }
+      handleResponse('github_releases_api')
     );
     req.setTimeout(timeoutMs, () => {
       req.destroy(new Error('request_timeout'));
     });
     req.on('error', (err) => {
-      done({
-        ok: false,
-        error: cleanText(`github_release_fetch_failed:${err && err.message ? err.message : err}`, 220)
+      const latestReq = https.get(
+        RELEASE_LATEST_API_URL,
+        {
+          headers: {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'infring-version-cli'
+          }
+        },
+        handleResponse('github_latest_api')
+      );
+      latestReq.setTimeout(timeoutMs, () => {
+        latestReq.destroy(new Error('request_timeout'));
+      });
+      latestReq.on('error', (fallbackErr) => {
+        done({
+          ok: false,
+          error: cleanText(
+            `github_release_fetch_failed:${
+              fallbackErr && fallbackErr.message ? fallbackErr.message : err && err.message ? err.message : err
+            }`,
+            220
+          )
+        });
       });
     });
   });
@@ -304,6 +376,8 @@ async function resolveReleaseCheck(opts = {}) {
   const force = asBool(opts.force, false);
   const timeoutMs = Number(opts.timeoutMs || 1800);
   const currentVersion = readCurrentVersion();
+  const currentParsed = parseSemver(currentVersion);
+  const preferPrerelease = Boolean(currentParsed && currentParsed.prerelease);
   const cached = readCache();
   if (!force && cached && Date.now() - cached.checkedAtMs < CACHE_TTL_MS) {
     const cacheVersion = normalizeVersion(cached.result.current_version || '');
@@ -317,7 +391,7 @@ async function resolveReleaseCheck(opts = {}) {
   }
 
   const localChannel = readReleaseChannelMetadata();
-  const remote = await fetchLatestRelease(timeoutMs);
+  const remote = await fetchLatestRelease(timeoutMs, { preferPrerelease });
 
   let latestVersion = currentVersion;
   let changelogLine = '';
@@ -329,7 +403,7 @@ async function resolveReleaseCheck(opts = {}) {
     latestVersion = normalizeVersion(remote.latestVersion) || currentVersion;
     changelogLine = cleanText(remote.changelogLine || '', 240);
     releasedAt = cleanText(remote.releasedAt || '', 40);
-    source = 'github_api';
+    source = cleanText(remote.source || 'github_releases_api', 80);
   } else if (localChannel.latestVersion) {
     latestVersion = localChannel.latestVersion;
     changelogLine = localChannel.changelogLine;

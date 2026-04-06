@@ -251,6 +251,22 @@ mod tests {
     }
 
     #[test]
+    fn sanitize_suggestion_strips_agent_offer_voice_prefixes() {
+        assert_eq!(
+            sanitize_suggestion("Do you want me to run install doctor?"),
+            "run install doctor"
+        );
+        assert_eq!(
+            sanitize_suggestion("Should I check gateway health now?"),
+            "check gateway health now"
+        );
+        assert_eq!(
+            sanitize_suggestion("Would you like me to compare model routing?"),
+            "compare model routing"
+        );
+    }
+
+    #[test]
     fn suggestions_skip_models_below_param_threshold() {
         let root = tempfile::tempdir().expect("tempdir");
         seed_profile(root.path(), "agent-small-model", "ollama", "llama3.3:70b");

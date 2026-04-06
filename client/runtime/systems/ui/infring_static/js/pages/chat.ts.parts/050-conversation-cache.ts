@@ -406,6 +406,14 @@
           .replace(/^please\s+request\s+/i, '')
           .replace(/\s+/g, ' ')
           .trim();
+        // Suggestions must read as user->agent prompts, not agent->user offers.
+        row = row
+          .replace(/^(?:do you want me to|would you like me to|do you want us to|would you like us to)\s+/i, '')
+          .replace(/^(?:want me to|should i|should we)\s+/i, '')
+          .replace(/^(?:can i|could i|can we|could we)\s+/i, '')
+          .replace(/^(?:i can|i could|i will|i'll|we can|we could|we will|we'll)\s+/i, '')
+          .replace(/^(?:let me|let us)\s+/i, '')
+          .trim();
         row = clampWords(row, 10);
         row = row.replace(/[.!?]+$/g, '').trim();
         if (!row) return '';
@@ -432,6 +440,7 @@
         if (lowered.indexOf('reliability remediation') >= 0) return true;
         if (lowered.indexOf('rollback criteria') >= 0) return true;
         if (lowered.indexOf('3-step execution plan') >= 0) return true;
+        if (/^(do you want me to|would you like me to|want me to|should i|should we)\b/i.test(lowered)) return true;
         if (lowered.indexOf('this task') >= 0) return true;
         if (lowered === 'thinking...' || lowered === 'thinking..' || lowered === 'thinking.') return true;
         var sentenceCount = (text.match(/[.!?]/g) || []).length;
