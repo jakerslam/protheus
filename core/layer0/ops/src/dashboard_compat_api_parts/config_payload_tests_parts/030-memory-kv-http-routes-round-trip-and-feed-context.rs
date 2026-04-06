@@ -230,6 +230,69 @@
                 .is_empty()
         );
 
+        let file_read_many = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read-many"),
+            br#"{"paths":["notes/plan.txt","notes/blob.bin"],"allow_binary":false,"max_bytes":16}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read many");
+        assert_eq!(file_read_many.status, 200);
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/counts/ok")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/counts/failed")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/files/0/content")
+                .and_then(Value::as_str),
+            Some("ship it")
+        );
+        assert_eq!(
+            file_read_many
+                .payload
+                .pointer("/failed/0/error")
+                .and_then(Value::as_str),
+            Some("binary_file_requires_opt_in")
+        );
+
+        let file_read_many_binary = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read-many"),
+            br#"{"paths":["notes/blob.bin"],"allow_binary":true,"max_bytes":8}"#,
+            &json!({"ok": true}),
+        )
+        .expect("file read many binary");
+        assert_eq!(file_read_many_binary.status, 200);
+        assert_eq!(
+            file_read_many_binary
+                .payload
+                .pointer("/counts/ok")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert!(
+            !file_read_many_binary
+                .payload
+                .pointer("/files/0/content_base64")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+        );
+
         let folder_export = handle(
             root.path(),
             "POST",

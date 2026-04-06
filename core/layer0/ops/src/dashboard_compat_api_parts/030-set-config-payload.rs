@@ -4679,6 +4679,27 @@ fn execute_tool_call_by_name(
                 .map(|response| response.payload)
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
+        "file_read_many" | "read_files" | "files_read" | "batch_file_read" => {
+            let body = if input.is_object() {
+                input.clone()
+            } else if let Some(value) = input.as_array() {
+                json!({"paths": value})
+            } else {
+                let raw = clean_text(input.as_str().unwrap_or(""), 12000);
+                let paths = raw
+                    .split(|ch: char| ch == '\n' || ch == ',' || ch == ';')
+                    .map(str::trim)
+                    .filter(|row| !row.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
+                json!({"paths": paths})
+            };
+            let path = format!("/api/agents/{actor}/file/read-many");
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
+                .map(|response| response.payload)
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+        }
         "folder_export" | "list_folder" | "folder_tree" | "folder" => {
             let body = if input.is_object() {
                 input.clone()
@@ -5491,6 +5512,45 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             );
         }
     }
+    if normalized == "file_read_many"
+        || normalized == "read_files"
+        || normalized == "files_read"
+        || normalized == "batch_file_read"
+    {
+        let files = payload
+            .get("files")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let failed = payload
+            .get("failed")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut sections = Vec::<String>::new();
+        for entry in files.iter().take(3) {
+            let path = clean_text(entry.get("path").and_then(Value::as_str).unwrap_or(""), 220);
+            let content = clean_text(entry.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+            if content.is_empty() {
+                continue;
+            }
+            sections.push(format!("[{}]\n{}", if path.is_empty() { "file".to_string() } else { path }, content));
+        }
+        if !sections.is_empty() {
+            return trim_text(sections.join("\n\n").as_str(), 24_000);
+        }
+        if !files.is_empty() || !failed.is_empty() {
+            return trim_text(
+                format!(
+                    "Batch file read finished: {} succeeded, {} failed.",
+                    files.len(),
+                    failed.len()
+                )
+                .as_str(),
+                420,
+            );
+        }
+    }
     if normalized == "folder_export"
         || normalized == "list_folder"
         || normalized == "folder_tree"
@@ -6006,6 +6066,21 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         if lowered.contains("binary_file_requires_opt_in") {
             return Some(
                 "That file is binary. Re-run `file_read` with `allow_binary=true` if you want base64 output."
+                    .to_string(),
+            );
+        }
+    }
+    if normalized == "file_read_many"
+        || normalized == "read_files"
+        || normalized == "files_read"
+        || normalized == "batch_file_read"
+    {
+        if lowered.contains("paths_required") || lowered.contains("path_required") {
+            return Some("I need one or more workspace file paths before batch read can run.".to_string());
+        }
+        if lowered.contains("path_outside_workspace") {
+            return Some(
+                "One or more paths were outside the active workspace. Provide workspace-relative file paths."
                     .to_string(),
             );
         }
@@ -9448,6 +9523,166 @@ pub fn handle_with_headers(
 
         if method == "POST"
             && segments.len() == 2
+            && segments[0] == "file"
+            && segments[1] == "read-many"
+        {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let mut paths = request
+                .get("paths")
+                .or_else(|| request.get("sources"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|row| row.as_str().map(|v| clean_text(v, 4000)))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>();
+            if paths.is_empty() {
+                let single = clean_text(
+                    request
+                        .get("path")
+                        .and_then(Value::as_str)
+                        .or_else(|| request.get("file_path").and_then(Value::as_str))
+                        .unwrap_or(""),
+                    4000,
+                );
+                if !single.is_empty() {
+                    paths.push(single);
+                }
+            }
+            if paths.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({"ok": false, "error": "paths_required"}),
+                });
+            }
+            let workspace_base = workspace_base_for_agent(root, existing.as_ref());
+            let full = request
+                .get("full")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let allow_binary = request
+                .get("allow_binary")
+                .or_else(|| request.get("binary"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let max_bytes = request
+                .get("max_bytes")
+                .and_then(Value::as_u64)
+                .unwrap_or((256 * 1024) as u64)
+                .clamp(1, (8 * 1024 * 1024) as u64) as usize;
+            let mut files = Vec::<Value>::new();
+            let mut failed = Vec::<Value>::new();
+            let mut unclassified = Vec::<Value>::new();
+            for requested_path in &paths {
+                let target = resolve_workspace_path(&workspace_base, requested_path);
+                let Some(target_path) = target else {
+                    failed.push(json!({
+                        "path": requested_path,
+                        "error": "path_outside_workspace",
+                        "status": 400
+                    }));
+                    continue;
+                };
+                if !target_path.is_file() {
+                    unclassified.push(json!({
+                        "path": target_path.to_string_lossy().to_string(),
+                        "error": "file_not_found",
+                        "status": 404
+                    }));
+                    continue;
+                }
+                let bytes = fs::read(&target_path).unwrap_or_default();
+                let file_max_bytes = if full {
+                    bytes.len().max(1)
+                } else {
+                    max_bytes
+                };
+                let binary = bytes_look_binary(&bytes);
+                let content_type = guess_mime_type_for_file(&target_path, &bytes);
+                if binary && !allow_binary {
+                    failed.push(json!({
+                        "path": target_path.to_string_lossy().to_string(),
+                        "error": "binary_file_requires_opt_in",
+                        "status": 415,
+                        "binary": true,
+                        "bytes": bytes.len(),
+                        "content_type": content_type
+                    }));
+                    continue;
+                }
+                let (content, truncated) = if binary {
+                    (String::new(), bytes.len() > file_max_bytes)
+                } else {
+                    truncate_utf8_lossy(&bytes, file_max_bytes)
+                };
+                let content_base64 = if binary {
+                    use base64::engine::general_purpose::STANDARD;
+                    use base64::Engine;
+                    let slice_end = bytes.len().min(file_max_bytes.max(1));
+                    STANDARD.encode(&bytes[..slice_end])
+                } else {
+                    String::new()
+                };
+                let download_url = if bytes.len() <= (2 * 1024 * 1024) {
+                    data_url_from_bytes(&bytes, &content_type)
+                } else {
+                    String::new()
+                };
+                let file_name = clean_text(
+                    target_path
+                        .file_name()
+                        .and_then(|v| v.to_str())
+                        .unwrap_or("download.txt"),
+                    180,
+                );
+                files.push(json!({
+                    "ok": true,
+                    "path": target_path.to_string_lossy().to_string(),
+                    "content": content,
+                    "content_base64": content_base64,
+                    "truncated": truncated,
+                    "bytes": bytes.len(),
+                    "max_bytes": file_max_bytes,
+                    "full": full,
+                    "binary": binary,
+                    "allow_binary": allow_binary,
+                    "download_url": download_url,
+                    "file_name": file_name,
+                    "content_type": content_type
+                }));
+            }
+            let ok = !files.is_empty();
+            let status = if ok {
+                200
+            } else {
+                failed
+                    .first()
+                    .or_else(|| unclassified.first())
+                    .and_then(|row| row.get("status").and_then(Value::as_u64))
+                    .unwrap_or(400) as u16
+            };
+            return Some(CompatApiResponse {
+                status,
+                payload: json!({
+                    "ok": ok,
+                    "type": "file_read_many",
+                    "files": files,
+                    "failed": failed,
+                    "unclassified": unclassified,
+                    "partial": ok && (!failed.is_empty() || !unclassified.is_empty()),
+                    "counts": {
+                        "requested": paths.len(),
+                        "ok": files.len(),
+                        "failed": failed.len(),
+                        "unclassified": unclassified.len()
+                    }
+                }),
+            });
+        }
+
+        if method == "POST"
+            && segments.len() == 2
             && segments[0] == "folder"
             && segments[1] == "export"
         {
@@ -10024,6 +10259,7 @@ pub fn handle_with_headers(
                 let policy = tool_governance_policy(root);
                 let tiers = [
                     ("file_read", "green"),
+                    ("file_read_many", "green"),
                     ("folder_export", "green"),
                     ("web_fetch", "green"),
                     ("batch_query", "green"),
