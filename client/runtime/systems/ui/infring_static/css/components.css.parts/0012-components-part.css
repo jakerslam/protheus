@@ -300,8 +300,7 @@
   transform-origin: 50% 8%;
 }
 
-.notif-btn:hover .notif-bell-icon,
-.notif-btn:focus-visible .notif-bell-icon {
+.notif-btn:hover .notif-bell-icon, .notif-btn:focus-visible .notif-bell-icon, .notif-btn.notif-btn-auto-ring .notif-bell-icon {
   animation: notif-bell-ring 680ms ease-in-out;
 }
 

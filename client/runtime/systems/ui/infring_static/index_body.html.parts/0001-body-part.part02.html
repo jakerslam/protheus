@@ -15,7 +15,7 @@
             aria-label="Open agents"
           ></button>
         </div>
-        <div class="theme-switcher" :data-mode="themeMode">
+        <div class="theme-switcher" :data-mode="themeMode" :data-resolved="theme">
           <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"></circle>
@@ -43,7 +43,7 @@
           </button>
         </div>
         <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
-          <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
+          <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
             <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
               <path d="M9 17a3 3 0 0 0 6 0"></path>

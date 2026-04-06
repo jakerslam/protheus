@@ -99,9 +99,32 @@
       this.notifications.unshift(note);
       if (this.notifications.length > 150) this.notifications = this.notifications.slice(0, 150);
       this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
+      this.ringNotificationBell();
       this.showNotificationBubble(note);
     },
-
+    ringNotificationBell() {
+      var self = this, seq = Number(this._notificationBellPulseSeq || 0) + 1;
+      this._notificationBellPulseSeq = seq;
+      this.notificationBellPulse = false;
+      if (this._notificationBellPulseTimer) {
+        clearTimeout(this._notificationBellPulseTimer);
+        this._notificationBellPulseTimer = null;
+      }
+      var arm = function() {
+        if (self._notificationBellPulseSeq !== seq) return;
+        self.notificationBellPulse = true;
+        self._notificationBellPulseTimer = setTimeout(function() {
+          if (self._notificationBellPulseSeq !== seq) return;
+          self.notificationBellPulse = false;
+          self._notificationBellPulseTimer = null;
+        }, 760);
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(arm);
+      } else {
+        setTimeout(arm, 0);
+      }
+    },
     showNotificationBubble(note) {
       var n = note || null;
       if (!n) return;
@@ -156,6 +179,12 @@
       this.notificationsOpen = false;
       this.unreadNotifications = 0;
       this.notificationBubble = null;
+      this.notificationBellPulse = false;
+      this._notificationBellPulseSeq = 0;
+      if (this._notificationBellPulseTimer) {
+        clearTimeout(this._notificationBellPulseTimer);
+        this._notificationBellPulseTimer = null;
+      }
       if (this._notificationBubbleTimer) {
         clearTimeout(this._notificationBubbleTimer);
         this._notificationBubbleTimer = null;

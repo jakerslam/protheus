@@ -163,8 +163,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
     <!-- Page: Hands -->
     <template x-if="page === 'hands'">
       <div x-data="handsPage">
-        <div class="page-header">
-          <h2>Hands</h2>
+        <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
             <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>
