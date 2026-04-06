@@ -95,6 +95,27 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"})
         }
     };
+    let nexus_connection =
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+            "batch_query",
+        ) {
+            Ok(meta) => meta,
+            Err(err) => {
+                return json!({
+                    "ok": false,
+                    "type": "batch_query",
+                    "status": "blocked",
+                    "source": source,
+                    "query": query,
+                    "aperture": aperture,
+                    "summary": "Batch query blocked by hierarchical nexus ingress policy.",
+                    "evidence_refs": [],
+                    "receipt_id": "",
+                    "error": "batch_query_nexus_delivery_denied",
+                    "nexus_error": clean_text(&err, 240)
+                })
+            }
+        };
 
     let (queries, rewrite_set, rewrite_applied) = build_query_plan(&query, budget);
     let parallel_allowed = source == "web" && rewrite_applied && queries.len() > 1;
@@ -234,7 +255,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     receipt_with_id["receipt_id"] = Value::String(receipt_id.clone());
     let _ = append_jsonl(&receipts_path(root), &receipt_with_id);
 
-    json!({
+    let mut out = json!({
         "ok": status != "blocked",
         "type": "batch_query",
         "status": status,
@@ -246,5 +267,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "receipt_id": receipt_id,
         "parallel_retrieval_used": parallel_allowed,
         "rewrite_set": rewrite_set
-    })
+    });
+    if let Some(meta) = nexus_connection {
+        out["nexus_connection"] = meta;
+    }
+    out
 }

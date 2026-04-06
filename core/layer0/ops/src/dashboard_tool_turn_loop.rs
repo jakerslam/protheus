@@ -662,4 +662,20 @@ mod tests {
         .expect_err("quiesced blocked");
         assert!(err.contains("lease_source_not_accepting_new_leases"));
     }
+
+    #[test]
+    fn ingress_route_descriptor_maps_batch_query_to_context_stacks() {
+        let route = ingress_route_for_tool("batch_query");
+        assert_eq!(route.target, "context_stacks");
+        assert_eq!(route.schema_id, "client_ingress.tool.retrieval");
+        assert_eq!(route.verb, "invoke");
+    }
+
+    #[test]
+    fn ingress_route_descriptor_maps_file_read_many_to_context_stacks() {
+        let route = ingress_route_for_tool("file_read_many");
+        assert_eq!(route.target, "context_stacks");
+        assert_eq!(route.schema_id, "client_ingress.tool.retrieval");
+        assert_eq!(route.verb, "invoke");
+    }
 }
