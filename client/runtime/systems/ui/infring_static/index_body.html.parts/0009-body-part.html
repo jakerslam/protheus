@@ -26,27 +26,27 @@
     <!-- Page: Scheduler -->
     <template x-if="page === 'scheduler'">
       <div x-data="schedulerPage()">
-        <div class="page-header">
-          <div class="flex gap-2">
-            <button class="btn btn-primary btn-sm" x-show="tab === 'jobs'" @click="showCreateForm = true">+ New Job</button>
+        <div class="page-header page-header-subtabs-center">
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
+            <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
           </div>
-        </div>
-        <div class="tabs mt-3" role="tablist">
-          <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
-          <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
-        </div>
-        <div class="tabs" role="tablist">
-          <div class="tab" role="tab" :class="{ active: tab === 'jobs' }" @click="tab = 'jobs'">
-            Scheduled Jobs <span class="badge badge-dim" x-show="jobs.length" x-text="jobCount() + '/' + jobs.length + ' active'" style="margin-left:4px"></span>
-          </div>
-          <div class="tab" role="tab" :class="{ active: tab === 'triggers' }" @click="tab = 'triggers'; if (!triggers.length && !trigLoading) loadTriggers()">
-            Event Triggers <span class="badge badge-dim" x-show="triggers.length" x-text="triggers.length" style="margin-left:4px"></span>
-          </div>
-          <div class="tab" :class="{ active: tab === 'history' }" @click="tab = 'history'; loadHistory()">
-            Run History
+          <div class="tabs tabs-subnav" role="tablist">
+            <div class="tab" role="tab" :class="{ active: tab === 'jobs' }" @click="tab = 'jobs'">
+              Scheduled Jobs <span class="badge badge-dim" x-show="jobs.length" x-text="jobCount() + '/' + jobs.length + ' active'" style="margin-left:4px"></span>
+            </div>
+            <div class="tab" role="tab" :class="{ active: tab === 'triggers' }" @click="tab = 'triggers'; if (!triggers.length && !trigLoading) loadTriggers()">
+              Event Triggers <span class="badge badge-dim" x-show="triggers.length" x-text="triggers.length" style="margin-left:4px"></span>
+            </div>
+            <div class="tab" :class="{ active: tab === 'history' }" @click="tab = 'history'; loadHistory()">
+              Run History
+            </div>
           </div>
         </div>
         <div class="page-body" x-init="loadData()">
+          <div class="flex gap-2 mb-4" x-show="tab === 'jobs'">
+            <button class="btn btn-primary btn-sm" @click="showCreateForm = true">+ New Job</button>
+          </div>
 
           <!-- ── TAB: Scheduled Jobs ── -->
           <div x-show="tab === 'jobs'">
@@ -272,13 +272,7 @@
     <!-- Page: Channels -->
     <template x-if="page === 'channels'">
       <div x-data="channelsPage">
-        <div class="page-header">
-          <h2>
-            Channels
-            <span class="badge badge-muted" x-text="configuredCount + '/' + visibleChannelCount + ' configured'"></span>
-            <span class="badge badge-success" x-text="nativeChannelCount + ' native'"></span>
-            <span class="badge badge-muted" x-show="templateChannelCount > 0" x-text="templateChannelCount + ' templates'"></span>
-          </h2>
+        <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
             <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>

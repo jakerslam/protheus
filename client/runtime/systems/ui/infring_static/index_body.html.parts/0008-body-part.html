@@ -1,25 +1,3 @@
-                        <div class="detail-row"><span class="detail-label">Provider</span><span class="detail-value" x-text="spawnForm.provider"></span></div>
-                        <div class="detail-row"><span class="detail-label">Model</span><span class="detail-value" x-text="spawnForm.model"></span></div>
-                        <div class="detail-row"><span class="detail-label">Profile</span><span class="detail-value" x-text="spawnForm.profile"></span></div>
-                        <div class="detail-row" x-show="selectedPreset"><span class="detail-label">Personality</span><span class="detail-value" style="text-transform:capitalize" x-text="selectedPreset"></span></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Navigation buttons -->
-                  <div class="flex justify-between mt-4">
-                    <button class="btn btn-ghost" x-show="spawnStep > 1" @click="prevStep()">Back</button>
-                    <div x-show="spawnStep <= 1"></div>
-                    <button class="btn btn-primary" x-show="spawnStep < 5" @click="nextStep()">Next</button>
-                    <button class="btn btn-primary" x-show="spawnStep === 5" @click="spawnAgent()" :disabled="spawning">
-                      <span x-show="!spawning">Spawn Agent</span><span x-show="spawning">Spawning...</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-
         </div><!-- /activeChatAgent picker wrapper -->
       </div>
     </template>
@@ -28,10 +6,6 @@
     <template x-if="page === 'approvals'">
       <div x-data="approvalsPage" x-init="loadData()">
         <div class="page-header">
-          <div class="flex items-center gap-2">
-            <span class="badge badge-warn" x-show="pendingCount > 0" x-text="pendingCount + ' pending'"></span>
-            <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
-          </div>
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
             <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
@@ -83,17 +57,15 @@
 
     <!-- Page: Workflows -->
     <template x-if="page === 'workflows'">
-      <div x-data="{ wfTab: 'list' }">
-        <div class="page-header">
-          <div>
-            <div class="tabs mt-3" role="tablist">
-              <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
-              <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
-            </div>
+      <div x-data="{ wfTab: 'list' }" @wf-switch-tab.window="wfTab = ($event.detail === 'builder' ? 'builder' : 'list')">
+        <div class="page-header page-header-subtabs-center">
+          <div class="tabs mt-3" role="tablist">
+            <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
+            <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
           </div>
-          <div class="flex gap-2">
-            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">List</button>
-            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Visual Builder</button>
+          <div class="tabs tabs-subnav" role="tablist">
+            <div class="tab" role="tab" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">List</div>
+            <div class="tab" role="tab" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Visual Builder</div>
           </div>
         </div>
 

@@ -136,8 +136,7 @@
     <!-- Page: Eyes -->
     <template x-if="page === 'eyes'">
       <div x-data="eyesPage">
-        <div class="page-header">
-          <h2>Eyes <span class="badge badge-muted" x-text="activeCount + '/' + eyes.length + ' active'"></span></h2>
+        <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'skills' }" @click="navigate('skills')">Apps</div>
             <div class="tab" role="tab" :class="{ active: page === 'channels' }" @click="navigate('channels')">Channels</div>
