@@ -701,6 +701,69 @@ fn finalize_user_facing_response_rewrites_raw_placeholder_dump() {
 }
 
 #[test]
+fn tool_completion_contract_rewrites_ack_to_findings_from_tool_cards() {
+    let cards = vec![json!({
+        "name": "web_search",
+        "is_error": false,
+        "result": "Web search findings for \"runtime reliability\": https://example.com/reliability-overview"
+    })];
+    let (finalized, report) =
+        enforce_tool_completion_contract("Web search completed.".to_string(), &cards);
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("here's what i found"));
+    assert!(!lowered.contains("web search completed"));
+    assert!(!lowered.contains("no relevant results found for that request yet"));
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("reported_findings")
+    );
+    assert_eq!(
+        report.get("final_ack_only").and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn tool_completion_contract_rewrites_ack_to_explicit_no_findings_when_results_are_low_signal() {
+    let cards = vec![json!({
+        "name": "web_search",
+        "is_error": false,
+        "result": "Web search completed."
+    })];
+    let (finalized, report) =
+        enforce_tool_completion_contract("Web search completed.".to_string(), &cards);
+    assert_eq!(finalized, "No relevant results found for that request yet.");
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("reported_no_findings")
+    );
+    assert_eq!(
+        report.get("final_no_findings").and_then(Value::as_bool),
+        Some(true)
+    );
+}
+
+#[test]
+fn tool_completion_contract_preserves_actionable_failure_reason_when_no_findings_exist() {
+    let cards = vec![json!({
+        "name": "web_search",
+        "is_error": true,
+        "result": "I need your confirmation before running `web_search`."
+    })];
+    let (finalized, report) = enforce_tool_completion_contract(
+        "I need your confirmation before running `web_search`.".to_string(),
+        &cards,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("confirmation"));
+    assert!(!lowered.contains("web search completed"));
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("reported_reason")
+    );
+}
+
+#[test]
 fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
     let pooled_messages = vec![
         json!({"role":"user","text":"Remember that cobalt sunrise is our fallback phrase.","ts":"2026-04-01T00:00:00Z"}),
