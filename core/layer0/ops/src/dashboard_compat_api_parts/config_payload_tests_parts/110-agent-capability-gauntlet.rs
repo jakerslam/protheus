@@ -112,11 +112,40 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
             .unwrap_or(""),
         400,
     );
+    let file_read_natural = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        br#"{"message":"read file notes/plan.txt and show me full contents"}"#,
+        &snapshot,
+    );
+    let file_natural_status = file_read_natural
+        .as_ref()
+        .map(|row| row.status)
+        .unwrap_or(0);
+    let file_natural_payload = file_read_natural
+        .as_ref()
+        .map(|row| row.payload.clone())
+        .unwrap_or_else(|| json!({}));
+    let file_natural_response = clean_text(
+        file_natural_payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        400,
+    );
     record_gauntlet_task(
         &mut results,
-        "02_file_read_slash_route",
-        file_status == 200 && tool_used(&file_payload, "file_read") && file_response.contains("ship it"),
-        format!("status={file_status} response={file_response}"),
+        "02_file_read_routes",
+        file_status == 200
+            && tool_used(&file_payload, "file_read")
+            && file_response.contains("ship it")
+            && file_natural_status == 200
+            && tool_used(&file_natural_payload, "file_read")
+            && file_natural_response.contains("ship it"),
+        format!(
+            "slash_status={file_status} natural_status={file_natural_status} slash={file_response} natural={file_natural_response}"
+        ),
     );
 
     // 03) Export a folder tree through conversational slash routing.
@@ -567,7 +596,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         "I'm worried about security in this API module",
         5,
     );
-    let latent = latent_tool_candidates_for_message("Please audit the security of this API code", &hints);
+    let latent =
+        latent_tool_candidates_for_message("Please audit the security of this API code", &hints);
     let latent_tools = latent
         .iter()
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
@@ -575,7 +605,9 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
     record_gauntlet_task(
         &mut results,
         "18_latent_tool_discovery",
-        !hints.is_empty() && latent_tools.contains(&"terminal_exec") && latent_tools.contains(&"file_read"),
+        !hints.is_empty()
+            && latent_tools.contains(&"terminal_exec")
+            && latent_tools.contains(&"file_read"),
         format!("hints={} latent={}", hints.len(), latent_tools.join(",")),
     );
 
@@ -600,10 +632,10 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
             "approval_note": "user approved this terminal execution"
         }),
     );
-    let blocked = red_block.get("error").and_then(Value::as_str)
-        == Some("tool_explicit_signoff_required");
-    let allowed = red_allow.get("error").and_then(Value::as_str)
-        != Some("tool_explicit_signoff_required");
+    let blocked =
+        red_block.get("error").and_then(Value::as_str) == Some("tool_explicit_signoff_required");
+    let allowed =
+        red_allow.get("error").and_then(Value::as_str) != Some("tool_explicit_signoff_required");
     record_gauntlet_task(
         &mut results,
         "19_red_tier_signoff_gate",
@@ -616,11 +648,15 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
     let continuity = handle(root.path(), "GET", "/api/continuity", &[], &snapshot);
     let alerts_ok = alerts
         .as_ref()
-        .map(|row| row.status == 200 && row.payload.get("ok").and_then(Value::as_bool) == Some(true))
+        .map(|row| {
+            row.status == 200 && row.payload.get("ok").and_then(Value::as_bool) == Some(true)
+        })
         .unwrap_or(false);
     let continuity_ok = continuity
         .as_ref()
-        .map(|row| row.status == 200 && row.payload.get("ok").and_then(Value::as_bool) == Some(true))
+        .map(|row| {
+            row.status == 200 && row.payload.get("ok").and_then(Value::as_bool) == Some(true)
+        })
         .unwrap_or(false);
     record_gauntlet_task(
         &mut results,

@@ -415,3 +415,78 @@ body[data-theme='dark'] .agent-working-pulse::after {
   height: 100%;
   object-fit: cover;
 }
+
+.agent-chip-grid {
+  align-items: stretch;
+}
+
+.agent-chip-square {
+  width: 188px;
+  min-width: 188px;
+  min-height: 188px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+}
+
+.agent-chip-square .badge {
+  margin-top: auto;
+}
+
+.archived-agent-card {
+  width: 188px;
+  min-width: 188px;
+  min-height: 188px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.archived-agent-id-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 3px;
+}
+
+.archived-agent-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 96px;
+}
+
+.archived-agent-id-copy {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.archived-agent-id-copy svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.chat-thread-heart-infinity {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 1px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-dim);
+}

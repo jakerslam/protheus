@@ -135,6 +135,23 @@ body.theme-switching *::after {
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 .btn-block { width: 100%; }
 
+.archived-agent-action-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.archived-agent-action-btn svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
 .btn-archive-all {
   color: var(--text-dim);
   border-color: color-mix(in srgb, var(--border) 88%, transparent);
@@ -152,6 +169,37 @@ body.theme-switching *::after {
   height: 12px;
   stroke-width: 2.1;
   flex: 0 0 auto;
+}
+
+.chat-thread-heart-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: -8px;
+  margin-left: 0;
+  line-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.chat-thread-heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+}
+
+.chat-thread-heart svg {
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+  stroke: color-mix(in srgb, #ef4444 90%, #7f1d1d 10%);
+}
+
+.chat-thread-heart.is-empty svg {
+  fill: transparent;
+  stroke: color-mix(in srgb, #ef4444 82%, var(--text-dim) 18%);
+  opacity: 0.7;
 }
 
 /* Cards */

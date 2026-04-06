@@ -300,9 +300,9 @@ button.sidebar-scroll-indicator:hover {
 }
 
 .nav-item:hover {
-  background: var(--surface2);
+  background: transparent;
   color: var(--text);
-  transform: translateX(2px);
+  transform: none;
 }
 
 .nav-item.active {

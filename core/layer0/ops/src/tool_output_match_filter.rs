@@ -26,6 +26,10 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
                 unless: None,
             },
             MatchRule {
+                pattern: r"(?is)^\s*(?:i\s+)?could(?:n't| not)\s+extract\s+(?:usable|reliable)\s+findings(?:\b.*)?$",
+                unless: Some(r"(?is)\b(?:key finding|sources?:|according to)\b"),
+            },
+            MatchRule {
                 pattern: r"(?is)could(?:n't| not) extract (?:usable|reliable) findings.*search response came from https?://duckduckgo\.com/html/\?q=",
                 unless: Some(r"(?is)\b(?:key finding|sources?:|according to)\b"),
             },
@@ -116,6 +120,13 @@ mod tests {
     fn ignores_duckduckgo_like_copy_when_findings_are_present() {
         assert!(!matches_ack_placeholder(
             "I couldn't extract usable findings. Sources: https://example.com/one https://example.com/two"
+        ));
+    }
+
+    #[test]
+    fn detects_plain_no_findings_placeholder_without_sources() {
+        assert!(matches_ack_placeholder(
+            "I couldn't extract usable findings from that search yet."
         ));
     }
 

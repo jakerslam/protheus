@@ -935,7 +935,7 @@ fn direct_search_slash_routes_through_web_search_tool() {
             rows.iter().any(|row| {
                 row.get("name")
                     .and_then(Value::as_str)
-                    .map(|name| name == "web_search")
+                    .map(|name| name == "web_search" || name == "batch_query")
                     .unwrap_or(false)
             })
         })
@@ -982,11 +982,19 @@ fn natural_language_web_search_intent_routes_without_slash() {
             rows.iter().any(|row| {
                 row.get("name")
                     .and_then(Value::as_str)
-                    .map(|name| name == "web_search")
+                    .map(|name| name == "web_search" || name == "batch_query")
                     .unwrap_or(false)
             })
         })
         .unwrap_or(false));
+    let response = out
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    assert!(!response.contains("couldn't extract usable findings"));
+    assert!(!response.contains("search response came from"));
 }
 
 #[test]

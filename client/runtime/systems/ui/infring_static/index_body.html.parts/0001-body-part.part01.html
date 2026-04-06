@@ -111,7 +111,7 @@
                 </button>
               </div>
             <a
-                class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-right"
+                class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-right nav-sub-item-action-new-agent"
                 :class="{ 'is-loading': sidebarSpawningAgent }"
                 :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
                 @click="if (!sidebarSpawningAgent) createSidebarAgentChat()"
@@ -124,7 +124,7 @@
               </a>
             </div>
             <a
-              class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-collapsed"
+              class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-collapsed nav-sub-item-action-new-agent"
               :class="{ 'is-loading': sidebarSpawningAgent }"
               x-show="sidebarCollapsed"
               :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
@@ -145,7 +145,7 @@
               :aria-current="page === 'chat' && $store.app.activeAgentId === 'system' ? 'page' : false"
             >
               <span class="nav-icon nav-agent-icon">
-                <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy({ id: 'system', state: 'running' }) }">
+                <span class="nav-agent-avatar-wrap">
                   <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy({ id: 'system', state: 'running' })" aria-hidden="true"></span>
                   <span class="nav-agent-avatar">
                     <span
@@ -163,13 +163,6 @@
                     <span class="nav-agent-time" x-text="formatChatSidebarTime((chatSidebarPreview({ id: 'system' }) || {}).ts)"></span>
                   </span>
                 </span>
-                <span class="nav-agent-bottom">
-                  <span
-                    class="nav-agent-preview"
-                    :class="{ 'preview-unread': !!((chatSidebarPreview({ id: 'system' }) || {}).unread_response) }"
-                    x-text="(chatSidebarPreview({ id: 'system' }) || {}).text || 'System events and terminal output'"
-                  ></span>
-                </span>
               </span>
             </a>
             <template x-for="agent in chatSidebarVisibleRows" :key="'nav-agent-' + agent.id + '-' + (agent._sidebar_search_result ? 'search' : 'live')">
@@ -180,7 +173,6 @@
                   active: page === 'chat' && $store.app.activeAgentId === agent.id,
                   'nav-agent-row-archived': !!agent.archived,
                   'nav-agent-row-timeout': !!agent._timed_out_local,
-                  'expiring-pulse': shouldPulseExpiringAgent(agent),
                   'nav-agent-row-draggable': chatSidebarCanReorderTopology(),
                   dragging: chatSidebarCanReorderTopology() && chatSidebarDragAgentId === String(agent.id),
                   'drag-target': chatSidebarCanReorderTopology() && chatSidebarDropTargetId === String(agent.id),
@@ -199,7 +191,7 @@
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
                 <span class="nav-icon nav-agent-icon">
-                  <span class="nav-agent-avatar-wrap" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(agent), 'nav-agent-avatar-archived-mask': !!agent.archived, 'nav-agent-avatar-timeout-mask': !!agent._timed_out_local, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
+                  <span class="nav-agent-avatar-wrap" :class="{ 'nav-agent-avatar-archived-mask': !!agent.archived, 'nav-agent-avatar-timeout-mask': !!agent._timed_out_local, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
                     <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                     <span class="nav-agent-avatar">
                       <img

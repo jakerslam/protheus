@@ -62,8 +62,14 @@ fn parent_can_archive_descendant_without_signoff_and_reason_is_persisted() {
         "parent_agent_id": parent_id
     }))
     .expect("serialize child create");
-    let child_create = handle(root.path(), "POST", "/api/agents", &child_payload, &snapshot)
-        .expect("create child");
+    let child_create = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        &child_payload,
+        &snapshot,
+    )
+    .expect("create child");
     let child_id = clean_agent_id(
         child_create
             .payload
@@ -273,10 +279,7 @@ fn natural_web_intent_routes_peer_comparisons_to_batch_query() {
     )
     .expect("route");
     assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("source").and_then(Value::as_str),
-        Some("web")
-    );
+    assert_eq!(route.1.get("source").and_then(Value::as_str), Some("web"));
     assert_eq!(
         route.1.get("aperture").and_then(Value::as_str),
         Some("medium")
@@ -298,7 +301,10 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
         "parallelize this with a swarm",
     );
     assert_eq!(cards.len(), 1);
-    assert_eq!(cards[0].get("is_error").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        cards[0].get("is_error").and_then(Value::as_bool),
+        Some(false)
+    );
     assert!(pending_confirmation.is_none());
     let lowered = text.to_ascii_lowercase();
     assert!(!lowered.contains("tool_explicit_signoff_required"));
@@ -333,8 +339,14 @@ fn pending_confirmation_yes_replays_manage_agent_action() {
         "parent_agent_id": parent_id
     }))
     .expect("serialize child");
-    let child = handle(root.path(), "POST", "/api/agents", &child_payload, &snapshot)
-        .expect("child create");
+    let child = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        &child_payload,
+        &snapshot,
+    )
+    .expect("child create");
     let child_id = clean_agent_id(
         child
             .payload
@@ -364,7 +376,10 @@ fn pending_confirmation_yes_replays_manage_agent_action() {
     )
     .expect("message response");
     assert_eq!(response.status, 200);
-    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
     let response_text = response
         .payload
         .get("response")
@@ -414,10 +429,9 @@ fn unrelated_dump_detector_flags_peer_review_template_leaks() {
 #[test]
 fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
     let root = tempfile::tempdir().expect("tempdir");
-    let captured = parse_memory_capture_text(
-        "remember this: the fallback phrase is cobalt sunrise",
-    )
-    .expect("memory capture text");
+    let captured =
+        parse_memory_capture_text("remember this: the fallback phrase is cobalt sunrise")
+            .expect("memory capture text");
     assert!(captured.to_ascii_lowercase().contains("cobalt sunrise"));
     assert!(parse_memory_capture_text("just answer normally").is_none());
 
@@ -451,7 +465,9 @@ fn response_tools_summary_rewrites_ack_only_text_into_user_facing_findings() {
         4,
     );
     assert!(!synthesized.is_empty());
-    assert!(synthesized.to_ascii_lowercase().contains("here's what i found"));
+    assert!(synthesized
+        .to_ascii_lowercase()
+        .contains("here's what i found"));
     assert!(synthesized.to_ascii_lowercase().contains("web search"));
 }
 
@@ -469,8 +485,8 @@ fn ack_only_detector_flags_generic_tool_acknowledgements() {
 }
 
 #[test]
-fn ack_only_detector_allows_explicit_no_findings_failure_copy() {
-    assert!(!response_looks_like_tool_ack_without_findings(
+fn ack_only_detector_flags_explicit_no_findings_failure_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
         "I couldn't extract usable findings from the search response yet."
     ));
 }
@@ -559,6 +575,27 @@ fn comparative_no_findings_fallback_is_actionable() {
 }
 
 #[test]
+fn tooling_failure_fallback_triggers_for_diagnostic_prompt() {
+    let fallback = maybe_tooling_failure_fallback(
+        "so the tooling isnt working at all?",
+        "I couldn't extract usable findings for \"current technology news\" yet.",
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("partially working"));
+    assert!(lowered.contains("batch_query"));
+    assert!(lowered.contains("doctor --json"));
+}
+
+#[test]
+fn tooling_failure_fallback_triggers_for_repeated_placeholder_loop() {
+    let repeated = "I couldn't extract usable findings for \"current technology news\" yet.";
+    let fallback = maybe_tooling_failure_fallback("?", repeated, repeated).expect("fallback");
+    assert!(fallback.to_ascii_lowercase().contains("parse miss"));
+}
+
+#[test]
 fn system_diagnostic_failure_summary_is_not_generic_dead_end() {
     let summary = user_facing_tool_failure_summary(
         "system_diagnostic",
@@ -627,6 +664,30 @@ fn web_search_summary_reports_root_cause_without_legacy_no_findings_template() {
 }
 
 #[test]
+fn web_search_summary_uses_content_domains_when_summary_is_search_chrome() {
+    let summary = summarize_tool_payload(
+        "web_search",
+        &json!({
+            "ok": true,
+            "query": "latest technology news today",
+            "requested_url": "https://duckduckgo.com/html/?q=latest+technology+news+today",
+            "summary": "latest technology news today at DuckDuckGo All Regions Argentina Australia Safe Search Any Time",
+            "content": "latest technology news today at DuckDuckGo All Regions Any Time Tech News | Today's Latest Technology News | Reuters www.reuters.com/technology/ Find latest technology news from every corner of the globe. Technology: Latest Tech News Articles Today | AP News apnews.com/technology Don't miss an update on the latest tech news. The Latest News in Technology | PCMag www.pcmag.com/news Get the latest technology news and in-depth analysis."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(
+        lowered.contains("web search findings")
+            || lowered.contains("found sources")
+            || lowered.contains("candidate sources"),
+        "unexpected summary: {summary}"
+    );
+    assert!(lowered.contains("reuters.com"));
+    assert!(!lowered.contains("couldn't extract usable findings"));
+    assert!(!lowered.contains("search response came from"));
+}
+
+#[test]
 fn finalize_user_facing_response_rewrites_raw_placeholder_dump() {
     let finalized = finalize_user_facing_response(
         "Example Domain This domain is for use in documentation examples without needing permission."
@@ -690,7 +751,9 @@ fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
 fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
-    let policy_path = root.path().join("client/runtime/config/terminal_command_permission_policy.json");
+    let policy_path = root
+        .path()
+        .join("client/runtime/config/terminal_command_permission_policy.json");
     std::fs::create_dir_all(
         policy_path
             .parent()
@@ -711,7 +774,8 @@ fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
         Some("tool_confirmation_required")
     );
     assert_eq!(
-        out.pointer("/permission_gate/verdict").and_then(Value::as_str),
+        out.pointer("/permission_gate/verdict")
+            .and_then(Value::as_str),
         Some("ask")
     );
 }

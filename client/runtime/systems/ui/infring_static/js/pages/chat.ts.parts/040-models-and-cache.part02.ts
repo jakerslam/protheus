@@ -345,5 +345,8 @@
           this.persistConversationCache();
         }
         this.recomputeContextEstimate();
+        if (typeof this.restoreConversationDraft === 'function') {
+          this.restoreConversationDraft(agentId);
+        }
         this.$nextTick(() => this.scrollToBottomImmediate());
         return true;

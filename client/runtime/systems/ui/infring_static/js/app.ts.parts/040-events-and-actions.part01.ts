@@ -125,9 +125,24 @@
         };
       }
       var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
-      var fallbackText = isSystemThread ? 'System events and terminal output' : 'No messages yet';
+      var fallbackText = isSystemThread ? '' : 'No messages yet';
       if (typeof this._isCollapsedHoverStatePlaceholderText === 'function' && this._isCollapsedHoverStatePlaceholderText(fallbackText)) {
         fallbackText = '';
+      }
+      var store = this.getAppStore();
+      var preview = store && typeof store.getAgentChatPreview === 'function'
+        ? store.getAgentChatPreview(agent.id)
+        : null;
+      if (isSystemThread) {
+        return {
+          text: '',
+          ts: preview && preview.ts ? preview.ts : this.sidebarAgentSortTs(agent),
+          role: 'agent',
+          has_tools: !!(preview && preview.has_tools),
+          tool_state: preview && preview.tool_state ? preview.tool_state : '',
+          tool_label: preview && preview.tool_label ? preview.tool_label : '',
+          unread_response: !!(preview && preview.unread_response)
+        };
       }
       if (agent._sidebar_search_result) {
         var snippet = String(agent._sidebar_preview_text || '').trim();
@@ -141,10 +156,6 @@
           unread_response: false
         };
       }
-      var store = this.getAppStore();
-      var preview = store && typeof store.getAgentChatPreview === 'function'
-        ? store.getAgentChatPreview(agent.id)
-        : null;
       if (!preview || !preview.text) return { text: fallbackText, ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       return preview;
     },
@@ -374,12 +385,6 @@
 
     agentAutoTerminateEnabled(agent) {
       if (!agent || typeof agent !== 'object') return false;
-      if (agent.auto_terminate_allowed === false) return false;
-      if (agent.is_master_agent === true) return false;
-      var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
-      if (treeKind === 'master' || treeKind === 'main') return false;
-      var branch = String(agent.git_branch || agent.branch || '').trim().toLowerCase();
-      if (branch === 'main' || branch === 'master') return false;
       var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
       var terminationCondition = String(
         (contract && contract.termination_condition) ||
@@ -387,6 +392,19 @@
         ''
       ).trim().toLowerCase();
       if (terminationCondition === 'manual' || terminationCondition === 'task_complete') return false;
+      // Finite lifespan contracts should remain visible and active even on master/main
+      // agents so the UI reflects explicit user-selected time limits.
+      if (this.agentContractHasFiniteExpiry(agent)) {
+        if (agent.auto_terminate_allowed === false) return false;
+        if (contract && contract.auto_terminate_allowed === false) return false;
+        return true;
+      }
+      if (agent.auto_terminate_allowed === false) return false;
+      if (agent.is_master_agent === true) return false;
+      var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
+      if (treeKind === 'master' || treeKind === 'main') return false;
+      var branch = String(agent.git_branch || agent.branch || '').trim().toLowerCase();
+      if (branch === 'main' || branch === 'master') return false;
       if (contract && contract.auto_terminate_allowed === false) return false;
       if (contract && contract.idle_terminate_allowed === false && contract.auto_terminate_allowed === false) return false;
       return true;
@@ -475,14 +493,6 @@
       if (agent._timed_out_local === true) return false;
       if (!this.agentAutoTerminateEnabled(agent)) return true;
       return !this.agentContractHasFiniteExpiry(agent);
-    },
-
-    shouldPulseExpiringAgent(agent) {
-      if (agent && agent._timed_out_local === true) return false;
-      if (this.isAgentPendingTermination(agent)) return true;
-      var remainingMs = this.agentContractRemainingMs(agent);
-      if (remainingMs == null) return false;
-      return remainingMs > 0 && remainingMs <= 60000;
     },
 
     shouldShowExpiryCountdown(agent) {

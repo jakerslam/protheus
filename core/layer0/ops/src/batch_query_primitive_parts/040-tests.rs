@@ -116,4 +116,32 @@ mod tests {
         let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
         assert!(!summary.to_ascii_lowercase().contains("web search completed"));
     }
+
+    #[test]
+    fn low_signal_search_summary_falls_back_to_content_source_domains() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = with_fixture(
+            json!({
+                "latest technology news today": {
+                    "ok": true,
+                    "summary": "latest technology news today at DuckDuckGo All Regions Safe Search Any Time",
+                    "content": "Tech News | Today's Latest Technology News | Reuters www.reuters.com/technology/ Find latest technology news from every corner of the globe. Technology News - CNBC www.cnbc.com/technology/ Business news related to the technology industry.",
+                    "requested_url": "https://duckduckgo.com/html/?q=latest+technology+news+today",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":"latest technology news today","aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("reuters.com") || lowered.contains("cnbc.com"));
+        assert!(!lowered.contains("all regions"));
+        assert!(!lowered.contains("safe search"));
+    }
 }

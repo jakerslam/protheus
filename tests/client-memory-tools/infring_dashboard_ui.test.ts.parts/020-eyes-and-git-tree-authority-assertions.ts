@@ -64,6 +64,7 @@ function assertInterfaceSafetyGuards() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
   const hostSource = readUtf8(TARGET);
   const laneSource = readUtf8(TARGET_SOURCE);
+  const wsBridgeSource = readUtf8(AGENT_WS_BRIDGE_TS_PATH);
 
   assertContains(
     appSource,
@@ -259,6 +260,26 @@ function assertInterfaceSafetyGuards() {
     hostSource,
     'proxyUpgrade(req, socket, head, flags);',
     'dashboard host must proxy websocket upgrades to the Rust authority lane'
+  );
+  assertContains(
+    wsBridgeSource,
+    "type: 'phase'",
+    'agent websocket bridge should emit phase updates so thinking bubble status stays live'
+  );
+  assertContains(
+    wsBridgeSource,
+    "type: 'tool_start'",
+    'agent websocket bridge should emit tool_start updates for thought bubble tool transparency'
+  );
+  assertContains(
+    wsBridgeSource,
+    "type: 'tool_result'",
+    'agent websocket bridge should emit tool_result updates for thought bubble tool transparency'
+  );
+  assertContains(
+    wsBridgeSource,
+    'tools: toolRows',
+    'agent websocket bridge response payload should include normalized tool cards'
   );
 
   if (!isRustDashboardLaneWrapperSource(laneSource)) {

@@ -424,6 +424,9 @@
   font-family: var(--font-mono);
   margin-right: 0;
   transition: color 0.15s var(--ease-smooth), text-shadow 0.15s var(--ease-smooth);
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
 }
 
 .model-inline-label + .model-switcher-inline {
@@ -435,6 +438,11 @@
 .composer-actions-right:has(.composer-model-btn.active) .model-inline-label {
   color: var(--text);
   text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+#msg-input::placeholder {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .composer-icon-left {

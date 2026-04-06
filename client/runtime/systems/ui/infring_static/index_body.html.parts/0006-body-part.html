@@ -293,10 +293,6 @@
         <!-- MODE 2: Agent picker + Templates (no agent chatting) -->
         <div x-show="!activeChatAgent" class="chat-wrapper">
         <div class="page-header">
-          <div class="flex gap-2">
-            <button class="btn btn-ghost btn-sm" x-show="agents.length" @click="openSpawnWizard()">+ New Agent</button>
-            <button class="btn btn-danger btn-sm" x-show="agents.length > 1" @click="killAllAgents()">Stop All</button>
-          </div>
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
             <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
@@ -316,35 +312,24 @@
               <div class="text-sm font-bold" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">Your Agents</div>
               <button
                 class="btn btn-ghost btn-archive-all btn-sm"
-                x-show="!confirmArchiveAllAgents"
-                @click="confirmArchiveAllAgents = true"
+                @click="archiveAllAgents()"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 7h18"/>
-                  <path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
-                  <path d="M6 7v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/>
-                  <path d="M10 11v5"/>
-                  <path d="M14 11v5"/>
+                  <rect x="3" y="4" width="18" height="5" rx="1"></rect>
+                  <path d="M5 9h14v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"></path>
+                  <path d="M10 13h4"></path>
                 </svg>
                 Archive all
               </button>
-              <button
-                class="btn btn-danger btn-sm"
-                x-show="confirmArchiveAllAgents"
-                @mouseleave="confirmArchiveAllAgents = false"
-                @click="archiveAllAgents()"
-              >
-                Confirm
-              </button>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <div class="agent-chip-grid" style="display:flex;flex-wrap:wrap;gap:10px">
               <button
-                class="card agent-chip new-agent-chip"
+                class="card agent-chip new-agent-chip agent-chip-square"
                 type="button"
                 @click="createSidebarAgentChat()"
                 :disabled="sidebarSpawningAgent"
                 :class="{ 'is-loading': sidebarSpawningAgent }"
-                style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 18px;min-width:200px"
+                style="cursor:pointer"
                 title="Create a new agent and open initialization chat">
                 <div class="new-agent-chip-icon" style="width:36px;height:36px;border-radius:50%;background:color-mix(in srgb, var(--accent-subtle) 85%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid color-mix(in srgb, var(--accent) 34%, transparent);color:var(--accent)">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" :style="sidebarSpawningAgent ? 'opacity:0.45' : ''">
@@ -359,7 +344,7 @@
                 </div>
               </button>
               <template x-for="agent in agents" :key="agent.id">
-                <div class="card agent-chip" @click="chatWithAgent(agent)" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 18px;min-width:200px">
+                <div class="card agent-chip agent-chip-square agent-chip-square-active" @click="chatWithAgent(agent)" style="cursor:pointer">
                   <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0">
                     <img
                       x-show="agent.avatar_url"
@@ -371,7 +356,7 @@
                     <span x-show="!agent.avatar_url && agent.identity && agent.identity.emoji" x-text="agent.identity && agent.identity.emoji" style="font-size:18px"></span>
                     <svg x-show="!agent.avatar_url && (!agent.identity || !agent.identity.emoji)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   </div>
-                  <div style="min-width:0;flex:1">
+                  <div style="min-width:0;flex:1;text-align:center;width:100%">
                     <div class="font-bold" style="font-size:13px" x-text="agent.name"></div>
                     <div class="text-xs text-dim font-mono" style="font-size:11px" x-text="agent.model_name"></div>
                     <div
@@ -401,13 +386,8 @@
               </div>
               <button
                 class="btn btn-danger btn-sm"
-                x-show="terminatedAgents.length && !confirmDeleteAllArchived"
-                @click="confirmDeleteAllArchived = true"
+                x-show="terminatedAgents.length"
+                @click="deleteAllArchived()"
               >
                 Delete all
               </button>
-              <button
-                class="btn btn-danger btn-sm"
-                x-show="terminatedAgents.length && confirmDeleteAllArchived"
-                @mouseleave="confirmDeleteAllArchived = false"
-                @click="deleteAllArchived()"

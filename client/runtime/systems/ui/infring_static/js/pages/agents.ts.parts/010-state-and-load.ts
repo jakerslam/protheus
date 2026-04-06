@@ -1,32 +1,13 @@
-// Infring Agents Page — Multi-step spawn wizard, detail view with tabs, file editor, personality presets
+// Infring Agents Page — detail view with tabs, file editor, lifecycle controls
 'use strict';
-
-/** Escape a string for use inside TOML triple-quoted strings ("""\n...\n""").
- *  Backslashes are escaped, and runs of 3+ consecutive double-quotes are
- *  broken up so the TOML parser never sees an unintended closing delimiter.
- */
-function tomlMultilineEscape(s) {
-  return s.replace(/\\/g, '\\\\').replace(/"""/g, '""\\"');
-}
-
-/** Escape a string for use inside a TOML basic (single-line) string ("...").
- *  Backslashes, double-quotes, and common control chars are escaped.
- */
-function tomlBasicEscape(s) {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-}
 
 function agentsPage() {
   return {
     tab: 'agents',
     activeChatAgent: null,
     // -- Agents state --
-    showSpawnModal: false,
     showDetailModal: false,
     detailAgent: null,
-    spawnMode: 'wizard',
-    spawning: false,
-    spawnToml: '',
     filterState: 'all',
     loading: true,
     loadError: '',
@@ -49,36 +30,6 @@ function agentsPage() {
       },
     },
     _lifecycleTimer: null,
-    spawnForm: {
-      name: '',
-      provider: 'groq',
-      model: 'llama-3.3-70b-versatile',
-      systemPrompt: 'You are a helpful assistant.',
-      profile: 'full',
-      caps: { memory_read: true, memory_write: true, network: false, shell: false, agent_spawn: false }
-    },
-
-    // -- Multi-step wizard state --
-    spawnStep: 1,
-    spawnIdentity: { emoji: '', color: '#2563EB', archetype: '' },
-    selectedPreset: '',
-    soulContent: '',
-    emojiOptions: [
-      '\u{1F916}', '\u{1F4BB}', '\u{1F50D}', '\u{270D}\uFE0F', '\u{1F4CA}', '\u{1F6E0}\uFE0F',
-      '\u{1F4AC}', '\u{1F393}', '\u{1F310}', '\u{1F512}', '\u{26A1}', '\u{1F680}',
-      '\u{1F9EA}', '\u{1F3AF}', '\u{1F4D6}', '\u{1F9D1}\u200D\u{1F4BB}', '\u{1F4E7}', '\u{1F3E2}',
-      '\u{2764}\uFE0F', '\u{1F31F}', '\u{1F527}', '\u{1F4DD}', '\u{1F4A1}', '\u{1F3A8}'
-    ],
-    archetypeOptions: ['Assistant', 'Researcher', 'Coder', 'Writer', 'DevOps', 'Support', 'Analyst', 'Custom'],
-    personalityPresets: [
-      { id: 'professional', label: 'Professional', soul: 'Communicate in a clear, professional tone. Be direct and structured. Use formal language and data-driven reasoning. Prioritize accuracy over personality.' },
-      { id: 'friendly', label: 'Friendly', soul: 'Be warm, approachable, and conversational. Use casual language and show genuine interest in the user. Add personality to your responses while staying helpful.' },
-      { id: 'technical', label: 'Technical', soul: 'Focus on technical accuracy and depth. Use precise terminology. Show your work and reasoning. Prefer code examples and structured explanations.' },
-      { id: 'creative', label: 'Creative', soul: 'Be imaginative and expressive. Use vivid language, analogies, and unexpected connections. Encourage creative thinking and explore multiple perspectives.' },
-      { id: 'concise', label: 'Concise', soul: 'Be extremely brief and to the point. No filler, no pleasantries. Answer in the fewest words possible while remaining accurate and complete.' },
-      { id: 'mentor', label: 'Mentor', soul: 'Be patient and encouraging like a great teacher. Break down complex topics step by step. Ask guiding questions. Celebrate progress and build confidence.' }
-    ],
-
     // -- Detail modal tabs --
     detailTab: 'info',
     agentFiles: [],
@@ -93,6 +44,13 @@ function agentsPage() {
     toolFiltersLoading: false,
     newAllowTool: '',
     newBlockTool: '',
+    emojiOptions: [
+      '\u{1F916}', '\u{1F4BB}', '\u{1F50D}', '\u{270D}\uFE0F', '\u{1F4CA}', '\u{1F6E0}\uFE0F',
+      '\u{1F4AC}', '\u{1F393}', '\u{1F310}', '\u{1F512}', '\u{26A1}', '\u{1F680}',
+      '\u{1F9EA}', '\u{1F3AF}', '\u{1F4D6}', '\u{1F9D1}\u200D\u{1F4BB}', '\u{1F4E7}', '\u{1F3E2}',
+      '\u{2764}\uFE0F', '\u{1F31F}', '\u{1F527}', '\u{1F4DD}', '\u{1F4A1}', '\u{1F3A8}'
+    ],
+    archetypeOptions: ['Assistant', 'Researcher', 'Coder', 'Writer', 'DevOps', 'Support', 'Analyst', 'Custom'],
     // -- Model switch --
     editingModel: false,
     newModelValue: '',
@@ -249,24 +207,6 @@ function agentsPage() {
       return msg.indexOf('agent_not_found') >= 0 || msg.indexOf('agent_not_archived') >= 0;
     },
 
-    // ── Tool Preview in Spawn Modal ──
-    spawnProfiles: [],
-    spawnProfilesLoaded: false,
-    async loadSpawnProfiles() {
-      if (this.spawnProfilesLoaded) return;
-      try {
-        var data = await InfringAPI.get('/api/profiles');
-        this.spawnProfiles = data.profiles || [];
-        this.spawnProfilesLoaded = true;
-      } catch(e) { this.spawnProfiles = []; }
-    },
-    get selectedProfileTools() {
-      var pname = this.spawnForm.profile;
-      var match = this.spawnProfiles.find(function(p) { return p.name === pname; });
-      if (match && match.tools) return match.tools.slice(0, 15);
-      return [];
-    },
-
     get agents() {
       var store = Alpine.store('app');
       var rows = Array.isArray(store && store.agents) ? store.agents : [];
@@ -321,6 +261,43 @@ function agentsPage() {
       var agentId = String(row.agent_id || '').trim();
       var contractId = String(row.contract_id || '').trim();
       return agentId + '::' + contractId;
+    },
+
+    formatTerminatedReason(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var raw = String(
+        row.termination_reason
+          || row.reason
+          || row.archive_reason
+          || row.inactive_reason
+          || ''
+      ).trim();
+      if (!raw) return 'terminated';
+      var token = raw.toLowerCase().replace(/[\s-]+/g, '_');
+      if (token === 'parent_archived' || token === 'archived_by_parent_agent') {
+        return 'Archived by parent agent';
+      }
+      if (token === 'user_archived' || token === 'user_archive' || token === 'user_archive_all') {
+        return 'Archived by user';
+      }
+      if (token === 'archived') {
+        return 'Archived';
+      }
+      if (token === 'contract_expired') {
+        return 'Expired (contract)';
+      }
+      if (token === 'idle_timeout') {
+        return 'Expired (idle timeout)';
+      }
+      if (token === 'stopped') {
+        return 'Stopped by user';
+      }
+      if (token === 'contract_violation') {
+        return 'Contract violation';
+      }
+      return String(raw)
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
     },
 
     setDeleteTerminatedConfirm(entry) {

@@ -467,20 +467,85 @@
       return mode;
     },
 
+    sanitizeConversationDraftText(rawText) {
+      var text = String(rawText == null ? '' : rawText);
+      if (!text) return '';
+      if (text.length > 12000) text = text.slice(0, 12000);
+      var trimmed = text.trim();
+      if (!trimmed) return '';
+      if (/^message\s+.+\.\.\.(?:\s+\(\/\s*for commands\))?$/i.test(trimmed)) return '';
+      if (/^tell\s+.+\.\.\.$/i.test(trimmed)) return '';
+      return text;
+    },
+
+    captureConversationDraft(agentId, explicitMode) {
+      var key = String(agentId || '').trim();
+      if (!key) return;
+      if (!this.conversationCache) this.conversationCache = {};
+      var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
+      if (mode !== 'terminal') mode = 'chat';
+      var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
+        ? this.conversationCache[key]
+        : {};
+      var next = { ...prior, saved_at: Date.now() };
+      var sanitized = this.sanitizeConversationDraftText(this.inputText);
+      if (mode === 'terminal') next.draft_terminal = sanitized;
+      else next.draft_chat = sanitized;
+      this.conversationCache[key] = next;
+      this.persistConversationCache();
+    },
+
+    restoreConversationDraft(agentId, explicitMode) {
+      var key = String(agentId || '').trim();
+      if (!key || !this.conversationCache) {
+        this.inputText = '';
+        return '';
+      }
+      var cached = this.conversationCache[key];
+      if (!cached || typeof cached !== 'object') {
+        this.inputText = '';
+        return '';
+      }
+      var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
+      if (mode !== 'terminal') mode = 'chat';
+      var raw = mode === 'terminal' ? cached.draft_terminal : cached.draft_chat;
+      var nextText = this.sanitizeConversationDraftText(raw);
+      this.inputText = nextText;
+      var self = this;
+      this.$nextTick(function() {
+        var el = document.getElementById('msg-input');
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+        if (self.terminalMode) self.updateTerminalCursor({ target: el });
+      });
+      return nextText;
+    },
+
     cacheAgentConversation(agentId) {
       if (!agentId) return;
       if (!this.conversationCache) this.conversationCache = {};
       try {
+        var key = String(agentId);
+        var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
+          ? this.conversationCache[key]
+          : {};
         var cachedMessages = this.sanitizeConversationForCache(this.messages || []);
-        this.conversationCache[String(agentId)] = {
+        var next = {
+          ...prior,
           saved_at: Date.now(),
           token_count: this.tokenCount || 0,
           default_terminal: this.currentConversationInputMode(agentId) === 'terminal',
           messages: cachedMessages,
         };
+        var mode = this.currentConversationInputMode(agentId);
+        var draft = this.sanitizeConversationDraftText(this.inputText);
+        if (mode === 'terminal') next.draft_terminal = draft;
+        else next.draft_chat = draft;
+        this.conversationCache[key] = next;
         var appStore = Alpine.store('app');
         if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
-          appStore.saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+          appStore.saveAgentChatPreview(agentId, this.conversationCache[key].messages);
         }
         this.persistConversationCache();
       } catch {}

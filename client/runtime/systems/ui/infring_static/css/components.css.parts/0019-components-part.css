@@ -467,3 +467,9 @@ body:not([data-theme='dark']) .message.system .message-bubble {
   --message-tail-fill-color: color-mix(in srgb, var(--surface2) 94%, transparent);
   background: color-mix(in srgb, var(--surface2) 94%, transparent);
 }
+
+/* Theme switcher: when mode=system, highlight spans system + resolved light/dark icon. */
+.global-topbar .theme-switcher[data-mode='light']::before { width: var(--theme-opt-size); transform: translateX(0); }
+.global-topbar .theme-switcher[data-mode='dark']::before { width: var(--theme-opt-size); transform: translateX(calc(var(--theme-opt-size) * 2)); }
+.global-topbar .theme-switcher[data-mode='system'][data-resolved='light']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(0); }
+.global-topbar .theme-switcher[data-mode='system'][data-resolved='dark']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(var(--theme-opt-size)); }
