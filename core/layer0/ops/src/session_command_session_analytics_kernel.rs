@@ -455,27 +455,27 @@ fn recommendation_suggestions_from_report(
     if unsupported > 0 {
         if !unsupported_base.is_empty() {
             out.push(format!(
-                "Want me to map `{}` into a supported route?",
+                "Map `{}` into a supported route.",
                 unsupported_base
             ));
         } else {
-            out.push("Want me to convert unsupported commands into supported routes?".to_string());
+            out.push("Convert unsupported commands into supported routes.".to_string());
         }
     }
     if adoption_pct < 80.0 {
-        out.push("Should I optimize command flow for higher tool hit rate?".to_string());
+        out.push("Optimize command flow for higher tool hit rate.".to_string());
     }
     if output_tokens > 1200 {
-        out.push("Want a concise digest of terminal output and next actions?".to_string());
+        out.push("Generate a concise digest of terminal output and next actions.".to_string());
     }
     if !supported_canonical.is_empty() {
         out.push(format!(
-            "Should I run `{}` as the next safe step?",
+            "Run `{}` as the next safe step.",
             supported_canonical
         ));
     }
     if out.is_empty() {
-        out.push("Want me to run one focused command and summarize results?".to_string());
+        out.push("Run one focused command and summarize results.".to_string());
     }
 
     let mut dedup = Vec::<String>::new();

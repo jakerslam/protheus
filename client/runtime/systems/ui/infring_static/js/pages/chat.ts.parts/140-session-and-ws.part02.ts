@@ -31,7 +31,7 @@
             if (phaseKey === 'context_warning') {
               var cwDetail = data.detail || 'Context limit reached.';
               this.messages.push({ id: ++msgId, role: 'system', text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
-              phaseMsg.thinking_status = 'Context window warning';
+              if (phaseMsg.thinking_status !== 'Context window warning') phaseMsg.thinking_status = 'Context window warning';
             } else if (
               phaseKey === 'thinking' ||
               phaseKey === 'reasoning' ||
@@ -40,19 +40,28 @@
               phaseKey === 'plan'
             ) {
               var thoughtChunk = String(data.detail || '').trim();
+              if (thoughtChunk && typeof this.normalizeThinkingStatusCandidate === 'function') {
+                thoughtChunk = this.normalizeThinkingStatusCandidate(thoughtChunk);
+              }
               if (thoughtChunk) {
-                phaseMsg._thoughtText = this.appendThoughtChunk(phaseMsg._thoughtText, thoughtChunk);
-                phaseMsg._reasoning = phaseMsg._thoughtText;
-                phaseMsg.isHtml = true;
-                phaseMsg.thoughtStreaming = true;
-                phaseMsg.text = this.renderLiveThoughtHtml(phaseMsg._thoughtText, phaseMsg);
-                if (!phaseMsg.thinking_status && phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
+                var chunkChanged = phaseMsg._thought_latest_chunk !== thoughtChunk;
+                phaseMsg._thought_latest_chunk = thoughtChunk;
+                if (chunkChanged) {
+                  phaseMsg._thoughtText = this.appendThoughtChunk(phaseMsg._thoughtText, thoughtChunk);
+                  phaseMsg._reasoning = phaseMsg._thoughtText;
+                  phaseMsg.isHtml = true;
+                  phaseMsg.thoughtStreaming = true;
+                  phaseMsg.text = this.renderLiveThoughtHtml(phaseMsg._thoughtText, phaseMsg);
+                }
+                if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+                  if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
+                }
               }
             } else if (phaseMsg.thinking) {
-              if (phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
+              if (phaseStatusCandidate && phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
             if (!phaseMsg.thinking_status && phaseStatusCandidate) {
-              phaseMsg.thinking_status = phaseStatusCandidate;
+              if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
 	          }
 	          this._resetTypingTimeout();

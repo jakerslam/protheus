@@ -96,6 +96,20 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('protheusd.cmd')).toBe(true);
     expect(source.includes('$Repair')).toBe(true);
     expect(source.includes('conduit_daemon')).toBe(true);
+    expect(source.includes('Resolve-HostOsFlags')).toBe(true);
+    expect(source.includes('RuntimeInformation')).toBe(true);
+    expect(source.includes('OSPlatform')).toBe(true);
+    expect(source.includes('Unsupported OS for installer (detected:')).toBe(true);
+    expect(source.includes('Ensure-WindowsPathContains')).toBe(true);
+    expect(source.includes('Normalize-WindowsPathEntry')).toBe(true);
+    expect(source.includes('normalized user PATH entries')).toBe(true);
+  });
+
+  test('README Windows installer path supports flags without iex parameter binding traps', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+    expect(source.includes('install.ps1 -OutFile $tmp')).toBe(true);
+    expect(source.includes('& $tmp -Full')).toBe(true);
+    expect(source.includes('| iex -Full')).toBe(false);
   });
 
   test('architecture doc includes conduit mermaid map', () => {

@@ -94,6 +94,95 @@ function Resolve-Arch {
   }
 }
 
+function Resolve-HostOsFlags {
+  $runtime = [System.Runtime.InteropServices.RuntimeInformation]
+  $osPlatform = [System.Runtime.InteropServices.OSPlatform]
+  $isWindowsRuntime = $runtime::IsOSPlatform($osPlatform::Windows)
+  $isLinuxRuntime = $runtime::IsOSPlatform($osPlatform::Linux)
+  $isMacRuntime = $runtime::IsOSPlatform($osPlatform::OSX)
+
+  # PowerShell 6+ exposes $IsWindows/$IsLinux/$IsMacOS.
+  # Windows PowerShell 5.1 does not, so runtime probing must remain the source of truth.
+  $isWindows = if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
+    [bool]$global:IsWindows
+  } else {
+    $isWindowsRuntime
+  }
+  $isLinux = if (Get-Variable -Name IsLinux -Scope Global -ErrorAction SilentlyContinue) {
+    [bool]$global:IsLinux
+  } else {
+    $isLinuxRuntime
+  }
+  $isMacOS = if (Get-Variable -Name IsMacOS -Scope Global -ErrorAction SilentlyContinue) {
+    [bool]$global:IsMacOS
+  } else {
+    $isMacRuntime
+  }
+
+  if (-not ($isWindows -or $isLinux -or $isMacOS)) {
+    $platformDescription = [string]$runtime::OSDescription
+    throw "Unsupported OS for installer (detected: $platformDescription)"
+  }
+
+  return @{
+    IsWindows = $isWindows
+    IsLinux = $isLinux
+    IsMacOS = $isMacOS
+  }
+}
+
+function Normalize-WindowsPathEntry([string]$value) {
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return ""
+  }
+  $trimmed = $value.Trim().Trim('"')
+  if ($trimmed.EndsWith("\")) {
+    $trimmed = $trimmed.TrimEnd('\')
+  }
+  return $trimmed.ToLowerInvariant()
+}
+
+function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
+  $parts = @()
+  if (-not [string]::IsNullOrWhiteSpace($pathValue)) {
+    $parts = $pathValue.Split(";") |
+      ForEach-Object { [string]$_ } |
+      ForEach-Object { $_.Trim().Trim('"') } |
+      Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  }
+
+  $entryClean = [string]$entry
+  $entryNorm = Normalize-WindowsPathEntry $entryClean
+  $seen = @{}
+  $deduped = New-Object System.Collections.Generic.List[string]
+  $containsEntry = $false
+
+  foreach ($part in $parts) {
+    $norm = Normalize-WindowsPathEntry $part
+    if ([string]::IsNullOrWhiteSpace($norm)) {
+      continue
+    }
+    if ($norm -eq $entryNorm) {
+      $containsEntry = $true
+    }
+    if (-not $seen.ContainsKey($norm)) {
+      $deduped.Add($part)
+      $seen[$norm] = $true
+    }
+  }
+
+  if (-not $containsEntry) {
+    $deduped.Add($entryClean)
+  }
+
+  $joined = ($deduped -join ";")
+  return @{
+    Value = $joined
+    Added = (-not $containsEntry)
+    Changed = ($joined -ne [string]$pathValue)
+  }
+}
+
 function Resolve-Version {
   function Normalize-Version([string]$RawVersion) {
     if ($RawVersion.StartsWith("v")) { return $RawVersion }
@@ -398,11 +487,15 @@ if ($InstallRepair) {
   Invoke-RepairWorkspaceState
 }
 $arch = Resolve-Arch
-$triple = if ($IsWindows) {
+$osFlags = Resolve-HostOsFlags
+$HostIsWindows = [bool]$osFlags.IsWindows
+$HostIsLinux = [bool]$osFlags.IsLinux
+$HostIsMacOS = [bool]$osFlags.IsMacOS
+$triple = if ($HostIsWindows) {
   "$arch-pc-windows-msvc"
-} elseif ($IsLinux) {
+} elseif ($HostIsLinux) {
   "$arch-unknown-linux-gnu"
-} elseif ($IsMacOS) {
+} elseif ($HostIsMacOS) {
   "$arch-apple-darwin"
 } else {
   throw "Unsupported OS for installer"
@@ -417,7 +510,7 @@ $opsBin = Join-Path $InstallDir "protheus-ops.exe"
 $pureBin = Join-Path $InstallDir "protheus-pure-workspace.exe"
 $protheusdBin = Join-Path $InstallDir "protheusd.exe"
 $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
-$preferredDaemonTriple = if ($IsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
+$preferredDaemonTriple = if ($HostIsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
 if ($InstallPure) {
   $pureInstalled = $false
@@ -659,13 +752,17 @@ if ($InstallPure) {
 }
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($machinePath -notlike "*$InstallDir*") {
-  [Environment]::SetEnvironmentVariable("Path", "$machinePath;$InstallDir", "User")
-  Write-Host "[infring install] added install dir to user PATH"
+$userPathResult = Ensure-WindowsPathContains $machinePath $InstallDir
+if ([bool]$userPathResult.Changed) {
+  [Environment]::SetEnvironmentVariable("Path", [string]$userPathResult.Value, "User")
+  if ([bool]$userPathResult.Added) {
+    Write-Host "[infring install] added install dir to user PATH"
+  } else {
+    Write-Host "[infring install] normalized user PATH entries"
+  }
 }
-if ($env:Path -notlike "*$InstallDir*") {
-  $env:Path = "$InstallDir;$env:Path"
-}
+$sessionPathResult = Ensure-WindowsPathContains $env:Path $InstallDir
+$env:Path = [string]$sessionPathResult.Value
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"
 Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"

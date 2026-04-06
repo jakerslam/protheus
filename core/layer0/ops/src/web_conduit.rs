@@ -34,7 +34,7 @@ fn usage() {
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
     println!("  protheus-ops web-conduit fetch --url=<https://...> [--human-approved=1] [--approval-id=<id>] [--summary-only=1]");
     println!(
-        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
+        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
     );
     println!("  protheus-ops browse fetch --url=<https://...>");
 }
@@ -495,6 +495,13 @@ fn web_search_lite_url(query: &str) -> String {
     )
 }
 
+fn web_search_bing_rss_url(query: &str) -> String {
+    format!(
+        "https://www.bing.com/search?q={}&format=rss&setlang=en-US",
+        encode_query_component(&clean_text(query, 600))
+    )
+}
+
 fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
@@ -671,6 +678,97 @@ fn render_serper_payload(
     })
 }
 
+fn decode_xml_entities(raw: &str) -> String {
+    raw.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+}
+
+fn extract_xml_tag_value(block: &str, tag: &str) -> String {
+    let pattern = format!(r"(?is)<{tag}[^>]*>(.*?)</{tag}>");
+    let Ok(re) = Regex::new(&pattern) else {
+        return String::new();
+    };
+    let Some(captures) = re.captures(block) else {
+        return String::new();
+    };
+    let raw = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+    let trimmed = raw
+        .trim()
+        .trim_start_matches("<![CDATA[")
+        .trim_end_matches("]]>");
+    clean_html_content(&decode_xml_entities(trimmed), 2_400)
+}
+
+fn render_bing_rss_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    static ITEM_RE: OnceLock<Regex> = OnceLock::new();
+    let item_re =
+        ITEM_RE.get_or_init(|| Regex::new(r"(?is)<item\b[^>]*>(.*?)</item>").expect("item regex"));
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    let mut raw_count = 0usize;
+    for captures in item_re.captures_iter(body) {
+        raw_count += 1;
+        let item = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+        let link = clean_text(&extract_xml_tag_value(item, "link"), 2_200);
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains) {
+            continue;
+        }
+        let title = clean_text(&extract_xml_tag_value(item, "title"), 220);
+        let snippet = clean_text(&extract_xml_tag_value(item, "description"), 420);
+        let rendered = if title.is_empty() && snippet.is_empty() {
+            clean_text(&link, 1_200)
+        } else if snippet.is_empty() {
+            clean_text(format!("{title} — {link}").as_str(), 1_200)
+        } else if title.is_empty() {
+            clean_text(format!("{link} — {snippet}").as_str(), 1_200)
+        } else {
+            clean_text(format!("{title} — {link} — {snippet}").as_str(), 1_200)
+        };
+        if rendered.is_empty() {
+            continue;
+        }
+        lines.push(rendered);
+        links.push(link.clone());
+        let domain = extract_domain(&link);
+        if !domain.is_empty() && !domains.iter().any(|existing| existing == &domain) {
+            domains.push(domain);
+        }
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok {
+            summarize_text(&content, 900)
+        } else {
+            "No relevant results found for that request yet.".to_string()
+        },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": raw_count,
+        "provider_filtered_count": lines.len(),
+        "error": if ok {
+            Value::Null
+        } else {
+            Value::String("no_relevant_results".to_string())
+        }
+    })
+}
+
 fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     let combined = format!("{summary}\n{content}").to_ascii_lowercase();
     if combined.is_empty() {
@@ -686,6 +784,44 @@ fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     ]
     .iter()
     .any(|marker| combined.contains(marker))
+}
+
+fn payload_looks_like_search_challenge(payload: &Value) -> bool {
+    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
+    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    looks_like_search_challenge_payload(&summary, &content)
+}
+
+fn looks_like_low_signal_search_payload(summary: &str, content: &str) -> bool {
+    let lowered = clean_text(&format!("{summary}\n{content}"), 6_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    if looks_like_search_challenge_payload(summary, content) {
+        return true;
+    }
+    if lowered.contains("key findings for") && lowered.contains("potential sources:") {
+        return true;
+    }
+    let marker_hits = [
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "all regions canada",
+        "safe search",
+        "any time",
+        "at duckduckgo",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_hits >= 2
+}
+
+fn payload_looks_low_signal_search(payload: &Value) -> bool {
+    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
+    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    looks_like_low_signal_search_payload(&summary, &content)
 }
 
 fn fetch_with_curl(
@@ -1407,6 +1543,78 @@ fn api_search_serper(
     })
 }
 
+fn api_search_bing_rss(
+    query: &str,
+    summary_only: bool,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+) -> Value {
+    let requested_url = web_search_bing_rss_url(query);
+    let timeout_ms = 9_000u64;
+    let max_response_bytes = 280_000usize;
+    let retry_attempts = 2usize;
+    let fetched = fetch_with_curl_retry(
+        &requested_url,
+        timeout_ms,
+        max_response_bytes,
+        retry_attempts,
+    );
+    let status_code = fetched
+        .get("status_code")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let content_type = clean_text(
+        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        180,
+    );
+    let parsed = render_bing_rss_payload(
+        fetched.get("body").and_then(Value::as_str).unwrap_or(""),
+        allowed_domains,
+        exclude_subdomains,
+        top_k,
+        max_response_bytes,
+    );
+    let content = clean_text(
+        parsed.get("content").and_then(Value::as_str).unwrap_or(""),
+        max_response_bytes,
+    );
+    let summary = clean_text(parsed.get("summary").and_then(Value::as_str).unwrap_or(""), 900);
+    let fetch_ok = fetched.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && parsed.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && !summary.is_empty();
+    let mut error_value = clean_text(
+        fetched.get("stderr").and_then(Value::as_str).unwrap_or(""),
+        320,
+    );
+    if error_value.is_empty() {
+        error_value = clean_text(parsed.get("error").and_then(Value::as_str).unwrap_or(""), 220);
+    }
+    json!({
+        "ok": fetch_ok,
+        "requested_url": requested_url,
+        "status_code": status_code,
+        "content_type": if content_type.is_empty() { Value::String("application/rss+xml".to_string()) } else { Value::String(content_type) },
+        "summary": summary,
+        "content": if summary_only { Value::String(String::new()) } else { Value::String(content) },
+        "links": parsed.get("links").cloned().unwrap_or_else(|| json!([])),
+        "content_domains": parsed.get("content_domains").cloned().unwrap_or_else(|| json!([])),
+        "provider_raw_count": parsed.get("provider_raw_count").cloned().unwrap_or_else(|| json!(0)),
+        "provider_filtered_count": parsed.get("provider_filtered_count").cloned().unwrap_or_else(|| json!(0)),
+        "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
+        "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
+        "user_agent": fetched.get("user_agent").cloned().unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
+        "provider": "bing_rss",
+        "error": if fetch_ok {
+            Value::Null
+        } else if error_value.is_empty() {
+            Value::String("bing_rss_search_failed".to_string())
+        } else {
+            Value::String(error_value)
+        }
+    })
+}
+
 pub fn api_search(root: &Path, request: &Value) -> Value {
     let query = clean_text(
         request
@@ -1474,9 +1682,19 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .get("approval_id")
         .and_then(Value::as_str)
         .unwrap_or("");
+    let force_duckduckgo = provider_hint == "duckduckgo" || provider_hint == "ddg";
+    let force_bing = provider_hint == "bing" || provider_hint == "bing_rss";
     let mut used_serper = false;
     let mut serper_error = String::new();
-    let mut out = if provider_hint != "duckduckgo" && provider_hint != "ddg" {
+    let mut out = if force_bing {
+        api_search_bing_rss(
+            &scoped_query,
+            summary_only,
+            &allowed_domains,
+            exclude_subdomains,
+            top_k,
+        )
+    } else if !force_duckduckgo {
         let candidate = api_search_serper(
             root,
             &scoped_query,
@@ -1516,10 +1734,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         )
     };
     let mut used_lite_fallback = false;
+    let mut used_bing_fallback = force_bing;
+    let mut bing_error = String::new();
     if !used_serper && out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        let summary = clean_text(out.get("summary").and_then(Value::as_str).unwrap_or(""), 2400);
-        let content = clean_text(out.get("content").and_then(Value::as_str).unwrap_or(""), 4000);
-        if looks_like_search_challenge_payload(&summary, &content) {
+        if payload_looks_like_search_challenge(&out) {
             let lite_out = api_fetch(
                 root,
                 &json!({
@@ -1532,6 +1750,9 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             if lite_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                 out = lite_out;
                 used_lite_fallback = true;
+                if payload_looks_like_search_challenge(&out) {
+                    used_lite_fallback = false;
+                }
             } else if let Some(obj) = out.as_object_mut() {
                 obj.insert(
                     "search_lite_fallback_error".to_string(),
@@ -1541,6 +1762,35 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                     )
                     .into(),
                 );
+            }
+        }
+    }
+    let challenge_after_fallback = payload_looks_like_search_challenge(&out);
+    let low_signal_after_fallback = payload_looks_low_signal_search(&out);
+    let fallback_to_bing = !force_bing
+        && !used_serper
+        && (!out.get("ok").and_then(Value::as_bool).unwrap_or(false)
+            || challenge_after_fallback
+            || low_signal_after_fallback);
+    if fallback_to_bing {
+        let bing_out = api_search_bing_rss(
+            &scoped_query,
+            summary_only,
+            &allowed_domains,
+            exclude_subdomains,
+            top_k,
+        );
+        if bing_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            out = bing_out;
+            used_bing_fallback = true;
+            used_lite_fallback = false;
+        } else {
+            bing_error = clean_text(
+                bing_out.get("error").and_then(Value::as_str).unwrap_or(""),
+                220,
+            );
+            if let Some(obj) = out.as_object_mut() {
+                obj.insert("search_bing_fallback_error".to_string(), json!(bing_error.clone()));
             }
         }
     }
@@ -1558,6 +1808,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "provider".to_string(),
             Value::String(if used_serper {
                 "serperdev".to_string()
+            } else if used_bing_fallback {
+                "bing_rss".to_string()
             } else if used_lite_fallback {
                 "duckduckgo_lite".to_string()
             } else {
@@ -1565,9 +1817,13 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             }),
         );
         obj.insert("search_lite_fallback".to_string(), json!(used_lite_fallback));
+        obj.insert("search_bing_fallback".to_string(), json!(used_bing_fallback));
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
         if !serper_error.is_empty() {
             obj.insert("serper_error".to_string(), Value::String(serper_error));
+        }
+        if !bing_error.is_empty() {
+            obj.insert("bing_error".to_string(), Value::String(bing_error));
         }
     }
     out
@@ -1954,5 +2210,71 @@ mod tests {
             rendered.get("error").and_then(Value::as_str),
             Some("serper_decode_failed")
         );
+    }
+
+    #[test]
+    fn render_bing_rss_payload_filters_domains_and_builds_content() {
+        let body = r#"
+        <rss><channel>
+          <item>
+            <title>Main Result</title>
+            <link>https://example.com/main</link>
+            <description>Main description text</description>
+          </item>
+          <item>
+            <title>Other Result</title>
+            <link>https://other.com/page</link>
+            <description>Other description text</description>
+          </item>
+        </channel></rss>
+        "#;
+        let rendered = render_bing_rss_payload(body, &vec!["example.com".to_string()], true, 8, 12_000);
+        assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            rendered
+                .get("provider_raw_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            rendered
+                .get("provider_filtered_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let links = rendered
+            .get("links")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].as_str(), Some("https://example.com/main"));
+    }
+
+    #[test]
+    fn payload_challenge_detector_flags_duckduckgo_challenge_dump() {
+        let payload = json!({
+            "summary": "DuckDuckGo challenge",
+            "content": "Unfortunately, bots use DuckDuckGo too. Please complete the following challenge. Select all squares containing a duck."
+        });
+        assert!(payload_looks_like_search_challenge(&payload));
+    }
+
+    #[test]
+    fn payload_low_signal_detector_flags_duckduckgo_chrome_summary() {
+        let payload = json!({
+            "summary": "latest technology news today at DuckDuckGo All Regions Argentina Australia Safe Search Any Time",
+            "content": ""
+        });
+        assert!(payload_looks_low_signal_search(&payload));
+    }
+
+    #[test]
+    fn payload_low_signal_detector_flags_source_scaffold_summary() {
+        let payload = json!({
+            "summary": "Key findings for \"Infring AI vs competitors\": - Potential sources: hai.stanford.edu, artificialanalysis.ai.",
+            "content": ""
+        });
+        assert!(payload_looks_low_signal_search(&payload));
     }
 }

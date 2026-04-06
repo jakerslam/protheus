@@ -67,7 +67,6 @@
       var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id || ''); }));
       var pool = (this.agents || []).filter(function(agent) {
         if (!agent || !agent.id) return false;
-        if (self.isSystemSidebarThread && self.isSystemSidebarThread(agent)) return false;
         return !archivedSet.has(String(agent.id));
       });
       pool.sort(function(a, b) {

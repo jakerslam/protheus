@@ -156,13 +156,14 @@
         .map(function(line) { return String(line || '').replace(/\s+/g, ' ').trim(); })
         .filter(function(line) { return !!line; });
       if (!lines.length) return '';
-      var seen = {};
-      var normalized = [];
       for (var i = 0; i < lines.length; i++) {
         var line = String(lines[i] || '').trim();
         if (!line) continue;
         if (this.isThinkingPlaceholderText(line)) continue;
+        line = line.replace(/\[(?:end|done|start)\]/ig, '').replace(/\s+/g, ' ').trim();
+        if (!line) continue;
         var lowered = line.toLowerCase();
+        if (/^(active|idle|running)$/.test(lowered)) continue;
         if (/^phase[:\s]/.test(lowered)) {
           line = line.replace(/^phase[:\s]*/i, '').trim();
           lowered = line.toLowerCase();
@@ -186,16 +187,10 @@
         }
         line = String(line || '').replace(/\s+/g, ' ').trim();
         if (!line || this.isThinkingPlaceholderText(line)) continue;
-        var key = line.toLowerCase();
-        if (seen[key]) continue;
-        seen[key] = true;
-        normalized.push(line);
-        if (normalized.length >= 2) break;
+        if (line.length > 220) line = line.slice(0, 217) + '...';
+        return line;
       }
-      if (!normalized.length) return '';
-      var out = normalized.join(' · ');
-      if (out.length > 220) out = out.slice(0, 217) + '...';
-      return out;
+      return '';
     },
 
     messageToolPreview: function(msg) {

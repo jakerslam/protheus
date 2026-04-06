@@ -47,13 +47,18 @@ mod tests {
         assert!(!summary
             .to_ascii_lowercase()
             .contains("web search completed"));
+        assert!(!summary.to_ascii_lowercase().contains("key findings for"));
+        assert!(!summary.to_ascii_lowercase().contains("potential sources:"));
     }
 
     #[test]
     fn no_results_path_returns_clean_no_results_status() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = with_fixture(
-            json!({"batch query no results":{"ok":false,"error":"provider_network_policy_blocked"}}),
+            json!({
+                "batch query no results":{"ok":false,"error":"provider_network_policy_blocked"},
+                "bing_rss::batch query no results":{"ok":false,"error":"bing_rss_search_failed"}
+            }),
             || {
                 api_batch_query(
                     tmp.path(),
@@ -72,6 +77,44 @@ mod tests {
                 .unwrap_or(9),
             0
         );
+    }
+
+    #[test]
+    fn source_only_scaffold_is_filtered_and_returns_no_results() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = with_fixture(
+            json!({
+                "infring competitors": {
+                    "ok": true,
+                    "summary": "Potential sources: hai.stanford.edu, artificialanalysis.ai, epoch.ai, iot-analytics.com, linkedin.com.",
+                    "requested_url": "https://duckduckgo.com/html/?q=infring+competitors",
+                    "status_code": 200
+                },
+                "bing_rss::infring competitors": {
+                    "ok": false,
+                    "error": "bing_rss_search_failed"
+                },
+                "duckduckgo_instant::infring competitors": {
+                    "ok": false,
+                    "error": "duckduckgo_instant_no_usable_summary"
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":"infring competitors","aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(!lowered.contains("key findings for"));
+        assert!(!lowered.contains("potential sources:"));
+        assert!(lowered.contains("no useful information"));
     }
 
     #[test]
@@ -182,6 +225,10 @@ mod tests {
                     "content": "",
                     "requested_url": "https://duckduckgo.com/html/?q=current+technology+news",
                     "status_code": 200
+                },
+                "bing_rss::current technology news": {
+                    "ok": false,
+                    "error": "bing_rss_search_failed"
                 },
                 "duckduckgo_instant::current technology news": {
                     "ok": true,

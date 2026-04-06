@@ -309,13 +309,10 @@ button.sidebar-scroll-indicator:hover {
   background: color-mix(in srgb, var(--user-bg) 72%, transparent);
   color: var(--text);
   font-weight: 600;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
-  border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
-  box-shadow: var(--shadow-sm), 0 2px 8px color-mix(in srgb, var(--accent) 22%, transparent);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .nav-icon {
@@ -387,6 +384,38 @@ button.nav-item.nav-sub-item.nav-sub-item-action {
   transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.nav-sub-search-wrap.nav-sub-search-coming-soon {
+  position: relative;
+  cursor: not-allowed;
+}
+
+.nav-sub-search-wrap.nav-sub-search-coming-soon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: var(--shadow-md);
+  transition: opacity 0.14s var(--ease-smooth), transform 0.14s var(--ease-smooth);
+  z-index: 18100;
+}
+
+.nav-sub-search-wrap.nav-sub-search-coming-soon:hover::after,
+.nav-sub-search-wrap.nav-sub-search-coming-soon:focus-within::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .nav-sub-search-wrap.is-active {
   border-color: color-mix(in srgb, var(--accent) 46%, transparent);
   background: color-mix(in srgb, var(--accent-subtle) 74%, transparent);
@@ -422,6 +451,10 @@ button.nav-item.nav-sub-item.nav-sub-item-action {
   font-size: 11px;
   font-family: var(--font-mono);
   outline: none;
+}
+
+.nav-sub-search-wrap.nav-sub-search-coming-soon .nav-sub-search-input {
+  cursor: not-allowed;
 }
 
 .nav-sub-search-input:focus,

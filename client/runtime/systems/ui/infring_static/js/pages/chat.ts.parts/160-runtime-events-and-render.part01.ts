@@ -296,6 +296,9 @@
       var tsPart = (msg && msg.ts != null) ? String(msg.ts) : '';
       var rolePart = String((msg && msg.role) || '');
       var noticePart = msg && msg.is_notice ? 'notice' : 'message';
+      if (msg && (msg.thinking || msg.streaming)) {
+        return noticePart + '|' + idPart + '|' + tsPart + '|' + rolePart + '|' + String(idx || 0) + '|live';
+      }
       var textLen = (msg && typeof msg.text === 'string') ? msg.text.length : 0;
       return noticePart + '|' + idPart + '|' + tsPart + '|' + rolePart + '|' + String(idx || 0) + '|' + String(textLen);
     },
@@ -367,10 +370,13 @@
         ? String(this.currentToolDialogLabel(msg) || '').trim()
         : '';
       if (toolDialog) return toolDialog;
+      var latestChunk = String(msg && msg._thought_latest_chunk ? msg._thought_latest_chunk : '').trim();
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        latestChunk = this.normalizeThinkingStatusCandidate(latestChunk);
+      }
+      if (latestChunk) return latestChunk;
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
-      var rawText = String(msg && msg.text ? msg.text : '').trim();
-      var value = rawThought || rawText;
-      if (!value) return '';
+      if (!rawThought) return '';
       if (rawThought) {
         var latestComplete = typeof this.nextThoughtSentenceFrame === 'function'
           ? String(this.nextThoughtSentenceFrame(msg, rawThought) || '').trim()
@@ -386,15 +392,7 @@
         if (sticky) return sticky;
         return '';
       }
-
-      value = value.replace(/<[^>]*>/g, ' ').replace(/^\*+|\*+$/g, '').replace(/\s+/g, ' ').trim();
-      if (this.isThinkingPlaceholderText(value)) return '';
-      var latestFromText = typeof this.latestCompleteSentence === 'function'
-        ? String(this.latestCompleteSentence(value) || '').trim()
-        : '';
-      if (latestFromText) return latestFromText;
-      if (value.length > 180) value = value.slice(0, 177).trim() + '...';
-      return value || '';
+      return '';
     },
 
     thinkingToolStatusSummary: function(msg) {
@@ -456,38 +454,32 @@
 
     thinkingStatusText: function(msg) {
       if (!msg || !msg.thinking) return '';
+      var toolDialog = typeof this.currentToolDialogLabel === 'function'
+        ? String(this.currentToolDialogLabel(msg) || '').trim()
+        : '';
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        toolDialog = this.normalizeThinkingStatusCandidate(toolDialog);
+      }
+      if (toolDialog) {
+        msg._thinking_last_line = toolDialog;
+        return toolDialog;
+      }
+      var thoughtLine = typeof this.thinkingDisplayText === 'function'
+        ? String(this.thinkingDisplayText(msg) || '').trim()
+        : '';
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        thoughtLine = this.normalizeThinkingStatusCandidate(thoughtLine);
+      }
+      if (thoughtLine) {
+        msg._thinking_last_line = thoughtLine;
+        return thoughtLine;
+      }
       var status = typeof this.normalizeThinkingStatusCandidate === 'function'
         ? this.normalizeThinkingStatusCandidate(msg.thinking_status || msg.status_text || '')
         : String(msg.thinking_status || msg.status_text || '').trim();
-      if (this.isThinkingPlaceholderText(status)) status = '';
-      var toolSummary = typeof this.thinkingToolStatusSummary === 'function'
-        ? this.thinkingToolStatusSummary(msg)
-        : { text: '', hasRunning: false };
-      var toolText = String((toolSummary && toolSummary.text) || '').trim();
-      if (toolText) {
-        if (!status) {
-          status = toolText;
-        } else if (toolSummary && toolSummary.hasRunning) {
-          var loweredStatus = status.toLowerCase();
-          var loweredTool = toolText.toLowerCase();
-          if (loweredStatus.indexOf(loweredTool) === -1) {
-            status = toolText + ' · ' + status;
-          }
-        }
+      if (status) {
+        msg._thinking_last_line = status;
+        return status;
       }
-      var progress = msg.progress && Number.isFinite(Number(msg.progress.percent))
-        ? Math.max(0, Math.min(100, Math.round(Number(msg.progress.percent))))
-        : NaN;
-      if (!status && Number.isFinite(progress)) {
-        var progressLabel = String((msg.progress && msg.progress.label) || '').replace(/^Progress\s*[·-]\s*/i, '').trim();
-        status = progressLabel ? (progressLabel + ' · ' + progress + '%') : ('Progress ' + progress + '%');
-      } else if (status && Number.isFinite(progress) && !/\b\d{1,3}%\b/.test(status)) {
-        status += ' · ' + progress + '%';
-      }
-      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
-        status = this.normalizeThinkingStatusCandidate(status);
-      }
-      if (this.isThinkingPlaceholderText(status)) status = '';
-      if (status.length > 220) status = status.slice(0, 217) + '...';
-      return status;
+      return String(msg._thinking_last_line || '').trim();
     },
