@@ -58,6 +58,7 @@ INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-${PROTHEUS_INSTALL_VERIF
 INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
 INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-${PROTHEUS_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}}"
 INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-${PROTHEUS_INSTALL_ASSET_CACHE:-1}}"
+INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-${PROTHEUS_INSTALL_OFFLINE:-0}}"
 INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-${PROTHEUS_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}}"
 CHECKSUM_MANIFEST_PATH=""
 CHECKSUM_MANIFEST_VERSION=""
@@ -790,6 +791,9 @@ parse_install_args() {
       --install-ollama)
         INSTALL_OLLAMA=1
         ;;
+      --offline)
+        INSTALL_OFFLINE=1
+        ;;
       --install-dir)
         shift
         if [ "$#" -eq 0 ]; then
@@ -815,7 +819,7 @@ parse_install_args() {
         INSTALL_TMP_DIR="${arg#--tmp-dir=}"
         ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node|--install-ollama] [--install-dir PATH] [--tmp-dir PATH]"
+        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node|--install-ollama|--offline] [--install-dir PATH] [--tmp-dir PATH]"
         echo "  --full            install optional client runtime bundle when available"
         echo "  --minimal         install daemon + CLI only (default)"
         echo "  --pure            install pure Rust client + daemon only (no Node/TS surfaces)"
@@ -823,6 +827,7 @@ parse_install_args() {
         echo "  --repair          clear stale install wrappers + workspace runtime state before install"
         echo "  --install-node    attempt automatic Node.js 22+ install for full CLI command surface"
         echo "  --install-ollama  attempt automatic Ollama install and starter local model bootstrap"
+        echo "  --offline         disable network fetch; require cached verified release artifacts"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
         exit 0
@@ -853,6 +858,7 @@ install_summary_init() {
     echo "install_mode_install_ollama: ${INSTALL_OLLAMA}"
     echo "install_mode_install_ollama_auto: ${INSTALL_OLLAMA_AUTO}"
     echo "install_mode_require_model_ready: ${INSTALL_REQUIRE_MODEL_READY}"
+    echo "install_mode_offline: ${INSTALL_OFFLINE}"
     echo "ollama_starter_model: ${OLLAMA_STARTER_MODEL}"
     echo "install_dir: ${INSTALL_DIR}"
     echo "workspace_dir: ${WORKSPACE_DIR}"
@@ -1009,8 +1015,21 @@ sha256_file() {
 
 load_release_checksum_manifest() {
   version_tag="$1"
+  cache_dir="$INFRING_HOME/cache/install-assets/$version_tag"
   if [ "$CHECKSUM_MANIFEST_VERSION" = "$version_tag" ] && [ -n "$CHECKSUM_MANIFEST_PATH" ] && [ -f "$CHECKSUM_MANIFEST_PATH" ]; then
     return 0
+  fi
+  for checksum_asset in SHA256SUMS SHA256SUMS.txt checksums.txt checksums.sha256; do
+    cache_manifest="$cache_dir/$checksum_asset"
+    if [ -f "$cache_manifest" ]; then
+      CHECKSUM_MANIFEST_PATH="$cache_manifest"
+      CHECKSUM_MANIFEST_VERSION="$version_tag"
+      install_summary_note "checksum_manifest: ${checksum_asset} (cache)"
+      return 0
+    fi
+  done
+  if is_truthy "$INSTALL_OFFLINE"; then
+    return 1
   fi
   [ -n "$CHECKSUM_MANIFEST_TMP_DIR" ] && rm -rf "$CHECKSUM_MANIFEST_TMP_DIR" >/dev/null 2>&1 || true
   CHECKSUM_MANIFEST_TMP_DIR="$(mktemp -d)"
@@ -1019,6 +1038,10 @@ load_release_checksum_manifest() {
     if curl_fetch "$BASE_URL/$version_tag/$checksum_asset" -o "$CHECKSUM_MANIFEST_TMP_DIR/$checksum_asset"; then
       CHECKSUM_MANIFEST_PATH="$CHECKSUM_MANIFEST_TMP_DIR/$checksum_asset"
       CHECKSUM_MANIFEST_VERSION="$version_tag"
+      if is_truthy "$INSTALL_ASSET_CACHE"; then
+        mkdir -p "$cache_dir" >/dev/null 2>&1 || true
+        cp "$CHECKSUM_MANIFEST_PATH" "$cache_dir/$checksum_asset" >/dev/null 2>&1 || true
+      fi
       install_summary_note "checksum_manifest: $checksum_asset"
       return 0
     fi
@@ -1466,6 +1489,22 @@ persist_path_for_shell() {
   fi
 }
 
+print_shell_activation_snippets() {
+  activate_script="$INFRING_HOME/env.sh"
+  if [ -n "$PATH_ACTIVATE_FILE" ]; then
+    activate_script="$PATH_ACTIVATE_FILE"
+  fi
+  echo "[infring install] shell activation snippets:"
+  echo "[infring install]   zsh:  . \"$activate_script\" && hash -r 2>/dev/null || true && infring --help"
+  echo "[infring install]   bash: . \"$activate_script\" && hash -r 2>/dev/null || true && infring --help"
+  echo "[infring install]   fish: set -gx PATH \"$INSTALL_DIR\" \$PATH; and command -q rehash; and rehash; and infring --help"
+  echo "[infring install]   pwsh: \$env:Path = \"$INSTALL_DIR;\$env:Path\"; infring --help"
+  echo "[infring install] shell troubleshooting snippets:"
+  echo "[infring install]   zsh/bash: command -v infring || echo \$PATH"
+  echo "[infring install]   fish: type -a infring; echo \$PATH"
+  echo "[infring install]   pwsh: Get-Command infring -ErrorAction SilentlyContinue; \$env:Path"
+}
+
 write_path_activate_script() {
   activate_root="${INFRING_ACTIVATE_DIR:-${PROTHEUS_ACTIVATE_DIR:-$INFRING_HOME}}"
   [ -n "$activate_root" ] || return 0
@@ -1632,6 +1671,11 @@ resolve_version() {
     normalize_version "$REQUESTED_VERSION"
     return
   fi
+  if is_truthy "$INSTALL_OFFLINE"; then
+    echo "[infring install] offline mode requires an explicit release tag." >&2
+    echo "[infring install] fix: rerun with INFRING_VERSION=vX.Y.Z (or --version via 'infring update')." >&2
+    exit 1
+  fi
 
   version="$(latest_version || true)"
   if [ -z "$version" ]; then
@@ -1670,7 +1714,17 @@ download_asset() {
     fi
     rm -f "$asset_out" >/dev/null 2>&1 || true
     rm -f "$cache_file" >/dev/null 2>&1 || true
+    if is_truthy "$INSTALL_OFFLINE"; then
+      echo "[infring install] offline cache invalid for $asset_name; cannot refetch in offline mode." >&2
+      echo "[infring install] fix: rerun once without --offline to refresh cache for $version_tag." >&2
+      return 1
+    fi
     echo "[infring install] cache invalid for $asset_name; refetching"
+  fi
+  if is_truthy "$INSTALL_OFFLINE"; then
+    echo "[infring install] offline cache miss for $asset_name under $cache_dir" >&2
+    echo "[infring install] fix: rerun once without --offline to hydrate cache for $version_tag." >&2
+    return 1
   fi
   # TODO(rk): Consider adding retry logic with exponential backoff for transient network failures.
   # This would improve install reliability in CI environments and regions with intermittent connectivity.
@@ -1693,6 +1747,9 @@ download_bootstrap_asset() {
   asset_name="$1"
   asset_out="$2"
   if [ -z "${BOOTSTRAP_BASE_URL:-}" ]; then
+    return 1
+  fi
+  if is_truthy "$INSTALL_OFFLINE"; then
     return 1
   fi
   if curl_fetch "${BOOTSTRAP_BASE_URL}/${asset_name}" -o "$asset_out"; then
@@ -1999,8 +2056,10 @@ install_client_bundle() {
       if extract_bundle "$archive" "$asset"; then
         runtime_root="$(workspace_runtime_root "$extract_dir" 2>/dev/null || true)"
         if [ -n "$runtime_root" ]; then
-          mkdir -p "$output_dir"
-          (cd "$runtime_root" && tar -cf - .) | (cd "$output_dir" && tar -xf -)
+          install_workspace_tree_from_dir "$runtime_root" "$output_dir" || {
+            rm -rf "$tmpdir"
+            return 1
+          }
           if workspace_has_runtime "$output_dir"; then
             rm -rf "$tmpdir"
             echo "[infring install] installed optional client runtime bundle"
@@ -2086,6 +2145,68 @@ workspace_runtime_root() {
   return 1
 }
 
+workspace_release_tag_path() {
+  workspace="$1"
+  printf '%s\n' "$workspace/local/state/ops/install_release_tag.txt"
+}
+
+workspace_release_tag_matches() {
+  workspace="$1"
+  expected_tag="$2"
+  marker_path="$(workspace_release_tag_path "$workspace")"
+  [ -f "$marker_path" ] || return 1
+  installed_tag="$(head -n 1 "$marker_path" 2>/dev/null | tr -d '\r' | sed 's/[[:space:]]*$//')"
+  [ -n "$installed_tag" ] || return 1
+  [ "$installed_tag" = "$expected_tag" ]
+}
+
+write_workspace_release_tag() {
+  workspace="$1"
+  release_tag="$2"
+  marker_path="$(workspace_release_tag_path "$workspace")"
+  mkdir -p "$(dirname "$marker_path")" || return 1
+  printf '%s\n' "$release_tag" > "$marker_path" || return 1
+  return 0
+}
+
+clear_managed_workspace_paths() {
+  workspace="$1"
+  for rel in \
+    client \
+    core \
+    adapters \
+    docs \
+    tests \
+    xtask \
+    Cargo.toml \
+    Cargo.lock \
+    package.json \
+    package-lock.json \
+    tsconfig.json \
+    tsconfig.base.json \
+    tsconfig.build.json \
+    tsconfig.runtime.json \
+    AGENTS.md \
+    README.md \
+    SECURITY.md \
+    verify.sh
+  do
+    abs="$workspace/$rel"
+    [ -e "$abs" ] || continue
+    rm -rf "$abs" || return 1
+  done
+  return 0
+}
+
+install_workspace_tree_from_dir() {
+  source_dir="$1"
+  output_dir="$2"
+  mkdir -p "$output_dir" || return 1
+  clear_managed_workspace_paths "$output_dir" || return 1
+  (cd "$source_dir" && tar -cf - .) | (cd "$output_dir" && tar -xf -) || return 1
+  return 0
+}
+
 install_workspace_from_source_fallback() {
   version_tag="$1"
   output_dir="$2"
@@ -2124,8 +2245,7 @@ install_workspace_from_source_fallback() {
     }
   done
 
-  mkdir -p "$output_dir"
-  (cd "$staged" && tar -cf - .) | (cd "$output_dir" && tar -xf -) || {
+  install_workspace_tree_from_dir "$staged" "$output_dir" || {
     rm -rf "$tmpdir"
     return 1
   }
@@ -3215,6 +3335,7 @@ Options:
   --version <tag>          install a specific release tag (for example: v0.3.1-alpha)
   --install-node           request portable Node runtime installation
   --install-ollama         request Ollama install + starter local model bootstrap
+  --offline                disable network fetch; require cached release artifacts
   --help                   show this help
 __INFRING_UPDATE_HELP__
 }
@@ -3226,6 +3347,7 @@ infring_update_run() {
   update_version=""
   update_install_node=0
   update_install_ollama=0
+  update_offline=0
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -3252,6 +3374,9 @@ infring_update_run() {
       --install-ollama)
         update_install_ollama=1
         ;;
+      --offline)
+        update_offline=1
+        ;;
       --help|-h|help)
         infring_update_usage
         return 0
@@ -3264,6 +3389,11 @@ infring_update_run() {
     esac
     shift || true
   done
+
+  if [ "$update_offline" = "1" ] && [ -z "$update_version" ]; then
+    echo "[infring update] --offline requires --version vX.Y.Z (latest lookup is network-backed)." >&2
+    return 2
+  fi
 
   installer_tmp="$(mktemp "${TMPDIR:-/tmp}/infring-install.XXXXXX")" || {
     echo "[infring update] failed to allocate installer temp file" >&2
@@ -3298,9 +3428,15 @@ infring_update_run() {
   if [ "$update_install_ollama" = "1" ]; then
     update_flags="$update_flags --install-ollama"
   fi
+  if [ "$update_offline" = "1" ]; then
+    update_flags="$update_flags --offline"
+  fi
 
   echo "[infring update] downloading installer: $update_url"
   echo "[infring update] mode: --${update_mode}"
+  if [ "$update_offline" = "1" ]; then
+    echo "[infring update] offline: enabled"
+  fi
   if [ "$update_repair" = "1" ]; then
     echo "[infring update] repair: enabled"
   fi
@@ -3574,6 +3710,9 @@ EOF
 
 main() {
   parse_install_args "$@"
+  if is_truthy "$INSTALL_OFFLINE"; then
+    INSTALL_ASSET_CACHE=1
+  fi
   install_summary_init
   trap 'install_summary_finalize' EXIT
   resolve_install_dir_default
@@ -3598,6 +3737,9 @@ main() {
   echo "[infring install] platform: $triple"
   echo "[infring install] install dir: $INSTALL_DIR"
   echo "[infring install] workspace dir: $WORKSPACE_DIR"
+  if is_truthy "$INSTALL_OFFLINE"; then
+    echo "[infring install] mode: offline (network disabled; using cached artifacts only)"
+  fi
 
   ops_bin="$INSTALL_DIR/protheus-ops"
   pure_bin="$INSTALL_DIR/protheus-pure-workspace"
@@ -3677,7 +3819,7 @@ main() {
 Usage: infring <command> [args]
 Primary commands:
   gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics]
-  update [--repair] [--full|--minimal|--pure|--tiny-max] [--version vX.Y.Z]
+  update [--repair] [--full|--minimal|--pure|--tiny-max] [--version vX.Y.Z] [--offline]
   verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]
   list
   status
@@ -3727,10 +3869,20 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   if is_truthy "$INSTALL_PURE"; then
     echo "[infring install] pure mode: skipping workspace runtime bootstrap"
   else
-    if workspace_has_runtime "$WORKSPACE_DIR"; then
+    workspace_refresh_reason=""
+    if is_truthy "$INSTALL_REPAIR"; then
+      workspace_refresh_reason="repair_mode"
+    elif ! workspace_has_runtime "$WORKSPACE_DIR"; then
+      workspace_refresh_reason="runtime_missing"
+    elif ! workspace_release_tag_matches "$WORKSPACE_DIR" "$version"; then
+      workspace_refresh_reason="release_tag_changed"
+    fi
+
+    if [ -z "$workspace_refresh_reason" ]; then
       workspace_ready=1
       echo "[infring install] workspace runtime already present at $WORKSPACE_DIR"
     else
+      echo "[infring install] refreshing workspace runtime at $WORKSPACE_DIR ($workspace_refresh_reason)"
       if install_client_bundle "$version" "$triple" "$WORKSPACE_DIR"; then
         workspace_ready=1
         if is_truthy "$INSTALL_FULL"; then
@@ -3753,6 +3905,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
     if ! verify_workspace_runtime_contract "$WORKSPACE_DIR"; then
       repair_workspace_runtime_contract "$version" "$triple" "$WORKSPACE_DIR" || exit 1
     fi
+    write_workspace_release_tag "$WORKSPACE_DIR" "$version" || exit 1
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
     if ! ensure_ollama_runtime_notice; then
@@ -3836,6 +3989,7 @@ exec \"$ops_bin\" protheusctl \"\$@\""
   echo "[infring install] run: ${quickstart_prefix}infring --help"
   echo "[infring install] quickstart: ${quickstart_prefix}infring gateway"
   echo "[infring install] stop: ${quickstart_prefix}infring gateway stop"
+  print_shell_activation_snippets
   node_summary_bin="$(resolve_node_binary_path 2>/dev/null || true)"
   if [ -n "$node_summary_bin" ]; then
     node_summary_ver="$("$node_summary_bin" --version 2>/dev/null || true)"
