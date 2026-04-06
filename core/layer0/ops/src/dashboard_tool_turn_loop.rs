@@ -3,10 +3,29 @@
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use protheus_nexus_core_v1::{
+    DefaultNexusPolicy, DeliveryAuthorizationInput, LeaseIssueRequest, MainNexusControlPlane,
+    ModuleKind, NexusFeatureFlags, SubNexusRegistration, TrustClass, VerityClass,
+};
+use protheus_nexus_core_v1::registry::ModuleLifecycleState;
 
 const TERMINAL_PERMISSION_POLICY_REL: &str =
     "client/runtime/config/terminal_command_permission_policy.json";
 const TOOL_NO_FINDINGS_COPY: &str = "No relevant results found for that request yet.";
+const CLIENT_INGRESS_SUB_NEXUS: &str = "client_ingress";
+const CLIENT_INGRESS_BRIDGE_SUB_NEXUS: &str = "client_ingress_bridge";
+const NEXUS_INGRESS_ISSUER: &str = "dashboard_tool_turn_loop";
+
+#[derive(Clone, Copy)]
+struct IngressRouteDescriptor {
+    target: &'static str,
+    schema_id: &'static str,
+    verb: &'static str,
+    required_verity: VerityClass,
+    trust_class: TrustClass,
+}
 
 fn clean_text(raw: &str, max_len: usize) -> String {
     raw.chars()
@@ -21,6 +40,241 @@ fn normalize_tool_name(raw: &str) -> String {
         .to_ascii_lowercase()
         .replace('-', "_")
         .replace(' ', "_")
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|delta| delta.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn bool_env(name: &str, fallback: bool) -> bool {
+    match std::env::var(name) {
+        Ok(raw) => match clean_text(&raw, 40).to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => fallback,
+        },
+        Err(_) => fallback,
+    }
+}
+
+fn ingress_nexus_enabled() -> bool {
+    bool_env("PROTHEUS_HIERARCHICAL_NEXUS_V1", true)
+}
+
+fn ingress_force_block_pair_enabled() -> bool {
+    bool_env("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", false)
+}
+
+fn parse_module_lifecycle(raw: &str) -> Option<ModuleLifecycleState> {
+    let lowered = clean_text(raw, 40).to_ascii_lowercase();
+    match lowered.as_str() {
+        "active" => Some(ModuleLifecycleState::Active),
+        "quiesced" => Some(ModuleLifecycleState::Quiesced),
+        "detached" => Some(ModuleLifecycleState::Detached),
+        "maintenance" => Some(ModuleLifecycleState::Maintenance),
+        "draining" => Some(ModuleLifecycleState::Draining {
+            drain_deadline_ms: now_ms().saturating_add(30_000),
+        }),
+        _ => None,
+    }
+}
+
+fn ingress_lifecycle_override_from_env() -> Option<ModuleLifecycleState> {
+    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE")
+        .ok()
+        .and_then(|raw| parse_module_lifecycle(raw.as_str()))
+}
+
+fn ingress_route_for_tool(tool_name: &str) -> IngressRouteDescriptor {
+    let normalized = normalize_tool_name(tool_name);
+    if matches!(
+        normalized.as_str(),
+        "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+            | "web_fetch"
+            | "browse"
+            | "web_conduit_fetch"
+            | "batch_query"
+            | "file_read"
+            | "file_read_many"
+    ) {
+        return IngressRouteDescriptor {
+            target: "context_stacks",
+            schema_id: "client_ingress.tool.retrieval",
+            verb: "invoke",
+            required_verity: VerityClass::High,
+            trust_class: TrustClass::InterModuleData,
+        };
+    }
+    if normalized.starts_with("stomach_") {
+        return IngressRouteDescriptor {
+            target: "stomach",
+            schema_id: "client_ingress.tool.stomach",
+            verb: "invoke",
+            required_verity: VerityClass::High,
+            trust_class: TrustClass::InterModuleData,
+        };
+    }
+    IngressRouteDescriptor {
+        target: CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
+        schema_id: "client_ingress.tool.execute",
+        verb: "invoke",
+        required_verity: VerityClass::Standard,
+        trust_class: TrustClass::ClientIngressBoundary,
+    }
+}
+
+fn terminal_ingress_route() -> IngressRouteDescriptor {
+    IngressRouteDescriptor {
+        target: CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
+        schema_id: "client_ingress.terminal.exec",
+        verb: "execute",
+        required_verity: VerityClass::Standard,
+        trust_class: TrustClass::ClientIngressBoundary,
+    }
+}
+
+fn ensure_sub_nexus_registered(
+    nexus: &mut MainNexusControlPlane,
+    sub_nexus_id: &str,
+) -> Result<(), String> {
+    if nexus.registry().contains(sub_nexus_id) {
+        return Ok(());
+    }
+    let (module_kind, trust_class, verity_class) = match sub_nexus_id {
+        "stomach" => (
+            ModuleKind::Stomach,
+            TrustClass::InterModuleData,
+            VerityClass::High,
+        ),
+        "context_stacks" => (
+            ModuleKind::ContextStacks,
+            TrustClass::InterModuleData,
+            VerityClass::High,
+        ),
+        CLIENT_INGRESS_SUB_NEXUS => (
+            ModuleKind::ClientIngress,
+            TrustClass::ClientIngressBoundary,
+            VerityClass::Standard,
+        ),
+        _ => (
+            ModuleKind::Other,
+            TrustClass::ClientIngressBoundary,
+            VerityClass::Standard,
+        ),
+    };
+    let registration = SubNexusRegistration::new(sub_nexus_id, module_kind, trust_class, verity_class);
+    let _ = nexus.register_sub_nexus(NEXUS_INGRESS_ISSUER, registration)?;
+    Ok(())
+}
+
+fn authorize_client_ingress_route_with_nexus_inner(
+    route_label: &str,
+    route: IngressRouteDescriptor,
+    force_block_pair: bool,
+    source_lifecycle_override: Option<ModuleLifecycleState>,
+) -> Result<Value, String> {
+    let mut policy = DefaultNexusPolicy::default();
+    if force_block_pair {
+        policy.block_pair(CLIENT_INGRESS_SUB_NEXUS, route.target);
+    }
+    let mut nexus = MainNexusControlPlane::new(
+        NexusFeatureFlags {
+            hierarchical_nexus_enabled: true,
+            coexist_with_flat_routing: true,
+        },
+        policy,
+    );
+    let _ = nexus.register_v1_adapters(NEXUS_INGRESS_ISSUER)?;
+    ensure_sub_nexus_registered(&mut nexus, route.target)?;
+    if let Some(next) = source_lifecycle_override {
+        let _ = nexus.set_module_lifecycle(NEXUS_INGRESS_ISSUER, CLIENT_INGRESS_SUB_NEXUS, next)?;
+    }
+
+    let lease = nexus.issue_route_lease(
+        NEXUS_INGRESS_ISSUER,
+        LeaseIssueRequest {
+            source: CLIENT_INGRESS_SUB_NEXUS.to_string(),
+            target: route.target.to_string(),
+            schema_ids: vec![route.schema_id.to_string()],
+            verbs: vec![route.verb.to_string()],
+            required_verity: route.required_verity,
+            trust_class: route.trust_class,
+            requested_ttl_ms: 45_000,
+            template_id: None,
+            template_version: None,
+        },
+    )?;
+    let delivery = nexus.authorize_direct_delivery(
+        NEXUS_INGRESS_ISSUER,
+        DeliveryAuthorizationInput {
+            source: CLIENT_INGRESS_SUB_NEXUS.to_string(),
+            target: route.target.to_string(),
+            schema_id: route.schema_id.to_string(),
+            verb: route.verb.to_string(),
+            offered_verity: route.required_verity,
+            lease_id: Some(lease.lease_id.clone()),
+            now_ms: None,
+        },
+    );
+    if !delivery.allowed {
+        return Err(format!(
+            "client_ingress_nexus_delivery_denied:{}",
+            delivery.reason
+        ));
+    }
+    let receipt_ids = nexus
+        .receipts()
+        .iter()
+        .map(|row| Value::String(row.receipt_id.clone()))
+        .collect::<Vec<_>>();
+    Ok(json!({
+      "enabled": true,
+      "source": CLIENT_INGRESS_SUB_NEXUS,
+      "target": route.target,
+      "schema_id": route.schema_id,
+      "verb": route.verb,
+      "route_label": clean_text(route_label, 200),
+      "lease_id": lease.lease_id,
+      "policy_decision_ref": lease.policy_decision_ref,
+      "delivery": {"allowed": delivery.allowed, "reason": delivery.reason, "local_resolution": delivery.local_resolution, "conduit_link_id": delivery.conduit_link_id},
+      "metrics": nexus.metrics(),
+      "receipt_ids": receipt_ids
+    }))
+}
+
+pub(crate) fn authorize_ingress_tool_call_with_nexus(tool_name: &str) -> Result<Option<Value>, String> {
+    if !ingress_nexus_enabled() {
+        return Ok(None);
+    }
+    let route = ingress_route_for_tool(tool_name);
+    let connection = authorize_client_ingress_route_with_nexus_inner(
+        &format!("tool:{tool_name}"),
+        route,
+        ingress_force_block_pair_enabled(),
+        ingress_lifecycle_override_from_env(),
+    )?;
+    Ok(Some(connection))
+}
+
+pub(crate) fn authorize_ingress_terminal_command_with_nexus(
+    command: &str,
+) -> Result<Option<Value>, String> {
+    if !ingress_nexus_enabled() {
+        return Ok(None);
+    }
+    let connection = authorize_client_ingress_route_with_nexus_inner(
+        &format!("terminal:{}", clean_text(command, 220)),
+        terminal_ingress_route(),
+        ingress_force_block_pair_enabled(),
+        ingress_lifecycle_override_from_env(),
+    )?;
+    Ok(Some(connection))
 }
 
 fn extract_rule(raw: &str) -> String {
@@ -357,5 +611,55 @@ mod tests {
             &json!({"command":"echo hello","confirm":true}),
         );
         assert!(allowed.is_none());
+    }
+
+    #[test]
+    fn ingress_nexus_authorization_succeeds_for_web_search_tool_route() {
+        let route = ingress_route_for_tool("web_search");
+        let out = authorize_client_ingress_route_with_nexus_inner(
+            "tool:web_search",
+            route,
+            false,
+            None,
+        )
+        .expect("nexus route");
+        assert_eq!(
+            out.get("source").and_then(Value::as_str),
+            Some(CLIENT_INGRESS_SUB_NEXUS)
+        );
+        assert_eq!(
+            out.get("target").and_then(Value::as_str),
+            Some("context_stacks")
+        );
+        assert_eq!(
+            out.pointer("/delivery/allowed").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn ingress_nexus_authorization_fails_closed_when_pair_blocked() {
+        let route = ingress_route_for_tool("web_search");
+        let err = authorize_client_ingress_route_with_nexus_inner(
+            "tool:web_search",
+            route,
+            true,
+            None,
+        )
+        .expect_err("blocked");
+        assert!(err.contains("lease_denied"));
+    }
+
+    #[test]
+    fn ingress_nexus_authorization_fails_when_client_ingress_quiesced() {
+        let route = ingress_route_for_tool("file_read");
+        let err = authorize_client_ingress_route_with_nexus_inner(
+            "tool:file_read",
+            route,
+            false,
+            Some(ModuleLifecycleState::Quiesced),
+        )
+        .expect_err("quiesced blocked");
+        assert!(err.contains("lease_source_not_accepting_new_leases"));
     }
 }

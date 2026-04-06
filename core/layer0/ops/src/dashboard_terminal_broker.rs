@@ -781,6 +781,38 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let nexus_connection =
+        match crate::dashboard_tool_turn_loop::authorize_ingress_terminal_command_with_nexus(
+            &executed_command,
+        ) {
+            Ok(meta) => meta,
+            Err(err) => {
+                let recovery_hints = if recovery_hints_enabled() {
+                    command_recovery_hints(&executed_command, 126, "deny")
+                } else {
+                    Vec::new()
+                };
+                return json!({
+                    "ok": false,
+                    "type": "dashboard_terminal_exec",
+                    "error": "terminal_nexus_delivery_denied",
+                    "message": "Terminal command blocked by hierarchical nexus ingress policy.",
+                    "blocked": true,
+                    "session_id": request.get("session_id").or_else(|| request.get("sessionId")).cloned().unwrap_or_else(|| Value::String(String::new())),
+                    "exit_code": 126,
+                    "requested_command": requested_command,
+                    "executed_command": executed_command,
+                    "command_translated": command_translated,
+                    "translation_reason": translation_reason,
+                    "suggestions": suggestions,
+                    "stdout": "",
+                    "stderr": "",
+                    "permission_gate": permission_gate,
+                    "recovery_hints": recovery_hints,
+                    "nexus_error": clean_text(&err, 240)
+                });
+            }
+        };
     let started = Instant::now();
     if pre_tool_gate_enabled() && (permission_verdict == "deny" || permission_verdict == "ask") {
         let blocked_error = if permission_verdict == "ask" {
@@ -868,7 +900,8 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
             "permission_gate": permission_gate,
             "recovery_hints": recovery_hints,
             "tool_summary": tool_summary,
-            "tracking": tracking.unwrap_or(Value::Null)
+            "tracking": tracking.unwrap_or(Value::Null),
+            "nexus_connection": nexus_connection.clone().unwrap_or(Value::Null)
         });
     }
 
@@ -985,7 +1018,8 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         "tool_summary": tool_summary,
         "duration_ms": started.elapsed().as_millis() as i64,
         "cwd": cwd.to_string_lossy().to_string(),
-        "tracking": tracking.unwrap_or(Value::Null)
+        "tracking": tracking.unwrap_or(Value::Null),
+        "nexus_connection": nexus_connection.unwrap_or(Value::Null)
     })
 }
 
@@ -1044,6 +1078,11 @@ mod tests {
         assert_eq!(
             out.get("command_translated").and_then(Value::as_bool),
             Some(false)
+        );
+        assert_eq!(
+            out.pointer("/nexus_connection/delivery/allowed")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }
 
