@@ -5,8 +5,10 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
 use crate::{deterministic_receipt_hash, now_iso};
@@ -86,6 +88,114 @@ pub fn parse_i64_clamped(raw: Option<&str>, fallback: i64, lo: i64, hi: i64) -> 
     raw.and_then(|v| v.trim().parse::<i64>().ok())
         .unwrap_or(fallback)
         .clamp(lo, hi)
+}
+
+pub fn node_binary_usable(binary: &str) -> bool {
+    let trimmed = binary.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    Command::new(trimmed)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+pub fn resolve_binary_in_path(binary: &str) -> Option<String> {
+    let locator = if cfg!(windows) { "where" } else { "which" };
+    let out = Command::new(locator)
+        .arg(binary)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&out.stdout);
+    raw.lines()
+        .map(str::trim)
+        .find(|row| !row.is_empty())
+        .map(ToString::to_string)
+}
+
+pub fn resolve_node_from_runtime_root(runtime_root: &Path) -> Option<String> {
+    let executable = if cfg!(windows) { "node.exe" } else { "node" };
+    let direct = runtime_root.join("bin").join(executable);
+    if direct.is_file() {
+        let candidate = direct.to_string_lossy().to_string();
+        if node_binary_usable(candidate.as_str()) {
+            return Some(candidate);
+        }
+    }
+    let entries = fs::read_dir(runtime_root).ok()?;
+    for entry in entries.flatten() {
+        let candidate_path = entry.path().join("bin").join(executable);
+        if !candidate_path.is_file() {
+            continue;
+        }
+        let candidate = candidate_path.to_string_lossy().to_string();
+        if node_binary_usable(candidate.as_str()) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
+    let exe = env::current_exe().ok()?;
+    let bin_dir = exe.parent()?;
+    let home = bin_dir.parent()?;
+    Some(home.to_path_buf())
+}
+
+pub fn resolve_preferred_node_binary() -> String {
+    let mut candidates = Vec::<String>::new();
+
+    for key in ["PROTHEUS_NODE_BINARY", "INFRING_NODE_BINARY"] {
+        if let Ok(value) = env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                candidates.push(trimmed.to_string());
+            }
+        }
+    }
+
+    for key in ["INFRING_HOME", "PROTHEUS_HOME"] {
+        if let Ok(value) = env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                let runtime_root = Path::new(trimmed).join("node-runtime");
+                if let Some(candidate) = resolve_node_from_runtime_root(runtime_root.as_path()) {
+                    candidates.push(candidate);
+                }
+            }
+        }
+    }
+
+    if let Some(home) = infer_infring_home_from_exe() {
+        let runtime_root = home.join("node-runtime");
+        if let Some(candidate) = resolve_node_from_runtime_root(runtime_root.as_path()) {
+            candidates.push(candidate);
+        }
+    }
+
+    if let Some(path_node) = resolve_binary_in_path("node") {
+        candidates.push(path_node);
+    }
+    candidates.push("node".to_string());
+
+    for candidate in candidates {
+        if node_binary_usable(candidate.as_str()) {
+            return candidate;
+        }
+    }
+    "node".to_string()
 }
 
 pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {

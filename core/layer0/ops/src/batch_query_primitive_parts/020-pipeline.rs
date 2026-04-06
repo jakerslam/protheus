@@ -2,7 +2,30 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
     let payload = fixture_payload_for_query(query).unwrap_or_else(|| {
         crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
     });
-    candidate_from_search_payload(query, &payload)
+    match candidate_from_search_payload(query, &payload) {
+        Ok(candidate) => Ok(candidate),
+        Err(primary_err) => {
+            if skip_duckduckgo_fallback_for_error(&primary_err) {
+                return Err(primary_err);
+            }
+            let fallback_url = duckduckgo_instant_answer_url(query);
+            let fallback_payload = fixture_payload_for_stage_query("duckduckgo_instant", query)
+                .unwrap_or_else(|| {
+                    crate::web_conduit::api_fetch(
+                        root,
+                        &json!({
+                            "url": fallback_url.clone(),
+                            "summary_only": false
+                        }),
+                    )
+                });
+            match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload)
+            {
+                Ok(candidate) => Ok(candidate),
+                Err(fallback_err) => Err(format!("{primary_err}|fallback:{fallback_err}")),
+            }
+        }
+    }
 }
 
 fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
@@ -21,7 +44,11 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         overlap / query_tokens.len() as f64
     };
-    let locator_bonus = if candidate.locator.is_empty() { 0.0 } else { 0.2 };
+    let locator_bonus = if candidate.locator.is_empty() {
+        0.0
+    } else {
+        0.2
+    };
     let status_bonus = if (200..400).contains(&candidate.status_code) {
         0.2
     } else {
@@ -33,7 +60,12 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let started = Instant::now();
     let policy = load_policy(root);
-    let source = normalize_source(request.get("source").and_then(Value::as_str).unwrap_or("web"));
+    let source = normalize_source(
+        request
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("web"),
+    );
     let query = clean_text(
         request
             .get("query")
@@ -59,7 +91,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     }
     let budget = match aperture_budget(&aperture) {
         Some(value) => value,
-        None => return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"}),
+        None => {
+            return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"})
+        }
     };
 
     let (queries, rewrite_set, rewrite_applied) = build_query_plan(&query, budget);
