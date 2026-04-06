@@ -278,11 +278,11 @@ function assertChatEnhancementFeatures() {
   const cssSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/css/components.css'));
   const laneSource = readUtf8(TARGET_SOURCE);
 
-  // Fresh agent init flow ("Who am I" thinking bubble + init panel)
-  assertContains(chatSource, "text: 'Who am I'", 'fresh-init "Who am I" seed message missing');
+  // Fresh agent init flow ("Who am I?" thinking bubble + init panel)
+  assertContains(chatSource, "text: 'Who am I?'", 'fresh-init "Who am I?" seed message missing');
   assert.ok(
-    /text:\s*'Who am I'[\s\S]{0,220}thinking:\s*true/.test(chatSource),
-    'fresh-init "Who am I" message should render through thinking bubble state'
+    /text:\s*'Who am I\?'[\s\S]{0,220}thinking:\s*true/.test(chatSource),
+    'fresh-init "Who am I?" message should render through thinking bubble state'
   );
   assert.ok(
     chatSource.includes('ensureFreshInitThread(resolved);') || chatSource.includes('startFreshInitSequence(resolved);'),

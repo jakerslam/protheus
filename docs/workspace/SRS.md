@@ -16,6 +16,12 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-GOV-001 | done | SRS regression-insurance gate for net-new functionality | New features can regress silently when implementation lands without canonical backlog acceptance criteria and evidence paths. | `docs/workspace/codex_enforcer.md` and `docs/workspace/DEFINITION_OF_DONE.md` now require a same-revision SRS entry/update for all net-new functionality before `done` status is allowed. | 9 | 1/2 |
 
+## Spawn Autonomy Reliability Intake (2026-04-06)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-SWARM-ASK-001 | done | Autonomous subagent spawn without confirmation prompts (deny rules still enforced) | Agents were still getting blocked by confirmation gates (`tool_explicit_signoff_required` / `tool_confirmation_required`) when attempting governed `spawn_subagents`, degrading multi-agent autonomy and causing repetitive confirmation loops in chat. | Rust-core capability tier policy now treats spawn tools (`spawn_subagents|spawn_swarm|agent_spawn|sessions_spawn`) as non-confirmation tier and `/api/capabilities/status` reports `spawn_subagents` as `green`; pre-tool permission gate now auto-allows `ask` verdicts for spawn tools while still fail-closing on explicit `deny`. Regression coverage added for spawn no-confirmation execution and ask/deny pre-gate behavior. Evidence: [`core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs), [`core/layer0/ops/src/dashboard_tool_turn_loop.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_tool_turn_loop.rs), [`core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs). | 9 | 0/1/2 |
+
 ## Cline Capability Assimilation Intake (2026-04-05)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |

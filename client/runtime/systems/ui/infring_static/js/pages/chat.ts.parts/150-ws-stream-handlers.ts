@@ -126,11 +126,19 @@
         case 'tool_end':
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
-            var runningTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: true });
-            var receiptRunningLabel = String(data && data.tool_status ? data.tool_status : '').trim();
-            if (receiptRunningLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptRunningLabel = this.normalizeThinkingStatusCandidate(receiptRunningLabel);
-            var runningLabel = receiptRunningLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel(runningTool || { name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
-            if (runningLabel && lastMsg2.thinking_status !== runningLabel) lastMsg2.thinking_status = runningLabel;
+            var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', {
+              running: false,
+              no_create: true
+            });
+            if (endedTool) endedTool.running = false;
+            var activeToolLabel = typeof this.currentToolDialogLabel === 'function'
+              ? String(this.currentToolDialogLabel(lastMsg2) || '').trim()
+              : '';
+            if (activeToolLabel && lastMsg2.thinking_status !== activeToolLabel) {
+              lastMsg2.thinking_status = activeToolLabel;
+            } else if (!activeToolLabel) {
+              lastMsg2.thinking_status = '';
+            }
             lastMsg2._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
           }
@@ -163,11 +171,14 @@
             }
             lastMsg3._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg3._stream_started_at))) lastMsg3._stream_started_at = Date.now();
-            var statusSummary = typeof this.thinkingToolStatusSummary === 'function'
-              ? this.thinkingToolStatusSummary(lastMsg3)
-              : null;
-            var summaryText = String((statusSummary && statusSummary.text) || '').trim();
-            if (summaryText && lastMsg3.thinking_status !== summaryText) lastMsg3.thinking_status = summaryText;
+            var nextActiveToolLabel = typeof this.currentToolDialogLabel === 'function'
+              ? String(this.currentToolDialogLabel(lastMsg3) || '').trim()
+              : '';
+            if (nextActiveToolLabel && lastMsg3.thinking_status !== nextActiveToolLabel) {
+              lastMsg3.thinking_status = nextActiveToolLabel;
+            } else if (!nextActiveToolLabel) {
+              lastMsg3.thinking_status = '';
+            }
           }
           this._resetTypingTimeout();
           this.scrollToBottom();

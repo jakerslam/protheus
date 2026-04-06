@@ -168,7 +168,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         rest = vec![target];
     }
 
-    maybe_run_update_checker(root, &cmd);
+    maybe_run_update_checker(root, &cmd, global_json);
     maybe_run_cli_suggestion_engine(root, &cmd, &rest);
 
     let mut route = if cmd == "assimilate" {

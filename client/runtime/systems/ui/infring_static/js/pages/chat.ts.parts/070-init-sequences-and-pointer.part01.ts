@@ -203,11 +203,12 @@
         {
           id: ++msgId,
           role: 'agent',
-          text: 'Thinking...',
+          text: 'Who am I?',
           meta: '',
           tools: [],
           ts: Date.now(),
           thinking: true,
+          thinking_status: 'Who am I?',
           agent_id: agentId,
           agent_name: agentName
         }
@@ -224,19 +225,20 @@
       setTimeout(function() {
         if (Number(self.freshInitStageToken || 0) !== token) return;
         if (!self.currentAgent || String(self.currentAgent.id || '') !== agentId) return;
-        self.messages = [
-          {
-            id: ++msgId,
-            role: 'agent',
-            text: 'Who am I',
-            meta: '',
-            tools: [],
-            ts: Date.now(),
-            thinking: true,
-            agent_id: agentId,
-            agent_name: agentName
-          }
-        ];
+          self.messages = [
+            {
+              id: ++msgId,
+              role: 'agent',
+              text: 'Who am I?',
+              meta: '',
+              tools: [],
+              ts: Date.now(),
+              thinking: true,
+              thinking_status: 'Who am I?',
+              agent_id: agentId,
+              agent_name: agentName
+            }
+          ];
         self.recomputeContextEstimate();
         self.cacheAgentConversation(agentId);
         self.$nextTick(function() {
@@ -383,6 +385,33 @@
       } catch(_) {
         return 'light';
       }
+    },
+
+    pointerTrailProfile() {
+      if (
+        typeof window !== 'undefined' &&
+        window.__INFRING_POINTER_TRAIL_PROFILE_V1 &&
+        typeof window.__INFRING_POINTER_TRAIL_PROFILE_V1 === 'object'
+      ) {
+        return window.__INFRING_POINTER_TRAIL_PROFILE_V1;
+      }
+      return {
+        spacing: 0.13,
+        max_steps: 52,
+        head_interval_ms: 28,
+        segment_thickness_base: 2.05,
+        segment_thickness_gain: 1.85,
+        segment_opacity_base: 0.32,
+        segment_opacity_gain: 0.45,
+        segment_hue_base: -4,
+        segment_hue_gain: 8,
+        head_particles: [
+          { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
+          { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
+          { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
+          { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 }
+        ]
+      };
     },
 
     pointerTrailFadeDurationMs(kind, slow) {

@@ -178,6 +178,7 @@
       if (!name) name = 'tool';
       var opts = options && typeof options === 'object' ? options : {};
       var markRunning = opts.running !== false;
+      var allowCreate = opts.no_create !== true;
       for (var i = msg.tools.length - 1; i >= 0; i--) {
         var card = msg.tools[i];
         if (!card || String(card.name || '') !== name) continue;
@@ -187,9 +188,11 @@
         }
         if (!markRunning && card.running) {
           if (typeof toolInput === 'string') card.input = toolInput;
+          card.running = false;
           return card;
         }
       }
+      if (!allowCreate) return null;
       var created = {
         id: name + '-' + Date.now(),
         name: name,

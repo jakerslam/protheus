@@ -375,6 +375,49 @@
         this.messages.push(payload);
         return payload;
       }
+      var mergeToolCards = function(existingTools, incomingTools) {
+        var base = Array.isArray(existingTools) ? existingTools.slice() : [];
+        var incoming = Array.isArray(incomingTools) ? incomingTools : [];
+        if (!incoming.length) return base;
+        var keyFor = function(tool) {
+          if (!tool || typeof tool !== 'object') return '';
+          var id = String(tool.id || '').trim();
+          if (id) return 'id:' + id;
+          var name = String(tool.name || '').trim().toLowerCase();
+          var input = String(tool.input || '').trim();
+          return 'sig:' + name + '::' + input;
+        };
+        var index = Object.create(null);
+        for (var i = 0; i < base.length; i++) {
+          var baseKey = keyFor(base[i]);
+          if (!baseKey) continue;
+          index[baseKey] = i;
+        }
+        for (var j = 0; j < incoming.length; j++) {
+          var next = incoming[j];
+          if (!next || typeof next !== 'object') continue;
+          var nextKey = keyFor(next);
+          var pos = (nextKey && Object.prototype.hasOwnProperty.call(index, nextKey))
+            ? Number(index[nextKey])
+            : -1;
+          if (pos < 0 || pos >= base.length) {
+            base.push(next);
+            if (nextKey) index[nextKey] = base.length - 1;
+            continue;
+          }
+          var prior = base[pos];
+          if (!prior || typeof prior !== 'object') {
+            base[pos] = next;
+            continue;
+          }
+          if (!String(prior.result || '').trim() && String(next.result || '').trim()) prior.result = next.result;
+          if (!String(prior.input || '').trim() && String(next.input || '').trim()) prior.input = next.input;
+          if (!String(prior.id || '').trim() && String(next.id || '').trim()) prior.id = next.id;
+          if (next.is_error) prior.is_error = true;
+          if (prior.running && next.running === false) prior.running = false;
+        }
+        return base;
+      };
       if (duplicate._auto_fallback && !payload._auto_fallback) {
         duplicate.text = payload.text;
         duplicate.tools = Array.isArray(payload.tools) ? payload.tools : [];
@@ -382,8 +425,8 @@
       } else if ((!String(duplicate.text || '').trim()) && String(payload.text || '').trim()) {
         duplicate.text = payload.text;
       }
-      if ((!Array.isArray(duplicate.tools) || !duplicate.tools.length) && Array.isArray(payload.tools) && payload.tools.length) {
-        duplicate.tools = payload.tools;
+      if (Array.isArray(payload.tools) && payload.tools.length) {
+        duplicate.tools = mergeToolCards(duplicate.tools, payload.tools);
       }
       var nextMeta = String(payload.meta || '').trim();
       if (nextMeta) {

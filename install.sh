@@ -2244,6 +2244,11 @@ workspace_release_tag_path() {
   printf '%s\n' "$workspace/local/state/ops/install_release_tag.txt"
 }
 
+workspace_release_meta_path() {
+  workspace="$1"
+  printf '%s\n' "$workspace/local/state/ops/install_release_meta.json"
+}
+
 workspace_release_tag_matches() {
   workspace="$1"
   expected_tag="$2"
@@ -2258,8 +2263,19 @@ write_workspace_release_tag() {
   workspace="$1"
   release_tag="$2"
   marker_path="$(workspace_release_tag_path "$workspace")"
+  meta_path="$(workspace_release_meta_path "$workspace")"
+  normalized_release="$(printf '%s' "$release_tag" | sed 's/^[Vv]//')"
+  installed_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
   mkdir -p "$(dirname "$marker_path")" || return 1
   printf '%s\n' "$release_tag" > "$marker_path" || return 1
+  cat > "$meta_path" <<EOF || return 1
+{
+  "release_tag": "$release_tag",
+  "release_version_normalized": "$normalized_release",
+  "install_source": "install.sh",
+  "installed_at": "$installed_at"
+}
+EOF
   return 0
 }
 

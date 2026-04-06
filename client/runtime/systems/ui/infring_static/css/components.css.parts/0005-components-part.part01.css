@@ -180,12 +180,13 @@
 .message.thinking .message-bubble.message-bubble-thinking {
   animation: thinking-bubble-scale-pulse 1.6s ease-in-out infinite;
   transform-origin: left center;
+  will-change: transform, opacity;
 }
 
 @keyframes thinking-bubble-scale-pulse {
-  0% { transform: scaleX(1) scaleY(0.90); }
-  50% { transform: scaleX(1) scaleY(1.10); }
-  100% { transform: scaleX(1) scaleY(0.90); }
+  0% { transform: scaleX(1) scaleY(0.97); opacity: 0.94; }
+  50% { transform: scaleX(1) scaleY(1.03); opacity: 0.86; }
+  100% { transform: scaleX(1) scaleY(0.97); opacity: 0.94; }
 }
 
 .message-bubble.message-error {

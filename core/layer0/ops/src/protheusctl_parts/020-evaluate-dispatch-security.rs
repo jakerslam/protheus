@@ -595,11 +595,27 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         .map(|port| dashboard_healthz_reachable(&dashboard_host, port, 450))
         .unwrap_or(false);
     let launchd_loaded = launchd_dashboard_loaded();
+    let dashboard_execution_mode = if dashboard_healthz_reachable {
+        if dashboard_watchdog_pid_running || core_watchdog_pid_running {
+            "watchdog_managed"
+        } else if dashboard_pid_running {
+            "dashboard_pid_managed"
+        } else {
+            "manual_foreground"
+        }
+    } else if dashboard_watchdog_pid_running || core_watchdog_pid_running {
+        "watchdog_starting"
+    } else if dashboard_pid_running {
+        "dashboard_pid_only"
+    } else {
+        "not_running"
+    };
     let process_checks = json!({
         "dashboard_host": dashboard_host,
         "dashboard_port": dashboard_port,
         "dashboard_port_raw": clean(dashboard_port_raw, 32),
         "dashboard_healthz_reachable": dashboard_healthz_reachable,
+        "dashboard_execution_mode": dashboard_execution_mode,
         "dashboard_pid_file": clean(dashboard_pid_file.to_string_lossy().to_string(), 500),
         "dashboard_pid": dashboard_pid,
         "dashboard_pid_running": dashboard_pid_running,
@@ -696,13 +712,17 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     if !dashboard_healthz_reachable {
         warnings.push("dashboard_healthz_unreachable".to_string());
     }
-    if !dashboard_pid_running {
+    if !dashboard_pid_running && !dashboard_healthz_reachable {
         warnings.push("dashboard_pid_not_running".to_string());
     }
-    if !dashboard_watchdog_pid_running && !core_watchdog_pid_running {
+    if !dashboard_watchdog_pid_running && !core_watchdog_pid_running && !dashboard_healthz_reachable
+    {
         warnings.push("dashboard_watchdog_not_running".to_string());
     }
-    if env::consts::OS == "macos" && !launchd_loaded {
+    if env::consts::OS == "macos"
+        && !launchd_loaded
+        && matches!(dashboard_execution_mode, "not_running" | "watchdog_starting")
+    {
         warnings.push("launchd_not_loaded".to_string());
     }
     let root_cause_codes = collect_root_cause_codes(&failures, &warnings);
@@ -939,14 +959,20 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String]) {
         .status();
 }
 
-fn maybe_run_update_checker(root: &Path, cmd: &str) {
+fn maybe_run_update_checker(root: &Path, cmd: &str, json_mode: bool) {
     if bool_env("PROTHEUS_GLOBAL_QUIET", false) {
+        return;
+    }
+    if json_mode {
         return;
     }
     if bool_env("PROTHEUS_UPDATE_CHECKER_DISABLED", false) {
         return;
     }
-    if matches!(cmd, "version" | "update" | "help" | "--help" | "-h") {
+    if matches!(
+        cmd,
+        "version" | "update" | "help" | "--help" | "-h" | "doctor" | "verify-install"
+    ) {
         return;
     }
     let script_js = root.join("client/runtime/systems/ops/protheus_version_cli.js");

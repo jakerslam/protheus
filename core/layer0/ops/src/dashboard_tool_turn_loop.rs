@@ -42,6 +42,13 @@ fn normalize_tool_name(raw: &str) -> String {
         .replace(' ', "_")
 }
 
+fn tool_is_autonomous_spawn(normalized: &str) -> bool {
+    matches!(
+        normalized,
+        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn"
+    )
+}
+
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -402,7 +409,9 @@ pub(crate) fn pre_tool_permission_gate(
     if verdict_str == "allow" {
         return None;
     }
-    if verdict_str == "ask" && input_confirmed(input) {
+    if verdict_str == "ask"
+        && (input_confirmed(input) || tool_is_autonomous_spawn(normalized.as_str()))
+    {
         return None;
     }
     let error = if verdict_str == "deny" {
@@ -611,6 +620,44 @@ mod tests {
             &json!({"command":"echo hello","confirm":true}),
         );
         assert!(allowed.is_none());
+    }
+
+    #[test]
+    fn pre_gate_allows_spawn_without_confirm_for_ask_verdicts() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let policy_path = root.path().join(TERMINAL_PERMISSION_POLICY_REL);
+        if let Some(parent) = policy_path.parent() {
+            std::fs::create_dir_all(parent).expect("mkdir");
+        }
+        std::fs::write(&policy_path, r#"{"ask_rules":["spawn_subagents*"]}"#)
+            .expect("write policy");
+        let out = pre_tool_permission_gate(
+            root.path(),
+            "spawn_subagents",
+            &json!({"count": 2, "objective": "parallelize"}),
+        );
+        assert!(out.is_none());
+    }
+
+    #[test]
+    fn pre_gate_still_denies_spawn_when_policy_denies() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let policy_path = root.path().join(TERMINAL_PERMISSION_POLICY_REL);
+        if let Some(parent) = policy_path.parent() {
+            std::fs::create_dir_all(parent).expect("mkdir");
+        }
+        std::fs::write(&policy_path, r#"{"deny_rules":["spawn_subagents*"]}"#)
+            .expect("write policy");
+        let blocked = pre_tool_permission_gate(
+            root.path(),
+            "spawn_subagents",
+            &json!({"count": 2, "objective": "parallelize"}),
+        )
+        .expect("blocked");
+        assert_eq!(
+            blocked.get("error").and_then(Value::as_str),
+            Some("tool_permission_denied")
+        );
     }
 
     #[test]

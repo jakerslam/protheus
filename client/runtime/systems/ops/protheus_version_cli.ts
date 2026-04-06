@@ -10,6 +10,20 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const PACKAGE_JSON_PATH = path.join(ROOT, 'package.json');
+const INSTALL_RELEASE_TAG_PATH = path.join(
+  ROOT,
+  'local',
+  'state',
+  'ops',
+  'install_release_tag.txt'
+);
+const INSTALL_RELEASE_META_PATH = path.join(
+  ROOT,
+  'local',
+  'state',
+  'ops',
+  'install_release_meta.json'
+);
 const RELEASE_CHANNEL_PATH = path.join(
   ROOT,
   'client',
@@ -110,7 +124,38 @@ function normalizeVersion(raw) {
   return cleanText(raw, 120).replace(/^v/i, '');
 }
 
+function readInstalledReleaseMetadata() {
+  const meta = readJsonFile(INSTALL_RELEASE_META_PATH, {});
+  const releaseVersion = normalizeVersion(
+    meta && meta.release_version_normalized ? meta.release_version_normalized : ''
+  );
+  const releaseTag = normalizeVersion(meta && meta.release_tag ? meta.release_tag : '');
+  if (releaseVersion || releaseTag) {
+    return {
+      releaseVersion: releaseVersion || releaseTag,
+      releaseTag: releaseTag || releaseVersion,
+      source: 'install_release_meta'
+    };
+  }
+  try {
+    const raw = fs.readFileSync(INSTALL_RELEASE_TAG_PATH, 'utf8');
+    const tag = normalizeVersion(raw);
+    if (tag) {
+      return {
+        releaseVersion: tag,
+        releaseTag: tag,
+        source: 'install_release_tag'
+      };
+    }
+  } catch (_) {}
+  return null;
+}
+
 function readCurrentVersion() {
+  const installed = readInstalledReleaseMetadata();
+  if (installed && installed.releaseVersion) {
+    return installed.releaseVersion;
+  }
   const pkg = readJsonFile(PACKAGE_JSON_PATH, {});
   const version = normalizeVersion(pkg && pkg.version ? pkg.version : '');
   return version || '0.0.0-unknown';

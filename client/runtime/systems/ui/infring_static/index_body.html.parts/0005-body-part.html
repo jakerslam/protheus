@@ -190,7 +190,7 @@
                         </div>
                         <!-- Thinking indicator with animated dots -->
                         <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
-                          <div class="thinking-inline-text"><em x-text="thinkingStatusText(msg) || 'Working...'"></em></div>
+                          <div class="thinking-inline-text"><em x-text="thinkingStatusText(msg) || 'Thinking'"></em></div>
                           <div class="typing-dots"><span></span><span></span><span></span></div>
                         </div>
                         <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)">

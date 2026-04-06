@@ -366,15 +366,6 @@
       return compact;
     },
     thinkingDisplayText: function(msg) {
-      var toolDialog = typeof this.currentToolDialogLabel === 'function'
-        ? String(this.currentToolDialogLabel(msg) || '').trim()
-        : '';
-      if (toolDialog) return toolDialog;
-      var latestChunk = String(msg && msg._thought_latest_chunk ? msg._thought_latest_chunk : '').trim();
-      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
-        latestChunk = this.normalizeThinkingStatusCandidate(latestChunk);
-      }
-      if (latestChunk) return latestChunk;
       var rawThought = String(msg && msg._thoughtText ? msg._thoughtText : '').trim();
       if (!rawThought) return '';
       if (rawThought) {
@@ -461,7 +452,6 @@
         toolDialog = this.normalizeThinkingStatusCandidate(toolDialog);
       }
       if (toolDialog) {
-        msg._thinking_last_line = toolDialog;
         return toolDialog;
       }
       var thoughtLine = typeof this.thinkingDisplayText === 'function'
@@ -471,15 +461,11 @@
         thoughtLine = this.normalizeThinkingStatusCandidate(thoughtLine);
       }
       if (thoughtLine) {
-        msg._thinking_last_line = thoughtLine;
         return thoughtLine;
       }
       var status = typeof this.normalizeThinkingStatusCandidate === 'function'
         ? this.normalizeThinkingStatusCandidate(msg.thinking_status || msg.status_text || '')
         : String(msg.thinking_status || msg.status_text || '').trim();
-      if (status) {
-        msg._thinking_last_line = status;
-        return status;
-      }
-      return String(msg._thinking_last_line || '').trim();
+      if (status) return status;
+      return 'Thinking';
     },

@@ -4,18 +4,22 @@
           hueShift: hueShift,
         });
       }
-      var canSpawnHead = (now - Number(this._pointerTrailHeadLastAt || 0)) >= 28;
+      var headInterval = Number(profile && profile.head_interval_ms);
+      if (!Number.isFinite(headInterval) || headInterval < 1) headInterval = 28;
+      var canSpawnHead = (now - Number(this._pointerTrailHeadLastAt || 0)) >= headInterval;
       if (canSpawnHead || dist < 1.5) {
         // Render several smaller head particles instead of one large dot.
         var invDist = dist > 0.0001 ? (1 / dist) : 0;
         var nx = dist > 0.0001 ? (dx * invDist) : 1;
         var ny = dist > 0.0001 ? (dy * invDist) : 0;
-        var pxTrail = [
-          { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
-          { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
-          { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
-          { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 },
-        ];
+        var pxTrail = Array.isArray(profile && profile.head_particles) && profile.head_particles.length
+          ? profile.head_particles
+          : [
+              { back: 0.0, lateral: 0.0, size: 3.9, opacity: 0.58, hue: 0 },
+              { back: 1.55, lateral: 0.64, size: 3.4, opacity: 0.5, hue: 2 },
+              { back: 2.45, lateral: -0.58, size: 3.0, opacity: 0.44, hue: -2 },
+              { back: 3.15, lateral: 0.0, size: 2.7, opacity: 0.38, hue: 1 },
+            ];
         for (var j = 0; j < pxTrail.length; j++) {
           var p = pxTrail[j];
           var px = x - (nx * p.back) + (-ny * p.lateral);
