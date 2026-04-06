@@ -1,3 +1,101 @@
+fn bool_like(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "y" | "on"
+    )
+}
+
+fn context_stacks_nexus_enabled(parsed: &crate::ParsedArgs) -> bool {
+    parsed
+        .flags
+        .get("nexus")
+        .map(|raw| bool_like(raw.as_str()))
+        .or_else(|| {
+            std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_V1")
+                .ok()
+                .map(|raw| bool_like(raw.as_str()))
+        })
+        .unwrap_or(true)
+}
+
+fn context_stacks_force_block_pair_enabled() -> bool {
+    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CONTEXT_STACKS_ROUTE")
+        .ok()
+        .map(|raw| bool_like(raw.as_str()))
+        .unwrap_or(false)
+}
+
+fn authorize_context_stacks_command_with_nexus_inner(
+    command: &str,
+    force_block_pair: bool,
+) -> Result<Value, String> {
+    let mut policy = DefaultNexusPolicy::default();
+    if force_block_pair {
+        policy.block_pair("client_ingress", "context_stacks");
+    }
+    let mut nexus = MainNexusControlPlane::new(
+        NexusFeatureFlags {
+            hierarchical_nexus_enabled: true,
+            coexist_with_flat_routing: true,
+        },
+        policy,
+    );
+    let _ = nexus.register_v1_adapters("context_stacks_kernel")?;
+    let schema = format!("context_stacks.command.{}", clean(command, 64));
+    let lease = nexus.issue_route_lease(
+        "context_stacks_kernel",
+        LeaseIssueRequest {
+            source: "client_ingress".to_string(),
+            target: "context_stacks".to_string(),
+            schema_ids: vec![schema.clone()],
+            verbs: vec!["invoke".to_string()],
+            required_verity: VerityClass::Standard,
+            trust_class: TrustClass::ClientIngressBoundary,
+            requested_ttl_ms: 30_000,
+            template_id: None,
+            template_version: None,
+        },
+    )?;
+    let delivery = nexus.authorize_direct_delivery(
+        "context_stacks_kernel",
+        DeliveryAuthorizationInput {
+            lease_id: Some(lease.lease_id.clone()),
+            source: "client_ingress".to_string(),
+            target: "context_stacks".to_string(),
+            schema_id: schema,
+            verb: "invoke".to_string(),
+            offered_verity: VerityClass::Standard,
+            now_ms: None,
+        },
+    );
+    if !delivery.allowed {
+        return Err(format!(
+            "context_stacks_nexus_delivery_denied:{}",
+            clean(delivery.reason.as_str(), 200)
+        ));
+    }
+    let receipt_ids = nexus
+        .receipts()
+        .iter()
+        .map(|row| row.receipt_id.clone())
+        .collect::<Vec<_>>();
+    Ok(json!({
+      "enabled": true,
+      "route": {"source":"client_ingress","target":"context_stacks","verb":"invoke"},
+      "lease_id": lease.lease_id,
+      "delivery": delivery,
+      "metrics": nexus.metrics(),
+      "receipt_ids": receipt_ids
+    }))
+}
+
+fn authorize_context_stacks_command_with_nexus(command: &str) -> Result<Value, String> {
+    authorize_context_stacks_command_with_nexus_inner(
+        command,
+        context_stacks_force_block_pair_enabled(),
+    )
+}
+
 fn render_context_stack(root: &Path, parsed: &crate::ParsedArgs) -> Value {
     let mut state = load_context_stacks_state(root);
     let stack_id = stack_id_from(parsed);
@@ -225,6 +323,33 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "list".to_string());
+    let nexus_connection = if context_stacks_nexus_enabled(&parsed) {
+        match authorize_context_stacks_command_with_nexus(command.as_str()) {
+            Ok(meta) => Some(meta),
+            Err(err) => {
+                let fail_payload = json!({
+                    "ok": false,
+                    "status": "blocked",
+                    "error": "context_stacks_nexus_error",
+                    "reason": clean(err.as_str(), 220),
+                    "fail_closed": true
+                });
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&fail_payload).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"status\":\"blocked\",\"error\":\"encode_failed\"}"
+                            .to_string()
+                    })
+                );
+                return 1;
+            }
+        }
+    } else {
+        Some(json!({
+            "enabled": false,
+            "reason": "nexus_disabled_by_flag_or_env"
+        }))
+    };
     let payload = match command.as_str() {
         "help" | "--help" | "-h" => {
             context_stacks_usage();
@@ -249,6 +374,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "command": command
         }),
     };
+    let mut payload = payload;
+    if let Some(meta) = nexus_connection {
+        payload["nexus_connection"] = meta;
+    }
     println!(
         "{}",
         serde_json::to_string_pretty(&payload)

@@ -179,4 +179,24 @@ mod tests {
             .expect("tail");
         assert!(tail.entries.is_empty());
     }
+
+    #[test]
+    fn nexus_authorization_succeeds_for_context_stacks_route() {
+        let out = authorize_context_stacks_command_with_nexus_inner("list", false)
+            .expect("nexus auth");
+        assert_eq!(out.get("enabled").and_then(Value::as_bool), Some(true));
+        assert!(out
+            .get("lease_id")
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn nexus_authorization_fails_closed_when_context_route_blocked() {
+        let err = authorize_context_stacks_command_with_nexus_inner("list", true)
+            .err()
+            .unwrap_or_else(|| "missing_error".to_string());
+        assert!(err.contains("lease_denied") || err.contains("delivery_denied"));
+    }
 }
