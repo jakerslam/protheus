@@ -212,6 +212,73 @@ mod tests {
     }
 
     #[test]
+    fn compare_query_resolves_deictic_framework_and_blocks_grammar_noise() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "compare this framework to openclaw";
+        let out = with_fixture(
+            json!({
+                "compare infring to openclaw": {
+                    "ok": true,
+                    "summary": "bing.com: compare [A with B] vs compare A [with B] | WordReference Forums",
+                    "requested_url": "https://forum.wordreference.com/threads/compare-a-with-b-vs-compare-a-with-b.4047424/",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"medium"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("comparison findings"));
+        assert!(lowered.contains("infring"));
+        assert!(lowered.contains("openclaw"));
+        assert!(!lowered.contains("wordreference"));
+    }
+
+    #[test]
+    fn compare_query_prefers_entities_coverage_for_synthesis() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "compare this framework to openclaw";
+        let out = with_fixture(
+            json!({
+                "compare infring to openclaw": {
+                    "ok": true,
+                    "summary": "Independent benchmark: Infring achieved 52 ops/sec while OpenClaw achieved 47 ops/sec with median latency 840ms vs 910ms.",
+                    "requested_url": "https://example.com/agent-framework-benchmark",
+                    "status_code": 200
+                },
+                "compare infring to openclaw overview": {
+                    "ok": true,
+                    "summary": "bing.com: compare [A with B] vs compare A [with B] | WordReference Forums",
+                    "requested_url": "https://forum.wordreference.com/threads/compare-a-with-b-vs-compare-a-with-b.4047424/",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"medium"}),
+                )
+            },
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("infring"));
+        assert!(lowered.contains("openclaw"));
+        assert!(lowered.contains("ops/sec") || lowered.contains("latency"));
+        assert!(!lowered.contains("wordreference"));
+    }
+
+    #[test]
     fn exact_match_query_disables_rewrite_and_parallel() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = with_fixture(

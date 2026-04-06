@@ -40,6 +40,15 @@ infring gateway
 
 If PATH has not refreshed in the same shell, run directly: `$HOME\.protheus\bin\infring.cmd gateway`.
 
+If a release has no Windows prebuilt binary for your architecture, the installer falls back to building from source. Install prerequisites first on fresh machines:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Rustlang.Rustup -e
+# Optional but often required for MSVC source builds:
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e
+```
+
 ### Optional: Python Wrapper (`pipx`)
 
 ```bash

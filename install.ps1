@@ -14,6 +14,7 @@ $ErrorActionPreference = "Stop"
 $RepoOwner = "protheuslabs"
 $RepoName = "InfRing"
 $DefaultApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+$DefaultReleasesApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=30"
 $DefaultLatestUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
 $DefaultBase = "https://github.com/$RepoOwner/$RepoName/releases/download"
 
@@ -37,6 +38,7 @@ $TmpDir = if ($TmpDir) {
 }
 $RequestedVersion = if ($env:INFRING_VERSION) { $env:INFRING_VERSION } elseif ($env:PROTHEUS_VERSION) { $env:PROTHEUS_VERSION } else { "latest" }
 $ApiUrl = if ($env:INFRING_RELEASE_API_URL) { $env:INFRING_RELEASE_API_URL } elseif ($env:PROTHEUS_RELEASE_API_URL) { $env:PROTHEUS_RELEASE_API_URL } else { $DefaultApi }
+$ReleasesApiUrl = if ($env:INFRING_RELEASES_API_URL) { $env:INFRING_RELEASES_API_URL } elseif ($env:PROTHEUS_RELEASES_API_URL) { $env:PROTHEUS_RELEASES_API_URL } else { $DefaultReleasesApi }
 $LatestUrl = if ($env:INFRING_RELEASE_LATEST_URL) { $env:INFRING_RELEASE_LATEST_URL } elseif ($env:PROTHEUS_RELEASE_LATEST_URL) { $env:PROTHEUS_RELEASE_LATEST_URL } else { $DefaultLatestUrl }
 $BaseUrl = if ($env:INFRING_RELEASE_BASE_URL) { $env:INFRING_RELEASE_BASE_URL } elseif ($env:PROTHEUS_RELEASE_BASE_URL) { $env:PROTHEUS_RELEASE_BASE_URL } else { $DefaultBase }
 $InstallFull = $false
@@ -248,6 +250,70 @@ function Resolve-Version {
   throw "Failed to resolve latest release tag (GitHub API + releases/latest redirect). Set INFRING_VERSION=vX.Y.Z and retry."
 }
 
+function Get-ReleasesFromApi {
+  try {
+    $releases = Invoke-RestMethod -Uri $ReleasesApiUrl -UseBasicParsing
+    if ($releases -is [System.Array]) {
+      return @($releases)
+    }
+    return @()
+  } catch {
+    return @()
+  }
+}
+
+function Get-BinaryAssetCandidates([string]$Triple, [string]$Stem) {
+  return @(
+    "$Stem-$Triple.exe",
+    "$Stem-$Triple",
+    "$Stem-$Triple.bin",
+    "$Stem.exe",
+    "$Stem"
+  )
+}
+
+function Release-HasAnyAsset([object]$Release, [string[]]$AssetCandidates) {
+  if (-not $Release) { return $false }
+  $assets = @()
+  if ($Release.assets -is [System.Array]) {
+    $assets = @($Release.assets | ForEach-Object { [string]$_.name })
+  }
+  if ($assets.Count -eq 0) { return $false }
+  foreach ($candidate in $AssetCandidates) {
+    if ($assets -contains $candidate) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Resolve-AssetCompatibleVersionForTriple([string]$Triple, [string[]]$Stems) {
+  if ($RequestedVersion -ne "latest") {
+    return $null
+  }
+  $releases = Get-ReleasesFromApi
+  if ($releases.Count -eq 0) {
+    return $null
+  }
+  foreach ($release in $releases) {
+    if (-not $release) { continue }
+    if ([bool]$release.draft) { continue }
+    if (-not $release.tag_name) { continue }
+    $allPresent = $true
+    foreach ($stem in $Stems) {
+      $assetCandidates = Get-BinaryAssetCandidates $Triple $stem
+      if (-not (Release-HasAnyAsset $release $assetCandidates)) {
+        $allPresent = $false
+        break
+      }
+    }
+    if ($allPresent) {
+      return [string]$release.tag_name
+    }
+  }
+  return $null
+}
+
 function Download-Asset($Version, $Asset, $OutPath) {
   $url = "$BaseUrl/$Version/$Asset"
   try {
@@ -272,11 +338,48 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     }
   }
 
+  function Ensure-CargoToolchainForSourceFallback {
+    if (Get-Command cargo -ErrorAction SilentlyContinue) {
+      return $true
+    }
+    if (-not $HostIsWindows) {
+      return $false
+    }
+    $autoRustup = if ($env:INFRING_INSTALL_AUTO_RUSTUP) {
+      @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_AUTO_RUSTUP.ToLower()
+    } elseif ($env:PROTHEUS_INSTALL_AUTO_RUSTUP) {
+      @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_AUTO_RUSTUP.ToLower()
+    } else {
+      $true
+    }
+    if (-not $autoRustup) {
+      return $false
+    }
+    Write-Host "[infring install] prebuilt binary not available; attempting Rust toolchain bootstrap for source fallback"
+    $rustupExe = Join-Path ([System.IO.Path]::GetTempPath()) "rustup-init.exe"
+    try {
+      Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing | Out-Null
+      $proc = Start-Process -FilePath $rustupExe -ArgumentList "-y --profile minimal --default-toolchain stable" -Wait -PassThru
+      if ($proc.ExitCode -ne 0) {
+        return $false
+      }
+      $cargoBin = Join-Path $HOME ".cargo\bin"
+      if (Test-Path $cargoBin) {
+        if (-not $env:Path.ToLower().Contains($cargoBin.ToLower())) {
+          $env:Path = "$cargoBin;$env:Path"
+        }
+      }
+      return [bool](Get-Command cargo -ErrorAction SilentlyContinue)
+    } catch {
+      return $false
+    }
+  }
+
   function Prepare-SourceFallbackRepo([string]$VersionTag) {
     if ($script:SourceFallbackDir -and (Test-Path $script:SourceFallbackDir)) {
       return $script:SourceFallbackDir
     }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue) -or -not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    if (-not (Ensure-CargoToolchainForSourceFallback)) {
       return $null
     }
 
@@ -285,17 +388,40 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     New-Item -ItemType Directory -Path $script:SourceFallbackTmp.FullName | Out-Null
     $script:SourceFallbackDir = Join-Path $script:SourceFallbackTmp.FullName "repo"
     $repoUrl = "https://github.com/$RepoOwner/$RepoName.git"
-    try {
-      git clone --depth 1 --branch $VersionTag $repoUrl $script:SourceFallbackDir | Out-Null
-      return $script:SourceFallbackDir
-    } catch {
+
+    if (Get-Command git -ErrorAction SilentlyContinue) {
       try {
-        git clone --depth 1 $repoUrl $script:SourceFallbackDir | Out-Null
+        git clone --depth 1 --branch $VersionTag $repoUrl $script:SourceFallbackDir | Out-Null
         return $script:SourceFallbackDir
       } catch {
-        return $null
+        try {
+          git clone --depth 1 $repoUrl $script:SourceFallbackDir | Out-Null
+          return $script:SourceFallbackDir
+        } catch {
+        }
       }
     }
+
+    $archivePath = Join-Path $script:SourceFallbackTmp.FullName "source.zip"
+    $extractRoot = Join-Path $script:SourceFallbackTmp.FullName "extract"
+    New-Item -ItemType Directory -Path $extractRoot | Out-Null
+    $archiveUrls = @(
+      "https://github.com/$RepoOwner/$RepoName/archive/refs/tags/$VersionTag.zip",
+      "https://github.com/$RepoOwner/$RepoName/archive/refs/heads/main.zip"
+    )
+    foreach ($archiveUrl in $archiveUrls) {
+      try {
+        Invoke-WebRequest -Uri $archiveUrl -OutFile $archivePath -UseBasicParsing | Out-Null
+        Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+        $sourceDir = Get-ChildItem -Path $extractRoot -Directory | Select-Object -First 1
+        if ($sourceDir) {
+          Copy-Item -Recurse -Force (Join-Path $sourceDir.FullName "*") $script:SourceFallbackDir
+          return $script:SourceFallbackDir
+        }
+      } catch {
+      }
+    }
+    return $null
   }
 
   function Install-BinaryFromSourceFallback([string]$VersionTag, [string]$StemName, [string]$OutBinaryPath) {
@@ -511,6 +637,7 @@ $triple = if ($HostIsWindows) {
   throw "Unsupported OS for installer"
 }
 $version = Resolve-Version
+$requestedVersion = $version
 
 Write-Host "[infring install] version: $version"
 Write-Host "[infring install] platform: $triple"
@@ -523,6 +650,13 @@ $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($HostIsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
 if ($InstallPure) {
+  if ($RequestedVersion -eq "latest") {
+    $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("protheus-pure-workspace")
+    if ($compatiblePure -and ($compatiblePure -ne $version)) {
+      Write-Host "[infring install] latest release $version does not publish pure prebuilt assets for $triple; using compatible release $compatiblePure"
+      $version = $compatiblePure
+    }
+  }
   $pureInstalled = $false
   if ($InstallTinyMax) {
     $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace-tiny-max" $pureBin
@@ -531,15 +665,24 @@ if ($InstallPure) {
     $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace" $pureBin
   }
   if (-not $pureInstalled) {
-    throw "Failed to download pure workspace binary for $triple ($version)"
+    throw "Failed to install pure workspace binary for $triple ($requestedVersion). No compatible prebuilt asset was found and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
   }
   if ($InstallTinyMax) {
     Write-Host "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
   } else {
     Write-Host "[infring install] pure mode selected: Rust-only client installed"
   }
-} elseif (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
-  throw "Failed to download protheus-ops for $triple ($version)"
+} else {
+  if ($RequestedVersion -eq "latest") {
+    $compatibleOps = Resolve-AssetCompatibleVersionForTriple $triple @("protheus-ops")
+    if ($compatibleOps -and ($compatibleOps -ne $version)) {
+      Write-Host "[infring install] latest release $version does not publish protheus-ops prebuilt assets for $triple; using compatible release $compatibleOps"
+      $version = $compatibleOps
+    }
+  }
+  if (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
+    throw "Failed to install protheus-ops for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+  }
 }
 
 $daemonMode = "spine"

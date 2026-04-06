@@ -72,6 +72,15 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | ie
 infring gateway
 ```
 
+If a release does not publish Windows prebuilt binaries for your architecture, the installer now attempts source fallback automatically. On fresh Windows machines, install prerequisites first if needed:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Rustlang.Rustup -e
+# Optional but often required for MSVC source builds:
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e
+```
+
 ### Verify CLI Is Globally Available
 
 ```bash

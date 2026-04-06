@@ -8,16 +8,17 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
             if skip_duckduckgo_fallback_for_error(&primary_err) {
                 return Err(primary_err);
             }
-            let bing_payload = fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
-                crate::web_conduit::api_search(
-                    root,
-                    &json!({
-                        "query": query,
-                        "provider": "bing",
-                        "summary_only": false
-                    }),
-                )
-            });
+            let bing_payload =
+                fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
+                    crate::web_conduit::api_search(
+                        root,
+                        &json!({
+                            "query": query,
+                            "provider": "bing",
+                            "summary_only": false
+                        }),
+                    )
+                });
             if let Ok(candidate) = candidate_from_search_payload(query, &bing_payload) {
                 return Ok(candidate);
             }
@@ -88,7 +89,15 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
-    let mut score = 0.6 * overlap_norm + locator_bonus + status_bonus + metric_bonus - definition_penalty;
+    let comparison_noise_penalty =
+        if benchmark_intent && looks_like_comparison_noise_candidate(candidate) {
+            0.65
+        } else {
+            0.0
+        };
+    let mut score = 0.6 * overlap_norm + locator_bonus + status_bonus + metric_bonus
+        - definition_penalty
+        - comparison_noise_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
         score -= 0.12;
     }
@@ -134,9 +143,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     };
     let nexus_connection =
-        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
-            "batch_query",
-        ) {
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus("batch_query")
+        {
             Ok(meta) => meta,
             Err(err) => {
                 return json!({
@@ -237,7 +245,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     });
     ranked.truncate(budget.max_evidence);
 
-    let actionable_ranked = ranked
+    let mut actionable_ranked = ranked
         .into_iter()
         .filter(|(row, _)| {
             let snippet = clean_text(&row.snippet, 1_200);
@@ -246,8 +254,30 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !looks_like_low_signal_search_summary(&snippet)
                 && !looks_like_source_only_snippet(&snippet)
                 && !(benchmark_intent && looks_like_definition_candidate(row))
+                && !(benchmark_intent && looks_like_comparison_noise_candidate(row))
         })
         .collect::<Vec<_>>();
+
+    let comparison_entities = if benchmark_intent {
+        comparison_entities_from_query(&query)
+    } else {
+        Vec::new()
+    };
+    let mut comparison_guard_summary = None::<String>;
+    if comparison_entities.len() >= 2 {
+        let coverage_ok = comparison_entities.iter().all(|entity| {
+            actionable_ranked
+                .iter()
+                .any(|(row, _)| candidate_mentions_entity(row, entity))
+        });
+        if !coverage_ok {
+            actionable_ranked.clear();
+            comparison_guard_summary = Some(format!(
+                "Search returned no useful comparison findings for {}.",
+                comparison_entities.join(" vs ")
+            ));
+        }
+    }
 
     let evidence_refs = actionable_ranked
         .iter()
@@ -270,7 +300,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "partial"
     };
     let summary = if evidence_refs.is_empty() {
-        "Search returned no useful information.".to_string()
+        comparison_guard_summary
+            .unwrap_or_else(|| "Search returned no useful information.".to_string())
     } else {
         let mut synthesized_insights = Vec::<String>::new();
         for (candidate, _) in &actionable_ranked {
