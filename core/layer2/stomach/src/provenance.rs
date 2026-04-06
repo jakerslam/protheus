@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/stomach (authoritative)
 
-use crate::quarantine::SnapshotMetadata;
+use crate::quarantine::{FetchMetadata, SnapshotMetadata};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use walkdir::WalkDir;
@@ -18,14 +18,18 @@ pub enum SpdxDecision {
 pub struct ProvenanceRecord {
     pub snapshot_id: String,
     pub origin_url: String,
+    pub fetch_host: String,
+    pub fetched_at: String,
     pub commit_hash: String,
     pub tree_hash: String,
+    pub blob_hashes: Vec<String>,
     pub fetched_refs: Vec<String>,
     pub spdx: Option<String>,
     pub spdx_decision: SpdxDecision,
     pub notice_locations: Vec<String>,
     pub policy_version: String,
     pub analyzer_version: String,
+    pub fetch_receipt_link: String,
     pub receipt_link: String,
 }
 
@@ -69,26 +73,33 @@ pub fn collect_notice_locations(snapshot_root: &Path) -> Vec<String> {
 
 pub fn build_provenance(
     snapshot: &SnapshotMetadata,
-    commit_hash: &str,
-    fetched_refs: Vec<String>,
+    fetch: &FetchMetadata,
     spdx: Option<&str>,
-    policy_version: &str,
     analyzer_version: &str,
     receipt_link: &str,
 ) -> ProvenanceRecord {
+    let blob_hashes = fetch
+        .blob_hashes
+        .iter()
+        .map(|row| format!("{}:{}", row.rel_path, row.sha256))
+        .collect::<Vec<_>>();
     ProvenanceRecord {
         snapshot_id: snapshot.snapshot_id.clone(),
         origin_url: snapshot.origin_url.clone(),
-        commit_hash: commit_hash.trim().to_string(),
+        fetch_host: fetch.host.clone(),
+        fetched_at: fetch.fetched_at.clone(),
+        commit_hash: fetch.commit_hash.trim().to_string(),
         tree_hash: snapshot.tree_hash.clone(),
-        fetched_refs,
+        blob_hashes,
+        fetched_refs: fetch.fetched_refs.clone(),
         spdx: spdx
             .map(|row| row.trim().to_string())
             .filter(|row| !row.is_empty()),
         spdx_decision: classify_spdx(spdx),
         notice_locations: collect_notice_locations(Path::new(&snapshot.quarantine_root)),
-        policy_version: policy_version.trim().to_string(),
+        policy_version: fetch.policy_version.trim().to_string(),
         analyzer_version: analyzer_version.trim().to_string(),
+        fetch_receipt_link: fetch.fetch_receipt_link.clone(),
         receipt_link: receipt_link.trim().to_string(),
     }
 }
@@ -103,6 +114,12 @@ pub fn gate_provenance(record: &ProvenanceRecord) -> Result<(), String> {
     if record.commit_hash.trim().is_empty() {
         return Err("provenance_gate_commit_missing".to_string());
     }
+    if record.blob_hashes.is_empty() {
+        return Err("provenance_gate_blob_hashes_missing".to_string());
+    }
+    if record.fetch_receipt_link.trim().is_empty() {
+        return Err("provenance_gate_fetch_receipt_missing".to_string());
+    }
     if matches!(record.spdx_decision, SpdxDecision::Deny) {
         return Err("provenance_gate_license_denied".to_string());
     }
@@ -112,6 +129,37 @@ pub fn gate_provenance(record: &ProvenanceRecord) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::quarantine::FetchMetadata;
+
+    fn sample_snapshot() -> SnapshotMetadata {
+        SnapshotMetadata {
+            snapshot_id: "snap".to_string(),
+            origin_url: "https://github.com/acme/repo".to_string(),
+            quarantine_root: ".".to_string(),
+            tree_hash: "tree".to_string(),
+            file_count: 1,
+            symlink_count: 0,
+            captured_at: "0".to_string(),
+        }
+    }
+
+    fn sample_fetch() -> FetchMetadata {
+        FetchMetadata {
+            snapshot_id: "snap".to_string(),
+            origin_url: "https://github.com/acme/repo".to_string(),
+            host: "github.com".to_string(),
+            commit_hash: "abc123".to_string(),
+            fetched_refs: vec!["refs/heads/main".to_string()],
+            policy_version: "policy-v1".to_string(),
+            fetch_network_allowed: true,
+            fetched_at: "1".to_string(),
+            fetch_receipt_link: "receipt:snap:fetch".to_string(),
+            blob_hashes: vec![crate::quarantine::BlobHash {
+                rel_path: "a.rs".to_string(),
+                sha256: "hash".to_string(),
+            }],
+        }
+    }
 
     #[test]
     fn spdx_gate_denies_gpl_like_licenses() {
@@ -121,5 +169,29 @@ mod tests {
     #[test]
     fn spdx_gate_allows_mit() {
         assert_eq!(classify_spdx(Some("MIT")), SpdxDecision::Allow);
+    }
+
+    #[test]
+    fn provenance_gate_requires_blob_and_fetch_receipt() {
+        let snapshot = sample_snapshot();
+        let mut fetch = sample_fetch();
+        fetch.blob_hashes.clear();
+        let blocked = build_provenance(
+            &snapshot,
+            &fetch,
+            Some("MIT"),
+            "analyzer-v1",
+            "receipt:snap:prov",
+        );
+        assert!(gate_provenance(&blocked).is_err());
+
+        let ok_record = build_provenance(
+            &snapshot,
+            &sample_fetch(),
+            Some("MIT"),
+            "analyzer-v1",
+            "receipt:snap:prov",
+        );
+        assert!(gate_provenance(&ok_record).is_ok());
     }
 }

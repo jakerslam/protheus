@@ -113,6 +113,7 @@ pub fn generate_proposal(
     snapshot: &SnapshotMetadata,
     snapshot_root: &Path,
     request: &TransformRequest,
+    craving_signals: &[String],
     parent_receipt_ids: &[String],
     transformer_version: &str,
 ) -> Result<ProposalBundle, String> {
@@ -141,6 +142,21 @@ pub fn generate_proposal(
     }
     .to_string();
 
+    let mut contributing = vec![
+        "deterministic_analysis".to_string(),
+        "advisory_cravings".to_string(),
+        "policy_gated_transforms".to_string(),
+    ];
+    for signal in craving_signals {
+        let trimmed = signal.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        contributing.push(format!("craving:{trimmed}"));
+    }
+    contributing.sort();
+    contributing.dedup();
+
     Ok(ProposalBundle {
         proposal_id,
         snapshot_id: snapshot.snapshot_id.clone(),
@@ -148,11 +164,7 @@ pub fn generate_proposal(
         target_path_set: targets,
         diff_hash,
         rationale,
-        contributing_features: vec![
-            "deterministic_analysis".to_string(),
-            "advisory_cravings".to_string(),
-            "policy_gated_transforms".to_string(),
-        ],
+        contributing_features: contributing,
         notices_license_implications: vec![
             "verify retained third-party notices in final merge".to_string(),
             "license gate required before merge approval".to_string(),
@@ -217,11 +229,16 @@ mod tests {
             &snapshot,
             root.path(),
             &req,
+            &["ast_similarity".to_string()],
             &["r1".to_string()],
             "transform-v1",
         )
         .expect("proposal");
         validate_proposal_bundle(&bundle).expect("valid");
         assert!(!bundle.diff_hash.is_empty());
+        assert!(bundle
+            .contributing_features
+            .iter()
+            .any(|row| row == "craving:ast_similarity"));
     }
 }

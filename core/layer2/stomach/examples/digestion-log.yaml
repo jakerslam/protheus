@@ -1,3 +1,15 @@
+- receipt_id: "receipt:stomach-demo:fetch"
+  phase: "fetched"
+  digest_id: "stomach-demo"
+  snapshot_id: "stomach-demo"
+  origin_url: "https://github.com/acme/stomach-demo"
+  host: "github.com"
+  fetched_refs:
+    - "refs/heads/main"
+  blob_hash_count: 42
+  policy_version: "stomach_policy_v1"
+  ts: "2026-04-05T12:36:49Z"
+
 - receipt_id: "receipt:stomach-demo:ingested"
   phase: "ingested"
   digest_id: "stomach-demo"

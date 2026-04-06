@@ -20,7 +20,10 @@ pub struct RetentionRecord {
     pub state: RetentionState,
     pub hold_reason: Option<String>,
     pub retained_until: Option<String>,
+    pub explicit_purge_approval_receipt: Option<String>,
     pub referenced_by_receipts: Vec<String>,
+    pub referenced_by_benchmarks: Vec<String>,
+    pub referenced_by_proposals: Vec<String>,
 }
 
 impl RetentionRecord {
@@ -30,7 +33,10 @@ impl RetentionRecord {
             state: RetentionState::Retained,
             hold_reason: None,
             retained_until: None,
+            explicit_purge_approval_receipt: None,
             referenced_by_receipts: Vec::new(),
+            referenced_by_benchmarks: Vec::new(),
+            referenced_by_proposals: Vec::new(),
         }
     }
 }
@@ -40,8 +46,18 @@ impl RetentionRecord {
 pub enum RetentionEvent {
     PlaceHold { reason: String },
     ReleaseHold,
+    SetRetainedUntil { epoch_secs: u64 },
+    ApprovePurge { receipt_id: String },
     MarkEligibleForPurge,
     PurgeRequested,
+}
+
+fn now_epoch_secs() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 pub fn transition_retention(
@@ -62,9 +78,26 @@ pub fn transition_retention(
             record.hold_reason = None;
             Ok(())
         }
+        RetentionEvent::SetRetainedUntil { epoch_secs } => {
+            record.retained_until = Some(epoch_secs.to_string());
+            Ok(())
+        }
+        RetentionEvent::ApprovePurge { receipt_id } => {
+            if receipt_id.trim().is_empty() {
+                return Err("retention_approve_missing_receipt".to_string());
+            }
+            record.explicit_purge_approval_receipt = Some(receipt_id);
+            Ok(())
+        }
         RetentionEvent::MarkEligibleForPurge => {
             if record.state == RetentionState::Purged {
                 return Err("retention_already_purged".to_string());
+            }
+            if record.hold_reason.is_some() {
+                return Err("retention_mark_eligible_blocked_by_hold".to_string());
+            }
+            if !retention_ttl_elapsed(record, now_epoch_secs()) {
+                return Err("retention_mark_eligible_ttl_not_elapsed".to_string());
             }
             record.state = RetentionState::EligibleForPurge;
             Ok(())
@@ -78,12 +111,33 @@ pub fn transition_retention(
     }
 }
 
-pub fn can_physically_purge(record: &RetentionRecord) -> bool {
-    record.state == RetentionState::EligibleForPurge && record.referenced_by_receipts.is_empty()
+pub fn retention_ttl_elapsed(record: &RetentionRecord, now_epoch_secs: u64) -> bool {
+    let Some(raw) = record.retained_until.as_deref() else {
+        return false;
+    };
+    raw.trim()
+        .parse::<u64>()
+        .ok()
+        .map(|deadline| now_epoch_secs >= deadline)
+        .unwrap_or(false)
 }
 
-pub fn purge_artifact_path(path: &Path, record: &mut RetentionRecord) -> Result<(), String> {
-    if !can_physically_purge(record) {
+pub fn can_physically_purge(record: &RetentionRecord, now_epoch_secs: u64) -> bool {
+    record.state == RetentionState::EligibleForPurge
+        && record.hold_reason.is_none()
+        && record.explicit_purge_approval_receipt.is_some()
+        && retention_ttl_elapsed(record, now_epoch_secs)
+        && record.referenced_by_receipts.is_empty()
+        && record.referenced_by_benchmarks.is_empty()
+        && record.referenced_by_proposals.is_empty()
+}
+
+pub fn purge_artifact_path(
+    path: &Path,
+    record: &mut RetentionRecord,
+    now_epoch_secs: u64,
+) -> Result<(), String> {
+    if !can_physically_purge(record, now_epoch_secs) {
         return Err("retention_purge_denied".to_string());
     }
     if path.exists() {
@@ -102,9 +156,23 @@ mod tests {
     fn purge_requires_eligible_state_and_no_receipt_links() {
         let dir = tempdir().expect("tmp");
         let mut record = RetentionRecord::new("x");
-        assert!(purge_artifact_path(dir.path(), &mut record).is_err());
+        assert!(purge_artifact_path(dir.path(), &mut record, now_epoch_secs()).is_err());
+        transition_retention(
+            &mut record,
+            RetentionEvent::SetRetainedUntil {
+                epoch_secs: now_epoch_secs().saturating_sub(1),
+            },
+        )
+        .expect("set ttl");
+        transition_retention(
+            &mut record,
+            RetentionEvent::ApprovePurge {
+                receipt_id: "receipt:x:approve".to_string(),
+            },
+        )
+        .expect("approve");
         transition_retention(&mut record, RetentionEvent::MarkEligibleForPurge).expect("eligible");
-        purge_artifact_path(dir.path(), &mut record).expect("purged");
+        purge_artifact_path(dir.path(), &mut record, now_epoch_secs()).expect("purged");
         assert_eq!(record.state, RetentionState::Purged);
     }
 }

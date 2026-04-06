@@ -3374,6 +3374,223 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
     )
 }
 
+fn parse_tool_input_payload(raw_input: &str) -> Value {
+    let cleaned = clean_text(raw_input, 12_000);
+    if cleaned.is_empty() {
+        return Value::Null;
+    }
+    serde_json::from_str::<Value>(&cleaned).unwrap_or_else(|_| Value::String(cleaned))
+}
+
+fn tool_payload_count(payload: &Value, keys: &[&str]) -> usize {
+    for key in keys {
+        let Some(value) = payload.get(*key) else {
+            continue;
+        };
+        match value {
+            Value::Array(rows) => {
+                if !rows.is_empty() {
+                    return rows.len().min(99);
+                }
+            }
+            Value::Number(number) => {
+                if let Some(raw) = number.as_u64() {
+                    let bounded = raw.min(99) as usize;
+                    if bounded > 0 {
+                        return bounded;
+                    }
+                }
+            }
+            Value::String(text) => {
+                if !text.trim().is_empty() {
+                    return 1;
+                }
+            }
+            Value::Object(map) => {
+                if !map.is_empty() {
+                    return 1;
+                }
+            }
+            Value::Bool(flag) => {
+                if *flag {
+                    return 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    0
+}
+
+fn tool_completion_status_for_tool(tool_name: &str, tool_input: &str) -> String {
+    let normalized = normalize_tool_name(tool_name);
+    if normalized == "thought_process" {
+        return "Thinking".to_string();
+    }
+    let payload = parse_tool_input_payload(tool_input);
+    let status = match normalized.as_str() {
+        "batch_query" | "web_search" | "search_web" | "search" | "web_query" => {
+            "Searching internet".to_string()
+        }
+        "web_fetch" | "browse" | "web_conduit_fetch" => "Reading web pages".to_string(),
+        "file_read" | "read_file" | "file" => {
+            let count =
+                tool_payload_count(&payload, &["paths", "files", "file_paths", "targets", "path", "file"]);
+            if count > 1 {
+                format!("Scanning {count} files")
+            } else if count == 1 {
+                "Scanning 1 file".to_string()
+            } else {
+                "Scanning files".to_string()
+            }
+        }
+        "file_read_many" => {
+            let count = tool_payload_count(&payload, &["paths", "files", "file_paths", "targets"]);
+            if count > 1 {
+                format!("Scanning {count} files")
+            } else if count == 1 {
+                "Scanning 1 file".to_string()
+            } else {
+                "Scanning files".to_string()
+            }
+        }
+        "folder_export" | "list_folder" | "folder_tree" | "folder" => {
+            let count = tool_payload_count(&payload, &["folders", "paths", "targets", "path", "folder"]);
+            if count > 1 {
+                format!("Scanning {count} folders")
+            } else if count == 1 {
+                "Scanning 1 folder".to_string()
+            } else {
+                "Scanning folders".to_string()
+            }
+        }
+        "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => {
+            "Running terminal command".to_string()
+        }
+        "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
+            let count = tool_payload_count(&payload, &["count", "agent_count", "num_agents", "agents"]);
+            if count > 0 {
+                format!("Summoning {count} agents")
+            } else {
+                "Summoning agents".to_string()
+            }
+        }
+        "memory_semantic_query" => "Searching memory".to_string(),
+        "cron_schedule" => "Scheduling follow-up work".to_string(),
+        "cron_run" => "Running scheduled work".to_string(),
+        "cron_list" => "Checking schedules".to_string(),
+        "session_rollback_last_turn" => "Rewinding the last turn".to_string(),
+        _ => {
+            let cleaned = normalized.replace('_', " ");
+            if cleaned.is_empty() {
+                "Running tool".to_string()
+            } else {
+                format!("Running {cleaned}")
+            }
+        }
+    };
+    clean_text(&status, 180)
+}
+
+fn tool_completion_live_steps(response_tools: &[Value]) -> Vec<Value> {
+    let mut out = Vec::<Value>::new();
+    for tool in response_tools {
+        let name = normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"));
+        if name.is_empty() || name == "thought_process" {
+            continue;
+        }
+        let input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 12_000);
+        let status = tool_completion_status_for_tool(&name, &input);
+        if status.is_empty() {
+            continue;
+        }
+        out.push(json!({
+            "tool": name,
+            "status": status,
+            "is_error": tool
+                .get("is_error")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        }));
+        if out.len() >= 16 {
+            break;
+        }
+    }
+    out
+}
+
+fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Value]) -> Value {
+    let mut enriched = if tool_completion.is_object() {
+        tool_completion
+    } else {
+        json!({})
+    };
+    let steps = tool_completion_live_steps(response_tools);
+    let live_tool_status = steps
+        .first()
+        .and_then(|row| row.get("status"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    enriched["live_tool_status"] = json!(clean_text(&live_tool_status, 180));
+    enriched["live_tool_steps"] = Value::Array(steps);
+    enriched["live_status_source"] = json!("tool_completion_receipt_v1");
+    enriched
+}
+
+#[cfg(test)]
+mod tool_completion_live_status_tests {
+    use super::*;
+
+    #[test]
+    fn builds_live_status_for_known_tools() {
+        let tools = vec![json!({
+            "name": "web_search",
+            "input": "{\"query\":\"latest stack\"}",
+            "result": "ok",
+            "is_error": false
+        })];
+        let enriched = enrich_tool_completion_receipt(json!({"completion_state":"reported_findings"}), &tools);
+        assert_eq!(
+            enriched
+                .get("live_tool_status")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            "Searching internet"
+        );
+        let steps = enriched
+            .get("live_tool_steps")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(steps.len(), 1);
+    }
+
+    #[test]
+    fn skips_thought_process_for_live_status() {
+        let tools = vec![json!({
+            "name": "thought_process",
+            "input": "Thinking about next step.",
+            "result": "",
+            "is_error": false
+        })];
+        let enriched = enrich_tool_completion_receipt(json!({"completion_state":"reported_reason"}), &tools);
+        let steps = enriched
+            .get("live_tool_steps")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(steps.is_empty());
+        assert_eq!(
+            enriched
+                .get("live_tool_status")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            ""
+        );
+    }
+}
+
 fn context_keyframes_prompt_context(
     state: &Value,
     max_keyframes: usize,
@@ -6288,6 +6505,20 @@ fn execute_tool_call_with_recovery(
     {
         return blocked;
     }
+    let nexus_connection =
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(tool_name) {
+            Ok(meta) => meta,
+            Err(err) => {
+                return json!({
+                    "ok": false,
+                    "error": "tool_nexus_delivery_denied",
+                    "message": "Tool execution blocked by hierarchical nexus ingress policy.",
+                    "tool": normalize_tool_name(tool_name),
+                    "fail_closed": true,
+                    "nexus_error": clean_text(&err, 240)
+                })
+            }
+        };
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
     let mut recovery_strategy = "none".to_string();
@@ -6349,6 +6580,9 @@ fn execute_tool_call_with_recovery(
             Value::String(audit_receipt),
         );
         obj.insert("recovery_attempts".to_string(), json!(recovery_attempts));
+        if let Some(meta) = nexus_connection {
+            obj.insert("nexus_connection".to_string(), meta);
+        }
     }
     payload
 }
@@ -8046,6 +8280,7 @@ pub fn handle_with_headers(
                         180,
                     );
                 }
+                tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
                 let final_ack_only =
                     response_looks_like_tool_ack_without_findings(&finalized_response);
                 response_text = finalized_response;
@@ -8715,6 +8950,8 @@ pub fn handle_with_headers(
                         enforce_tool_completion_contract(finalized_response, &response_tools);
                     finalized_response = contract_finalized;
                     tool_completion = contract_report;
+                    tool_completion =
+                        enrich_tool_completion_receipt(tool_completion, &response_tools);
                     finalization_outcome = clean_text(
                         tool_completion
                             .get("outcome")
@@ -8985,6 +9222,8 @@ pub fn handle_with_headers(
                 })];
                 let (message, tool_completion) =
                     enforce_tool_completion_contract(tool_summary, &response_tools);
+                let tool_completion =
+                    enrich_tool_completion_receipt(tool_completion, &response_tools);
                 return Some(CompatApiResponse {
                     status: if ok { 200 } else { 400 },
                     payload: json!({
