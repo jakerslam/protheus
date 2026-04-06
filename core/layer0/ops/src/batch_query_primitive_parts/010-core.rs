@@ -293,8 +293,25 @@ fn normalize_instructional_query(query: &str) -> Option<String> {
     }
 }
 
+fn deictic_framework_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\bthis\s+(?:framework|system|platform|stack|agent\s+framework)\b")
+            .expect("deictic-framework")
+    })
+}
+
+fn resolve_deictic_framework_reference(query: &str) -> String {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    let replaced = deictic_framework_regex().replace_all(&cleaned, "infring");
+    clean_text(replaced.as_ref(), 600)
+}
+
 fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<String>, bool) {
-    let base = clean_text(query, 600);
+    let base = resolve_deictic_framework_reference(query);
     if base.is_empty() {
         return (Vec::new(), Vec::new(), false);
     }
@@ -303,7 +320,8 @@ fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<St
         return (vec![base], Vec::new(), false);
     }
     let rewrite = if looks_like_instructional_query(&base) {
-        normalize_instructional_query(&base).unwrap_or_else(|| clean_text(&format!("{base} overview"), 600))
+        normalize_instructional_query(&base)
+            .unwrap_or_else(|| clean_text(&format!("{base} overview"), 600))
     } else {
         clean_text(&format!("{base} overview"), 600)
     };
@@ -394,11 +412,77 @@ fn is_benchmark_or_comparison_intent(query: &str) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
+fn comparison_entities_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\bcompare\s+([a-z0-9._-]+(?:\s+[a-z0-9._-]+){0,3})\s+(?:to|with|against|vs\.?|versus)\s+([a-z0-9._-]+(?:\s+[a-z0-9._-]+){0,3})",
+        )
+        .expect("comparison-entities")
+    })
+}
+
+fn normalize_entity_phrase(raw: &str) -> String {
+    let phrase = clean_text(raw, 120)
+        .split_whitespace()
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    clean_text(&phrase, 120)
+}
+
+fn comparison_entities_from_query(query: &str) -> Vec<String> {
+    let resolved = resolve_deictic_framework_reference(query);
+    if !is_benchmark_or_comparison_intent(&resolved) {
+        return Vec::new();
+    }
+    let lowered = resolved.to_ascii_lowercase();
+    if let Some(caps) = comparison_entities_regex().captures(&lowered) {
+        let mut rows = Vec::new();
+        if let Some(left) = caps.get(1) {
+            let entity = normalize_entity_phrase(left.as_str());
+            if !entity.is_empty() {
+                rows.push(entity);
+            }
+        }
+        if let Some(right) = caps.get(2) {
+            let entity = normalize_entity_phrase(right.as_str());
+            if !entity.is_empty() && !rows.iter().any(|row| row == &entity) {
+                rows.push(entity);
+            }
+        }
+        if rows.len() >= 2 {
+            return rows;
+        }
+    }
+    let mut entities = Vec::<String>::new();
+    for known in [
+        "infring",
+        "openclaw",
+        "langgraph",
+        "autogen",
+        "crewai",
+        "haystack",
+        "llamaindex",
+        "aider",
+    ] {
+        if lowered.contains(known) {
+            entities.push(known.to_string());
+        }
+    }
+    entities.sort();
+    entities.dedup();
+    entities
+}
+
 fn metric_number_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
-        Regex::new(r"(?i)\b\d+(?:\.\d+)?\s*(?:%|ms|s|sec|seconds|minutes|x|qps|tps|ops/?sec|tokens/?s)\b")
-            .expect("metric-number")
+        Regex::new(
+            r"(?i)\b\d+(?:\.\d+)?\s*(?:%|ms|s|sec|seconds|minutes|x|qps|tps|ops/?sec|tokens/?s)\b",
+        )
+        .expect("metric-number")
     })
 }
 
@@ -433,7 +517,10 @@ fn looks_like_metric_rich_text(text: &str) -> bool {
 
 fn looks_like_definition_candidate(candidate: &Candidate) -> bool {
     let lowered = clean_text(
-        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
         2_400,
     )
     .to_ascii_lowercase();
@@ -449,6 +536,48 @@ fn looks_like_definition_candidate(candidate: &Candidate) -> bool {
     ]
     .iter()
     .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_comparison_noise_candidate(candidate: &Candidate) -> bool {
+    let lowered = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    let low_quality_domain = [
+        "wordreference.com",
+        "forum.wordreference.com",
+        "wiktionary.org",
+        "grammar",
+        "english usage",
+        "merriam-webster",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    let noisy_compare_form = lowered.contains("compare [a with b]")
+        || lowered.contains("compare a with b")
+        || lowered.contains("vs compare")
+        || lowered.contains("wordreference forums");
+    low_quality_domain || noisy_compare_form
+}
+
+fn candidate_mentions_entity(candidate: &Candidate, entity: &str) -> bool {
+    let needle = clean_text(entity, 80).to_ascii_lowercase();
+    if needle.is_empty() {
+        return false;
+    }
+    let haystack = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    haystack.contains(&needle)
 }
 
 fn extract_metric_focused_fragment(text: &str) -> String {
@@ -469,10 +598,16 @@ fn extract_metric_focused_fragment(text: &str) -> String {
 }
 
 fn candidate_domain_hint(candidate: &Candidate) -> String {
-    if let Some(domain) = extract_domains_from_text(&candidate.locator, 1).into_iter().next() {
+    if let Some(domain) = extract_domains_from_text(&candidate.locator, 1)
+        .into_iter()
+        .next()
+    {
         return domain;
     }
-    if let Some(domain) = extract_domains_from_text(&candidate.title, 1).into_iter().next() {
+    if let Some(domain) = extract_domains_from_text(&candidate.title, 1)
+        .into_iter()
+        .next()
+    {
         return domain;
     }
     "source".to_string()
