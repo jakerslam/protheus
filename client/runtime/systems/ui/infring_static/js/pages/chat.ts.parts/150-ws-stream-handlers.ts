@@ -180,13 +180,30 @@
           this._clearTypingTimeout();
           this._clearStreamingTypewriters();
           this.applyContextTelemetry(data);
-          var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
-          if (!wsAutoSwitchPrevious) wsAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
+          var wsAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim(); if (!wsAutoSwitchPrevious) wsAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
           var wsRoute = this.applyAutoRouteTelemetry(data);
           var envelope = this.collectStreamedAssistantEnvelope();
           var streamedText = envelope.text;
           var streamedTools = envelope.tools;
           var streamedThought = envelope.thought;
+          var responseTools = Array.isArray(data.tools) ? data.tools.map(function(t, idx) {
+            return {
+              id: (t && t.id) || ('ws-tool-' + Date.now() + '-' + idx),
+              name: (t && t.name) || (t && t.tool) || 'tool',
+              running: false,
+              expanded: false,
+              input: (t && t.input) || (t && t.arguments) || '',
+              result: (t && t.result) || (t && t.output) || '',
+              is_error: !!(t && (t.is_error || t.error || t.blocked))
+            };
+          }) : [];
+          if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
+          if (!streamedThought && responseTools.length) {
+            var thoughtTool = responseTools.find(function(rtool) {
+              return !!(rtool && String(rtool.name || '').toLowerCase() === 'thought_process');
+            });
+            if (thoughtTool) streamedThought = String(thoughtTool.input || thoughtTool.result || '').trim();
+          }
           streamedTools.forEach(function(t) {
             t.running = false;
             if (t.id && t.id.indexOf('-txt-') !== -1 && !t.result) {
@@ -203,8 +220,7 @@
           if (!wsDurationMs && this._responseStartedAt) {
             wsDurationMs = Math.max(0, Date.now() - this._responseStartedAt);
           }
-          var wsDuration = this.formatResponseDuration(wsDurationMs);
-          if (wsDuration) meta += ' | ' + wsDuration;
+          var wsDuration = this.formatResponseDuration(wsDurationMs); if (wsDuration) meta += ' | ' + wsDuration;
           var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
           if (wsRouteMeta) meta += ' | ' + wsRouteMeta;
           var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
@@ -233,7 +249,7 @@
           if (maybePlaceholder) {
             finalText = '';
           }
-          if (collapsedThought) {
+          if (collapsedThought && !streamedTools.some(function(tool) { return !!(tool && String(tool.name || '').toLowerCase() === 'thought_process'); })) {
             streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
           }
           var usedFallback = false;

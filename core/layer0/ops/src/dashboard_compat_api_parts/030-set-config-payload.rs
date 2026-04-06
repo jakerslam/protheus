@@ -530,8 +530,8 @@ fn recall_prefers_earliest(user_message: &str) -> bool {
 }
 
 fn recall_message_candidate(row: &Value, require_remember_term: bool) -> Option<String> {
-    let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 20)
-        .to_ascii_lowercase();
+    let role =
+        clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 20).to_ascii_lowercase();
     if role != "user" {
         return None;
     }
@@ -592,7 +592,8 @@ fn build_memory_recall_response(state: &Value, pooled_messages: &[Value], messag
     let mut remembered =
         collect_user_recall_messages(&active_history_messages, prefer_earliest, true, 4);
     if remembered.is_empty() {
-        remembered = collect_user_recall_messages(&active_history_messages, prefer_earliest, false, 4);
+        remembered =
+            collect_user_recall_messages(&active_history_messages, prefer_earliest, false, 4);
     }
     if remembered.is_empty() {
         remembered = collect_user_recall_messages(pooled_messages, prefer_earliest, true, 3);
@@ -603,7 +604,10 @@ fn build_memory_recall_response(state: &Value, pooled_messages: &[Value], messag
     if remembered.is_empty() {
         "I don't have enough earlier context to reference yet. Share what you want me to track, and I'll carry it forward.".to_string()
     } else {
-        format!("Here's what I remember from earlier: {}", remembered.join(" | "))
+        format!(
+            "Here's what I remember from earlier: {}",
+            remembered.join(" | ")
+        )
     }
 }
 
@@ -817,6 +821,146 @@ fn split_model_ref(
         cleaned
     };
     (provider, model)
+}
+
+fn parse_i64_loose(value: Option<&Value>) -> i64 {
+    value
+        .and_then(|row| {
+            row.as_i64()
+                .or_else(|| row.as_u64().map(|num| num as i64))
+                .or_else(|| {
+                    row.as_str()
+                        .and_then(|text| clean_text(text, 40).parse::<i64>().ok())
+                })
+        })
+        .unwrap_or(0)
+        .max(0)
+}
+
+fn selected_model_param_count_billion(
+    root: &Path,
+    snapshot: &Value,
+    provider_hint: &str,
+    model_hint: &str,
+) -> i64 {
+    let provider_seed = clean_text(provider_hint, 80);
+    let model_seed = clean_text(model_hint, 200);
+    if model_seed.is_empty() {
+        return 0;
+    }
+    let (resolved_provider, resolved_model) =
+        split_model_ref(&model_seed, &provider_seed, &model_seed);
+    let provider_key = clean_text(&resolved_provider, 80).to_ascii_lowercase();
+    let model_key = clean_text(&resolved_model, 200).to_ascii_lowercase();
+    if model_key.is_empty() {
+        return 0;
+    }
+    let mut requested_refs = HashSet::<String>::new();
+    requested_refs.insert(model_key.clone());
+    if let Some(last) = model_key.rsplit('/').next() {
+        if !last.is_empty() {
+            requested_refs.insert(last.to_string());
+        }
+    }
+    if !provider_key.is_empty() && provider_key != "auto" {
+        requested_refs.insert(format!("{provider_key}/{model_key}"));
+        if let Some(last) = model_key.rsplit('/').next() {
+            if !last.is_empty() {
+                requested_refs.insert(format!("{provider_key}/{last}"));
+            }
+        }
+    }
+
+    let mut best = 0_i64;
+    for provider_row in crate::dashboard_provider_runtime::provider_rows(root, snapshot) {
+        let row_provider = clean_text(
+            provider_row
+                .get("id")
+                .or_else(|| provider_row.get("provider"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        if !provider_key.is_empty() && provider_key != "auto" && row_provider != provider_key {
+            continue;
+        }
+        let profiles = provider_row
+            .get("model_profiles")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        for (name, profile) in profiles {
+            let profile_model = clean_text(&name, 200).to_ascii_lowercase();
+            if profile_model.is_empty() {
+                continue;
+            }
+            let profile_refs = [
+                profile_model.clone(),
+                if row_provider.is_empty() {
+                    profile_model.clone()
+                } else {
+                    format!("{}/{}", row_provider, profile_model)
+                },
+            ];
+            if !profile_refs
+                .iter()
+                .any(|candidate| requested_refs.contains(candidate))
+            {
+                continue;
+            }
+            let params = parse_i64_loose(profile.get("param_count_billion"))
+                .max(parse_i64_loose(profile.get("params_billion")));
+            if params > best {
+                best = params;
+            }
+        }
+    }
+    if best > 0 {
+        return best;
+    }
+
+    let catalog_rows = crate::dashboard_model_catalog::catalog_payload(root, snapshot)
+        .get("models")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in catalog_rows {
+        let row_provider = clean_text(
+            row.get("provider").and_then(Value::as_str).unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        if !provider_key.is_empty() && provider_key != "auto" && row_provider != provider_key {
+            continue;
+        }
+        let row_model = clean_text(
+            row.get("model")
+                .or_else(|| row.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            200,
+        )
+        .to_ascii_lowercase();
+        if row_model.is_empty() || !requested_refs.contains(&row_model) {
+            continue;
+        }
+        let params = parse_i64_loose(row.get("params_billion"))
+            .max(parse_i64_loose(row.get("param_count_billion")));
+        if params > best {
+            best = params;
+        }
+    }
+    best
+}
+
+fn selected_model_supports_self_naming(
+    root: &Path,
+    snapshot: &Value,
+    provider_hint: &str,
+    model_hint: &str,
+) -> bool {
+    selected_model_param_count_billion(root, snapshot, provider_hint, model_hint) >= 80
 }
 
 fn parse_manifest_fields(manifest_toml: &str) -> HashMap<String, String> {
@@ -2830,22 +2974,57 @@ fn passive_attention_context_for_message(
 
 fn response_contains_project_dump_sections(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let markers = ["project overview", "data source", "tools used", "key features", "sql queries", "future work", "how to use"];
-    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
+    let markers = [
+        "project overview",
+        "data source",
+        "tools used",
+        "key features",
+        "sql queries",
+        "future work",
+        "how to use",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     hits >= 2
 }
 
 fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let noisy_markers = ["at duckduckgo all regions", "duckduckgo all regions", "all regions argentina", "all regions australia", "spawn_subagents failed:", "tool_explicit_signoff_required", "tool_confirmation_required"];
-    let hits = noisy_markers.iter().filter(|marker| lowered.contains(**marker)).count();
+    let noisy_markers = [
+        "at duckduckgo all regions",
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "spawn_subagents failed:",
+        "tool_explicit_signoff_required",
+        "tool_confirmation_required",
+    ];
+    let hits = noisy_markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     hits >= 2
 }
 
 fn response_contains_peer_review_template_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let markers = ["aiffel campus online", "peerreviewtemplate", "prt(peerreviewtemplate)", "코더", "리뷰어", "각 항목을 스스로 확인", "코드가 정상적으로 동작", "chatbotdata.csv", "tensorflow.keras"];
-    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
+    let markers = [
+        "aiffel campus online",
+        "peerreviewtemplate",
+        "prt(peerreviewtemplate)",
+        "코더",
+        "리뷰어",
+        "각 항목을 스스로 확인",
+        "코드가 정상적으로 동작",
+        "chatbotdata.csv",
+        "tensorflow.keras",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     hits >= 2
 }
 
@@ -2920,14 +3099,6 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     }
     if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
         return true;
-    }
-    if lowered.contains("no usable findings")
-        || lowered.contains("couldn't extract reliable findings")
-        || lowered.contains("could not extract reliable findings")
-        || lowered.contains("couldn't extract usable findings")
-        || lowered.contains("could not extract usable findings")
-    {
-        return false;
     }
     let token_count = lowered.split_whitespace().count();
     let mentions_tooling = lowered.contains("search")
@@ -3590,7 +3761,8 @@ fn context_command_payload(
         .or_else(|| request.get("min_recent_messages"))
         .and_then(Value::as_u64)
         .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
-        .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
+        .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
+        as usize;
     let row_auto_compact_threshold_ratio = row
         .get("auto_compact_threshold_ratio")
         .and_then(Value::as_f64)
@@ -3636,7 +3808,8 @@ fn context_command_payload(
             .or_else(|| request.get("min_recent_messages"))
             .and_then(Value::as_u64)
             .unwrap_or(active_context_min_recent as u64)
-            .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
+            .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
+            as usize;
         let emergency_messages = select_active_context_window(
             &pooled_messages,
             emergency_target_tokens,
@@ -4243,6 +4416,88 @@ fn comparative_no_findings_fallback(message: &str) -> String {
     "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()
 }
 
+fn message_requests_tooling_failure_diagnosis(message: &str) -> bool {
+    let lowered = clean_text(message, 500).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let asks_about_tooling = lowered.contains("tooling")
+        || lowered.contains("tool")
+        || lowered.contains("web search")
+        || lowered.contains("web fetch")
+        || lowered.contains("search");
+    let asks_failure = lowered.contains("broken")
+        || lowered.contains("failing")
+        || lowered.contains("failed")
+        || lowered.contains("not working")
+        || lowered.contains("isn't working")
+        || lowered.contains("isnt working")
+        || lowered.contains("failure mode")
+        || lowered.contains("root cause")
+        || lowered.contains("why")
+        || lowered.contains("fix");
+    asks_about_tooling && asks_failure
+}
+
+fn normalize_placeholder_signature(text: &str) -> String {
+    clean_text(text, 800)
+        .to_ascii_lowercase()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn latest_assistant_message_text(messages: &[Value]) -> String {
+    for row in messages.iter().rev() {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if role != "assistant" {
+            continue;
+        }
+        let text = clean_text(
+            row.get("text")
+                .or_else(|| row.get("content"))
+                .or_else(|| row.get("message"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2_000,
+        );
+        if !text.is_empty() {
+            return text;
+        }
+    }
+    String::new()
+}
+
+fn tooling_failure_diagnostic_fallback() -> String {
+    "Web/search tooling is partially working: retrieval ran, but this turn returned low-signal output (search-engine chrome or parse miss) instead of usable findings. This is usually extraction/parsing drift, not a total outage. Next step: rerun with `batch_query` and a narrower query (or give one source URL for `web_fetch`). If it keeps repeating, run `infringctl doctor --json` and share the output so I can pinpoint the failing lane."
+        .to_string()
+}
+
+fn maybe_tooling_failure_fallback(
+    message: &str,
+    finalized_response: &str,
+    latest_assistant_response: &str,
+) -> Option<String> {
+    if !response_is_no_findings_placeholder(finalized_response)
+        && !response_looks_like_tool_ack_without_findings(finalized_response)
+    {
+        return None;
+    }
+    let asks_diagnosis = message_requests_tooling_failure_diagnosis(message);
+    let repeated_placeholder = !latest_assistant_response.trim().is_empty()
+        && response_is_no_findings_placeholder(latest_assistant_response)
+        && normalize_placeholder_signature(latest_assistant_response)
+            == normalize_placeholder_signature(finalized_response);
+    if asks_diagnosis || repeated_placeholder {
+        return Some(tooling_failure_diagnostic_fallback());
+    }
+    None
+}
+
 fn response_looks_like_raw_web_artifact_dump(text: &str) -> bool {
     let cleaned = clean_text(text, 4_000);
     if cleaned.is_empty() {
@@ -4260,7 +4515,8 @@ fn response_looks_like_raw_web_artifact_dump(text: &str) -> bool {
     if looks_like_placeholder_fetch_content(&cleaned, "") {
         return true;
     }
-    if looks_like_navigation_chrome_payload(&cleaned) || looks_like_search_engine_chrome_summary(&cleaned)
+    if looks_like_navigation_chrome_payload(&cleaned)
+        || looks_like_search_engine_chrome_summary(&cleaned)
     {
         return true;
     }
@@ -5719,10 +5975,24 @@ fn looks_like_navigation_chrome_payload(text: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    let marker_count = ["skip to content", "home", "news", "sport", "business", "technology", "health", "culture", "travel", "audio", "video", "live", "all regions"]
-        .iter()
-        .filter(|marker| lowered.contains(**marker))
-        .count();
+    let marker_count = [
+        "skip to content",
+        "home",
+        "news",
+        "sport",
+        "business",
+        "technology",
+        "health",
+        "culture",
+        "travel",
+        "audio",
+        "video",
+        "live",
+        "all regions",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
     marker_count >= 5 && lowered.split_whitespace().count() >= 14
 }
 
@@ -5753,8 +6023,14 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
             .unwrap_or(""),
         2200,
     );
-    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 4_000);
-    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        4_000,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        4_000,
+    );
     let body = if summary.is_empty() {
         content.clone()
     } else {
@@ -5798,8 +6074,18 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
 
 fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
     let lowered = summary.to_ascii_lowercase();
-    let markers = ["duckduckgo all regions", "all regions argentina", "all regions australia", "all regions canada", "safe search", "any time"];
-    let hits = markers.iter().filter(|marker| lowered.contains(**marker)).count();
+    let markers = [
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "all regions canada",
+        "safe search",
+        "any time",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     hits >= 2
 }
 
@@ -5827,6 +6113,20 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         return Some(format!(
             "`{normalized}` needs a valid URL before it can run."
         ));
+    }
+    if normalized == "file_read" || normalized == "read_file" || normalized == "file" {
+        if lowered.contains("path_required") {
+            return Some("I need a workspace file path before I can read it.".to_string());
+        }
+        if lowered.contains("path_outside_workspace") {
+            return Some(
+                "That path is outside the active workspace. Give me a workspace-relative file path."
+                    .to_string(),
+            );
+        }
+        if lowered.contains("file_not_found") {
+            return Some("I couldn't find that file in the active workspace.".to_string());
+        }
     }
     if normalized == "system_diagnostic" {
         return Some(
@@ -5982,9 +6282,12 @@ fn execute_tool_call_with_recovery(
             payload = retry;
         }
         if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            if let Some(fallback_payload) =
-                fallback_memory_query_payload(root, &clean_agent_id(actor_agent_id), tool_name, input)
-            {
+            if let Some(fallback_payload) = fallback_memory_query_payload(
+                root,
+                &clean_agent_id(actor_agent_id),
+                tool_name,
+                input,
+            ) {
                 payload = fallback_payload;
                 recovery_strategy = "semantic_memory_fallback".to_string();
             } else {
@@ -6307,6 +6610,58 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
 fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)> {
     let trimmed = message.trim();
     if !trimmed.starts_with('/') {
+        let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
+        let asks_file_read = lowered.contains("read file")
+            || lowered.contains("open file")
+            || lowered.contains("show file")
+            || lowered.contains("view file")
+            || lowered.contains("inspect file")
+            || lowered.starts_with("cat ");
+        if asks_file_read {
+            for raw in trimmed.split_whitespace() {
+                let candidate = clean_text(
+                    raw.trim_matches(|ch| matches!(ch, '`' | '"' | '\'' | ',' | ')' | ']' | '>')),
+                    4000,
+                );
+                if candidate.is_empty()
+                    || candidate.starts_with("http://")
+                    || candidate.starts_with("https://")
+                {
+                    continue;
+                }
+                let has_path_shape = candidate.contains('/')
+                    || candidate.contains('\\')
+                    || candidate.starts_with("./")
+                    || candidate.starts_with("../");
+                let ext = Path::new(&candidate)
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                if has_path_shape
+                    || matches!(
+                        ext.as_str(),
+                        "rs" | "ts"
+                            | "tsx"
+                            | "js"
+                            | "jsx"
+                            | "json"
+                            | "md"
+                            | "toml"
+                            | "yaml"
+                            | "yml"
+                            | "txt"
+                            | "sh"
+                            | "py"
+                    )
+                {
+                    return Some((
+                        "file_read".to_string(),
+                        json!({"path": candidate, "full": true}),
+                    ));
+                }
+            }
+        }
         if let Some(route) = natural_web_intent_from_user_message(trimmed) {
             return Some(route);
         }
@@ -7508,12 +7863,6 @@ pub fn handle_with_headers(
                     payload: json!({"ok": false, "error": "message_required"}),
                 });
             }
-            if available_model_count(root, snapshot) == 0 {
-                return Some(CompatApiResponse {
-                    status: 503,
-                    payload: no_models_available_payload(&agent_id),
-                });
-            }
             let row = existing.clone().unwrap_or_else(|| json!({}));
             let lowered = message.to_ascii_lowercase();
             let contains_any = |terms: &[&str]| terms.iter().any(|term| lowered.contains(term));
@@ -7567,6 +7916,12 @@ pub fn handle_with_headers(
                         replayed_pending_confirmation = true;
                     }
                 }
+            }
+            if available_model_count(root, snapshot) == 0 && resolved_tool_intent.is_none() {
+                return Some(CompatApiResponse {
+                    status: 503,
+                    payload: no_models_available_payload(&agent_id),
+                });
             }
             if let Some((tool_name, tool_input)) = resolved_tool_intent {
                 let tool_payload = execute_tool_call_with_recovery(
@@ -7638,6 +7993,17 @@ pub fn handle_with_headers(
                 let findings_available = findings.is_some();
                 let (finalized_response, finalization_outcome, initial_ack_only) =
                     finalize_user_facing_response_with_outcome(response_text, findings);
+                let mut tooling_fallback_used = false;
+                let mut finalized_response = finalized_response;
+                let mut finalization_outcome = finalization_outcome;
+                if let Some(tooling_fallback) =
+                    maybe_tooling_failure_fallback(&message, &finalized_response, "")
+                {
+                    finalized_response = tooling_fallback;
+                    finalization_outcome =
+                        format!("{finalization_outcome}+tooling_failure_fallback");
+                    tooling_fallback_used = true;
+                }
                 let final_ack_only =
                     response_looks_like_tool_ack_without_findings(&finalized_response);
                 response_text = finalized_response;
@@ -7648,14 +8014,12 @@ pub fn handle_with_headers(
                     "final_ack_only": final_ack_only,
                     "findings_available": findings_available,
                     "pending_confirmation_replayed": replayed_pending_confirmation,
+                    "tooling_fallback_used": tooling_fallback_used,
                     "retry_attempted": false,
                     "retry_used": false
                 });
                 let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
-                    "complete",
-                    "complete",
-                    "complete",
-                    "complete",
+                    "complete", "complete", "complete", "complete",
                 );
                 let mut turn_receipt =
                     append_turn_message(root, &agent_id, &message, &response_text);
@@ -7819,7 +8183,8 @@ pub fn handle_with_headers(
                 .or_else(|| request.get("min_recent_messages"))
                 .and_then(Value::as_u64)
                 .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
-                .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
+                .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
+                as usize;
             let include_all_sessions_context = request
                 .get("include_all_sessions_context")
                 .and_then(Value::as_bool)
@@ -7902,7 +8267,8 @@ pub fn handle_with_headers(
                     .or_else(|| request.get("min_recent_messages"))
                     .and_then(Value::as_u64)
                     .unwrap_or(active_context_min_recent as u64)
-                    .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256) as usize;
+                    .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
+                    as usize;
                 let emergency_messages = select_active_context_window(
                     &pooled_messages,
                     emergency_target_tokens,
@@ -8041,7 +8407,8 @@ pub fn handle_with_headers(
                     if memory_recall_requested(&message)
                         || persistent_memory_denied_phrase(&response_text)
                     {
-                        response_text = build_memory_recall_response(&state, &pooled_messages, &message);
+                        response_text =
+                            build_memory_recall_response(&state, &pooled_messages, &message);
                     }
                     let explicit_parallel_directive = swarm_intent_requested(&message)
                         || message.to_ascii_lowercase().contains("multi-agent")
@@ -8261,6 +8628,17 @@ pub fn handle_with_headers(
                         finalization_outcome =
                             format!("{finalization_outcome}+comparative_fallback");
                     }
+                    let mut tooling_fallback_used = false;
+                    if let Some(tooling_fallback) = maybe_tooling_failure_fallback(
+                        &message,
+                        &finalized_response,
+                        &latest_assistant_message_text(&active_messages),
+                    ) {
+                        finalized_response = tooling_fallback;
+                        finalization_outcome =
+                            format!("{finalization_outcome}+tooling_failure_fallback");
+                        tooling_fallback_used = true;
+                    }
                     response_text = finalized_response;
                     if memory_recall_requested(&message)
                         && (response_is_no_findings_placeholder(&response_text)
@@ -8279,18 +8657,20 @@ pub fn handle_with_headers(
                         "findings_available": findings_available,
                         "retry_attempted": retry_attempted,
                         "retry_used": retry_used,
-                        "synthesis_retry_used": synthesis_retry_used
+                        "synthesis_retry_used": synthesis_retry_used,
+                        "tooling_fallback_used": tooling_fallback_used
                     });
-                    let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
-                        "complete",
-                        if response_tools.is_empty() {
-                            "none"
-                        } else {
-                            "complete"
-                        },
-                        "complete",
-                        "complete",
-                    );
+                    let turn_transaction =
+                        crate::dashboard_tool_turn_loop::turn_transaction_payload(
+                            "complete",
+                            if response_tools.is_empty() {
+                                "none"
+                            } else {
+                                "complete"
+                            },
+                            "complete",
+                            "complete",
+                        );
                     let mut turn_receipt =
                         append_turn_message(root, &agent_id, &message, &response_text);
                     turn_receipt["response_finalization"] = response_finalization.clone();
@@ -8669,6 +9049,44 @@ pub fn handle_with_headers(
                 }
             }
             if should_seed_intro && patch.get("name").is_none() {
+                let selected_provider_hint = clean_text(
+                    patch
+                        .get("model_provider")
+                        .or_else(|| patch.get("provider"))
+                        .and_then(Value::as_str)
+                        .or_else(|| {
+                            existing
+                                .as_ref()
+                                .and_then(|row| row.get("model_provider").and_then(Value::as_str))
+                        })
+                        .unwrap_or("auto"),
+                    80,
+                );
+                let selected_model_hint = clean_text(
+                    patch
+                        .get("model_override")
+                        .or_else(|| patch.get("model_name"))
+                        .or_else(|| patch.get("runtime_model"))
+                        .or_else(|| patch.get("model"))
+                        .and_then(Value::as_str)
+                        .or_else(|| {
+                            existing.as_ref().and_then(|row| {
+                                row.get("model_override")
+                                    .or_else(|| row.get("model_name"))
+                                    .or_else(|| row.get("runtime_model"))
+                                    .and_then(Value::as_str)
+                            })
+                        })
+                        .unwrap_or(""),
+                    200,
+                );
+                let preserve_default_name_for_self_named_models =
+                    selected_model_supports_self_naming(
+                        root,
+                        snapshot,
+                        &selected_provider_hint,
+                        &selected_model_hint,
+                    );
                 let existing_name = clean_text(
                     existing
                         .as_ref()
@@ -8679,7 +9097,8 @@ pub fn handle_with_headers(
                 if dashboard_compat_api_agent_identity::is_default_agent_name_for_agent(
                     &existing_name,
                     &agent_id,
-                ) {
+                ) && !preserve_default_name_for_self_named_models
+                {
                     let previous_name = if existing_name.is_empty() {
                         dashboard_compat_api_agent_identity::default_agent_name(&agent_id)
                     } else {

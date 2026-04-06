@@ -361,7 +361,7 @@
                 @keydown.enter.prevent="if (!(isCurrentAgentArchived && isCurrentAgentArchived())) toggleAgentDrawer()"
                 @keydown.space.prevent="if (!(isCurrentAgentArchived && isCurrentAgentArchived())) toggleAgentDrawer()"
               >
-                <div class="chat-thread-profile-avatar" x-show="!(isCurrentAgentArchived && isCurrentAgentArchived())" :class="{ 'agent-working-pulse': $store.app.isAgentLiveBusy(currentAgent), 'chat-thread-profile-avatar-archived-mask': isCurrentAgentArchived && isCurrentAgentArchived() }">
+                <div class="chat-thread-profile-avatar" x-show="!(isCurrentAgentArchived && isCurrentAgentArchived())" :class="{ 'chat-thread-profile-avatar-archived-mask': isCurrentAgentArchived && isCurrentAgentArchived() }">
                   <img
                     x-show="currentAgent && currentAgent.avatar_url"
                     :src="currentAgent && currentAgent.avatar_url ? currentAgent.avatar_url : ''"
@@ -380,6 +380,20 @@
                 <div class="chat-thread-profile-meta">
                   <span class="agent-status-dot chat-title-status-dot" :class="'status-' + $store.app.agentStatusState(currentAgent)" :title="'Agent status: ' + $store.app.agentStatusLabel(currentAgent)" aria-hidden="true"></span>
                   <div class="chat-thread-profile-name" x-text="currentAgent ? (currentAgent.name || currentAgent.id || 'Agent') : ''"></div>
+                </div>
+                <div
+                  class="chat-thread-heart-meter"
+                  x-show="currentAgent && !currentAgent.is_system_thread"
+                  :title="agentHeartMeterLabel(currentAgent)"
+                >
+                  <template x-for="(filled, idx) in agentHeartStates(currentAgent)" :key="'chat-heart-' + String(currentAgent && currentAgent.id || 'agent') + '-' + idx">
+                    <span class="chat-thread-heart" :class="{ 'is-empty': !filled }" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 21s-7-4.2-9-8.4C1.5 9.5 3.3 6 6.4 6c2.2 0 3.4 1.2 3.9 2.1.5-.9 1.7-2.1 3.9-2.1 3.1 0 4.9 3.5 3.4 6.6-2 4.2-9 8.4-9 8.4z"></path>
+                      </svg>
+                    </span>
+                  </template>
+                  <span class="chat-thread-heart-infinity" x-show="agentHeartShowsInfinity(currentAgent)" aria-hidden="true">&infin;</span>
                 </div>
               </div>
             </div>

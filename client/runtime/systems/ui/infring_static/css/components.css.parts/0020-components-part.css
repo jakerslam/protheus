@@ -1,0 +1,77 @@
+.agent-chip-square-active {
+  align-items: center;
+  text-align: center;
+}
+
+.agent-chip-square-active .badge {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.archived-agent-grid {
+  align-items: stretch;
+}
+
+.archived-agent-card {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.archived-agent-card-head {
+  min-height: 34px;
+}
+
+.archived-agent-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.28;
+  word-break: break-word;
+}
+
+.archived-agent-meta {
+  flex: 1 1 auto;
+}
+
+.archived-agent-actions-row {
+  margin-top: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.archived-agent-revive-btn {
+  border-color: transparent;
+  background: transparent;
+  color: #22c55e;
+}
+
+.archived-agent-revive-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.archived-agent-revive-btn svg path {
+  fill: currentColor;
+}
+
+.archived-agent-revive-btn:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, #22c55e 10%, transparent);
+  color: #22c55e;
+}
+
+.archived-agent-delete-btn {
+  color: var(--text-dim);
+}
+
+.archived-agent-delete-btn:hover {
+  color: var(--text);
+}
+
+.archived-agent-delete-confirm {
+  color: #fff;
+}

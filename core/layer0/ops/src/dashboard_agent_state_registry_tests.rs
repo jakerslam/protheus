@@ -135,6 +135,39 @@ fn terminated_entries_delete_and_revive_round_trip() {
 }
 
 #[test]
+fn terminated_entries_include_reason_alias_and_parent_archive_reason() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let _ = archive_agent(root.path(), "agent-parent", "Archived by parent agent");
+    let list = terminated_entries(root.path());
+    let rows = list
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let parent_row = rows
+        .iter()
+        .find(|row| {
+            row.get("agent_id")
+                .and_then(Value::as_str)
+                .map(|id| id == "agent-parent")
+                .unwrap_or(false)
+        })
+        .expect("parent archived row");
+    assert_eq!(
+        parent_row.get("termination_reason").and_then(Value::as_str),
+        Some("parent_archived")
+    );
+    assert_eq!(
+        parent_row.get("reason").and_then(Value::as_str),
+        Some("parent_archived")
+    );
+    assert_eq!(
+        parent_row.get("archive_reason").and_then(Value::as_str),
+        Some("Archived by parent agent")
+    );
+}
+
+#[test]
 fn idle_contracts_terminate_even_when_expiry_auto_terminate_is_disabled() {
     let root = tempfile::tempdir().expect("tempdir");
     let created_at = (Utc::now() - Duration::hours(6)).to_rfc3339();

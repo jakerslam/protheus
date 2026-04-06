@@ -297,6 +297,29 @@ fn purge_agent_artifacts(root: &Path, agent_id: &str) -> Value {
 }
 
 pub fn terminated_entries(root: &Path) -> Value {
+    fn archive_reason_to_termination_reason(reason: &str) -> String {
+        let cleaned = clean_text(reason, 120);
+        if cleaned.is_empty() {
+            return "archived".to_string();
+        }
+        let normalized = cleaned.to_ascii_lowercase();
+        if normalized == "archived by parent agent"
+            || normalized == "parent_archived"
+            || normalized == "parent_archive"
+        {
+            return "parent_archived".to_string();
+        }
+        if normalized == "user_archive" || normalized == "user_archived" {
+            return "user_archived".to_string();
+        }
+        cleaned
+            .replace(' ', "_")
+            .replace('-', "_")
+            .to_ascii_lowercase()
+            .trim_matches('_')
+            .to_string()
+    }
+
     let state = load_contracts_state(root);
     let mut entries = state
         .get("terminated_history")
@@ -385,10 +408,18 @@ pub fn terminated_entries(root: &Path) -> Value {
                     .filter(|v| !v.is_empty())
             })
             .unwrap_or_else(now_iso);
+        let archive_reason = archived
+            .get(&raw_id)
+            .and_then(|row| row.get("reason").and_then(Value::as_str))
+            .map(|v| clean_text(v, 120))
+            .unwrap_or_default();
+        let termination_reason = archive_reason_to_termination_reason(&archive_reason);
         entries.push(json!({
             "agent_id": agent_id,
             "contract_id": "",
-            "termination_reason": "archived",
+            "termination_reason": termination_reason,
+            "reason": termination_reason,
+            "archive_reason": archive_reason,
             "terminated_at": archived_at
         }));
     }
@@ -397,6 +428,15 @@ pub fn terminated_entries(root: &Path) -> Value {
         .map(|mut row| {
             let agent_id =
                 normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let termination_reason = clean_text(
+                row.get("termination_reason")
+                    .and_then(Value::as_str)
+                    .or_else(|| row.get("reason").and_then(Value::as_str))
+                    .unwrap_or("terminated"),
+                120,
+            );
+            row["termination_reason"] = Value::String(termination_reason.clone());
+            row["reason"] = Value::String(termination_reason);
             let role = profiles
                 .get(&agent_id)
                 .and_then(|profile| profile.get("role").and_then(Value::as_str))

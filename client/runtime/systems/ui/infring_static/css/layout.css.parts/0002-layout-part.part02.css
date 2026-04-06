@@ -122,4 +122,6 @@ body:not([data-theme='dark']) .main-pointer-fx-layer .global-reflection-overlay 
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
   min-height: var(--header-height);

@@ -51,6 +51,10 @@ const API_STATIC_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_static/js/api.ts'
 );
+const AGENT_WS_BRIDGE_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/agent_ws_bridge.ts'
+);
 const AGENTS_PAGE_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_static/js/pages/agents.ts'
@@ -456,6 +460,9 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, '}).filter(function(row) { return !!row; });', 'session normalization should filter null rows');
   assertContains(chatSource, 'agent_id: data && data.agent_id ? String(data.agent_id)', 'live ws agent id propagation missing');
   assertContains(chatSource, 'agent_name: data && data.agent_name ? String(data.agent_name)', 'live ws agent name propagation missing');
+  assertContains(chatSource, 'var responseTools = Array.isArray(data.tools)', 'ws response tool fallback map missing');
+  assertContains(chatSource, "rtool.name || '').toLowerCase() === 'thought_process'", 'ws response thought-tool hydration guard missing');
+  assertContains(chatSource, 'streamedTools = responseTools;', 'ws response tool fallback should hydrate final tool cards when stream events are sparse');
 }
 
 function assertMemoryApiWired() {

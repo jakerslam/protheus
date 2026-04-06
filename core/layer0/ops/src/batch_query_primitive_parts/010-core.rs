@@ -249,6 +249,67 @@ fn looks_like_ack_only(text: &str) -> bool {
         || lowered == "search completed."
 }
 
+fn looks_like_low_signal_search_summary(text: &str) -> bool {
+    let lowered = clean_text(text, 3_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    if lowered.contains("unfortunately, bots use duckduckgo too")
+        || lowered.contains("please complete the following challenge")
+        || lowered.contains("anomaly-modal")
+    {
+        return true;
+    }
+    let marker_hits = [
+        "all regions",
+        "safe search",
+        "any time",
+        "at duckduckgo",
+        "viewing ads is privacy protected by duckduckgo",
+        "ad clicks are managed by microsoft",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_hits >= 2
+}
+
+fn search_domain_capture_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\b(?:https?://)?(?:www\.)?([a-z0-9][a-z0-9.-]*\.[a-z]{2,})(?:/[^\s]*)?")
+            .expect("search-domain-regex")
+    })
+}
+
+fn extract_domains_from_text(text: &str, max_domains: usize) -> Vec<String> {
+    if max_domains == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for capture in search_domain_capture_regex().captures_iter(text) {
+        let host = capture
+            .get(1)
+            .map(|row| row.as_str())
+            .unwrap_or("")
+            .trim()
+            .trim_matches('.')
+            .to_ascii_lowercase();
+        if host.is_empty() || host == "duckduckgo.com" || host.ends_with(".duckduckgo.com") {
+            continue;
+        }
+        if !seen.insert(host.clone()) {
+            continue;
+        }
+        out.push(host);
+        if out.len() >= max_domains {
+            break;
+        }
+    }
+    out
+}
+
 fn fixture_payload_for_query(query: &str) -> Option<Value> {
     let raw = std::env::var("INFRING_BATCH_QUERY_TEST_FIXTURE_JSON").ok()?;
     let decoded = serde_json::from_str::<Value>(&raw).ok()?;
@@ -267,7 +328,28 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         ));
     }
     let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 1800);
-    if summary.is_empty() || looks_like_ack_only(&summary) {
+    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 6_000);
+    let summary_low_signal = looks_like_low_signal_search_summary(&summary);
+    let domains = extract_domains_from_text(
+        if content.is_empty() { &summary } else { &content },
+        5,
+    );
+    let mut snippet = if !summary.is_empty() && !looks_like_ack_only(&summary) && !summary_low_signal
+    {
+        summary.clone()
+    } else {
+        String::new()
+    };
+    if snippet.is_empty() && !domains.is_empty() {
+        snippet = format!("Potential sources: {}.", domains.join(", "));
+    }
+    if snippet.is_empty() && !content.is_empty() && !looks_like_ack_only(&content) {
+        snippet = trim_words(&content, 56);
+    }
+    if snippet.is_empty() && !summary.is_empty() && !looks_like_ack_only(&summary) {
+        snippet = trim_words(&summary, 56);
+    }
+    if snippet.is_empty() {
         return Err("no_usable_summary".to_string());
     }
     let locator = clean_text(
@@ -278,7 +360,9 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
             .unwrap_or(""),
         2200,
     );
-    let title = if locator.is_empty() {
+    let title = if let Some(first_domain) = domains.first() {
+        format!("Web result from {}", clean_text(first_domain, 120))
+    } else if locator.is_empty() {
         format!("Web result for {}", clean_text(query, 120))
     } else {
         format!("Web result from {}", clean_text(&locator, 120))
@@ -287,8 +371,8 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         source_kind: "web".to_string(),
         title,
         locator,
-        snippet: summary.clone(),
-        excerpt_hash: sha256_hex(&summary),
+        snippet: snippet.clone(),
+        excerpt_hash: sha256_hex(&snippet),
         timestamp: Some(crate::now_iso()),
         permissions: Some("public_web".to_string()),
         status_code: payload.get("status_code").and_then(Value::as_i64).unwrap_or(0),

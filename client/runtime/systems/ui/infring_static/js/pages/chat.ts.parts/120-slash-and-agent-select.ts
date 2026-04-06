@@ -294,6 +294,9 @@
           this.setAgentLiveActivity(switchingFrom, 'working');
           this._recoverPendingWsRequest('agent_switch');
         }
+        if (typeof this.captureConversationDraft === 'function') {
+          this.captureConversationDraft(this.currentAgent.id);
+        }
         this.cacheAgentConversation(this.currentAgent.id);
       }
       if (this.currentAgent && this.currentAgent.id === resolved.id) {
@@ -306,6 +309,7 @@
         if (forceFreshSession) {
           this.applyConversationInputMode(resolved.id, { force_terminal: false });
           this.messages = [];
+          this.inputText = '';
           this.contextApproxTokens = 0;
           this.refreshContextPressure();
           this.resetFreshInitStateForAgent(resolved);
@@ -319,6 +323,9 @@
           this.requestContextTelemetry(true);
           this.clearPromptSuggestions();
           this.startFreshInitSequence(resolved);
+          if (typeof this.restoreConversationDraft === 'function') {
+            this.restoreConversationDraft(resolved.id, 'chat');
+          }
           var selfFreshCurrent = this;
           this.$nextTick(function() {
             selfFreshCurrent.scrollToBottomImmediate();
@@ -356,8 +363,12 @@
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) {
         this.messages = [];
+        this.inputText = '';
         this.contextApproxTokens = 0;
         this.refreshContextPressure();
+      }
+      if (typeof this.restoreConversationDraft === 'function') {
+        this.restoreConversationDraft(resolved.id);
       }
       this.showFreshArchetypeTiles = false;
       this.freshInitRevealMenu = false;

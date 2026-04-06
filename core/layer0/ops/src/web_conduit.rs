@@ -462,6 +462,30 @@ fn web_search_url(query: &str) -> String {
     )
 }
 
+fn web_search_lite_url(query: &str) -> String {
+    format!(
+        "https://lite.duckduckgo.com/lite/?q={}",
+        encode_query_component(&clean_text(query, 600))
+    )
+}
+
+fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
+    let combined = format!("{summary}\n{content}").to_ascii_lowercase();
+    if combined.is_empty() {
+        return false;
+    }
+    [
+        "unfortunately, bots use duckduckgo too",
+        "please complete the following challenge",
+        "select all squares containing a duck",
+        "anomaly-modal",
+        "images not loading?",
+        "error-lite@duckduckgo.com",
+    ]
+    .iter()
+    .any(|marker| combined.contains(marker))
+}
+
 fn fetch_with_curl(url: &str, timeout_ms: u64, max_response_bytes: usize) -> Value {
     let timeout_sec = ((timeout_ms as f64) / 1000.0).ceil() as u64;
     let output = Command::new("curl")
@@ -797,16 +821,18 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "receipt": receipt
         });
     }
-    let url = web_search_url(&query);
+    let primary_url = web_search_url(&query);
+    let fallback_url = web_search_lite_url(&query);
+    let summary_only = request
+        .get("summary_only")
+        .or_else(|| request.get("summary"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let mut out = api_fetch(
         root,
         &json!({
-            "url": url,
-            "summary_only": request
-                .get("summary_only")
-                .or_else(|| request.get("summary"))
-                .and_then(Value::as_bool)
-                .unwrap_or(true),
+            "url": primary_url,
+            "summary_only": summary_only,
             "human_approved": request
                 .get("human_approved")
                 .and_then(Value::as_bool)
@@ -817,6 +843,41 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 .unwrap_or("")
         }),
     );
+    let mut used_lite_fallback = false;
+    if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        let summary = clean_text(out.get("summary").and_then(Value::as_str).unwrap_or(""), 2400);
+        let content = clean_text(out.get("content").and_then(Value::as_str).unwrap_or(""), 4000);
+        if looks_like_search_challenge_payload(&summary, &content) {
+            let lite_out = api_fetch(
+                root,
+                &json!({
+                    "url": fallback_url,
+                    "summary_only": summary_only,
+                    "human_approved": request
+                        .get("human_approved")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    "approval_id": request
+                        .get("approval_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                }),
+            );
+            if lite_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                out = lite_out;
+                used_lite_fallback = true;
+            } else if let Some(obj) = out.as_object_mut() {
+                obj.insert(
+                    "search_lite_fallback_error".to_string(),
+                    clean_text(
+                        lite_out.get("error").and_then(Value::as_str).unwrap_or(""),
+                        220,
+                    )
+                    .into(),
+                );
+            }
+        }
+    }
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
@@ -825,8 +886,13 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         obj.insert("query".to_string(), Value::String(query));
         obj.insert(
             "provider".to_string(),
-            Value::String("duckduckgo".to_string()),
+            Value::String(if used_lite_fallback {
+                "duckduckgo_lite".to_string()
+            } else {
+                "duckduckgo".to_string()
+            }),
         );
+        obj.insert("search_lite_fallback".to_string(), json!(used_lite_fallback));
     }
     out
 }
@@ -1039,5 +1105,21 @@ mod tests {
             out.get("provider").and_then(Value::as_str),
             Some("duckduckgo")
         );
+    }
+
+    #[test]
+    fn challenge_detector_flags_anomaly_copy() {
+        assert!(looks_like_search_challenge_payload(
+            "Unfortunately, bots use DuckDuckGo too.",
+            "Please complete the following challenge and select all squares containing a duck."
+        ));
+    }
+
+    #[test]
+    fn challenge_detector_ignores_normal_results() {
+        assert!(!looks_like_search_challenge_payload(
+            "Tech News | Today's Latest Technology News | Reuters",
+            "www.reuters.com/technology/ Find latest technology news from every corner of the globe."
+        ));
     }
 }

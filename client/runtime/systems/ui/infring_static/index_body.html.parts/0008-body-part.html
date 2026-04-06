@@ -57,15 +57,31 @@
 
     <!-- Page: Workflows -->
     <template x-if="page === 'workflows'">
-      <div x-data="{ wfTab: 'list' }" @wf-switch-tab.window="wfTab = ($event.detail === 'builder' ? 'builder' : 'list')">
+      <div
+        x-data="{ wfTab: (localStorage.getItem('infring-workflows-subtab') === 'builder' ? 'builder' : 'list') }"
+        @wf-switch-tab.window="
+          wfTab = ($event.detail === 'builder' ? 'builder' : 'list');
+          localStorage.setItem('infring-workflows-subtab', wfTab);
+        "
+      >
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
             <div class="tab" role="tab" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')">Scheduler</div>
             <div class="tab" role="tab" :class="{ active: page === 'workflows' }" @click="navigate('workflows')">Workflows</div>
           </div>
           <div class="tabs tabs-subnav" role="tablist">
-            <div class="tab" role="tab" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">List</div>
-            <div class="tab" role="tab" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Visual Builder</div>
+            <div
+              class="tab"
+              role="tab"
+              :class="{ active: wfTab === 'list' }"
+              @click="wfTab = 'list'; localStorage.setItem('infring-workflows-subtab', 'list')"
+            >List</div>
+            <div
+              class="tab"
+              role="tab"
+              :class="{ active: wfTab === 'builder' }"
+              @click="wfTab = 'builder'; localStorage.setItem('infring-workflows-subtab', 'builder')"
+            >Visual Builder</div>
           </div>
         </div>
 

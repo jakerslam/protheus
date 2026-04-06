@@ -103,6 +103,10 @@
 
     activateSystemThread: function(options) {
       var opts = options && typeof options === 'object' ? options : {};
+      var priorAgentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
+      if (priorAgentId && !this.isSystemThreadId(priorAgentId) && typeof this.captureConversationDraft === 'function') {
+        this.captureConversationDraft(priorAgentId);
+      }
       this.currentAgent = this.makeSystemThreadAgent();
       this.setStoreActiveAgentId(this.currentAgent.id || null);
       this._clearTypingTimeout();
@@ -122,6 +126,9 @@
       var restored = this.restoreAgentConversation(this.currentAgent.id);
       if (!restored && opts.preserve_if_empty !== true) {
         this.messages = [];
+      }
+      if (typeof this.restoreConversationDraft === 'function') {
+        this.restoreConversationDraft(this.currentAgent.id, 'terminal');
       }
       this.recomputeContextEstimate();
       this.refreshContextPressure();

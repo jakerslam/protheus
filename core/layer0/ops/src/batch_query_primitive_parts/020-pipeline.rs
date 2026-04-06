@@ -1,6 +1,6 @@
 fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidate, String> {
     let payload = fixture_payload_for_query(query).unwrap_or_else(|| {
-        crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": true}))
+        crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
     });
     candidate_from_search_payload(query, &payload)
 }

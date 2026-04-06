@@ -1,6 +1,3 @@
-              >
-                Confirm
-              </button>
             </div>
             <div
               x-show="terminatedLoading"
@@ -15,35 +12,71 @@
               style="padding:10px 2px">
               No archived agents.
             </div>
-            <div class="card-grid" x-show="!terminatedLoading && terminatedAgents.length">
+            <div class="card-flex archived-agent-grid" x-show="!terminatedLoading && terminatedAgents.length">
               <template x-for="entry in terminatedAgents" :key="'terminated-' + entry.contract_id + '-' + entry.agent_id">
-                <div class="card" style="padding:12px 14px">
-                  <div class="flex justify-between items-center mb-1" style="gap:10px">
-                    <div class="font-bold truncate" style="font-size:13px;max-width:220px" :title="entry.agent_id" x-text="entry.agent_id"></div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-                      <button class="btn btn-ghost btn-sm" @click="viewTerminated(entry)">View</button>
-                      <button class="btn btn-sm btn-revive-user" @click="reviveTerminated(entry)">Revive</button>
+                <div class="card archived-agent-card" style="padding:12px 14px">
+                  <div class="archived-agent-card-head">
+                    <div class="font-bold archived-agent-name" style="font-size:13px" :title="entry.agent_id" x-text="entry.agent_id"></div>
+                  </div>
+                  <div class="text-xs text-dim archived-agent-meta" style="line-height:1.45">
+                    <div class="archived-agent-id-row">
+                      <span class="text-dim">ID:</span>
+                      <span class="archived-agent-id" x-text="entry.agent_id || '-'"></span>
                       <button
-                        class="btn btn-danger btn-sm"
-                        x-show="confirmDeleteTerminatedKey !== terminatedEntryKey(entry)"
-                        @click="setDeleteTerminatedConfirm(entry)"
+                        type="button"
+                        class="btn btn-ghost btn-sm archived-agent-id-copy"
+                        @click="navigator.clipboard && navigator.clipboard.writeText(String(entry.agent_id || '')).then(function(){ InfringToast.success('Copied agent ID'); }).catch(function(){ InfringToast.error('Could not copy agent ID'); })"
+                        title="Copy agent ID"
+                        aria-label="Copy agent ID"
                       >
-                        Delete
-                      </button>
-                      <button
-                        class="btn btn-danger btn-sm"
-                        x-show="confirmDeleteTerminatedKey === terminatedEntryKey(entry)"
-                        @mouseleave="clearDeleteTerminatedConfirm(entry)"
-                        @click="deleteTerminated(entry)"
-                      >
-                        Confirm
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
                       </button>
                     </div>
-                  </div>
-                  <div class="text-xs text-dim" style="line-height:1.45">
-                    <div><span class="text-dim">Reason:</span> <span x-text="entry.reason || 'terminated'"></span></div>
+                    <div><span class="text-dim">Reason:</span> <span x-text="formatTerminatedReason(entry)"></span></div>
                     <div x-show="entry.mission"><span class="text-dim">Mission:</span> <span x-text="entry.mission"></span></div>
                     <div><span class="text-dim">At:</span> <span x-text="formatIsoTimestamp(entry.terminated_at) || entry.terminated_at"></span></div>
+                  </div>
+                  <div class="archived-agent-actions-row">
+                    <button class="btn btn-ghost btn-sm archived-agent-action-btn" @click="viewTerminated(entry)" title="View chat" aria-label="View chat">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                    </button>
+                    <button class="btn btn-ghost btn-sm archived-agent-action-btn archived-agent-revive-btn" @click="reviveTerminated(entry)" title="Revive agent" aria-label="Revive agent">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A5.99 5.99 0 0 1 16.5 3C19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"></path>
+                      </svg>
+                    </button>
+                    <button
+                      class="btn btn-ghost btn-sm archived-agent-action-btn archived-agent-delete-btn"
+                      x-show="confirmDeleteTerminatedKey !== terminatedEntryKey(entry)"
+                      @click="setDeleteTerminatedConfirm(entry)"
+                      title="Delete archived agent"
+                      aria-label="Delete archived agent"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6"></path>
+                        <path d="M7 6l1 14h8l1-14"></path>
+                        <path d="M10 10v7"></path>
+                        <path d="M14 10v7"></path>
+                      </svg>
+                    </button>
+                    <button
+                      class="btn btn-danger btn-sm archived-agent-action-btn archived-agent-delete-confirm"
+                      x-show="confirmDeleteTerminatedKey === terminatedEntryKey(entry)"
+                      @mouseleave="clearDeleteTerminatedConfirm(entry)"
+                      @click="deleteTerminated(entry)"
+                      title="Confirm delete"
+                      aria-label="Confirm delete"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5"></path>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </template>
@@ -251,151 +284,3 @@
               </div>
             </div>
           </template>
-
-          <!-- Multi-step Spawn Wizard -->
-          <template x-if="showSpawnModal">
-            <div class="modal-overlay" @click.self="showSpawnModal = false" @keydown.escape.window="showSpawnModal = false">
-              <div class="modal" style="max-width:560px">
-                <div class="modal-header">
-                  <h3>Create Agent</h3>
-                  <button class="modal-close" @click="showSpawnModal = false">&times;</button>
-                </div>
-
-                <!-- Wizard / TOML toggle -->
-                <div class="tabs" style="margin-bottom:12px">
-                  <div class="tab" :class="{ active: spawnMode === 'wizard' }" @click="spawnMode = 'wizard'">Wizard</div>
-                  <div class="tab" :class="{ active: spawnMode === 'toml' }" @click="spawnMode = 'toml'">Raw TOML</div>
-                </div>
-
-                <!-- Raw TOML mode (unchanged) -->
-                <div x-show="spawnMode === 'toml'">
-                  <div class="form-group">
-                    <label>Agent Manifest (TOML)</label>
-                    <textarea class="form-textarea" style="height:200px;font-size:11px" x-model="spawnToml" placeholder='name = "my-agent"&#10;module = "builtin:chat"&#10;[model]&#10;provider = "groq"&#10;model = "llama-3.3-70b-versatile"&#10;system_prompt = "You are helpful."'></textarea>
-                  </div>
-                  <button class="btn btn-primary btn-block mt-4" @click="spawnAgent()" :disabled="spawning">
-                    <span x-show="!spawning">Spawn Agent</span><span x-show="spawning">Spawning...</span>
-                  </button>
-                </div>
-
-                <!-- Wizard steps -->
-                <div x-show="spawnMode === 'wizard'">
-                  <!-- Step indicator -->
-                  <div class="wizard-steps">
-                    <template x-for="s in [1,2,3,4,5]" :key="s">
-                      <div class="wizard-dot" :class="{ active: spawnStep === s, done: spawnStep > s }">
-                        <span x-text="spawnStep > s ? '\u2713' : s"></span>
-                      </div>
-                    </template>
-                  </div>
-
-                  <!-- Step 1: Name + Identity -->
-                  <div x-show="spawnStep === 1">
-                    <div class="form-group">
-                      <label>Agent Name</label>
-                      <input class="form-input" x-model="spawnForm.name" placeholder="my-agent" @keydown.enter="if(!$event.isComposing && $event.keyCode !== 229) nextStep()">
-                    </div>
-                    <div class="form-group">
-                      <label>Emoji</label>
-                      <div class="emoji-grid">
-                        <template x-for="em in emojiOptions" :key="em">
-                          <button class="emoji-grid-item" :class="{ active: spawnIdentity.emoji === em }" @click="spawnIdentity.emoji = em" x-text="em"></button>
-                        </template>
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label>Color</label>
-                      <input type="color" x-model="spawnIdentity.color" style="width:48px;height:32px;border:none;cursor:pointer;background:none">
-                    </div>
-                    <div class="form-group">
-                      <label>Archetype</label>
-                      <select class="form-select" x-model="spawnIdentity.archetype">
-                        <option value="">Choose...</option>
-                        <template x-for="a in archetypeOptions" :key="a"><option :value="a.toLowerCase()" x-text="a"></option></template>
-                      </select>
-                    </div>
-                  </div>
-
-                  <!-- Step 2: Model Selection -->
-                  <div x-show="spawnStep === 2">
-                    <div class="form-group">
-                      <label>Provider</label>
-                      <select class="form-select" x-model="spawnForm.provider">
-                        <option value="frontier_provider">Frontier Provider</option><option value="openai">OpenAI</option>
-                        <option value="groq">Groq</option><option value="ollama">Ollama</option>
-                        <option value="google">Google</option><option value="mistral">Mistral</option>
-                        <option value="xai">xAI</option><option value="deepseek">DeepSeek</option>
-                        <option value="cerebras">Cerebras</option><option value="sambanova">SambaNova</option>
-                        <option value="together">Together</option>
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label>Model</label>
-                      <input class="form-input" x-model="spawnForm.model" placeholder="e.g. llama-3.3-70b-versatile">
-                    </div>
-                    <div class="form-group">
-                      <label>System Prompt</label>
-                      <textarea class="form-textarea" x-model="spawnForm.systemPrompt" placeholder="You are a helpful assistant."></textarea>
-                    </div>
-                  </div>
-
-                  <!-- Step 3: Personality Presets -->
-                  <div x-show="spawnStep === 3">
-                    <label class="mb-2" style="display:block;font-size:13px;font-weight:600">Personality</label>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-                      <template x-for="preset in personalityPresets" :key="preset.id">
-                        <button class="personality-pill" :class="{ active: selectedPreset === preset.id }" @click="selectPreset(preset)" x-text="preset.label"></button>
-                      </template>
-                    </div>
-                    <div class="form-group">
-                      <label>Soul / Persona <span class="text-xs text-dim">(editable)</span></label>
-                      <textarea class="form-textarea" x-model="soulContent" style="height:100px" placeholder="Describe this agent's personality and communication style..."></textarea>
-                    </div>
-                  </div>
-
-                  <!-- Step 4: Tools & Capabilities -->
-                  <div x-show="spawnStep === 4">
-                    <div class="form-group">
-                      <label>Tool Profile</label>
-                      <select class="form-select" x-model="spawnForm.profile" @focus="loadSpawnProfiles()">
-                        <option value="minimal">Minimal &mdash; Read-only file access</option>
-                        <option value="coding">Coding &mdash; Files + shell + web fetch</option>
-                        <option value="research">Research &mdash; Web search + file read/write</option>
-                        <option value="messaging">Messaging &mdash; Agents + memory access</option>
-                        <option value="automation">Automation &mdash; All tools except custom</option>
-                        <option value="full" selected>Full &mdash; All 35+ tools</option>
-                        <option value="custom">Custom (manual capabilities)</option>
-                      </select>
-                      <div class="capability-preview" x-show="selectedProfileTools.length > 0" style="margin-top:8px">
-                        <div class="capability-preview-title">Tools included</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:2px">
-                          <template x-for="tool in selectedProfileTools" :key="tool"><span class="tool-badge" x-text="tool"></span></template>
-                          <span class="tool-badge" x-show="selectedProfileTools.length >= 15" style="opacity:0.6">...</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="form-group" x-show="spawnForm.profile === 'custom'">
-                      <label>Capabilities</label>
-                      <div class="flex gap-3" style="flex-wrap:wrap">
-                        <label class="form-checkbox"><input type="checkbox" x-model="spawnForm.caps.memory_read"> Memory Read</label>
-                        <label class="form-checkbox"><input type="checkbox" x-model="spawnForm.caps.memory_write"> Memory Write</label>
-                        <label class="form-checkbox"><input type="checkbox" x-model="spawnForm.caps.network"> Network</label>
-                        <label class="form-checkbox"><input type="checkbox" x-model="spawnForm.caps.shell"> Shell</label>
-                        <label class="form-checkbox"><input type="checkbox" x-model="spawnForm.caps.agent_spawn"> Agent Spawn</label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Step 5: Review & Spawn -->
-                  <div x-show="spawnStep === 5">
-                    <div class="card" style="margin-bottom:16px">
-                      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-                        <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px" :style="'background:' + spawnIdentity.color + '22; border:2px solid ' + spawnIdentity.color">
-                          <span x-text="spawnIdentity.emoji || '\u{1F916}'"></span>
-                        </div>
-                        <div>
-                          <div class="font-bold" style="font-size:15px" x-text="spawnForm.name || 'Unnamed'"></div>
-                          <div class="text-xs text-dim" x-text="spawnIdentity.archetype || 'agent'"></div>
-                        </div>
-                      </div>
-                      <div class="detail-grid" style="gap:6px">
