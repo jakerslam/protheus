@@ -2848,6 +2848,66 @@ fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
     (String::from_utf8_lossy(slice).to_string(), true)
 }
 
+fn bytes_look_binary(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    let probe_len = bytes.len().min(4096);
+    let sample = &bytes[..probe_len];
+    if sample.iter().any(|byte| *byte == 0) {
+        return true;
+    }
+    let control_count = sample
+        .iter()
+        .filter(|byte| {
+            let b = **byte;
+            b < 9 || (b > 13 && b < 32)
+        })
+        .count();
+    let control_ratio = control_count as f64 / probe_len as f64;
+    if control_ratio > 0.12 {
+        return true;
+    }
+    std::str::from_utf8(sample).is_err() && control_ratio > 0.04
+}
+
+fn guess_mime_type_for_file(path: &Path, bytes: &[u8]) -> String {
+    let ext = path
+        .extension()
+        .and_then(|row| row.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let known = match ext.as_str() {
+        "md" => "text/markdown; charset=utf-8",
+        "txt" | "log" | "toml" | "yaml" | "yml" | "json" | "jsonl" | "csv" | "tsv" => {
+            "text/plain; charset=utf-8"
+        }
+        "rs" | "ts" | "tsx" | "py" | "sh" | "zsh" | "bash" | "js" | "cjs" | "mjs" | "c"
+        | "h" | "cpp" | "hpp" | "go" | "java" | "kt" | "swift" | "sql" | "css" | "html"
+        | "xml" => "text/plain; charset=utf-8",
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "mp4" => "video/mp4",
+        "zip" => "application/zip",
+        "gz" => "application/gzip",
+        "tar" => "application/x-tar",
+        _ => "",
+    };
+    if !known.is_empty() {
+        return known.to_string();
+    }
+    if bytes_look_binary(bytes) {
+        "application/octet-stream".to_string()
+    } else {
+        "text/plain; charset=utf-8".to_string()
+    }
+}
+
 fn attention_policy_path(root: &Path) -> PathBuf {
     let from_env = std::env::var("MECH_SUIT_MODE_POLICY_PATH")
         .ok()
@@ -5399,6 +5459,37 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         if !content.is_empty() {
             return trim_text(content, 24_000);
         }
+        if payload
+            .pointer("/file/binary")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            let bytes = payload
+                .pointer("/file/bytes")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let mime = clean_text(
+                payload
+                    .pointer("/file/content_type")
+                    .and_then(Value::as_str)
+                    .unwrap_or("application/octet-stream"),
+                120,
+            );
+            let file_name = clean_text(
+                payload
+                    .pointer("/file/file_name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("binary file"),
+                180,
+            );
+            return trim_text(
+                format!(
+                    "Read binary file `{file_name}` ({mime}, {bytes} bytes). Use `allow_binary=true` to retrieve `content_base64`."
+                )
+                .as_str(),
+                420,
+            );
+        }
     }
     if normalized == "folder_export"
         || normalized == "list_folder"
@@ -5911,6 +6002,12 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         }
         if lowered.contains("file_not_found") {
             return Some("I couldn't find that file in the active workspace.".to_string());
+        }
+        if lowered.contains("binary_file_requires_opt_in") {
+            return Some(
+                "That file is binary. Re-run `file_read` with `allow_binary=true` if you want base64 output."
+                    .to_string(),
+            );
         }
     }
     if normalized == "system_diagnostic" {
@@ -9265,6 +9362,11 @@ pub fn handle_with_headers(
                 .get("full")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            let allow_binary = request
+                .get("allow_binary")
+                .or_else(|| request.get("binary"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let max_bytes = if full {
                 bytes.len().max(1)
             } else {
@@ -9274,10 +9376,43 @@ pub fn handle_with_headers(
                     .unwrap_or((256 * 1024) as u64)
                     .clamp(1, (8 * 1024 * 1024) as u64) as usize
             };
-            let (content, truncated) = truncate_utf8_lossy(&bytes, max_bytes);
-            let content_type = "text/plain; charset=utf-8";
+            let binary = bytes_look_binary(&bytes);
+            let content_type = guess_mime_type_for_file(&target_path, &bytes);
+            if binary && !allow_binary {
+                return Some(CompatApiResponse {
+                    status: 415,
+                    payload: json!({
+                        "ok": false,
+                        "error": "binary_file_requires_opt_in",
+                        "file": {
+                            "ok": false,
+                            "path": target_path.to_string_lossy().to_string(),
+                            "bytes": bytes.len(),
+                            "binary": true,
+                            "content_type": content_type,
+                            "file_name": clean_text(
+                                target_path.file_name().and_then(|v| v.to_str()).unwrap_or("download.bin"),
+                                180
+                            )
+                        }
+                    }),
+                });
+            }
+            let (content, truncated) = if binary {
+                (String::new(), bytes.len() > max_bytes)
+            } else {
+                truncate_utf8_lossy(&bytes, max_bytes)
+            };
+            let content_base64 = if binary {
+                use base64::engine::general_purpose::STANDARD;
+                use base64::Engine;
+                let slice_end = bytes.len().min(max_bytes.max(1));
+                STANDARD.encode(&bytes[..slice_end])
+            } else {
+                String::new()
+            };
             let download_url = if bytes.len() <= (2 * 1024 * 1024) {
-                data_url_from_bytes(&bytes, content_type)
+                data_url_from_bytes(&bytes, &content_type)
             } else {
                 String::new()
             };
@@ -9296,10 +9431,13 @@ pub fn handle_with_headers(
                         "ok": true,
                         "path": target_path.to_string_lossy().to_string(),
                         "content": content,
+                        "content_base64": content_base64,
                         "truncated": truncated,
                         "bytes": bytes.len(),
                         "max_bytes": max_bytes,
                         "full": full,
+                        "binary": binary,
+                        "allow_binary": allow_binary,
                         "download_url": download_url,
                         "file_name": file_name,
                         "content_type": content_type

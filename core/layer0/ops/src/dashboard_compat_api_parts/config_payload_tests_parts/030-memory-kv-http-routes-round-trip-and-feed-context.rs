@@ -187,6 +187,49 @@
             Some("ship it")
         );
 
+        let _ = fs::write(notes_dir.join("blob.bin"), vec![0_u8, 159, 10, 11, 12, 255, 0, 1, 2, 3]);
+        let binary_blocked = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/blob.bin"}"#,
+            &json!({"ok": true}),
+        )
+        .expect("binary read blocked");
+        assert_eq!(binary_blocked.status, 415);
+        assert_eq!(
+            binary_blocked
+                .payload
+                .get("error")
+                .and_then(Value::as_str),
+            Some("binary_file_requires_opt_in")
+        );
+
+        let binary_allowed = handle(
+            root.path(),
+            "POST",
+            &format!("/api/agents/{agent_id}/file/read"),
+            br#"{"path":"notes/blob.bin","allow_binary":true,"max_bytes":8}"#,
+            &json!({"ok": true}),
+        )
+        .expect("binary read allowed");
+        assert_eq!(binary_allowed.status, 200);
+        assert_eq!(
+            binary_allowed
+                .payload
+                .pointer("/file/binary")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            !binary_allowed
+                .payload
+                .pointer("/file/content_base64")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+        );
+
         let folder_export = handle(
             root.path(),
             "POST",
