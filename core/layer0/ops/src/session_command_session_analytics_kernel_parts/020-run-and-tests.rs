@@ -147,6 +147,8 @@ mod tests {
         );
         assert!(!suggestions.is_empty());
         let joined = suggestions.join(" ").to_ascii_lowercase();
-        assert!(joined.contains("supported route") || joined.contains("optimize command flow"));
+        assert!(
+            joined.contains("supported rust route") || joined.contains("supported tool hit rate")
+        );
     }
 }

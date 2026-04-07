@@ -195,6 +195,16 @@
   isolation: isolate;
 }
 
+.system-thread-placeholder-row {
+  width: 100%;
+  height: var(--bottom-dock-collapsed-height, 40px);
+  min-height: var(--bottom-dock-collapsed-height, 40px);
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--border) 84%, transparent);
+  background: color-mix(in srgb, var(--surface2) 56%, transparent);
+}
+
 .chat-input-lane .prompt-queue-row,
 .chat-input-lane .prompt-queue-row * {
   -webkit-user-select: none;

@@ -220,6 +220,18 @@
 }
 .sidebar-nav::-webkit-scrollbar { width: 0; }
 
+.sidebar-top-ghost {
+  width: 100%;
+  height: 10px;
+  min-height: 10px;
+  pointer-events: none;
+}
+
+.sidebar.collapsed .sidebar-top-ghost {
+  height: 8px;
+  min-height: 8px;
+}
+
 .sidebar-scroll-indicator {
   position: absolute;
   left: 50%;
@@ -391,33 +403,6 @@ button.nav-item.nav-sub-item.nav-sub-item-action {
 .nav-sub-search-wrap.nav-sub-search-coming-soon {
   position: relative;
   cursor: not-allowed;
-}
-
-.nav-sub-search-wrap.nav-sub-search-coming-soon::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 9px);
-  left: 50%;
-  transform: translateX(-50%) translateY(2px);
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  color: var(--text);
-  font-size: 11px;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  box-shadow: var(--shadow-md);
-  transition: opacity 0.14s var(--ease-smooth), transform 0.14s var(--ease-smooth);
-  z-index: 18100;
-}
-
-.nav-sub-search-wrap.nav-sub-search-coming-soon:hover::after,
-.nav-sub-search-wrap.nav-sub-search-coming-soon:focus-within::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 .nav-sub-search-wrap.is-active {

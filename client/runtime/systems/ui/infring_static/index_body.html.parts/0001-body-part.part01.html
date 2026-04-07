@@ -10,6 +10,19 @@
   <div class="boot-splash-inner">
     <div class="brand-mark boot-splash-mark"><span class="brand-mark-glyph">&infin;</span></div>
     <div class="boot-splash-wordmark">INFRING</div>
+    <div
+      class="boot-splash-progress"
+      role="progressbar"
+      aria-label="Loading progress"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="Math.max(0, Math.min(100, Math.round(Number(bootProgressPercent || 0))))"
+    >
+      <span
+        class="boot-splash-progress-fill"
+        :style="'width:' + Math.max(0, Math.min(100, Number(bootProgressPercent || 0))) + '%'"
+      ></span>
+    </div>
   </div>
 </div>
 
@@ -41,14 +54,15 @@
 
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode }">
   <!-- Sidebar -->
-  <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen }">
+  <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat' }">
     <div class="sidebar-nav-shell">
     <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideCollapsedAgentHover()">
+      <div class="sidebar-top-ghost" aria-hidden="true"></div>
       <!-- Agents conversations — primary action -->
       <div class="nav-section" aria-label="Agent conversations">
           <div>
             <a
-              class="nav-item"
+              class="nav-item sidebar-tab-item"
               :class="{ active: page === 'chat' }"
               @click="navigate('chat')"
               :aria-current="page === 'chat' ? 'page' : false"
@@ -63,7 +77,7 @@
             </a>
             <div class="nav-sub-search-row">
               <div
-                class="nav-sub-search-wrap nav-sub-search-coming-soon"
+                class="nav-sub-search-wrap nav-sub-search-coming-soon dashboard-preview-trigger"
                 data-tooltip="Coming soon"
                 :class="{ 'is-active': false, 'is-loading': false }"
               >
@@ -94,7 +108,7 @@
             </div>
             <div class="nav-sub-item-controls">
               <div
-                class="nav-sub-sort-group nav-sub-sort-pill"
+                class="nav-sub-sort-group nav-sub-sort-pill icon-pill-toggle"
                 role="group"
                 aria-label="Sort conversations"
                 :data-mode="chatSidebarSortMode === 'topology' ? 'topology' : 'age'"
@@ -155,6 +169,7 @@
                   active: page === 'chat' && $store.app.activeAgentId === agent.id,
                   'nav-agent-row-archived': !!agent.archived,
                   'nav-agent-row-timeout': !!agent._timed_out_local,
+                  'nav-agent-row-with-countdown': shouldShowExpiryCountdown(agent) || shouldShowInfinityLifespan(agent),
                   'nav-agent-row-draggable': chatSidebarCanReorderTopology(),
                   dragging: chatSidebarCanReorderTopology() && chatSidebarDragAgentId === String(agent.id),
                   'drag-target': chatSidebarCanReorderTopology() && chatSidebarDropTargetId === String(agent.id),
@@ -240,15 +255,6 @@
                 </span>
               </a>
             </template>
-            <button
-              type="button"
-              class="nav-item nav-sub-item nav-sub-item-action"
-              x-show="chatSidebarHasMoreRows()"
-              @click="showMoreChatSidebarRows()"
-            >
-              <span class="nav-icon" aria-hidden="true">+</span>
-              <span class="nav-label">Show more</span>
-            </button>
             <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="$store.app.agentsLoading || !$store.app.agentsHydrated">
               <span class="nav-icon nav-loading-icon" aria-hidden="true"></span>
               <span class="nav-label">Loading agents...</span>
@@ -262,7 +268,7 @@
               <span class="nav-label">No matches</span>
             </div>
             <a
-              class="nav-item"
+              class="nav-item sidebar-tab-item"
               :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0 }"
               @click="navigate('agents')"
               :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
@@ -279,10 +285,10 @@
       </div>
 
       <!-- Automation -->
-      <div class="nav-section" aria-label="Automation">
+      <div class="nav-section sidebar-tab-section" aria-label="Automation">
           <div>
             <a
-              class="nav-item"
+              class="nav-item sidebar-tab-item"
               :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0 }"
               @click="navigate('scheduler')"
               :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
@@ -297,10 +303,10 @@
       </div>
 
       <!-- Apps -->
-      <div class="nav-section" aria-label="Apps">
+      <div class="nav-section sidebar-tab-section" aria-label="Apps">
           <div>
             <a
-              class="nav-item"
+              class="nav-item sidebar-tab-item"
               :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0 }"
               @click="navigate('skills')"
               :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
@@ -322,10 +328,10 @@
       </div>
 
       <!-- System -->
-      <div class="nav-section" aria-label="System">
+      <div class="nav-section sidebar-tab-section" aria-label="System">
           <div>
             <a
-              class="nav-item"
+              class="nav-item sidebar-tab-item"
               :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0 }"
               @click="navigate('runtime')"
               :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
@@ -337,11 +343,6 @@
               <span class="nav-label">System</span>
             </a>
           </div>
-      </div>
-      <div class="nav-section nav-section-shortcuts" aria-label="Shortcuts">
-        <div class="nav-section-title">
-          <span class="nav-label">Shortcuts</span>
-        </div>
       </div>
     </div>
       <button
@@ -364,11 +365,11 @@
       </button>
     </div>
     <div
-      class="nav-agent-collapsed-hover-float"
+      class="nav-agent-collapsed-hover-float dashboard-preview-surface"
       :class="{ 'nav-only': String(collapsedAgentHover.kind || '').toLowerCase() === 'nav' }"
       x-cloak
       style="display: none;"
-      x-show="sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && isCollapsedAgentHoverVisible(collapsedAgentHover)"
+      x-show="page === 'chat' && sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && isCollapsedAgentHoverVisible(collapsedAgentHover)"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >
@@ -381,15 +382,13 @@
       ></span>
     </div>
 
-    <div class="sidebar-settings-anchor">
+    <div class="sidebar-settings-anchor sidebar-tab-section">
       <a
-        class="nav-item sidebar-settings-item"
+        class="nav-item sidebar-settings-item sidebar-tab-item"
         :class="{ active: page === 'settings' }"
         @click="navigate('settings')"
         :aria-current="page === 'settings' ? 'page' : false"
-        @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
-        @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Settings', $event)"
-        @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+        @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 250; hideCollapsedAgentHover(); }"
       >
         <span class="nav-icon"><svg class="settings-cog-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"/></svg></span>
         <span class="nav-label">Settings</span>
@@ -431,7 +430,7 @@
             <div class="topbar-brand-version" x-text="'v' + version"></div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm topbar-icon-btn topbar-refresh-btn" @click="$store.app.bumpTopbarRefreshTurn(); setTimeout(function(){ try { window.location.reload(); } catch(_) { try { window.location.href = window.location.href; } catch(_) {} } }, 360);" title="Refresh" aria-label="Refresh">
+        <button class="btn btn-ghost btn-sm topbar-icon-btn topbar-refresh-btn" @click="requestTopbarRefresh()" title="Refresh" aria-label="Refresh">
           <svg class="topbar-refresh-icon" :style="'transform: rotate(' + (($store.app.topbarRefreshTurns || 0) * 360) + 'deg)'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 2v6h-6"></path>
             <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
@@ -439,14 +438,3 @@
             <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
           </svg>
         </button>
-        <button
-          class="btn btn-ghost btn-sm topbar-icon-btn topbar-home-btn"
-          :class="{ 'is-active': page === 'analytics' || page === 'overview' }"
-          @click="navigate('overview')"
-          title="Home"
-          aria-label="Home"
-          :aria-current="(page === 'analytics' || page === 'overview') ? 'page' : false"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 12L12 4L21 12"></path>
-            <path d="M6 10V20H18V10"></path>

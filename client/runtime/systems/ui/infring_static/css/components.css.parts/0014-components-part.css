@@ -8,7 +8,7 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
-  color: color-mix(in srgb, var(--text-muted) 85%, transparent);
+  color: var(--text);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -23,7 +23,7 @@
   top: calc(100% + 1px);
   font-size: 11px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+  color: var(--text);
 }
 
 .nav-item.nav-agent-row.drop-before,

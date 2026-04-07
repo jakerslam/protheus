@@ -2447,8 +2447,11 @@ fn parse_agent_route(path_only: &str) -> Option<(String, Vec<String>)> {
 }
 
 fn request_mode_is_cua(request: &Value) -> bool {
-    let mode = clean_text(request.get("mode").and_then(Value::as_str).unwrap_or(""), 40)
-        .to_ascii_lowercase();
+    let mode = clean_text(
+        request.get("mode").and_then(Value::as_str).unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
     mode == "cua" || request.get("cua").and_then(Value::as_bool).unwrap_or(false)
 }
 
@@ -2470,13 +2473,25 @@ fn request_has_nonempty_object(request: &Value, key: &str) -> bool {
 
 fn cua_unsupported_features(request: &Value) -> Vec<&'static str> {
     let mut features = Vec::<&'static str>::new();
-    if request.get("stream").and_then(Value::as_bool).unwrap_or(false) {
+    if request
+        .get("stream")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         features.push("streaming");
     }
-    if request.get("signal").map(|row| !row.is_null()).unwrap_or(false) {
+    if request
+        .get("signal")
+        .map(|row| !row.is_null())
+        .unwrap_or(false)
+    {
         features.push("abort signal");
     }
-    if request.get("messages").map(|row| !row.is_null()).unwrap_or(false) {
+    if request
+        .get("messages")
+        .map(|row| !row.is_null())
+        .unwrap_or(false)
+    {
         features.push("message continuation");
     }
     if request_has_nonempty_array(request, "excludeTools")
@@ -2484,7 +2499,10 @@ fn cua_unsupported_features(request: &Value) -> Vec<&'static str> {
     {
         features.push("excludeTools");
     }
-    if request.get("output").map(|row| !row.is_null()).unwrap_or(false)
+    if request
+        .get("output")
+        .map(|row| !row.is_null())
+        .unwrap_or(false)
         || request
             .get("output_schema")
             .map(|row| !row.is_null())
@@ -3216,6 +3234,13 @@ fn response_contains_tool_telemetry_dump(text: &str) -> bool {
         "spawn_subagents failed:",
         "tool_explicit_signoff_required",
         "tool_confirmation_required",
+        "\"decision_audit_receipt\"",
+        "\"turn_loop_tracking\"",
+        "\"turn_transaction\"",
+        "\"response_finalization\"",
+        "\"latent_tool_candidates\"",
+        "\"workspace_hints\"",
+        "\"nexus_connection\"",
     ];
     let hits = noisy_markers
         .iter()
@@ -3239,7 +3264,15 @@ fn parse_json_payload_dump(text: &str) -> Option<Value> {
             .trim()
             .to_string();
     }
-    serde_json::from_str::<Value>(&candidate).ok()
+    if let Ok(parsed) = serde_json::from_str::<Value>(&candidate) {
+        return Some(parsed);
+    }
+    let start = candidate.find('{')?;
+    let end = candidate.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    serde_json::from_str::<Value>(&candidate[start..=end]).ok()
 }
 
 fn looks_like_internal_agent_payload_dump(payload: &Value) -> bool {
@@ -3393,6 +3426,18 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if lowered.is_empty() {
         return true;
     }
+    if response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
+        || response_looks_like_raw_web_artifact_dump(&cleaned)
+        || response_contains_tool_telemetry_dump(&cleaned)
+    {
+        return true;
+    }
+    if parse_json_payload_dump(&cleaned)
+        .map(|payload| looks_like_internal_agent_payload_dump(&payload))
+        .unwrap_or(false)
+    {
+        return true;
+    }
     if lowered.contains("key findings for") && potential_source_mentions >= 1 {
         return true;
     }
@@ -3498,6 +3543,16 @@ fn finalize_user_facing_response_with_outcome(
             false,
         );
     }
+    if response_looks_like_unsynthesized_web_snippet_dump(&cleaned) {
+        return (
+            "I only have low-signal web snippets in this turn, not synthesized findings yet. I can rerun with `batch_query` and return a concise, source-backed summary.".to_string(),
+            with_payload_normalization_outcome(
+                "rewrote_unsynthesized_web_snippet_dump",
+                payload_normalized,
+            ),
+            false,
+        );
+    }
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
     let findings_cleaned = sanitize_findings_for_final_response(findings);
     if cleaned.is_empty() {
@@ -3578,7 +3633,8 @@ fn enforce_user_facing_finalization_contract(
     } else {
         Some(findings)
     };
-    let (prefinalized, pre_outcome, _) = finalize_user_facing_response_with_outcome(output, findings);
+    let (prefinalized, pre_outcome, _) =
+        finalize_user_facing_response_with_outcome(output, findings);
     let (finalized, report) = enforce_tool_completion_contract(prefinalized, response_tools);
     let contract_outcome = clean_text(
         report
@@ -3665,6 +3721,12 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
             continue;
         }
         if response_looks_like_tool_ack_without_findings(&raw_result) {
+            continue;
+        }
+        if response_looks_like_unsynthesized_web_snippet_dump(&raw_result)
+            || response_looks_like_raw_web_artifact_dump(&raw_result)
+            || response_contains_tool_telemetry_dump(&raw_result)
+        {
             continue;
         }
         if looks_like_search_engine_chrome_summary(&lowered) {
@@ -5124,6 +5186,36 @@ fn response_looks_like_raw_web_artifact_dump(text: &str) -> bool {
         && lowered.contains("points by")
 }
 
+fn response_looks_like_unsynthesized_web_snippet_dump(text: &str) -> bool {
+    let cleaned = clean_text(text, 4_000);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if !(lowered.starts_with("from web retrieval:")
+        || lowered.starts_with("web benchmark synthesis:")
+        || lowered.starts_with("key findings for"))
+    {
+        return false;
+    }
+    if looks_like_search_engine_chrome_summary(&lowered)
+        || lowered.contains("search response came from")
+        || lowered.contains("bing.com:")
+        || lowered.contains("duckduckgo.com:")
+    {
+        return true;
+    }
+    let has_analysis_frame = lowered.contains("because ")
+        || lowered.contains("therefore")
+        || lowered.contains("in short")
+        || lowered.contains("overall")
+        || lowered.contains("recommend")
+        || lowered.contains("trade-off")
+        || lowered.contains("tradeoff");
+    let domains = extract_search_result_domains(&cleaned, 8);
+    domains.len() >= 2 && !has_analysis_frame
+}
+
 fn tool_is_autonomous_spawn(normalized: &str) -> bool {
     matches!(
         normalized,
@@ -6529,7 +6621,11 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             }
             return "Batch query was blocked by policy.".to_string();
         }
-        if !summary.is_empty() && !response_looks_like_tool_ack_without_findings(&summary) {
+        if !summary.is_empty()
+            && !response_looks_like_tool_ack_without_findings(&summary)
+            && !response_looks_like_raw_web_artifact_dump(&summary)
+            && !response_looks_like_unsynthesized_web_snippet_dump(&summary)
+        {
             return trim_text(&summary, 1200);
         }
         let evidence_refs = payload
@@ -6611,10 +6707,16 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         };
         let findings = extract_search_result_findings(&combined, 3);
         if !findings.is_empty() {
-            return trim_text(
-                &format!("From web retrieval: {}", findings.join(" ")),
-                1_200,
-            );
+            let findings_lines = findings
+                .iter()
+                .map(|row| format!("- {row}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let findings_summary =
+                trim_text(&format!("Key web findings:\n{findings_lines}"), 1_200);
+            if !response_looks_like_unsynthesized_web_snippet_dump(&findings_summary) {
+                return findings_summary;
+            }
         }
         let sources = extract_search_result_domains(&combined, 4);
         if !sources.is_empty() {
@@ -6772,6 +6874,21 @@ fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String
         }
         if lowered.contains(" at ") && lowered.contains("duckduckgo") {
             continue;
+        }
+        if lowered.starts_with("bing.com:")
+            || lowered.starts_with("duckduckgo.com:")
+            || lowered.starts_with("google.com:")
+            || lowered.starts_with("www.bing.com:")
+            || lowered.starts_with("www.duckduckgo.com:")
+            || lowered.starts_with("www.google.com:")
+        {
+            continue;
+        }
+        if let Some((prefix, _)) = lowered.split_once(':') {
+            let domain_prefix = prefix.trim().trim_start_matches("www.");
+            if looks_like_domain_token(domain_prefix) {
+                continue;
+            }
         }
         let has_link_hint = lowered.contains("http://")
             || lowered.contains("https://")
@@ -7341,10 +7458,12 @@ fn execute_inline_tool_calls(
         }
     }
     let cleaned_trimmed = cleaned.trim();
-    let response = if cleaned_trimmed.is_empty()
-        || (!fallback_lines.is_empty()
-            && response_looks_like_tool_ack_without_findings(cleaned_trimmed))
-    {
+    let cleaned_is_low_signal = response_looks_like_tool_ack_without_findings(cleaned_trimmed)
+        || response_looks_like_unsynthesized_web_snippet_dump(cleaned_trimmed)
+        || response_looks_like_raw_web_artifact_dump(cleaned_trimmed)
+        || response_is_no_findings_placeholder(cleaned_trimmed)
+        || response_contains_tool_telemetry_dump(cleaned_trimmed);
+    let response = if cleaned_trimmed.is_empty() || cleaned_is_low_signal {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
             "I ran the requested tool calls, but they returned no usable findings yet. Ask me to retry with a narrower query or a specific source."
@@ -7520,30 +7639,15 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
             }
         }
     }
-    let asks_market_or_peer_compare = (lowered.contains("competitor")
-        || lowered.contains("competitors")
-        || lowered.contains("peer")
-        || lowered.contains("peers")
-        || lowered.contains("framework")
-        || lowered.contains("rank")
-        || lowered.contains("ranking"))
-        && (lowered.contains("compare")
-            || lowered.contains("versus")
-            || lowered.contains(" vs ")
-            || lowered.contains("among")
-            || lowered.contains("top "));
-    if asks_market_or_peer_compare {
-        return Some((
-            "batch_query".to_string(),
-            json!({"source": "web", "query": clean_text(trimmed, 600), "aperture": "medium"}),
-        ));
-    }
     None
 }
 
 fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)> {
     let trimmed = message.trim();
     if !trimmed.starts_with('/') {
+        if message_explicitly_disallows_tool_calls(trimmed) {
+            return None;
+        }
         let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
         let asks_file_read = lowered.contains("read file")
             || lowered.contains("open file")
@@ -7801,7 +7905,10 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
         || lowered.contains("multi agent")
         || lowered.contains("use tool")
         || lowered.contains("run tool")
-        || lowered.contains("tool call")
+        || lowered.contains("call tool")
+        || lowered.contains("execute tool")
+        || lowered.contains("do a tool call")
+        || lowered.contains("run a tool call")
 }
 
 pub fn handle_with_headers(
@@ -9006,7 +9113,10 @@ pub fn handle_with_headers(
                         format!("{finalization_outcome}+tooling_failure_fallback");
                     tooling_fallback_used = true;
                     let (contracted, report, retry_outcome) =
-                        enforce_user_facing_finalization_contract(finalized_response, &response_tools);
+                        enforce_user_facing_finalization_contract(
+                            finalized_response,
+                            &response_tools,
+                        );
                     finalized_response = contracted;
                     tool_completion = report;
                     finalization_outcome =
@@ -9464,16 +9574,15 @@ pub fn handle_with_headers(
                         response_tools,
                         inline_pending_confirmation,
                         inline_tools_suppressed,
-                    ) =
-                        execute_inline_tool_calls(
-                            root,
-                            snapshot,
-                            &agent_id,
-                            Some(&row),
-                            &response_text,
-                            &message,
-                            inline_tools_allowed,
-                        );
+                    ) = execute_inline_tool_calls(
+                        root,
+                        snapshot,
+                        &agent_id,
+                        Some(&row),
+                        &response_text,
+                        &message,
+                        inline_tools_allowed,
+                    );
                     response_text = tool_adjusted_response;
                     if inline_tools_suppressed {
                         let direct_only_prompt = clean_text(
@@ -9492,7 +9601,10 @@ pub fn handle_with_headers(
                             &message,
                         ) {
                             let mut retried_text = clean_chat_text(
-                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                retried
+                                    .get("response")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
                                 32_000,
                             );
                             retried_text = strip_internal_context_metadata_prefix(&retried_text);
@@ -9510,6 +9622,55 @@ pub fn handle_with_headers(
                         }
                         if response_text.trim().is_empty() {
                             response_text = "I can answer directly without tool calls. Ask your question naturally and I will respond conversationally unless you explicitly request a tool run.".to_string();
+                        }
+                    }
+                    if response_tools.is_empty()
+                        && !inline_tools_allowed
+                        && (response_is_no_findings_placeholder(&response_text)
+                            || response_looks_like_raw_web_artifact_dump(&response_text)
+                            || response_looks_like_unsynthesized_web_snippet_dump(&response_text))
+                    {
+                        let no_fake_tooling_prompt = clean_text(
+                            &format!(
+                                "{}\n\nNo-fake-tooling guard: if no tool call executed in this turn, do not claim web retrieval/findings. Answer directly from stable context and label uncertainty when needed.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &no_fake_tooling_prompt,
+                            &active_messages,
+                            &message,
+                        ) {
+                            let mut retried_text = clean_chat_text(
+                                retried
+                                    .get("response")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            let (without_inline_calls, _) =
+                                extract_inline_tool_calls(&retried_text, 6);
+                            let candidate = if without_inline_calls.trim().is_empty() {
+                                retried_text
+                            } else {
+                                without_inline_calls
+                            };
+                            if !candidate.trim().is_empty() {
+                                response_text = clean_chat_text(candidate.trim(), 32_000);
+                            }
+                        }
+                        if response_text.trim().is_empty()
+                            || response_is_no_findings_placeholder(&response_text)
+                            || response_looks_like_raw_web_artifact_dump(&response_text)
+                            || response_looks_like_unsynthesized_web_snippet_dump(&response_text)
+                        {
+                            response_text = "I can answer this directly without running tools. If you want live sourcing, ask me to run a web search explicitly.".to_string();
                         }
                     }
                     if let Some(pending) = inline_pending_confirmation {
@@ -11480,7 +11641,12 @@ pub fn handle_with_headers(
                     &task_id,
                     "batch_query",
                     &args,
-                    |normalized_args| Ok(crate::batch_query_primitive::api_batch_query(root, normalized_args)),
+                    |normalized_args| {
+                        Ok(crate::batch_query_primitive::api_batch_query(
+                            root,
+                            normalized_args,
+                        ))
+                    },
                 );
                 let mut payload = pipeline
                     .get("raw_payload")
@@ -11799,7 +11965,12 @@ pub fn handle_with_headers(
                 &task_id,
                 "batch_query",
                 &request,
-                |normalized_args| Ok(crate::batch_query_primitive::api_batch_query(root, normalized_args)),
+                |normalized_args| {
+                    Ok(crate::batch_query_primitive::api_batch_query(
+                        root,
+                        normalized_args,
+                    ))
+                },
             );
             let mut payload = pipeline
                 .get("raw_payload")
