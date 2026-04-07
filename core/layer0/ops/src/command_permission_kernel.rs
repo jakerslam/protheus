@@ -130,7 +130,9 @@ fn append_rules(value: Option<&Value>, out: &mut Vec<String>) {
     }
 }
 
-fn load_rules(payload: &Map<String, Value>) -> (Vec<String>, Vec<String>) {
+pub(crate) fn collect_permission_rules_from_map_for_kernel(
+    payload: &Map<String, Value>,
+) -> (Vec<String>, Vec<String>) {
     let mut deny = Vec::<String>::new();
     let mut ask = Vec::<String>::new();
     append_rules(payload.get("deny_rules"), &mut deny);
@@ -140,6 +142,19 @@ fn load_rules(payload: &Map<String, Value>) -> (Vec<String>, Vec<String>) {
         append_rules(permissions.get("ask"), &mut ask);
     }
     (deny, ask)
+}
+
+pub(crate) fn collect_permission_rules_for_kernel(
+    payload: Option<&Value>,
+) -> (Vec<String>, Vec<String>) {
+    payload
+        .and_then(Value::as_object)
+        .map(collect_permission_rules_from_map_for_kernel)
+        .unwrap_or_else(|| (Vec::new(), Vec::new()))
+}
+
+fn load_rules(payload: &Map<String, Value>) -> (Vec<String>, Vec<String>) {
+    collect_permission_rules_from_map_for_kernel(payload)
 }
 
 fn glob_matches(cmd: &str, pattern: &str) -> bool {
@@ -356,5 +371,17 @@ mod tests {
     #[test]
     fn extracts_bash_wrapped_pattern() {
         assert_eq!(extract_bash_pattern("Bash(git push*)"), "git push*");
+    }
+
+    #[test]
+    fn collects_rules_from_top_level_and_permissions_object() {
+        let (deny, ask) = collect_permission_rules_for_kernel(Some(&json!({
+            "deny_rules": ["Bash(git reset --hard*)"],
+            "permissions": {
+                "ask": ["curl *"]
+            }
+        })));
+        assert_eq!(deny, vec!["git reset --hard*".to_string()]);
+        assert_eq!(ask, vec!["curl *".to_string()]);
     }
 }

@@ -284,43 +284,16 @@ pub(crate) fn authorize_ingress_terminal_command_with_nexus(
     Ok(Some(connection))
 }
 
-fn extract_rule(raw: &str) -> String {
-    let cleaned = clean_text(raw, 320);
-    if let Some(inner) = cleaned.strip_prefix("Bash(") {
-        if let Some(pattern) = inner.strip_suffix(')') {
-            return clean_text(pattern, 240);
-        }
-    }
-    clean_text(&cleaned, 240)
-}
-
-fn rules_from_value(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|row| row.as_str().map(extract_rule))
-        .filter(|row| !row.is_empty())
-        .collect::<Vec<_>>()
-}
-
 fn load_permission_rules(root: &Path) -> (Vec<String>, Vec<String>) {
     let mut deny = Vec::<String>::new();
     let mut ask = Vec::<String>::new();
     let path = root.join(TERMINAL_PERMISSION_POLICY_REL);
     if let Ok(raw) = fs::read_to_string(&path) {
         if let Ok(value) = serde_json::from_str::<Value>(&raw) {
-            deny.extend(rules_from_value(
-                value
-                    .get("deny_rules")
-                    .or_else(|| value.pointer("/permissions/deny")),
-            ));
-            ask.extend(rules_from_value(
-                value
-                    .get("ask_rules")
-                    .or_else(|| value.pointer("/permissions/ask")),
-            ));
+            let (policy_deny, policy_ask) =
+                crate::command_permission_kernel::collect_permission_rules_for_kernel(Some(&value));
+            deny.extend(policy_deny);
+            ask.extend(policy_ask);
         }
     }
     deny.sort();
