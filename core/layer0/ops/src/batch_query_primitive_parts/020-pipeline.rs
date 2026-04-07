@@ -2,6 +2,7 @@ const CACHE_REL: &str = "client/runtime/local/state/batch_query/cache.json";
 const CACHE_MAX_ENTRIES: usize = 240;
 const CACHE_TTL_SUCCESS_SECS: i64 = 30 * 60;
 const CACHE_TTL_NO_RESULTS_SECS: i64 = 2 * 60;
+const LINK_FETCH_FALLBACK_LIMIT: usize = 2;
 
 fn cache_path(root: &Path) -> PathBuf {
     root.join(CACHE_REL)
@@ -101,41 +102,280 @@ fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str)
     let _ = write_json_atomic(&path, &cache);
 }
 
-fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidate, String> {
-    let payload = fixture_payload_for_query(query).unwrap_or_else(|| {
-        crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
-    });
-    match candidate_from_search_payload(query, &payload) {
-        Ok(candidate) => Ok(candidate),
-        Err(primary_err) => {
-            if skip_duckduckgo_fallback_for_error(&primary_err) {
-                return Err(primary_err);
+fn is_search_engine_domain(domain: &str) -> bool {
+    let normalized = clean_text(domain, 120).to_ascii_lowercase();
+    matches!(
+        normalized.as_str(),
+        "duckduckgo.com"
+            | "lite.duckduckgo.com"
+            | "bing.com"
+            | "www.bing.com"
+            | "google.com"
+            | "www.google.com"
+            | "search.yahoo.com"
+            | "yahoo.com"
+            | "search.brave.com"
+            | "brave.com"
+    )
+}
+
+fn fixture_payload_for_stage_url(stage: &str, url: &str) -> Option<Value> {
+    let fixtures = fixture_payload_map()?;
+    let stage_key = format!("{stage}::{url}");
+    fixtures
+        .get(&stage_key)
+        .cloned()
+        .or_else(|| fixtures.get(&format!("fetch::{url}")).cloned())
+        .or_else(|| fixtures.get(&format!("url::{url}")).cloned())
+}
+
+fn fixture_mode_enabled() -> bool {
+    std::env::var("INFRING_BATCH_QUERY_TEST_FIXTURE_JSON")
+        .map(|raw| !raw.trim().is_empty())
+        .unwrap_or(false)
+}
+
+fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for row in payload
+        .get("links")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let link = clean_text(row.as_str().unwrap_or(""), 2_200);
+        if link.is_empty() || !seen.insert(link.clone()) {
+            continue;
+        }
+        let domain = extract_domains_from_text(&link, 1)
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        if domain.is_empty() || is_search_engine_domain(&domain) {
+            continue;
+        }
+        out.push(link);
+        if out.len() >= max_links.max(1) {
+            break;
+        }
+    }
+    out
+}
+
+fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
+    let query_tokens = query
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(str::trim)
+        .filter(|token| token.len() > 2)
+        .map(|token| token.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    if query_tokens.is_empty() {
+        return 0;
+    }
+    let haystack = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        3_200,
+    )
+    .to_ascii_lowercase();
+    query_tokens
+        .iter()
+        .filter(|token| haystack.contains(token.as_str()))
+        .count()
+}
+
+fn candidate_is_synthesis_eligible(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
+    if !candidate_passes_relevance_gate(query, candidate, benchmark_intent) {
+        return false;
+    }
+    if looks_like_ack_only(&candidate.snippet)
+        || looks_like_low_signal_search_summary(&candidate.snippet)
+        || looks_like_source_only_snippet(&candidate.snippet)
+    {
+        return false;
+    }
+    let domain = candidate_domain_hint(candidate);
+    if is_search_engine_domain(&domain) {
+        return false;
+    }
+    if benchmark_intent {
+        if looks_like_definition_candidate(candidate) || looks_like_comparison_noise_candidate(candidate)
+        {
+            return false;
+        }
+        if !looks_like_metric_rich_text(&candidate.snippet) && query_overlap_terms(query, candidate) < 2 {
+            return false;
+        }
+    }
+    true
+}
+
+fn stage_error(payload: &Value, fallback: &str) -> String {
+    clean_text(
+        payload
+            .get("error")
+            .or_else(|| payload.pointer("/result/error"))
+            .and_then(Value::as_str)
+            .unwrap_or(fallback),
+        220,
+    )
+}
+
+fn collect_candidates_from_stage_payload(
+    root: &Path,
+    stage: &str,
+    query: &str,
+    payload: &Value,
+    benchmark_intent: bool,
+    fetched_links: &mut HashSet<String>,
+) -> (Vec<Candidate>, Vec<String>) {
+    let mut candidates = Vec::<Candidate>::new();
+    let mut issues = Vec::<String>::new();
+
+    match candidate_from_search_payload(query, payload) {
+        Ok(candidate) => {
+            if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                candidates.push(candidate);
+            } else {
+                issues.push(format!("{stage}:candidate_low_relevance"));
             }
-            let bing_payload =
-                fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
-                    crate::web_conduit::api_search(
+        }
+        Err(err) => issues.push(format!("{stage}:{err}")),
+    }
+
+    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
+    let should_fetch_links =
+        candidates.is_empty() || looks_like_low_signal_search_summary(&summary);
+    if should_fetch_links {
+        for link in payload_links_for_fallback(payload, LINK_FETCH_FALLBACK_LIMIT) {
+            if !fetched_links.insert(link.clone()) {
+                continue;
+            }
+            let fetch_payload = fixture_payload_for_stage_url(stage, &link).unwrap_or_else(|| {
+                if fixture_mode_enabled() {
+                    json!({
+                        "ok": false,
+                        "error": "fixture_missing"
+                    })
+                } else {
+                    crate::web_conduit::api_fetch(
                         root,
                         &json!({
-                            "query": query,
-                            "provider": "bing",
+                            "url": link.clone(),
                             "summary_only": false
                         }),
                     )
-                });
-            if let Ok(candidate) = candidate_from_search_payload(query, &bing_payload) {
-                return Ok(candidate);
+                }
+            });
+            if !fetch_payload
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                issues.push(format!(
+                    "{stage}:fetch:{}",
+                    stage_error(&fetch_payload, "web_fetch_failed")
+                ));
+                continue;
             }
-            let bing_err = clean_text(
-                bing_payload
-                    .get("error")
-                    .or_else(|| bing_payload.pointer("/result/error"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("bing_rss_no_usable_summary"),
-                220,
-            );
-            let fallback_url = duckduckgo_instant_answer_url(query);
-            let fallback_payload = fixture_payload_for_stage_query("duckduckgo_instant", query)
-                .unwrap_or_else(|| {
+            match candidate_from_search_payload(query, &fetch_payload) {
+                Ok(mut candidate) => {
+                    if candidate.locator.is_empty()
+                        || is_search_engine_domain(&candidate_domain_hint(&candidate))
+                    {
+                        candidate.locator = link.clone();
+                    }
+                    if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                        candidates.push(candidate);
+                    } else {
+                        issues.push(format!("{stage}:fetch_candidate_low_relevance"));
+                    }
+                }
+                Err(err) => issues.push(format!("{stage}:fetch_candidate:{err}")),
+            }
+        }
+    }
+    (candidates, issues)
+}
+
+fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Candidate>, String> {
+    let benchmark_intent = is_benchmark_or_comparison_intent(query);
+    let mut candidates = Vec::<Candidate>::new();
+    let mut issues = Vec::<String>::new();
+    let mut fetched_links = HashSet::<String>::new();
+
+    let primary_payload = fixture_payload_for_query(query).unwrap_or_else(|| {
+        if fixture_mode_enabled() {
+            json!({
+                "ok": false,
+                "error": "fixture_missing"
+            })
+        } else {
+            crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
+        }
+    });
+    let (primary_candidates, primary_issues) = collect_candidates_from_stage_payload(
+        root,
+        "primary",
+        query,
+        &primary_payload,
+        benchmark_intent,
+        &mut fetched_links,
+    );
+    candidates.extend(primary_candidates);
+    issues.extend(primary_issues);
+
+    if candidates.is_empty()
+        && issues
+            .iter()
+            .any(|issue| skip_duckduckgo_fallback_for_error(issue))
+    {
+        return Err(issues.join("|"));
+    }
+
+    if candidates.is_empty() {
+        let bing_payload = fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
+            if fixture_mode_enabled() {
+                json!({
+                    "ok": false,
+                    "error": "fixture_missing"
+                })
+            } else {
+                crate::web_conduit::api_search(
+                    root,
+                    &json!({
+                        "query": query,
+                        "provider": "bing",
+                        "summary_only": false
+                    }),
+                )
+            }
+        });
+        let (bing_candidates, bing_issues) = collect_candidates_from_stage_payload(
+            root,
+            "bing_rss",
+            query,
+            &bing_payload,
+            benchmark_intent,
+            &mut fetched_links,
+        );
+        candidates.extend(bing_candidates);
+        issues.extend(bing_issues);
+    }
+
+    if candidates.is_empty() {
+        let fallback_url = duckduckgo_instant_answer_url(query);
+        let fallback_payload = fixture_payload_for_stage_query("duckduckgo_instant", query)
+            .unwrap_or_else(|| {
+                if fixture_mode_enabled() {
+                    json!({
+                        "ok": false,
+                        "error": "fixture_missing"
+                    })
+                } else {
                     crate::web_conduit::api_fetch(
                         root,
                         &json!({
@@ -143,15 +383,41 @@ fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidat
                             "summary_only": false
                         }),
                     )
-                });
-            match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload)
-            {
-                Ok(candidate) => Ok(candidate),
-                Err(fallback_err) => Err(format!(
-                    "{primary_err}|bing:{bing_err}|fallback:{fallback_err}"
-                )),
+                }
+            });
+        match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload) {
+            Ok(candidate) => {
+                if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                    candidates.push(candidate);
+                } else {
+                    issues.push("duckduckgo_instant:candidate_low_relevance".to_string());
+                }
+            }
+            Err(err) => issues.push(format!("duckduckgo_instant:{err}")),
+        }
+    }
+
+    if candidates.is_empty() {
+        if issues.is_empty() {
+            Err("no_usable_summary".to_string())
+        } else {
+            Err(issues.join("|"))
+        }
+    } else {
+        let mut dedup = HashSet::<String>::new();
+        let mut unique = Vec::<Candidate>::new();
+        for candidate in candidates {
+            let key = format!(
+                "{}|{}|{}",
+                candidate.locator.to_ascii_lowercase(),
+                candidate.title.to_ascii_lowercase(),
+                candidate.excerpt_hash
+            );
+            if dedup.insert(key) {
+                unique.push(candidate);
             }
         }
+        Ok(unique)
     }
 }
 
@@ -205,6 +471,22 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         score -= 0.12;
     }
     score.clamp(0.0, 1.0)
+}
+
+fn minimum_synthesis_score(benchmark_intent: bool) -> f64 {
+    if benchmark_intent {
+        0.33
+    } else {
+        0.18
+    }
+}
+
+fn is_benign_partial_failure(detail: &str) -> bool {
+    let lowered = clean_text(detail, 320).to_ascii_lowercase();
+    lowered.contains("candidate_low_relevance")
+        || lowered.contains("fetch_candidate_low_relevance")
+        || lowered.contains("no_usable_summary")
+        || lowered.contains("fixture_missing")
 }
 
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
@@ -365,7 +647,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     thread::spawn(move || {
                         (
                             query_item.clone(),
-                            retrieve_web_candidate_for_query(&root_buf, &query_item),
+                            retrieve_web_candidates_for_query(&root_buf, &query_item),
                         )
                     })
                 })
@@ -373,7 +655,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             for handle in handles {
                 if let Ok((q, out)) = handle.join() {
                     match out {
-                        Ok(candidate) => candidates.push(candidate),
+                        Ok(mut rows) => {
+                            if rows.is_empty() {
+                                partial_failures.push(format!("{}:no_usable_summary", clean_text(&q, 120)));
+                            } else {
+                                candidates.append(&mut rows);
+                            }
+                        }
                         Err(err) => partial_failures.push(format!("{}:{err}", clean_text(&q, 120))),
                     }
                 } else {
@@ -384,8 +672,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     } else {
         for q in &queries {
-            match retrieve_web_candidate_for_query(root, q) {
-                Ok(candidate) => candidates.push(candidate),
+            match retrieve_web_candidates_for_query(root, q) {
+                Ok(mut rows) => {
+                    if rows.is_empty() {
+                        partial_failures.push(format!("{}:no_usable_summary", clean_text(q, 120)));
+                    } else {
+                        candidates.append(&mut rows);
+                    }
+                }
                 Err(err) => partial_failures.push(format!("{}:{err}", clean_text(q, 120))),
             }
         }
@@ -430,14 +724,18 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     });
     ranked.truncate(budget.max_evidence);
 
+    let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
     let mut actionable_ranked = ranked
         .into_iter()
-        .filter(|(row, _)| {
+        .filter(|(row, score)| {
             let snippet = clean_text(&row.snippet, 1_200);
+            let domain = candidate_domain_hint(row);
             !snippet.is_empty()
+                && *score >= min_synthesis_score
                 && !looks_like_ack_only(&snippet)
                 && !looks_like_low_signal_search_summary(&snippet)
                 && !looks_like_source_only_snippet(&snippet)
+                && !is_search_engine_domain(&domain)
                 && candidate_passes_relevance_gate(&rerank_query, row, benchmark_intent)
                 && !(benchmark_intent && looks_like_definition_candidate(row))
                 && !(benchmark_intent && looks_like_comparison_noise_candidate(row))
@@ -478,9 +776,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         })
         .collect::<Vec<_>>();
 
+    let hard_partial_failures = partial_failures
+        .iter()
+        .filter(|row| !is_benign_partial_failure(row))
+        .cloned()
+        .collect::<Vec<_>>();
     let status = if evidence_refs.is_empty() {
         "no_results"
-    } else if partial_failures.is_empty() {
+    } else if hard_partial_failures.is_empty() {
         "ok"
     } else {
         "partial"
@@ -556,7 +859,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "latency_ms": started.elapsed().as_millis() as u64,
         "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
         "parallel_retrieval_used": parallel_allowed,
-        "partial_failure_details": partial_failures,
+        "partial_failure_details": hard_partial_failures,
         "status": status
     });
     let receipt_id = crate::deterministic_receipt_hash(&receipt);

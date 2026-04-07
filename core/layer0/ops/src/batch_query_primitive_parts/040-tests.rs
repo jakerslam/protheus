@@ -245,6 +245,113 @@ mod tests {
     }
 
     #[test]
+    fn benchmark_small_aperture_falls_through_to_bing_when_primary_is_definition_noise() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "ai agent framework benchmark metrics 2024";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "VERIFY Definition & Meaning - Merriam-Webster",
+                    "requested_url": "https://www.merriam-webster.com/dictionary/verify",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": true,
+                    "summary": "Independent benchmark reports median latency 780ms, throughput 51 tokens/s, and completion success rate 88%.",
+                    "requested_url": "https://artificialanalysis.ai/benchmarks/agent-frameworks",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("latency") || lowered.contains("tokens/s"));
+        assert!(!lowered.contains("merriam"));
+    }
+
+    #[test]
+    fn low_signal_search_payload_uses_link_fetch_fallback_for_synthesis() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "latest technology news today";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "latest technology news today at DuckDuckGo All Regions Safe Search Any Time",
+                    "content": "",
+                    "links": ["https://www.reuters.com/technology/ai-chip-demand-2026-04-01"],
+                    "requested_url": "https://duckduckgo.com/html/?q=latest+technology+news+today",
+                    "status_code": 200
+                },
+                "fetch::https://www.reuters.com/technology/ai-chip-demand-2026-04-01": {
+                    "ok": true,
+                    "summary": "Reuters reports AI chip demand climbed 28% year-over-year while inference latency dropped to 640ms.",
+                    "requested_url": "https://www.reuters.com/technology/ai-chip-demand-2026-04-01",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("reuters") || lowered.contains("latency"));
+        assert!(!lowered.contains("all regions"));
+        assert!(!lowered.contains("safe search"));
+    }
+
+    #[test]
+    fn search_engine_domain_only_candidates_fail_closed() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "framework compare snapshots";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Search results portal and links",
+                    "requested_url": "https://www.bing.com/search?q=framework+compare+snapshots",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": true,
+                    "summary": "Search result page overview",
+                    "requested_url": "https://www.bing.com/search?q=framework+compare+snapshots&format=rss&setlang=en-US",
+                    "status_code": 200
+                },
+                format!("duckduckgo_instant::{query}"): {
+                    "ok": false,
+                    "error": "duckduckgo_instant_no_usable_summary"
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        assert!(!summary.to_ascii_lowercase().contains("bing.com"));
+    }
+
+    #[test]
     fn compare_query_resolves_deictic_framework_and_blocks_grammar_noise() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let query = "compare this framework to openclaw";
