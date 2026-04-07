@@ -698,14 +698,13 @@ fn model_generated_prompt_suggestions(
                 continue;
             }
             row = row
-                .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | '?'))
+                .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':' | '?'))
                 .trim()
                 .to_string();
             if row.is_empty() || is_template_like_suggestion(&row) {
                 continue;
             }
-            row.push('?');
-            synthesized.push(row);
+            synthesized.push(strip_trailing_suggestion_question_marks(&row));
             if synthesized.len() >= PROMPT_SUGGESTION_MAX_COUNT {
                 break;
             }
@@ -804,35 +803,21 @@ fn apply_suggestion_style(style: &SuggestionStyle, body: &str) -> String {
             );
         }
     }
-    if style.prefer_question_mark {
-        if !text.ends_with('?') {
-            text = text
-                .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':'))
-                .trim()
-                .to_string();
-            if !text.is_empty() {
-                text.push('?');
-            }
-        }
-    } else {
-        text = text.trim_end_matches('?').trim().to_string();
-    }
+    let _ = style.prefer_question_mark;
+    text = text
+        .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':'))
+        .trim()
+        .to_string();
+    text = strip_trailing_suggestion_question_marks(&text);
     let mut out = sanitize_suggestion(&text);
     if out.is_empty() {
         return out;
     }
-    if style.prefer_question_mark {
-        out = out
-            .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':'))
-            .trim()
-            .to_string();
-        if !out.is_empty() && !out.ends_with('?') {
-            out.push('?');
-        }
-    } else {
-        out = out.trim_end_matches('?').trim().to_string();
-    }
-    out
+    out = out
+        .trim_end_matches(|ch: char| matches!(ch, '.' | '!' | ';' | ':'))
+        .trim()
+        .to_string();
+    strip_trailing_suggestion_question_marks(&out)
 }
 
 pub fn append_turn(root: &Path, agent_id: &str, user_text: &str, assistant_text: &str) -> Value {
