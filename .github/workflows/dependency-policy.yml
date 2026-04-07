@@ -1,0 +1,42 @@
+name: Dependency Policy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  dependency-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          config-file: .github/dependency-review-config.yml
+
+      - name: Release policy gate (dependency posture)
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_policy_gate.ts \
+            --strict=1 \
+            --out=core/local/artifacts/release_policy_gate_current.json

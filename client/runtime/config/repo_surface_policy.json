@@ -1,0 +1,135 @@
+{
+  "version": "2026-03-10",
+  "code_roots": [
+    "core",
+    "client",
+    "packages",
+    "apps",
+    "adapters",
+    "tests"
+  ],
+  "root_rules": {
+    "core": {
+      "allowed_extensions": [
+        "rs",
+        "c",
+        "cc",
+        "cpp",
+        "h",
+        "hpp",
+        "sh"
+      ],
+      "notes": "Rust-first. C/C++ only for low-level or hardware-adjacent modules. Shell allowed only for tightly-scoped build/install/packaging helpers."
+    },
+    "client": {
+      "target_extensions": [
+        "ts",
+        "tsx",
+        "html",
+        "css",
+        "scss"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh",
+        "ps1"
+      ],
+      "notes": "Client is developer-facing platform surface. JS/Python/Shell/PowerShell are tracked as explicit migration debt or packaging/installer glue."
+    },
+    "packages": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "sh",
+        "html",
+        "css",
+        "scss"
+      ],
+      "notes": "Packages are public SDK/package distribution surfaces. They may be polyglot, but must remain thin, developer-facing, and non-authoritative."
+    },
+    "apps": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "rs",
+        "html",
+        "css",
+        "scss",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
+      ],
+      "notes": "Apps are polyglot and product-oriented, but must not own core authority."
+    },
+    "adapters": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "rs",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
+      ],
+      "notes": "Adapters are polyglot integration shims for external systems."
+    },
+    "tests": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "rs",
+        "sh"
+      ],
+      "notes": "Top-level integration/regression/e2e verification surface."
+    }
+  },
+  "runtime_exceptions": [
+    "scripts/",
+    "examples/",
+    "benchmarks/",
+    "docs/",
+    "local/",
+    "tools/",
+    "core/local/",
+    "client/local/",
+    "core/local/artifacts/",
+    "local/state/",
+    "planes/",
+    "proofs/",
+    "xtask/",
+    "core/layer1/memory_runtime/adaptive/",
+    "node_modules/"
+  ],
+  "ignore_path_prefixes": [
+    "client/runtime/local/",
+    "client/cognition/habits/scripts/",
+    "core/layer1/memory_runtime/adaptive/",
+    "client/pure-workspace/"
+  ],
+  "ignore_exact_paths": [
+    "install.ps1",
+    "install.sh",
+    "verify.sh",
+    "vitest.config.ts"
+  ],
+  "forbidden_path_prefixes": [
+    "client/cli/apps/",
+    "examples/apps/"
+  ]
+}

@@ -1,0 +1,17 @@
+[build]
+target-dir = "../../target/memory-core-v6"
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "opt-level=z"]
+
+[target.aarch64-apple-ios]
+rustflags = ["-C", "opt-level=s"]
+
+[target.x86_64-apple-ios]
+rustflags = ["-C", "opt-level=s"]
+
+[target.aarch64-linux-android]
+rustflags = ["-C", "opt-level=s"]
+
+[target.x86_64-linux-android]
+rustflags = ["-C", "opt-level=s"]

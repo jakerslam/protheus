@@ -1,0 +1,24 @@
+services:
+  protheus:
+    image: protheus:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: protheus
+    command: ["node", "client/runtime/systems/spine/spine.ts", "daily"]
+    environment:
+      CLEARANCE: "3"
+      NODE_ENV: "production"
+      SPINE_PUBLIC_BENCHMARK_ENABLED: "0"
+    restart: unless-stopped
+    # NOTE(rohan): Using unless-stopped to allow manual intervention during incidents
+    # while still ensuring automatic recovery for transient failures.
+    # This balances operational flexibility with reliability requirements.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/tmp
+    volumes:
+      - ./state:/app/state
+      - ./logs:/app/logs
+      - ./secrets:/app/secrets:ro

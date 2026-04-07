@@ -1,0 +1,45 @@
+name: F100 A+ Scorecard
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  f100-a-plus-scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: "180000"
+      PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install npm dependencies
+        run: npm ci --include=dev
+
+      - name: Generate A+ readiness scorecard (Rust authoritative)
+        run: npm run -s ops:f100-a-plus:run
+
+      - name: Upload A+ readiness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f100-a-plus-readiness
+          path: |
+            docs/client/ops/F100_A_PLUS_READINESS_STATUS.md
+            local/state/ops/f100_reliability_certification/latest.json

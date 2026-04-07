@@ -1,0 +1,38 @@
+{
+  "schema_id": "capability_profile",
+  "schema_version": "1.0",
+  "required_top_level": [
+    "profile_id",
+    "schema_version",
+    "generated_at",
+    "source",
+    "surface",
+    "provenance"
+  ],
+  "required_source_fields": [
+    "capability_id",
+    "source_type"
+  ],
+  "surface_contract": {
+    "required_sections": [
+      "api",
+      "auth",
+      "rate_limit",
+      "error"
+    ],
+    "at_least_one_activity_field": [
+      "api.endpoints",
+      "ui.flows"
+    ]
+  },
+  "provenance_required_fields": [
+    "origin",
+    "legal",
+    "confidence"
+  ],
+  "allowed_source_types": [
+    "local_skill",
+    "external_adapter",
+    "external_tool"
+  ]
+}

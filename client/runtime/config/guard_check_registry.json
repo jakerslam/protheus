@@ -1,0 +1,819 @@
+{
+  "schema_id": "guard_check_registry",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-26T08:33:01.514Z",
+  "generated_from": "manual_registry_ts_path_rewire_2026-03-26",
+  "merge_guard": {
+    "checks": [
+      {
+        "id": "contract_check",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/spine/contract_check.ts"
+        ],
+        "strict": false
+      },
+      {
+        "id": "integrity_kernel_check",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/integrity_kernel.ts",
+          "run"
+        ],
+        "strict": false
+      },
+      {
+        "id": "skin_protection_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/skin_protection_layer.ts",
+          "verify",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "schema_contract_check",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/schema_contract_check.ts",
+          "run"
+        ],
+        "strict": false
+      },
+      {
+        "id": "adaptive_layer_guard_strict",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/sensory/adaptive_layer_guard.ts",
+          "run",
+          "--strict"
+        ],
+        "strict": true
+      },
+      {
+        "id": "memory_layer_guard_strict",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/memory_layer_guard.ts",
+          "run",
+          "--strict"
+        ],
+        "strict": true
+      },
+      {
+        "id": "workspace_dump_guard_strict",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/workspace_dump_guard.ts",
+          "run",
+          "--strict"
+        ],
+        "strict": true
+      },
+      {
+        "id": "conflict_marker_guard",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/conflict_marker_guard.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "repo_hygiene_guard_strict",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/repo_hygiene_guard.ts",
+          "run",
+          "--strict",
+          "--staged"
+        ],
+        "strict": true
+      },
+      {
+        "id": "dist_runtime_legacy_pairs",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/dist_runtime_cutover.ts",
+          "legacy-pairs",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "js_holdout_audit_strict",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/js_holdout_audit.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "formal_invariant_engine",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/formal_invariant_engine.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "critical_path_formal_verifier",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/critical_path_formal_verifier.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "supply_chain_trust_plane",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/supply_chain_trust_plane.ts",
+          "run",
+          "--strict=1",
+          "--verify-only=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "key_lifecycle_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/key_lifecycle_governor.ts",
+          "verify",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "post_quantum_migration_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/post_quantum_migration_lane.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "quantum_security_synthesis_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/redteam/quantum_security_primitive_synthesis.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "docs_coverage_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/docs_coverage_gate.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "dr_gameday_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/dr_gameday_gate.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "simplicity_budget_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/simplicity_budget_gate.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "causal_temporal_graph_build",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/causal_temporal_graph.ts",
+          "build",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "emergent_primitive_synthesis_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/primitives/emergent_primitive_synthesis.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "hardware_embodiment_parity",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/hardware/embodiment_layer.ts",
+          "verify-parity",
+          "--profiles=phone,desktop,cluster",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "resurrection_protocol_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/continuity/resurrection_protocol.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "value_anchor_renewal_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/echo/value_anchor_renewal.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "explanation_primitive_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/primitives/explanation_primitive.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "gated_self_improvement_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "iterative_repair_primitive_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/primitives/iterative_repair_primitive.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "interactive_desktop_session_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/primitives/interactive_desktop_session_primitive.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "doctor_forge_micro_debug_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/autonomy/doctor_forge_micro_debug_lane.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "full_virtual_desktop_claw_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/actuation/full_virtual_desktop_claw_lane.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "account_creation_profile_extension_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/workflow/account_creation_profile_extension.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "delegated_authority_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/delegated_authority_branching.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "world_model_freshness_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/assimilation/world_model_freshness.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "continuous_chaos_resilience_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/continuous_chaos_resilience.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "error_budget_release_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/error_budget_release_gate.ts",
+          "gate",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "critical_path_policy_coverage",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/critical_path_policy_coverage.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "backlog_intake_quality_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/backlog_intake_quality_gate.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "composite_disaster_gameday_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/composite_disaster_gameday.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "self_hosted_bootstrap_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "surface_budget_controller_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/hardware/surface_budget_controller.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "compression_transfer_plane_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/hardware/compression_transfer_plane.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "opportunistic_offload_plane_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/hardware/opportunistic_offload_plane.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "phone_seed_profile_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/phone_seed_profile.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "client_relationship_manager_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/workflow/client_relationship_manager.ts",
+          "status",
+          "--days=30"
+        ],
+        "strict": false
+      },
+      {
+        "id": "gated_account_creation_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/workflow/gated_account_creation_organ.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "capital_allocation_organ_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/budget/capital_allocation_organ.ts",
+          "status",
+          "--days=30"
+        ],
+        "strict": false
+      },
+      {
+        "id": "economic_entity_manager_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/finance/economic_entity_manager.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "drift_aware_revenue_optimizer_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
+          "status",
+          "--days=30"
+        ],
+        "strict": false
+      },
+      {
+        "id": "siem_bridge_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/observability/siem_bridge.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "soc2_type2_track_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/soc2_type2_track.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "predictive_capacity_forecast_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/predictive_capacity_forecast.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "neural_dormant_seed_check",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/symbiosis/neural_dormant_seed.ts",
+          "check",
+          "--strict=1",
+          "--profile=prod"
+        ],
+        "strict": true
+      },
+      {
+        "id": "pre_neuralink_interface_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/symbiosis/pre_neuralink_interface.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "execution_sandbox_envelope_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/execution_sandbox_envelope.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "organ_state_encryption_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/organ_state_encryption_plane.ts",
+          "verify",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "remote_tamper_heartbeat_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/remote_tamper_heartbeat.ts",
+          "verify",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "operator_terms_ack_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/operator_terms_ack.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "secure_heartbeat_endpoint_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/secure_heartbeat_endpoint.ts",
+          "verify",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "repository_access_auditor_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/repository_access_auditor.ts",
+          "status",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "secret_rotation_migration_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/security/secret_rotation_migration_auditor.ts",
+          "status",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "helix_baseline_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/helix/helix_controller.ts",
+          "baseline"
+        ],
+        "strict": false
+      },
+      {
+        "id": "helix_admission_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/helix/helix_admission_gate.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "helix_confirmed_malice_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "redteam_ant_colony_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/redteam/ant_colony_controller.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "profile_compatibility_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/profile_compatibility_gate.ts",
+          "run",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "schema_evolution_contract",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/schema_evolution_contract.ts",
+          "run",
+          "--strict=1",
+          "--apply=0"
+        ],
+        "strict": true
+      },
+      {
+        "id": "state_kernel_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/state_kernel.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "state_kernel_parity",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/state_kernel.ts",
+          "verify-parity"
+        ],
+        "strict": false
+      },
+      {
+        "id": "state_kernel_replay_verify",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/state_kernel.ts",
+          "replay-verify",
+          "--profiles=phone,desktop,cluster"
+        ],
+        "strict": false
+      },
+      {
+        "id": "state_kernel_cutover_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/state_kernel_cutover.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "state_kernel_dual_write_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/state_kernel_dual_write.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "dynamic_burn_budget_oracle_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/ops/dynamic_burn_budget_oracle.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "rust_memory_benchmark_consistency",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/rust_memory_transition_lane.ts",
+          "consistency-check",
+          "--strict=1"
+        ],
+        "strict": true
+      },
+      {
+        "id": "rust_memory_daemon_supervisor_healthcheck",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/rust_memory_daemon_supervisor.ts",
+          "healthcheck"
+        ],
+        "strict": false
+      },
+      {
+        "id": "cognitive_control_primitive_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/primitives/cognitive_control_primitive.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "dynamic_memory_embedding_adapter_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "memory_index_freshness_gate",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/memory/memory_index_freshness_gate.ts",
+          "run",
+          "--strict=1",
+          "--apply=0"
+        ],
+        "strict": true
+      },
+      {
+        "id": "trajectory_skill_distiller_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/assimilation/trajectory_skill_distiller.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "motivational_state_vector_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/autonomy/motivational_state_vector.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "agent_settlement_extension_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/finance/agent_settlement_extension.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "source_attestation_extension_status",
+        "command": "node",
+        "args": [
+          "client/runtime/systems/assimilation/source_attestation_extension.ts",
+          "status"
+        ],
+        "strict": false
+      },
+      {
+        "id": "test_ci",
+        "command": "npm",
+        "args": [
+          "run",
+          "test:ci"
+        ],
+        "strict": false
+      }
+    ],
+    "optional_checks": [
+      {
+        "id": "test_ci",
+        "command": "npm",
+        "args": [
+          "run",
+          "test:ci"
+        ],
+        "enabled_when": "skip_tests=false"
+      }
+    ]
+  },
+  "contract_check": {
+    "required_merge_guard_ids": [
+      "contract_check",
+      "schema_contract_check",
+      "profile_compatibility_gate",
+      "state_kernel_status",
+      "rust_memory_benchmark_consistency",
+      "rust_memory_daemon_supervisor_healthcheck",
+      "memory_index_freshness_gate",
+      "operator_terms_ack_status"
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "version": "1.0",
+  "description": "Rust-authoritative kernel policy. TS is allowed for conduit/client and non-kernel UX surfaces only.",
+  "rust_entrypoint_gate": {
+    "path": "core/layer0/ops/src/main.rs",
+    "required_tokens": [
+      "\"spine\" =>",
+      "\"contract-check\" =>",
+      "\"state-kernel\" =>",
+      "\"autonomy-controller\" =>",
+      "\"protheusctl\" =>"
+    ]
+  },
+  "conduit_strict_gate": {
+    "path": "client/runtime/systems/ops/protheusd.ts",
+    "required_tokens": [
+      "PROTHEUS_CONDUIT_STRICT",
+      "--allow-legacy-fallback",
+      "conduit_required_strict"
+    ]
+  },
+  "conduit_budget_gate": {
+    "path": "core/layer2/conduit/src/lib.rs",
+    "required_tokens": [
+      "MAX_CONDUIT_MESSAGE_TYPES: usize = 10",
+      "pub const TS_COMMAND_TYPES: [&str; 7]",
+      "pub const RUST_EVENT_TYPES: [&str; 3]",
+      "validate_conduit_contract_budget"
+    ]
+  },
+  "status_dashboard_gate": {
+    "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+    "required_tokens": [
+      "protheus-ops",
+      "status",
+      "--dashboard"
+    ]
+  },
+  "js_wrapper_contract": {
+    "required_wrapper_paths": [
+      "client/runtime/systems/ops/protheusd.ts"
+    ]
+  },
+  "rust_shim_contract": {
+    "entries": [
+      {
+        "path": "client/runtime/systems/ops/protheus_control_plane.ts",
+        "required_tokens": [
+          "runProtheusOps",
+          "protheus-control-plane"
+        ]
+      },
+      {
+        "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+        "required_tokens": [
+          "status",
+          "runProtheusOps"
+        ]
+      }
+    ]
+  },
+  "primitive_ts_wrapper_contract": {
+    "entries": [
+      {
+        "path": "client/runtime/lib/strategy_resolver.ts",
+        "required_tokens": [
+          "createConduitLaneModule",
+          "direct_conduit_lane_bridge.ts"
+        ],
+        "forbidden_tokens": [
+          "legacy_retired_lane_bridge"
+        ]
+      },
+      {
+        "path": "client/runtime/lib/duality_seed.ts",
+        "required_tokens": [
+          "createConduitLaneModule",
+          "direct_conduit_lane_bridge.ts"
+        ],
+        "forbidden_tokens": [
+          "legacy_retired_lane_bridge"
+        ]
+      }
+    ]
+  },
+  "tcb_ts_exception_contract": {
+    "path": "client/runtime/config/rust_ts_exceptions.json",
+    "wrapper_tokens": [
+      "runProtheusOps",
+      "createConduitLaneModule",
+      "core://",
+      "protheus-ops",
+      "bindLegacyRetiredModule",
+      "legacy_retired_wrapper",
+      "bindNativeRustModule"
+    ]
+  },
+  "ts_surface_allowlist_prefixes": [
+    "client/runtime/systems/conduit/",
+    "client/runtime/systems/marketplace/",
+    "client/runtime/systems/ui/",
+    "client/runtime/systems/extensions/",
+    "client/runtime/systems/ops/",
+    "client/runtime/systems/security/",
+    "extensions/"
+  ],
+  "tcb_rust_required_prefixes": [
+    "client/runtime/systems/security/",
+    "client/runtime/systems/ops/",
+    "client/runtime/systems/memory/",
+    "client/runtime/systems/sensory/",
+    "client/runtime/systems/autonomy/",
+    "client/runtime/systems/assimilation/"
+  ]
+}

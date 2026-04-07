@@ -1,0 +1,290 @@
+        <div class="global-topbar-page-slot"></div>
+      </div>
+      <div class="global-topbar-right">
+        <div class="global-topbar-controls">
+          <button
+            class="health-indicator topbar-agent-indicator"
+            type="button"
+            :class="runtimeFacadeClass()"
+            @click="location.hash='agents'"
+            :title="runtimeFacadeTitle()"
+            aria-label="Open agents"
+          >
+            <span class="topbar-agent-indicator-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="topbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
+          </button>
+        </div>
+        <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
+          <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
+          </button>
+          <button class="theme-opt" :class="{ active: themeMode === 'system' }" @click="setTheme('system')" title="System" aria-label="System theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+              <path d="M8 21h8"></path><path d="M12 17v4"></path>
+            </svg>
+          </button>
+          <button class="theme-opt" :class="{ active: themeMode === 'dark' }" @click="setTheme('dark')" title="Dark" aria-label="Dark theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
+          <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
+            <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
+              <path d="M9 17a3 3 0 0 0 6 0"></path>
+            </svg>
+            <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
+          </button>
+          <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+            <div class="notif-dropdown-head">
+              <span>Notifications</span>
+              <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
+            </div>
+            <template x-if="!$store.app.notifications.length">
+              <div class="notif-empty">No notifications yet</div>
+            </template>
+            <div class="notif-list" x-show="$store.app.notifications.length">
+              <template x-for="note in $store.app.notifications" :key="note.id">
+                <div class="notif-item" :class="{ unread: !note.read }">
+                  <button class="notif-item-open" @click="$store.app.reopenNotification(note)">
+                    <span class="notif-item-dot" :class="'type-' + note.type"></span>
+                    <span class="notif-item-msg" x-text="note.message"></span>
+                    <span class="notif-item-time" x-text="$store.app.formatNotificationTime(note.ts)"></span>
+                  </button>
+                  <button
+                    class="notif-item-dismiss"
+                    @click.stop="$store.app.dismissNotification(note.id)"
+                    title="Dismiss notification"
+                    aria-label="Dismiss notification"
+                  >&times;</button>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="notif-bubble" x-show="$store.app.notificationBubble" x-transition:enter="transition ease-out duration-160" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
+            <div class="notif-bubble-head">
+              <span class="notif-item-dot" :class="'type-' + (($store.app.notificationBubble && $store.app.notificationBubble.type) || 'info')"></span>
+              <span class="notif-bubble-time" x-text="$store.app.notificationBubble ? $store.app.formatNotificationTime($store.app.notificationBubble.ts) : ''"></span>
+              <button class="notif-bubble-close" @click.stop="$store.app.dismissNotificationBubble()" aria-label="Dismiss notification">&times;</button>
+            </div>
+            <div class="notif-bubble-msg" x-text="$store.app.notificationBubble ? $store.app.notificationBubble.message : ''"></div>
+          </div>
+        </div>
+        <button
+          class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn dashboard-preview-trigger dashboard-preview-down-right"
+          type="button"
+          @click.prevent
+          title="Authentication (coming soon)"
+          data-tooltip="Auth coming soon"
+          aria-label="Authentication"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="6.5" r="3.5"></circle>
+            <path d="M12 10v11"></path>
+            <path d="M12 15h3"></path>
+            <path d="M12 18h2"></path>
+          </svg>
+        </button>
+        <div class="topbar-clock" :title="topbarClockLabel()" aria-label="System clock">
+          <span class="topbar-clock-main" x-text="topbarClockMainLabel()"></span>
+          <span class="topbar-clock-meridiem" x-text="topbarClockMeridiemLabel()"></span>
+        </div>
+      </div>
+    </div>
+    <svg
+      class="dock-icon-defs"
+      aria-hidden="true"
+      focusable="false"
+      width="0"
+      height="0"
+      style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none"
+    >
+      <defs>
+        <symbol id="dock-icon-gear" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"></path>
+        </symbol>
+        <symbol id="dock-icon-settings" viewBox="0 0 24 24">
+          <use href="#dock-icon-gear"></use>
+        </symbol>
+        <symbol id="dock-icon-automation" viewBox="0 0 24 24">
+          <g transform="translate(12 6.6) scale(0.34)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+          <g transform="translate(7.2 15.4) scale(0.27)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+          <g transform="translate(16.8 15.4) scale(0.27)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+    <nav
+      class="bottom-dock"
+      :class="{ 'is-dragging': !!bottomDockDragId, 'is-settling': !!_bottomDockRevealTargetDuringSettle }"
+      aria-label="Primary tabs"
+      @dragstart.prevent
+      @mouseleave="clearBottomDockHover()"
+    >
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger messages-btn"
+        :class="{ active: page === 'chat', hovered: bottomDockHoverId === 'chat', 'neighbor-hover': bottomDockIsNeighbor('chat'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('chat'), dragging: bottomDockIsDraggingVisual('chat') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('chat')"
+        @pointerdown.prevent="startBottomDockPointerDrag('chat', $event)"
+        @mouseenter="setBottomDockHover('chat')"
+        @mouseleave="clearBottomDockHover('chat')"
+        :style="'order:' + bottomDockOrderIndex('chat')"
+        draggable="false"
+        data-dock-id="chat"
+        data-tooltip="Messages"
+        aria-label="Messages"
+        :aria-current="page === 'chat' ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <defs>
+            <linearGradient id="dock-msg-icon-fill-grad" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#2b4fae"></stop>
+              <stop offset="100%" stop-color="#82b4ff"></stop>
+            </linearGradient>
+          </defs>
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: page === 'analytics' || page === 'overview', hovered: bottomDockHoverId === 'overview', 'neighbor-hover': bottomDockIsNeighbor('overview'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('overview'), dragging: bottomDockIsDraggingVisual('overview') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('overview')"
+        @pointerdown.prevent="startBottomDockPointerDrag('overview', $event)"
+        @mouseenter="setBottomDockHover('overview')"
+        @mouseleave="clearBottomDockHover('overview')"
+        :style="'order:' + bottomDockOrderIndex('overview')"
+        draggable="false"
+        data-dock-id="overview"
+        data-tooltip="Home"
+        aria-label="Home"
+        :aria-current="(page === 'analytics' || page === 'overview') ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12L12 4L21 12"></path><path d="M6 10V20H18V10"></path><path d="M10 20V14H14V20"></path></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'agents', 'neighbor-hover': bottomDockIsNeighbor('agents'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('agents'), dragging: bottomDockIsDraggingVisual('agents') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('agents')"
+        @pointerdown.prevent="startBottomDockPointerDrag('agents', $event)"
+        @mouseenter="setBottomDockHover('agents')"
+        @mouseleave="clearBottomDockHover('agents')"
+        :style="'order:' + bottomDockOrderIndex('agents')"
+        draggable="false"
+        data-dock-id="agents"
+        data-tooltip="Manage"
+        aria-label="Manage"
+        :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger automation-btn"
+        :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'scheduler', 'neighbor-hover': bottomDockIsNeighbor('scheduler'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('scheduler'), dragging: bottomDockIsDraggingVisual('scheduler') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('scheduler')"
+        @pointerdown.prevent="startBottomDockPointerDrag('scheduler', $event)"
+        @mouseenter="setBottomDockHover('scheduler')"
+        @mouseleave="clearBottomDockHover('scheduler')"
+        :style="'order:' + bottomDockOrderIndex('scheduler')"
+        draggable="false"
+        data-dock-id="scheduler"
+        data-tooltip="Automation"
+        aria-label="Automation"
+        :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <use href="#dock-icon-automation"></use>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger apps-btn"
+        :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'skills', 'neighbor-hover': bottomDockIsNeighbor('skills'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('skills'), dragging: bottomDockIsDraggingVisual('skills') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('skills')"
+        @pointerdown.prevent="startBottomDockPointerDrag('skills', $event)"
+        @mouseenter="setBottomDockHover('skills')"
+        @mouseleave="clearBottomDockHover('skills')"
+        :style="'order:' + bottomDockOrderIndex('skills')"
+        draggable="false"
+        data-dock-id="skills"
+        data-tooltip="Apps"
+        aria-label="Apps"
+        :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg class="apps-icon-quad" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="7" rx="1.6" fill="#f59e0b" stroke="none"></rect>
+          <rect x="13" y="4" width="7" height="7" rx="1.6" fill="#ec4899" stroke="none"></rect>
+          <rect x="4" y="13" width="7" height="7" rx="1.6" fill="#a855f7" stroke="none"></rect>
+          <rect x="13" y="13" width="7" height="7" rx="1.6" fill="#3b82f6" stroke="none"></rect>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'runtime', 'neighbor-hover': bottomDockIsNeighbor('runtime'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('runtime'), dragging: bottomDockIsDraggingVisual('runtime') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('runtime')"
+        @pointerdown.prevent="startBottomDockPointerDrag('runtime', $event)"
+        @mouseenter="setBottomDockHover('runtime')"
+        @mouseleave="clearBottomDockHover('runtime')"
+        :style="'order:' + bottomDockOrderIndex('runtime')"
+        draggable="false"
+        data-dock-id="runtime"
+        data-tooltip="System"
+        aria-label="System"
+        :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger settings-btn"
+        :class="{ active: page === 'settings', hovered: bottomDockHoverId === 'settings', 'neighbor-hover': bottomDockIsNeighbor('settings'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('settings'), dragging: bottomDockIsDraggingVisual('settings') }"
+        @click="if (!shouldSuppressBottomDockClick()) navigate('settings')"
+        @pointerdown.prevent="startBottomDockPointerDrag('settings', $event)"
+        @mouseenter="setBottomDockHover('settings')"
+        @mouseleave="clearBottomDockHover('settings')"
+        :style="'order:' + bottomDockOrderIndex('settings')"
+        draggable="false"
+        data-dock-id="settings"
+        data-tooltip="Settings"
+        aria-label="Settings"
+        :aria-current="page === 'settings' ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-icon-settings"></use></svg>
+      </button>
+    </nav>

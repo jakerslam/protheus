@@ -1,0 +1,95 @@
+[package]
+name = "protheus-ops-core"
+version = "0.1.0"
+edition = "2021"
+license = "SEE LICENSE IN ../../LICENSE"
+default-run = "personas_core"
+
+[lib]
+name = "protheus_ops_core"
+path = "src/lib.rs"
+
+[features]
+default = ["embedded-minimal-core", "mimalloc", "no-client-bloat"]
+embedded-minimal-core = [
+    "layer0-directives",
+    "layer0-attention",
+    "layer0-receipts",
+    "layer0-min-memory",
+    "layer-1-substrate-detector",
+]
+layer0-directives = []
+layer0-attention = []
+layer0-receipts = []
+layer0-min-memory = []
+layer-1-substrate-detector = []
+mimalloc = ["dep:mimalloc"]
+no-client-bloat = []
+tiny = ["dep:protheus-tiny-runtime"]
+no_std = ["tiny"]
+minimal-alloc = ["minimal"]
+pgo-profile = []
+embedded-max = ["no_std", "minimal-alloc", "pgo-profile"]
+pure-workspace = ["dep:protheus-pure-workspace"]
+minimal = []
+full-substrate = []
+
+[[bin]]
+name = "protheus-ops"
+path = "src/main.rs"
+
+[[bin]]
+name = "personas_core"
+path = "src/personas_core.rs"
+
+[[bin]]
+name = "protheusd"
+path = "src/protheusd.rs"
+
+[dependencies]
+foundation_hook_enforcer = { path = "../foundation_hook_enforcer" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+regex = "1"
+semver = "1"
+walkdir = "2.5"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+num_cpus = "1.16"
+sysinfo = { version = "0.30", default-features = false }
+base64 = "0.22"
+hmac = "0.12"
+sha2 = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+hex = "0.4"
+memmap2 = "0.9"
+aes-gcm = { version = "0.10", features = ["aes"] }
+rand = "0.8"
+burn_oracle_budget_gate = { path = "../burn_oracle_budget_gate" }
+persona_dispatch_security_gate = { path = "../persona_dispatch_security_gate" }
+protheus-security-core-v1 = { path = "../security" }
+execution_core = { path = "../../layer2/execution" }
+infring-layer1-security = { path = "../../layer1/security" }
+protheus-autonomy-core-v1 = { path = "../../layer2/autonomy" }
+protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
+protheus-ops-core-v1 = { path = "../../layer2/ops" }
+protheus-spine-core-v1 = { path = "../../layer2/spine" }
+protheus-memory-core-v1 = { path = "../../layer2/memory" }
+protheus-stomach-core-v1 = { path = "../../layer2/stomach" }
+protheus-tooling-core-v1 = { path = "../../layer2/tooling" }
+llm_runtime = { path = "../../layer1/llm_runtime" }
+exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
+mimalloc = { version = "0.1", default-features = false, optional = true }
+protheus-tiny-runtime = { path = "../tiny_runtime", optional = true }
+protheus-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+rusqlite = { version = "0.32", features = ["bundled"] }
+urlencoding = "2.1"
+
+[dev-dependencies]
+tempfile = "3.13"
+proptest = "1.5"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

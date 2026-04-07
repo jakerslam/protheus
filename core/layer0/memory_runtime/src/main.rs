@@ -1,0 +1,8 @@
+include!("main_parts/010-strip-ticks.rs");
+include!("main_parts/020-embedding-helpers.rs");
+include!("main_parts/030-extract-tags-from-chunk.rs");
+include!("main_parts/040-query-index-payload.rs");
+include!("main_parts/050-run-query-index.rs");
+include!("main_parts/055-predictive-defrag.rs");
+include!("main_parts/060-run-daemon.rs");
+include!("main_parts/070-cli-entrypoint.rs");

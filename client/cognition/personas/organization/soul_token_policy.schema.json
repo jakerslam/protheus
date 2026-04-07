@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "required": ["version", "high_risk", "overrides"],
+  "properties": {
+    "version": { "type": "string" },
+    "high_risk": {
+      "type": "object",
+      "required": ["required", "actor", "token_path"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "actor": { "type": "string" },
+        "token_path": { "type": "string" }
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "required": ["required", "actor", "token_path"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "actor": { "type": "string" },
+        "token_path": { "type": "string" }
+      }
+    }
+  }
+}

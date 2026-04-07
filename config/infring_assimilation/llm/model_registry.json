@@ -1,0 +1,41 @@
+{
+  "models": [
+    {
+      "context_tokens": 32768,
+      "cost_score_1_to_5": 1,
+      "hardware_vram_gb": 1.0,
+      "id": "tinyllama_seed",
+      "name": "tinyllama:1.1b-chat-v1-q4_K_M",
+      "parameter_billions": 1.100000023841858,
+      "power_score_1_to_5": 1,
+      "pricing_input_per_1m_usd": null,
+      "pricing_output_per_1m_usd": null,
+      "provider": "ollama",
+      "runtime_kind": "local_api",
+      "specialties": [
+        "general"
+      ]
+    },
+    {
+      "context_tokens": 32768,
+      "cost_score_1_to_5": 5,
+      "hardware_vram_gb": 3.0,
+      "id": "red_team_seed",
+      "name": "qwen2.5:3b-instruct-q4_K_M",
+      "parameter_billions": 3.0,
+      "power_score_1_to_5": 5,
+      "pricing_input_per_1m_usd": null,
+      "pricing_output_per_1m_usd": null,
+      "provider": "ollama",
+      "runtime_kind": "local_api",
+      "specialties": [
+        "general",
+        "fast_response"
+      ]
+    }
+  ],
+  "recommended_local_model": "qwen2.5:3b-instruct-q4_K_M",
+  "source": "..",
+  "ts": "2026-03-27T00:34:12.905Z",
+  "version": "1.0"
+}

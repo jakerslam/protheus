@@ -1,0 +1,475 @@
+{
+  "version": "2026-03-26",
+  "hard_zero_exts": [
+    "py",
+    "ps1"
+  ],
+  "target_caps": {
+    "total_ts_files": {
+      "target": 469,
+      "reason": "baseline cap refreshed 2026-03-26T10:36:08.414Z"
+    },
+    "runtime_system_surface": {
+      "target": 249,
+      "reason": "baseline cap refreshed 2026-03-26T10:36:08.414Z"
+    },
+    "cognition_surface": {
+      "target": 86,
+      "reason": "baseline cap (enforced via drift gate) while cognition offload-to-core backlog is executed"
+    },
+    "runtime_sdk_surface": {
+      "target": 57,
+      "reason": "baseline cap refreshed 2026-03-26T10:36:08.414Z"
+    },
+    "wrapper_count": {
+      "target": 200,
+      "reason": "wrapper duplication should be collapsed behind generic entrypoints"
+    },
+    "allowed_non_wrapper_count": {
+      "target": 45,
+      "reason": "baseline cap refreshed 2026-03-26T10:36:08.414Z"
+    }
+  },
+  "allowlist_decisions": {
+    "client/runtime/systems/conduit/conduit-client.ts": {
+      "bucket": "keep_public_client",
+      "reason": "public client-to-core transport bridge"
+    },
+    "client/runtime/systems/ops/system_visualizer_server.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing visualization service belongs to client UX"
+    },
+    "client/runtime/systems/ops/visualizer/app.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing visualizer app belongs to client UX"
+    },
+    "client/runtime/systems/sensory/eyes_collectors/bird_x.ts": {
+      "bucket": "keep_public_client",
+      "reason": "collector bridge remains in client until the underlying cognition collector is extracted cleanly"
+    },
+    "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts": {
+      "bucket": "keep_public_client",
+      "reason": "collector bridge is adapter-authoritative with a sanctioned public client shim"
+    },
+    "client/runtime/systems/adaptive/core/layer_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/adaptive/habits/habit_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/adaptive/reflex/reflex_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/adaptive/strategy/strategy_store.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy adaptive entrypoint retained as thin compatibility bridge to core authority"
+    },
+    "client/runtime/systems/compat/legacy_alias_adapter.ts": {
+      "bucket": "keep_public_client",
+      "reason": "legacy path compatibility adapter is intentionally exposed for migration-safe CLI/script entrypoints"
+    },
+    "client/runtime/systems/ops/dependency_boundary_guard.ts": {
+      "bucket": "keep_public_client",
+      "reason": "policy verification bridge is a sanctioned developer-facing client validation surface"
+    },
+    "client/runtime/systems/ops/formal_spec_guard.ts": {
+      "bucket": "keep_public_client",
+      "reason": "formal specification verification bridge is a sanctioned developer-facing client validation surface"
+    },
+    "client/runtime/systems/ops/local_runtime_partitioner.ts": {
+      "bucket": "promote_to_core",
+      "reason": "temporary client-runtime partition bridge retained for migration continuity while core authority remains canonical"
+    },
+    "client/runtime/systems/ops/run_protheus_ops.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing runtime launcher shim remains public for CLI compatibility"
+    },
+    "client/runtime/systems/autonomy/swarm_repl_demo.ts": {
+      "bucket": "keep_public_client",
+      "reason": "developer-facing swarm REPL demo surface retained as sanctioned runtime compatibility entrypoint"
+    },
+    "client/runtime/systems/ops/protheus_command_list.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing command listing surface remains public for CLI diagnostics compatibility"
+    },
+    "client/runtime/systems/ops/protheus_control_plane.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing control plane bridge remains public for runtime control workflows"
+    },
+    "client/runtime/systems/ops/protheus_debug_diagnostics.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing diagnostics bridge remains public for incident/debug workflows"
+    },
+    "client/runtime/systems/ops/protheus_status_dashboard.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing status dashboard bridge remains public for runtime observability workflows"
+    },
+    "client/runtime/systems/ops/rust50_migration_program.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/ops/rust_hotpath_inventory.ts": {
+      "bucket": "collapse_to_generic_wrapper",
+      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
+    },
+    "client/runtime/systems/ops/security_layer_inventory_gate.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/ops/top50_roi_sweep.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/workflow/shannon_desktop_shell.ts": {
+      "bucket": "promote_to_core",
+      "reason": "runtime system logic belongs in core unless explicitly public bridge"
+    },
+    "client/runtime/systems/memory/rust_memory_transition_lane.ts": {
+      "bucket": "keep_public_client",
+      "reason": "Rust transition lane bridge is a sanctioned client-facing compatibility entrypoint"
+    },
+    "client/runtime/systems/memory/policy_validator.ts": {
+      "bucket": "promote_to_core",
+      "reason": "client-side fail-closed memory guard retained as temporary enforcement wrapper while authority remains Rust-core"
+    },
+    "client/runtime/systems/memory/session_isolation.ts": {
+      "bucket": "promote_to_core",
+      "reason": "client-side session isolation guard retained as temporary enforcement wrapper while authority remains Rust-core"
+    },
+    "client/runtime/systems/sensory/conversation_eye_synthesizer.ts": {
+      "bucket": "keep_public_client",
+      "reason": "deterministic synthesis helper kept in client runtime as a sanctioned collector bridge surface"
+    },
+    "client/runtime/systems/ops/backlog_github_sync.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/backlog_registry.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/generate_coverage_badge.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/protheus_command_list.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/protheus_control_plane.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/protheus_debug_diagnostics.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/protheusd.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/run_protheus_ops.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ops/rust_enterprise_productivity_program.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/security/venom_containment_layer.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/spine/contract_check.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/tools/assimilate.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_dashboard.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/api.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/app.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/agents.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/approvals.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/channels.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/comms.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/eyes.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/hands.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/logs.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/overview.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/runtime.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/scheduler.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/sessions.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/settings.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/skills.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/usage.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/wizard.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/workflows.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/sw.js": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/vendor/alpine.min.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/vendor/chart.umd.min.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/vendor/marked.min.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/dashboard_asset_router.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/100-context-window-and-budget.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/191-slash-continuity-and-alias-helpers.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/010-state-and-load.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/020-render-and-select.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/030-actions-and-sync.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/010-provider-settings.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/020-keys-and-tests.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/010-state-and-steps.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/010-builder-state.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/020-builder-actions.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    },
+    "client/runtime/systems/ui/infring_static/sw.ts": {
+      "bucket": "keep_public_client",
+      "reason": "sanctioned non-wrapper surface tracked by boundary policy"
+    }
+  }
+}

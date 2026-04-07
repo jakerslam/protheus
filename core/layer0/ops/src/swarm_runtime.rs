@@ -1,0 +1,17 @@
+include!("swarm_runtime_parts/010-default.rs");
+include!("swarm_runtime_parts/020-new.rs");
+include!("swarm_runtime_parts/030-compact-context-value.rs");
+include!("swarm_runtime_parts/040-active-thorn-cell-ids.rs");
+include!("swarm_runtime_parts/050-verify-session-reachable.rs");
+include!("swarm_runtime_parts/060-receive-session-messages.rs");
+include!("swarm_runtime_parts/070-invoke-registered-tool.rs");
+include!("swarm_runtime_parts/080-show-turn-run.rs");
+include!("swarm_runtime_parts/090-analyze-result-consensus.rs");
+include!("swarm_runtime_parts/100-spawn-persistent-session.rs");
+include!("swarm_runtime_parts/110-spawn-single.rs");
+include!("swarm_runtime_parts/120-evaluate-consensus.rs");
+include!("swarm_runtime_parts/130-sessions-terminate.rs");
+include!("swarm_runtime_parts/140-queue-metrics-prometheus.rs");
+include!("swarm_runtime_parts/150-run-test-communication.rs");
+include!("swarm_runtime_parts/160-run.rs");
+include!("swarm_runtime_parts/170-spawn-options.rs");

@@ -1,0 +1,32 @@
+name: repo-hygiene-generated
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  generated-artifacts-guard:
+    runs-on: ubuntu-latest
+    env:
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: "180000"
+      PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - name: Install npm dependencies
+        run: npm ci --include=dev
+      - name: Verify generated artifacts are not staged (legacy wrapper)
+        run: |
+          node tests/client-memory-tools/repo_hygiene_generated_guard.test.ts
+      - name: Verify runtime hygiene lane (legacy wrapper)
+        run: |
+          node tests/client-memory-tools/repo_hygiene_guard.test.ts
+      - name: Churn guard (strict)
+        run: npm run -s ops:churn:guard

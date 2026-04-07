@@ -1,0 +1,9 @@
+{
+  "schema_id": "multi_tenant_isolation_contract",
+  "schema_version": "1.0",
+  "invariants": {
+    "cross_tenant_leaks": 0,
+    "classification_enforced": true,
+    "delete_export_contract": true
+  }
+}
