@@ -15,16 +15,8 @@
 </script>
 
 <main class="dashboard">
-  <header class="banner">
-    <h1>Infring Dashboard (SvelteKit Migration)</h1>
-    <p>
-      This module is now scaffolded and ready for component-by-component porting from the current
-      runtime dashboard shell.
-    </p>
-  </header>
-
   <section class="panel">
-    <h2>Runtime Link</h2>
+    <h1>Infring Dashboard</h1>
     {#if error}
       <p class="status error">Status unavailable: {error}</p>
     {:else if status}
@@ -50,7 +42,6 @@
     gap: 18px;
   }
 
-  .banner,
   .panel {
     border: 1px solid rgba(127, 173, 255, 0.35);
     border-radius: 14px;
@@ -60,8 +51,7 @@
     backdrop-filter: blur(8px);
   }
 
-  .banner h1,
-  .panel h2 {
+  .panel h1 {
     margin: 0 0 10px;
   }
 

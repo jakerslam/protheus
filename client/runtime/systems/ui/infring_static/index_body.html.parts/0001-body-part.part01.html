@@ -183,7 +183,7 @@
                 @dragover="handleChatSidebarTopologyDragOver(agent, $event)"
                 @drop="handleChatSidebarTopologyDrop(agent, $event)"
                 @dragend="endChatSidebarTopologyDrag()"
-                @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
+                @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedAgentHover(agent, $event); }"
                 @mousemove="if (sidebarCollapsed) handleCollapsedAgentHoverMove(agent, $event)"
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
@@ -272,7 +272,7 @@
               :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0 }"
               @click="navigate('agents')"
               :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
+              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Manage', $event); }"
               @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Manage', $event)"
               @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
@@ -292,7 +292,7 @@
               :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0 }"
               @click="navigate('scheduler')"
               :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
+              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Automation', $event); }"
               @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Automation', $event)"
               @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
@@ -310,7 +310,7 @@
               :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0 }"
               @click="navigate('skills')"
               :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
+              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Apps', $event); }"
               @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Apps', $event)"
               @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
@@ -369,7 +369,7 @@
       :class="{ 'nav-only': String(collapsedAgentHover.kind || '').toLowerCase() === 'nav' }"
       x-cloak
       style="display: none;"
-      x-show="page === 'chat' && sidebarCollapsed && !Boolean(_collapsedHoverNeedsPointerMove) && isCollapsedAgentHoverVisible(collapsedAgentHover)"
+      x-show="page === 'chat' && sidebarCollapsed && isCollapsedAgentHoverVisible(collapsedAgentHover)"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >

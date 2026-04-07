@@ -303,7 +303,12 @@
     showCollapsedAgentHover(agent, ev) {
       if (!this.sidebarCollapsed || !agent) return;
       var eventType = String((ev && ev.type) || '').toLowerCase();
-      if (eventType !== 'mousemove' && eventType !== 'pointermove') return;
+      if (
+        eventType !== 'mousemove' &&
+        eventType !== 'pointermove' &&
+        eventType !== 'mouseenter' &&
+        eventType !== 'pointerenter'
+      ) return;
       if (ev && ev.isTrusted === false) return;
       this._collapsedHoverPointerMovedAt = Date.now();
       if (this._collapsedHoverNeedsPointerMove) return;
@@ -356,7 +361,12 @@
     showCollapsedNavHover(label, ev) {
       if (!this.sidebarCollapsed) return;
       var eventType = String((ev && ev.type) || '').toLowerCase();
-      if (eventType !== 'mousemove' && eventType !== 'pointermove') return;
+      if (
+        eventType !== 'mousemove' &&
+        eventType !== 'pointermove' &&
+        eventType !== 'mouseenter' &&
+        eventType !== 'pointerenter'
+      ) return;
       if (ev && ev.isTrusted === false) return;
       this._collapsedHoverPointerMovedAt = Date.now();
       if (this._collapsedHoverNeedsPointerMove) return;

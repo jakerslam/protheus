@@ -332,8 +332,8 @@ function proxyUpgrade(req, socket, head, flags) {
 async function runServe(flags) {
   assertDashboardSurfaceLocked();
   const svelteKitUiEnabled = flags.uiMode === 'sveltekit' && hasSvelteKitBuild();
-  let dashboardHtml = svelteKitUiEnabled ? '' : buildPrimaryDashboardHtml(STATIC_DIR);
-  if (!svelteKitUiEnabled && !dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
+  let dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR);
+  if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
   if (flags.uiMode === 'sveltekit' && !svelteKitUiEnabled) {
     console.warn('dashboard_sveltekit_build_missing_using_primary_static_ui');
   }
