@@ -101,6 +101,202 @@ fn v6_vbrowser_batch12_core_lanes_execute_with_receipts() {
     assert_claim(&start_latest, "V6-VBROWSER-001.5");
     assert_claim(&start_latest, "V6-VBROWSER-001.6");
 
+    let goto_exit = vbrowser_plane::run(
+        root,
+        &[
+            "goto".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--url=docs.rs".to_string(),
+            "--wait-until=domcontentloaded".to_string(),
+        ],
+    );
+    assert_eq!(goto_exit, 0);
+    let goto_latest = read_json(&latest_path(root));
+    assert_eq!(
+        goto_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_goto")
+    );
+    assert_eq!(
+        goto_latest
+            .pointer("/navigation/url")
+            .and_then(Value::as_str),
+        Some("https://docs.rs")
+    );
+    assert_eq!(
+        goto_latest
+            .pointer("/navigation/wait_until")
+            .and_then(Value::as_str),
+        Some("domcontentloaded")
+    );
+    assert_eq!(
+        goto_latest
+            .pointer("/session/target_url")
+            .and_then(Value::as_str),
+        Some("https://docs.rs")
+    );
+    assert_claim(&goto_latest, "V11-STAGEHAND-007");
+
+    let navback_exit = vbrowser_plane::run(
+        root,
+        &[
+            "navback".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--wait-until=domcontentloaded".to_string(),
+        ],
+    );
+    assert_eq!(navback_exit, 0);
+    let navback_latest = read_json(&latest_path(root));
+    assert_eq!(
+        navback_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_navback")
+    );
+    assert_eq!(
+        navback_latest
+            .pointer("/navigation/replay_step/type")
+            .and_then(Value::as_str),
+        Some("navback")
+    );
+    assert_eq!(
+        navback_latest
+            .pointer("/navigation/wait_until")
+            .and_then(Value::as_str),
+        Some("domcontentloaded")
+    );
+    assert_claim(&navback_latest, "V11-STAGEHAND-008");
+
+    let wait_exit = vbrowser_plane::run(
+        root,
+        &[
+            "wait".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--time-ms=1".to_string(),
+        ],
+    );
+    assert_eq!(wait_exit, 0);
+    let wait_latest = read_json(&latest_path(root));
+    assert_eq!(
+        wait_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_wait")
+    );
+    assert_eq!(
+        wait_latest.pointer("/wait/time_ms").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        wait_latest
+            .pointer("/wait/replay_step/type")
+            .and_then(Value::as_str),
+        Some("wait")
+    );
+    assert_claim(&wait_latest, "V11-STAGEHAND-009");
+
+    let scroll_exit = vbrowser_plane::run(
+        root,
+        &[
+            "scroll".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--direction=down".to_string(),
+            "--percentage=50".to_string(),
+        ],
+    );
+    assert_eq!(scroll_exit, 0);
+    let scroll_latest = read_json(&latest_path(root));
+    assert_eq!(
+        scroll_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_scroll")
+    );
+    assert_eq!(
+        scroll_latest
+            .pointer("/scroll/replay_step/type")
+            .and_then(Value::as_str),
+        Some("scroll")
+    );
+    assert_eq!(
+        scroll_latest
+            .pointer("/scroll/scrolled_pixels")
+            .and_then(Value::as_u64),
+        Some(360)
+    );
+    assert_claim(&scroll_latest, "V11-STAGEHAND-010");
+
+    let click_exit = vbrowser_plane::run(
+        root,
+        &[
+            "click".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--coordinates=120,240".to_string(),
+            "--describe=primary cta".to_string(),
+        ],
+    );
+    assert_eq!(click_exit, 0);
+    let click_latest = read_json(&latest_path(root));
+    assert_eq!(
+        click_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_click")
+    );
+    assert_eq!(
+        click_latest
+            .pointer("/click/coordinates/0")
+            .and_then(Value::as_u64),
+        Some(120)
+    );
+    assert_eq!(
+        click_latest
+            .pointer("/click/coordinates/1")
+            .and_then(Value::as_u64),
+        Some(240)
+    );
+    assert_eq!(
+        click_latest
+            .pointer("/click/replay_step/type")
+            .and_then(Value::as_str),
+        Some("click")
+    );
+    assert_claim(&click_latest, "V11-STAGEHAND-011");
+
+    let type_exit = vbrowser_plane::run(
+        root,
+        &[
+            "type".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--coordinates=140,260".to_string(),
+            "--describe=email input".to_string(),
+            "--text=hello %name%".to_string(),
+            r#"--variables-json={"name":"Jay"}"#.to_string(),
+        ],
+    );
+    assert_eq!(type_exit, 0);
+    let type_latest = read_json(&latest_path(root));
+    assert_eq!(
+        type_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_type")
+    );
+    assert_eq!(
+        type_latest
+            .pointer("/type_input/text")
+            .and_then(Value::as_str),
+        Some("hello %name%")
+    );
+    assert_eq!(
+        type_latest
+            .pointer("/type_input/resolved_text")
+            .and_then(Value::as_str),
+        Some("hello Jay")
+    );
+    assert_eq!(
+        type_latest
+            .pointer("/type_input/replay_step/playwright_arguments/text")
+            .and_then(Value::as_str),
+        Some("hello Jay")
+    );
+    assert_claim(&type_latest, "V11-STAGEHAND-012");
+
     let join_exit = vbrowser_plane::run(
         root,
         &[
@@ -233,6 +429,7 @@ fn v6_vbrowser_batch12_core_lanes_execute_with_receipts() {
             "--strict=1".to_string(),
             "--session-id=batch12-vb".to_string(),
             "--annotate=1".to_string(),
+            "--delay-ms=0".to_string(),
         ],
     );
     assert_eq!(screenshot_exit, 0);
@@ -247,7 +444,86 @@ fn v6_vbrowser_batch12_core_lanes_execute_with_receipts() {
         .and_then(Value::as_str)
         .expect("svg path");
     assert!(Path::new(svg_path).exists(), "screenshot svg missing");
+    assert_eq!(
+        screenshot_latest
+            .get("map")
+            .and_then(|v| v.get("delay_ms"))
+            .and_then(Value::as_u64),
+        Some(0)
+    );
     assert_claim(&screenshot_latest, "V6-VBROWSER-002.2");
+
+    let key_input_exit = vbrowser_plane::run(
+        root,
+        &[
+            "key-input".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--method=press".to_string(),
+            "--value=cmd+a".to_string(),
+            "--repeat=2".to_string(),
+            "--delay-ms=40".to_string(),
+        ],
+    );
+    assert_eq!(key_input_exit, 0);
+    let key_input_latest = read_json(&latest_path(root));
+    assert_eq!(
+        key_input_latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_key_input")
+    );
+    assert_eq!(
+        key_input_latest
+            .pointer("/key_input/normalized_value")
+            .and_then(Value::as_str),
+        Some("Meta+A")
+    );
+    assert_eq!(
+        key_input_latest
+            .pointer("/key_input/repeat")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        key_input_latest
+            .pointer("/key_input/replay_step/playwright_arguments/keys")
+            .and_then(Value::as_str),
+        Some("Meta+A")
+    );
+    assert_claim(&key_input_latest, "V11-STAGEHAND-005");
+
+    let key_type_exit = vbrowser_plane::run(
+        root,
+        &[
+            "key-input".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--method=type".to_string(),
+            "--value=hello %name%".to_string(),
+            r#"--variables-json={"name":"Jay"}"#.to_string(),
+            "--repeat=1".to_string(),
+            "--delay-ms=25".to_string(),
+        ],
+    );
+    assert_eq!(key_type_exit, 0);
+    let key_type_latest = read_json(&latest_path(root));
+    assert_eq!(
+        key_type_latest
+            .pointer("/key_input/replay_step/playwright_arguments/text")
+            .and_then(Value::as_str),
+        Some("hello Jay")
+    );
+    assert_eq!(
+        key_type_latest
+            .pointer("/key_input/value")
+            .and_then(Value::as_str),
+        Some("hello %name%")
+    );
+    assert_eq!(
+        key_type_latest
+            .pointer("/key_input/resolved_value")
+            .and_then(Value::as_str),
+        Some("hello Jay")
+    );
 
     let policy_fail_exit = vbrowser_plane::run(
         root,

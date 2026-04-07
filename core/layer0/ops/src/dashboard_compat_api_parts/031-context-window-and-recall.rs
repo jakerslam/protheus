@@ -59,6 +59,114 @@ fn context_message_fingerprint(row: &Value) -> String {
     )
 }
 
+fn context_role_label(row: &Value) -> String {
+    clean_text(
+        row.get("role")
+            .or_else(|| row.get("type"))
+            .and_then(Value::as_str)
+            .unwrap_or("assistant"),
+        24,
+    )
+    .to_ascii_lowercase()
+}
+
+fn looks_like_image_heavy_tool_context(row: &Value) -> bool {
+    let text = clean_text(&message_text(row), 16_000);
+    if text.len() < 256 {
+        return false;
+    }
+    let lowered = text.to_ascii_lowercase();
+    [
+        "content_base64",
+        "screenshotbase64",
+        "data:image/",
+        "\"input_image\"",
+        "\"computer_call_output\"",
+        "\"inlinedata\"",
+        "\"mime_type\":\"image/",
+        "\"mimetype\":\"image/",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_verbose_tool_context(row: &Value) -> bool {
+    if looks_like_image_heavy_tool_context(row) {
+        return true;
+    }
+    let role = context_role_label(row);
+    let text = clean_text(&message_text(row), 8_000);
+    if text.len() < 900 {
+        return false;
+    }
+    if role == "tool" {
+        return true;
+    }
+    let lowered = text.to_ascii_lowercase();
+    [
+        "from web retrieval:",
+        "web benchmark synthesis:",
+        "tool call",
+        "tool result",
+        "terminal output",
+        "\"tool_calls\"",
+        "\"nexus_connection\"",
+        "\"turn_transaction\"",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn write_message_text(row: &mut Value, text: &str) {
+    if let Some(obj) = row.as_object_mut() {
+        let normalized = clean_text(text, 1_200);
+        if obj.contains_key("text") {
+            obj.insert("text".to_string(), Value::String(normalized));
+        } else if obj.contains_key("content") {
+            obj.insert("content".to_string(), Value::String(normalized));
+        } else {
+            obj.insert("text".to_string(), Value::String(normalized));
+        }
+        obj.insert("compacted_tool_context".to_string(), json!(true));
+    }
+}
+
+fn compact_old_tool_context_messages(messages: &[Value], keep_recent: usize) -> Vec<Value> {
+    let mut out = messages.to_vec();
+    let candidate_indices = out
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, row)| {
+            if looks_like_verbose_tool_context(row) {
+                Some(idx)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    if candidate_indices.len() <= keep_recent.max(1) {
+        return out;
+    }
+    let compact_count = candidate_indices.len().saturating_sub(keep_recent.max(1));
+    for idx in candidate_indices.into_iter().take(compact_count) {
+        let original = message_text(&out[idx]);
+        let compacted = if looks_like_image_heavy_tool_context(&out[idx]) {
+            "Screenshot taken [earlier image context compacted]".to_string()
+        } else {
+            let snippet = first_sentence(&original, 180);
+            if snippet.is_empty() {
+                "Earlier verbose tool output compacted for context continuity.".to_string()
+            } else {
+                format!("{snippet} [earlier verbose tool output compacted]")
+            }
+        };
+        if compacted.len() < original.len() {
+            write_message_text(&mut out[idx], &compacted);
+        }
+    }
+    out
+}
+
 fn enforce_recent_context_floor(
     history_messages: &[Value],
     pooled_messages: &[Value],
@@ -96,7 +204,7 @@ fn enforce_recent_context_floor(
 
 fn trim_context_pool(messages: &[Value], limit_tokens: i64) -> Vec<Value> {
     let cap = limit_tokens.max(2_048);
-    let mut out = messages.to_vec();
+    let mut out = compact_old_tool_context_messages(messages, 2);
     let mut total = total_message_tokens(&out);
     while out.len() > 1 && total > cap {
         let removed = message_token_cost(&out[0]);
@@ -330,7 +438,10 @@ fn has_actionable_tool_reason(text: &str) -> bool {
     confirmation_reason && precondition_reason
 }
 
-fn enforce_tool_completion_contract(response_text: String, response_tools: &[Value]) -> (String, Value) {
+fn enforce_tool_completion_contract(
+    response_text: String,
+    response_tools: &[Value],
+) -> (String, Value) {
     let raw_actionable_reason = has_actionable_tool_reason(&response_text);
     let mut tools_present = 0usize;
     let mut successful_tools = 0usize;
@@ -368,7 +479,8 @@ fn enforce_tool_completion_contract(response_text: String, response_tools: &[Val
 
     if tools_present > 0 {
         let finalized_cleaned = clean_text(&finalized, 32_000);
-        let actionable_reason = raw_actionable_reason || has_actionable_tool_reason(&finalized_cleaned);
+        let actionable_reason =
+            raw_actionable_reason || has_actionable_tool_reason(&finalized_cleaned);
         if actionable_reason && !findings_available {
             finalized = clean_text(&finalized_cleaned, 32_000);
             if response_is_no_findings_placeholder(&finalized) {
@@ -386,7 +498,8 @@ fn enforce_tool_completion_contract(response_text: String, response_tools: &[Val
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
             finalized = findings.unwrap_or_else(no_findings_user_facing_response);
-            outcome = append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_findings");
+            outcome =
+                append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_findings");
             applied = true;
         } else if !findings_available
             && !actionable_reason
@@ -395,21 +508,31 @@ fn enforce_tool_completion_contract(response_text: String, response_tools: &[Val
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
             finalized = no_findings_user_facing_response();
-            outcome =
-                append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_no_findings");
+            outcome = append_tool_completion_outcome(
+                &outcome,
+                "tool_completion_replaced_with_no_findings",
+            );
             applied = true;
         }
         if response_looks_like_tool_ack_without_findings(&finalized)
             && !has_actionable_tool_reason(&finalized)
         {
             finalized = no_findings_user_facing_response();
-            outcome = append_tool_completion_outcome(&outcome, "tool_completion_forced_no_findings");
+            outcome =
+                append_tool_completion_outcome(&outcome, "tool_completion_forced_no_findings");
             applied = true;
         }
     }
 
     let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized);
     let final_no_findings = response_is_no_findings_placeholder(&finalized);
+    let final_actionable_reason = has_actionable_tool_reason(&finalized);
+    let final_reasoning = first_sentence(&finalized, 220);
+    let task_complete = tools_present > 0
+        && findings_available
+        && !final_ack_only
+        && !final_no_findings
+        && !final_actionable_reason;
     let completion_state = if tools_present == 0 {
         "not_applicable"
     } else if findings_available {
@@ -433,7 +556,9 @@ fn enforce_tool_completion_contract(response_text: String, response_tools: &[Val
             "initial_ack_only": initial_ack_only,
             "final_ack_only": final_ack_only,
             "final_no_findings": final_no_findings,
-            "completion_state": completion_state
+            "completion_state": completion_state,
+            "task_complete": task_complete,
+            "reasoning": clean_text(&final_reasoning, 220)
         }),
     )
 }

@@ -193,6 +193,16 @@ fn run_snapshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
 fn run_screenshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let sid = session_id(parsed);
     let annotate = parse_bool(parsed.flags.get("annotate"), false);
+    let delay_ms = parsed
+        .flags
+        .get("delay-ms")
+        .or_else(|| parsed.flags.get("delay_ms"))
+        .map(|raw| parse_u64(Some(raw), 500))
+        .unwrap_or(500)
+        .min(10_000);
+    if delay_ms > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+    }
     let session = read_json(&session_state_path(root, &sid)).unwrap_or_else(|| {
         json!({
             "session_id": sid,
@@ -228,6 +238,7 @@ fn run_screenshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         "session_id": sid,
         "target_url": target_url,
         "annotated": annotate,
+        "delay_ms": delay_ms,
         "annotations": annotations,
         "captured_at": crate::now_iso()
     });
@@ -248,6 +259,220 @@ fn run_screenshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "id": "V6-VBROWSER-002.2",
                 "claim": "screenshot_operation_emits_visual_artifact_and_coordinate_map",
                 "evidence": {"session_id": sid, "annotated": annotate}
+            }
+        ]
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
+fn normalize_key_token(raw: &str) -> String {
+    let token = clean(raw, 40);
+    if token.is_empty() {
+        return String::new();
+    }
+    if token.len() == 1 && token.chars().all(|ch| ch.is_ascii_alphabetic()) {
+        return token.to_ascii_uppercase();
+    }
+    let upper = token.to_ascii_uppercase();
+    match upper.as_str() {
+        "ENTER" | "RETURN" => "Enter".to_string(),
+        "ESC" | "ESCAPE" => "Escape".to_string(),
+        "BACKSPACE" => "Backspace".to_string(),
+        "TAB" => "Tab".to_string(),
+        "SPACE" => "Space".to_string(),
+        "DELETE" | "DEL" => "Delete".to_string(),
+        "ARROWUP" | "ARROW_UP" | "UP" => "ArrowUp".to_string(),
+        "ARROWDOWN" | "ARROW_DOWN" | "DOWN" => "ArrowDown".to_string(),
+        "ARROWLEFT" | "ARROW_LEFT" | "LEFT" => "ArrowLeft".to_string(),
+        "ARROWRIGHT" | "ARROW_RIGHT" | "RIGHT" => "ArrowRight".to_string(),
+        "CTRL" | "CONTROL" => "Control".to_string(),
+        "CMD" | "COMMAND" | "META" | "SUPER" | "WINDOWS" | "WIN" => "Meta".to_string(),
+        "OPTION" | "ALT" => "Alt".to_string(),
+        "SHIFT" => "Shift".to_string(),
+        "HOME" => "Home".to_string(),
+        "END" => "End".to_string(),
+        "PAGEUP" | "PAGE_UP" | "PGUP" => "PageUp".to_string(),
+        "PAGEDOWN" | "PAGE_DOWN" | "PGDN" => "PageDown".to_string(),
+        _ => token,
+    }
+}
+
+fn normalize_key_combo(raw: &str) -> String {
+    let cleaned = clean(raw, 240);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    cleaned
+        .split('+')
+        .map(normalize_key_token)
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
+fn key_input_variable_text(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) => Some(clean(text, 240)),
+        Value::Number(num) => Some(clean(num.to_string(), 240)),
+        Value::Bool(flag) => Some(if *flag {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        }),
+        Value::Object(map) => map.get("value").and_then(key_input_variable_text),
+        _ => None,
+    }
+}
+
+fn substitute_key_input_variables(
+    template: &str,
+    variables: &serde_json::Map<String, Value>,
+) -> String {
+    let mut rendered = template.to_string();
+    for (key, value) in variables {
+        if let Some(replacement) = key_input_variable_text(value) {
+            let token = format!("%{}%", key);
+            if rendered.contains(&token) {
+                rendered = rendered.replace(&token, &replacement);
+            }
+        }
+    }
+    rendered
+}
+
+fn run_key_input(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
+    let sid = session_id(parsed);
+    let method = clean(
+        parsed
+            .flags
+            .get("method")
+            .cloned()
+            .unwrap_or_else(|| "press".to_string()),
+        24,
+    )
+    .to_ascii_lowercase();
+    let value = clean(
+        parsed.flags.get("value").cloned().unwrap_or_default(),
+        240,
+    );
+    let repeat = parse_u64(parsed.flags.get("repeat"), 1).clamp(1, 128);
+    let delay_ms = parsed
+        .flags
+        .get("delay-ms")
+        .or_else(|| parsed.flags.get("delay_ms"))
+        .map(|raw| parse_u64(Some(raw), 100))
+        .unwrap_or(100)
+        .min(2_000);
+    let mut errors = Vec::<String>::new();
+    let variables_json_raw = parsed
+        .flags
+        .get("variables-json")
+        .or_else(|| parsed.flags.get("variables_json"))
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_default();
+    let variables = if variables_json_raw.is_empty() {
+        None
+    } else {
+        match serde_json::from_str::<Value>(&variables_json_raw) {
+            Ok(Value::Object(map)) => Some(map),
+            _ => {
+                if strict {
+                    errors.push("vbrowser_key_input_variables_json_invalid".to_string());
+                }
+                None
+            }
+        }
+    };
+    if !matches!(method.as_str(), "press" | "type") {
+        errors.push("vbrowser_key_input_method_invalid".to_string());
+    }
+    if value.is_empty() {
+        errors.push("vbrowser_key_input_value_required".to_string());
+    }
+    if !errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "vbrowser_plane_key_input",
+            "errors": errors,
+            "session_id": sid
+        });
+    }
+    let resolved_value = if method == "type" {
+        if let Some(map) = variables.as_ref() {
+            substitute_key_input_variables(&value, map)
+        } else {
+            value.clone()
+        }
+    } else {
+        value.clone()
+    };
+    let normalized_value = if method == "press" {
+        normalize_key_combo(&resolved_value)
+    } else {
+        resolved_value.clone()
+    };
+    let replay_args = if method == "press" {
+        json!({
+            "method": method,
+            "value": normalized_value,
+            "keys": normalized_value,
+            "times": repeat,
+            "delay_ms": delay_ms
+        })
+    } else {
+        json!({
+            "method": method,
+            "value": normalized_value,
+            "text": normalized_value,
+            "times": repeat,
+            "delay_ms": delay_ms
+        })
+    };
+    let replay_step = json!({
+        "type": "keys",
+        "instruction": if method == "press" {
+            format!("press {}", normalized_value)
+        } else {
+            format!("type \"{}\"", value)
+        },
+        "playwright_arguments": replay_args
+    });
+    let artifact = json!({
+        "version": "v1",
+        "session_id": sid,
+        "method": method,
+        "value": value,
+        "resolved_value": resolved_value,
+        "normalized_value": normalized_value,
+        "repeat": repeat,
+        "delay_ms": delay_ms,
+        "recorded_at": crate::now_iso(),
+        "replay_step": replay_step
+    });
+    let artifact_path = state_root(root).join("automation").join("key_input_latest.json");
+    let _ = write_json(&artifact_path, &artifact);
+    let mut out = json!({
+        "ok": true,
+        "strict": strict,
+        "type": "vbrowser_plane_key_input",
+        "lane": "core/layer0/ops",
+        "session_id": sid,
+        "artifact": {
+            "path": artifact_path.display().to_string(),
+            "sha256": sha256_hex_str(&artifact.to_string())
+        },
+        "key_input": artifact,
+        "claim_evidence": [
+            {
+                "id": "V11-STAGEHAND-005",
+                "claim": "keyboard_input_surface_normalizes_cross_provider_key_aliases_for_deterministic_replay",
+                "evidence": {
+                    "method": method,
+                    "repeat": repeat,
+                    "delay_ms": delay_ms
+                }
             }
         ]
     });
@@ -456,4 +681,3 @@ fn run_auth_save(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

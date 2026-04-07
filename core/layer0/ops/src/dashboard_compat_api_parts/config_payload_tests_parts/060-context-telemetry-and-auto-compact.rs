@@ -74,7 +74,8 @@ fn context_command_reports_isolated_usage_for_fresh_agent() {
 fn context_command_does_not_mutate_session_history_by_default() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let session_path =
+        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
     let dense_messages = (0..220)
         .map(|idx| {
             json!({
@@ -128,7 +129,8 @@ fn message_auto_compacts_when_context_usage_reaches_threshold() {
         &agent_id,
         &json!({"context_window": 512, "context_window_tokens": 512}),
     );
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let session_path =
+        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
     let noisy_messages = (0..80)
         .map(|idx| {
             json!({
@@ -214,7 +216,8 @@ fn message_auto_compacts_when_context_usage_reaches_threshold() {
 fn context_command_prunes_pool_when_limit_exceeded() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let session_path =
+        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
     let dense_messages = (0..260)
         .map(|idx| {
             json!({
@@ -274,6 +277,66 @@ fn context_command_prunes_pool_when_limit_exceeded() {
 }
 
 #[test]
+fn trim_context_pool_compacts_older_verbose_tool_transcripts() {
+    let tool_heavy_a = format!(
+        "From web retrieval: {}",
+        "alpha benchmark tokens ".repeat(220)
+    );
+    let tool_heavy_b = format!("Terminal output {}", "stdout ".repeat(220));
+    let tool_heavy_c = format!("Web benchmark synthesis: {}", "ops latency ".repeat(220));
+    let rows = vec![
+        json!({"role":"user","text":"compare frameworks"}),
+        json!({"role":"assistant","text":tool_heavy_a.clone()}),
+        json!({"role":"assistant","text":tool_heavy_b.clone()}),
+        json!({"role":"assistant","text":tool_heavy_c.clone()}),
+        json!({"role":"user","text":"summarize findings"}),
+    ];
+    let compacted = trim_context_pool(&rows, 500_000);
+    assert_eq!(compacted.len(), rows.len());
+
+    let first_tool_text = message_text(&compacted[1]).to_ascii_lowercase();
+    assert!(first_tool_text.contains("compacted"));
+    assert!(first_tool_text.len() < tool_heavy_a.to_ascii_lowercase().len());
+
+    let second_tool_text = message_text(&compacted[2]).to_ascii_lowercase();
+    let third_tool_text = message_text(&compacted[3]).to_ascii_lowercase();
+    assert!(second_tool_text.contains("terminal output"));
+    assert!(third_tool_text.contains("web benchmark synthesis"));
+}
+
+#[test]
+fn trim_context_pool_compacts_older_image_heavy_tool_transcripts() {
+    let image_heavy_a = format!(
+        "{{\"tool\":\"file_read\",\"content_base64\":\"{}\"}}",
+        "a".repeat(2800)
+    );
+    let image_heavy_b = format!(
+        "{{\"tool\":\"file_read\",\"content_base64\":\"{}\"}}",
+        "b".repeat(2800)
+    );
+    let image_heavy_c = format!(
+        "{{\"tool\":\"file_read\",\"content_base64\":\"{}\"}}",
+        "c".repeat(2800)
+    );
+    let rows = vec![
+        json!({"role":"assistant","text":image_heavy_a.clone()}),
+        json!({"role":"assistant","text":image_heavy_b.clone()}),
+        json!({"role":"assistant","text":image_heavy_c.clone()}),
+        json!({"role":"user","text":"summarize file contents"}),
+    ];
+    let compacted = trim_context_pool(&rows, 500_000);
+    assert_eq!(compacted.len(), rows.len());
+
+    let first_text = message_text(&compacted[0]).to_ascii_lowercase();
+    let second_text = message_text(&compacted[1]).to_ascii_lowercase();
+    let third_text = message_text(&compacted[2]).to_ascii_lowercase();
+    assert!(first_text.contains("screenshot taken"));
+    assert!(first_text.len() < image_heavy_a.to_ascii_lowercase().len());
+    assert!(second_text.contains("content_base64"));
+    assert!(third_text.contains("content_base64"));
+}
+
+#[test]
 fn context_command_emergency_compacts_before_saturation() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
@@ -282,7 +345,8 @@ fn context_command_emergency_compacts_before_saturation() {
         &agent_id,
         &json!({"context_window": 512, "context_window_tokens": 512}),
     );
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let session_path =
+        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
     let noisy_messages = (0..120)
         .map(|idx| {
             json!({
@@ -537,7 +601,8 @@ fn memory_recall_stays_scoped_to_active_session_history() {
 fn context_command_reports_recent_floor_reinjection_when_pool_trim_is_aggressive() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    let session_path =
+        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
     let dense_messages = (0..240)
         .map(|idx| {
             json!({

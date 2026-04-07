@@ -1,3 +1,106 @@
+const CACHE_REL: &str = "client/runtime/local/state/batch_query/cache.json";
+const CACHE_MAX_ENTRIES: usize = 240;
+const CACHE_TTL_SUCCESS_SECS: i64 = 30 * 60;
+const CACHE_TTL_NO_RESULTS_SECS: i64 = 2 * 60;
+
+fn cache_path(root: &Path) -> PathBuf {
+    root.join(CACHE_REL)
+}
+
+fn cache_key(source: &str, query: &str, aperture: &str, policy: &Value) -> String {
+    crate::deterministic_receipt_hash(&json!({
+        "version": 1,
+        "source": source,
+        "query": query,
+        "aperture": aperture,
+        "policy": policy.get("batch_query").cloned().unwrap_or(Value::Null),
+    }))
+}
+
+fn cache_ttl_for_status(status: &str) -> i64 {
+    if status == "ok" || status == "partial" {
+        CACHE_TTL_SUCCESS_SECS
+    } else {
+        CACHE_TTL_NO_RESULTS_SECS
+    }
+}
+
+fn load_cached_response(root: &Path, key: &str) -> Option<Value> {
+    let path = cache_path(root);
+    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
+    let now_ts = chrono::Utc::now().timestamp();
+    let mut mutated = false;
+    let mut hit = None::<Value>;
+    if let Some(entries) = cache.get_mut("entries").and_then(Value::as_object_mut) {
+        let stale_keys = entries
+            .iter()
+            .filter_map(|(entry_key, entry)| {
+                let expires_at = entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0);
+                if expires_at <= now_ts {
+                    Some(entry_key.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        for stale_key in stale_keys {
+            entries.remove(&stale_key);
+            mutated = true;
+        }
+        if let Some(entry) = entries.get(key) {
+            if let Some(response) = entry.get("response") {
+                hit = Some(response.clone());
+            }
+        }
+    }
+    if mutated {
+        let _ = write_json_atomic(&path, &cache);
+    }
+    hit
+}
+
+fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str) {
+    let path = cache_path(root);
+    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
+    let now_ts = chrono::Utc::now().timestamp();
+    let mut entries = cache
+        .get("entries")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    entries
+        .retain(|_, entry| entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0) > now_ts);
+    let ttl = cache_ttl_for_status(status).max(30);
+    entries.insert(
+        key.to_string(),
+        json!({
+            "stored_at": now_ts,
+            "expires_at": now_ts + ttl,
+            "status": status,
+            "response": response
+        }),
+    );
+    if entries.len() > CACHE_MAX_ENTRIES {
+        let mut order = entries
+            .iter()
+            .map(|(entry_key, entry)| {
+                (
+                    entry_key.clone(),
+                    entry.get("stored_at").and_then(Value::as_i64).unwrap_or(0),
+                )
+            })
+            .collect::<Vec<_>>();
+        order.sort_by_key(|(_, stored_at)| *stored_at);
+        let drop_count = entries.len().saturating_sub(CACHE_MAX_ENTRIES);
+        for (entry_key, _) in order.into_iter().take(drop_count) {
+            entries.remove(&entry_key);
+        }
+    }
+    cache["version"] = json!(1);
+    cache["entries"] = Value::Object(entries);
+    let _ = write_json_atomic(&path, &cache);
+}
+
 fn retrieve_web_candidate_for_query(root: &Path, query: &str) -> Result<Candidate, String> {
     let payload = fixture_payload_for_query(query).unwrap_or_else(|| {
         crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
@@ -162,6 +265,88 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 })
             }
         };
+    let cache_key = cache_key(&source, &query, &aperture, &policy);
+    if let Some(cached) = load_cached_response(root, &cache_key) {
+        let status = clean_text(
+            cached
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("no_results"),
+            32,
+        );
+        let summary = clean_text(
+            cached
+                .get("summary")
+                .and_then(Value::as_str)
+                .unwrap_or("Search returned no useful information."),
+            budget.max_summary_tokens.max(60),
+        );
+        let evidence_refs = cached
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
+        let rewrite_set = cached
+            .get("rewrite_set")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
+        let parallel_retrieval_used = cached
+            .get("parallel_retrieval_used")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let provider_snapshot = json!({
+            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_key})),
+            "source": source,
+            "adapter_version": "web_conduit_v1",
+            "disposable": true
+        });
+        let receipt = json!({
+            "type": "batch_query_receipt",
+            "ts": crate::now_iso(),
+            "source": source,
+            "query": query,
+            "aperture": aperture,
+            "rewrite_set": rewrite_set,
+            "query_plan": [query.clone()],
+            "adapter_version": "web_conduit_v1",
+            "provider_snapshot": provider_snapshot,
+            "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
+            "candidate_count": 0,
+            "dedup_count": 0,
+            "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
+            "cache_status": "hit",
+            "latency_ms": started.elapsed().as_millis() as u64,
+            "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
+            "parallel_retrieval_used": parallel_retrieval_used,
+            "partial_failure_details": [],
+            "status": status
+        });
+        let receipt_id = crate::deterministic_receipt_hash(&receipt);
+        let mut receipt_with_id = receipt.clone();
+        receipt_with_id["receipt_id"] = Value::String(receipt_id.clone());
+        let _ = append_jsonl(&receipts_path(root), &receipt_with_id);
+        let mut out = json!({
+            "ok": status != "blocked",
+            "type": "batch_query",
+            "status": status,
+            "source": source,
+            "query": query,
+            "aperture": aperture,
+            "summary": summary,
+            "evidence_refs": evidence_refs,
+            "receipt_id": receipt_id,
+            "parallel_retrieval_used": parallel_retrieval_used,
+            "rewrite_set": rewrite_set,
+            "cache_status": "hit"
+        });
+        if let Some(meta) = nexus_connection {
+            out["nexus_connection"] = meta;
+        }
+        return out;
+    }
 
     let (queries, rewrite_set, rewrite_applied) = build_query_plan(&query, budget);
     let parallel_allowed = source == "web" && rewrite_applied && queries.len() > 1;
@@ -253,6 +438,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !looks_like_ack_only(&snippet)
                 && !looks_like_low_signal_search_summary(&snippet)
                 && !looks_like_source_only_snippet(&snippet)
+                && candidate_passes_relevance_gate(&rerank_query, row, benchmark_intent)
                 && !(benchmark_intent && looks_like_definition_candidate(row))
                 && !(benchmark_intent && looks_like_comparison_noise_candidate(row))
         })
@@ -385,12 +571,25 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "source": source,
         "query": query,
         "aperture": aperture,
-        "summary": summary,
-        "evidence_refs": evidence_refs,
+        "summary": summary.clone(),
+        "evidence_refs": evidence_refs.clone(),
         "receipt_id": receipt_id,
         "parallel_retrieval_used": parallel_allowed,
-        "rewrite_set": rewrite_set
+        "rewrite_set": rewrite_set.clone(),
+        "cache_status": "miss"
     });
+    store_cached_response(
+        root,
+        &cache_key,
+        &json!({
+            "status": status,
+            "summary": summary,
+            "evidence_refs": evidence_refs,
+            "rewrite_set": rewrite_set,
+            "parallel_retrieval_used": parallel_allowed
+        }),
+        status,
+    );
     if let Some(meta) = nexus_connection {
         out["nexus_connection"] = meta;
     }
