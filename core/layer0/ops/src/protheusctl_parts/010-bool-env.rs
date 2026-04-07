@@ -40,10 +40,6 @@ const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheusd.ts",
     "client/runtime/systems/ops/protheus_status_dashboard.ts",
     "client/runtime/systems/ops/protheus_unknown_guard.ts",
-    "client/runtime/systems/ops/protheus_completion.ts",
-    "client/runtime/systems/ops/protheus_repl.ts",
-    "client/runtime/systems/ops/protheus_command_list.ts",
-    "client/runtime/systems/ops/protheus_version_cli.ts",
 ];
 
 fn bool_env(name: &str, fallback: bool) -> bool {

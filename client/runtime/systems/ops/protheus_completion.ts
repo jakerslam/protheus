@@ -1,47 +1,21 @@
 #!/usr/bin/env node
 'use strict';
 
-const CORE_COMMANDS = [
-  'gateway',
-  'start',
-  'stop',
-  'restart',
-  'status',
-  'dashboard',
-  'doctor',
-  'verify-install',
-  'dream',
-  'compact',
-  'proactive_daemon',
-  'speculate',
-  'setup',
-  'help',
-];
+// Layer ownership: core/layer0/ops::completion (authoritative)
+// Thin TypeScript wrapper only.
 
-function jsonMode(argv: string[]): boolean {
-  return argv.some((arg) => arg === '--json' || arg === '--json=1');
-}
+const { runProtheusOps } = require('./run_protheus_ops.ts');
 
-function run(argv: string[] = process.argv.slice(2)): number {
-  if (argv.includes('--help') || argv.includes('-h')) {
-    process.stdout.write(
-      'Usage: infring completion [--json]\n' +
-        'Prints completion candidates for core entry commands.\n',
-    );
-    return 0;
-  }
-  if (jsonMode(argv)) {
-    process.stdout.write(
-      `${JSON.stringify({ ok: true, type: 'protheus_completion', commands: CORE_COMMANDS })}\n`,
-    );
-    return 0;
-  }
-  process.stdout.write(`${CORE_COMMANDS.join('\n')}\n`);
-  return 0;
+function run(args = process.argv.slice(2)) {
+  const passArgs = Array.isArray(args) ? args : [];
+  return runProtheusOps(['completion', ...passArgs], {
+    unknownDomainFallback: false
+  });
 }
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  const status = run(process.argv.slice(2));
+  process.exit(Number.isFinite(Number(status)) ? Number(status) : 1);
 }
 
 module.exports = { run };
