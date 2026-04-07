@@ -231,27 +231,6 @@ fn recovery_hints_enabled() -> bool {
     primitives_enabled() && bool_env("INFRING_TOOL_RECOVERY_HINTS_ENABLED", true)
 }
 
-fn extract_rule(raw: &str) -> String {
-    let cleaned = clean_text(raw, 320);
-    if let Some(inner) = cleaned.strip_prefix("Bash(") {
-        if let Some(pattern) = inner.strip_suffix(')') {
-            return clean_text(pattern, 240);
-        }
-    }
-    clean_text(&cleaned, 240)
-}
-
-fn rules_from_value(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|row| row.as_str().map(extract_rule))
-        .filter(|row| !row.is_empty())
-        .collect::<Vec<_>>()
-}
-
 fn default_deny_rules() -> Vec<String> {
     vec![
         "rm -rf /".to_string(),
@@ -280,27 +259,15 @@ fn load_permission_rules(root: &Path, request: &Value) -> (Vec<String>, Vec<Stri
     let mut deny = default_deny_rules();
     let mut ask = default_ask_rules();
     if let Some(policy) = read_json(&root.join(TERMINAL_PERMISSION_POLICY_REL)) {
-        deny.extend(rules_from_value(
-            policy
-                .get("deny_rules")
-                .or_else(|| policy.pointer("/permissions/deny")),
-        ));
-        ask.extend(rules_from_value(
-            policy
-                .get("ask_rules")
-                .or_else(|| policy.pointer("/permissions/ask")),
-        ));
+        let (policy_deny, policy_ask) =
+            crate::command_permission_kernel::collect_permission_rules_for_kernel(Some(&policy));
+        deny.extend(policy_deny);
+        ask.extend(policy_ask);
     }
-    deny.extend(rules_from_value(
-        request
-            .get("deny_rules")
-            .or_else(|| request.pointer("/permissions/deny")),
-    ));
-    ask.extend(rules_from_value(
-        request
-            .get("ask_rules")
-            .or_else(|| request.pointer("/permissions/ask")),
-    ));
+    let (request_deny, request_ask) =
+        crate::command_permission_kernel::collect_permission_rules_for_kernel(Some(request));
+    deny.extend(request_deny);
+    ask.extend(request_ask);
     deny.sort();
     deny.dedup();
     ask.sort();
