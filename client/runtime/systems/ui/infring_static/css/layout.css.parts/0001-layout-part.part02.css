@@ -269,6 +269,11 @@
   --bottom-dock-icon-shadow-base:
     0 2px 4px color-mix(in srgb, #000 22%, transparent),
     0 1px 2px color-mix(in srgb, #000 16%, transparent);
+  --bottom-dock-icon-shadow-active:
+    0 2px 4px color-mix(in srgb, #000 22%, transparent),
+    0 1px 2px color-mix(in srgb, #000 16%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 20%, transparent),
+    0 8px 18px color-mix(in srgb, #000 32%, transparent);
 }
 
 .bottom-dock {
@@ -429,6 +434,7 @@ body[data-theme='dark'] .bottom-dock::before {
 .bottom-dock-btn.active {
   color: #d9dee6;
   background: linear-gradient(to bottom right, #424242 0%, #000 100%);
+  box-shadow: var(--bottom-dock-icon-shadow-active);
 }
 
 .bottom-dock-btn.hovered {
@@ -493,7 +499,7 @@ body[data-theme='dark'] .bottom-dock::before {
 }
 
 .bottom-dock-btn.messages-btn.active {
-  box-shadow: var(--bottom-dock-icon-shadow-base);
+  box-shadow: var(--bottom-dock-icon-shadow-active);
 }
 
 .bottom-dock-btn[data-dock-id='runtime'],
