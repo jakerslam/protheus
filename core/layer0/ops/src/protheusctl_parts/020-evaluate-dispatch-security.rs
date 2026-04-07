@@ -824,6 +824,27 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
     if domain == "install-doctor" {
         return run_install_doctor_domain(root, args);
     }
+    let nexus_tool = core_domain_nexus_tool_label(domain, args);
+    let nexus_connection = match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+        nexus_tool.as_str(),
+    ) {
+        Ok(meta) => meta,
+        Err(err) => {
+            eprintln!(
+                "{}",
+                json!({
+                    "ok": false,
+                    "type": "protheusctl_dispatch",
+                    "error": "core_domain_nexus_denied",
+                    "domain": clean(domain, 120),
+                    "route_label": clean(&nexus_tool, 200),
+                    "reason": clean(&err, 240),
+                    "fail_closed": true
+                })
+            );
+            return 1;
+        }
+    };
 
     let exe = match env::current_exe() {
         Ok(path) => path,
@@ -846,6 +867,11 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
         .current_dir(root)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
+    if let Some(meta) = nexus_connection {
+        if let Ok(raw) = serde_json::to_string(&meta) {
+            cmd.env("PROTHEUS_NEXUS_CONNECTION", clean(&raw, 8_000));
+        }
+    }
 
     if forward_stdin {
         cmd.stdin(Stdio::inherit());
@@ -868,6 +894,30 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
             1
         }
     }
+}
+
+fn core_domain_nexus_tool_label(domain: &str, args: &[String]) -> String {
+    let normalized_domain = clean(domain, 120).to_ascii_lowercase().replace('-', "_");
+    if normalized_domain.contains("web") || normalized_domain.contains("search") {
+        return "web_search".to_string();
+    }
+    if normalized_domain.contains("context")
+        || normalized_domain.contains("memory")
+        || normalized_domain.contains("continuity")
+    {
+        return "batch_query".to_string();
+    }
+    if normalized_domain.contains("stomach") {
+        return "stomach_status".to_string();
+    }
+    if normalized_domain.contains("terminal")
+        || args
+            .iter()
+            .any(|row| row.trim().to_ascii_lowercase().contains("terminal"))
+    {
+        return "terminal_exec".to_string();
+    }
+    format!("core_domain_{normalized_domain}")
 }
 
 fn enforce_command_center_boundary(cmd: &str, route: &Route) -> Result<(), String> {

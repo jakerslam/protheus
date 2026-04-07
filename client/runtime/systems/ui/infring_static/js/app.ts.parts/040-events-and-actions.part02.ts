@@ -1,13 +1,16 @@
       if (remainingMs <= 0) return this.isAgentPendingTermination(agent) ? '0m' : '';
       var totalMin = Math.max(1, Math.ceil(remainingMs / 60000));
-      var day = Math.floor(totalMin / 1440);
-      var hour = Math.floor((totalMin % 1440) / 60);
-      var min = totalMin % 60;
-      var parts = [];
-      if (day > 0) parts.push(day + 'd');
-      if (hour > 0) parts.push(hour + 'h');
-      parts.push(min + 'm');
-      return parts.join(' ');
+      var monthMin = 30 * 24 * 60;
+      if (totalMin >= monthMin) {
+        return Math.max(1, Math.ceil(totalMin / monthMin)) + 'm';
+      }
+      if (totalMin >= 1440) {
+        return Math.max(1, Math.ceil(totalMin / 1440)) + 'd';
+      }
+      if (totalMin >= 60) {
+        return Math.max(1, Math.ceil(totalMin / 60)) + 'h';
+      }
+      return totalMin + 'm';
     },
 
     expiryCountdownCritical(agent) {
@@ -15,7 +18,12 @@
       if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
-      return remainingMs > 0 && remainingMs <= 60000;
+      var totalMs = this.agentContractTotalMs(agent);
+      var thresholdMs = 3600000;
+      if (Number.isFinite(totalMs) && totalMs > 0) {
+        thresholdMs = Math.min(3600000, Math.max(1, Math.floor(totalMs * 0.2)));
+      }
+      return remainingMs > 0 && remainingMs <= thresholdMs;
     },
 
     agentContractTotalMs(agent) {

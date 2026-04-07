@@ -93,7 +93,12 @@
               </div>
             </div>
             <div class="nav-sub-item-controls">
-              <div class="nav-sub-sort-group" role="group" aria-label="Sort conversations">
+              <div
+                class="nav-sub-sort-group nav-sub-sort-pill"
+                role="group"
+                aria-label="Sort conversations"
+                :data-mode="chatSidebarSortMode === 'topology' ? 'topology' : 'age'"
+              >
                 <button
                   type="button"
                   class="nav-sub-sort-btn"
@@ -324,6 +329,9 @@
               :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0 }"
               @click="navigate('runtime')"
               :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
+              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 250; hideCollapsedAgentHover(); }"
+              @mousemove="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
               <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
               <span class="nav-label">System</span>

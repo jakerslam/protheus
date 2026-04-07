@@ -20,27 +20,61 @@
 .nav-sub-sort-group {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   flex-shrink: 0;
 }
 
-.nav-sub-sort-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  background: color-mix(in srgb, var(--surface2) 74%, transparent);
+.nav-sub-sort-group.nav-sub-sort-pill {
+  --sort-opt-size: 24px;
+  --sort-shell-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 1px solid var(--sort-shell-color);
+  border-radius: 999px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.nav-sub-sort-group.nav-sub-sort-pill::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sort-opt-size);
+  height: 100%;
+  border-radius: 999px;
+  border: none;
+  background: var(--sort-shell-color);
+  opacity: 0.5;
+  transform: translateX(0);
+  transition: transform 0.2s var(--ease-smooth), background var(--transition-fast);
+}
+
+.nav-sub-sort-group.nav-sub-sort-pill[data-mode='topology']::before {
+  transform: translateX(var(--sort-opt-size));
+}
+
+.nav-sub-sort-group.nav-sub-sort-pill .nav-sub-sort-btn {
+  width: var(--sort-opt-size);
+  height: var(--sort-opt-size);
+  border-radius: 999px;
+  border: none;
+  background: transparent;
   color: var(--text-dim);
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .nav-sub-sort-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -48,17 +82,10 @@
   stroke-linejoin: round;
 }
 
-.nav-sub-sort-btn:hover {
+.nav-sub-sort-group.nav-sub-sort-pill .nav-sub-sort-btn:hover,
+.nav-sub-sort-group.nav-sub-sort-pill .nav-sub-sort-btn.active {
   color: var(--text);
-  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
-  background: color-mix(in srgb, var(--accent-subtle) 80%, transparent);
-  transform: translateY(-0.5px);
-}
-
-.nav-sub-sort-btn.active {
-  color: var(--text);
-  border-color: transparent;
-  background: color-mix(in srgb, var(--user-bg) 78%, transparent);
+  background: transparent;
 }
 
 .nav-sub-item.nav-sub-item-action.nav-sub-item-action-right {

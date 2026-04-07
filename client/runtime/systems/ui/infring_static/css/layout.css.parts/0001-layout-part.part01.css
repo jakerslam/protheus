@@ -315,6 +315,10 @@ button.sidebar-scroll-indicator:hover {
   -webkit-backdrop-filter: none;
 }
 
+body[data-theme='light'] .nav-item.active {
+  background: color-mix(in srgb, var(--surface3) 86%, var(--border) 14%);
+}
+
 .nav-icon {
   width: 18px;
   height: 18px;

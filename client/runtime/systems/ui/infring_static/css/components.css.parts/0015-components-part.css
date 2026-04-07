@@ -88,6 +88,7 @@
   min-height: 30px;
   box-sizing: border-box;
   padding: 0 12px;
+  gap: 7px;
   cursor: pointer;
   border: none !important;
   border-width: 0 !important;
@@ -96,6 +97,36 @@
 
 .topbar-agent-indicator:hover {
   border-color: transparent !important;
+}
+
+.topbar-agent-indicator::before {
+  display: none;
+}
+
+.topbar-agent-indicator-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+.topbar-agent-indicator-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.topbar-agent-indicator-text {
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
 }
 .health-indicator::before {
   content: '';

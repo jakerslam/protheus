@@ -149,6 +149,10 @@
       this._collapsedHoverPointerMovedAt = now;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > now) return;
       var navLabel = String(label || '').trim();
+      if (navLabel && navLabel.toLowerCase() === 'system') {
+        this.hideCollapsedAgentHover();
+        return;
+      }
       if (!navLabel) {
         this.hideCollapsedAgentHover();
         return;
@@ -216,6 +220,10 @@
       }
       if (kind === 'nav') {
         var navName = String(hover.name || '').trim();
+        if (navName && navName.toLowerCase() === 'system') {
+          this.hideCollapsedAgentHover();
+          return;
+        }
         if (!navName) {
           this.hideCollapsedAgentHover();
           return;
@@ -322,6 +330,10 @@
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var navLabel = String(label || '').trim();
+      if (navLabel && navLabel.toLowerCase() === 'system') {
+        this.hideCollapsedAgentHover();
+        return;
+      }
       if (!navLabel) {
         this.hideCollapsedAgentHover();
         return;
@@ -371,6 +383,11 @@
       }
       if (state === 'connecting') return 'Connecting...';
       return 'Disconnected';
+    },
+    runtimeFacadeDisplayLabel() {
+      var label = String(this.runtimeFacadeLabel() || '').trim();
+      if (!label) return '';
+      return label.replace(/\s+agents?$/i, '');
     },
     runtimeResponseP95Ms() {
       var store = this.getAppStore();

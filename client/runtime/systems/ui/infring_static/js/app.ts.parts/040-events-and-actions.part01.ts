@@ -496,10 +496,12 @@
 
     shouldShowExpiryCountdown(agent) {
       if (agent && agent._timed_out_local === true) return true;
+      if (!this.agentAutoTerminateEnabled(agent)) return false;
+      if (!this.agentContractHasFiniteExpiry(agent)) return false;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
       if (remainingMs <= 0) return this.isAgentPendingTermination(agent);
-      return remainingMs <= 60000;
+      return true;
     },
 
     expiryCountdownLabel(agent) {
