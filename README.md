@@ -59,7 +59,10 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
 & $tmp -Repair -Full
+# Remove-Item is silent on success in PowerShell.
 Remove-Item $tmp -Force
+# Confirm command resolution in this shell; if unresolved, use direct-path fallback below.
+Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
 ```
 
@@ -70,6 +73,12 @@ $env:INFRING_INSTALL_REPAIR = "1"
 $env:INFRING_INSTALL_FULL = "1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
 infring gateway
+```
+
+If command resolution has not propagated yet in the same session, run directly:
+
+```powershell
+$HOME\.protheus\bin\infring.cmd gateway
 ```
 
 If a release does not publish Windows prebuilt binaries for your architecture, the installer now attempts source fallback automatically. On fresh Windows machines, install prerequisites first if needed:

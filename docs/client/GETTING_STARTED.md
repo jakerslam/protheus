@@ -34,7 +34,10 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
 & $tmp -Repair -Full
+# Remove-Item is silent on success in PowerShell.
 Remove-Item $tmp -Force
+# Confirm command resolution in this shell; if unresolved, use direct-path fallback below.
+Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
 ```
 
