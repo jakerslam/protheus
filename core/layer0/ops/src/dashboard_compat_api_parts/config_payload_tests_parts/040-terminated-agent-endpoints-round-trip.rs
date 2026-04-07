@@ -946,6 +946,18 @@ fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
             .and_then(Value::as_str),
         Some("context_stacks")
     );
+    assert_eq!(
+        out.payload
+            .pointer("/tool_pipeline/normalized_result/tool_name")
+            .and_then(Value::as_str),
+        Some("file_read")
+    );
+    assert_eq!(
+        out.payload
+            .pointer("/tool_pipeline/worker_output/status")
+            .and_then(Value::as_str),
+        Some("completed")
+    );
 }
 
 #[test]
@@ -999,6 +1011,12 @@ fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
         out.payload.pointer("/nexus_connection/target")
             .and_then(Value::as_str),
         Some("context_stacks")
+    );
+    assert_eq!(
+        out.payload
+            .pointer("/tool_pipeline/normalized_result/tool_name")
+            .and_then(Value::as_str),
+        Some("file_read_many")
     );
 }
 
@@ -1059,7 +1077,7 @@ fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
     let out = handle(
         root.path(),
         "GET",
-        "/api/web/search?q=",
+        "/api/web/search?q=runtime",
         &[],
         &json!({"ok": true}),
     )
@@ -1074,6 +1092,12 @@ fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
         out.payload.pointer("/nexus_connection/target")
             .and_then(Value::as_str),
         Some("context_stacks")
+    );
+    assert_eq!(
+        out.payload
+            .pointer("/tool_pipeline/normalized_result/tool_name")
+            .and_then(Value::as_str),
+        Some("web_search")
     );
 }
 

@@ -331,19 +331,39 @@ fn natural_web_intent_routes_peer_comparisons_to_batch_query() {
 }
 
 #[test]
+fn conversational_prompt_does_not_auto_route_direct_tool_intent() {
+    assert!(direct_tool_intent_from_user_message("what do you think of infring?").is_none());
+}
+
+#[test]
+fn inline_tool_policy_requires_explicit_tooling_request() {
+    assert!(!inline_tool_calls_allowed_for_user_message(
+        "what do you think of infring?"
+    ));
+    assert!(inline_tool_calls_allowed_for_user_message(
+        "search the web for latest ai agent benchmarks"
+    ));
+    assert!(!inline_tool_calls_allowed_for_user_message(
+        "just answer directly, dont use a tool call"
+    ));
+}
+
+#[test]
 fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
     let response =
         "<function=spawn_subagents>{\"count\":3,\"objective\":\"parallelize analysis\"}</function>";
-    let (text, cards, pending_confirmation) = execute_inline_tool_calls(
+    let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
         root.path(),
         &snapshot,
         "agent-inline",
         None,
         response,
         "parallelize this with a swarm",
+        true,
     );
+    assert!(!suppressed);
     assert_eq!(cards.len(), 1);
     assert_eq!(
         cards[0].get("is_error").and_then(Value::as_bool),
@@ -354,6 +374,26 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
     assert!(!lowered.contains("tool_explicit_signoff_required"));
     assert!(!lowered.contains("spawn_subagents failed"));
     assert!(!lowered.contains("confirmation"));
+}
+
+#[test]
+fn inline_tool_execution_is_suppressed_for_plain_conversation_turns() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let response = "<function=web_search>{\"query\":\"latest technology news\"}</function>";
+    let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
+        root.path(),
+        &snapshot,
+        "agent-inline-suppressed",
+        None,
+        response,
+        "what do you think of infring?",
+        false,
+    );
+    assert!(suppressed);
+    assert!(cards.is_empty());
+    assert!(pending_confirmation.is_none());
+    assert!(text.trim().is_empty());
 }
 
 #[test]
@@ -1109,4 +1149,32 @@ fn execute_tool_recovery_emits_nexus_connection_metadata() {
             .and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        out.pointer("/tool_pipeline/normalized_result/tool_name")
+            .and_then(Value::as_str),
+        Some("file_read")
+    );
+}
+
+#[test]
+fn summarize_tool_payload_prefers_claim_bundle_findings_when_available() {
+    let payload = json!({
+        "ok": true,
+        "summary": "raw summary should not win",
+        "tool_pipeline": {
+            "claim_bundle": {
+                "claims": [
+                    {"status":"supported","text":"Framework A shows higher task completion consistency under constrained retries."},
+                    {"status":"partial","text":"Framework B has better ecosystem coverage but weaker deterministic controls."},
+                    {"status":"unsupported","text":"ignore me"}
+                ]
+            }
+        }
+    });
+    let summary = summarize_tool_payload("web_search", &payload);
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.starts_with("key findings:"));
+    assert!(lowered.contains("framework a"));
+    assert!(lowered.contains("framework b"));
+    assert!(!lowered.contains("ignore me"));
 }

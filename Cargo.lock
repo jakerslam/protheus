@@ -1486,6 +1486,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "protheus-memory-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "protheus-memory-core-v6"
 version = "0.1.0"
 dependencies = [
@@ -1564,6 +1573,7 @@ dependencies = [
  "persona_dispatch_security_gate",
  "proptest",
  "protheus-autonomy-core-v1",
+ "protheus-memory-core-v1",
  "protheus-nexus-core-v1",
  "protheus-ops-core-v1",
  "protheus-pure-workspace",
@@ -1571,6 +1581,7 @@ dependencies = [
  "protheus-spine-core-v1",
  "protheus-stomach-core-v1",
  "protheus-tiny-runtime",
+ "protheus-tooling-core-v1",
  "rand 0.8.5",
  "regex",
  "rusqlite",
@@ -1705,6 +1716,16 @@ dependencies = [
 [[package]]
 name = "protheus-tiny-runtime"
 version = "0.1.0"
+
+[[package]]
+name = "protheus-tooling-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
 
 [[package]]
 name = "protheus-vault-core-v1"

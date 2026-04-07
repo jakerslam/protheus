@@ -1836,7 +1836,52 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-    let payload = match command.as_str() {
+    let nexus_connection = match command.as_str() {
+        "fetch" | "browse" => {
+            match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                "web_conduit_fetch",
+            ) {
+                Ok(meta) => meta,
+                Err(err) => {
+                    println!(
+                        "{}",
+                        json!({
+                            "ok": false,
+                            "type": "web_conduit_nexus_gate",
+                            "error": "nexus_route_denied",
+                            "command": clean_text(command.as_str(), 40),
+                            "reason": clean_text(&err, 240),
+                            "fail_closed": true
+                        })
+                    );
+                    return 1;
+                }
+            }
+        }
+        "search" => {
+            match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                "web_search",
+            ) {
+                Ok(meta) => meta,
+                Err(err) => {
+                    println!(
+                        "{}",
+                        json!({
+                            "ok": false,
+                            "type": "web_conduit_nexus_gate",
+                            "error": "nexus_route_denied",
+                            "command": clean_text(command.as_str(), 40),
+                            "reason": clean_text(&err, 240),
+                            "fail_closed": true
+                        })
+                    );
+                    return 1;
+                }
+            }
+        }
+        _ => None,
+    };
+    let mut payload = match command.as_str() {
         "help" => {
             usage();
             json!({"ok": true, "type": "web_conduit_help"})
@@ -1939,6 +1984,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "command": command
         }),
     };
+    if let Some(meta) = nexus_connection {
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("nexus_connection".to_string(), meta);
+        }
+    }
     println!(
         "{}",
         serde_json::to_string_pretty(&payload)

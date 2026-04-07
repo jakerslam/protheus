@@ -94,6 +94,105 @@ fn clean_agent_id(raw: &str) -> String {
     out
 }
 
+fn tooling_pipeline_execute<F>(
+    trace_id: &str,
+    task_id: &str,
+    tool_name: &str,
+    tool_args: &Value,
+    executor: F,
+) -> Value
+where
+    F: FnOnce(&Value) -> Result<Value, String>,
+{
+    let mut broker = protheus_tooling_core_v1::ToolBroker::default();
+    let extractor = protheus_tooling_core_v1::EvidenceExtractor;
+    let mut store = protheus_tooling_core_v1::EvidenceStore::default();
+    let verifier = protheus_tooling_core_v1::StructuredVerifier;
+    let request = protheus_tooling_core_v1::ToolCallRequest {
+        trace_id: clean_text(trace_id, 160),
+        task_id: clean_text(task_id, 160),
+        tool_name: clean_text(tool_name, 80),
+        args: tool_args.clone(),
+        lineage: vec!["dashboard_compat_api".to_string()],
+        caller: protheus_tooling_core_v1::BrokerCaller::Client,
+    };
+    let execution = match broker.execute_and_normalize(request, executor) {
+        Ok(out) => out,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "error": err.as_message(),
+                "tool_name": clean_text(tool_name, 80),
+                "task_id": clean_text(task_id, 160),
+                "trace_id": clean_text(trace_id, 160)
+            })
+        }
+    };
+    let cards = extractor.extract(&execution.normalized_result, &execution.raw_payload);
+    let evidence_ids = store.append_evidence(&cards);
+    let bundle = verifier.derive_claim_bundle(task_id, &cards);
+    let synthesis_claims = verifier
+        .supported_claims_for_synthesis(&bundle)
+        .iter()
+        .map(|claim| (*claim).clone())
+        .collect::<Vec<_>>();
+    let status = if evidence_ids.is_empty() {
+        protheus_tooling_core_v1::WorkerTaskStatus::Blocked
+    } else {
+        protheus_tooling_core_v1::WorkerTaskStatus::Completed
+    };
+    let worker_output = protheus_tooling_core_v1::WorkerOutput {
+        task_id: clean_text(task_id, 160),
+        status,
+        produced_evidence_ids: evidence_ids.clone(),
+        open_questions: if evidence_ids.is_empty() {
+            vec!["No evidence cards were extracted from this tool result.".to_string()]
+        } else {
+            Vec::new()
+        },
+        recommended_next_actions: if evidence_ids.is_empty() {
+            vec!["Retry with narrower query/path and rerun through the broker.".to_string()]
+        } else {
+            Vec::new()
+        },
+        blockers: if execution.normalized_result.errors.is_empty() {
+            Vec::new()
+        } else {
+            execution.normalized_result.errors.clone()
+        },
+        budget_used: protheus_tooling_core_v1::WorkerBudgetUsed {
+            tool_calls: 1,
+            input_tokens: (clean_text(&tool_args.to_string(), 8000).len() / 4).max(1),
+            output_tokens: (clean_text(&execution.raw_payload.to_string(), 8000).len() / 4).max(1),
+        },
+    };
+    json!({
+        "ok": true,
+        "raw_payload": execution.raw_payload,
+        "normalized_result": execution.normalized_result,
+        "evidence_cards": cards,
+        "evidence_store_records": store.records(),
+        "worker_output": worker_output,
+        "claim_bundle": bundle,
+        "synthesis_input": {
+            "claims": synthesis_claims
+        }
+    })
+}
+
+fn attach_tool_pipeline(payload: &mut Value, pipeline: &Value) {
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("tool_pipeline".to_string(), pipeline.clone());
+    }
+}
+
+fn tool_pipeline_supported_tool(tool_name: &str) -> bool {
+    matches!(
+        normalize_tool_name(tool_name).as_str(),
+        "web_search" | "web_fetch" | "batch_query" | "file_read" | "file_read_many"
+    )
+}
+
 fn parse_json_loose(raw: &str) -> Option<Value> {
     if raw.trim().is_empty() {
         return None;
@@ -6062,6 +6161,37 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     }
 
     let normalized = normalize_tool_name(tool_name);
+    if let Some(claims) = payload
+        .pointer("/tool_pipeline/claim_bundle/claims")
+        .and_then(Value::as_array)
+    {
+        let mut findings = claims
+            .iter()
+            .filter_map(|claim| {
+                let status = clean_text(
+                    claim.get("status").and_then(Value::as_str).unwrap_or(""),
+                    40,
+                )
+                .to_ascii_lowercase();
+                if status != "supported" && status != "partial" {
+                    return None;
+                }
+                let text = clean_text(claim.get("text").and_then(Value::as_str).unwrap_or(""), 260);
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(trim_text(&text, 220))
+                }
+            })
+            .take(3)
+            .collect::<Vec<_>>();
+        if !findings.is_empty() {
+            findings.retain(|row| !row.trim().is_empty());
+            if !findings.is_empty() {
+                return trim_text(&format!("Key findings: {}", findings.join(" | ")), 24_000);
+            }
+        }
+    }
     if normalized == "spawn_subagents"
         || normalized == "spawn_swarm"
         || normalized == "agent_spawn"
@@ -7098,6 +7228,26 @@ fn execute_tool_call_with_recovery(
             obj.insert("nexus_connection".to_string(), meta);
         }
     }
+    if tool_pipeline_supported_tool(tool_name) {
+        let trace_id = crate::deterministic_receipt_hash(&json!({
+            "type": "tool_pipeline_trace",
+            "tool_name": normalize_tool_name(tool_name),
+            "actor_agent_id": clean_agent_id(actor_agent_id),
+            "task_seed": clean_text(&input.to_string(), 400)
+        }));
+        let task_id = {
+            let cleaned = clean_agent_id(actor_agent_id);
+            if cleaned.is_empty() {
+                "agent-unknown".to_string()
+            } else {
+                cleaned
+            }
+        };
+        let raw_snapshot = payload.clone();
+        let pipeline =
+            tooling_pipeline_execute(&trace_id, &task_id, tool_name, input, |_| Ok(raw_snapshot));
+        attach_tool_pipeline(&mut payload, &pipeline);
+    }
     payload
 }
 
@@ -7108,10 +7258,14 @@ fn execute_inline_tool_calls(
     existing: Option<&Value>,
     response_text: &str,
     user_message: &str,
-) -> (String, Vec<Value>, Option<Value>) {
+    allow_inline_calls: bool,
+) -> (String, Vec<Value>, Option<Value>, bool) {
     let (cleaned, calls) = extract_inline_tool_calls(response_text, 6);
     if calls.is_empty() {
-        return (response_text.to_string(), Vec::new(), None);
+        return (response_text.to_string(), Vec::new(), None, false);
+    }
+    if !allow_inline_calls {
+        return (trim_text(cleaned.trim(), 32_000), Vec::new(), None, true);
     }
     let mut cards = Vec::<Value>::new();
     let mut fallback_lines = Vec::<String>::new();
@@ -7203,7 +7357,7 @@ fn execute_inline_tool_calls(
     };
     let (contracted_response, _contract_report) =
         enforce_tool_completion_contract(response, &cards);
-    (contracted_response, cards, pending_confirmation)
+    (contracted_response, cards, pending_confirmation, false)
 }
 
 fn first_http_url_in_text(text: &str) -> String {
@@ -7613,6 +7767,43 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
     }
 }
 
+fn message_explicitly_disallows_tool_calls(message: &str) -> bool {
+    let lowered = clean_text(message, 400).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("dont use a tool")
+        || lowered.contains("don't use a tool")
+        || lowered.contains("do not use a tool")
+        || lowered.contains("dont call a tool")
+        || lowered.contains("don't call a tool")
+        || lowered.contains("do not call a tool")
+        || lowered.contains("without tool")
+        || lowered.contains("no tool call")
+        || lowered.contains("just talk to me")
+        || lowered.contains("just answer")
+}
+
+fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
+    let cleaned = clean_text(message, 2_200);
+    if cleaned.is_empty() {
+        return false;
+    }
+    if message_explicitly_disallows_tool_calls(&cleaned) {
+        return false;
+    }
+    if direct_tool_intent_from_user_message(&cleaned).is_some() {
+        return true;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    swarm_intent_requested(&cleaned)
+        || lowered.contains("multi-agent")
+        || lowered.contains("multi agent")
+        || lowered.contains("use tool")
+        || lowered.contains("run tool")
+        || lowered.contains("tool call")
+}
+
 pub fn handle_with_headers(
     root: &Path,
     method: &str,
@@ -7643,7 +7834,10 @@ pub fn handle_with_headers(
         return Some(response);
     }
     if let Some(response) = dashboard_compat_api_channels::handle(root, method, path_only, body) {
-        return Some(response);
+        return Some(compat_api_response_with_nexus(
+            "dashboard_compat_api_channels",
+            response,
+        ));
     }
     if let Some(response) = dashboard_skills_marketplace::handle(root, method, path, snapshot, body)
     {
@@ -7652,21 +7846,33 @@ pub fn handle_with_headers(
     if let Some(response) =
         dashboard_compat_api_comms::handle(root, method, path, path_only, body, snapshot)
     {
-        return Some(response);
+        return Some(compat_api_response_with_nexus(
+            "dashboard_compat_api_comms",
+            response,
+        ));
     }
     if let Some(response) =
         dashboard_compat_api_hands::handle(root, method, path_only, body, snapshot)
     {
-        return Some(response);
+        return Some(compat_api_response_with_nexus(
+            "dashboard_compat_api_hands",
+            response,
+        ));
     }
     if let Some(response) =
         dashboard_compat_api_sidebar_ops::handle(root, method, path_only, body, snapshot)
     {
-        return Some(response);
+        return Some(compat_api_response_with_nexus(
+            "dashboard_compat_api_sidebar_ops",
+            response,
+        ));
     }
     if let Some(response) = dashboard_compat_api_settings_ops::handle(root, method, path_only, body)
     {
-        return Some(response);
+        return Some(compat_api_response_with_nexus(
+            "dashboard_compat_api_settings_ops",
+            response,
+        ));
     }
 
     if let Some((requested_agent_id, segments)) = parse_memory_route(path_only) {
@@ -9157,11 +9363,15 @@ pub fn handle_with_headers(
                     .unwrap_or(""),
                 12_000,
             );
+            let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(&message);
             let mut prompt_parts = Vec::<String>::new();
             if !identity_hydration_prompt.is_empty() {
                 prompt_parts.push(identity_hydration_prompt);
             }
             prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
+            if !inline_tools_allowed {
+                prompt_parts.push("Direct-answer guard: default to natural conversational answers. Do not emit `<function=...>` tool calls unless the user explicitly requested web retrieval, file/terminal operations, memory operations, or agent management in this turn.".to_string());
+            }
             if !instinct_prompt_context.is_empty() {
                 prompt_parts.push(instinct_prompt_context);
             }
@@ -9249,7 +9459,12 @@ pub fn handle_with_headers(
                             .to_string()
                         );
                     }
-                    let (tool_adjusted_response, response_tools, inline_pending_confirmation) =
+                    let (
+                        tool_adjusted_response,
+                        response_tools,
+                        inline_pending_confirmation,
+                        inline_tools_suppressed,
+                    ) =
                         execute_inline_tool_calls(
                             root,
                             snapshot,
@@ -9257,8 +9472,46 @@ pub fn handle_with_headers(
                             Some(&row),
                             &response_text,
                             &message,
+                            inline_tools_allowed,
                         );
                     response_text = tool_adjusted_response;
+                    if inline_tools_suppressed {
+                        let direct_only_prompt = clean_text(
+                            &format!(
+                                "{}\n\nDirect-answer guard: unless the user explicitly requested tool execution in this turn, do not emit `<function=...>` calls. Respond directly in natural language.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &direct_only_prompt,
+                            &active_messages,
+                            &message,
+                        ) {
+                            let mut retried_text = clean_chat_text(
+                                retried.get("response").and_then(Value::as_str).unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            let (without_inline_calls, _) =
+                                extract_inline_tool_calls(&retried_text, 6);
+                            let candidate = if without_inline_calls.trim().is_empty() {
+                                retried_text
+                            } else {
+                                without_inline_calls
+                            };
+                            if !candidate.trim().is_empty() {
+                                response_text = clean_chat_text(candidate.trim(), 32_000);
+                            }
+                        }
+                        if response_text.trim().is_empty() {
+                            response_text = "I can answer directly without tool calls. Ask your question naturally and I will respond conversationally unless you explicitly request a tool run.".to_string();
+                        }
+                    }
                     if let Some(pending) = inline_pending_confirmation {
                         let pending_tool = clean_text(
                             pending
@@ -9445,6 +9698,60 @@ pub fn handle_with_headers(
                         finalized_response = comparative_no_findings_fallback(&message);
                         finalization_outcome =
                             format!("{finalization_outcome}+comparative_fallback");
+                    }
+                    if response_tools.is_empty()
+                        && !inline_tools_allowed
+                        && response_is_no_findings_placeholder(&finalized_response)
+                    {
+                        let direct_chat_repair_prompt = clean_text(
+                            &format!(
+                                "{}\n\nConversational recovery: answer directly in natural language without tools. Do not mention missing findings unless the user explicitly requested a tool call.",
+                                AGENT_RUNTIME_SYSTEM_PROMPT
+                            ),
+                            12_000,
+                        );
+                        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
+                            root,
+                            &provider,
+                            &model,
+                            &direct_chat_repair_prompt,
+                            &active_messages,
+                            &message,
+                        ) {
+                            let mut retried_text = clean_chat_text(
+                                retried
+                                    .get("response")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
+                                32_000,
+                            );
+                            retried_text = strip_internal_context_metadata_prefix(&retried_text);
+                            retried_text = strip_internal_cache_control_markup(&retried_text);
+                            if !user_requested_internal_runtime_details(&message) {
+                                retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                            }
+                            if !response_is_unrelated_context_dump(&message, &retried_text) {
+                                let (retry_finalized, _retry_report, retry_outcome) =
+                                    enforce_user_facing_finalization_contract(
+                                        retried_text,
+                                        &response_tools,
+                                    );
+                                if !response_is_no_findings_placeholder(&retry_finalized) {
+                                    finalized_response = retry_finalized;
+                                    finalization_outcome = merge_response_outcomes(
+                                        &finalization_outcome,
+                                        &format!("conversation_retry:{retry_outcome}"),
+                                        200,
+                                    );
+                                }
+                            }
+                        }
+                        if response_is_no_findings_placeholder(&finalized_response) {
+                            finalized_response =
+                                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
+                            finalization_outcome =
+                                format!("{finalization_outcome}+conversation_fallback");
+                        }
                     }
                     let mut tooling_fallback_used = false;
                     if let Some(tooling_fallback) = maybe_tooling_failure_fallback(
@@ -10359,6 +10666,29 @@ pub fn handle_with_headers(
             if let Some(meta) = nexus_connection {
                 payload["nexus_connection"] = meta;
             }
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "agent_id": agent_id,
+                "tool": "file_read",
+                "path": requested_path
+            }));
+            let task_id = format!(
+                "tool-file-read-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "file_read",
+                &json!({
+                    "path": requested_path,
+                    "full": full,
+                    "allow_binary": allow_binary
+                }),
+                |_| Ok(payload.clone()),
+            );
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
             return Some(CompatApiResponse {
                 status: 200,
                 payload,
@@ -10556,6 +10886,29 @@ pub fn handle_with_headers(
             });
             if let Some(meta) = nexus_connection {
                 payload["nexus_connection"] = meta;
+            }
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "agent_id": agent_id,
+                "tool": "file_read_many",
+                "paths": paths
+            }));
+            let task_id = format!(
+                "tool-file-read-many-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "file_read_many",
+                &json!({
+                    "paths": paths,
+                    "full": full,
+                    "allow_binary": allow_binary
+                }),
+                |_| Ok(payload.clone()),
+            );
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
             }
             return Some(CompatApiResponse { status, payload });
         }
@@ -11063,10 +11416,30 @@ pub fn handle_with_headers(
                         .unwrap_or(""),
                     600,
                 );
-                let mut payload = crate::web_conduit::api_search(
-                    root,
-                    &json!({"query": query, "summary_only": false}),
+                let args = json!({"query": query, "summary_only": false});
+                let trace_id = crate::deterministic_receipt_hash(&json!({
+                    "tool": "web_search",
+                    "query": args.get("query").cloned().unwrap_or(Value::Null),
+                    "route": "api_web_search_get"
+                }));
+                let task_id = format!(
+                    "tool-web-search-{}",
+                    trace_id.chars().take(12).collect::<String>()
                 );
+                let pipeline = tooling_pipeline_execute(
+                    &trace_id,
+                    &task_id,
+                    "web_search",
+                    &args,
+                    |normalized_args| Ok(crate::web_conduit::api_search(root, normalized_args)),
+                );
+                let mut payload = pipeline
+                    .get("raw_payload")
+                    .cloned()
+                    .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
+                if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    attach_tool_pipeline(&mut payload, &pipeline);
+                }
                 if let Some(meta) = nexus_connection {
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("nexus_connection".to_string(), meta);
@@ -11088,14 +11461,35 @@ pub fn handle_with_headers(
                     query_value(path, "aperture").as_deref().unwrap_or("medium"),
                     20,
                 );
-                crate::batch_query_primitive::api_batch_query(
-                    root,
-                    &json!({
-                        "source": source,
-                        "query": query,
-                        "aperture": aperture
-                    }),
-                )
+                let args = json!({
+                    "source": source,
+                    "query": query,
+                    "aperture": aperture
+                });
+                let trace_id = crate::deterministic_receipt_hash(&json!({
+                    "tool": "batch_query",
+                    "query": args.get("query").cloned().unwrap_or(Value::Null),
+                    "route": "api_batch_query_get"
+                }));
+                let task_id = format!(
+                    "tool-batch-query-{}",
+                    trace_id.chars().take(12).collect::<String>()
+                );
+                let pipeline = tooling_pipeline_execute(
+                    &trace_id,
+                    &task_id,
+                    "batch_query",
+                    &args,
+                    |normalized_args| Ok(crate::batch_query_primitive::api_batch_query(root, normalized_args)),
+                );
+                let mut payload = pipeline
+                    .get("raw_payload")
+                    .cloned()
+                    .unwrap_or_else(|| json!({"status":"blocked","error":"tool_pipeline_failed"}));
+                if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    attach_tool_pipeline(&mut payload, &pipeline);
+                }
+                payload
             }
             "/api/telemetry/alerts" => proactive_telemetry_alerts_payload(root, snapshot),
             "/api/continuity" | "/api/continuity/pending" => {
@@ -11296,7 +11690,29 @@ pub fn handle_with_headers(
                         })
                     }
                 };
-            let mut payload = crate::web_conduit::api_fetch(root, &request);
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "web_fetch",
+                "request": request,
+                "route": "api_web_fetch_post"
+            }));
+            let task_id = format!(
+                "tool-web-fetch-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "web_fetch",
+                &request,
+                |normalized_args| Ok(crate::web_conduit::api_fetch(root, normalized_args)),
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
             if let Some(meta) = nexus_connection {
                 if let Some(obj) = payload.as_object_mut() {
                     obj.insert("nexus_connection".to_string(), meta);
@@ -11330,7 +11746,29 @@ pub fn handle_with_headers(
                         })
                     }
                 };
-            let mut payload = crate::web_conduit::api_search(root, &request);
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "web_search",
+                "request": request,
+                "route": "api_web_search_post"
+            }));
+            let task_id = format!(
+                "tool-web-search-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "web_search",
+                &request,
+                |normalized_args| Ok(crate::web_conduit::api_search(root, normalized_args)),
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
             if let Some(meta) = nexus_connection {
                 if let Some(obj) = payload.as_object_mut() {
                     obj.insert("nexus_connection".to_string(), meta);
@@ -11347,7 +11785,29 @@ pub fn handle_with_headers(
         }
         if path_only == "/api/batch-query" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
-            let payload = crate::batch_query_primitive::api_batch_query(root, &request);
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "batch_query",
+                "request": request,
+                "route": "api_batch_query_post"
+            }));
+            let task_id = format!(
+                "tool-batch-query-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "batch_query",
+                &request,
+                |normalized_args| Ok(crate::batch_query_primitive::api_batch_query(root, normalized_args)),
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"status":"blocked","error":"tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
             return Some(CompatApiResponse {
                 status: if payload.get("status").and_then(Value::as_str) == Some("blocked") {
                     400
@@ -11383,6 +11843,31 @@ pub fn handle_with_headers(
     }
 
     None
+}
+
+fn compat_api_response_with_nexus(
+    route_label: &str,
+    mut response: CompatApiResponse,
+) -> CompatApiResponse {
+    match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(route_label) {
+        Ok(Some(meta)) => {
+            if let Some(obj) = response.payload.as_object_mut() {
+                obj.insert("nexus_connection".to_string(), meta);
+            }
+            response
+        }
+        Ok(None) => response,
+        Err(err) => CompatApiResponse {
+            status: 403,
+            payload: json!({
+                "ok": false,
+                "error": "nexus_route_denied",
+                "route_label": clean_text(route_label, 180),
+                "reason": clean_text(&err, 240),
+                "fail_closed": true
+            }),
+        },
+    }
 }
 
 pub fn handle(

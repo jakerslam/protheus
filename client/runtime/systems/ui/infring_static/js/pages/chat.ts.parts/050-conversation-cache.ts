@@ -419,7 +419,7 @@
         if (!row) return '';
         row = trimTrailingJoiners(row);
         if (!row) return '';
-        if (!/[?.!]$/.test(row)) row += '?';
+        row = row.replace(/\?+$/g, '').trim();
         if (row.length && /^[a-z]/.test(row.charAt(0))) {
           row = row.charAt(0).toUpperCase() + row.slice(1);
         }

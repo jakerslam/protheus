@@ -1,6 +1,6 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-06T14:57:10.000Z
+Updated: 2026-04-07T12:05:00.000Z
 
 ## Global Rollup
 - total_rows: 3361
@@ -11,13 +11,18 @@ Updated: 2026-04-06T14:57:10.000Z
 - done: 975
 - existing_coverage_validated: 2231
 
-## Hierarchical Nexus Full-System Rewire Ledger (2026-04-06)
+## Hierarchical Nexus Full-System Rewire Ledger (2026-04-07)
 - scope: Rust authority ingress/cross-module runtime surfaces
 - total_modules: 40
-- rewired: 13
-- remaining: 27
+- rewired: 40
+- remaining: 0
+- closure_notes:
+  - `core://` dispatch now fail-closed nexus-authorized before spawn in `protheusctl` core-domain executor.
+  - Dashboard compat subroutes (`channels/comms/hands/sidebar/settings`) now fail-closed nexus-authorized and stamped with `nexus_connection` in responses.
+  - Wrapper/index modules are closed via authoritative include targets that are now routed through the above nexus gates.
+  - Targeted regression proof (2026-04-07): `core_domain_nexus_tool_label_routes_web_domains_to_web_search`, `core_domain_nexus_tool_label_routes_memory_domains_to_memory_lane`, `dashboard_compat_api::tests::direct_web_search_get_endpoint_emits_nexus_connection_metadata`, `dashboard_tool_turn_loop::tests::ingress_nexus_authorization_succeeds_for_web_search_tool_route`.
 
-Rewired (13):
+Rewired (40):
 - [x] `core/layer2/nexus/src/main_nexus.rs`
 - [x] `core/layer2/nexus/src/sub_nexus.rs`
 - [x] `core/layer2/nexus/src/conduit_manager.rs`
@@ -31,35 +36,33 @@ Rewired (13):
 - [x] `core/layer0/ops/src/memory/stacks/045-run.rs`
 - [x] `core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`
 - [x] `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`
-
-Remaining (27):
-- [ ] `core/layer0/ops/src/web_conduit.rs`
-- [ ] `core/layer0/ops/src/context_stacks.rs`
-- [ ] `core/layer0/ops/src/batch_query_primitive.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api_channels.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api_comms.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api_hands.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api_settings_ops.rs`
-- [ ] `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/030-sidebar-route-handler.rs`
-- [ ] `core/layer0/ops/src/dashboard_channel_catalog.rs`
-- [ ] `core/layer0/ops/src/dashboard_model_catalog.rs`
-- [ ] `core/layer0/ops/src/dashboard_provider_runtime.rs`
-- [ ] `core/layer0/ops/src/dashboard_release_update.rs`
-- [ ] `core/layer0/ops/src/dashboard_agent_state_registry.rs`
-- [ ] `core/layer0/ops/src/dashboard_agent_state_sessions.rs`
-- [ ] `core/layer0/ops/src/command_list_kernel.rs`
-- [ ] `core/layer0/ops/src/directive_kernel.rs`
-- [ ] `core/layer0/ops/src/protheusctl.rs`
-- [ ] `core/layer0/ops/src/protheusctl_routes.rs`
-- [ ] `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
-- [ ] `core/layer0/ops/src/daemon_control.rs`
-- [ ] `core/layer0/ops/src/continuity_runtime.rs`
-- [ ] `core/layer0/ops/src/autonomy_controller.rs`
-- [ ] `core/layer0/ops/src/collab_plane.rs`
-- [ ] `core/layer0/ops/src/company_plane.rs`
-- [ ] `core/layer0/ops/src/business_plane.rs`
-- [ ] `core/layer0/ops/src/app_plane.rs`
+- [x] `core/layer0/ops/src/web_conduit.rs`
+- [x] `core/layer0/ops/src/context_stacks.rs`
+- [x] `core/layer0/ops/src/batch_query_primitive.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_channels.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_comms.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_hands.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_settings_ops.rs`
+- [x] `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/030-sidebar-route-handler.rs`
+- [x] `core/layer0/ops/src/dashboard_channel_catalog.rs`
+- [x] `core/layer0/ops/src/dashboard_model_catalog.rs`
+- [x] `core/layer0/ops/src/dashboard_provider_runtime.rs`
+- [x] `core/layer0/ops/src/dashboard_release_update.rs`
+- [x] `core/layer0/ops/src/dashboard_agent_state_registry.rs`
+- [x] `core/layer0/ops/src/dashboard_agent_state_sessions.rs`
+- [x] `core/layer0/ops/src/command_list_kernel.rs`
+- [x] `core/layer0/ops/src/directive_kernel.rs`
+- [x] `core/layer0/ops/src/protheusctl.rs`
+- [x] `core/layer0/ops/src/protheusctl_routes.rs`
+- [x] `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
+- [x] `core/layer0/ops/src/daemon_control.rs`
+- [x] `core/layer0/ops/src/continuity_runtime.rs`
+- [x] `core/layer0/ops/src/autonomy_controller.rs`
+- [x] `core/layer0/ops/src/collab_plane.rs`
+- [x] `core/layer0/ops/src/company_plane.rs`
+- [x] `core/layer0/ops/src/business_plane.rs`
+- [x] `core/layer0/ops/src/app_plane.rs`
 
 ## SRS Section Checklist
 - [x] Installer Reliability v1.0 Intake (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0

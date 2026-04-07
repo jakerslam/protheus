@@ -2,6 +2,10 @@
 // Layer ownership: core/layer0/ops::memory_plane (authoritative)
 use crate::contract_lane_utils as lane_utils;
 use crate::{client_state_root, deterministic_receipt_hash, now_iso};
+use protheus_memory_core_v1::{
+    memory_scope_authority_matrix, owner_export_redaction_matrix, task_fabric_lease_cas_rules,
+    trust_state_transition_matrix, DefaultVerityMemoryPolicy, UnifiedMemoryHeap,
+};
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -28,6 +32,7 @@ fn usage() {
     println!("Usage:");
     println!("  protheus-ops memory-plane causal-temporal-graph <record|blame|status> [flags]");
     println!("  protheus-ops memory-plane memory-federation-plane <sync|pull|status> [flags]");
+    println!("  protheus-ops memory-plane unified-heap status");
 }
 
 fn print_json_line(value: &Value) {
@@ -317,6 +322,29 @@ fn graph_status_payload(root: &Path) -> Value {
     out
 }
 
+fn unified_heap_status_payload() -> Value {
+    let heap = UnifiedMemoryHeap::new(DefaultVerityMemoryPolicy);
+    let mut out = json!({
+        "ok": true,
+        "type": "unified_memory_heap_status",
+        "lane": LANE_ID,
+        "authority": "core/layer2/memory",
+        "matrices": {
+            "scope_authority": memory_scope_authority_matrix(),
+            "trust_state_transition": trust_state_transition_matrix(),
+            "owner_export_redaction": owner_export_redaction_matrix(),
+            "task_fabric_lease_cas": task_fabric_lease_cas_rules(),
+        },
+        "counts": {
+            "receipts": heap.receipts().len(),
+            "graph_edges": heap.graph_subsystem().edges().len(),
+            "objects": heap.record_store().all_objects().len(),
+        }
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
 fn cli_error(argv: &[String], err: &str, exit_code: i32) -> Value {
     let mut out = json!({
         "ok": false,
@@ -350,6 +378,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ("memory-federation-plane", "sync") => federation_sync_payload(root, &policy, &argv[2..]),
         ("memory-federation-plane", "pull") => Ok(federation_pull_payload(root, &argv[2..])),
         ("memory-federation-plane", "status") => Ok(federation_status_payload(root)),
+        ("unified-heap", "status") => Ok(unified_heap_status_payload()),
         _ => Err("unknown_command".to_string()),
     };
 

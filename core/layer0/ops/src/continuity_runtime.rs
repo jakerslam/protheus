@@ -464,6 +464,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .get(1)
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
+    let nexus_tool = if surface == "session-continuity-vault" {
+        "memory_kv_set"
+    } else {
+        "memory_semantic_query"
+    };
+    let nexus_connection =
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(nexus_tool) {
+            Ok(meta) => meta,
+            Err(err) => {
+                print_json_line(&json!({
+                    "ok": false,
+                    "type": "continuity_runtime_nexus_gate",
+                    "lane": LANE_ID,
+                    "surface": surface,
+                    "command": command,
+                    "error": "nexus_route_denied",
+                    "reason": clean_id(Some(err.as_str()), "nexus_denied"),
+                    "fail_closed": true
+                }));
+                return 1;
+            }
+        };
 
     let result = match (surface.as_str(), command.as_str()) {
         ("resurrection-protocol", "checkpoint")
@@ -487,7 +509,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     };
 
     match result {
-        Ok(payload) => {
+        Ok(mut payload) => {
+            if let Some(meta) = nexus_connection {
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("nexus_connection".to_string(), meta);
+                }
+            }
             let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&payload);
             if ok {

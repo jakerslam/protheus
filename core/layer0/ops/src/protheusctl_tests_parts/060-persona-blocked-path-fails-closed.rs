@@ -268,3 +268,19 @@ fn dispatch_security_embedded_engine_passes_without_cargo_manifest() {
     std::env::remove_var("PROTHEUS_CTL_SECURITY_DISABLE_CARGO_FALLBACK");
     std::env::remove_var("PROTHEUS_CTL_SECURITY_GATE_DISABLED");
 }
+
+#[test]
+fn core_domain_nexus_tool_label_routes_web_domains_to_web_search() {
+    assert_eq!(
+        core_domain_nexus_tool_label("web-conduit", &[]),
+        "web_search"
+    );
+}
+
+#[test]
+fn core_domain_nexus_tool_label_routes_memory_domains_to_memory_lane() {
+    assert_eq!(
+        core_domain_nexus_tool_label("continuity-runtime", &[]),
+        "batch_query"
+    );
+}
