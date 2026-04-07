@@ -819,6 +819,57 @@ fn finalize_user_facing_response_blocks_internal_payload_json_without_response()
 }
 
 #[test]
+fn summarize_tool_payload_unknown_tool_avoids_raw_json_dump() {
+    let payload = json!({
+        "ok": true,
+        "agent_id": "agent-raw-dump",
+        "runtime_model": "tool-router",
+        "turn_loop_tracking": {"ok": true},
+        "response_finalization": {"tool_completion": {"completion_state": "reported_findings"}},
+        "result_count": 3,
+        "source": "web"
+    });
+    let summary = summarize_tool_payload("manage_agent", &payload);
+    let lowered = summary.to_ascii_lowercase();
+    assert!(!summary.trim_start().starts_with('{'));
+    assert!(!lowered.contains("\"agent_id\""));
+    assert!(lowered.contains("completed"));
+}
+
+#[test]
+fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
+    let cards = vec![json!({
+        "name": "web_search",
+        "is_error": false,
+        "result": "From web retrieval: benchmark summary with sources."
+    })];
+    let raw = json!({
+        "agent_id": "agent-raw-dump",
+        "response": "From web retrieval: benchmark summary with sources.",
+        "turn_loop_tracking": {"ok": true},
+        "turn_transaction": {"tool_execute": "complete"}
+    })
+    .to_string();
+    let (finalized, report, outcome) = enforce_user_facing_finalization_contract(raw, &cards);
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!finalized.trim_start().starts_with('{'));
+    assert!(!lowered.contains("agent_id"));
+    assert!(
+        lowered.contains("benchmark summary")
+            || lowered.contains("no relevant results found for that request yet")
+    );
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("reported_no_findings")
+    );
+    assert!(
+        outcome.contains("normalized_raw_payload_json")
+            || outcome.contains("reported_no_findings"),
+        "unexpected outcome={outcome}"
+    );
+}
+
+#[test]
 fn tool_completion_contract_rewrites_ack_to_findings_from_tool_cards() {
     let cards = vec![json!({
         "name": "web_search",

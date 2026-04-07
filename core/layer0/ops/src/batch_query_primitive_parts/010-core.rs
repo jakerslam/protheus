@@ -564,6 +564,121 @@ fn looks_like_comparison_noise_candidate(candidate: &Candidate) -> bool {
     low_quality_domain || noisy_compare_form
 }
 
+fn is_relevance_stop_token(token: &str) -> bool {
+    matches!(
+        token,
+        "a" | "an"
+            | "and"
+            | "any"
+            | "are"
+            | "as"
+            | "at"
+            | "by"
+            | "for"
+            | "from"
+            | "how"
+            | "in"
+            | "into"
+            | "is"
+            | "it"
+            | "its"
+            | "of"
+            | "on"
+            | "or"
+            | "our"
+            | "the"
+            | "their"
+            | "them"
+            | "this"
+            | "those"
+            | "to"
+            | "try"
+            | "was"
+            | "we"
+            | "were"
+            | "with"
+            | "you"
+            | "your"
+    )
+}
+
+fn tokenize_relevance(raw: &str, cap: usize) -> HashSet<String> {
+    let mut out = HashSet::<String>::new();
+    for token in clean_text(raw, 4_800)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+    {
+        let normalized = token.trim();
+        if normalized.len() < 3 || is_relevance_stop_token(normalized) {
+            continue;
+        }
+        out.insert(normalized.to_string());
+        if out.len() >= cap.max(1) {
+            break;
+        }
+    }
+    out
+}
+
+fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
+    let lowered = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    [
+        "login page",
+        "log in",
+        "sign in",
+        "forgot password",
+        "mychart",
+        "watch live",
+        "home news sport business",
+        "create account",
+        "manage account",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn candidate_passes_relevance_gate(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
+    let query_tokens = tokenize_relevance(query, 40);
+    if query_tokens.is_empty() {
+        return true;
+    }
+    let candidate_tokens = tokenize_relevance(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        120,
+    );
+    if candidate_tokens.is_empty() {
+        return false;
+    }
+    let overlap = query_tokens.intersection(&candidate_tokens).count();
+    if overlap == 0 {
+        return false;
+    }
+    let overlap_ratio = overlap as f64 / query_tokens.len() as f64;
+    if benchmark_intent {
+        if overlap < 2 && overlap_ratio < 0.22 && !looks_like_metric_rich_text(&candidate.snippet) {
+            return false;
+        }
+        if looks_like_portal_noise_candidate(candidate) && overlap < 3 {
+            return false;
+        }
+        return true;
+    }
+    if looks_like_portal_noise_candidate(candidate) && overlap < 2 && overlap_ratio < 0.25 {
+        return false;
+    }
+    true
+}
+
 fn candidate_mentions_entity(candidate: &Candidate, entity: &str) -> bool {
     let needle = clean_text(entity, 80).to_ascii_lowercase();
     if needle.is_empty() {
@@ -912,14 +1027,53 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     if looks_like_source_only_snippet(&snippet) {
         return Err("no_usable_summary".to_string());
     }
-    let locator = clean_text(
-        payload
-            .get("requested_url")
-            .or_else(|| payload.pointer("/receipt/requested_url"))
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        2200,
-    );
+    fn is_search_engine_domain(domain: &str) -> bool {
+        matches!(
+            domain,
+            "duckduckgo.com"
+                | "lite.duckduckgo.com"
+                | "bing.com"
+                | "www.bing.com"
+                | "google.com"
+                | "www.google.com"
+        )
+    }
+
+    fn first_result_link(payload: &Value) -> String {
+        let mut fallback = String::new();
+        let Some(links) = payload.get("links").and_then(Value::as_array) else {
+            return String::new();
+        };
+        for row in links {
+            let link = clean_text(row.as_str().unwrap_or(""), 2_200);
+            if link.is_empty() {
+                continue;
+            }
+            if fallback.is_empty() {
+                fallback = link.clone();
+            }
+            let domain = extract_domains_from_text(&link, 1)
+                .into_iter()
+                .next()
+                .unwrap_or_default();
+            if !domain.is_empty() && !is_search_engine_domain(domain.as_str()) {
+                return link;
+            }
+        }
+        fallback
+    }
+
+    let mut locator = first_result_link(payload);
+    if locator.is_empty() {
+        locator = clean_text(
+            payload
+                .get("requested_url")
+                .or_else(|| payload.pointer("/receipt/requested_url"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2200,
+        );
+    }
     let title = if let Some(first_domain) = domains.first() {
         format!("Web result from {}", clean_text(first_domain, 120))
     } else if locator.is_empty() {

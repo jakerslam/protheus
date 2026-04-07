@@ -106,6 +106,30 @@ mod tests {
     }
 
     #[test]
+    fn route_prompt_supports_percent_tokens_and_rich_variable_values() {
+        let mut state = default_state();
+        let route = route_prompt(
+            &mut state,
+            json!({
+                "name": "support-template",
+                "provider": "frontier_provider",
+                "fallback_provider": "openai-compatible",
+                "supported_providers": ["frontier_provider", "openai-compatible"],
+                "profile": "pure",
+                "template": "Hello %name%",
+                "variables": {"name": {"value": "Jay", "description": "display name"}}
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("route");
+        assert_eq!(
+            route["route"]["rendered_prompt"].as_str(),
+            Some("Hello Jay")
+        );
+    }
+
+    #[test]
     fn recall_memory_is_deterministic() {
         let mut state = default_state();
         let _ = register_memory_bridge(

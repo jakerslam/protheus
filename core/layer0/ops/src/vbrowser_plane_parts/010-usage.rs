@@ -30,12 +30,19 @@ fn usage() {
     println!("  protheus-ops vbrowser-plane status");
     println!("  protheus-ops vbrowser-plane session-start [--session-id=<id>] [--url=<url>] [--shadow=<id>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane session-control --op=<join|handoff|leave|status> [--session-id=<id>] [--actor=<id>] [--role=<watch-only|shared-control>] [--to=<id>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane goto [--session-id=<id>] [--url=<url>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane navback [--session-id=<id>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane wait [--session-id=<id>] [--time-ms=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane scroll [--session-id=<id>] [--direction=up|down] [--percentage=<1-200>] [--x=<n>] [--y=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane click [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane type [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--text=<value>] [--variables-json=<json>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane automate --session-id=<id> [--actions=navigate,click,type] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane key-input [--session-id=<id>] [--method=press|type] [--value=<text|combo>] [--repeat=<n>] [--delay-ms=<n>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane privacy-guard [--session-id=<id>] [--network=isolated|restricted|public] [--recording=0|1] [--allow-recording=0|1] [--budget-tokens=<n>] [--strict=1|0]");
     println!(
         "  protheus-ops vbrowser-plane snapshot [--session-id=<id>] [--refs=1|0] [--strict=1|0]"
     );
-    println!("  protheus-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane action-policy [--session-id=<id>] [--action=<navigate|click|fill|submit>] [--action-policy=<path>] [--confirm=1|0] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane auth-save [--provider=<id>] [--profile=<id>] [--username=<id>] [--secret=<token>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]");
@@ -76,8 +83,43 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
                 "V6-VBROWSER-001.6",
             ]
         }
+        "goto" => vec![
+            "V11-STAGEHAND-007",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "navback" => vec![
+            "V11-STAGEHAND-008",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "wait" => vec![
+            "V11-STAGEHAND-009",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "scroll" => vec![
+            "V11-STAGEHAND-010",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "click" => vec![
+            "V11-STAGEHAND-011",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "type" => vec![
+            "V11-STAGEHAND-012",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
         "automate" => vec![
             "V6-VBROWSER-001.3",
+            "V6-VBROWSER-001.5",
+            "V6-VBROWSER-001.6",
+        ],
+        "key-input" => vec![
+            "V11-STAGEHAND-005",
             "V6-VBROWSER-001.5",
             "V6-VBROWSER-001.6",
         ],
@@ -160,6 +202,25 @@ fn clean_id(raw: Option<&str>, fallback: &str) -> String {
         fallback.to_string()
     } else {
         trimmed.to_string()
+    }
+}
+
+fn normalize_target_url(raw: &str) -> String {
+    let cleaned = clean(raw, 400);
+    if cleaned.is_empty() {
+        return "about:blank".to_string();
+    }
+    let lower = cleaned.to_ascii_lowercase();
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("about:")
+        || lower.starts_with("file:")
+        || lower.starts_with("data:")
+        || cleaned.contains("://")
+    {
+        cleaned
+    } else {
+        format!("https://{}", cleaned.trim_start_matches('/'))
     }
 }
 
@@ -302,7 +363,7 @@ fn run_session_start(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
     }
 
     let sid = session_id(parsed);
-    let url = clean(
+    let raw_url = clean(
         parsed
             .flags
             .get("url")
@@ -310,6 +371,7 @@ fn run_session_start(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
             .unwrap_or_else(|| "about:blank".to_string()),
         400,
     );
+    let url = normalize_target_url(&raw_url);
     let shadow = clean(
         parsed
             .flags
@@ -386,4 +448,3 @@ fn run_session_start(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

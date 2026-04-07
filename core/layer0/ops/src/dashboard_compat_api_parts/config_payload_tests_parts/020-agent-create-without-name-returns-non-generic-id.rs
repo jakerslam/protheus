@@ -198,6 +198,55 @@ fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
 }
 
 #[test]
+fn agent_create_cua_rejects_unsupported_execution_features() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"mode":"cua","stream":true,"messages":[{"role":"user","content":"hi"}],"excludeTools":["web_search"],"output":{"type":"json"},"variables":{"city":"SF"}}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create cua agent");
+    assert_eq!(created.status, 400);
+    assert_eq!(
+        created.payload.get("error").and_then(Value::as_str),
+        Some("cua_unsupported_features")
+    );
+    let unsupported = created
+        .payload
+        .get("unsupported_features")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    assert!(unsupported.iter().any(|row| row == "streaming"));
+    assert!(unsupported.iter().any(|row| row == "message continuation"));
+    assert!(unsupported.iter().any(|row| row == "excludeTools"));
+    assert!(unsupported.iter().any(|row| row == "output schema"));
+    assert!(unsupported.iter().any(|row| row == "variables"));
+}
+
+#[test]
+fn agent_create_cua_accepts_minimal_payload() {
+    let root = tempfile::tempdir().expect("tempdir");
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"mode":"cua","role":"analyst"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("create cua agent");
+    assert_eq!(created.status, 200);
+    assert_eq!(created.payload.get("ok").and_then(Value::as_bool), Some(true));
+}
+
+#[test]
 fn repeated_default_agent_creation_avoids_double_agent_prefix() {
     let root = tempfile::tempdir().expect("tempdir");
     init_git_repo(root.path());

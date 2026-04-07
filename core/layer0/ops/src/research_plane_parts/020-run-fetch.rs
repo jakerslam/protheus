@@ -160,8 +160,19 @@ fn decode_html_payload(parsed: &ParsedArgs, root: &Path) -> Result<String, Strin
     Err("missing_html_input".to_string())
 }
 
+fn normalize_selector_for_match(selector: &str) -> String {
+    let trimmed = selector.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if let Some(xpath) = trimmed.strip_prefix("xpath=") {
+        return xpath.trim().to_ascii_lowercase();
+    }
+    trimmed.to_ascii_lowercase()
+}
+
 fn selector_exists(html_lc: &str, selector: &str) -> bool {
-    let sel = selector.trim().to_ascii_lowercase();
+    let sel = normalize_selector_for_match(selector);
     if sel.is_empty() {
         return false;
     }
@@ -396,4 +407,3 @@ fn parse_seed_urls(parsed: &ParsedArgs) -> Vec<String> {
     }
     out
 }
-

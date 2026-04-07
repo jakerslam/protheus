@@ -400,6 +400,26 @@ mod tests {
     }
 
     #[test]
+    fn selector_recovery_accepts_xpath_prefixed_selector() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<main><p>hello world</p></main>".to_string(),
+            "--selectors=xpath=//main".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some("xpath=//main")
+        );
+        assert_eq!(
+            out.get("recovered_strategy").and_then(Value::as_str),
+            Some("css_or_xpath")
+        );
+    }
+
+    #[test]
     fn crawl_requires_seed_urls() {
         let root = tempfile::tempdir().expect("tempdir");
         let parsed = parse_args(&["crawl".to_string()]);
@@ -407,4 +427,3 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
     }
 }
-

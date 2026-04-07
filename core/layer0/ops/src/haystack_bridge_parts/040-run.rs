@@ -100,6 +100,31 @@ mod tests {
     }
 
     #[test]
+    fn template_render_supports_percent_tokens_and_rich_variable_values() {
+        let mut state = default_state();
+        let payload = json!({"name": "support-template", "template": "Hello %name%"});
+        let _ = register_template(&mut state, payload.as_object().unwrap()).expect("template");
+        let template_id = state["templates"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap()
+            .to_string();
+        let render = render_template(
+            &mut state,
+            json!({
+                "template_id": template_id,
+                "variables": {"name": {"value": "Jay", "description": "operator alias"}}
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("render");
+        assert_eq!(render["render"]["output"].as_str(), Some("Hello Jay"));
+    }
+
+    #[test]
     fn route_and_rank_is_deterministic() {
         let mut state = default_state();
         let out = route_and_rank(&mut state, json!({
@@ -121,4 +146,3 @@ mod tests {
         );
     }
 }
-

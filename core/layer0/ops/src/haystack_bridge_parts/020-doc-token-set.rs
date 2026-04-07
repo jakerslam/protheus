@@ -40,14 +40,26 @@ fn retrieval_score(doc: &Value, terms: &[String], mode: &str) -> i64 {
     score
 }
 
+fn variable_replacement_text(value: &Value) -> String {
+    if let Some(explicit) = value
+        .as_object()
+        .and_then(|obj| obj.get("value"))
+        .and_then(Value::as_str)
+    {
+        return clean_text(Some(explicit), 4000);
+    }
+    value
+        .as_str()
+        .map(|row| clean_text(Some(row), 4000))
+        .unwrap_or_else(|| value.to_string())
+}
+
 fn render_template_text(template: &str, variables: &Map<String, Value>) -> String {
     let mut out = template.to_string();
     for (key, value) in variables {
-        let replacement = value
-            .as_str()
-            .map(|row| clean_text(Some(row), 4000))
-            .unwrap_or_else(|| value.to_string());
+        let replacement = variable_replacement_text(value);
         out = out.replace(&format!("{{{{{key}}}}}"), &replacement);
+        out = out.replace(&format!("%{key}%"), &replacement);
     }
     out
 }
@@ -427,4 +439,3 @@ fn register_document_store(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-012.4", haystack_claim("V6-WORKFLOW-012.4")),
     }))
 }
-

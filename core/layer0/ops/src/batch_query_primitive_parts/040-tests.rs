@@ -212,6 +212,39 @@ mod tests {
     }
 
     #[test]
+    fn search_payload_prefers_result_link_locator_over_search_engine_request_url() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "current ai agent framework benchmarks latency throughput";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Independent benchmark run reports median latency 820ms and throughput 48 tokens/s.",
+                    "requested_url": "https://www.bing.com/search?q=current+ai+agent+framework+benchmarks+latency+throughput&format=rss&setlang=en-US",
+                    "links": ["https://artificialanalysis.ai/benchmarks/agent-frameworks"],
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"medium"}),
+                )
+            },
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let locator = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("locator"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(locator.contains("artificialanalysis.ai"), "locator={locator}");
+        assert!(!locator.contains("bing.com/search"), "locator={locator}");
+    }
+
+    #[test]
     fn compare_query_resolves_deictic_framework_and_blocks_grammar_noise() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let query = "compare this framework to openclaw";
@@ -276,6 +309,80 @@ mod tests {
         assert!(lowered.contains("openclaw"));
         assert!(lowered.contains("ops/sec") || lowered.contains("latency"));
         assert!(!lowered.contains("wordreference"));
+    }
+
+    #[test]
+    fn compare_query_filters_unrelated_news_and_portal_noise() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "compare this framework to openclaw";
+        let out = with_fixture(
+            json!({
+                "compare infring to openclaw": {
+                    "ok": true,
+                    "summary": "Fox News Cut Trump Off For Gutfeld! So Trump Called Gutfeld Live On Air.",
+                    "requested_url": "https://www.dailywire.com/news/fox-news-cut-trump-off-for-gutfeld-so-trump-called-gutfeld-live-on-air",
+                    "status_code": 200
+                },
+                "compare infring to openclaw overview": {
+                    "ok": true,
+                    "summary": "UCSF MyChart - Login Page - Username or Forgot login information?",
+                    "requested_url": "https://ucsfmychart.ucsfmedicalcenter.org/",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"medium"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("comparison findings"));
+        assert!(!lowered.contains("fox news"));
+        assert!(!lowered.contains("mychart"));
+    }
+
+    #[test]
+    fn vague_retry_prompt_fails_closed_instead_of_synthesizing_noise() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "we tired to patch it, try again";
+        let out = with_fixture(
+            json!({
+                "we tired to patch it, try again": {
+                    "ok": true,
+                    "summary": "Fox News Cut Trump Off For Gutfeld! So Trump Called Gutfeld Live On Air.",
+                    "requested_url": "https://www.dailywire.com/news/fox-news-cut-trump-off-for-gutfeld-so-trump-called-gutfeld-live-on-air",
+                    "status_code": 200
+                },
+                "we tired to patch it, try again overview": {
+                    "ok": true,
+                    "summary": "UCSF MyChart - Login Page - Username or Forgot login information?",
+                    "requested_url": "https://ucsfmychart.ucsfmedicalcenter.org/",
+                    "status_code": 200
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"medium"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("no useful information"));
+        assert!(!lowered.contains("fox news"));
+        assert!(!lowered.contains("mychart"));
     }
 
     #[test]
@@ -471,5 +578,66 @@ mod tests {
             out.get("error").and_then(Value::as_str),
             Some("batch_query_nexus_delivery_denied")
         );
+    }
+
+    #[test]
+    fn repeated_query_uses_cache_when_follow_up_source_payload_degrades() {
+        let _guard = TEST_ENV_MUTEX.lock().expect("lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "agent cache replay reliability";
+        std::env::set_var(
+            "INFRING_BATCH_QUERY_TEST_FIXTURE_JSON",
+            serde_json::to_string(&json!({
+                query: {
+                    "ok": true,
+                    "summary": "Agent systems coordinate tools with deterministic receipts.",
+                    "requested_url": "https://example.com/agent-cache",
+                    "status_code": 200
+                }
+            }))
+            .expect("fixture encode"),
+        );
+        let first = api_batch_query(
+            tmp.path(),
+            &json!({"source":"web","query":query,"aperture":"small"}),
+        );
+        std::env::set_var(
+            "INFRING_BATCH_QUERY_TEST_FIXTURE_JSON",
+            serde_json::to_string(&json!({
+                query: {
+                    "ok": false,
+                    "error": "provider_network_policy_blocked"
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": false,
+                    "error": "bing_rss_search_failed"
+                }
+            }))
+            .expect("fixture encode"),
+        );
+        let second = api_batch_query(
+            tmp.path(),
+            &json!({"source":"web","query":query,"aperture":"small"}),
+        );
+        std::env::remove_var("INFRING_BATCH_QUERY_TEST_FIXTURE_JSON");
+
+        assert_eq!(
+            first.get("cache_status").and_then(Value::as_str),
+            Some("miss")
+        );
+        assert_eq!(
+            second.get("cache_status").and_then(Value::as_str),
+            Some("hit")
+        );
+        assert_eq!(second.get("status").and_then(Value::as_str), Some("ok"));
+        let summary = second.get("summary").and_then(Value::as_str).unwrap_or("");
+        assert!(summary
+            .to_ascii_lowercase()
+            .contains("deterministic receipts"));
+        assert!(second
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
     }
 }

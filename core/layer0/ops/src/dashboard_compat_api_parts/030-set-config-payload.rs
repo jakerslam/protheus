@@ -2347,6 +2347,58 @@ fn parse_agent_route(path_only: &str) -> Option<(String, Vec<String>)> {
     Some((agent_id, parts))
 }
 
+fn request_mode_is_cua(request: &Value) -> bool {
+    let mode = clean_text(request.get("mode").and_then(Value::as_str).unwrap_or(""), 40)
+        .to_ascii_lowercase();
+    mode == "cua" || request.get("cua").and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn request_has_nonempty_array(request: &Value, key: &str) -> bool {
+    request
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+}
+
+fn request_has_nonempty_object(request: &Value, key: &str) -> bool {
+    request
+        .get(key)
+        .and_then(Value::as_object)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+}
+
+fn cua_unsupported_features(request: &Value) -> Vec<&'static str> {
+    let mut features = Vec::<&'static str>::new();
+    if request.get("stream").and_then(Value::as_bool).unwrap_or(false) {
+        features.push("streaming");
+    }
+    if request.get("signal").map(|row| !row.is_null()).unwrap_or(false) {
+        features.push("abort signal");
+    }
+    if request.get("messages").map(|row| !row.is_null()).unwrap_or(false) {
+        features.push("message continuation");
+    }
+    if request_has_nonempty_array(request, "excludeTools")
+        || request_has_nonempty_array(request, "exclude_tools")
+    {
+        features.push("excludeTools");
+    }
+    if request.get("output").map(|row| !row.is_null()).unwrap_or(false)
+        || request
+            .get("output_schema")
+            .map(|row| !row.is_null())
+            .unwrap_or(false)
+    {
+        features.push("output schema");
+    }
+    if request_has_nonempty_object(request, "variables") {
+        features.push("variables");
+    }
+    features
+}
+
 fn resolve_agent_id_alias(root: &Path, requested: &str) -> String {
     let normalized = clean_agent_id(requested);
     if normalized.is_empty() {
@@ -3396,6 +3448,48 @@ fn finalize_user_facing_response_with_outcome(
 #[allow(dead_code)]
 fn finalize_user_facing_response(output: String, findings: Option<String>) -> String {
     finalize_user_facing_response_with_outcome(output, findings).0
+}
+
+fn merge_response_outcomes(primary: &str, secondary: &str, max_len: usize) -> String {
+    let left = clean_text(primary, max_len.max(1));
+    let right = clean_text(secondary, max_len.max(1));
+    if left.is_empty() || left == "unchanged" {
+        return if right.is_empty() {
+            "unchanged".to_string()
+        } else {
+            right
+        };
+    }
+    if right.is_empty() || right == "unchanged" {
+        return left;
+    }
+    if left == right {
+        return left;
+    }
+    clean_text(&format!("{left}+{right}"), max_len.max(1))
+}
+
+fn enforce_user_facing_finalization_contract(
+    output: String,
+    response_tools: &[Value],
+) -> (String, Value, String) {
+    let findings = response_tools_summary_for_user(response_tools, 4);
+    let findings = if findings.is_empty() {
+        None
+    } else {
+        Some(findings)
+    };
+    let (prefinalized, pre_outcome, _) = finalize_user_facing_response_with_outcome(output, findings);
+    let (finalized, report) = enforce_tool_completion_contract(prefinalized, response_tools);
+    let contract_outcome = clean_text(
+        report
+            .get("outcome")
+            .and_then(Value::as_str)
+            .unwrap_or("unchanged"),
+        200,
+    );
+    let merged_outcome = merge_response_outcomes(&pre_outcome, &contract_outcome, 220);
+    (finalized, report, merged_outcome)
 }
 
 fn available_model_count(root: &Path, snapshot: &Value) -> usize {
@@ -5880,6 +5974,93 @@ fn execute_tool_call_by_name(
 }
 
 fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
+    fn summary_excluded_key(key: &str) -> bool {
+        matches!(
+            key,
+            "screenshotBase64"
+                | "content_base64"
+                | "raw_html"
+                | "html"
+                | "raw_content"
+                | "payload"
+                | "response_finalization"
+                | "turn_loop_tracking"
+                | "turn_transaction"
+                | "workspace_hints"
+                | "latent_tool_candidates"
+                | "nexus_connection"
+        )
+    }
+
+    fn scalar_summary_fragment(value: &Value) -> Option<String> {
+        match value {
+            Value::String(raw) => {
+                let trimmed = clean_text(raw, 160);
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            }
+            Value::Bool(raw) => Some(if *raw { "true" } else { "false" }.to_string()),
+            Value::Number(raw) => Some(raw.to_string()),
+            _ => None,
+        }
+    }
+
+    fn summarize_unknown_tool_payload(normalized: &str, payload: &Value) -> String {
+        if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            return user_facing_tool_failure_summary(normalized, payload)
+                .unwrap_or_else(|| format!("I couldn't complete `{normalized}` right now."));
+        }
+        if let Some(response) = payload.get("response").and_then(Value::as_str) {
+            let candidate = clean_text(response, 1_400);
+            if !candidate.is_empty()
+                && !response_looks_like_tool_ack_without_findings(&candidate)
+                && !response_looks_like_raw_web_artifact_dump(&candidate)
+            {
+                if let Some(unwrapped) = normalize_raw_response_payload_dump(&candidate) {
+                    return trim_text(&unwrapped, 1_400);
+                }
+                return trim_text(&candidate, 1_400);
+            }
+        }
+        if let Some(summary) = payload.get("summary").and_then(Value::as_str) {
+            let candidate = clean_text(summary, 1_200);
+            if !candidate.is_empty() && !response_looks_like_tool_ack_without_findings(&candidate) {
+                return trim_text(&candidate, 1_200);
+            }
+        }
+        let mut fields = Vec::<String>::new();
+        if let Some(obj) = payload.as_object() {
+            for (key, value) in obj {
+                if key == "ok" || summary_excluded_key(key.as_str()) {
+                    continue;
+                }
+                if let Some(fragment) = scalar_summary_fragment(value) {
+                    fields.push(format!("{}={}", clean_text(key, 40), fragment));
+                } else if let Some(rows) = value.as_array() {
+                    if !rows.is_empty() {
+                        fields.push(format!("{} count={}", clean_text(key, 40), rows.len()));
+                    }
+                }
+                if fields.len() >= 3 {
+                    break;
+                }
+            }
+        }
+        if fields.is_empty() {
+            return format!("`{normalized}` completed. See tool details for structured output.");
+        }
+        trim_text(
+            &format!(
+                "`{normalized}` completed with {}.",
+                clean_text(&fields.join(", "), 220)
+            ),
+            1_000,
+        )
+    }
+
     let normalized = normalize_tool_name(tool_name);
     if normalized == "spawn_subagents"
         || normalized == "spawn_swarm"
@@ -6317,10 +6498,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         }
         return web_search_no_findings_fallback(&query, &combined, &requested_url, &domain);
     }
-    if let Ok(raw) = serde_json::to_string_pretty(payload) {
-        return trim_text(&raw, 24_000);
-    }
-    trim_text(&payload.to_string(), 24_000)
+    summarize_unknown_tool_payload(&normalized, payload)
 }
 
 fn tool_error_text(payload: &Value) -> String {
@@ -7956,6 +8134,28 @@ pub fn handle_with_headers(
 
     if method == "POST" && path_only == "/api/agents" {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        if request_mode_is_cua(&request) {
+            let unsupported_features = cua_unsupported_features(&request);
+            if !unsupported_features.is_empty() {
+                let joined = unsupported_features.join(", ");
+                let plurality = if unsupported_features.len() == 1 {
+                    "is"
+                } else {
+                    "are"
+                };
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({
+                        "ok": false,
+                        "type": "dashboard_agent_create_validation",
+                        "error": "cua_unsupported_features",
+                        "mode": "cua",
+                        "unsupported_features": unsupported_features,
+                        "message": format!("{joined} {plurality} not supported with CUA (Computer Use Agent) mode.")
+                    }),
+                });
+            }
+        }
         let requested_parent = clean_agent_id(
             request
                 .get("parent_agent_id")
@@ -8586,17 +8786,11 @@ pub fn handle_with_headers(
                     "is_error": !ok
                 });
                 let response_tools = vec![tool_card.clone()];
-                let (finalized_response, tool_completion) =
-                    enforce_tool_completion_contract(response_text, &response_tools);
+                let (finalized_response, tool_completion, finalization_seed) =
+                    enforce_user_facing_finalization_contract(response_text, &response_tools);
                 let mut tooling_fallback_used = false;
                 let mut finalized_response = finalized_response;
-                let mut finalization_outcome = clean_text(
-                    tool_completion
-                        .get("outcome")
-                        .and_then(Value::as_str)
-                        .unwrap_or("unchanged"),
-                    180,
-                );
+                let mut finalization_outcome = clean_text(&finalization_seed, 180);
                 let mut tool_completion = tool_completion;
                 if let Some(tooling_fallback) =
                     maybe_tooling_failure_fallback(&message, &finalized_response, "")
@@ -8605,17 +8799,12 @@ pub fn handle_with_headers(
                     finalization_outcome =
                         format!("{finalization_outcome}+tooling_failure_fallback");
                     tooling_fallback_used = true;
-                    let (contracted, report) =
-                        enforce_tool_completion_contract(finalized_response, &response_tools);
+                    let (contracted, report, retry_outcome) =
+                        enforce_user_facing_finalization_contract(finalized_response, &response_tools);
                     finalized_response = contracted;
                     tool_completion = report;
-                    finalization_outcome = clean_text(
-                        tool_completion
-                            .get("outcome")
-                            .and_then(Value::as_str)
-                            .unwrap_or(&finalization_outcome),
-                        180,
-                    );
+                    finalization_outcome =
+                        merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
                 }
                 tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
                 let final_ack_only =
@@ -9144,15 +9333,9 @@ pub fn handle_with_headers(
                             "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
                         });
                     }
-                    let (mut finalized_response, mut tool_completion) =
-                        enforce_tool_completion_contract(response_text, &response_tools);
-                    let mut finalization_outcome = clean_text(
-                        tool_completion
-                            .get("outcome")
-                            .and_then(Value::as_str)
-                            .unwrap_or("unchanged"),
-                        200,
-                    );
+                    let (mut finalized_response, mut tool_completion, seed_outcome) =
+                        enforce_user_facing_finalization_contract(response_text, &response_tools);
+                    let mut finalization_outcome = clean_text(&seed_outcome, 200);
                     let initial_ack_only = tool_completion
                         .get("initial_ack_only")
                         .and_then(Value::as_bool)
@@ -9193,18 +9376,17 @@ pub fn handle_with_headers(
                             if !user_requested_internal_runtime_details(&message) {
                                 retried_text = abstract_runtime_mechanics_terms(&retried_text);
                             }
-                            let (retry_finalized, retry_report) =
-                                enforce_tool_completion_contract(retried_text, &response_tools);
-                            let retry_outcome = clean_text(
-                                retry_report
-                                    .get("outcome")
-                                    .and_then(Value::as_str)
-                                    .unwrap_or("unchanged"),
-                                120,
-                            );
+                            let (retry_finalized, _retry_report, retry_outcome) =
+                                enforce_user_facing_finalization_contract(
+                                    retried_text,
+                                    &response_tools,
+                                );
                             finalized_response = retry_finalized;
-                            finalization_outcome =
-                                format!("{finalization_outcome}+retry:{retry_outcome}");
+                            finalization_outcome = merge_response_outcomes(
+                                &finalization_outcome,
+                                &format!("retry:{retry_outcome}"),
+                                200,
+                            );
                             retry_used = true;
                         }
                     }
@@ -9240,19 +9422,17 @@ pub fn handle_with_headers(
                                 retried_text = abstract_runtime_mechanics_terms(&retried_text);
                             }
                             if !response_is_unrelated_context_dump(&message, &retried_text) {
-                                let (retry_finalized, retry_report) =
-                                    enforce_tool_completion_contract(retried_text, &response_tools);
-                                let retry_outcome = clean_text(
-                                    retry_report
-                                        .get("outcome")
-                                        .and_then(Value::as_str)
-                                        .unwrap_or("unchanged"),
-                                    120,
-                                );
+                                let (retry_finalized, _retry_report, retry_outcome) =
+                                    enforce_user_facing_finalization_contract(
+                                        retried_text,
+                                        &response_tools,
+                                    );
                                 if !response_is_no_findings_placeholder(&retry_finalized) {
                                     finalized_response = retry_finalized;
-                                    finalization_outcome = format!(
-                                        "{finalization_outcome}+synthesis_retry:{retry_outcome}"
+                                    finalization_outcome = merge_response_outcomes(
+                                        &finalization_outcome,
+                                        &format!("synthesis_retry:{retry_outcome}"),
+                                        200,
                                     );
                                     synthesis_retry_used = true;
                                 }
@@ -9277,19 +9457,17 @@ pub fn handle_with_headers(
                             format!("{finalization_outcome}+tooling_failure_fallback");
                         tooling_fallback_used = true;
                     }
-                    let (contract_finalized, contract_report) =
-                        enforce_tool_completion_contract(finalized_response, &response_tools);
+                    let (contract_finalized, contract_report, contract_outcome) =
+                        enforce_user_facing_finalization_contract(
+                            finalized_response,
+                            &response_tools,
+                        );
                     finalized_response = contract_finalized;
                     tool_completion = contract_report;
                     tool_completion =
                         enrich_tool_completion_receipt(tool_completion, &response_tools);
-                    finalization_outcome = clean_text(
-                        tool_completion
-                            .get("outcome")
-                            .and_then(Value::as_str)
-                            .unwrap_or(&finalization_outcome),
-                        200,
-                    );
+                    finalization_outcome =
+                        merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
                     response_text = finalized_response;
                     if memory_recall_requested(&message)
                         && (response_is_no_findings_placeholder(&response_text)
