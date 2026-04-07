@@ -410,6 +410,7 @@
               </div>
               </div>
             </div>
+            <div class="system-thread-placeholder-row" x-show="isSystemThreadActive()" aria-hidden="true"></div>
             <div class="context-ring-row" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !isSystemThreadActive()">
               <div class="chat-branch-picker" x-show="activeGitBranchLabel" @keydown.escape.prevent.stop="closeGitTreeMenu()">
                 <button

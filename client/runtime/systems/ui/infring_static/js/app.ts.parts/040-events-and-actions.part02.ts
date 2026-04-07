@@ -96,16 +96,28 @@
       if (!store) {
         this.connected = false;
         this.connectionState = 'connecting';
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('status_retrying');
         return;
       }
+      if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('status_requesting');
       if (typeof store.checkStatus === 'function') await store.checkStatus();
+      if (typeof this.setBootProgressEvent === 'function') {
+        this.setBootProgressEvent(
+          store && store.connectionState === 'connected' ? 'status_connected' : 'status_retrying',
+          { bootStage: store && store.bootStage }
+        );
+      }
       var now = Date.now();
       var shouldRefreshAgents =
         !store.agentsHydrated ||
         (store.connectionState !== 'connected') ||
         (now - Number(store._lastAgentsRefreshAt || 0)) >= 12000;
       if (shouldRefreshAgents) {
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('agents_refresh_started');
         if (typeof store.refreshAgents === 'function') await store.refreshAgents();
+      }
+      if (store.agentsHydrated && !store.agentsLoading) {
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('agents_hydrated');
       }
       this.reconcileArchivedAgentIdsWithLiveAgents();
       if (typeof this.syncChatSidebarTopologyOrderFromAgents === 'function') {
@@ -122,8 +134,12 @@
       this.wsConnected = InfringAPI.isWsConnected();
       if (!this.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
         await this.applyBootChatSelection();
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('selection_applied');
       }
       this.scheduleSidebarScrollIndicators();
+      if (store.booting === false && store.agentsHydrated && !store.agentsLoading) {
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('releasing', { bootStage: store.bootStage });
+      }
       this.releaseBootSplash(false);
     }
   };

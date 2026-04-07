@@ -214,22 +214,12 @@
     },
     get chatSidebarVisibleRows() {
       var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
-      var limit = Number(this.chatSidebarVisibleCount || 0);
-      if (!Number.isFinite(limit) || limit <= 0) limit = Number(this.chatSidebarVisibleBase || 7);
-      return rows.slice(0, Math.max(1, Math.floor(limit)));
+      return rows;
     },
     chatSidebarHasMoreRows() {
-      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
-      return rows.length > Number(this.chatSidebarVisibleCount || this.chatSidebarVisibleBase || 7);
+      return false;
     },
     showMoreChatSidebarRows() {
-      var step = Number(this.chatSidebarVisibleStep || 5);
-      if (!Number.isFinite(step) || step <= 0) step = 5;
-      var base = Number(this.chatSidebarVisibleBase || 7);
-      if (!Number.isFinite(base) || base <= 0) base = 7;
-      var current = Number(this.chatSidebarVisibleCount || base);
-      if (!Number.isFinite(current) || current <= 0) current = base;
-      this.chatSidebarVisibleCount = current + Math.floor(step);
       this.scheduleSidebarScrollIndicators();
     },
     isChatSidebarSearchActive() {
@@ -334,6 +324,8 @@
       var self = this;
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
+      if (typeof this.resetBootProgress === 'function') this.resetBootProgress();
+      if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('splash_visible');
       if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
       this._collapsedHoverNeedsPointerMove = !!this.sidebarCollapsed;
       this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 700) : 0;
@@ -456,12 +448,14 @@
       var store = this.getAppStore();
       var ready = !!force || !store || store.booting === false;
       if (!ready) return;
+      if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('releasing', { bootStage: store && store.bootStage });
       if (this._bootSplashHideTimer) {
         clearTimeout(this._bootSplashHideTimer);
         this._bootSplashHideTimer = 0;
       }
       var self = this;
       if (minRemain <= 0) {
+        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
         this.bootSplashVisible = false;
         if (this._bootSplashMaxTimer) {
           clearTimeout(this._bootSplashMaxTimer);
@@ -470,6 +464,7 @@
         return;
       }
       this._bootSplashHideTimer = window.setTimeout(function() {
+        if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
         self.bootSplashVisible = false;
         self._bootSplashHideTimer = 0;
         if (self._bootSplashMaxTimer) {

@@ -1,6 +1,3 @@
-            <path d="M10 20V14H14V20"></path>
-          </svg>
-        </button>
         <div class="global-topbar-page-slot"></div>
       </div>
       <div class="global-topbar-right">
@@ -24,7 +21,7 @@
             <span class="topbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
           </button>
         </div>
-        <div class="theme-switcher" :data-mode="themeMode" :data-resolved="theme">
+        <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
           <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"></circle>
@@ -94,7 +91,7 @@
           </div>
         </div>
         <button
-          class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn hover-tooltip"
+          class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn dashboard-preview-trigger dashboard-preview-down-right"
           type="button"
           @click.prevent
           title="Authentication (coming soon)"
@@ -108,5 +105,216 @@
             <path d="M12 18h2"></path>
           </svg>
         </button>
+        <div class="topbar-clock" :title="topbarClockLabel()" aria-label="System clock">
+          <span class="topbar-clock-main" x-text="topbarClockMainLabel()"></span>
+          <span class="topbar-clock-meridiem" x-text="topbarClockMeridiemLabel()"></span>
+        </div>
       </div>
     </div>
+    <svg
+      class="dock-icon-defs"
+      aria-hidden="true"
+      focusable="false"
+      width="0"
+      height="0"
+      style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none"
+    >
+      <defs>
+        <symbol id="dock-icon-gear" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"></path>
+        </symbol>
+        <symbol id="dock-icon-settings" viewBox="0 0 24 24">
+          <use href="#dock-icon-gear"></use>
+        </symbol>
+        <symbol id="dock-icon-automation" viewBox="0 0 24 24">
+          <g transform="translate(12 6.6) scale(0.34)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+          <g transform="translate(7.2 15.4) scale(0.27)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+          <g transform="translate(16.8 15.4) scale(0.27)">
+            <g transform="translate(-12 -12)">
+              <use href="#dock-icon-gear"></use>
+            </g>
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+    <nav
+      class="bottom-dock"
+      :class="{ 'is-dragging': !!bottomDockDragId }"
+      aria-label="Primary tabs"
+      @mouseleave="clearBottomDockHover()"
+      @dragenter.prevent="handleBottomDockContainerDragOver($event)"
+      @dragover.prevent="handleBottomDockContainerDragOver($event)"
+      @drop.prevent="handleBottomDockContainerDrop($event)"
+    >
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger messages-btn"
+        :class="{ active: page === 'chat', hovered: bottomDockHoverId === 'chat', 'neighbor-hover': bottomDockIsNeighbor('chat'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('chat'), dragging: bottomDockDragId === 'chat' }"
+        @click="navigate('chat')"
+        @mouseenter="setBottomDockHover('chat')"
+        @mouseleave="clearBottomDockHover('chat')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('chat', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('chat', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('chat', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('chat', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('chat')"
+        data-dock-id="chat"
+        data-tooltip="Messages"
+        aria-label="Messages"
+        :aria-current="page === 'chat' ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <defs>
+            <linearGradient id="dock-msg-icon-fill-grad" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#2b4fae"></stop>
+              <stop offset="100%" stop-color="#82b4ff"></stop>
+            </linearGradient>
+          </defs>
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: page === 'analytics' || page === 'overview', hovered: bottomDockHoverId === 'overview', 'neighbor-hover': bottomDockIsNeighbor('overview'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('overview'), dragging: bottomDockDragId === 'overview' }"
+        @click="navigate('overview')"
+        @mouseenter="setBottomDockHover('overview')"
+        @mouseleave="clearBottomDockHover('overview')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('overview', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('overview', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('overview', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('overview', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('overview')"
+        data-dock-id="overview"
+        data-tooltip="Home"
+        aria-label="Home"
+        :aria-current="(page === 'analytics' || page === 'overview') ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12L12 4L21 12"></path><path d="M6 10V20H18V10"></path><path d="M10 20V14H14V20"></path></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'agents', 'neighbor-hover': bottomDockIsNeighbor('agents'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('agents'), dragging: bottomDockDragId === 'agents' }"
+        @click="navigate('agents')"
+        @mouseenter="setBottomDockHover('agents')"
+        @mouseleave="clearBottomDockHover('agents')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('agents', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('agents', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('agents', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('agents', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('agents')"
+        data-dock-id="agents"
+        data-tooltip="Manage"
+        aria-label="Manage"
+        :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger automation-btn"
+        :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'scheduler', 'neighbor-hover': bottomDockIsNeighbor('scheduler'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('scheduler'), dragging: bottomDockDragId === 'scheduler' }"
+        @click="navigate('scheduler')"
+        @mouseenter="setBottomDockHover('scheduler')"
+        @mouseleave="clearBottomDockHover('scheduler')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('scheduler', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('scheduler', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('scheduler', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('scheduler', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('scheduler')"
+        data-dock-id="scheduler"
+        data-tooltip="Automation"
+        aria-label="Automation"
+        :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <use href="#dock-icon-automation"></use>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger apps-btn"
+        :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'skills', 'neighbor-hover': bottomDockIsNeighbor('skills'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('skills'), dragging: bottomDockDragId === 'skills' }"
+        @click="navigate('skills')"
+        @mouseenter="setBottomDockHover('skills')"
+        @mouseleave="clearBottomDockHover('skills')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('skills', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('skills', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('skills', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('skills', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('skills')"
+        data-dock-id="skills"
+        data-tooltip="Apps"
+        aria-label="Apps"
+        :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg class="apps-icon-quad" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="7" rx="1.6" fill="#f59e0b" stroke="none"></rect>
+          <rect x="13" y="4" width="7" height="7" rx="1.6" fill="#ec4899" stroke="none"></rect>
+          <rect x="4" y="13" width="7" height="7" rx="1.6" fill="#a855f7" stroke="none"></rect>
+          <rect x="13" y="13" width="7" height="7" rx="1.6" fill="#3b82f6" stroke="none"></rect>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger"
+        :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'runtime', 'neighbor-hover': bottomDockIsNeighbor('runtime'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('runtime'), dragging: bottomDockDragId === 'runtime' }"
+        @click="navigate('runtime')"
+        @mouseenter="setBottomDockHover('runtime')"
+        @mouseleave="clearBottomDockHover('runtime')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('runtime', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('runtime', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('runtime', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('runtime', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('runtime')"
+        data-dock-id="runtime"
+        data-tooltip="System"
+        aria-label="System"
+        :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
+      </button>
+      <button
+        type="button"
+        class="bottom-dock-btn dashboard-preview-trigger settings-btn"
+        :class="{ active: page === 'settings', hovered: bottomDockHoverId === 'settings', 'neighbor-hover': bottomDockIsNeighbor('settings'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('settings'), dragging: bottomDockDragId === 'settings' }"
+        @click="navigate('settings')"
+        @mouseenter="setBottomDockHover('settings')"
+        @mouseleave="clearBottomDockHover('settings')"
+        draggable="true"
+        @dragstart.stop="startBottomDockDrag('settings', $event)"
+        @dragenter.stop.prevent="handleBottomDockDragOver('settings', $event)"
+        @dragover.stop.prevent="handleBottomDockDragOver('settings', $event)"
+        @drop.stop.prevent="handleBottomDockDrop('settings', $event)"
+        @dragend.stop="endBottomDockDrag()"
+        :style="'order:' + bottomDockOrderIndex('settings')"
+        data-dock-id="settings"
+        data-tooltip="Settings"
+        aria-label="Settings"
+        :aria-current="page === 'settings' ? 'page' : false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-icon-settings"></use></svg>
+      </button>
+    </nav>

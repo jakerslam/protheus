@@ -46,6 +46,24 @@ body.theme-switching *::after {
   color: #e5ecfb;
 }
 
+.boot-splash-progress {
+  width: min(160px, 32vw);
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.boot-splash-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: #ffffff;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: width;
+}
+
 /* Buttons */
 .btn {
   padding: 8px 16px;

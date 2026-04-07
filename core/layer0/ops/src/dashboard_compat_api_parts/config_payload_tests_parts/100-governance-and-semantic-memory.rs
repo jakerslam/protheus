@@ -317,17 +317,18 @@ fn web_fetch_summary_converts_navigation_chrome_into_actionable_hint() {
 }
 
 #[test]
-fn natural_web_intent_routes_peer_comparisons_to_batch_query() {
+fn natural_web_intent_does_not_auto_route_peer_comparisons_without_explicit_web_request() {
     let route = natural_web_intent_from_user_message(
         "Compare Infring to its competitors and rank it among peers in a table",
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(route.1.get("source").and_then(Value::as_str), Some("web"));
-    assert_eq!(
-        route.1.get("aperture").and_then(Value::as_str),
-        Some("medium")
     );
+    assert!(route.is_none());
+}
+
+#[test]
+fn natural_web_intent_does_not_treat_tool_route_mapping_prompts_as_web_queries() {
+    let route =
+        natural_web_intent_from_user_message("Map `tool::web_search` into a supported route");
+    assert!(route.is_none());
 }
 
 #[test]
@@ -345,6 +346,9 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
     ));
     assert!(!inline_tool_calls_allowed_for_user_message(
         "just answer directly, dont use a tool call"
+    ));
+    assert!(!inline_tool_calls_allowed_for_user_message(
+        "why do you keep trying tool calls and not synthesizing results"
     ));
 }
 
@@ -394,6 +398,29 @@ fn inline_tool_execution_is_suppressed_for_plain_conversation_turns() {
     assert!(cards.is_empty());
     assert!(pending_confirmation.is_none());
     assert!(text.trim().is_empty());
+}
+
+#[test]
+fn inline_tool_execution_replaces_low_signal_cleaned_text_with_tool_fallback_lines() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let response = "<function=spawn_subagents>{\"count\":2,\"objective\":\"parallelize analysis\"}</function>\nFrom web retrieval: bing.com: compare [A with B] vs compare A [with B]";
+    let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
+        root.path(),
+        &snapshot,
+        "agent-inline-low-signal",
+        None,
+        response,
+        "parallelize this with a swarm",
+        true,
+    );
+    assert!(!suppressed);
+    assert_eq!(cards.len(), 1);
+    assert!(pending_confirmation.is_none());
+    let lowered = text.to_ascii_lowercase();
+    assert!(lowered.contains("spawned"));
+    assert!(!lowered.contains("from web retrieval:"));
+    assert!(!lowered.contains("bing.com: compare"));
 }
 
 #[test]
@@ -572,6 +599,9 @@ fn ack_only_detector_flags_generic_tool_acknowledgements() {
 fn ack_only_detector_flags_explicit_no_findings_failure_copy() {
     assert!(response_looks_like_tool_ack_without_findings(
         "I couldn't extract usable findings from the search response yet."
+    ));
+    assert!(response_looks_like_tool_ack_without_findings(
+        "From web retrieval: bing.com: OpenClaw — Personal AI Assistant — https://openclaw.ai/"
     ));
 }
 
@@ -797,12 +827,43 @@ fn web_search_summary_uses_content_domains_when_summary_is_search_chrome() {
     );
     let lowered = summary.to_ascii_lowercase();
     assert!(
-        lowered.contains("from web retrieval"),
+        lowered.contains("key web findings"),
         "unexpected summary: {summary}"
     );
     assert!(lowered.contains("reuters.com"));
     assert!(!lowered.contains("couldn't extract usable findings"));
     assert!(!lowered.contains("search response came from"));
+}
+
+#[test]
+fn batch_query_summary_rewrites_unsynthesized_domain_dump_to_structured_evidence() {
+    let summary = summarize_tool_payload(
+        "batch_query",
+        &json!({
+            "ok": true,
+            "status": "ok",
+            "summary": "Web benchmark synthesis: bing.com: compare [A with B] vs compare A [with B] | WordReference Forums — https://forum.wordreference.com/threads/compare-a-with-b-vs-compare-a-with-b.4047424/",
+            "evidence_refs": [
+                {
+                    "title": "OpenClaw — Personal AI Assistant",
+                    "locator": "https://openclaw.ai/"
+                }
+            ]
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("batch query evidence"));
+    assert!(!lowered.contains("bing.com: compare"));
+}
+
+#[test]
+fn unsynthesized_web_snippet_detector_flags_domain_dump_copy() {
+    assert!(response_looks_like_unsynthesized_web_snippet_dump(
+        "From web retrieval: bing.com: OpenClaw — Personal AI Assistant — https://openclaw.ai/ bing.com: OpenClaw docs — https://openclaw.ai/docs"
+    ));
+    assert!(!response_looks_like_unsynthesized_web_snippet_dump(
+        "In short: OpenClaw focuses on cross-platform local execution, while Infring emphasizes policy-gated orchestration and receipts."
+    ));
 }
 
 #[test]
@@ -836,6 +897,24 @@ fn finalize_user_facing_response_unwraps_internal_payload_json_response() {
     );
     assert!(!finalized.contains("agent_id"));
     assert!(!finalized.starts_with('{'));
+}
+
+#[test]
+fn finalize_user_facing_response_unwraps_wrapped_internal_payload_json_response() {
+    let raw = format!(
+        "tool output follows:\n{}\nend",
+        json!({
+            "agent_id": "agent-83ed64e07515",
+            "response": "Synthesized answer with linked sources.",
+            "response_finalization": {"tool_completion": {"completion_state": "reported_findings"}},
+            "tools": [{"name": "batch_query", "is_error": false, "result": "raw tool output"}],
+            "turn_loop_tracking": {"ok": true},
+            "turn_transaction": {"tool_execute": "complete"}
+        })
+    );
+    let finalized = finalize_user_facing_response(raw, None);
+    assert_eq!(finalized, "Synthesized answer with linked sources.");
+    assert!(!finalized.contains("agent_id"));
 }
 
 #[test]
@@ -903,8 +982,7 @@ fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
         Some("reported_no_findings")
     );
     assert!(
-        outcome.contains("normalized_raw_payload_json")
-            || outcome.contains("reported_no_findings"),
+        outcome.contains("normalized_raw_payload_json") || outcome.contains("reported_no_findings"),
         "unexpected outcome={outcome}"
     );
 }

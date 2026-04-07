@@ -455,15 +455,17 @@ fn recommendation_suggestions_from_report(
     if unsupported > 0 {
         if !unsupported_base.is_empty() {
             out.push(format!(
-                "Map `{}` into a supported route.",
+                "Implement a supported Rust route for `{}`.",
                 unsupported_base
             ));
         } else {
-            out.push("Convert unsupported commands into supported routes.".to_string());
+            out.push("Convert unsupported commands into supported Rust routes.".to_string());
         }
     }
     if adoption_pct < 80.0 {
-        out.push("Optimize command flow for higher tool hit rate.".to_string());
+        out.push(
+            "Improve command-to-route mapping for higher supported tool hit rate.".to_string(),
+        );
     }
     if output_tokens > 1200 {
         out.push("Generate a concise digest of terminal output and next actions.".to_string());
