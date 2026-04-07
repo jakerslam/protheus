@@ -322,6 +322,7 @@ body[data-theme='dark'] .bottom-dock {
   background: rgba(255, 255, 255, var(--bottom-dock-glass-alpha));
   backdrop-filter: blur(40px) saturate(1.15);
   -webkit-backdrop-filter: blur(40px) saturate(1.15);
+  transition: background 0.24s var(--ease-smooth);
 }
 
 body[data-theme='dark'] .bottom-dock::before {
@@ -336,7 +337,6 @@ body[data-theme='dark'] .bottom-dock::before {
 .bottom-dock:hover,
 .bottom-dock:active {
   --bottom-dock-bg-alpha: 0.8;
-  --bottom-dock-glass-alpha: 0;
   opacity: 1;
   transform: scale(1.54);
   box-shadow:
@@ -493,7 +493,7 @@ body[data-theme='dark'] .bottom-dock::before {
 }
 
 .bottom-dock-btn.messages-btn.active {
-  box-shadow: none;
+  box-shadow: var(--bottom-dock-icon-shadow-base);
 }
 
 .bottom-dock-btn[data-dock-id='runtime'],
