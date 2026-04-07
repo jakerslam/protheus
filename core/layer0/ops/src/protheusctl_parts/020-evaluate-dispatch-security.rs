@@ -82,7 +82,12 @@ pub fn evaluate_dispatch_security(
 fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {
     if matches!(
         script_rel,
-        "core://unknown-command" | "core://install-doctor"
+        "core://unknown-command"
+            | "core://install-doctor"
+            | "core://command-list"
+            | "core://completion"
+            | "core://repl"
+            | "core://version-cli"
     ) {
         return true;
     }
@@ -168,6 +173,9 @@ fn evaluate_security_decision_via_cargo(
 fn run_node_script(root: &Path, script_rel: &str, args: &[String], forward_stdin: bool) -> i32 {
     let workspace_root = effective_workspace_root(root);
     let runtime_mode = resolved_runtime_mode(&workspace_root);
+    if let Some((domain, mapped_args)) = maybe_redirect_ts_wrapper_to_core_domain(script_rel, args) {
+        return run_core_domain(&workspace_root, &domain, &mapped_args, forward_stdin);
+    }
     if let Some(domain) = script_rel.strip_prefix("core://") {
         return run_core_domain(&workspace_root, domain, args, forward_stdin);
     }
@@ -824,6 +832,18 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
     if domain == "install-doctor" {
         return run_install_doctor_domain(root, args);
     }
+    if domain == "command-list" {
+        return crate::command_list_kernel::run(root, args);
+    }
+    if domain == "completion" {
+        return run_completion_domain(args);
+    }
+    if domain == "repl" {
+        return run_repl_domain(root, args);
+    }
+    if domain == "version-cli" {
+        return run_version_cli_domain(root, args);
+    }
     let nexus_tool = core_domain_nexus_tool_label(domain, args);
     let nexus_connection = match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
         nexus_tool.as_str(),
@@ -1045,36 +1065,7 @@ fn maybe_run_update_checker(root: &Path, cmd: &str, json_mode: bool) {
     if suppress_pre_dispatch_side_effects(cmd, json_mode) {
         return;
     }
-    let script_js = root.join("client/runtime/systems/ops/protheus_version_cli.js");
-    let script_ts = root.join("client/runtime/systems/ops/protheus_version_cli.ts");
-    let script = if script_js.exists() {
-        script_js
-    } else if script_ts.exists() {
-        script_ts
-    } else {
-        return;
-    };
-    let ts_entrypoint = root.join("client/runtime/lib/ts_entrypoint.ts");
-    let script_is_ts = script
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case("ts"))
-        .unwrap_or(false);
-
-    let mut cmd = Command::new(node_bin());
-    if script_is_ts && ts_entrypoint.exists() {
-        cmd.arg(ts_entrypoint).arg(&script);
-    } else {
-        cmd.arg(&script);
-    }
-
-    let _ = cmd
-        .arg("check-quiet")
-        .current_dir(root)
-        .stdin(Stdio::null())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status();
+    let _ = run_version_cli_domain(root, &[String::from("check-quiet")]);
 }
 
 fn route_edge(rest: &[String]) -> Route {

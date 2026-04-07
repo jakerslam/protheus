@@ -176,14 +176,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     } else {
         resolve_core_shortcuts(&cmd, &rest).unwrap_or_else(|| match cmd.as_str() {
             "list" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_command_list.ts".to_string(),
+                script_rel: "core://command-list".to_string(),
                 args: std::iter::once("--mode=list".to_string())
                     .chain(rest)
                     .collect(),
                 forward_stdin: false,
             },
             "completion" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_completion.js".to_string(),
+                script_rel: "core://completion".to_string(),
                 args: if rest.is_empty() {
                     vec!["--help".to_string()]
                 } else {
@@ -192,7 +192,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "repl" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_repl.js".to_string(),
+                script_rel: "core://repl".to_string(),
                 args: rest,
                 forward_stdin: true,
             },
@@ -216,12 +216,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "version" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_version_cli.js".to_string(),
+                script_rel: "core://version-cli".to_string(),
                 args: std::iter::once("version".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
             "update" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_version_cli.js".to_string(),
+                script_rel: "core://version-cli".to_string(),
                 args: std::iter::once("update".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
@@ -240,21 +240,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "help" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_command_list.ts".to_string(),
+                script_rel: "core://command-list".to_string(),
                 args: std::iter::once("--mode=help".to_string())
                     .chain(rest)
                     .collect(),
                 forward_stdin: false,
             },
             "--help" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_command_list.ts".to_string(),
+                script_rel: "core://command-list".to_string(),
                 args: std::iter::once("--mode=help".to_string())
                     .chain(rest)
                     .collect(),
                 forward_stdin: false,
             },
             "-h" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_command_list.ts".to_string(),
+                script_rel: "core://command-list".to_string(),
                 args: std::iter::once("--mode=help".to_string())
                     .chain(rest)
                     .collect(),
@@ -311,19 +311,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "health" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_control_plane.js".to_string(),
-                args: std::iter::once("health".to_string()).chain(rest).collect(),
+                script_rel: "core://protheus-control-plane".to_string(),
+                args: std::iter::once("status".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
             "job-submit" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_control_plane.js".to_string(),
-                args: std::iter::once("job-submit".to_string())
+                script_rel: "core://protheus-control-plane".to_string(),
+                args: std::iter::once("run".to_string())
                     .chain(rest)
                     .collect(),
                 forward_stdin: false,
             },
             "protheusctl" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_command_list.ts".to_string(),
+                script_rel: "core://command-list".to_string(),
                 args: std::iter::once("--mode=help".to_string())
                     .chain(rest)
                     .collect(),
@@ -778,6 +778,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "core://install-doctor"
             | "core://daemon-control"
             | "core://verity-plane"
+            | "core://command-list"
+            | "core://completion"
+            | "core://version-cli"
             | "client/runtime/systems/ops/protheus_command_list.ts"
             | "client/runtime/systems/ops/protheus_command_list.js"
             | "client/runtime/systems/ops/protheus_setup_wizard.ts"
@@ -815,6 +818,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         route.script_rel.as_str(),
         "client/runtime/systems/ops/protheus_demo.js"
             | "client/runtime/systems/ops/protheus_examples.js"
+            | "core://version-cli"
             | "client/runtime/systems/ops/protheus_version_cli.js"
     );
     if global_quiet

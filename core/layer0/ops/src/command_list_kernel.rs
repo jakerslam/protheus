@@ -58,8 +58,8 @@ const COMMANDS: &[CommandItem] = &[
         synopsis: "help",
         desc: "Show CLI help and command list.",
         tier: CommandTier::Tier1,
-        handler: CommandHandlerKind::RuntimeScript,
-        script_rel: "client/runtime/systems/ops/protheus_command_list.ts",
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://command-list",
         read_only: true,
         unsafe_surface: false,
     },
@@ -67,8 +67,8 @@ const COMMANDS: &[CommandItem] = &[
         synopsis: "list",
         desc: "Show compact command list.",
         tier: CommandTier::Tier1,
-        handler: CommandHandlerKind::RuntimeScript,
-        script_rel: "client/runtime/systems/ops/protheus_command_list.ts",
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://command-list",
         read_only: true,
         unsafe_surface: false,
     },
@@ -356,8 +356,8 @@ const COMMANDS: &[CommandItem] = &[
         synopsis: "version",
         desc: "Print runtime version and build info.",
         tier: CommandTier::Tier1,
-        handler: CommandHandlerKind::RuntimeScript,
-        script_rel: "client/runtime/systems/ops/protheus_version_cli.ts",
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://version-cli",
         read_only: true,
         unsafe_surface: false,
     },
@@ -365,14 +365,24 @@ const COMMANDS: &[CommandItem] = &[
         synopsis: "update",
         desc: "Check for the latest release and print upgrade guidance.",
         tier: CommandTier::Tier1,
-        handler: CommandHandlerKind::RuntimeScript,
-        script_rel: "client/runtime/systems/ops/protheus_version_cli.ts",
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://version-cli",
         read_only: true,
         unsafe_surface: false,
     },
 ];
 
 const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
+    Tier1RouteContract {
+        cmd: "help",
+        rest: &[],
+        expected_script: "core://command-list",
+    },
+    Tier1RouteContract {
+        cmd: "list",
+        rest: &[],
+        expected_script: "core://command-list",
+    },
     Tier1RouteContract {
         cmd: "gateway",
         rest: &["status"],
@@ -393,16 +403,22 @@ const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
         rest: &[],
         expected_script: "core://install-doctor",
     },
+    Tier1RouteContract {
+        cmd: "version",
+        rest: &[],
+        expected_script: "core://version-cli",
+    },
+    Tier1RouteContract {
+        cmd: "update",
+        rest: &[],
+        expected_script: "core://version-cli",
+    },
 ];
 
 const TIER1_RUNTIME_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheusd.ts",
     "client/runtime/systems/ops/protheus_status_dashboard.ts",
     "client/runtime/systems/ops/protheus_unknown_guard.ts",
-    "client/runtime/systems/ops/protheus_completion.ts",
-    "client/runtime/systems/ops/protheus_repl.ts",
-    "client/runtime/systems/ops/protheus_command_list.ts",
-    "client/runtime/systems/ops/protheus_version_cli.ts",
 ];
 
 pub fn command_registry() -> &'static [CommandItem] {
@@ -615,7 +631,7 @@ mod tests {
         assert_eq!(entries.len(), set.len());
         assert!(entries
             .iter()
-            .any(|row| *row == "client/runtime/systems/ops/protheus_command_list.ts"));
+            .any(|row| *row == "client/runtime/systems/ops/protheusd.ts"));
     }
 
     #[test]

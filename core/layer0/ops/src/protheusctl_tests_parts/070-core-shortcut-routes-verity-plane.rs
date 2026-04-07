@@ -89,6 +89,43 @@ fn core_shortcut_routes_verify_install_to_install_doctor_domain() {
 }
 
 #[test]
+fn core_shortcut_routes_help_to_command_list_core_domain() {
+    let route = resolve_core_shortcuts("help", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://command-list");
+    assert_eq!(route.args, vec!["--mode=help"]);
+}
+
+#[test]
+fn core_shortcut_routes_completion_to_core_domain() {
+    let route = resolve_core_shortcuts("completion", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://completion");
+    assert_eq!(route.args, vec!["--help"]);
+}
+
+#[test]
+fn core_shortcut_routes_version_and_update_to_core_version_domain() {
+    let version = resolve_core_shortcuts("version", &[]).expect("version route");
+    assert_eq!(version.script_rel, "core://version-cli");
+    assert_eq!(version.args, vec!["version"]);
+
+    let update = resolve_core_shortcuts("update", &["--json=1".to_string()]).expect("update route");
+    assert_eq!(update.script_rel, "core://version-cli");
+    assert_eq!(update.args, vec!["update", "--json=1"]);
+}
+
+#[test]
+fn core_shortcut_routes_health_and_job_submit_to_protheus_control_plane() {
+    let health = resolve_core_shortcuts("health", &[]).expect("health route");
+    assert_eq!(health.script_rel, "core://protheus-control-plane");
+    assert_eq!(health.args, vec!["status"]);
+
+    let job = resolve_core_shortcuts("job-submit", &["--id=lane-1".to_string()])
+        .expect("job-submit route");
+    assert_eq!(job.script_rel, "core://protheus-control-plane");
+    assert_eq!(job.args, vec!["run", "--id=lane-1"]);
+}
+
+#[test]
 fn core_shortcut_routes_stack_default_to_context_stacks_list() {
     let route = resolve_core_shortcuts("stack", &[]).expect("route");
     assert_eq!(route.script_rel, "core://context-stacks");
