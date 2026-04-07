@@ -424,9 +424,12 @@
       if (!beforeRects || typeof beforeRects !== 'object') return;
       if (typeof requestAnimationFrame !== 'function') return;
       var durationMs = this.bottomDockMoveDurationMs();
+      var self = this;
       requestAnimationFrame(function() {
         var root = document.querySelector('.bottom-dock');
         if (!root) return;
+        var rootScale = self.readBottomDockScale(root);
+        if (!Number.isFinite(rootScale) || rootScale <= 0.01) rootScale = 1;
         var nodes = root.querySelectorAll('.bottom-dock-btn[data-dock-id]');
         for (var i = 0; i < nodes.length; i++) {
           var node = nodes[i];
@@ -438,8 +441,10 @@
           var dx = Number(from.left || 0) - Number(rect.left || 0);
           var dy = Number(from.top || 0) - Number(rect.top || 0);
           if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+          var tx = dx / rootScale;
+          var ty = dy / rootScale;
           node.style.transition = 'none';
-          node.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+          node.style.transform = 'translate(' + Math.round(tx) + 'px,' + Math.round(ty) + 'px)';
           void node.offsetHeight;
           node.style.transition = 'transform ' + durationMs + 'ms var(--ease-smooth)';
           node.style.transform = 'translate(0px, 0px)';
@@ -1026,7 +1031,7 @@
       this.bottomDockOrder = next;
       this.animateBottomDockFromRects(beforeRects);
       var moveDuration = this.bottomDockMoveDurationMs();
-      var lockMs = Math.max(220, Math.min(420, Math.round(moveDuration * 0.95)));
+      var lockMs = Math.max(320, Math.min(520, Math.round(moveDuration + 60)));
       this._bottomDockReorderLockUntil = nowMs + lockMs;
     },
 
