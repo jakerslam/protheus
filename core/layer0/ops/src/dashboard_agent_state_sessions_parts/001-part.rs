@@ -213,11 +213,15 @@ fn is_trailing_query_filler(word: &str) -> bool {
     )
 }
 
-fn normalize_suggestion_voice(value: &str) -> String {
-    let mut normalized = clean_text(value, 220)
-        .trim_end_matches('?')
+fn strip_trailing_suggestion_question_marks(value: &str) -> String {
+    clean_text(value, 220)
+        .trim_end_matches(|ch: char| matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞'))
         .trim()
-        .to_string();
+        .to_string()
+}
+
+fn normalize_suggestion_voice(value: &str) -> String {
+    let mut normalized = strip_trailing_suggestion_question_marks(value);
     if normalized.is_empty() {
         return String::new();
     }
@@ -290,7 +294,7 @@ fn sanitize_suggestion(value: &str) -> String {
         }
         break;
     }
-    words.join(" ")
+    strip_trailing_suggestion_question_marks(&words.join(" "))
 }
 
 fn is_focus_stop_word(word: &str) -> bool {

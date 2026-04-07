@@ -324,9 +324,6 @@
               :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0 }"
               @click="navigate('runtime')"
               :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
-              @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('System', $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
             >
               <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
               <span class="nav-label">System</span>

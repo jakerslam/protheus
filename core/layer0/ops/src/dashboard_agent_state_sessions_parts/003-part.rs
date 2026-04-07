@@ -144,6 +144,14 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
 mod tests {
     use super::*;
 
+    fn ends_with_question_variant(text: &str) -> bool {
+        text.trim_end()
+            .chars()
+            .last()
+            .map(|ch| matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞'))
+            .unwrap_or(false)
+    }
+
     fn seed_suggestion_context(root: &Path, agent_id: &str) {
         let _ = append_turn(
             root,
@@ -264,6 +272,10 @@ mod tests {
             sanitize_suggestion("Would you like me to compare model routing?"),
             "compare model routing"
         );
+        assert_eq!(
+            sanitize_suggestion("Could you map route lease state？"),
+            "map route lease state"
+        );
     }
 
     #[test]
@@ -317,7 +329,7 @@ mod tests {
         assert!(rows
             .iter()
             .filter_map(Value::as_str)
-            .all(|row| !row.trim_end().ends_with('?')));
+            .all(|row| !ends_with_question_variant(row)));
         assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
     }
 
@@ -350,7 +362,7 @@ mod tests {
         assert!(rows
             .iter()
             .filter_map(Value::as_str)
-            .all(|row| !row.trim_end().ends_with('?')));
+            .all(|row| !ends_with_question_variant(row)));
         assert!(rows.len() <= PROMPT_SUGGESTION_MAX_COUNT);
     }
 
@@ -405,7 +417,7 @@ mod tests {
         assert!(rows
             .iter()
             .filter_map(Value::as_str)
-            .all(|row| !row.trim_end().ends_with('?')));
+            .all(|row| !ends_with_question_variant(row)));
         assert!(joined.contains("infring") || joined.contains("command flow"));
     }
 

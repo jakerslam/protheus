@@ -109,7 +109,6 @@ body[data-theme='dark'] .tool-card {
 body[data-theme='dark'] .btn-primary,
 body[data-theme='dark'] .btn-success,
 body[data-theme='dark'] .btn-danger,
-body[data-theme='dark'] .nav-item.active,
 body[data-theme='dark'] .stat-card,
 body[data-theme='dark'] .stat-card-lg,
 body[data-theme='dark'] .health-indicator {
@@ -280,20 +279,14 @@ body:not([data-theme='dark']) .chat-pointer-trail-segment {
 }
 
 .chat-sidebar-item.active {
-  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
-  border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
+  background: color-mix(in srgb, var(--surface2) 84%, var(--border) 16%);
+  border-color: transparent;
   color: var(--text);
 }
 
 .nav-item.nav-agent-row.active {
-  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
-  border-right-color: color-mix(in srgb, var(--accent) 86%, #000 14%);
+  background: color-mix(in srgb, var(--surface2) 84%, var(--border) 16%);
+  border-color: transparent;
   color: var(--text);
 }
 

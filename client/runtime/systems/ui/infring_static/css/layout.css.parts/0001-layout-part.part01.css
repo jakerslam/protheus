@@ -306,7 +306,7 @@ button.sidebar-scroll-indicator:hover {
 }
 
 .nav-item.active {
-  background: color-mix(in srgb, var(--user-bg) 72%, transparent);
+  background: color-mix(in srgb, var(--surface2) 84%, var(--border) 16%);
   color: var(--text);
   font-weight: 600;
   border-color: transparent;
