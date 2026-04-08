@@ -163,6 +163,10 @@ fn measure_infring(
                 .or_else(|| get_f64(metrics, "gateway_supervisor_orchestration_p95_ms"))
         })
         .unwrap_or((rich_cold_start_total_ms - engine_start_ms).max(0.0));
+    // Canonical user-visible cold start remains cold_start_ms.
+    let cold_start_user_visible_ms = rich_cold_start_total_ms;
+    // Micro cold start captures engine-only initialization.
+    let cold_start_engine_init_ms = engine_start_ms;
     let security_systems = count_guard_checks(root)?;
     let channel_adapters = count_channel_adapters(root)?;
     let llm_providers = count_llm_providers(root)?;
@@ -170,7 +174,22 @@ fn measure_infring(
     let plugin_marketplace_checks = count_plugin_marketplace_checks(root)?;
     let security_policy_checks_total = count_policy_checks_total(root)?;
     let mut measured = Map::<String, Value>::new();
-    measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
+    measured.insert(
+        "cold_start_ms".to_string(),
+        json!(cold_start_user_visible_ms),
+    );
+    measured.insert(
+        "cold_start_user_visible_ms".to_string(),
+        json!(cold_start_user_visible_ms),
+    );
+    measured.insert(
+        "cold_start_engine_init_ms".to_string(),
+        json!(cold_start_engine_init_ms),
+    );
+    measured.insert(
+        "cold_start_orchestration_ms".to_string(),
+        json!(gateway_supervisor_orchestration_ms),
+    );
     measured.insert("engine_start_ms".to_string(), json!(engine_start_ms));
     measured.insert(
         "gateway_supervisor_orchestration_ms".to_string(),

@@ -240,10 +240,12 @@ Current measured rows in that artifact:
 
 | Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start | 0.009 ms | 1.519 ms | 1.483 ms |
-| Idle memory | 9.938 MB | 1.484 MB | 1.484 MB |
+| Cold start (user-visible) | 0.009 ms | 1.510 ms | 1.510 ms |
+| Cold start (engine init micro) | 0.009 ms | n/a | n/a |
+| Cold start (orchestration component) | 0.000 ms | n/a | n/a |
+| Idle memory | 9.938 MB | 1.500 MB | 1.500 MB |
 | Install artifact size | 25.840 MB | 2.534 MB | 0.617 MB |
-| Throughput (tasks_per_sec) | 181,435.28 ops/sec | 181,435.28 ops/sec | 181,435.28 ops/sec |
+| Throughput (tasks_per_sec) | 182,809.10 ops/sec | 182,809.10 ops/sec | 182,809.10 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -254,8 +256,8 @@ Preflight metadata in the same artifact:
 
 - `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 1.64` (tolerance `18.75`)
-- Artifact timestamp: `2026-04-08T22:37:13.340Z`
+- `sample_cv_pct = 0.13` (tolerance `18.75`)
+- Artifact timestamp: `2026-04-08T23:03:30.846Z`
 
 Current nuance:
 
@@ -268,7 +270,7 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 0.009 | 9.938 | 25.840 | 181,435.28 |
+| Infring | 0.009 | 9.938 | 25.840 | 182,809.10 |
 | AutoGen | 4000.000 | 250.000 | 200.000 | n/a |
 | CrewAI | 3000.000 | 200.000 | 100.000 | n/a |
 | OpenHands | 1300.000 | 150.000 | 95.500 | n/a |
@@ -283,6 +285,7 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
 
 
 

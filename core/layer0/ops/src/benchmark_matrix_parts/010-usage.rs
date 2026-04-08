@@ -347,10 +347,12 @@ fn extract_runtime_metrics(runtime_json: &Value) -> Option<(f64, f64, f64)> {
         .cloned()
         .unwrap_or_else(|| runtime_json.clone());
     let metrics = latest.get("metrics")?;
-    let cold_start_ms = get_f64(metrics, "engine_start_p50_ms")
-        .or_else(|| get_f64(metrics, "engine_start_p95_ms"))
-        .or_else(|| get_f64(metrics, "cold_start_p50_ms"))
-        .or_else(|| get_f64(metrics, "cold_start_p95_ms"))?;
+    // Canonical benchmark cold start is user-visible startup latency, not
+    // internal engine-init micro latency.
+    let cold_start_ms = get_f64(metrics, "cold_start_p50_ms")
+        .or_else(|| get_f64(metrics, "cold_start_p95_ms"))
+        .or_else(|| get_f64(metrics, "engine_start_p50_ms"))
+        .or_else(|| get_f64(metrics, "engine_start_p95_ms"))?;
     let idle_memory_mb =
         get_f64(metrics, "idle_rss_p50_mb").or_else(|| get_f64(metrics, "idle_rss_p95_mb"))?;
     let install_size_mb = get_f64(metrics, "install_artifact_total_mb")

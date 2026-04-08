@@ -79,7 +79,7 @@ fn extract_runtime_metrics_prefers_install_artifact_over_full_install() {
 }
 
 #[test]
-fn extract_runtime_metrics_prefers_engine_start_when_available() {
+fn extract_runtime_metrics_prefers_user_visible_cold_start_when_available() {
     let runtime = json!({
         "metrics": {
             "cold_start_p50_ms": 2345.0,
@@ -94,7 +94,7 @@ fn extract_runtime_metrics_prefers_engine_start_when_available() {
         }
     });
 
-    assert_eq!(extract_runtime_metrics(&runtime), Some((18.4, 7.1, 25.8)));
+    assert_eq!(extract_runtime_metrics(&runtime), Some((2345.0, 7.1, 25.8)));
 }
 
 #[test]

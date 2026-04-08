@@ -118,10 +118,20 @@ function renderMetricRows(report: any): string[] {
   const rich = resolveRichProject(report);
   const pure = resolveProject(report, 'InfRing (pure)', report?.pure_workspace_measured);
   const tiny = resolveProject(report, 'InfRing (tiny-max)', report?.pure_workspace_tiny_max_measured);
+  const richEngineMs =
+    rich.payload?.cold_start_engine_init_ms ??
+    rich.payload?.engine_start_ms ??
+    null;
+  const richOrchestrationMs =
+    rich.payload?.cold_start_orchestration_ms ??
+    rich.payload?.gateway_supervisor_orchestration_ms ??
+    null;
   return [
     '| Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |',
     '|---|---:|---:|---:|',
-    `| Cold start | ${formatFixed(rich.payload?.cold_start_ms, 3)} ms | ${formatFixed(pure?.cold_start_ms, 3)} ms | ${formatFixed(tiny?.cold_start_ms, 3)} ms |`,
+    `| Cold start (user-visible) | ${formatFixed(rich.payload?.cold_start_ms, 3)} ms | ${formatFixed(pure?.cold_start_ms, 3)} ms | ${formatFixed(tiny?.cold_start_ms, 3)} ms |`,
+    `| Cold start (engine init micro) | ${formatFixed(richEngineMs, 3)} ms | n/a | n/a |`,
+    `| Cold start (orchestration component) | ${formatFixed(richOrchestrationMs, 3)} ms | n/a | n/a |`,
     `| Idle memory | ${formatFixed(rich.payload?.idle_memory_mb, 3)} MB | ${formatFixed(pure?.idle_memory_mb, 3)} MB | ${formatFixed(tiny?.idle_memory_mb, 3)} MB |`,
     `| Install artifact size | ${formatFixed(rich.payload?.install_size_mb, 3)} MB | ${formatFixed(pure?.install_size_mb, 3)} MB | ${formatFixed(tiny?.install_size_mb, 3)} MB |`,
     `| Throughput (${CANONICAL_THROUGHPUT_METRIC}) | ${formatThroughput(rich.payload?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(pure?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(tiny?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec |`,
