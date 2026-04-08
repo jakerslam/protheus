@@ -298,6 +298,10 @@
   content: none;
 }
 
+.sidebar-settings-item.dashboard-preview-trigger::after {
+  content: none !important;
+}
+
 .dashboard-preview-trigger.dashboard-preview-down-right {
   --dashboard-preview-top: 100%;
   --dashboard-preview-right: 0;

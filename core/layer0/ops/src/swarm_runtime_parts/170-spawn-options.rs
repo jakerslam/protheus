@@ -109,6 +109,77 @@ mod tests {
                 .map(|rows| rows.len()),
             Some(1)
         );
+        assert_eq!(
+            result.get("reason_code").and_then(Value::as_str),
+            Some("majority_with_outliers")
+        );
+        assert_eq!(
+            result.get("recommended_action").and_then(Value::as_str),
+            Some("accept_with_outlier_review")
+        );
+        assert_eq!(
+            result.get("confidence_band").and_then(Value::as_str),
+            Some("medium")
+        );
+    }
+
+    #[test]
+    fn numeric_outlier_analysis_emits_robust_stats() {
+        let results = vec![
+            AgentResult {
+                result_id: "r1".to_string(),
+                session_id: "s1".to_string(),
+                agent_label: "a1".to_string(),
+                agent_role: "worker".to_string(),
+                task_id: "task-1".to_string(),
+                payload: ResultPayload::Calculation { value: 10.0 },
+                data: json!({"value": 10.0}),
+                confidence: 0.9,
+                verification_status: "verified".to_string(),
+                timestamp_ms: 1,
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            AgentResult {
+                result_id: "r2".to_string(),
+                session_id: "s2".to_string(),
+                agent_label: "a2".to_string(),
+                agent_role: "worker".to_string(),
+                task_id: "task-1".to_string(),
+                payload: ResultPayload::Calculation { value: 10.1 },
+                data: json!({"value": 10.1}),
+                confidence: 0.9,
+                verification_status: "verified".to_string(),
+                timestamp_ms: 2,
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            AgentResult {
+                result_id: "r3".to_string(),
+                session_id: "s3".to_string(),
+                agent_label: "a3".to_string(),
+                agent_role: "worker".to_string(),
+                task_id: "task-1".to_string(),
+                payload: ResultPayload::Calculation { value: 42.0 },
+                data: json!({"value": 42.0}),
+                confidence: 0.9,
+                verification_status: "verified".to_string(),
+                timestamp_ms: 3,
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+        ];
+        let outliers = analyze_result_outliers(&results, "value");
+        assert_eq!(
+            outliers.get("status").and_then(Value::as_str),
+            Some("outliers_detected")
+        );
+        assert!(outliers.get("median").is_some());
+        assert!(outliers.get("mad").is_some());
+        let first_outlier = outliers
+            .get("outliers")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .cloned()
+            .unwrap_or(Value::Null);
+        assert!(first_outlier.get("robust_z_score").is_some());
     }
 
     #[test]

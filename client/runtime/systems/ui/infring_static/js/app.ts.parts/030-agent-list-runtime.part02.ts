@@ -181,7 +181,8 @@
       this._collapsedHoverPointerMovedAt = now;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > now) return;
       var navLabel = String(label || '').trim();
-      if (navLabel && navLabel.toLowerCase() === 'system') {
+      var navLabelLower = navLabel.toLowerCase();
+      if (navLabel && (navLabelLower === 'system' || navLabelLower === 'settings')) {
         this.hideCollapsedAgentHover();
         return;
       }
@@ -201,13 +202,20 @@
       if (!Number.isFinite(movedAt) || movedAt <= 0) return false;
       if ((Date.now() - movedAt) > 1500) return false;
       if (!hover.top || Number(hover.top) <= 0) return false;
-      if (String(hover.kind || '').toLowerCase() === 'nav') {
-        return String(hover.name || '').trim().length > 0;
+      var hoverKind = String(hover.kind || '').toLowerCase();
+      if (hoverKind === 'nav') {
+        var navName = String(hover.name || '').trim();
+        var navNameLower = navName.toLowerCase();
+        if (!navName || navNameLower === 'system' || navNameLower === 'settings') return false;
+        return true;
       }
       var rawId = String(hover.id || '').trim();
       if (!rawId) return false;
+      var rawIdLower = rawId.toLowerCase();
+      if (rawIdLower === 'system' || rawIdLower === 'settings') return false;
       if (!this._collapsedAgentIdHasSidebarRow(rawId)) return false;
-      if (String(hover.name || '').trim().toLowerCase() === 'agent') return false;
+      var hoverNameLower = String(hover.name || '').trim().toLowerCase();
+      if (hoverNameLower === 'agent' || hoverNameLower === 'system' || hoverNameLower === 'settings') return false;
       var hoverText = this._normalizeCollapsedAgentHoverText(String(hover.text || ''));
       if (!hoverText) return false;
       return true;
@@ -252,7 +260,8 @@
       }
       if (kind === 'nav') {
         var navName = String(hover.name || '').trim();
-        if (navName && navName.toLowerCase() === 'system') {
+        var navNameLower = navName.toLowerCase();
+        if (navName && (navNameLower === 'system' || navNameLower === 'settings')) {
           this.hideCollapsedAgentHover();
           return;
         }
@@ -274,12 +283,18 @@
         this.hideCollapsedAgentHover();
         return;
       }
-      var isSystemThread = rawId.toLowerCase() === 'system';
-      var previewAgent = isSystemThread
-        ? { id: 'system', is_system_thread: true, name: 'System' }
-        : this.chatSidebarRows.find(function(agent) {
-            return String(agent && agent.id || '').trim() === rawId;
-          }) || { id: rawId };
+      var rawIdLower = rawId.toLowerCase();
+      var sidebarAgent = this.chatSidebarRows.find(function(agent) {
+        return String(agent && agent.id || '').trim() === rawId;
+      }) || { id: rawId };
+      var isSystemThread = (typeof this.isSystemSidebarThread === 'function')
+        ? this.isSystemSidebarThread(sidebarAgent)
+        : rawIdLower === 'system';
+      if (isSystemThread || rawIdLower === 'settings') {
+        this.hideCollapsedAgentHover();
+        return;
+      }
+      var previewAgent = sidebarAgent;
       var preview = this.chatSidebarPreview(previewAgent) || {};
       var previewText = this._normalizeCollapsedAgentHoverText(preview.text || '');
       if (!previewText) {
@@ -314,7 +329,14 @@
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var rawId = String((agent && agent.id) || '').trim();
-      var isSystemThread = agent.is_system_thread === true || rawId.toLowerCase() === 'system';
+      var rawIdLower = rawId.toLowerCase();
+      var isSystemThread = (typeof this.isSystemSidebarThread === 'function')
+        ? this.isSystemSidebarThread(agent)
+        : (agent.is_system_thread === true || rawIdLower === 'system');
+      if (isSystemThread || rawIdLower === 'settings') {
+        this.hideCollapsedAgentHover();
+        return;
+      }
       if (!rawId && !isSystemThread) {
         this.hideCollapsedAgentHover();
         return;
@@ -345,7 +367,8 @@
         return;
       }
       var hoverName = String(agent.name || (isSystemThread ? 'System' : hoverId)).trim();
-      if (!hoverName || hoverName.toLowerCase() === 'agent') {
+      var hoverNameLower = hoverName.toLowerCase();
+      if (!hoverName || hoverNameLower === 'agent' || hoverNameLower === 'system' || hoverNameLower === 'settings') {
         this.hideCollapsedAgentHover();
         return;
       }
@@ -372,7 +395,8 @@
       if (this._collapsedHoverNeedsPointerMove) return;
       if (Number(this._collapsedHoverSuppressedUntil || 0) > Date.now()) return;
       var navLabel = String(label || '').trim();
-      if (navLabel && navLabel.toLowerCase() === 'system') {
+      var navLabelLower = navLabel.toLowerCase();
+      if (navLabel && (navLabelLower === 'system' || navLabelLower === 'settings')) {
         this.hideCollapsedAgentHover();
         return;
       }

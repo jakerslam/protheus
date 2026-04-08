@@ -455,8 +455,13 @@
         this._bootSplashHideTimer = 0;
       }
       var self = this;
-      if (minRemain <= 0) {
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
+      var progressNow = typeof this.bootProgressClamped === 'function'
+        ? this.bootProgressClamped(this.bootProgressPercent)
+        : Math.max(0, Math.min(100, Number(this.bootProgressPercent || 0)));
+      var completionAnimationDelayMs = progressNow < 100 ? 500 : 0;
+      var hideDelayMs = Math.max(minRemain, completionAnimationDelayMs);
+      if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
+      if (hideDelayMs <= 0) {
         this.bootSplashVisible = false;
         if (this._bootSplashMaxTimer) {
           clearTimeout(this._bootSplashMaxTimer);
@@ -465,14 +470,13 @@
         return;
       }
       this._bootSplashHideTimer = window.setTimeout(function() {
-        if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
         self.bootSplashVisible = false;
         self._bootSplashHideTimer = 0;
         if (self._bootSplashMaxTimer) {
           clearTimeout(self._bootSplashMaxTimer);
           self._bootSplashMaxTimer = 0;
         }
-      }, minRemain);
+      }, hideDelayMs);
     },
     normalizeNavigablePage(pageId) {
       var raw = String(pageId || '').trim().toLowerCase();

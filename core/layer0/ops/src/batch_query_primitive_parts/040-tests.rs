@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
         let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
         let lowered = summary.to_ascii_lowercase();
-        assert!(lowered.contains("web benchmark synthesis"));
+        assert!(lowered.contains("benchmark findings"));
         assert!(lowered.contains("latency") || lowered.contains("tokens/s"));
         assert!(!lowered.contains("merriam-webster"));
         let evidence = out
@@ -240,7 +240,10 @@ mod tests {
             .and_then(|row| row.get("locator"))
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(locator.contains("artificialanalysis.ai"), "locator={locator}");
+        assert!(
+            locator.contains("artificialanalysis.ai"),
+            "locator={locator}"
+        );
         assert!(!locator.contains("bing.com/search"), "locator={locator}");
     }
 
@@ -746,5 +749,66 @@ mod tests {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
+    }
+
+    #[test]
+    fn internal_route_query_returns_local_diagnostics_hint_without_web_noise() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_batch_query(
+            tmp.path(),
+            &json!({
+                "source":"web",
+                "query":"Map `tool::web_search` into a supported route",
+                "aperture":"small"
+            }),
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("internal command mapping request"));
+        assert!(!lowered.contains("bing.com"));
+        assert!(!lowered.contains("duckduckgo"));
+    }
+
+    #[test]
+    fn anti_bot_challenge_returns_actionable_no_results_summary() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let query = "latest technology news today";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "DuckDuckGo DuckDuckGo Unfortunately, bots use DuckDuckGo too. Please complete the following challenge to confirm this search was made by a human. Select all squares containing a duck.",
+                    "requested_url": "https://duckduckgo.com/html/?q=latest+technology+news+today",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": false,
+                    "error": "bing_rss_search_failed"
+                },
+                format!("duckduckgo_instant::{query}"): {
+                    "ok": false,
+                    "error": "duckduckgo_instant_no_usable_summary"
+                }
+            }),
+            || {
+                api_batch_query(
+                    tmp.path(),
+                    &json!({"source":"web","query":query,"aperture":"small"}),
+                )
+            },
+        );
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        let lowered = summary.to_ascii_lowercase();
+        assert!(lowered.contains("anti-bot challenge"));
+        assert!(!lowered.contains("select all squares containing"));
+        assert!(!lowered.contains("duckduckgo duckduckgo"));
     }
 }

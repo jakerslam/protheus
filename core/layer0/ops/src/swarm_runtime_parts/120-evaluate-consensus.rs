@@ -33,7 +33,12 @@ fn evaluate_consensus(reports: &[AgentReport], fields: &[String], threshold: f64
         });
     };
 
-    let confidence = leader_group.len() as f64 / reports.len() as f64;
+    let extractable_count = groups.values().map(Vec::len).sum::<usize>();
+    let confidence = if extractable_count == 0 {
+        0.0
+    } else {
+        leader_group.len() as f64 / extractable_count as f64
+    };
     let mut outliers = Vec::new();
     for (fingerprint, rows) in &groups {
         if fingerprint == leader_fp {
@@ -52,14 +57,49 @@ fn evaluate_consensus(reports: &[AgentReport], fields: &[String], threshold: f64
         .first()
         .map(|(_, selected)| Value::Object(selected.clone()))
         .unwrap_or(Value::Object(Map::new()));
+    let disagreement_count = extractable_count.saturating_sub(leader_group.len());
+    let outlier_rate = if extractable_count == 0 {
+        0.0
+    } else {
+        disagreement_count as f64 / extractable_count as f64
+    };
+    let confidence_band = if confidence >= 0.9 {
+        "high"
+    } else if confidence >= threshold {
+        "medium"
+    } else {
+        "low"
+    };
+    let reason_code = if confidence >= threshold && disagreement_count == 0 {
+        "majority_unanimous"
+    } else if confidence >= threshold {
+        "majority_with_outliers"
+    } else {
+        "insufficient_majority"
+    };
+    let recommended_action = if confidence >= threshold && disagreement_count == 0 {
+        "accept_majority"
+    } else if confidence >= threshold {
+        "accept_with_outlier_review"
+    } else {
+        "request_additional_agents"
+    };
 
     json!({
         "consensus_reached": confidence >= threshold,
+        "reason_code": reason_code,
         "confidence": confidence,
+        "confidence_band": confidence_band,
         "threshold": threshold,
         "sample_size": reports.len(),
+        "extractable_count": extractable_count,
+        "group_count": groups.len(),
         "agreement_count": leader_group.len(),
+        "disagreement_count": disagreement_count,
+        "outlier_rate": outlier_rate,
+        "dominant_fingerprint": clean_text(leader_fp, 24),
         "agreed_value": agreed_value,
+        "recommended_action": recommended_action,
         "outliers": outliers,
         "fields": fields,
     })

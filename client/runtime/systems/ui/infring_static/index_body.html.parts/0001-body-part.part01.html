@@ -183,8 +183,8 @@
                 @dragover="handleChatSidebarTopologyDragOver(agent, $event)"
                 @drop="handleChatSidebarTopologyDrop(agent, $event)"
                 @dragend="endChatSidebarTopologyDrag()"
-                @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedAgentHover(agent, $event); }"
-                @mousemove="if (sidebarCollapsed) handleCollapsedAgentHoverMove(agent, $event)"
+                @mouseenter="if (sidebarCollapsed) { if (isSystemSidebarThread(agent)) { hideCollapsedAgentHover(); } else { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedAgentHover(agent, $event); } }"
+                @mousemove="if (sidebarCollapsed) { if (isSystemSidebarThread(agent)) hideCollapsedAgentHover(); else handleCollapsedAgentHoverMove(agent, $event); }"
                 @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
               >
                 <span class="nav-icon nav-agent-icon">
@@ -369,7 +369,7 @@
       :class="{ 'nav-only': String(collapsedAgentHover.kind || '').toLowerCase() === 'nav' }"
       x-cloak
       style="display: none;"
-      x-show="page === 'chat' && sidebarCollapsed && isCollapsedAgentHoverVisible(collapsedAgentHover)"
+      x-show="page === 'chat' && sidebarCollapsed && isCollapsedAgentHoverVisible(collapsedAgentHover) && ['system','settings','nav:system','nav:settings'].indexOf(String(collapsedAgentHover.id || '').toLowerCase()) < 0 && ['system','settings'].indexOf(String(collapsedAgentHover.name || '').toLowerCase()) < 0"
       :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
       aria-hidden="true"
     >
@@ -389,6 +389,8 @@
         @click="navigate('settings')"
         :aria-current="page === 'settings' ? 'page' : false"
         @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 250; hideCollapsedAgentHover(); }"
+        @mousemove="if (sidebarCollapsed) hideCollapsedAgentHover()"
+        @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
       >
         <span class="nav-icon"><svg class="settings-cog-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"/></svg></span>
         <span class="nav-label">Settings</span>

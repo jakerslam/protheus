@@ -3,6 +3,47 @@ const CACHE_MAX_ENTRIES: usize = 240;
 const CACHE_TTL_SUCCESS_SECS: i64 = 30 * 60;
 const CACHE_TTL_NO_RESULTS_SECS: i64 = 2 * 60;
 const LINK_FETCH_FALLBACK_LIMIT: usize = 2;
+const INTERNAL_ROUTE_HINT: &str =
+    "This looks like an internal command mapping request, not a web search query. Use local route diagnostics instead of web retrieval.";
+
+fn contains_antibot_marker(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    [
+        "unfortunately, bots use duckduckgo too",
+        "please complete the following challenge",
+        "select all squares containing",
+        "error-lite@duckduckgo.com",
+        "anomaly-modal",
+        "captcha",
+        "verify you are human",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_internal_route_query(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    lowered.contains("tool::")
+        || lowered.contains("map `tool::")
+        || lowered.contains("supported route")
+        || lowered.contains("command-to-route")
+}
+
+fn looks_like_domain_list_noise(text: &str) -> bool {
+    let cleaned = clean_text(text, 1_600);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let domains = extract_domains_from_text(&cleaned, 16);
+    if domains.len() < 3 {
+        return false;
+    }
+    let words = cleaned.split_whitespace().count();
+    words <= (domains.len() * 3 + 10)
+}
 
 fn cache_path(root: &Path) -> PathBuf {
     root.join(CACHE_REL)
@@ -187,7 +228,34 @@ fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
         .count()
 }
 
-fn candidate_is_synthesis_eligible(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
+fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
+    let snippet = clean_text(&candidate.snippet, 1_800);
+    if snippet.is_empty() {
+        return false;
+    }
+    if contains_antibot_marker(&snippet) || contains_antibot_marker(&candidate.title) {
+        return false;
+    }
+    if looks_like_domain_list_noise(&snippet) {
+        return false;
+    }
+    let word_count = snippet.split_whitespace().count();
+    let overlap = query_overlap_terms(query, candidate);
+    if benchmark_intent {
+        if word_count < 8 && overlap < 2 {
+            return false;
+        }
+    } else if word_count < 6 && overlap < 1 {
+        return false;
+    }
+    true
+}
+
+fn candidate_is_synthesis_eligible(
+    query: &str,
+    candidate: &Candidate,
+    benchmark_intent: bool,
+) -> bool {
     if !candidate_passes_relevance_gate(query, candidate, benchmark_intent) {
         return false;
     }
@@ -197,16 +265,22 @@ fn candidate_is_synthesis_eligible(query: &str, candidate: &Candidate, benchmark
     {
         return false;
     }
+    if !candidate_is_substantive(query, candidate, benchmark_intent) {
+        return false;
+    }
     let domain = candidate_domain_hint(candidate);
     if is_search_engine_domain(&domain) {
         return false;
     }
     if benchmark_intent {
-        if looks_like_definition_candidate(candidate) || looks_like_comparison_noise_candidate(candidate)
+        if looks_like_definition_candidate(candidate)
+            || looks_like_comparison_noise_candidate(candidate)
         {
             return false;
         }
-        if !looks_like_metric_rich_text(&candidate.snippet) && query_overlap_terms(query, candidate) < 2 {
+        if !looks_like_metric_rich_text(&candidate.snippet)
+            && query_overlap_terms(query, candidate) < 2
+        {
             return false;
         }
     }
@@ -246,7 +320,17 @@ fn collect_candidates_from_stage_payload(
         Err(err) => issues.push(format!("{stage}:{err}")),
     }
 
-    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        2_400,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        2_400,
+    );
+    if contains_antibot_marker(&summary) || contains_antibot_marker(&content) {
+        issues.push(format!("{stage}:anti_bot_challenge"));
+    }
     let should_fetch_links =
         candidates.is_empty() || looks_like_low_signal_search_summary(&summary);
     if should_fetch_links {
@@ -337,23 +421,24 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
     }
 
     if candidates.is_empty() {
-        let bing_payload = fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
-            if fixture_mode_enabled() {
-                json!({
-                    "ok": false,
-                    "error": "fixture_missing"
-                })
-            } else {
-                crate::web_conduit::api_search(
-                    root,
-                    &json!({
-                        "query": query,
-                        "provider": "bing",
-                        "summary_only": false
-                    }),
-                )
-            }
-        });
+        let bing_payload =
+            fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
+                if fixture_mode_enabled() {
+                    json!({
+                        "ok": false,
+                        "error": "fixture_missing"
+                    })
+                } else {
+                    crate::web_conduit::api_search(
+                        root,
+                        &json!({
+                            "query": query,
+                            "provider": "bing",
+                            "summary_only": false
+                        }),
+                    )
+                }
+            });
         let (bing_candidates, bing_issues) = collect_candidates_from_stage_payload(
             root,
             "bing_rss",
@@ -483,6 +568,9 @@ fn minimum_synthesis_score(benchmark_intent: bool) -> f64 {
 
 fn is_benign_partial_failure(detail: &str) -> bool {
     let lowered = clean_text(detail, 320).to_ascii_lowercase();
+    if lowered.contains("anti_bot_challenge") {
+        return false;
+    }
     lowered.contains("candidate_low_relevance")
         || lowered.contains("fetch_candidate_low_relevance")
         || lowered.contains("no_usable_summary")
@@ -514,6 +602,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     );
     if query.is_empty() {
         return json!({"ok": false, "status": "blocked", "summary": "Query is required.", "evidence_refs": [], "receipt_id": "", "error": "query_required"});
+    }
+    if source == "web" && looks_like_internal_route_query(&query) {
+        return json!({
+            "ok": true,
+            "status": "no_results",
+            "summary": INTERNAL_ROUTE_HINT,
+            "evidence_refs": [],
+            "receipt_id": "",
+            "error": "internal_route_query_requires_local_diagnostics"
+        });
     }
     if !enabled_sources(&policy).iter().any(|row| row == &source) {
         return json!({"ok": false, "status": "blocked", "summary": format!("Source `{source}` is not allowed by policy."), "evidence_refs": [], "receipt_id": "", "error": "source_blocked"});
@@ -657,7 +755,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     match out {
                         Ok(mut rows) => {
                             if rows.is_empty() {
-                                partial_failures.push(format!("{}:no_usable_summary", clean_text(&q, 120)));
+                                partial_failures
+                                    .push(format!("{}:no_usable_summary", clean_text(&q, 120)));
                             } else {
                                 candidates.append(&mut rows);
                             }
@@ -737,6 +836,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !looks_like_source_only_snippet(&snippet)
                 && !is_search_engine_domain(&domain)
                 && candidate_passes_relevance_gate(&rerank_query, row, benchmark_intent)
+                && candidate_is_substantive(&rerank_query, row, benchmark_intent)
                 && !(benchmark_intent && looks_like_definition_candidate(row))
                 && !(benchmark_intent && looks_like_comparison_noise_candidate(row))
         })
@@ -781,6 +881,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .filter(|row| !is_benign_partial_failure(row))
         .cloned()
         .collect::<Vec<_>>();
+    let anti_bot_detected = hard_partial_failures.iter().any(|row| {
+        clean_text(row, 320)
+            .to_ascii_lowercase()
+            .contains("anti_bot_challenge")
+    });
     let status = if evidence_refs.is_empty() {
         "no_results"
     } else if hard_partial_failures.is_empty() {
@@ -789,10 +894,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "partial"
     };
     let summary = if evidence_refs.is_empty() {
-        comparison_guard_summary
-            .unwrap_or_else(|| "Search returned no useful information.".to_string())
+        if anti_bot_detected {
+            "Search providers returned anti-bot challenge pages before usable content was extracted. Retry with specific source URLs or alternate providers."
+                .to_string()
+        } else {
+            comparison_guard_summary
+                .unwrap_or_else(|| "Search returned no useful information.".to_string())
+        }
     } else {
         let mut synthesized_insights = Vec::<String>::new();
+        let mut seen_domains = HashSet::<String>::new();
         for (candidate, _) in &actionable_ranked {
             let snippet_raw = if benchmark_intent {
                 extract_metric_focused_fragment(&candidate.snippet)
@@ -804,6 +915,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 continue;
             }
             let domain = candidate_domain_hint(candidate);
+            let domain_key = clean_text(&domain, 160).to_ascii_lowercase();
+            if domain_key != "source" && !domain_key.is_empty() && !seen_domains.insert(domain_key)
+            {
+                continue;
+            }
             let insight = if domain == "source" {
                 snippet.clone()
             } else {
@@ -824,12 +940,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "Search returned no useful information.".to_string()
         } else {
             let prefix = if benchmark_intent {
-                "Web benchmark synthesis:"
+                "Benchmark findings:"
             } else {
-                "From web retrieval:"
+                "Key findings:"
             };
             trim_words(
-                &format!("{prefix} {}", synthesized_insights.join(" ")),
+                &format!("{prefix} {}", synthesized_insights.join("; ")),
                 budget.max_summary_tokens,
             )
         }

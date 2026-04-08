@@ -151,4 +151,18 @@ mod tests {
             joined.contains("supported rust route") || joined.contains("supported tool hit rate")
         );
     }
+
+    #[test]
+    fn normalize_follow_up_suggestion_strips_question_style_prefixes() {
+        let normalized =
+            normalize_follow_up_suggestion("Should I map tool::web_search into a supported route?");
+        assert_eq!(normalized, "Map tool::web_search into a supported route");
+    }
+
+    #[test]
+    fn normalize_follow_up_suggestion_enforces_imperative_without_question_mark() {
+        let normalized = normalize_follow_up_suggestion("Prompt suggestions for adoption?");
+        assert!(normalized.starts_with("Run "));
+        assert!(!normalized.ends_with('?'));
+    }
 }

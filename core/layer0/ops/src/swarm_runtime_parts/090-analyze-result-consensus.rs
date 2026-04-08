@@ -35,9 +35,9 @@ fn analyze_result_consensus(results: &[AgentResult], field: &str, threshold: f64
         .iter()
         .max_by_key(|(_, rows)| rows.len())
         .expect("leader group");
-    let confidence =
-        leader_group.len() as f64 / groups.values().map(Vec::len).sum::<usize>() as f64;
-    let status = if leader_group.len() == groups.values().map(Vec::len).sum::<usize>() {
+    let extractable_count = groups.values().map(Vec::len).sum::<usize>();
+    let confidence = leader_group.len() as f64 / extractable_count as f64;
+    let status = if leader_group.len() == extractable_count {
         "full_agreement"
     } else if confidence >= threshold {
         "partial_agreement"
@@ -59,16 +59,51 @@ fn analyze_result_consensus(results: &[AgentResult], field: &str, threshold: f64
             }));
         }
     }
+    let disagreement_count = extractable_count.saturating_sub(leader_group.len());
+    let outlier_rate = if extractable_count == 0 {
+        0.0
+    } else {
+        disagreement_count as f64 / extractable_count as f64
+    };
+    let confidence_band = if confidence >= 0.9 {
+        "high"
+    } else if confidence >= threshold {
+        "medium"
+    } else {
+        "low"
+    };
+    let reason_code = if status == "full_agreement" {
+        "majority_unanimous"
+    } else if status == "partial_agreement" {
+        "majority_with_outliers"
+    } else {
+        "insufficient_majority"
+    };
+    let recommended_action = if status == "full_agreement" {
+        "accept_majority"
+    } else if status == "partial_agreement" {
+        "accept_with_outlier_review"
+    } else {
+        "request_additional_agents"
+    };
 
     json!({
         "consensus_reached": confidence >= threshold,
         "status": status,
+        "reason_code": reason_code,
         "confidence": confidence,
+        "confidence_band": confidence_band,
         "threshold": threshold,
         "field": field,
         "sample_size": results.len(),
+        "extractable_count": extractable_count,
+        "group_count": groups.len(),
         "agreement_count": leader_group.len(),
+        "disagreement_count": disagreement_count,
+        "outlier_rate": outlier_rate,
+        "dominant_fingerprint": clean_text(leader_key, 24),
         "agreed_value": leader_group.first().map(|(_, _, value)| value.clone()).unwrap_or(Value::Null),
+        "recommended_action": recommended_action,
         "outliers": outliers,
     })
 }
@@ -97,13 +132,37 @@ fn analyze_result_outliers(results: &[AgentResult], field: &str) -> Value {
         .sum::<f64>()
         / points.len() as f64;
     let std_dev = variance.sqrt();
+    let mut sorted = points
+        .iter()
+        .map(|(_, _, value)| *value)
+        .collect::<Vec<_>>();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let median = if sorted.len() % 2 == 0 {
+        (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
+    } else {
+        sorted[sorted.len() / 2]
+    };
+    let mut abs_dev = sorted
+        .iter()
+        .map(|value| (value - median).abs())
+        .collect::<Vec<_>>();
+    abs_dev.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mad = if abs_dev.is_empty() {
+        0.0
+    } else if abs_dev.len() % 2 == 0 {
+        (abs_dev[abs_dev.len() / 2 - 1] + abs_dev[abs_dev.len() / 2]) / 2.0
+    } else {
+        abs_dev[abs_dev.len() / 2]
+    };
     if std_dev == 0.0 {
         return json!({
             "status": "stable",
             "field": field,
             "sample_size": points.len(),
             "mean": mean,
+            "median": median,
             "std_dev": std_dev,
+            "mad": mad,
             "outliers": [],
         });
     }
@@ -111,12 +170,18 @@ fn analyze_result_outliers(results: &[AgentResult], field: &str) -> Value {
         .into_iter()
         .filter_map(|(result_id, agent_label, value)| {
             let z_score = (value - mean).abs() / std_dev;
-            if z_score > 2.0 {
+            let robust_z_score = if mad > 0.0 {
+                0.6745 * (value - median).abs() / mad
+            } else {
+                0.0
+            };
+            if z_score > 2.0 || robust_z_score > 3.5 {
                 Some(json!({
                     "result_id": result_id,
                     "agent_label": agent_label,
                     "value": value,
                     "z_score": z_score,
+                    "robust_z_score": robust_z_score,
                 }))
             } else {
                 None
@@ -128,7 +193,9 @@ fn analyze_result_outliers(results: &[AgentResult], field: &str) -> Value {
         "field": field,
         "sample_size": results.len(),
         "mean": mean,
+        "median": median,
         "std_dev": std_dev,
+        "mad": mad,
         "outlier_count": outliers.len(),
         "outliers": outliers,
     })

@@ -5,11 +5,11 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use protheus_nexus_core_v1::registry::ModuleLifecycleState;
 use protheus_nexus_core_v1::{
     DefaultNexusPolicy, DeliveryAuthorizationInput, LeaseIssueRequest, MainNexusControlPlane,
     ModuleKind, NexusFeatureFlags, SubNexusRegistration, TrustClass, VerityClass,
 };
-use protheus_nexus_core_v1::registry::ModuleLifecycleState;
 
 const TERMINAL_PERMISSION_POLICY_REL: &str =
     "client/runtime/config/terminal_command_permission_policy.json";
@@ -72,7 +72,10 @@ fn ingress_nexus_enabled() -> bool {
 }
 
 fn ingress_force_block_pair_enabled() -> bool {
-    bool_env("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", false)
+    bool_env(
+        "PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE",
+        false,
+    )
 }
 
 fn parse_module_lifecycle(raw: &str) -> Option<ModuleLifecycleState> {
@@ -175,7 +178,8 @@ fn ensure_sub_nexus_registered(
             VerityClass::Standard,
         ),
     };
-    let registration = SubNexusRegistration::new(sub_nexus_id, module_kind, trust_class, verity_class);
+    let registration =
+        SubNexusRegistration::new(sub_nexus_id, module_kind, trust_class, verity_class);
     let _ = nexus.register_sub_nexus(NEXUS_INGRESS_ISSUER, registration)?;
     Ok(())
 }
@@ -255,7 +259,9 @@ fn authorize_client_ingress_route_with_nexus_inner(
     }))
 }
 
-pub(crate) fn authorize_ingress_tool_call_with_nexus(tool_name: &str) -> Result<Option<Value>, String> {
+pub(crate) fn authorize_ingress_tool_call_with_nexus(
+    tool_name: &str,
+) -> Result<Option<Value>, String> {
     if !ingress_nexus_enabled() {
         return Ok(None);
     }
@@ -304,7 +310,10 @@ fn load_permission_rules(root: &Path) -> (Vec<String>, Vec<String>) {
 }
 
 fn input_confirmed(input: &Value) -> bool {
-    input.get("confirm").and_then(Value::as_bool).unwrap_or(false)
+    input
+        .get("confirm")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
         || !clean_text(
             input
                 .get("approval_note")
@@ -327,8 +336,11 @@ fn tool_command_signature(tool_name: &str, input: &Value) -> String {
             3000,
         ),
         "manage_agent" | "agent_action" => {
-            let action = clean_text(input.get("action").and_then(Value::as_str).unwrap_or(""), 80)
-                .to_ascii_lowercase();
+            let action = clean_text(
+                input.get("action").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
             let agent = clean_text(
                 input
                     .get("agent_id")
@@ -340,7 +352,11 @@ fn tool_command_signature(tool_name: &str, input: &Value) -> String {
             clean_text(format!("manage_agent {action} {agent}").trim(), 400)
         }
         "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
-            let count = input.get("count").and_then(Value::as_i64).unwrap_or(0).max(0);
+            let count = input
+                .get("count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0);
             clean_text(
                 format!(
                     "spawn_subagents count={} objective={}",
@@ -373,11 +389,12 @@ pub(crate) fn pre_tool_permission_gate(
         return None;
     }
     let (deny_rules, ask_rules) = load_permission_rules(root);
-    let (verdict, matched) = crate::command_permission_kernel::evaluate_command_permission_for_kernel(
-        &command,
-        &deny_rules,
-        &ask_rules,
-    );
+    let (verdict, matched) =
+        crate::command_permission_kernel::evaluate_command_permission_for_kernel(
+            &command,
+            &deny_rules,
+            &ask_rules,
+        );
     let verdict_str = verdict.as_str().to_string();
     if verdict_str == "allow" {
         return None;
@@ -418,21 +435,40 @@ fn rewrite_text_for_post_filter(value: &str) -> Option<(String, String)> {
     if cleaned.is_empty() {
         return None;
     }
-    if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
-        return Some((
-            TOOL_NO_FINDINGS_COPY.to_string(),
-            "ack_placeholder_suppressed".to_string(),
-        ));
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_raw_payload_dump(&cleaned)
+    {
+        return Some((rewritten, rule_id));
+    }
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned)
+    {
+        return Some((rewritten, rule_id));
+    }
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_repetitive_thinking_chatter(&cleaned)
+    {
+        return Some((rewritten, rule_id));
     }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
         return Some((rewritten, format!("failure_placeholder_rewrite:{rule_id}")));
     }
+    if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
+        return Some((
+            TOOL_NO_FINDINGS_COPY.to_string(),
+            "ack_placeholder_suppressed".to_string(),
+        ));
+    }
     None
 }
 
-fn rewrite_object_key(obj: &mut serde_json::Map<String, Value>, key: &str, events: &mut Vec<String>) {
+fn rewrite_object_key(
+    obj: &mut serde_json::Map<String, Value>,
+    key: &str,
+    events: &mut Vec<String>,
+) {
     let original = obj
         .get(key)
         .and_then(Value::as_str)
@@ -450,17 +486,33 @@ fn rewrite_object_key(obj: &mut serde_json::Map<String, Value>, key: &str, event
 pub(crate) fn apply_post_tool_output_filter(payload: &mut Value) -> Value {
     let mut events = Vec::<String>::new();
     if let Some(obj) = payload.as_object_mut() {
-        for key in ["summary", "content", "result", "message", "error"] {
+        for key in [
+            "summary", "content", "result", "message", "error", "response", "details", "hint",
+            "text",
+        ] {
             rewrite_object_key(obj, key, &mut events);
         }
         if let Some(result_obj) = obj.get_mut("result").and_then(Value::as_object_mut) {
-            for key in ["summary", "content", "result", "message", "error"] {
+            for key in [
+                "summary", "content", "result", "message", "error", "response", "details", "hint",
+                "text",
+            ] {
                 rewrite_object_key(result_obj, key, &mut events);
             }
         }
         if let Some(receipt_obj) = obj.get_mut("receipt").and_then(Value::as_object_mut) {
-            for key in ["summary", "content", "message", "error"] {
+            for key in [
+                "summary", "content", "message", "error", "response", "details", "hint", "text",
+            ] {
                 rewrite_object_key(receipt_obj, key, &mut events);
+            }
+        }
+        if let Some(finalization_obj) = obj
+            .get_mut("response_finalization")
+            .and_then(Value::as_object_mut)
+        {
+            for key in ["response", "message", "error", "details", "text"] {
+                rewrite_object_key(finalization_obj, key, &mut events);
             }
         }
     }
@@ -484,7 +536,10 @@ pub(crate) fn annotate_tool_payload_tracking(
     let tracking = record_tool_turn_tracking(root, session_id, tool_name, payload);
     if let Some(obj) = payload.as_object_mut() {
         obj.insert("turn_loop_post_filter".to_string(), post_filter_report);
-        obj.insert("turn_loop_tracking".to_string(), tracking.unwrap_or(Value::Null));
+        obj.insert(
+            "turn_loop_tracking".to_string(),
+            tracking.unwrap_or(Value::Null),
+        );
     }
 }
 
@@ -570,6 +625,35 @@ mod tests {
     }
 
     #[test]
+    fn post_filter_rewrites_raw_payload_dump_summary() {
+        let mut payload = json!({
+            "ok": true,
+            "summary": "{\"agent_id\":\"agent-83ed64e07515\",\"input_tokens\":33,\"output_tokens\":85,\"latent_tool_candidates\":[],\"nexus_connection\":{},\"turn_loop_tracking\":{},\"turn_transaction\":{},\"response_finalization\":{},\"tools\":[]}"
+        });
+        let report = apply_post_tool_output_filter(&mut payload);
+        assert_eq!(report.get("applied").and_then(Value::as_bool), Some(true));
+        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
+        assert!(summary
+            .to_ascii_lowercase()
+            .contains("suppressed raw runtime payload"));
+    }
+
+    #[test]
+    fn post_filter_rewrites_unsynthesized_web_dump_to_actionable_copy() {
+        let mut payload = json!({
+            "ok": true,
+            "summary": "Web benchmark synthesis: bing.com: compare [A with B] vs compare A [with B]."
+        });
+        let report = apply_post_tool_output_filter(&mut payload);
+        assert_eq!(report.get("applied").and_then(Value::as_bool), Some(true));
+        let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
+        assert!(summary
+            .to_ascii_lowercase()
+            .contains("source-backed answer"));
+        assert!(!summary.to_ascii_lowercase().contains("bing.com"));
+    }
+
+    #[test]
     fn pre_gate_respects_confirm_for_ask_verdicts() {
         let root = tempfile::tempdir().expect("tempdir");
         let policy_path = root.path().join(TERMINAL_PERMISSION_POLICY_REL);
@@ -636,13 +720,9 @@ mod tests {
     #[test]
     fn ingress_nexus_authorization_succeeds_for_web_search_tool_route() {
         let route = ingress_route_for_tool("web_search");
-        let out = authorize_client_ingress_route_with_nexus_inner(
-            "tool:web_search",
-            route,
-            false,
-            None,
-        )
-        .expect("nexus route");
+        let out =
+            authorize_client_ingress_route_with_nexus_inner("tool:web_search", route, false, None)
+                .expect("nexus route");
         assert_eq!(
             out.get("source").and_then(Value::as_str),
             Some(CLIENT_INGRESS_SUB_NEXUS)
@@ -660,13 +740,9 @@ mod tests {
     #[test]
     fn ingress_nexus_authorization_fails_closed_when_pair_blocked() {
         let route = ingress_route_for_tool("web_search");
-        let err = authorize_client_ingress_route_with_nexus_inner(
-            "tool:web_search",
-            route,
-            true,
-            None,
-        )
-        .expect_err("blocked");
+        let err =
+            authorize_client_ingress_route_with_nexus_inner("tool:web_search", route, true, None)
+                .expect_err("blocked");
         assert!(err.contains("lease_denied"));
     }
 

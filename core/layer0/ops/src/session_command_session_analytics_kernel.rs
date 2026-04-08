@@ -44,6 +44,99 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .to_string()
 }
 
+fn strip_trailing_question_marks(raw: &str) -> String {
+    clean_text(raw, 220)
+        .trim_end_matches(|ch: char| matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞'))
+        .trim()
+        .to_string()
+}
+
+fn normalize_follow_up_suggestion(raw: &str) -> String {
+    let mut normalized = strip_trailing_question_marks(raw);
+    if normalized.is_empty() {
+        return String::new();
+    }
+    let lowered = normalized.to_ascii_lowercase();
+    let prefixes = [
+        "should i",
+        "should we",
+        "want me to",
+        "do you want me to",
+        "would you like me to",
+        "do you want us to",
+        "would you like us to",
+        "can i",
+        "could i",
+        "can we",
+        "could we",
+        "i can",
+        "i could",
+        "i will",
+        "i'll",
+        "we can",
+        "we could",
+        "we will",
+        "we'll",
+        "let me",
+        "let us",
+    ];
+    for prefix in prefixes {
+        if lowered == prefix || lowered.starts_with(&format!("{prefix} ")) {
+            normalized = normalized.chars().skip(prefix.len()).collect::<String>();
+            normalized = normalized
+                .trim_start_matches(|ch: char| {
+                    ch.is_whitespace() || matches!(ch, ':' | ';' | ',' | '-' | '.')
+                })
+                .to_string();
+            break;
+        }
+    }
+    normalized = strip_trailing_question_marks(&normalized);
+    if normalized.is_empty() {
+        return String::new();
+    }
+    let first = normalized
+        .split_whitespace()
+        .next()
+        .map(|row| row.to_ascii_lowercase())
+        .unwrap_or_default();
+    let starts_with_action = matches!(
+        first.as_str(),
+        "add"
+            | "build"
+            | "check"
+            | "compare"
+            | "convert"
+            | "create"
+            | "debug"
+            | "execute"
+            | "fix"
+            | "generate"
+            | "implement"
+            | "inspect"
+            | "map"
+            | "optimize"
+            | "repair"
+            | "replace"
+            | "run"
+            | "summarize"
+            | "test"
+            | "validate"
+            | "verify"
+    );
+    if !starts_with_action {
+        normalized = format!("Run {normalized}");
+    }
+    let normalized = strip_trailing_question_marks(&clean_text(&normalized, 220));
+    let mut chars = normalized.chars();
+    let first = match chars.next() {
+        Some(ch) => ch.to_ascii_uppercase(),
+        None => return String::new(),
+    };
+    let rest = chars.collect::<String>();
+    format!("{first}{rest}")
+}
+
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -482,7 +575,7 @@ fn recommendation_suggestions_from_report(
 
     let mut dedup = Vec::<String>::new();
     for row in out {
-        let cleaned = clean_text(&row, 180);
+        let cleaned = normalize_follow_up_suggestion(&row);
         if cleaned.is_empty() {
             continue;
         }

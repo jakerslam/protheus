@@ -279,6 +279,8 @@
 .bottom-dock {
   --bottom-dock-bg-alpha: 0.28;
   --bottom-dock-glass-alpha: 0.24;
+  --bottom-dock-expanded-bg-alpha: 0.5;
+  --bottom-dock-expanded-glass-alpha: 0;
   position: fixed;
   left: 0;
   right: 0;
@@ -341,7 +343,8 @@ body[data-theme='dark'] .bottom-dock::before {
 
 .bottom-dock:hover,
 .bottom-dock:active {
-  --bottom-dock-bg-alpha: 0.8;
+  --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
+  --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
   opacity: 1;
   transform: scale(1.54);
   box-shadow:
@@ -369,11 +372,15 @@ body[data-theme='dark'] .bottom-dock::before {
 }
 
 .bottom-dock.is-settling {
+  --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
+  --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
   opacity: 1;
   transform: scale(var(--bottom-dock-drag-scale, 0.95)) !important;
 }
 
 .bottom-dock.is-dragging {
+  --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
+  --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
   opacity: 1;
   transform: scale(var(--bottom-dock-drag-scale, 0.95)) !important;
 }
