@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "proposal_only": true,
+  "budget": {
+    "max_depth": 6,
+    "max_steps": 36,
+    "max_external_calls": 8
+  },
+  "synthesis": {
+    "min_confidence_for_proposal": 0.55,
+    "max_proposals": 4
+  },
+  "uncertainty_scaling": {
+    "enabled": true,
+    "min_depth": 2,
+    "uncertainty_weight": 0.6,
+    "value_weight": 0.4
+  },
+  "adapters": {
+    "allowed_sources": ["internal_memory", "research_probe", "simulation"],
+    "blocked_sources": []
+  },
+  "analytics_bridge": {
+    "enabled": true,
+    "latest_path": "local/state/sensory/analysis/offline_lab_bridge/latest.json",
+    "max_artifact_age_hours": 72,
+    "allowed_job_types": ["research_organ_calibration", "calibration_report"],
+    "allowed_producers": ["offline_r_analytics_runner", "offline_r_lab"],
+    "fit_criteria": {
+      "min_sample_size": 90,
+      "min_brier_improvement": 0.015,
+      "min_causal_precision_lift": 0.005,
+      "max_confidence_uplift": 0.12
+    }
+  }
+}

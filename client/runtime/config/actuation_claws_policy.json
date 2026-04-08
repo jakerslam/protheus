@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "default_lane": "api",
+  "adapter_lane_map": {
+    "moltbook_publish": "api",
+    "eyes_create": "api",
+    "http_request": "api",
+    "browser_task": "browser",
+    "computer_task": "computer_use",
+    "payment_task": "payment",
+    "filesystem_task": "api",
+    "shell_task": "api",
+    "slack_message": "api",
+    "email_message": "api",
+    "calendar_event": "api",
+    "git_task": "api",
+    "crm_record": "api",
+    "helpdesk_ticket": "api"
+  },
+  "lanes": {
+    "api": {
+      "mode": "active",
+      "require_human_approval": false
+    },
+    "browser": {
+      "mode": "active",
+      "require_human_approval": true
+    },
+    "computer_use": {
+      "mode": "shadow_only",
+      "require_human_approval": true
+    },
+    "payment": {
+      "mode": "active",
+      "require_human_approval": true
+    }
+  }
+}

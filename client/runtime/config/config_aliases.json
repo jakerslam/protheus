@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "aliases": [
+    {
+      "alias": "client/runtime/config/signal_slo_deadlock_breaker_policy.json",
+      "canonical": "client/runtime/config/signal_slo_deadlock_policy.json",
+      "mode": "copy"
+    },
+    {
+      "alias": "client/runtime/config/model_health_recovery_policy.json",
+      "canonical": "client/runtime/config/model_health_auto_recovery_policy.json",
+      "mode": "copy"
+    }
+  ]
+}

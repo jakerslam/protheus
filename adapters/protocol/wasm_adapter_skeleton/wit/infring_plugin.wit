@@ -1,0 +1,11 @@
+package infring:plugin@0.1.0;
+
+interface runtime {
+  invoke: func(input-json: string) -> result<string, string>;
+  health: func() -> string;
+  capabilities: func() -> string;
+}
+
+world adapter {
+  export runtime;
+}

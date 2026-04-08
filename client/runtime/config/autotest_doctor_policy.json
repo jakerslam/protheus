@@ -1,0 +1,144 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_mode": true,
+  "sleep_window_local": {
+    "enabled": true,
+    "start_hour": 0,
+    "end_hour": 7
+  },
+  "gating": {
+    "min_consecutive_failures": 2,
+    "max_actions_per_run": 2,
+    "cooldown_sec_per_signature": 1800,
+    "max_repairs_per_signature_per_day": 3
+  },
+  "kill_switch": {
+    "enabled": true,
+    "window_hours": 24,
+    "max_unknown_signatures_per_window": 4,
+    "max_suspicious_signatures_per_window": 2,
+    "max_repairs_per_window": 12,
+    "max_rollbacks_per_window": 3,
+    "max_same_signature_repairs_per_window": 4,
+    "auto_reset_hours": 12
+  },
+  "execution": {
+    "step_timeout_ms": 120000,
+    "autotest_max_tests": 6
+  },
+  "recipes": [
+    {
+      "id": "retest_then_pulse",
+      "enabled": true,
+      "applies_to": [
+        "assertion_failed",
+        "timeout",
+        "exit_nonzero",
+        "flaky"
+      ],
+      "steps": [
+        "retest_failed_test",
+        "autotest_run_changed"
+      ]
+    },
+    {
+      "id": "guard_recover",
+      "enabled": true,
+      "applies_to": [
+        "guard_blocked"
+      ],
+      "steps": [
+        "autotest_sync",
+        "autotest_run_changed"
+      ]
+    }
+  ],
+  "rollback": {
+    "enabled": true,
+    "mode": "autotest_sync",
+    "snapshot_files": [
+      "local/state/ops/autotest/latest.json",
+      "local/state/ops/autotest/status.json",
+      "local/state/ops/autotest/registry.json"
+    ],
+    "store_broken_pieces": true,
+    "max_excerpt_files": 10,
+    "max_excerpt_chars": 3000
+  },
+  "safety_override": {
+    "enabled": true,
+    "require_human_approval_for_destructive_reimplementation": true,
+    "destructive_tokens": [
+      "harm_human",
+      "disable_guard",
+      "disable_integrity",
+      "self_terminate",
+      "data_loss",
+      "destructive"
+    ],
+    "min_approval_note_chars": 12
+  },
+  "first_principles": {
+    "enabled": true,
+    "auto_extract_on_rollback": true,
+    "auto_extract_on_success": true,
+    "max_statement_chars": 320,
+    "emit_trit_shadow_signal": true
+  },
+  "research_quarantine": {
+    "enabled": true,
+    "maturity_state_path": "local/state/autonomy/inversion/maturity.json",
+    "default_maturity_band": "developing",
+    "min_days": 1,
+    "max_days": 120,
+    "severity_days": {
+      "low": 2,
+      "medium": 7,
+      "high": 14,
+      "critical": 30
+    },
+    "maturity_multiplier": {
+      "novice": 1.5,
+      "developing": 1.25,
+      "mature": 1.0,
+      "seasoned": 0.85,
+      "legendary": 0.65
+    }
+  },
+  "recipe_release": {
+    "enabled": true,
+    "fail_closed": true,
+    "require_signature": true,
+    "max_manifest_age_hours": 336,
+    "key_env": "AUTOTEST_DOCTOR_RECIPE_KEY",
+    "manifest_path": "local/state/ops/autotest_doctor/recipe_release_manifest.json",
+    "state_path": "local/state/ops/autotest_doctor/recipe_release_state.json",
+    "allowed_channels": [
+      "stable",
+      "canary"
+    ]
+  },
+  "recipe_rollout": {
+    "enabled": true,
+    "default_stage": "shadow",
+    "canary_fraction": 0.35,
+    "max_canary_actions_per_run": 1,
+    "min_successes_for_live": 3,
+    "max_rollbacks_before_demote": 1,
+    "require_recent_verification": true,
+    "verification_max_age_hours": 168,
+    "state_path": "local/state/ops/autotest_doctor/recipe_rollout_state.json",
+    "verifier_state_path": "local/state/ops/autotest_doctor/recipe_verifier_state.json"
+  },
+  "watchdog": {
+    "enabled": true,
+    "fail_closed": true,
+    "force_shadow_on_block": true,
+    "block_file_path": "local/state/ops/autotest_doctor/watchdog_block.json"
+  },
+  "telemetry": {
+    "emit_system_health": true,
+    "max_history_events": 5000
+  }
+}

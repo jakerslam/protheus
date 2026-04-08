@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "allow_apply": false,
+  "scoring": {
+    "default_weight": 1,
+    "default_confidence": 0.8,
+    "default_impact": 0.7,
+    "min_influence_score": 0,
+    "max_influence_score": 1
+  },
+  "sovereign_root_tithe": {
+    "enabled": true,
+    "tithe_bps": 1000,
+    "beneficiary_creator_id": "sovereign_root",
+    "beneficiary_wallet_alias": "sovereign_root_wallet",
+    "enforce_root_first": true
+  },
+  "passport": {
+    "enabled": true,
+    "source": "value_attribution_primitive"
+  },
+  "helix": {
+    "enabled": true,
+    "events_path": "local/state/helix/events.jsonl"
+  },
+  "state": {
+    "root": "local/state/assimilation/value_attribution",
+    "records_path": "local/state/assimilation/value_attribution/records.jsonl",
+    "latest_path": "local/state/assimilation/value_attribution/latest.json",
+    "history_path": "local/state/assimilation/value_attribution/history.jsonl",
+    "receipts_path": "local/state/assimilation/value_attribution/receipts.jsonl"
+  },
+  "read_api": {
+    "default_limit": 100,
+    "max_limit": 500
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": "rust_core_file_size_policy_v1",
+  "scope": "core/**/*.rs",
+  "max_lines": 500,
+  "tests_exempt": true,
+  "generated_at": "2026-03-27T02:12:17.952Z",
+  "exception_defaults": {
+    "owner": "jay",
+    "expires": "2026-05-01",
+    "reason": "Legacy monolith pending staged decomposition to <=500 LoC modules; exception tracked for continuity while split batches land."
+  },
+  "exceptions": []
+}

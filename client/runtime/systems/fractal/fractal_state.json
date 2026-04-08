@@ -1,0 +1,20 @@
+{
+  "schema_id": "fractal_engine_state",
+  "schema_version": "1.0",
+  "updated_at": "1970-01-01T00:00:00.000Z",
+  "cycles": 0,
+  "successful_applies": 0,
+  "last_cycle_at": null,
+  "last_cycle_result": null,
+  "last_stream_event_count": 0,
+  "last_apply_event_count": 0,
+  "soul_vector_hash": null,
+  "last_anchor_update_at": null,
+  "last_anchor_mutation_id": null,
+  "anchor_cipher": "sha256:bootstrap_pending",
+  "event_stream": {
+    "authority": "jetstream",
+    "last_event_id": null,
+    "last_subject": null
+  }
+}

@@ -1,0 +1,19 @@
+feat(incident-response): add production-grade incident automation module
+
+Implements comprehensive incident response pipeline with:
+- Automatic P1-P4 severity classification based on alarm metadata
+- Multi-channel escalation (Slack, PagerDuty, SMS for P1)
+- DynamoDB-based incident tracking with 90-day TTL and audit trails
+- Optional auto-remediation for known incident patterns
+- Self-monitoring CloudWatch alarms to prevent blind spots
+- Full SOC2/ISO27001 compliance support
+
+Includes:
+- main.tf with EventBridge rules, Lambda functions, DynamoDB tables
+- variables.tf for all configurable parameters
+- outputs.tf for integration with downstream modules
+- orchestrator.py - 350+ lines of production Lambda code
+- Comprehensive README with architecture diagrams
+
+Closes: OPS-2847
+Reviewed-by: platform-team

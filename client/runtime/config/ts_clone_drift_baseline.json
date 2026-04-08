@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-03-07T03:50:35.017Z",
+  "roots": [
+    "lib",
+    "systems"
+  ],
+  "summary": {
+    "total_pairs": 5,
+    "exact_pairs": 5,
+    "divergent_pairs": 0,
+    "transpile_errors": 0,
+    "skipped_solo_files": 1235
+  },
+  "exact_candidates": [
+    "lib/mech_suit_mode",
+    "lib/ops_domain_conduit_runner",
+    "lib/rust_lane_bridge",
+    "lib/spine_conduit_bridge",
+    "systems/ops/typecheck_systems"
+  ],
+  "highest_drift": [],
+  "pairs": [
+    {
+      "base": "lib/mech_suit_mode",
+      "js": "lib/mech_suit_mode.js",
+      "ts": "lib/mech_suit_mode.ts",
+      "exact": true,
+      "similarity": 1,
+      "bootstrap_wrapper": true,
+      "transpile_error": null,
+      "js_hash": "b9498aae4410d4547e97316c7a0b90eae6106649d97cd3e5d24d5661f8e8c8e2",
+      "ts_hash": "b9498aae4410d4547e97316c7a0b90eae6106649d97cd3e5d24d5661f8e8c8e2",
+      "js_size": 20929,
+      "ts_size": 20929
+    },
+    {
+      "base": "lib/ops_domain_conduit_runner",
+      "js": "lib/ops_domain_conduit_runner.js",
+      "ts": "lib/ops_domain_conduit_runner.ts",
+      "exact": true,
+      "similarity": 1,
+      "bootstrap_wrapper": true,
+      "transpile_error": null,
+      "js_hash": "5b02e0b4309e52d06d811eecd5a1f48b35f19debef834cc12182d614a32a42ad",
+      "ts_hash": "5b02e0b4309e52d06d811eecd5a1f48b35f19debef834cc12182d614a32a42ad",
+      "js_size": 2203,
+      "ts_size": 2203
+    },
+    {
+      "base": "lib/rust_lane_bridge",
+      "js": "lib/rust_lane_bridge.ts",
+      "ts": "lib/rust_lane_bridge.ts",
+      "exact": true,
+      "similarity": 1,
+      "bootstrap_wrapper": true,
+      "transpile_error": null,
+      "js_hash": "0e22abc9f254f0e952a87c2286394a94e12646d91e5542dd075c2419f3cfb3a7",
+      "ts_hash": "0e22abc9f254f0e952a87c2286394a94e12646d91e5542dd075c2419f3cfb3a7",
+      "js_size": 5758,
+      "ts_size": 5758
+    },
+    {
+      "base": "lib/spine_conduit_bridge",
+      "js": "lib/spine_conduit_bridge.ts",
+      "ts": "lib/spine_conduit_bridge.ts",
+      "exact": true,
+      "similarity": 1,
+      "bootstrap_wrapper": true,
+      "transpile_error": null,
+      "js_hash": "9fa4acab2adb862d7a90f73c89e242e67dc57a13252399523ea561f0cf06ed19",
+      "ts_hash": "9fa4acab2adb862d7a90f73c89e242e67dc57a13252399523ea561f0cf06ed19",
+      "js_size": 9536,
+      "ts_size": 9536
+    },
+    {
+      "base": "systems/ops/typecheck_systems",
+      "js": "systems/ops/typecheck_systems.js",
+      "ts": "systems/ops/typecheck_systems.ts",
+      "exact": true,
+      "similarity": 1,
+      "bootstrap_wrapper": true,
+      "transpile_error": null,
+      "js_hash": "c94e1d72f5903bee0ca98e233698d2146f6d678618d02bb34bbfc9730fee4076",
+      "ts_hash": "c94e1d72f5903bee0ca98e233698d2146f6d678618d02bb34bbfc9730fee4076",
+      "js_size": 2297,
+      "ts_size": 2297
+    }
+  ]
+}

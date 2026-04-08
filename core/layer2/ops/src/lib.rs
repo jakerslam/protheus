@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0
+// Layer ownership: core/layer2/ops (authoritative daemon control contracts).
+
+use serde_json::{json, Value};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+pub mod adaptive_contract_version_governance;
+pub mod autophagy_auto_approval;
+pub mod autoresearch_loop;
+pub mod biological_computing_adapter;
+pub mod bookmark_knowledge_pipeline;
+pub mod collector_cache;
+pub mod command_center_session;
+pub mod company_layer_orchestration;
+pub mod context_doctor;
+pub mod contribution_oracle;
+pub mod decentralized_data_marketplace;
+pub mod discord_swarm_orchestration;
+pub mod gui_drift_manager;
+pub mod hot_path_allocators;
+pub mod intel_sweep_router;
+pub mod nexus_internal_comms;
+pub mod observability_automation_engine;
+pub mod observability_slo_runbook_closure;
+pub mod opendev_dual_agent;
+pub mod ops_lane_runtime;
+pub mod p2p_gossip_seed;
+pub mod persistent_background_runtime;
+pub mod public_api_catalog;
+pub mod release_gate_canary_rollback_enforcer;
+pub mod srs_contract_runtime;
+pub mod startup_agency_builder;
+pub mod timeseries_receipt_engine;
+pub mod webgpu_inference_adapter;
+pub mod wifi_csi_engine;
+pub mod workspace_gateway_runtime;
+
+pub fn deterministic_receipt_hash(payload: &Value) -> String {
+    hot_path_allocators::deterministic_hash(payload)
+}
+
+pub fn now_epoch_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+pub fn daemon_control_receipt(command: &str, mode: Option<&str>) -> Value {
+    let mut out = json!({
+        "ok": true,
+        "type": "daemon_control_receipt",
+        "authority": "core/layer2/ops",
+        "command": command,
+        "mode": mode
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn daemon_receipt_has_hash() {
+        let payload = daemon_control_receipt("status", Some("persistent"));
+        assert!(payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .is_some());
+    }
+}

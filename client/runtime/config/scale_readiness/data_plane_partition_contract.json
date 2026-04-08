@@ -1,0 +1,13 @@
+{
+  "schema_id": "data_plane_scale_contract",
+  "schema_version": "1.0",
+  "partition_strategy": "tenant_hash_modulo",
+  "read_write_split": {
+    "reads": "replicas",
+    "writes": "primary"
+  },
+  "migration": {
+    "online": true,
+    "rollback_checkpoint_minutes": 5
+  }
+}

@@ -1,0 +1,270 @@
+# Cline Intake Reference (Isolated Import Lane)
+
+## Source
+- Repo: `https://github.com/cline/cline`
+- Isolated clone: `local/workspace/vendor/cline`
+- Checked revision: `e52a052c8` (short SHA)
+
+## Master Ledger
+- File-by-file status ledger: `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+- Format: `status<TAB>path<TAB>notes`
+- Scope excludes `node_modules/**`; residual repository metadata (`.git/**`, `.github/**`, dotfiles) is tracked as `skipped_non_runtime` when encountered so closeout can reach zero active source files.
+
+## Current Intake State
+- `pending` rows: `0`
+- Active files left in `local/workspace/vendor/cline` outside `.assimilation_deleted`: `0`
+- Intake source now lives entirely under `local/workspace/vendor/cline/.assimilation_deleted/**` after checkoff.
+
+## Status Vocabulary
+- `pending`: not yet reviewed.
+- `reviewed_no_import`: reviewed, no net-new capability worth porting.
+- `reviewed_candidate`: reviewed, candidate capability identified.
+- `imported`: capability ported into runtime.
+- `skipped_non_runtime`: assets/docs/legal/non-runtime file skipped for capability ingestion.
+
+## Checkoff Deletion Rule
+- After a row is checked off (`reviewed_*` or `imported`), the source file is removed from the active intake tree and moved to:
+  - `local/workspace/vendor/cline/.assimilation_deleted/<path>`
+- Ledger notes include `deleted_to=.assimilation_deleted`.
+
+## Current Imported Capability
+- `CLINE-FILE-SEARCH-001` (from `src/services/search/file-search.ts`):
+  - Added Rust-core `workspace-file-search` domain with:
+    - ripgrep-backed file/folder discovery
+    - fuzzy ranking (tight-match preference)
+    - multi-root input support
+    - workspace boundary gate (`workspace_outside_root` unless explicitly allowed)
+- `CLINE-TERMINAL-TRUNCATION-001` (from `cli/src/acp/AcpTerminalManager.ts`):
+  - Imported head+tail terminal output truncation semantics into core terminal broker:
+    - explicit truncation marker (`... (output truncated) ...`)
+    - preserves both early and recent output context (instead of tail-only clipping)
+    - UTF-8 boundary-safe slicing and byte-budget enforcement
+- `CLINE-RG-HINT-001` (from `cli/src/components/FileMentionMenu.tsx`):
+  - Imported ripgrep-missing install-hint diagnostics into Rust `workspace-file-search`:
+    - emits `rg_not_found` warning with platform install hint
+    - exposes install hint in `workspace-file-search status`
+    - covered by regression test `run_search_reports_ripgrep_install_hint_when_missing`
+- `CLINE-MENTION-INSERT-001` (from `cli/src/utils/file-search.ts`):
+  - Imported mention-insertion helper into Rust `workspace-file-search mention`:
+    - returns deterministic insertable mention token (`@<path>` by default)
+    - preserves workspace/file metadata for composer routing
+    - returns explicit `status=no_results` with empty mention instead of opaque failure
+    - covered by regression tests `run_mention_returns_insertable_path` and `run_mention_reports_no_results_state`
+
+## Captured Candidates (Not Yet Imported)
+- `CLINE-CANDIDATE-SESSION-GUARD-001` (from `cli/src/agent/ClineAgent.ts`):
+  - Per-session "already processing" prompt gate to prevent overlapping request races.
+- `CLINE-CANDIDATE-STREAM-DEDUPE-001` (from `cli/src/agent/ClineAgent.ts` + `messageTranslator.ts`):
+  - Stable mapping between streaming message timestamps and tool-call IDs to avoid duplicate tool events.
+- `CLINE-CANDIDATE-PERMISSION-AUTOALLOW-001` (from `cli/src/agent/permissionHandler.ts`):
+  - Scoped auto-approval tracker for repeated command/tool/server approvals.
+- `CLINE-CANDIDATE-ACTION-BAR-MAP-001` (from `cli/src/components/ActionButtons.tsx`):
+  - Centralized ask-state to primary/secondary action-button map for deterministic recovery UX.
+- `CLINE-CANDIDATE-ACCOUNT-CARD-001` (from `cli/src/components/AccountInfoView.tsx`):
+  - Provider/account/credits summary panel pattern for quick operator readiness context.
+- `CLINE-CANDIDATE-ASK-MODE-ROUTER-001` (from `cli/src/components/AskPrompt.tsx`):
+  - Prompt-type classifier driving deterministic input modes (confirmation/text/options/completion).
+- `CLINE-CANDIDATE-AUTH-ONBOARDING-001` (from `cli/src/components/AuthView.tsx`):
+  - Staged provider onboarding flow with import-source detection and guided auth transitions.
+- `CLINE-CANDIDATE-CHAT-RENDER-001` (from `cli/src/components/ChatMessage.tsx`):
+  - Structured tool-call/result rendering with markdown-token rendering paths and parse fallbacks.
+- `CLINE-CANDIDATE-STREAM-REGION-001` (from `cli/src/components/ChatView.tsx`):
+  - Dynamic-region isolation pattern to keep live rendering stable under continuous streaming updates.
+- `CLINE-CANDIDATE-BEDROCK-SETUP-001` (from `BedrockSetup.tsx` + `BedrockCustomModelFlow.tsx`):
+  - Guided cloud-provider setup flow for custom model onboarding and provider-specific credential UX.
+- `CLINE-CANDIDATE-CHECKPOINT-MENU-001` (from `cli/src/components/CheckpointMenu.tsx`):
+  - Restore-mode chooser (`task`, `workspace`, `taskAndWorkspace`) for explicit recovery semantics.
+- `CLINE-CANDIDATE-DIFF-COLLAPSE-001` (from `cli/src/components/DiffView.tsx`):
+  - Collapsed-context diff rendering that preserves nearby change context and hides long unchanged runs.
+- `CLINE-CANDIDATE-UI-ERROR-BOUNDARY-001` (from `cli/src/components/ErrorBoundary.tsx`):
+  - User-facing crash containment with centralized exception capture and graceful shutdown path.
+- `CLINE-CANDIDATE-FEATURED-MODELS-001` (from `cli/src/components/FeaturedModelPicker.tsx`):
+  - Curated featured-model selection surface with labels/tags and browse-all handoff.
+- `CLINE-CANDIDATE-CLI-IMPORT-WIZARD-001` (from `cli/src/components/ImportView.tsx`):
+  - Source-detected key import wizard flow (selection, confirm, apply, error recovery).
+- `CLINE-CANDIDATE-HIGHLIGHTED-COMPOSER-001` (from `cli/src/components/HighlightedInput.tsx`):
+  - Cursor-stable segment parser for mention/slash highlighting in live input composer.
+- `CLINE-CANDIDATE-FEATURE-TIP-001` (from `cli/src/components/FeatureTip.tsx`):
+  - Delayed rotating feature-tip strip during long thinking/acting phases to improve discoverability without blocking flow.
+- `CLINE-CANDIDATE-FOCUS-CHAIN-001` (from `cli/src/components/FocusChain.tsx`):
+  - Checklist parser with current-step/progress visualization for deterministic task-progress transparency.
+- `CLINE-CANDIDATE-HISTORY-PANEL-001` (from `cli/src/components/HistoryPanelContent.tsx`):
+  - Inline searchable keyboard-driven history panel with centered selection window and scroll indicators.
+- `CLINE-CANDIDATE-HISTORY-VIEW-001` (from `cli/src/components/HistoryView.tsx`):
+  - Adaptive visible-window history rendering with pagination controls and bounded row usage.
+- `CLINE-CANDIDATE-MODEL-PICKER-ASYNC-001` (from `cli/src/components/ModelPicker.tsx`):
+  - Provider-specific async model refresh/loading path with graceful empty-state handling for dynamic catalogs.
+- `CLINE-CANDIDATE-PROVIDER-CONFIG-BADGE-001` (from `cli/src/components/ProviderPicker.tsx`):
+  - Provider picker status suffix for configured providers to improve onboarding and provider readiness clarity.
+- `CLINE-CANDIDATE-ORG-SCOPE-PICKER-001` (from `cli/src/components/OrganizationPicker.tsx`):
+  - Personal-versus-organization selector with concise role suffix prioritization (`Owner`/`Admin`/`Member`).
+- `CLINE-CANDIDATE-SEARCHABLE-LIST-001` (from `cli/src/components/SearchableList.tsx`):
+  - Generic fuzzy-search list picker with bounded windowing and keyboard-first navigation.
+- `CLINE-CANDIDATE-SESSION-SUMMARY-001` (from `cli/src/components/SessionSummary.tsx`):
+  - Compact end-of-session performance/resource summary for operator diagnostics.
+- `CLINE-CANDIDATE-SETTINGS-PANEL-ORCH-001` (from `cli/src/components/SettingsPanelContent.tsx`):
+  - Tabbed settings orchestration pattern unifying providers, models, auto-approve, features, and account flows.
+- `CLINE-CANDIDATE-SKILLS-PANEL-001` (from `cli/src/components/SkillsPanelContent.tsx`):
+  - Interactive skills manager (toggle/use/marketplace) with optimistic updates and keyboard workflow.
+- `CLINE-CANDIDATE-SLASH-MENU-WINDOW-001` (from `cli/src/components/SlashCommandMenu.tsx`):
+  - Width-aware visible-window slash-command renderer with truncation-safe descriptions.
+- `CLINE-CANDIDATE-STATUSBAR-TELEMETRY-001` (from `cli/src/components/StatusBar.tsx`):
+  - Low-noise compact status bar including branch/model/context occupancy/cost indicators.
+- `CLINE-CANDIDATE-SUBAGENT-TREE-STATUS-001` (from `cli/src/components/SubagentMessage.tsx`):
+  - Tree-formatted subagent status renderer with per-branch progress and compact tool/token/cost stats.
+- `CLINE-CANDIDATE-TASK-JSON-STREAM-001` (from `cli/src/components/TaskJsonView.tsx`):
+  - Structured JSON output mode for task events/completion suitable for automation and CI adapters.
+- `CLINE-CANDIDATE-THINKING-ELAPSED-001` (from `cli/src/components/ThinkingIndicator.tsx`):
+  - Thinking indicator pattern with elapsed timer and explicit interrupt affordance during long-running turns.
+- `CLINE-CANDIDATE-FEATURED-MODEL-FALLBACK-001` (from `cli/src/constants/featured-models.ts` + `hooks/useClineFeaturedModels.ts`):
+  - Recommended-model feed hydration with resilient fallback metadata preservation when upstream payloads are sparse.
+- `CLINE-CANDIDATE-TASK-CONTEXT-SYNC-001` (from `cli/src/context/TaskContext.tsx`):
+  - Controller-to-view state synchronization with partial-message merge path for streaming updates.
+- `CLINE-CANDIDATE-SCROLL-WINDOW-001` (from `cli/src/hooks/useScrollableList.ts`):
+  - Shared bounded-window list algorithm with top/bottom overflow indicators.
+- `CLINE-CANDIDATE-STREAM-SIGNAL-TRACKER-001` (from `cli/src/hooks/useStateSubscriber.ts`):
+  - Processed-message tracking and completion-signal detection for ask/say event dedupe.
+- `CLINE-CANDIDATE-TEXT-INPUT-SHORTCUTS-001` (from `cli/src/hooks/useTextInput.ts`):
+  - Word-level cursor movement and Ctrl-shortcut editing behavior for power-user input handling.
+- `CLINE-CANDIDATE-REVIEW-COMMENT-STREAM-001` (from `cli/src/controllers/CliCommentReviewController.ts`):
+  - Streaming review-comment accumulator with per-file-range thread bucketing and end-of-stream commit.
+- `CLINE-CANDIDATE-CLI-HOST-BRIDGE-FALLBACK-001` (from `cli/src/controllers/index.ts`):
+  - Host-bridge compatibility stubs that preserve command flow while emitting concise CLI-safe summaries.
+- `CLINE-CANDIDATE-DIFF-COMPUTER-001` (from `cli/src/utils/DiffComputer.ts`):
+  - Search/replace and apply-patch diff parser for structured line-level patch preview rendering.
+- `CLINE-CANDIDATE-AUTH-MIGRATION-GUARD-001` (from `cli/src/utils/auth.ts`):
+  - First-run onboarding completion inference from any configured provider credentials.
+- `CLINE-CANDIDATE-CONSOLE-SUPPRESS-001` (from `cli/src/utils/console.ts`):
+  - Verbose-gated console suppression with safe restoration of original console bindings.
+- `CLINE-CANDIDATE-CURSOR-MULTILINE-001` (from `cli/src/utils/cursor.ts`):
+  - Position-preserving cursor movement helpers for multiline input editing.
+- `CLINE-CANDIDATE-CROSS-CLI-KEY-IMPORT-001` (from `cli/src/utils/import-configs.ts`):
+  - API-key import detection/mapping from adjacent CLI ecosystems to accelerate onboarding.
+- `CLINE-CANDIDATE-INPUT-NORMALIZE-001` (from `cli/src/utils/input.ts`):
+  - Mouse-sequence filtering and cross-platform Enter normalization for stable keyboard handlers.
+- `CLINE-CANDIDATE-MCP-SHORTCUT-VALIDATE-001` (from `cli/src/utils/mcp.ts`):
+  - MCP add-shortcut flow with transport normalization and strict settings-file validation.
+- `CLINE-CANDIDATE-MODE-SELECTION-001` (from `cli/src/utils/mode-selection.ts`):
+  - Pure deterministic mode-selection decision tree (interactive vs plain-text) with explicit reasons.
+- `CLINE-CANDIDATE-OPENROUTER-CATALOG-CACHE-001` (from `cli/src/utils/openrouter-models.ts`):
+  - OpenRouter model catalog fetch with in-memory cache and request coalescing for low-latency repeated model-list hydration.
+- `CLINE-CANDIDATE-IMAGE-PATH-PARSER-001` (from `cli/src/utils/parser.ts`):
+  - Prompt parser that extracts inline absolute image-path mentions and converts valid images into data URLs.
+- `CLINE-CANDIDATE-BINARY-RESOLUTION-FALLBACK-001` (from `cli/src/utils/path.ts`):
+  - PATH-first tool binary resolution with deterministic fallback to bundled binary location.
+- `CLINE-CANDIDATE-STDIN-PIPE-DETECT-001` (from `cli/src/utils/piped.ts`):
+  - Non-TTY stdin detection that distinguishes real pipe/file input and reads until EOF for chained pipelines.
+- `CLINE-CANDIDATE-PLAIN-TEXT-TASK-RUNNER-001` (from `cli/src/utils/plain-text-task.ts`):
+  - Headless task runner with strict stdout/stderr separation and completion-cutoff handling for resumed tasks.
+- `CLINE-CANDIDATE-PROVIDER-CONFIG-APPLY-001` (from `cli/src/utils/provider-config.ts`):
+  - Shared provider configuration apply/hydration flow that updates provider-specific model info and rebuilds active handlers.
+- `CLINE-CANDIDATE-PROVIDER-METADATA-GATE-001` (from `cli/src/utils/providers.ts`):
+  - Deterministic provider label/order utilities with remote-config aware provider filtering.
+- `CLINE-CANDIDATE-SESSION-SUMMARY-METRICS-001` (from `cli/src/utils/session-summary.ts`):
+  - Structured end-of-session performance/resource summary panel pattern for operator diagnostics.
+- `CLINE-CANDIDATE-SLASH-STANDALONE-EXEC-001` (from `cli/src/utils/slash-commands.ts`):
+  - Deterministic standalone slash-command execution gate with slash-query extraction and visible-window list helpers.
+- `CLINE-CANDIDATE-WORKSPACE-TASK-RESUME-001` (from `cli/src/utils/task-history.ts`):
+  - Workspace-aware "most recent task" selector for safe resume targeting across history entries.
+- `CLINE-CANDIDATE-TOOL-NAME-NORMALIZE-001` (from `cli/src/utils/tools.ts`):
+  - Tool-name normalization and descriptor taxonomy useful for consistent tool-call phrasing/parsing.
+- `CLINE-CANDIDATE-SELF-UPDATE-DETECT-001` (from `cli/src/utils/update.ts`):
+  - Install-footprint detection + nightly/stable version comparison strategy for self-update orchestration.
+- `CLINE-CANDIDATE-CLI-MEMENTO-OVERRIDE-001` (from `cli/src/vscode-context.ts`):
+  - CLI state-override memento adapter pattern for deterministic context defaults without mutating stored keys.
+- `CLINE-CANDIDATE-API-CONFIG-BOOTSTRAP-001` (from `src/common.ts` + `src/config.ts`):
+  - Shared API/runtime configuration bootstrap and environment fallback patterns for multi-provider startup consistency.
+- `CLINE-CANDIDATE-PROVIDER-FACTORY-001` (from `src/core/api/index.ts`):
+  - Central provider-factory dispatch with mode-specific option wiring for resilient multi-provider routing.
+- `CLINE-CANDIDATE-PROVIDER-ADAPTER-MATRIX-001` (from `src/core/api/providers/*.ts`):
+  - Broad provider adapter matrix (auth/model/stream/usage semantics) as an intake source for routing-surface parity.
+- `CLINE-CANDIDATE-RETRY-DECORATOR-001` (from `src/core/api/retry.ts`):
+  - Retry decorator with header-aware retry delay and exponential backoff for transient provider failures.
+- `CLINE-CANDIDATE-OPENROUTER-STREAM-NORMALIZER-001` (from `src/core/api/transform/openrouter-stream.ts`):
+  - OpenRouter request/stream normalizer handling reasoning modes, cache-control blocks, provider preference ordering, and usage fallback.
+- `CLINE-CANDIDATE-TOOLCALL-DELTA-ASSEMBLY-001` (from `src/core/api/transform/tool-call-processor.ts`):
+  - Stateful tool-call delta assembly across stream chunks to emit complete tool-call events without duplicate/partial fragmentation.
+- `CLINE-CANDIDATE-APPLY-PATCH-ADAPTER-001` (from `src/core/api/adapters/diff-editors.ts`):
+  - `apply_patch` translation adapter to normalized write/replace diff operations for downstream patch preview/renderer compatibility.
+- `CLINE-CANDIDATE-ANTHROPIC-MESSAGE-STREAM-ADAPTER-001` (from `src/core/api/utils/messages_api_support.ts`):
+  - Anthropic Messages-API stream adapter emitting normalized text/reasoning/tool/usage chunks.
+- `CLINE-CANDIDATE-ASSISTANT-MESSAGE-V2-PARSER-001` (from `src/core/assistant-message/parse-assistant-message.ts`):
+  - Streaming assistant-message parser for mixed text/tool XML-style blocks with partial block support.
+- `CLINE-CANDIDATE-DIFF-MULTI-FALLBACK-MATCH-001` (from `src/core/assistant-message/diff.ts`):
+  - Multi-stage diff-search fallback strategy (exact, trimmed-line, anchor-based) for resilient patch reconstruction.
+- `CLINE-CANDIDATE-CONTEXT-HISTORY-MANAGER-001` (from `src/core/context/context-management/ContextManager.ts`):
+  - Persistent context-history updates + truncation metadata strategy for checkpoint-aware context compaction.
+- `CLINE-CANDIDATE-CONTEXT-WINDOW-BUFFER-POLICY-001` (from `src/core/context/context-management/context-window-utils.ts`):
+  - Model-window-specific safety buffer policy to trigger truncation/compaction before hard context overflow.
+- `CLINE-CANDIDATE-FILE-CONTEXT-STALE-TRACKER-001` (from `src/core/context/context-tracking/FileContextTracker.ts`):
+  - File watcher + metadata tracker to detect out-of-band edits and flag stale context before edits.
+- `CLINE-CANDIDATE-MODEL-USAGE-TRACKER-001` (from `src/core/context/context-tracking/ModelContextTracker.ts`):
+  - Per-task model usage timeline recorder with dedupe for consecutive duplicate entries.
+- `CLINE-CANDIDATE-INSTRUCTION-RULE-BUILDER-001` (from `src/core/context/instructions/user-instructions/RuleContextBuilder.ts`):
+  - User-rule compilation/builder pipeline for deterministic context instruction assembly.
+- `CLINE-CANDIDATE-FILE-CONTROLLER-OPS-001` (from `src/core/controller/file/*.ts`):
+  - File-controller operation set (hook/rule/skill file CRUD + path/open helpers) for workspace command parity.
+- `CLINE-CANDIDATE-CHECKPOINT-RESTORE-FLOW-001` (from `src/core/controller/checkpoints/*.ts`):
+  - Checkpoint diff/restore/subscription orchestration patterns for deterministic recovery flows.
+- `CLINE-CANDIDATE-GRPC-REQUEST-RECORDING-001` (from `src/core/controller/grpc-handler.ts` + `grpc-recorder/*.ts`):
+  - gRPC request dispatch + recorder patterns for deterministic transport traces and replay-friendly diagnostics.
+- `CLINE-CANDIDATE-MCP-CONTROLLER-LIFECYCLE-001` (from `src/core/controller/mcp/*.ts`):
+  - MCP server lifecycle and marketplace control flows (toggle/restart/auth/catalog/timeout) for connector-management reliability.
+- `CLINE-CANDIDATE-MODEL-REFRESH-CONTROLLER-001` (from `src/core/controller/models/*.ts`):
+  - Provider model refresh/cache subscription/update orchestration, including resilient disk fallback and in-flight refresh dedupe.
+- `CLINE-CANDIDATE-OLLAMA-MODEL-TAGS-001` (from `src/core/controller/models/getOllamaModels.ts`):
+  - Ollama `/api/tags` model discovery with URL validation, dedupe, sort, and fail-soft empty response contract.
+- `CLINE-CANDIDATE-API-CONFIG-FIELDMASK-UPDATE-001` (from `src/core/controller/models/updateApiConfiguration.ts`):
+  - Field-mask-based API config updater with mode-sync semantics and active-handler rebuild path.
+- `CLINE-CANDIDATE-STATE-CONTROLLER-ORCHESTRATION-001` (from `src/core/controller/state/*.ts`):
+  - State refresh/subscription/update command set for deterministic startup and runtime state hydration.
+- `CLINE-CANDIDATE-TASK-CONTROLLER-LIFECYCLE-001` (from `src/core/controller/task/*.ts`):
+  - Task lifecycle/history/export/feedback controller orchestration as intake source for agent task reliability and recovery UX.
+- `CLINE-CANDIDATE-UI-CONTROLLER-EVENT-BRIDGE-001` (from `src/core/controller/ui/*.ts`):
+  - UI event subscription bridge patterns for deterministic dashboard/chat interaction wiring.
+- `CLINE-CANDIDATE-WEB-CONTROLLER-UTILS-001` (from `src/core/controller/web/*.ts`):
+  - Web utility controller flows (URL/image validation + OpenGraph fetch + open-in-browser) for web-tool integration hardening.
+- `CLINE-CANDIDATE-WORKTREE-CONTROLLER-FLOWS-001` (from `src/core/controller/worktree/*.ts`):
+  - Worktree create/checkout/include orchestration patterns for multi-workspace operations reliability.
+- `CLINE-CANDIDATE-HOOK-REGISTRY-ORCHESTRATION-001` (from `src/core/hooks/*.ts`):
+  - Hook discovery/process/registry/error contracts as intake source for safe extensibility and lifecycle-aware hook execution.
+- `CLINE-CANDIDATE-IGNORE-CONTROLLER-001` (from `src/core/ignore/*.ts`):
+  - Ignore-rule controller patterns captured as candidate for deterministic workspace exclusion handling.
+- `CLINE-CANDIDATE-LOCK-MANAGER-001` (from `src/core/locks/*.ts`):
+  - Folder/SQLite lock management primitives as intake source for multi-process safety and contention control.
+- `CLINE-CANDIDATE-MENTION-PARSER-001` (from `src/core/mentions/*.ts`):
+  - Mention parsing/resolution flows captured as candidate for stable file/context mention UX.
+- `CLINE-CANDIDATE-PERMISSION-CONTROLLER-001` (from `src/core/permissions/*.ts`):
+  - Command permission controller patterns captured as candidate for approval-gate consistency.
+- `CLINE-CANDIDATE-PROMPT-COMPOSER-VARIANTS-001` (from `src/core/prompts/**/*.ts`):
+  - Prompt assembly and variant-registry patterns captured as candidate set for prompt-surface reliability and consistency.
+- `CLINE-CANDIDATE-SLASH-COMMAND-CORE-001` (from `src/core/slash-commands/*.ts`):
+  - Core slash-command registry and execution routing patterns for deterministic command invocation behavior.
+- `CLINE-CANDIDATE-STORAGE-MIGRATION-REMOTE-SYNC-001` (from `src/core/storage/*.ts`):
+  - Storage state migration and remote-config/MCP sync flows as intake source for persistence + config-cohesion reliability.
+- `CLINE-CANDIDATE-TASK-RUNTIME-COORDINATION-001` (from `src/core/task/**/*.ts`):
+  - Task runtime orchestration (stream chunk coordination, tool execution, loop/latency guards, focus-chain utilities) captured as candidate set for agent runtime reliability.
+- `CLINE-CANDIDATE-WORKSPACE-ROOT-RESOLUTION-001` (from `src/core/workspace/**/*.ts`):
+  - Workspace resolver/setup/multi-root utilities captured as candidate set for deterministic workspace-root handling.
+- `CLINE-CANDIDATE-WEBVIEW-HOST-BRIDGE-001` (from `src/core/webview/*.ts` + `src/hosts/**/*.ts`):
+  - Webview and host-provider bridge adapters captured as candidate for cross-host UI/runtime integration reliability.
+- `CLINE-CANDIDATE-EXTENSION-BOOTSTRAP-ENTRY-001` (from `src/extension.ts`):
+  - Extension bootstrap orchestration entry captured as candidate for startup sequencing and host initialization robustness.
+- `CLINE-CANDIDATE-INTEGRATIONS-ADAPTER-SUITE-001` (from `src/integrations/**/*.ts`):
+  - Integration adapter suite (checkpoints, editor, terminal, diagnostics, notifications, misc, provider auth bridges) captured as candidate set for end-to-end operations reliability.
+- `CLINE-CANDIDATE-SERVICE-LAYER-SUITE-001` (from `src/services/**/*.ts`):
+  - Service-layer suite (auth/account/browser/error/feature-flags/glob/banner/env utilities) captured as candidate set for runtime reliability and observability.
+- `CLINE-CANDIDATE-EXECA-PACKAGE-BRIDGE-001` (from `src/packages/execa.ts`):
+  - Process-execution bridge wrapper captured as candidate for robust external-command orchestration.
+- `CLINE-CANDIDATE-REGISTRY-BOOTSTRAP-001` (from `src/registry.ts`):
+  - Extension registry bootstrap helper captured as candidate for deterministic host registration flow.
+- `CLINE-CANDIDATE-SHARED-CONTRACT-LAYER-001` (from `src/shared/**/*.ts`):
+  - Shared contract/helper/proto-conversion layer captured as candidate set for cross-layer schema consistency and routing cohesion.
+- `CLINE-CANDIDATE-PROVIDER-CATALOG-METADATA-001` (from `src/shared/providers/*.json`):
+  - Provider catalog metadata set captured as candidate source for dynamic provider/model discovery normalization.
+- `CLINE-CANDIDATE-STANDALONE-RUNTIME-BRIDGE-001` (from `src/standalone/*.ts`):
+  - Standalone hostbridge/protobus/lock-context adapters captured as candidate set for standalone runtime reliability.
+- `CLINE-CANDIDATE-UTILITY-HARDENING-SUITE-001` (from `src/utils/**/*.ts`):
+  - Utility suite (env/fs/git/path/retry/shell/model-utils/time/string/mcpAuth) captured as candidate set for broad runtime hardening.
+- `CLINE-CANDIDATE-WEBVIEW-UI-SURFACE-001` (from `webview-ui/src/**/*.{ts,tsx}`):
+  - Webview UI component/state surface captured as candidate set for dashboard interaction, model controls, and UX reliability upgrades.

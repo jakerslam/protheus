@@ -1,0 +1,37 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "rust_migration_parity",
+      "match_all": ["rust", "migrat"],
+      "personas": {
+        "vikram_menon": "Run behavior-preserving migration in thin slices with strict parity checks before any cutover.",
+        "priya_venkatesh": "Measure drift and parity before each migration slice; block promotion when evidence is missing.",
+        "rohan_kapoor": "Stage migration in rollout-safe waves with rollback checkpoints and parity receipts per wave."
+      },
+      "default_recommendation": "Use parity-verified, behavior-preserving migration slices with deterministic rollback paths.",
+      "escalate_to": "vikram_menon"
+    },
+    {
+      "id": "external_api_integration",
+      "match_all": ["external", "api"],
+      "personas": {
+        "rohan_kapoor": "Add rollback path, timeout budgets, and staged rollout controls before enabling external API integrations.",
+        "aarav_singh": "Require fail-closed security checks and contract validation before any external API dispatch."
+      },
+      "default_recommendation": "External API integrations require rollback-safe rollout and fail-closed security gating before activation.",
+      "escalate_to": "rohan_kapoor"
+    },
+    {
+      "id": "memory_vs_security_priority",
+      "match_all": ["memory", "security", "first"],
+      "personas": {
+        "vikram_menon": "Prioritize memory core determinism first, but keep security enforcement in pre-dispatch path from day one.",
+        "aarav_singh": "Prioritize security invariants first: enforce fail-closed checks globally, then continue memory migration behind audited gates.",
+        "priya_venkatesh": "Do not hard-order memory vs security until parity and drift evidence is current; run a measurement checkpoint before sequencing."
+      },
+      "default_recommendation": "Sequence memory and security with parity proof and fail-closed gating active from the first migration slice.",
+      "escalate_to": "vikram_menon"
+    }
+  ]
+}

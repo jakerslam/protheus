@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "dry_run": false,
+  "min_shared_tags": 1,
+  "max_matches": 3,
+  "max_matrix_age_ms": 1200000,
+  "enqueue_to_attention": true,
+  "summary_max_chars": 180,
+  "recall_window_days": 90,
+  "min_priority_score": 8
+}

@@ -1,0 +1,18 @@
+# Linguist normalization for repository language stats.
+# Goal: count real source languages as-is; only hide runtime churn artifacts.
+*.js linguist-generated=false linguist-language=JavaScript
+*.cjs linguist-generated=false linguist-language=JavaScript
+*.mjs linguist-generated=false linguist-language=JavaScript
+*.ts linguist-generated=false linguist-language=TypeScript
+*.tsx linguist-generated=false linguist-language=TypeScript
+
+# Runtime/state and research artifacts are not source-of-truth code.
+client/memory/** linguist-generated=true
+state/** linguist-generated=true
+research/** linguist-generated=true
+drafts/** linguist-generated=true
+
+# Force source roots to remain linguist-detectable.
+client/systems/**/*.ts linguist-generated=false
+client/lib/**/*.ts linguist-generated=false
+types/**/*.ts linguist-generated=false

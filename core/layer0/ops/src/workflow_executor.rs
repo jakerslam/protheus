@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
+use crate::{deterministic_receipt_hash, now_iso};
+use serde_json::{json, Value};
+use std::path::Path;
+
+const LANE_ID: &str = "workflow_executor";
+const REPLACEMENT: &str = "protheus-ops workflow-executor";
+
+fn receipt_hash(v: &Value) -> String {
+    deterministic_receipt_hash(v)
+}
+
+fn print_json_line(value: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+}
+
+fn usage() {
+    println!("Usage:");
+    println!("  protheus-ops workflow-executor status [--scope=<value>]");
+    println!("  protheus-ops workflow-executor run [--scope=<value>] [--max=<n>]");
+}
+
+fn status_receipt(root: &Path, cmd: &str, args: &[String]) -> Value {
+    let scope =
+        lane_utils::parse_flag(args, "scope", false).unwrap_or_else(|| "changed".to_string());
+    let max = lane_utils::parse_flag(args, "max", false)
+        .and_then(|v| v.parse::<i64>().ok())
+        .map(|v| v.clamp(1, 500))
+        .unwrap_or(25);
+
+    let mut out = protheus_autonomy_core_v1::workflow_receipt(cmd, Some(&scope));
+    out["lane"] = Value::String(LANE_ID.to_string());
+    out["ts"] = Value::String(now_iso());
+    out["max"] = json!(max);
+    out["argv"] = json!(args);
+    out["root"] = Value::String(root.to_string_lossy().to_string());
+    out["replacement"] = Value::String(REPLACEMENT.to_string());
+    out["claim_evidence"] = json!([
+        {
+            "id": "native_workflow_executor_lane",
+            "claim": "workflow_executor_executes_natively_in_rust",
+            "evidence": {
+                "command": cmd,
+                "max": max
+            }
+        }
+    ]);
+    out["persona_lenses"] = json!({
+        "operator": {
+            "mode": "workflow"
+        }
+    });
+    if let Some(map) = out.as_object_mut() {
+        map.remove("receipt_hash");
+    }
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
+fn cli_error_receipt(args: &[String], err: &str, code: i32) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": "workflow_executor_cli_error",
+        "lane": LANE_ID,
+        "ts": now_iso(),
+        "argv": args,
+        "error": err,
+        "exit_code": code
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
+pub fn run(root: &Path, argv: &[String]) -> i32 {
+    let cmd = argv
+        .first()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "status".to_string());
+
+    if matches!(cmd.as_str(), "help" | "--help" | "-h") {
+        usage();
+        return 0;
+    }
+
+    match cmd.as_str() {
+        "status" | "run" => {
+            print_json_line(&status_receipt(root, &cmd, argv));
+            0
+        }
+        _ => {
+            usage();
+            print_json_line(&cli_error_receipt(argv, "unknown_command", 2));
+            2
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_flag_supports_equals_and_split_forms() {
+        assert_eq!(
+            lane_utils::parse_flag(&["--scope=all".to_string()], "scope", false).as_deref(),
+            Some("all")
+        );
+        assert_eq!(
+            lane_utils::parse_flag(&["--max".to_string(), "9".to_string()], "max", false)
+                .as_deref(),
+            Some("9")
+        );
+    }
+
+    #[test]
+    fn status_receipt_is_hashed() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let payload = status_receipt(
+            root.path(),
+            "run",
+            &[
+                "run".to_string(),
+                "--scope=all".to_string(),
+                "--max=5".to_string(),
+            ],
+        );
+        let hash = payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = payload.clone();
+        unhashed
+            .as_object_mut()
+            .expect("obj")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), hash);
+    }
+}

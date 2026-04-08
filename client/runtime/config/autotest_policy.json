@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "module_discovery": {
+    "root": "systems",
+    "include_ext": [
+      ".ts"
+    ],
+    "ignore_prefixes": [
+      "client/runtime/systems/ops/visualizer/"
+    ]
+  },
+  "test_discovery": {
+    "root": "tests/client-memory-tools",
+    "include_suffix": ".test.ts",
+    "ignore_prefixes": []
+  },
+  "heuristics": {
+    "min_match_score": 4,
+    "min_token_len": 4,
+    "shared_token_score": 2,
+    "basename_contains_score": 4,
+    "layer_hint_score": 2
+  },
+  "explicit_maps": {
+    "by_prefix": {
+      "client/runtime/systems/security/": [
+        "tests/client-memory-tools/security_integrity.test.ts",
+        "tests/client-memory-tools/guard_remote_gate.test.ts",
+        "tests/client-memory-tools/directive_gate.test.ts"
+      ],
+      "client/runtime/systems/spine/": [
+        "tests/client-memory-tools/spine_evidence_run_plan.test.ts"
+      ]
+    }
+  },
+  "critical_commands": [
+    "node client/runtime/systems/ops/typecheck_systems.ts",
+    "node client/runtime/systems/ops/ts_clone_drift_guard.ts --baseline=client/runtime/config/ts_clone_drift_baseline.json",
+    "node client/runtime/systems/spine/contract_check.ts"
+  ],
+  "alerts": {
+    "emit_untested": true,
+    "emit_changed_without_tests": true,
+    "max_untested_in_report": 120,
+    "max_failed_in_report": 120
+  },
+  "execution": {
+    "default_scope": "changed",
+    "max_tests_per_run": 24,
+    "strict": false,
+    "timeout_ms_per_test": 180000,
+    "run_timeout_ms": 120000,
+    "selection_strategy": "stale_first",
+    "midrun_resource_guard": true,
+    "resource_recheck_every_tests": 1,
+    "retry_flaky_once": true,
+    "flaky_quarantine_after": 3,
+    "flaky_quarantine_sec": 3600
+  },
+  "sleep_window_local": {
+    "enabled": true,
+    "start_hour": 0,
+    "end_hour": 7
+  },
+  "runtime_guard": {
+    "max_load_per_cpu": 0.75,
+    "max_rss_mb": 1600,
+    "spine_hot_window_sec": 75
+  },
+  "daemon": {
+    "interval_sec": 900,
+    "max_cycles": 0,
+    "jitter_sec": 20
+  },
+  "health_ingest": {
+    "enabled": true,
+    "pain_signal_log_path": "local/state/autonomy/pain_signals.jsonl",
+    "window_hours": 24,
+    "max_log_bytes": 8388608,
+    "sources": [
+      {
+        "path": "local/state/ops/system_health/events.jsonl",
+        "format": "system_health"
+      },
+      {
+        "path": "local/state/autonomy/pain_signals.jsonl",
+        "format": "pain_signal"
+      },
+      {
+        "path": "local/state/autonomy/exception_events.jsonl",
+        "format": "generic"
+      },
+      {
+        "path": "local/state/observability/alerts/routed.jsonl",
+        "format": "generic"
+      },
+      {
+        "path": "local/state/security/strategy_controller_audit.jsonl",
+        "format": "audit_error"
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "registry_path": "client/runtime/config/system_map_registry.json",
+  "outputs": {
+    "markdown_path": "docs/client/architecture/SYSTEM_MAP.md",
+    "latest_path": "client/runtime/local/state/ops/system_map/latest.json",
+    "history_path": "client/runtime/local/state/ops/system_map/history.jsonl"
+  }
+}

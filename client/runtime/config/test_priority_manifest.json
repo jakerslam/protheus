@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "tiers": {
+    "critical": [
+      "test:ci:full",
+      "test:vitest",
+      "ops:dod:gate",
+      "ops:churn:guard"
+    ],
+    "core": [
+      "ops:module-cohesion:audit",
+      "ops:simplicity:audit",
+      "ops:repo-surface:audit",
+      "ops:public-platform:contract",
+      "ops:benchmark:sanity",
+      "ops:flaky:quarantine:audit"
+    ],
+    "extended": [
+      "ops:test-priority:audit",
+      "ops:legacy-memory-wrapper:audit",
+      "ops:client-import-integrity:audit",
+      "ops:client-layer:boundary"
+    ]
+  }
+}
