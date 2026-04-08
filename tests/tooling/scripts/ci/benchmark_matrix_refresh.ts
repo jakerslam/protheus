@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import {
+  CANONICAL_THROUGHPUT_METRIC,
+  collectBenchmarkPathLeaks,
+  renderBenchmarkSnapshotBlock,
+  sanitizePublicBenchmarkReport,
+  upsertBenchmarkSnapshotBlock,
+} from './benchmark_public_surface';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
 const DEFAULT_REPORT_PATH = 'docs/client/reports/benchmark_matrix_run_latest.json';
@@ -90,7 +97,7 @@ function run(cmd: string, args: string[]) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: 'pipe',
-    env: { ...process.env, PROTHEUS_ROOT: ROOT }
+    env: { ...process.env, INFRING_ROOT: ROOT, PROTHEUS_ROOT: ROOT }
   });
 }
 
@@ -121,6 +128,15 @@ function buildArgs(manifestPath: string, bin: string, release: boolean): string[
   return args;
 }
 
+function readText(path: string): string {
+  return readFileSync(resolve(ROOT, path), 'utf8');
+}
+
+function writeText(path: string, body: string): void {
+  ensureParent(path);
+  writeFileSync(resolve(ROOT, path), body, 'utf8');
+}
+
 function benchmarkArgs(mode: 'status' | 'run', options: Options): string[] {
   return [
     'benchmark-matrix',
@@ -147,20 +163,37 @@ function writeJson(path: string, payload: any): void {
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
   const profileDir = options.release ? 'release' : 'debug';
-  const protheusOpsBin = `target/${profileDir}/protheus-ops`;
+  const infringOpsBin = `target/${profileDir}/infring-ops`;
 
   assertRunOk(
-    options.release ? 'build_protheus_ops_release' : 'build_protheus_ops_debug',
+    options.release ? 'build_infring_ops_release' : 'build_infring_ops_debug',
+    'cargo',
+    buildArgs('core/layer0/ops/Cargo.toml', 'infring-ops', options.release)
+  );
+  assertRunOk(
+    options.release ? 'build_protheus_ops_compat_release' : 'build_protheus_ops_compat_debug',
     'cargo',
     buildArgs('core/layer0/ops/Cargo.toml', 'protheus-ops', options.release)
   );
   assertRunOk(
-    options.release ? 'build_protheusd_release' : 'build_protheusd_debug',
+    options.release ? 'build_infringd_release' : 'build_infringd_debug',
+    'cargo',
+    buildArgs('core/layer0/ops/Cargo.toml', 'infringd', options.release)
+  );
+  assertRunOk(
+    options.release ? 'build_protheusd_compat_release' : 'build_protheusd_compat_debug',
     'cargo',
     buildArgs('core/layer0/ops/Cargo.toml', 'protheusd', options.release)
   );
   assertRunOk(
     options.release ? 'build_pure_workspace_release' : 'build_pure_workspace_debug',
+    'cargo',
+    buildArgs('client/pure-workspace/Cargo.toml', 'infring-pure-workspace', options.release)
+  );
+  assertRunOk(
+    options.release
+      ? 'build_protheus_pure_workspace_compat_release'
+      : 'build_protheus_pure_workspace_compat_debug',
     'cargo',
     buildArgs('client/pure-workspace/Cargo.toml', 'protheus-pure-workspace', options.release)
   );
@@ -168,7 +201,7 @@ function main(): void {
   const attempts: Array<{ attempt: number; ok: boolean; blockers: string[] }> = [];
   let preflightOk = false;
   for (let attempt = 1; attempt <= options.retries; attempt += 1) {
-    const proc = run(protheusOpsBin, benchmarkArgs('status', options));
+    const proc = run(infringOpsBin, benchmarkArgs('status', options));
     const payload = parseJsonStdout(proc.stdout) || {};
     const preflight = payload?.benchmark_preflight || {};
     const blockers = Array.isArray(preflight.blockers)
@@ -190,7 +223,7 @@ function main(): void {
     throw new Error(`benchmark_preflight_never_passed:${JSON.stringify(attempts)}`);
   }
 
-  const runProc = run(protheusOpsBin, benchmarkArgs('run', options));
+  const runProc = run(infringOpsBin, benchmarkArgs('run', options));
   if ((runProc.status ?? 1) !== 0) {
     throw new Error(
       `benchmark_matrix_run_failed:status=${runProc.status}\nstdout=${String(runProc.stdout || '').trim()}\nstderr=${String(runProc.stderr || '').trim()}`
@@ -200,17 +233,26 @@ function main(): void {
   if (!report || report.ok !== true) {
     throw new Error('benchmark_matrix_run_invalid_json');
   }
-  report.benchmark_refresh_context = {
+  const sanitizedReport = sanitizePublicBenchmarkReport(report, ROOT);
+  const unsanitizedPaths = collectBenchmarkPathLeaks(sanitizedReport);
+  if (unsanitizedPaths.length > 0) {
+    throw new Error(`benchmark_public_report_contains_absolute_paths:${JSON.stringify(unsanitizedPaths)}`);
+  }
+
+  sanitizedReport.benchmark_refresh_context = {
     build_profile: profileDir,
     refresh_script: 'tests/tooling/scripts/ci/benchmark_matrix_refresh.ts',
     throughput_uncached: options.throughputUncached,
     refresh_runtime: options.refreshRuntime
   };
 
-  const projects = report.projects && typeof report.projects === 'object' ? report.projects : {};
-  const rich = projects['InfRing (rich)'] || projects.Infring || report.infring_measured;
-  const pure = projects['InfRing (pure)'] || report.pure_workspace_measured;
-  const tiny = projects['InfRing (tiny-max)'] || report.pure_workspace_tiny_max_measured;
+  const projects =
+    sanitizedReport.projects && typeof sanitizedReport.projects === 'object'
+      ? sanitizedReport.projects
+      : {};
+  const rich = projects['InfRing (rich)'] || projects.Infring || sanitizedReport.infring_measured;
+  const pure = projects['InfRing (pure)'] || sanitizedReport.pure_workspace_measured;
+  const tiny = projects['InfRing (tiny-max)'] || sanitizedReport.pure_workspace_tiny_max_measured;
   if (!rich || !pure || !tiny) {
     throw new Error(
       `benchmark_matrix_modes_missing:rich=${!!rich},pure=${!!pure},tiny_max=${!!tiny}`
@@ -230,12 +272,22 @@ function main(): void {
     );
   }
 
-  writeJson(options.reportPath, report);
+  writeJson(options.reportPath, sanitizedReport);
   if (options.mirrorLegacy) {
     ensureParent(LEGACY_REPORT_PATH);
     copyFileSync(resolve(ROOT, options.reportPath), resolve(ROOT, LEGACY_REPORT_PATH));
     ensureParent(LEGACY_FULL_INSTALL_REPORT_PATH);
     copyFileSync(resolve(ROOT, options.reportPath), resolve(ROOT, LEGACY_FULL_INSTALL_REPORT_PATH));
+  }
+
+  const readmePath = 'README.md';
+  const readmeBefore = readText(readmePath);
+  const readmeAfter = upsertBenchmarkSnapshotBlock(
+    readmeBefore,
+    renderBenchmarkSnapshotBlock(sanitizedReport)
+  );
+  if (readmeAfter !== readmeBefore) {
+    writeText(readmePath, readmeAfter);
   }
 
   console.log(
@@ -247,6 +299,7 @@ function main(): void {
         mirrored_legacy_path: options.mirrorLegacy ? LEGACY_REPORT_PATH : null,
         mirrored_legacy_full_install_path: options.mirrorLegacy ? LEGACY_FULL_INSTALL_REPORT_PATH : null,
         build_profile: profileDir,
+        canonical_throughput_metric: CANONICAL_THROUGHPUT_METRIC,
         preflight_attempts: attempts.length,
         preflight_history: attempts.map((row) => ({
           attempt: row.attempt,

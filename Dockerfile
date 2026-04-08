@@ -7,15 +7,15 @@ FROM rust:1.89-alpine AS rust-builder
 WORKDIR /app
 RUN apk add --no-cache build-base musl-dev pkgconfig openssl-dev
 COPY . .
-RUN cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops --bin protheusd
+RUN cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops --bin infringd
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-COPY --from=rust-builder /app/target/release/protheus-ops /app/target/release/protheus-ops
-COPY --from=rust-builder /app/target/release/protheusd /app/target/release/protheusd
+COPY --from=rust-builder /app/target/release/infring-ops /app/target/release/infring-ops
+COPY --from=rust-builder /app/target/release/infringd /app/target/release/infringd
 
 ARG INFRING_FIPS_MODE=0
 ARG VCS_REF=unknown
@@ -30,7 +30,9 @@ ENV NODE_ENV=production
 ENV CLEARANCE=3
 ENV TZ=UTC
 ENV INFRING_FIPS_MODE=${INFRING_FIPS_MODE}
-ENV PROTHEUS_NPM_BINARY=/app/target/release/protheus-ops
+ENV INFRING_NPM_BINARY=/app/target/release/infring-ops
+# Legacy compatibility alias for older wrappers still reading PROTHEUS_NPM_BINARY.
+ENV PROTHEUS_NPM_BINARY=${INFRING_NPM_BINARY}
 
 LABEL org.opencontainers.image.title="infring" \
       org.opencontainers.image.description="InfRing runtime image" \

@@ -43,7 +43,7 @@ What is true in this repository today:
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --full
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
 infring gateway
 ```
 
@@ -53,7 +53,7 @@ infring gateway
 # Use process-scoped bypass so locked-down execution policies do not block install.
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
-irm https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.ps1 -OutFile $tmp
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
 & $tmp -Repair -Full
 # Remove-Item is silent on success in PowerShell.
 Remove-Item $tmp -Force
@@ -67,7 +67,7 @@ If script execution is still restricted in your environment, use a no-file fallb
 ```powershell
 $env:INFRING_INSTALL_REPAIR = "1"
 $env:INFRING_INSTALL_FULL = "1"
-irm https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
 infring gateway
 ```
 
@@ -144,13 +144,13 @@ Examples:
 
 ```bash
 # Pure
-curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --pure
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
 
 # Tiny-max
-curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --tiny-max
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --tiny-max
 
 # Repair + full
-curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --repair --full
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --full
 
 # In-place update from an existing install
 infring update --repair --full
@@ -227,20 +227,23 @@ npm run test:ci
 npm run gateway
 ```
 
+<!-- BEGIN: benchmark-snapshot -->
 ## Performance Snapshot (Latest Artifact)
 
 Latest benchmark source:
 
 - [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
+Canonical throughput metric: `tasks_per_sec`
+
 Current measured rows in that artifact:
 
-| Metric | Rich (`Infring`) | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
+| Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start | 44.731 ms | 1.579 ms | 1.761 ms |
-| Idle memory | 8.047 MB | 1.375 MB | 1.375 MB |
-| Install artifact size | 25.84 MB | 2.480 MB | 0.617 MB |
-| Throughput | 146,306.56 ops/sec | 146,306.56 ops/sec | 146,306.56 ops/sec |
+| Cold start | 0.009 ms | 1.519 ms | 1.483 ms |
+| Idle memory | 9.938 MB | 1.484 MB | 1.484 MB |
+| Install artifact size | 25.840 MB | 2.534 MB | 0.617 MB |
+| Throughput (tasks_per_sec) | 181,435.28 ops/sec | 181,435.28 ops/sec | 181,435.28 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -249,15 +252,15 @@ Current measured rows in that artifact:
 
 Preflight metadata in the same artifact:
 
-- `benchmark_preflight.enabled = false` (run override: `--benchmark-preflight=0`)
+- `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 0.36` (tolerance `18.75`)
-- Artifact timestamp: `2026-04-06T08:08:01.096Z`
+- `sample_cv_pct = 1.64` (tolerance `18.75`)
+- Artifact timestamp: `2026-04-08T22:37:13.340Z`
 
 Current nuance:
 
-- Rich lane remains policy-valid with stable install/idle metrics and deterministic throughput sampling.
-- Pure and tiny-max lanes continue to preserve low-latency footprint profiles.
+- Public benchmark summaries are generated from the canonical artifact during refresh and verified by `ops:benchmark:public-audit`.
+- Reproducibility commands are listed below; claims should match the linked JSON artifact exactly.
 
 ### Competitor Comparison (Latest Matrix)
 
@@ -265,11 +268,11 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 44.731 | 8.047 | 25.84 | 146,306.56 |
-| AutoGen | 4000.0 | 250.0 | 200.0 | n/a |
-| CrewAI | 3000.0 | 200.0 | 100.0 | n/a |
-| Workflow Graph | 2500.0 | 180.0 | 150.0 | n/a |
-| OpenHands | 1300.0 | 150.0 | 95.5 | n/a |
+| Infring | 0.009 | 9.938 | 25.840 | 181,435.28 |
+| AutoGen | 4000.000 | 250.000 | 200.000 | n/a |
+| CrewAI | 3000.000 | 200.000 | 100.000 | n/a |
+| OpenHands | 1300.000 | 150.000 | 95.500 | n/a |
+| Workflow Graph | 2500.000 | 180.000 | 150.000 | n/a |
 
 Refresh commands:
 
@@ -279,6 +282,9 @@ npm run -s ops:benchmark:sanity
 npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
+<!-- END: benchmark-snapshot -->
+
+
 
 ## What Ships Today
 

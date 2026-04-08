@@ -78,7 +78,8 @@ function classifyPath(path) {
   }
   if (
     /^core\/local\/artifacts\/.*_current\.json$/i.test(path) ||
-    /^docs\/client\/reports\/benchmark_matrix_run_[^/]+\.json$/i.test(path) ||
+    // Canonical benchmark snapshots are public auditable artifacts and are allowed in commit gate.
+    // Keep non-canonical sampled/resample reports guarded as generated churn.
     /^docs\/client\/reports\/benchmark_matrix_resample[^/]*\.json$/i.test(path) ||
     (/^docs\/workspace\/SRS_.*CURRENT\.md$/i.test(path) || /^local\/workspace\/reports\/SRS_.*CURRENT\.md$/i.test(path)) ||
     path === 'docs/workspace/BLOCKED_EXTERNAL_EVIDENCE_STATUS.md' ||

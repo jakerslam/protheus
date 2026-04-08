@@ -28,12 +28,18 @@ $InstallDir = if ($InstallDir) {
 $InstallDirExplicit = $PSBoundParameters.ContainsKey("InstallDir")
 $legacyInstallDir = Join-Path $HOME ".protheus\bin"
 $canonicalInstallDir = Join-Path $HOME ".infring\bin"
+$normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd("\", "/").ToLower() } else { "" }
+$normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd("\", "/").ToLower()
 if (
   (-not $InstallDirExplicit) -and
   $InstallDir -and
-  ($InstallDir.TrimEnd("\", "/").ToLower() -eq $legacyInstallDir.TrimEnd("\", "/").ToLower())
+  (
+    $normalizedInstallDir -eq $normalizedLegacyInstallDir -or
+    $normalizedInstallDir.EndsWith("\\.protheus\\bin") -or
+    $normalizedInstallDir.EndsWith("/.protheus/bin")
+  )
 ) {
-  Write-Host "[infring install] detected legacy install dir ($InstallDir); migrating to $canonicalInstallDir"
+  Write-Host "[infring install] detected legacy compatibility install dir ($InstallDir); migrating to canonical $canonicalInstallDir"
   $InstallDir = $canonicalInstallDir
 }
 $TmpDir = if ($TmpDir) {
@@ -560,9 +566,11 @@ function Install-ClientBundleFromSourceFallback($OutDir) {
 function Resolve-WorkspaceRootForRepair {
   $candidates = @(
     $env:INFRING_WORKSPACE_ROOT,
+    # Legacy compatibility only; canonical workspace root env is INFRING_WORKSPACE_ROOT.
     $env:PROTHEUS_WORKSPACE_ROOT,
     (Get-Location).Path,
     (Join-Path $HOME ".infring/workspace"),
+    # Legacy compatibility path.
     (Join-Path $HOME ".protheus/workspace")
   )
   foreach ($candidate in $candidates) {
@@ -579,6 +587,7 @@ function Resolve-WorkspaceRootForRepair {
 function Invoke-RepairInstallDir {
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
+    # Legacy compatibility wrappers/artifacts (removed during repair migration).
     "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
     "infring-ops.exe", "infring-pure-workspace.exe",
     "infringd.exe", "conduit_daemon.exe", "infring-client",

@@ -7,6 +7,7 @@ Deterministic benchmark entrypoint for competitive parity claims.
 - `cold_start_ms`
 - `idle_memory_mb`
 - `install_size_mb`
+- `tasks_per_sec` (canonical throughput metric)
 - `evidence_verify_latency_ms`
 
 ## Run

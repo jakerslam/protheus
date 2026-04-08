@@ -2,6 +2,12 @@
 /* eslint-disable no-console */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import {
+  CANONICAL_THROUGHPUT_METRIC,
+  collectBenchmarkPathLeaks,
+  extractBenchmarkSnapshotBlock,
+  renderBenchmarkSnapshotBlock,
+} from './benchmark_public_surface';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
 const OUT_JSON = 'core/local/artifacts/benchmark_public_audit_current.json';
@@ -194,6 +200,9 @@ function main(): void {
   if (!hasReproCommand(readme)) {
     violations.push(`readme_missing_repro_command:${REQUIRED_REPRO_COMMAND}`);
   }
+  if (readme.includes('<github-owner>')) {
+    violations.push('readme_contains_owner_placeholder:<github-owner>');
+  }
   if (!hasReproCommand(competitiveReadme)) {
     violations.push(`competitive_matrix_readme_missing_repro_command:${REQUIRED_REPRO_COMMAND}`);
   }
@@ -237,6 +246,21 @@ function main(): void {
       );
     }
     if (report) {
+      const readmeSnapshot = extractBenchmarkSnapshotBlock(readme);
+      if (!readmeSnapshot) {
+        violations.push('readme_missing_benchmark_snapshot_markers');
+      } else {
+        const expectedSnapshot = renderBenchmarkSnapshotBlock(report).trimEnd();
+        if (readmeSnapshot !== expectedSnapshot) {
+          violations.push('readme_benchmark_snapshot_out_of_sync_with_canonical_artifact');
+        }
+      }
+
+      const leakedPaths = collectBenchmarkPathLeaks(report);
+      for (const leak of leakedPaths) {
+        violations.push(`canonical_report_contains_absolute_path:${leak}`);
+      }
+
       const reportType = String(report?.type || '').trim();
       if (!reportType.includes('benchmark_matrix')) {
         violations.push(`canonical_report_unexpected_type:${reportType || 'missing'}`);
@@ -261,6 +285,7 @@ function main(): void {
       }
       const benchmarkValidationOk = report?.benchmark_validation?.ok;
       notes.push(`canonical_report_benchmark_validation_ok=${String(benchmarkValidationOk)}`);
+      notes.push(`canonical_report_throughput_metric=${CANONICAL_THROUGHPUT_METRIC}`);
     }
   }
 

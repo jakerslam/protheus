@@ -1,12 +1,12 @@
-# Protheus Security Posture
+# InfRing Security Posture
 
 Version: 1.0  
 Date: 2026-03-06  
-Owner: Protheus Core Security
+Owner: InfRing Core Security
 
 ## Scope
 
-This document describes the current security architecture for Protheus with Rust as the kernel source of truth and TypeScript constrained to client/dev-facing surfaces via conduit boundaries.
+This document describes the current security architecture for InfRing with Rust as the kernel source of truth and TypeScript constrained to client/dev-facing surfaces via conduit boundaries.
 
 ## Threat Model
 
@@ -137,9 +137,9 @@ Evidence-linked inventory:
 ## Operational Verification Commands
 
 ```bash
-cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1
+cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- enterprise-hardening run --strict=1
 NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
-cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- benchmark-matrix run --refresh-runtime=1
+cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- benchmark-matrix run --refresh-runtime=1
 ```
 
 ## Release Security Artifacts

@@ -258,6 +258,15 @@ simulated-commits/
 artifacts/churn_guard_current.json
 docs/workspace/CHURN_GUARD_CURRENT.md
 
+# Personal/simulation root artifacts must stay out of the public repo.
+/Analytics
+/cron_output/
+/rohan-daily-commit/
+/rohan_daily_commit/
+/simulated-repos/
+/simulated_commits/
+/simulated_content/
+
 # Runtime local credentials (instance-specific)
 client/runtime/config/credentials.json
 client/runtime/config/moltbook/credentials.json
