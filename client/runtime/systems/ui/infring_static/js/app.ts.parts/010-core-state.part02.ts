@@ -36,6 +36,38 @@
       } catch(_) {}
     },
 
+    focusTopbarSearchInput() {
+      var self = this;
+      if (this._topbarSearchFocusTimer) {
+        clearTimeout(this._topbarSearchFocusTimer);
+        this._topbarSearchFocusTimer = 0;
+      }
+      this._topbarSearchFocusTimer = window.setTimeout(function() {
+        var input = document.getElementById('topbar-search-input');
+        if (input && typeof input.focus === 'function') {
+          input.focus({ preventScroll: true });
+          if (typeof input.select === 'function') input.select();
+        }
+        self._topbarSearchFocusTimer = 0;
+      }, 40);
+    },
+
+    openTopbarSearch() {
+      this.topbarSearchOpen = false;
+    },
+
+    closeTopbarSearch() {
+      this.topbarSearchOpen = false;
+      if (this._topbarSearchFocusTimer) {
+        clearTimeout(this._topbarSearchFocusTimer);
+        this._topbarSearchFocusTimer = 0;
+      }
+    },
+
+    toggleTopbarSearch() {
+      this.topbarSearchOpen = false;
+    },
+
     async checkOnboarding() {
       if (localStorage.getItem('infring-onboarded')) return;
       try {

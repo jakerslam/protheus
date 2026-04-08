@@ -75,3 +75,92 @@
 .archived-agent-delete-confirm {
   color: #fff;
 }
+
+.topbar-search-popup-anchor {
+  position: fixed;
+  top: 52px;
+  left: 50vw;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 32px));
+  z-index: 19295;
+  display: block;
+  pointer-events: none;
+  padding: 0;
+}
+
+.topbar-search-popup {
+  width: 100%;
+  max-width: 640px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface2) 64%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 22%, transparent);
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.topbar-search-popup.is-active {
+  border-color: color-mix(in srgb, var(--accent) 46%, transparent);
+  background: color-mix(in srgb, var(--accent-subtle) 56%, transparent);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, #000 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.topbar-search-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.topbar-search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.topbar-search-input {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.2;
+}
+
+.topbar-search-input:focus,
+.topbar-search-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.topbar-search-input::placeholder {
+  color: color-mix(in srgb, var(--text-dim) 88%, transparent);
+}
+
+.topbar-nav-btn.is-disabled,
+.topbar-nav-btn[disabled] {
+  opacity: 0.42;
+  cursor: default;
+  pointer-events: none;
+}

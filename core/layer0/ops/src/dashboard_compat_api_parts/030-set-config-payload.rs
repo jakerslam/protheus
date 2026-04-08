@@ -6134,6 +6134,24 @@ fn execute_tool_call_by_name(
                 .map(|response| response.payload)
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
         }
+        "tool_command_router" => {
+            let mut out = if input.is_object() {
+                input.clone()
+            } else {
+                json!({})
+            };
+            if out.get("ok").is_none() {
+                out["ok"] = Value::Bool(false);
+            }
+            if out.get("error").and_then(Value::as_str).unwrap_or("").is_empty() {
+                out["error"] = json!("invalid_tool_command");
+            }
+            if out.get("message").and_then(Value::as_str).unwrap_or("").is_empty() {
+                out["message"] =
+                    json!("Invalid `tool::` command. Use `tool::<command>:::<params>`.");
+            }
+            out
+        }
         "tabs_list" | "list_tabs" => {
             let _ = existing;
             json!({
@@ -7077,6 +7095,15 @@ fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
 fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<String> {
     let normalized = normalize_tool_name(tool_name);
     let lowered = tool_error_text(payload).to_ascii_lowercase();
+    if lowered.contains("unsupported_tool_command")
+        || lowered.contains("tool_command_")
+        || lowered == "invalid_tool_command"
+    {
+        let message = clean_text(payload.get("message").and_then(Value::as_str).unwrap_or(""), 320);
+        if !message.is_empty() {
+            return Some(message);
+        }
+    }
     if lowered.is_empty() {
         if normalized == "system_diagnostic" {
             return Some(
@@ -7642,8 +7669,369 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     None
 }
 
+fn levenshtein_distance(left: &str, right: &str) -> usize {
+    if left == right {
+        return 0;
+    }
+    if left.is_empty() {
+        return right.chars().count();
+    }
+    if right.is_empty() {
+        return left.chars().count();
+    }
+    let right_chars = right.chars().collect::<Vec<_>>();
+    let mut costs = (0..=right_chars.len()).collect::<Vec<usize>>();
+    for (left_idx, left_ch) in left.chars().enumerate() {
+        let mut diagonal = costs[0];
+        costs[0] = left_idx + 1;
+        for (right_idx, right_ch) in right_chars.iter().enumerate() {
+            let next_diagonal = costs[right_idx + 1];
+            let substitution = diagonal + if left_ch == *right_ch { 0 } else { 1 };
+            let insertion = costs[right_idx + 1] + 1;
+            let deletion = costs[right_idx] + 1;
+            costs[right_idx + 1] = substitution.min(insertion).min(deletion);
+            diagonal = next_diagonal;
+        }
+    }
+    costs[right_chars.len()]
+}
+
+fn closest_supported_tool_command(command: &str) -> Option<&'static str> {
+    let supported = [
+        "web_search",
+        "web_fetch",
+        "spawn_subagents",
+        "manage_agent",
+        "batch_query",
+        "memory_store",
+        "memory_retrieve",
+        "workspace_analyze",
+    ];
+    let mut best = None::<(&'static str, usize)>;
+    for candidate in supported {
+        let distance = levenshtein_distance(command, candidate);
+        if best.map(|(_, current)| distance < current).unwrap_or(true) {
+            best = Some((candidate, distance));
+        }
+    }
+    let (candidate, distance) = best?;
+    if distance <= 3 || distance.saturating_mul(2) <= command.len().max(candidate.len()) {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+fn explicit_tool_command_error(
+    command: &str,
+    error: &str,
+    message: &str,
+    suggestion: Option<&str>,
+) -> Value {
+    json!({
+        "ok": false,
+        "error": clean_text(error, 80),
+        "command": clean_text(command, 120),
+        "message": clean_text(message, 320),
+        "suggestion": suggestion.unwrap_or(""),
+        "supported_commands": [
+            "web_search",
+            "web_fetch",
+            "spawn_subagents",
+            "manage_agent",
+            "batch_query",
+            "memory_store",
+            "memory_retrieve",
+            "workspace_analyze"
+        ]
+    })
+}
+
+fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(String, Value), Value>> {
+    let mut trimmed = message.trim().to_string();
+    if trimmed.starts_with('`') && trimmed.ends_with('`') && trimmed.len() > 2 {
+        trimmed = trimmed[1..trimmed.len() - 1].trim().to_string();
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+    if !lowered.starts_with("tool::") {
+        return None;
+    }
+    let command_payload = &trimmed["tool::".len()..];
+    let (raw_command, raw_params) = if let Some((name, params)) = command_payload.split_once(":::")
+    {
+        (name.trim(), params.trim())
+    } else {
+        (command_payload.trim(), "")
+    };
+    let command = clean_text(raw_command, 80)
+        .to_ascii_lowercase()
+        .replace('-', "_");
+    if command.is_empty() || !command.chars().all(|ch| ch.is_ascii_lowercase() || ch == '_') {
+        return Some(Err(explicit_tool_command_error(
+            &command,
+            "tool_command_name_invalid",
+            "Malformed command. Use `tool::<command>` or `tool::<command>:::<params>`.",
+            None,
+        )));
+    }
+    let mapped = match command.as_str() {
+        "web_search" | "batch_query" | "web_fetch" | "spawn_subagents" | "manage_agent"
+        | "memory_store" | "memory_retrieve" | "workspace_analyze" => command.as_str(),
+        _ => {
+            let suggestion = closest_supported_tool_command(&command);
+            let hint = if let Some(value) = suggestion {
+                format!("Unsupported `tool::{command}`. Try `tool::{value}`.")
+            } else {
+                format!("Unsupported `tool::{command}` command.")
+            };
+            return Some(Err(explicit_tool_command_error(
+                &command,
+                "unsupported_tool_command",
+                &hint,
+                suggestion,
+            )));
+        }
+    };
+    let parsed_params = if raw_params.is_empty() {
+        None
+    } else {
+        serde_json::from_str::<Value>(raw_params).ok()
+    };
+    let parsed_object = parsed_params.as_ref().and_then(Value::as_object);
+    let mut out_tool = mapped.to_string();
+    let mut out_input = json!({});
+
+    match mapped {
+        "web_search" | "batch_query" => {
+            let query = clean_text(
+                parsed_object
+                    .and_then(|obj| obj.get("query").or_else(|| obj.get("q")))
+                    .and_then(Value::as_str)
+                    .unwrap_or(if parsed_params.is_none() { raw_params } else { "" }),
+                600,
+            );
+            if query.is_empty() {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_query_required",
+                    "`web_search` and `batch_query` require a query string.",
+                    None,
+                )));
+            }
+            out_tool = if mapped == "web_search" {
+                "web_search".to_string()
+            } else {
+                "batch_query".to_string()
+            };
+            out_input = if let Some(obj) = parsed_object {
+                Value::Object(obj.clone())
+            } else {
+                json!({"query": query})
+            };
+            out_input["query"] = json!(query);
+            if out_input
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["source"] = json!("web");
+            }
+            if out_input
+                .get("aperture")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["aperture"] = json!("medium");
+            }
+        }
+        "web_fetch" => {
+            let url = clean_text(
+                parsed_object
+                    .and_then(|obj| obj.get("url").or_else(|| obj.get("link")))
+                    .and_then(Value::as_str)
+                    .unwrap_or(if parsed_params.is_none() { raw_params } else { "" }),
+                2200,
+            );
+            if !(url.starts_with("http://") || url.starts_with("https://")) {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_url_required",
+                    "`web_fetch` requires an absolute http(s) URL.",
+                    None,
+                )));
+            }
+            out_tool = "web_fetch".to_string();
+            out_input = if let Some(obj) = parsed_object {
+                Value::Object(obj.clone())
+            } else {
+                json!({"url": url})
+            };
+            out_input["url"] = json!(url);
+            if out_input.get("summary_only").is_none() {
+                out_input["summary_only"] = json!(true);
+            }
+        }
+        "spawn_subagents" => {
+            let mut count = parsed_object
+                .and_then(|obj| obj.get("count"))
+                .and_then(Value::as_u64)
+                .map(|value| value as usize)
+                .unwrap_or(3)
+                .clamp(1, 8);
+            let mut objective = clean_text(
+                parsed_object
+                    .and_then(|obj| {
+                        obj.get("objective")
+                            .or_else(|| obj.get("task"))
+                            .or_else(|| obj.get("message"))
+                    })
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                800,
+            );
+            if objective.is_empty() {
+                let mut tokens = raw_params.splitn(2, char::is_whitespace);
+                if let Some(first) = tokens.next() {
+                    if let Ok(parsed_count) = first.trim().parse::<usize>() {
+                        count = parsed_count.clamp(1, 8);
+                        objective = clean_text(tokens.next().unwrap_or(""), 800);
+                    } else {
+                        objective = clean_text(raw_params, 800);
+                    }
+                }
+            }
+            if objective.is_empty() {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_objective_required",
+                    "`spawn_subagents` requires an objective.",
+                    None,
+                )));
+            }
+            out_tool = "spawn_subagents".to_string();
+            out_input = json!({
+                "count": count,
+                "objective": objective,
+                "confirm": true,
+                "approval_note": "explicit tool command"
+            });
+        }
+        "manage_agent" => {
+            let Some(obj) = parsed_object else {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_params_required",
+                    "`manage_agent` requires JSON params like {\"action\":\"message\",\"agent_id\":\"...\",\"message\":\"...\"}.",
+                    None,
+                )));
+            };
+            let action = clean_text(
+                obj.get("action").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase();
+            if action.is_empty() {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_action_required",
+                    "`manage_agent` requires an `action` field.",
+                    None,
+                )));
+            }
+            out_tool = "manage_agent".to_string();
+            out_input = Value::Object(obj.clone());
+            out_input["action"] = json!(action);
+        }
+        "memory_store" => {
+            let (key, value) = if let Some(obj) = parsed_object {
+                let key = clean_text(obj.get("key").and_then(Value::as_str).unwrap_or(""), 180);
+                let value = obj.get("value").cloned().unwrap_or(Value::Null);
+                (key, value)
+            } else if let Some((left, right)) = raw_params.split_once('=') {
+                (clean_text(left, 180), json!(clean_text(right, 4_000)))
+            } else {
+                (String::new(), Value::Null)
+            };
+            if key.is_empty() {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_key_required",
+                    "`memory_store` requires a key and value (e.g. tool::memory_store:::my.key=value).",
+                    None,
+                )));
+            }
+            out_tool = "memory_kv_set".to_string();
+            out_input = json!({"key": key, "value": value, "confirm": true});
+        }
+        "memory_retrieve" => {
+            if let Some(obj) = parsed_object {
+                let key = clean_text(obj.get("key").and_then(Value::as_str).unwrap_or(""), 180);
+                if !key.is_empty() {
+                    out_tool = "memory_kv_get".to_string();
+                    out_input = json!({"key": key});
+                    return Some(Ok((out_tool, out_input)));
+                }
+            }
+            let query = clean_text(
+                parsed_object
+                    .and_then(|obj| obj.get("query").or_else(|| obj.get("q")))
+                    .and_then(Value::as_str)
+                    .unwrap_or(if parsed_params.is_none() { raw_params } else { "" }),
+                600,
+            );
+            if query.is_empty() {
+                return Some(Err(explicit_tool_command_error(
+                    mapped,
+                    "tool_command_query_required",
+                    "`memory_retrieve` requires a query or key.",
+                    None,
+                )));
+            }
+            out_tool = "memory_semantic_query".to_string();
+            out_input = json!({"query": query, "limit": 8});
+        }
+        "workspace_analyze" => {
+            let query = clean_text(
+                parsed_object
+                    .and_then(|obj| obj.get("query").or_else(|| obj.get("task")))
+                    .and_then(Value::as_str)
+                    .unwrap_or(if parsed_params.is_none() { raw_params } else { "" }),
+                600,
+            );
+            out_tool = "workspace_analyze".to_string();
+            out_input = if let Some(obj) = parsed_object {
+                Value::Object(obj.clone())
+            } else {
+                json!({"query": if query.is_empty() { "workspace status" } else { query.as_str() }})
+            };
+            if out_input
+                .get("query")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["query"] = json!(if query.is_empty() {
+                    "workspace status"
+                } else {
+                    query.as_str()
+                });
+            }
+        }
+        _ => {}
+    }
+    Some(Ok((out_tool, out_input)))
+}
+
 fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)> {
     let trimmed = message.trim();
+    if let Some(parsed_explicit) = parse_explicit_tool_command_from_message(trimmed) {
+        return match parsed_explicit {
+            Ok(route) => Some(route),
+            Err(payload) => Some(("tool_command_router".to_string(), payload)),
+        };
+    }
     if !trimmed.starts_with('/') {
         if message_explicitly_disallows_tool_calls(trimmed) {
             return None;

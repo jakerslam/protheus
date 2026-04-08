@@ -337,6 +337,57 @@ fn conversational_prompt_does_not_auto_route_direct_tool_intent() {
 }
 
 #[test]
+fn explicit_tool_command_routes_web_search_with_defaults() {
+    let (tool, input) =
+        direct_tool_intent_from_user_message("tool::web_search:::latest ai agent benchmarks")
+            .expect("explicit tool command");
+    assert_eq!(tool, "web_search");
+    assert_eq!(
+        input.get("query").and_then(Value::as_str).unwrap_or(""),
+        "latest ai agent benchmarks"
+    );
+    assert_eq!(
+        input.get("source").and_then(Value::as_str).unwrap_or(""),
+        "web"
+    );
+    assert_eq!(
+        input.get("aperture").and_then(Value::as_str).unwrap_or(""),
+        "medium"
+    );
+}
+
+#[test]
+fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
+    let (tool, input) =
+        direct_tool_intent_from_user_message("tool::web_serch:::latest").expect("router reply");
+    assert_eq!(tool, "tool_command_router");
+    assert_eq!(
+        input.get("error").and_then(Value::as_str).unwrap_or(""),
+        "unsupported_tool_command"
+    );
+    assert_eq!(
+        input.get("suggestion").and_then(Value::as_str).unwrap_or(""),
+        "web_search"
+    );
+}
+
+#[test]
+fn explicit_tool_command_maps_memory_store_to_kv_set() {
+    let (tool, input) =
+        direct_tool_intent_from_user_message("tool::memory_store:::deploy.mode=staged")
+            .expect("memory store command");
+    assert_eq!(tool, "memory_kv_set");
+    assert_eq!(
+        input.get("key").and_then(Value::as_str).unwrap_or(""),
+        "deploy.mode"
+    );
+    assert_eq!(
+        input.get("value").and_then(Value::as_str).unwrap_or(""),
+        "staged"
+    );
+}
+
+#[test]
 fn inline_tool_policy_requires_explicit_tooling_request() {
     assert!(!inline_tool_calls_allowed_for_user_message(
         "what do you think of infring?"

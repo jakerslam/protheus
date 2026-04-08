@@ -184,7 +184,7 @@
             <div class="empty-state">
               <h4>No agent selected</h4>
               <p class="hint">Create or select an agent to start chatting.</p>
-              <button class="btn btn-primary btn-sm" @click="navigate('agents')">Manage agents</button>
+              <button class="btn btn-primary btn-sm" @click="navigate('agents')">Open agents</button>
             </div>
           </template>
           <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">

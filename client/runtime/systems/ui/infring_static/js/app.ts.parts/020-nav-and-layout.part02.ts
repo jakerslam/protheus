@@ -84,7 +84,10 @@
     bottomDockDragStartOrder: [],
     bottomDockDragCommitted: false,
     bottomDockHoverId: '',
+    bottomDockClickAnimId: '',
     _bottomDockDragGhostEl: null,
+    _bottomDockClickAnimTimer: 0,
+    _bottomDockClickAnimDurationMs: 980,
     _bottomDockSuppressClickUntil: 0,
     _bottomDockPointerActive: false,
     _bottomDockPointerMoved: false,
@@ -111,6 +114,11 @@
     _bottomDockDragBoundaries: [],
     _bottomDockLastInsertionIndex: -1,
     _bottomDockReorderLockUntil: 0,
+    navBackStack: [],
+    navForwardStack: [],
+    _navCurrentPage: '',
+    _navHistoryAction: '',
+    _navHistoryCap: 48,
 
     cleanupBottomDockDragGhost() {
       if (this._bottomDockGhostRaf && typeof cancelAnimationFrame === 'function') {
@@ -583,12 +591,19 @@
         dockEl.style.setProperty('--bottom-dock-drag-scale', String(this.readBottomDockScale(dockEl)));
       }
       var ghost = document.createElement('div');
-      ghost.className = 'bottom-dock-drag-ghost bottom-dock-btn';
+      ghost.className = 'bottom-dock-drag-ghost bottom-dock-btn dock-tile';
+      var tone = '';
+      var iconKind = '';
+      try {
+        tone = String(originNode.getAttribute('data-dock-tone') || '').trim();
+        iconKind = String(originNode.getAttribute('data-dock-icon') || '').trim();
+      } catch(_) {
+        tone = '';
+        iconKind = '';
+      }
+      if (tone) ghost.setAttribute('data-dock-tone', tone);
+      if (iconKind) ghost.setAttribute('data-dock-icon', iconKind);
       if (originNode.classList && typeof originNode.classList.contains === 'function') {
-        if (originNode.classList.contains('messages-btn')) ghost.classList.add('messages-btn');
-        if (originNode.classList.contains('apps-btn')) ghost.classList.add('apps-btn');
-        if (originNode.classList.contains('settings-btn')) ghost.classList.add('settings-btn');
-        if (originNode.classList.contains('automation-btn')) ghost.classList.add('automation-btn');
         if (originNode.classList.contains('active')) ghost.classList.add('active');
       }
       ghost.setAttribute('aria-hidden', 'true');
@@ -715,6 +730,82 @@
     shouldSuppressBottomDockClick() {
       var until = Number(this._bottomDockSuppressClickUntil || 0);
       return Number.isFinite(until) && until > Date.now();
+    },
+
+    clearBottomDockClickAnimation() {
+      if (this._bottomDockClickAnimTimer) {
+        try { clearTimeout(this._bottomDockClickAnimTimer); } catch(_) {}
+      }
+      this._bottomDockClickAnimTimer = 0;
+      this.bottomDockClickAnimId = '';
+    },
+
+    triggerBottomDockClickAnimation(id, durationOverrideMs) {
+      var key = String(id || '').trim();
+      if (!key || typeof window === 'undefined' || typeof window.setTimeout !== 'function') return;
+      this.clearBottomDockClickAnimation();
+      this.bottomDockClickAnimId = key;
+      var self = this;
+      var durationMs = Number(durationOverrideMs);
+      if (!Number.isFinite(durationMs) || durationMs < 120) {
+        durationMs = Number(self._bottomDockClickAnimDurationMs || 980);
+      }
+      if (!Number.isFinite(durationMs) || durationMs < 120) durationMs = 980;
+      if (typeof document !== 'undefined') {
+        try {
+          var tileNode = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
+          if (tileNode && tileNode.style && typeof tileNode.style.setProperty === 'function') {
+            tileNode.style.setProperty('--dock-click-duration', Math.round(durationMs) + 'ms');
+          }
+        } catch(_) {}
+      }
+      self._bottomDockClickAnimTimer = window.setTimeout(function() {
+        if (typeof document !== 'undefined') {
+          try {
+            var activeNode = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
+            if (activeNode && activeNode.style && typeof activeNode.style.removeProperty === 'function') {
+              activeNode.style.removeProperty('--dock-click-duration');
+            }
+          } catch(_) {}
+        }
+        self._bottomDockClickAnimTimer = 0;
+        self.bottomDockClickAnimId = '';
+      }, durationMs);
+    },
+
+    bottomDockIsClickAnimating(id) {
+      var key = String(id || '').trim();
+      if (!key) return false;
+      return String(this.bottomDockClickAnimId || '').trim() === key;
+    },
+
+    handleBottomDockTileClick(id, targetPage, ev) {
+      if (this.shouldSuppressBottomDockClick()) return;
+      var key = String(id || '').trim();
+      var pageKey = String(targetPage || '').trim();
+      var clickAnimation = '';
+      var clickDurationMs = 0;
+      try {
+        var triggerEl = ev && ev.currentTarget ? ev.currentTarget : null;
+        clickAnimation = String(
+          triggerEl && typeof triggerEl.getAttribute === 'function'
+            ? (triggerEl.getAttribute('data-dock-click-animation') || '')
+            : ''
+        ).trim();
+        clickDurationMs = Number(
+          triggerEl && typeof triggerEl.getAttribute === 'function'
+            ? (triggerEl.getAttribute('data-dock-click-duration-ms') || '')
+            : ''
+        );
+      } catch(_) {
+        clickAnimation = '';
+        clickDurationMs = 0;
+      }
+      if (!Number.isFinite(clickDurationMs) || clickDurationMs < 120) clickDurationMs = 0;
+      if (key && clickAnimation && clickAnimation !== 'none') {
+        this.triggerBottomDockClickAnimation(key, clickDurationMs);
+      }
+      if (pageKey) this.navigate(pageKey);
     },
 
     bottomDockIsDraggingVisual(id) {

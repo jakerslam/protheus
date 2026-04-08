@@ -47,23 +47,23 @@
 
 /* ── Topbar Icon + Shared Pill Toggle Normalization ── */
 .global-topbar {
-  gap: 6px;
+  gap: 0;
 }
 
 .global-topbar-left {
-  gap: 4px;
+  gap: 0;
 }
 
 .global-topbar-page-slot {
-  gap: 4px;
+  gap: 0;
 }
 
 .global-topbar-right {
-  gap: 4px;
+  gap: 0;
 }
 
 .global-topbar-controls {
-  gap: 4px;
+  gap: 0;
 }
 
 .topbar-brand {
@@ -96,11 +96,40 @@
 }
 
 .topbar-clock-meridiem {
-  margin-left: 1.5px;
+  margin-left: 0;
   font-size: 0.9em;
   letter-spacing: 0.02em;
   opacity: 0.92;
 }
+
+body[data-theme='light'] .global-topbar .topbar-icon-btn,
+body[data-theme='light'] .global-topbar .topbar-icon-btn svg,
+body[data-theme='light'] .global-topbar .topbar-icon-btn svg * {
+  color: #000 !important;
+  stroke: #000;
+}
+
+body[data-theme='light'] .global-topbar .theme-opt,
+body[data-theme='light'] .global-topbar .theme-opt svg,
+body[data-theme='light'] .global-topbar .theme-opt svg * {
+  color: #000 !important;
+  stroke: #000;
+}
+
+body[data-theme='light'] .global-topbar .theme-opt.active,
+body[data-theme='light'] .global-topbar .theme-opt.active svg,
+body[data-theme='light'] .global-topbar .theme-opt.active svg * {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+
+.global-topbar .theme-opt.active,
+.global-topbar .theme-opt.active svg,
+.global-topbar .theme-opt.active svg * {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+
 
 .global-topbar .topbar-icon-btn svg, .global-topbar .theme-opt svg { width: 16px !important; height: 16px !important; stroke-width: 2.15; display: block; flex-shrink: 0; }
 

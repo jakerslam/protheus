@@ -376,6 +376,7 @@
         if (validPages.indexOf(hash) >= 0) {
           self.page = hash;
           self.syncAgentChatsSectionForPage(hash);
+          if (typeof self.syncPageHistory === 'function') self.syncPageHistory(hash);
         }
       }
       window.addEventListener('hashchange', handleHash);
@@ -472,6 +473,101 @@
           self._bootSplashMaxTimer = 0;
         }
       }, minRemain);
+    },
+    normalizeNavigablePage(pageId) {
+      var raw = String(pageId || '').trim().toLowerCase();
+      if (!raw) return 'chat';
+      var aliases = {
+        'automation': 'scheduler',
+        'templates': 'agents',
+        'triggers': 'workflows',
+        'cron': 'scheduler',
+        'schedules': 'scheduler',
+        'memory': 'sessions',
+        'audit': 'logs',
+        'security': 'settings',
+        'peers': 'settings',
+        'migration': 'settings',
+        'usage': 'analytics',
+        'approval': 'approvals'
+      };
+      return aliases[raw] || raw;
+    },
+    isKnownNavigablePage(pageId) {
+      var normalized = this.normalizeNavigablePage(pageId);
+      return ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard']
+        .indexOf(normalized) >= 0;
+    },
+    syncPageHistory(nextPage) {
+      var next = this.normalizeNavigablePage(nextPage);
+      if (!this.isKnownNavigablePage(next)) return;
+      var current = this.normalizeNavigablePage(this._navCurrentPage || this.page || '');
+      var action = String(this._navHistoryAction || '').trim().toLowerCase();
+      var back = Array.isArray(this.navBackStack) ? this.navBackStack.slice() : [];
+      var forward = Array.isArray(this.navForwardStack) ? this.navForwardStack.slice() : [];
+      var cap = Number(this._navHistoryCap || 48);
+      if (!Number.isFinite(cap) || cap < 8) cap = 48;
+      var trim = function(list) {
+        return list.length > cap ? list.slice(list.length - cap) : list;
+      };
+      if (!current || !this.isKnownNavigablePage(current)) {
+        this._navCurrentPage = next;
+        this._navHistoryAction = '';
+        return;
+      }
+      if (next === current) {
+        this._navCurrentPage = next;
+        this._navHistoryAction = '';
+        return;
+      }
+      if (action === 'back') {
+        if (forward.length === 0 || forward[forward.length - 1] !== current) forward.push(current);
+      } else if (action === 'forward') {
+        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
+      } else if (back.length > 0 && back[back.length - 1] === next) {
+        back.pop();
+        if (forward.length === 0 || forward[forward.length - 1] !== current) forward.push(current);
+      } else if (forward.length > 0 && forward[forward.length - 1] === next) {
+        forward.pop();
+        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
+      } else {
+        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
+        forward = [];
+      }
+      this.navBackStack = trim(back);
+      this.navForwardStack = trim(forward);
+      this._navCurrentPage = next;
+      this._navHistoryAction = '';
+    },
+    canNavigateBack() {
+      return Array.isArray(this.navBackStack) && this.navBackStack.length > 0;
+    },
+    canNavigateForward() {
+      return Array.isArray(this.navForwardStack) && this.navForwardStack.length > 0;
+    },
+    navigateBackPage() {
+      if (!this.canNavigateBack()) return;
+      var back = this.navBackStack.slice();
+      var target = this.normalizeNavigablePage(back.pop());
+      this.navBackStack = back;
+      this._navHistoryAction = 'back';
+      if (!target || target === this.normalizeNavigablePage(this.page)) {
+        this._navHistoryAction = '';
+        return;
+      }
+      this.navigate(target);
+    },
+    navigateForwardPage() {
+      if (!this.canNavigateForward()) return;
+      var forward = this.navForwardStack.slice();
+      var target = this.normalizeNavigablePage(forward.pop());
+      this.navForwardStack = forward;
+      this._navHistoryAction = 'forward';
+      if (!target || target === this.normalizeNavigablePage(this.page)) {
+        this._navHistoryAction = '';
+        return;
+      }
+      this.navigate(target);
     },
     navigate(p) {
       if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
