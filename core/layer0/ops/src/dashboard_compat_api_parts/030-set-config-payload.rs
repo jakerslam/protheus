@@ -131,12 +131,13 @@ where
     let cards = extractor.extract(&execution.normalized_result, &execution.raw_payload);
     let evidence_ids = store.append_evidence(&cards);
     let bundle = verifier.derive_claim_bundle(task_id, &cards);
+    let claim_ref_validation = verifier.validate_claim_evidence_refs(&bundle, &cards).err();
     let synthesis_claims = verifier
         .supported_claims_for_synthesis(&bundle)
         .iter()
         .map(|claim| (*claim).clone())
         .collect::<Vec<_>>();
-    let status = if evidence_ids.is_empty() {
+    let status = if evidence_ids.is_empty() || claim_ref_validation.is_some() {
         protheus_tooling_core_v1::WorkerTaskStatus::Blocked
     } else {
         protheus_tooling_core_v1::WorkerTaskStatus::Completed
@@ -156,9 +157,11 @@ where
             Vec::new()
         },
         blockers: if execution.normalized_result.errors.is_empty() {
-            Vec::new()
+            claim_ref_validation.into_iter().collect::<Vec<_>>()
         } else {
-            execution.normalized_result.errors.clone()
+            let mut rows = execution.normalized_result.errors.clone();
+            rows.extend(claim_ref_validation);
+            rows
         },
         budget_used: protheus_tooling_core_v1::WorkerBudgetUsed {
             tool_calls: 1,
@@ -168,6 +171,7 @@ where
     };
     json!({
         "ok": true,
+        "schema_contract": protheus_tooling_core_v1::published_schema_contract_v1(),
         "raw_payload": execution.raw_payload,
         "normalized_result": execution.normalized_result,
         "evidence_cards": cards,
@@ -11894,6 +11898,80 @@ pub fn handle_with_headers(
             "critical"
         };
 
+    if method == "GET" && path_only == "/api/receipts/lineage" {
+        let task_id = clean_text(
+            query_value(path, "task_id")
+                .or_else(|| query_value(path, "taskId"))
+                .as_deref()
+                .unwrap_or(""),
+            180,
+        );
+        if task_id.is_empty() {
+            return Some(CompatApiResponse {
+                status: 400,
+                payload: json!({
+                    "ok": false,
+                    "error": "task_id_required"
+                }),
+            });
+        }
+        let trace_id = clean_text(
+            query_value(path, "trace_id")
+                .or_else(|| query_value(path, "traceId"))
+                .as_deref()
+                .unwrap_or(""),
+            180,
+        );
+        let trace_opt = if trace_id.is_empty() {
+            None
+        } else {
+            Some(trace_id.as_str())
+        };
+        let limit = query_value(path, "limit")
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .unwrap_or(4000)
+            .clamp(1, 50_000);
+        let scan_root = clean_text(
+            query_value(path, "scan_root")
+                .or_else(|| query_value(path, "scanRoot"))
+                .as_deref()
+                .unwrap_or(""),
+            500,
+        );
+        let scan_root_path = if scan_root.is_empty() {
+            None
+        } else {
+            let candidate = PathBuf::from(scan_root);
+            Some(if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            })
+        };
+        let payload = match crate::action_receipts_kernel::query_task_lineage(
+            root,
+            &task_id,
+            trace_opt,
+            limit,
+            scan_root_path.as_deref(),
+        ) {
+            Ok(out) => out,
+            Err(err) => {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({
+                        "ok": false,
+                        "error": clean_text(&err, 240)
+                    }),
+                })
+            }
+        };
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
+    }
+
     if method == "GET" {
         let payload = match path_only {
             "/api/health" => json!({
@@ -12215,6 +12293,85 @@ pub fn handle_with_headers(
                 payload,
             });
         }
+        if path_only == "/api/receipts/lineage" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let task_id = clean_text(
+                request
+                    .get("task_id")
+                    .or_else(|| request.get("taskId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            );
+            if task_id.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({
+                        "ok": false,
+                        "error": "task_id_required"
+                    }),
+                });
+            }
+            let trace_id = clean_text(
+                request
+                    .get("trace_id")
+                    .or_else(|| request.get("traceId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            );
+            let trace_opt = if trace_id.is_empty() {
+                None
+            } else {
+                Some(trace_id.as_str())
+            };
+            let limit = request
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map(|value| value as usize)
+                .unwrap_or(4000)
+                .clamp(1, 50_000);
+            let scan_root = clean_text(
+                request
+                    .get("scan_root")
+                    .or_else(|| request.get("scanRoot"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                500,
+            );
+            let scan_root_path = if scan_root.is_empty() {
+                None
+            } else {
+                let candidate = PathBuf::from(scan_root);
+                Some(if candidate.is_absolute() {
+                    candidate
+                } else {
+                    root.join(candidate)
+                })
+            };
+            let payload = match crate::action_receipts_kernel::query_task_lineage(
+                root,
+                &task_id,
+                trace_opt,
+                limit,
+                scan_root_path.as_deref(),
+            ) {
+                Ok(out) => out,
+                Err(err) => {
+                    return Some(CompatApiResponse {
+                        status: 400,
+                        payload: json!({
+                            "ok": false,
+                            "error": clean_text(&err, 240)
+                        }),
+                    })
+                }
+            };
+            return Some(CompatApiResponse {
+                status: 200,
+                payload,
+            });
+        }
         if path_only == "/api/web/fetch" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             let nexus_connection =
@@ -12442,4 +12599,5 @@ mod tests {
     include!("config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs");
     include!("config_payload_tests_parts/100-governance-and-semantic-memory.rs");
     include!("config_payload_tests_parts/110-agent-capability-gauntlet.rs");
+    include!("config_payload_tests_parts/120-receipts-lineage-route.rs");
 }

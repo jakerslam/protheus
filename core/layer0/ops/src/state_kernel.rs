@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::fs;
-use std::path::PathBuf;
 use std::path::Path;
+use std::path::PathBuf;
 
 const LANE_ID: &str = "state_kernel";
 const REPLACEMENT: &str = "protheus-ops state-kernel";
@@ -48,9 +48,7 @@ fn print_json_line(value: &Value) {
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops state-kernel queue-enqueue --queue-name=<name> --payload-json=<json>");
-    println!(
-        "  protheus-ops state-kernel setup-wizard --payload-base64=<base64_json_payload>"
-    );
+    println!("  protheus-ops state-kernel setup-wizard --payload-base64=<base64_json_payload>");
     println!("  protheus-ops state-kernel status");
 }
 
@@ -441,7 +439,10 @@ mod tests {
         )
         .expect("status");
         assert_eq!(status.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(status.get("command").and_then(Value::as_str), Some("status"));
+        assert_eq!(
+            status.get("command").and_then(Value::as_str),
+            Some("status")
+        );
         assert_eq!(
             status.pointer("/state/completed").and_then(Value::as_bool),
             Some(true)

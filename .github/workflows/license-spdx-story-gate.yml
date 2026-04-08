@@ -1,0 +1,53 @@
+name: License SPDX Story Gate
+
+on:
+  push:
+    paths:
+      - "LICENSE"
+      - "LICENSE-APACHE-2.0"
+      - "LICENSE-INFRING-NC-1.0"
+      - "LICENSE_SCOPE.md"
+      - "LICENSE_MATRIX.json"
+      - "README.md"
+      - "SECURITY.md"
+      - "Dockerfile"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/release-security-artifacts.yml"
+      - ".github/workflows/license-spdx-story-gate.yml"
+      - "tests/tooling/scripts/ci/license_spdx_story_gate.ts"
+      - "package.json"
+  pull_request:
+    paths:
+      - "LICENSE"
+      - "LICENSE-APACHE-2.0"
+      - "LICENSE-INFRING-NC-1.0"
+      - "LICENSE_SCOPE.md"
+      - "LICENSE_MATRIX.json"
+      - "README.md"
+      - "SECURITY.md"
+      - "Dockerfile"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/release-security-artifacts.yml"
+      - ".github/workflows/license-spdx-story-gate.yml"
+      - "tests/tooling/scripts/ci/license_spdx_story_gate.ts"
+      - "package.json"
+
+jobs:
+  license-spdx-story-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run license SPDX story gate
+        run: npm run -s ops:license:spdx-story:gate

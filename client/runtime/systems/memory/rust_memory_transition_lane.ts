@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createManifestLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 const { commandNameFromArgs, validateMemoryPolicy, guardFailureResult } = require('./policy_validator.ts');
 const { validateSessionIsolation, sessionFailureResult } = require('./session_isolation.ts');
 
-const bridge = createManifestLaneBridge(__dirname, 'rust_memory_transition_lane', {
-  manifestPath: 'client/runtime/systems/memory/rust/Cargo.toml',
-  binaryName: 'rust_memory_transition_lane',
-  binaryEnvVar: 'PROTHEUS_MEMORY_TRANSITION_RUST_BIN',
+const SYSTEM_ID = 'SYSTEMS-MEMORY-RUST_MEMORY_TRANSITION_LANE';
+const bridge = createOpsLaneBridge(__dirname, 'rust_memory_transition_lane', 'runtime-systems', {
   inheritStdio: true
 });
 
@@ -17,26 +15,26 @@ function run(args = process.argv.slice(2)) {
   const command = commandNameFromArgs(normalizedArgs, 'status');
   const policy = validateMemoryPolicy(normalizedArgs, {
     command,
-    lane: 'SYSTEMS-MEMORY-RUST_MEMORY_TRANSITION_LANE'
+    lane: SYSTEM_ID
   });
   let out;
   if (!policy.ok) {
     out = guardFailureResult(policy, {
       command,
-      system_id: 'SYSTEMS-MEMORY-RUST_MEMORY_TRANSITION_LANE'
+      system_id: SYSTEM_ID
     });
   } else {
     const isolation = validateSessionIsolation(normalizedArgs, {
       command,
-      lane: 'SYSTEMS-MEMORY-RUST_MEMORY_TRANSITION_LANE'
+      lane: SYSTEM_ID
     });
     if (!isolation.ok) {
       out = sessionFailureResult(isolation, {
         command,
-        system_id: 'SYSTEMS-MEMORY-RUST_MEMORY_TRANSITION_LANE'
+        system_id: SYSTEM_ID
       });
     } else {
-      out = bridge.run(normalizedArgs);
+      out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(normalizedArgs));
     }
   }
   return out;
@@ -54,5 +52,6 @@ if (require.main === module) {
 
 module.exports = {
   lane: bridge.lane,
+  systemId: SYSTEM_ID,
   run
 };

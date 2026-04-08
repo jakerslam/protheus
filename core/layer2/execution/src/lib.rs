@@ -134,8 +134,9 @@ pub use importers::{
     run_importer_workflow_graph_json,
 };
 pub use initiative::{
-    evaluate_importance, evaluate_importance_json, evaluate_initiative_json,
-    prioritize_attention_json, ImportanceDecision, ImportanceInput,
+    band_for_score, evaluate_importance, evaluate_importance_json, evaluate_initiative_json,
+    front_jump_for_score, initiative_for_score, prioritize_attention_json, ImportanceDecision,
+    ImportanceInput, DEFAULT_FRONT_JUMP_THRESHOLD, INITIATIVE_POLICY_VERSION,
 };
 pub use inversion::run_inversion_json;
 pub use sprint_contract::run_sprint_contract_json;

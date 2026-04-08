@@ -86,12 +86,14 @@ impl ToolBroker {
     }
 
     pub fn direct_tool_bypass_attempt(&self, caller: BrokerCaller) -> Result<(), BrokerError> {
-        match caller {
-            BrokerCaller::System => Ok(()),
-            BrokerCaller::Client | BrokerCaller::Worker => Err(BrokerError::DirectToolBypassDenied(
-                "tool_broker_required_for_external_calls".to_string(),
-            )),
-        }
+        let caller_label = match caller {
+            BrokerCaller::Client => "client",
+            BrokerCaller::Worker => "worker",
+            BrokerCaller::System => "system",
+        };
+        Err(BrokerError::DirectToolBypassDenied(format!(
+            "tool_broker_required_for_external_calls:{caller_label}"
+        )))
     }
 
     pub fn execute_and_normalize<F>(
@@ -146,7 +148,8 @@ impl ToolBroker {
             .entry(dedupe_hash.clone())
             .or_insert_with(|| result_id.clone());
         let raw_ref = format!("raw://{result_id}");
-        self.raw_payloads.insert(raw_ref.clone(), raw_payload.clone());
+        self.raw_payloads
+            .insert(raw_ref.clone(), raw_payload.clone());
         let metrics = NormalizedToolMetrics {
             duration_ms,
             output_bytes: serde_json::to_vec(&raw_payload)
@@ -283,7 +286,11 @@ fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, Brok
                 return Err(BrokerError::InvalidArgs("paths_required".to_string()));
             }
         }
-        _ => return Err(BrokerError::InvalidArgs("unsupported_tool_name".to_string())),
+        _ => {
+            return Err(BrokerError::InvalidArgs(
+                "unsupported_tool_name".to_string(),
+            ))
+        }
     }
     Ok(Value::Object(repaired_map))
 }
@@ -353,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn clients_and_workers_cannot_bypass_broker() {
+    fn direct_broker_bypass_is_impossible_for_all_callers() {
         let broker = ToolBroker::default();
         assert!(matches!(
             broker.direct_tool_bypass_attempt(BrokerCaller::Client),
@@ -361,6 +368,10 @@ mod tests {
         ));
         assert!(matches!(
             broker.direct_tool_bypass_attempt(BrokerCaller::Worker),
+            Err(BrokerError::DirectToolBypassDenied(_))
+        ));
+        assert!(matches!(
+            broker.direct_tool_bypass_attempt(BrokerCaller::System),
             Err(BrokerError::DirectToolBypassDenied(_))
         ));
     }

@@ -88,6 +88,7 @@ fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {
             | "core://completion"
             | "core://repl"
             | "core://version-cli"
+            | "core://release-semver-contract"
     ) {
         return true;
     }
@@ -844,6 +845,9 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
     if domain == "version-cli" {
         return run_version_cli_domain(root, args);
     }
+    if domain == "release-semver-contract" {
+        return run_release_semver_contract_domain(root, args);
+    }
     let nexus_tool = core_domain_nexus_tool_label(domain, args);
     let nexus_connection = match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
         nexus_tool.as_str(),
@@ -972,6 +976,7 @@ fn suppress_pre_dispatch_side_effects(cmd: &str, json_mode: bool) -> bool {
             | "setup"
             | "version"
             | "update"
+            | "release-semver-contract"
             | "help"
             | "--help"
             | "-h"
@@ -1003,6 +1008,7 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String], json
             | "examples"
             | "version"
             | "update"
+            | "release-semver-contract"
             | "diagram"
             | "shadow"
             | "debug"

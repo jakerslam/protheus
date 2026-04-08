@@ -1,12 +1,16 @@
 use crate::schemas::{Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard};
 use crate::{deterministic_hash, now_ms};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct StructuredVerifier;
 
 impl StructuredVerifier {
-    pub fn derive_claim_bundle(&self, task_id: &str, evidence_cards: &[EvidenceCard]) -> ClaimBundle {
+    pub fn derive_claim_bundle(
+        &self,
+        task_id: &str,
+        evidence_cards: &[EvidenceCard],
+    ) -> ClaimBundle {
         let mut claims = Vec::<Claim>::new();
         let mut conflicts = Vec::<String>::new();
         let mut unresolved_questions = Vec::<String>::new();
@@ -96,6 +100,31 @@ impl StructuredVerifier {
             .filter(|claim| matches!(claim.status, ClaimStatus::Supported | ClaimStatus::Partial))
             .collect::<Vec<_>>()
     }
+
+    pub fn validate_claim_evidence_refs(
+        &self,
+        bundle: &ClaimBundle,
+        evidence_cards: &[EvidenceCard],
+    ) -> Result<(), String> {
+        let evidence_ids = evidence_cards
+            .iter()
+            .map(|row| row.evidence_id.as_str())
+            .collect::<HashSet<_>>();
+        for claim in &bundle.claims {
+            if claim.evidence_ids.is_empty() {
+                return Err(format!("claim_without_evidence:{}", claim.claim_id));
+            }
+            for evidence_id in &claim.evidence_ids {
+                if !evidence_ids.contains(evidence_id.as_str()) {
+                    return Err(format!(
+                        "claim_references_unknown_evidence:{}:{}",
+                        claim.claim_id, evidence_id
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 fn support_status(confidence: &ConfidenceVector, summary: &str) -> ClaimStatus {
@@ -119,6 +148,8 @@ mod tests {
     fn card(id: &str, text: &str, reliability: f64) -> EvidenceCard {
         EvidenceCard {
             evidence_id: id.to_string(),
+            trace_id: "trace-1".to_string(),
+            task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),
             source_ref: "https://example.com".to_string(),
             source_location: "payload".to_string(),
@@ -151,6 +182,12 @@ mod tests {
             .claims
             .iter()
             .any(|claim| claim.status == ClaimStatus::Unsupported));
+        verifier
+            .validate_claim_evidence_refs(
+                &bundle,
+                &[card("e1", "Result is stable", 0.9), card("e2", "Weak", 0.2)],
+            )
+            .expect("claims should always map to evidence");
         let synth = verifier.supported_claims_for_synthesis(&bundle);
         assert!(!synth.is_empty());
     }

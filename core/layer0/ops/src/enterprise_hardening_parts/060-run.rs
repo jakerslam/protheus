@@ -88,6 +88,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             run_export_compliance(root, strict, &policy_path, profile)
         }
         "identity-surface" => run_identity_surface(root, strict, &parsed.flags),
+        "regulated-readiness" | "regulated_readyness" => {
+            run_regulated_readiness(root, strict, &parsed.flags)
+        }
         "certify-scale" => run_scale_certification(root, strict, &parsed.flags),
         "enable-bedrock" => run_enable_bedrock(root, strict, &parsed.flags),
         "moat-license" => run_moat_license(root, strict, &parsed.flags),
@@ -213,4 +216,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 #[path = "../enterprise_hardening_tests.rs"]
 mod enterprise_hardening_tests;
-

@@ -262,6 +262,10 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Result<Value,
         .as_ref()
         .map(|row| row.initiative_action.clone())
         .unwrap_or_else(|| importance_fallback.initiative_action.clone());
+    let initiative_policy_version = layer2_decision
+        .as_ref()
+        .map(|row| row.initiative_policy_version.clone())
+        .unwrap_or_else(|| importance_fallback.initiative_policy_version.clone());
     let initiative_repeat_after_sec = layer2_decision
         .as_ref()
         .map(|row| row.initiative_repeat_after_sec)
@@ -283,10 +287,12 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Result<Value,
     importance_json["score"] = json!(score);
     importance_json["band"] = json!(band.clone());
     importance_json["priority"] = json!(priority);
+    importance_json["initiative_policy_version"] = json!(initiative_policy_version.clone());
     if let Some(decision) = &layer2_decision {
         importance_json["layer2"] = json!({
             "front_jump": decision.front_jump,
             "initiative_action": decision.initiative_action,
+            "initiative_policy_version": decision.initiative_policy_version,
             "initiative_repeat_after_sec": decision.initiative_repeat_after_sec,
             "initiative_max_messages": decision.initiative_max_messages
         });
@@ -309,6 +315,7 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Result<Value,
         "escalate_required": escalate_required,
         "escalation_authority": "runtime_policy",
         "initiative_action": initiative_action,
+        "initiative_policy_version": initiative_policy_version,
         "initiative_repeat_after_sec": initiative_repeat_after_sec,
         "initiative_max_messages": initiative_max_messages,
         "queue_front": queue_front,
@@ -450,10 +457,10 @@ fn update_latest(
             "score": evt.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
             "band": evt.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
             "queue_lane": evt.get("queue_lane").cloned().unwrap_or(Value::String("standard".to_string())),
-            "initiative_action": evt.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string()))
+            "initiative_action": evt.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string())),
+            "initiative_policy_version": evt.get("initiative_policy_version").cloned().unwrap_or(Value::Null)
         });
     }
     write_json(&contract.latest_path, &latest);
     latest
 }
-

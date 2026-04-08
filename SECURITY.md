@@ -2,7 +2,14 @@
 
 ## License Context
 
-This repository is distributed under the Protheus Non-Commercial License v1.0 (`LICENSE`). Archived legacy legal artifacts are kept in `docs/client/legal/archive/` for historical audit context.
+InfRing uses dual licensing with a canonical SPDX matrix.
+
+- Canonical matrix: `LICENSE_MATRIX.json`
+- Human-readable scope map: `LICENSE_SCOPE.md`
+- Licenses: `LICENSE-APACHE-2.0` and `LICENSE-INFRING-NC-1.0`
+- Canonical SPDX identifiers: `Apache-2.0` and `LicenseRef-InfRing-NC-1.0`
+
+Scope precedence is SPDX header first, then path-matrix rule, then default scope (`LicenseRef-InfRing-NC-1.0`).
 
 ## Supported Versions
 

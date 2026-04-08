@@ -14,6 +14,18 @@ const DEFAULT_IDENTITY_POLICY_REL: &str = "client/runtime/config/identity_federa
 const DEFAULT_ACCESS_POLICY_REL: &str = "client/runtime/config/enterprise_access_policy.json";
 const DEFAULT_ABAC_POLICY_REL: &str = "client/runtime/config/abac_policy_plane.json";
 const DEFAULT_SIEM_POLICY_REL: &str = "client/runtime/config/siem_bridge_policy.json";
+const DEFAULT_MULTI_TENANT_CONTRACT_REL: &str =
+    "client/runtime/config/multi_tenant_isolation_contract.json";
+const DEFAULT_SECRET_KMS_POLICY_REL: &str = "client/runtime/config/enterprise_secret_kms_policy.json";
+const DEFAULT_SIGNED_RECEIPT_POLICY_REL: &str = "client/runtime/config/signed_receipt_policy.json";
+const DEFAULT_RETENTION_POLICY_PACK_REL: &str = "client/runtime/config/retention_policy_pack.json";
+const DEFAULT_RUNTIME_RETENTION_POLICY_REL: &str = "client/runtime/config/runtime_retention_policy.json";
+const DEFAULT_COMPLIANCE_RETENTION_POLICY_REL: &str =
+    "client/runtime/config/compliance_retention_policy.json";
+const DEFAULT_AUDIT_EXPORT_POLICY_REL: &str = "client/runtime/config/audit_log_export_policy.json";
+const DEFAULT_EVIDENCE_AUDIT_POLICY_REL: &str =
+    "client/runtime/config/evidence_audit_dashboard_policy.json";
+const DEFAULT_DEPLOYMENT_PACKAGING_DOC_REL: &str = "docs/client/DEPLOYMENT_PACKAGING.md";
 const DEFAULT_SCALE_POLICY_REL: &str = "client/runtime/config/scale_readiness_program_policy.json";
 const DEFAULT_BEDROCK_POLICY_REL: &str =
     "planes/contracts/enterprise/bedrock_proxy_contract_v1.json";
@@ -42,6 +54,9 @@ fn usage() {
     );
     println!(
         "  protheus-ops enterprise-hardening identity-surface [--provider=<id>] [--token-issuer=<url>] [--scopes=a,b] [--roles=r1,r2] [--strict=1|0]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening regulated-readiness [--strict=1|0] [--multi-tenant-policy=<path>] [--access-policy=<path>] [--abac-policy=<path>] [--secret-kms-policy=<path>] [--signed-receipt-policy=<path>] [--retention-pack-policy=<path>] [--runtime-retention-policy=<path>] [--compliance-retention-policy=<path>] [--audit-export-policy=<path>] [--evidence-audit-policy=<path>] [--deployment-doc=<path>]"
     );
     println!(
         "  protheus-ops enterprise-hardening certify-scale [--target-nodes=<n>] [--samples=<n>] [--strict=1|0] [--scale-policy=<path>]"
@@ -358,4 +373,3 @@ fn check_cron_delivery_integrity(root: &Path, path_rel: &str) -> Result<(bool, V
         }),
     ))
 }
-

@@ -225,6 +225,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 args: std::iter::once("update".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
+            "release-semver-contract" => Route {
+                script_rel: "core://release-semver-contract".to_string(),
+                args: if rest.is_empty() {
+                    vec!["status".to_string()]
+                } else {
+                    rest
+                },
+                forward_stdin: false,
+            },
             "diagram" => Route {
                 script_rel: "client/runtime/systems/ops/protheus_diagram.js".to_string(),
                 args: rest,
@@ -781,6 +790,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             | "core://command-list"
             | "core://completion"
             | "core://version-cli"
+            | "core://release-semver-contract"
             | "client/runtime/systems/ops/protheus_command_list.ts"
             | "client/runtime/systems/ops/protheus_command_list.js"
             | "client/runtime/systems/ops/protheus_setup_wizard.ts"
@@ -816,9 +826,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let supports_quiet_flag = matches!(
         route.script_rel.as_str(),
-        "client/runtime/systems/ops/protheus_demo.js"
+            "client/runtime/systems/ops/protheus_demo.js"
             | "client/runtime/systems/ops/protheus_examples.js"
             | "core://version-cli"
+            | "core://release-semver-contract"
             | "client/runtime/systems/ops/protheus_version_cli.js"
     );
     if global_quiet

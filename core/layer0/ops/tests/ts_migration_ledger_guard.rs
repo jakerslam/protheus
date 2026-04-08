@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -50,7 +51,11 @@ fn authority_ts_files(root: &Path) -> Vec<String> {
     let tracked = tracked_ts_files(root);
     tracked
         .into_iter()
-        .filter(|path| authority_prefixes().iter().any(|prefix| path.starts_with(prefix)))
+        .filter(|path| {
+            authority_prefixes()
+                .iter()
+                .any(|prefix| path.starts_with(prefix))
+        })
         .collect()
 }
 
@@ -99,7 +104,16 @@ fn rust_ts_exceptions_config(root: &Path) -> (Vec<String>, BTreeMap<String, Stri
 }
 
 fn has_wrapper_token(content: &str, tokens: &[String]) -> bool {
-    tokens.iter().any(|token| !token.is_empty() && content.contains(token))
+    tokens
+        .iter()
+        .any(|token| !token.is_empty() && content.contains(token))
+}
+
+fn runtime_system_ts_files(root: &Path) -> Vec<String> {
+    tracked_ts_files(root)
+        .into_iter()
+        .filter(|path| path.starts_with("client/runtime/systems/"))
+        .collect()
 }
 
 #[test]
@@ -128,7 +142,9 @@ fn authority_prefix_ts_require_wrapper_tokens_or_explicit_exception_reason() {
         let abs = root.join(rel);
         let raw = fs::read_to_string(&abs).unwrap_or_default();
         let has_wrapper = has_wrapper_token(&raw, &wrapper_tokens);
-        let has_exception = exceptions.get(rel).is_some_and(|reason| reason.trim().len() >= 12);
+        let has_exception = exceptions
+            .get(rel)
+            .is_some_and(|reason| reason.trim().len() >= 12);
         if !has_wrapper && !has_exception {
             violations.push(rel.clone());
         }
@@ -179,5 +195,56 @@ fn rust_ts_exception_manifest_paths_are_tracked_and_authority_scoped() {
         weak_reason.is_empty(),
         "rust_ts_exceptions requires non-trivial reason text: {:?}",
         &weak_reason[..weak_reason.len().min(20)]
+    );
+}
+
+#[test]
+fn runtime_systems_lanes_do_not_use_manifest_lane_bridge() {
+    let root = workspace_root();
+    let mut offenders = Vec::new();
+    for rel in runtime_system_ts_files(&root) {
+        let abs = root.join(&rel);
+        let raw = fs::read_to_string(&abs).unwrap_or_default();
+        if raw.contains("createManifestLaneBridge(") {
+            offenders.push(rel);
+        }
+    }
+
+    assert!(
+        offenders.is_empty(),
+        "runtime-system lanes must route through ops/conduit authority (no manifest bridge): {:?}",
+        &offenders[..offenders.len().min(20)]
+    );
+}
+
+#[test]
+fn runtime_systems_manifest_literals_resolve_when_present() {
+    let root = workspace_root();
+    let manifest_literal =
+        Regex::new(r#"["']([^"']*Cargo\.toml)["']"#).expect("compile manifest literal regex");
+    let mut missing = Vec::new();
+
+    for rel in runtime_system_ts_files(&root) {
+        let abs = root.join(&rel);
+        let raw = fs::read_to_string(&abs).unwrap_or_default();
+        for capture in manifest_literal.captures_iter(&raw) {
+            let Some(matched) = capture.get(1).map(|row| row.as_str().trim()) else {
+                continue;
+            };
+            if matched.is_empty() || !matched.contains('/') {
+                continue;
+            }
+            let normalized = matched.trim_start_matches('/');
+            let target = root.join(normalized);
+            if !target.exists() {
+                missing.push(format!("{rel} -> {normalized}"));
+            }
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "runtime-system manifest literals must point to existing Cargo manifests: {:?}",
+        &missing[..missing.len().min(20)]
     );
 }

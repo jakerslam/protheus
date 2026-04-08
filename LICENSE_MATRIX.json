@@ -1,0 +1,52 @@
+{
+  "schema_id": "infring_licensing_matrix_v1",
+  "schema_version": "1.0",
+  "default_spdx": "LicenseRef-InfRing-NC-1.0",
+  "precedence": [
+    "file_spdx_header",
+    "longest_path_prefix_rule",
+    "default_spdx"
+  ],
+  "path_rules": [
+    {
+      "path_prefix": "core/layer_minus_one/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "core/layer0/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "core/layer1/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "core/layer2/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "adapters/protocol/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "proofs/layer0/",
+      "spdx": "Apache-2.0",
+      "scope": "open_core"
+    },
+    {
+      "path_prefix": "LICENSE-APACHE-2.0",
+      "spdx": "Apache-2.0",
+      "scope": "legal_text"
+    }
+  ],
+  "release_metadata": {
+    "docker_image_spdx": "Apache-2.0 AND LicenseRef-InfRing-NC-1.0",
+    "release_bundle_spdx": "Apache-2.0 AND LicenseRef-InfRing-NC-1.0",
+    "npm_package_spdx": "Apache-2.0 AND LicenseRef-InfRing-NC-1.0"
+  }
+}

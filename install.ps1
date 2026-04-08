@@ -22,47 +22,46 @@ $InstallDir = if ($InstallDir) {
   $InstallDir
 } elseif ($env:INFRING_INSTALL_DIR) {
   $env:INFRING_INSTALL_DIR
-} elseif ($env:PROTHEUS_INSTALL_DIR) {
-  $env:PROTHEUS_INSTALL_DIR
 } else {
   Join-Path $HOME ".infring\bin"
+}
+$InstallDirExplicit = $PSBoundParameters.ContainsKey("InstallDir")
+$legacyInstallDir = Join-Path $HOME ".protheus\bin"
+$canonicalInstallDir = Join-Path $HOME ".infring\bin"
+if (
+  (-not $InstallDirExplicit) -and
+  $InstallDir -and
+  ($InstallDir.TrimEnd("\", "/").ToLower() -eq $legacyInstallDir.TrimEnd("\", "/").ToLower())
+) {
+  Write-Host "[infring install] detected legacy install dir ($InstallDir); migrating to $canonicalInstallDir"
+  $InstallDir = $canonicalInstallDir
 }
 $TmpDir = if ($TmpDir) {
   $TmpDir
 } elseif ($env:INFRING_TMP_DIR) {
   $env:INFRING_TMP_DIR
-} elseif ($env:PROTHEUS_TMP_DIR) {
-  $env:PROTHEUS_TMP_DIR
 } else {
   $null
 }
-$RequestedVersion = if ($env:INFRING_VERSION) { $env:INFRING_VERSION } elseif ($env:PROTHEUS_VERSION) { $env:PROTHEUS_VERSION } else { "latest" }
-$ApiUrl = if ($env:INFRING_RELEASE_API_URL) { $env:INFRING_RELEASE_API_URL } elseif ($env:PROTHEUS_RELEASE_API_URL) { $env:PROTHEUS_RELEASE_API_URL } else { $DefaultApi }
-$ReleasesApiUrl = if ($env:INFRING_RELEASES_API_URL) { $env:INFRING_RELEASES_API_URL } elseif ($env:PROTHEUS_RELEASES_API_URL) { $env:PROTHEUS_RELEASES_API_URL } else { $DefaultReleasesApi }
-$LatestUrl = if ($env:INFRING_RELEASE_LATEST_URL) { $env:INFRING_RELEASE_LATEST_URL } elseif ($env:PROTHEUS_RELEASE_LATEST_URL) { $env:PROTHEUS_RELEASE_LATEST_URL } else { $DefaultLatestUrl }
-$BaseUrl = if ($env:INFRING_RELEASE_BASE_URL) { $env:INFRING_RELEASE_BASE_URL } elseif ($env:PROTHEUS_RELEASE_BASE_URL) { $env:PROTHEUS_RELEASE_BASE_URL } else { $DefaultBase }
+$RequestedVersion = if ($env:INFRING_VERSION) { $env:INFRING_VERSION } else { "latest" }
+$ApiUrl = if ($env:INFRING_RELEASE_API_URL) { $env:INFRING_RELEASE_API_URL } else { $DefaultApi }
+$ReleasesApiUrl = if ($env:INFRING_RELEASES_API_URL) { $env:INFRING_RELEASES_API_URL } else { $DefaultReleasesApi }
+$LatestUrl = if ($env:INFRING_RELEASE_LATEST_URL) { $env:INFRING_RELEASE_LATEST_URL } else { $DefaultLatestUrl }
+$BaseUrl = if ($env:INFRING_RELEASE_BASE_URL) { $env:INFRING_RELEASE_BASE_URL } else { $DefaultBase }
 $InstallFull = $false
 if ($env:INFRING_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_FULL.ToLower()) {
-  $InstallFull = $true
-} elseif ($env:PROTHEUS_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_FULL.ToLower()) {
   $InstallFull = $true
 }
 $InstallPure = $false
 if ($env:INFRING_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_PURE.ToLower()) {
   $InstallPure = $true
-} elseif ($env:PROTHEUS_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_PURE.ToLower()) {
-  $InstallPure = $true
 }
 $InstallTinyMax = $false
 if ($env:INFRING_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_TINY_MAX.ToLower()) {
   $InstallTinyMax = $true
-} elseif ($env:PROTHEUS_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_TINY_MAX.ToLower()) {
-  $InstallTinyMax = $true
 }
 $InstallRepair = $false
 if ($env:INFRING_INSTALL_REPAIR -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_REPAIR.ToLower()) {
-  $InstallRepair = $true
-} elseif ($env:PROTHEUS_INSTALL_REPAIR -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_REPAIR.ToLower()) {
   $InstallRepair = $true
 }
 if ($Full) { $InstallFull = $true }
@@ -240,7 +239,7 @@ function Resolve-Version {
     return $version
   }
 
-  $fallback = if ($env:INFRING_FALLBACK_VERSION) { $env:INFRING_FALLBACK_VERSION } elseif ($env:PROTHEUS_FALLBACK_VERSION) { $env:PROTHEUS_FALLBACK_VERSION } else { $null }
+  $fallback = if ($env:INFRING_FALLBACK_VERSION) { $env:INFRING_FALLBACK_VERSION } else { $null }
   if ($fallback) {
     $fallbackVersion = Normalize-Version ([string]$fallback)
     Write-Host "[infring install] using fallback version: $fallbackVersion"
@@ -328,12 +327,12 @@ function Download-Asset($Version, $Asset, $OutPath) {
 function Install-Binary($Version, $Triple, $Stem, $OutPath) {
   function Resolve-SourceBinName([string]$StemName) {
     switch ($StemName) {
-      "protheus-ops" { return "protheus-ops" }
-      "protheusd" { return "protheusd" }
-      "protheusd-tiny-max" { return "protheusd" }
+      "infring-ops" { return "infring-ops" }
+      "infringd" { return "infringd" }
+      "infringd-tiny-max" { return "infringd" }
       "conduit_daemon" { return "conduit_daemon" }
-      "protheus-pure-workspace" { return "protheus-pure-workspace" }
-      "protheus-pure-workspace-tiny-max" { return "protheus-pure-workspace" }
+      "infring-pure-workspace" { return "infring-pure-workspace" }
+      "infring-pure-workspace-tiny-max" { return "infring-pure-workspace" }
       default { return $null }
     }
   }
@@ -347,8 +346,6 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     }
     $autoRustup = if ($env:INFRING_INSTALL_AUTO_RUSTUP) {
       @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_AUTO_RUSTUP.ToLower()
-    } elseif ($env:PROTHEUS_INSTALL_AUTO_RUSTUP) {
-      @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_AUTO_RUSTUP.ToLower()
     } else {
       $true
     }
@@ -519,14 +516,14 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
     return $false
   }
   $assets = @(
-    "protheus-client-runtime-$Triple.tar.zst",
-    "protheus-client-runtime.tar.zst",
-    "protheus-client-$Triple.tar.zst",
-    "protheus-client.tar.zst",
-    "protheus-client-runtime-$Triple.tar.gz",
-    "protheus-client-runtime.tar.gz",
-    "protheus-client-$Triple.tar.gz",
-    "protheus-client.tar.gz"
+    "infring-client-runtime-$Triple.tar.zst",
+    "infring-client-runtime.tar.zst",
+    "infring-client-$Triple.tar.zst",
+    "infring-client.tar.zst",
+    "infring-client-runtime-$Triple.tar.gz",
+    "infring-client-runtime.tar.gz",
+    "infring-client-$Triple.tar.gz",
+    "infring-client.tar.gz"
   )
   foreach ($asset in $assets) {
     if (Download-Asset $Version $asset $archive) {
@@ -539,12 +536,34 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   return $false
 }
 
+function Install-ClientBundleFromSourceFallback($OutDir) {
+  if (-not ($script:SourceFallbackDir -and (Test-Path $script:SourceFallbackDir))) {
+    return $false
+  }
+
+  $repoDir = $script:SourceFallbackDir
+  $runtimeSource = Join-Path $repoDir "client/runtime"
+  if (-not (Test-Path $runtimeSource)) {
+    return $false
+  }
+
+  if (Test-Path $OutDir) {
+    Remove-Item -Force -Recurse $OutDir
+  }
+  $clientRoot = Join-Path $OutDir "client"
+  New-Item -ItemType Directory -Force -Path $clientRoot | Out-Null
+  Copy-Item -Recurse -Force $runtimeSource (Join-Path $clientRoot "runtime")
+  Write-Host "[infring install] installed client runtime from source fallback"
+  return $true
+}
+
 function Resolve-WorkspaceRootForRepair {
   $candidates = @(
     $env:INFRING_WORKSPACE_ROOT,
     $env:PROTHEUS_WORKSPACE_ROOT,
     (Get-Location).Path,
-    (Join-Path $HOME ".infring/workspace")
+    (Join-Path $HOME ".infring/workspace"),
+    (Join-Path $HOME ".protheus/workspace")
   )
   foreach ($candidate in $candidates) {
     if (-not $candidate) { continue }
@@ -561,8 +580,10 @@ function Invoke-RepairInstallDir {
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
     "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
+    "infring-ops.exe", "infring-pure-workspace.exe",
+    "infringd.exe", "conduit_daemon.exe", "infring-client",
     "protheus-ops.exe", "protheus-pure-workspace.exe",
-    "protheusd.exe", "conduit_daemon.exe", "protheus-client"
+    "protheusd.exe", "protheus-client"
   )
   foreach ($target in $targets) {
     $path = Join-Path $InstallDir $target
@@ -643,15 +664,15 @@ Write-Host "[infring install] version: $version"
 Write-Host "[infring install] platform: $triple"
 Write-Host "[infring install] install dir: $InstallDir"
 
-$opsBin = Join-Path $InstallDir "protheus-ops.exe"
-$pureBin = Join-Path $InstallDir "protheus-pure-workspace.exe"
-$protheusdBin = Join-Path $InstallDir "protheusd.exe"
+$opsBin = Join-Path $InstallDir "infring-ops.exe"
+$pureBin = Join-Path $InstallDir "infring-pure-workspace.exe"
+$infringdBin = Join-Path $InstallDir "infringd.exe"
 $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($HostIsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
 if ($InstallPure) {
   if ($RequestedVersion -eq "latest") {
-    $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("protheus-pure-workspace")
+    $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("infring-pure-workspace")
     if ($compatiblePure -and ($compatiblePure -ne $version)) {
       Write-Host "[infring install] latest release $version does not publish pure prebuilt assets for $triple; using compatible release $compatiblePure"
       $version = $compatiblePure
@@ -659,10 +680,10 @@ if ($InstallPure) {
   }
   $pureInstalled = $false
   if ($InstallTinyMax) {
-    $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace-tiny-max" $pureBin
+    $pureInstalled = Install-Binary $version $triple "infring-pure-workspace-tiny-max" $pureBin
   }
   if (-not $pureInstalled) {
-    $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace" $pureBin
+    $pureInstalled = Install-Binary $version $triple "infring-pure-workspace" $pureBin
   }
   if (-not $pureInstalled) {
     throw "Failed to install pure workspace binary for $triple ($requestedVersion). No compatible prebuilt asset was found and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
@@ -674,30 +695,30 @@ if ($InstallPure) {
   }
 } else {
   if ($RequestedVersion -eq "latest") {
-    $compatibleOps = Resolve-AssetCompatibleVersionForTriple $triple @("protheus-ops")
+    $compatibleOps = Resolve-AssetCompatibleVersionForTriple $triple @("infring-ops")
     if ($compatibleOps -and ($compatibleOps -ne $version)) {
       Write-Host "[infring install] latest release $version does not publish core ops runtime prebuilt assets for $triple; using compatible release $compatibleOps"
       $version = $compatibleOps
     }
   }
-  if (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
+  if (-not (Install-Binary $version $triple "infring-ops" $opsBin)) {
     throw "Failed to install core ops runtime for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
   }
 }
 
 $daemonMode = "spine"
-if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "protheusd-tiny-max" $protheusdBin)) {
-  $daemonMode = "protheusd"
+if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "infringd-tiny-max" $infringdBin)) {
+  $daemonMode = "infringd"
   Write-Host "[infring install] using tiny-max daemon runtime"
-} elseif (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
-  $daemonMode = "protheusd"
+} elseif (Install-Binary $version $preferredDaemonTriple "infringd" $infringdBin) {
+  $daemonMode = "infringd"
   if ($preferredDaemonTriple -eq "x86_64-unknown-linux-musl") {
     Write-Host "[infring install] using static musl daemon runtime (embedded-minimal-core)"
   } else {
     Write-Host "[infring install] using daemon runtime"
   }
-} elseif ($preferredDaemonTriple -ne $triple -and (Install-Binary $version $triple "protheusd" $protheusdBin)) {
-  $daemonMode = "protheusd"
+} elseif ($preferredDaemonTriple -ne $triple -and (Install-Binary $version $triple "infringd" $infringdBin)) {
+  $daemonMode = "infringd"
   Write-Host "[infring install] using native daemon runtime fallback"
 } elseif (Install-Binary $version $triple "conduit_daemon" $daemonBin) {
   $daemonMode = "conduit"
@@ -711,7 +732,6 @@ $wrapperPrelude = @'
 setlocal EnableExtensions EnableDelayedExpansion
 set "_infring_root="
 if defined INFRING_WORKSPACE_ROOT call :_check_candidate "%INFRING_WORKSPACE_ROOT%"
-if not defined _infring_root if defined PROTHEUS_WORKSPACE_ROOT call :_check_candidate "%PROTHEUS_WORKSPACE_ROOT%"
 if not defined _infring_root call :_search_up "%CD%"
 if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring\workspace"
 if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring\workspace"
@@ -719,7 +739,6 @@ if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring"
 if not defined _infring_root call :_check_candidate "%USERPROFILE%\.infring"
 if defined _infring_root (
   set "INFRING_WORKSPACE_ROOT=%_infring_root%"
-  set "PROTHEUS_WORKSPACE_ROOT=%_infring_root%"
   cd /d "%_infring_root%" >nul 2>&1
 )
 goto :_dispatch
@@ -796,7 +815,6 @@ if not "!_gateway_status!"=="0" (
 
 set "_gateway_raw=0"
 if /I "%INFRING_GATEWAY_RAW%"=="1" set "_gateway_raw=1"
-if /I "%PROTHEUS_GATEWAY_RAW%"=="1" set "_gateway_raw=1"
 if "!_gateway_raw!"=="1" if exist "!_gateway_tmp!" type "!_gateway_tmp!"
 
 if /I "!_gateway_action!"=="start" (
@@ -804,7 +822,6 @@ if /I "!_gateway_action!"=="start" (
   if "!_dashboard_url!"=="" set "_dashboard_url=http://127.0.0.1:4173/dashboard#chat"
   set "_dashboard_open=1"
   if /I "%INFRING_NO_BROWSER%"=="1" set "_dashboard_open=0"
-  if /I "%PROTHEUS_NO_BROWSER%"=="1" set "_dashboard_open=0"
   for %%A in (%*) do (
     if /I "%%~A"=="--dashboard-open=0" set "_dashboard_open=0"
     if /I "%%~A"=="--dashboard-open=1" set "_dashboard_open=1"
@@ -892,25 +909,25 @@ $infringdCmd = Join-Path $InstallDir "infringd.cmd"
 
 if ($InstallPure) {
   if ($InstallTinyMax) {
-    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs '--tiny-max=1' -Gateway
+    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0infring-pure-workspace.exe"' -EntryArgs '--tiny-max=1' -Gateway
   } else {
-    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs '' -Gateway
+    Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0infring-pure-workspace.exe"' -EntryArgs '' -Gateway
   }
-  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs 'conduit' -Gateway
+  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0infring-pure-workspace.exe"' -EntryArgs 'conduit' -Gateway
 } else {
-  Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'infringctl' -Gateway
-  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'infringctl' -Gateway
+  Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0infring-ops.exe"' -EntryArgs 'infringctl' -Gateway
+  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0infring-ops.exe"' -EntryArgs 'infringctl' -Gateway
 }
 
-if ($daemonMode -eq "protheusd") {
-  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0protheusd.exe"' -EntryArgs ''
+if ($daemonMode -eq "infringd") {
+  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0infringd.exe"' -EntryArgs ''
 } elseif ($daemonMode -eq "conduit") {
   Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0conduit_daemon.exe"' -EntryArgs ''
 } else {
   if ($InstallPure) {
     throw "No daemon binary available for pure mode"
   }
-  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'spine'
+  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0infring-ops.exe"' -EntryArgs 'spine'
 }
 
 $infringPs1 = Join-Path $InstallDir "infring.ps1"
@@ -924,11 +941,13 @@ Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd"
 if ($InstallPure) {
   Write-Host "[infring install] pure mode: skipping Infring client bundle"
 } elseif ($InstallFull) {
-  $clientDir = Join-Path $InstallDir "protheus-client"
+  $clientDir = Join-Path $InstallDir "infring-client"
   if (Install-ClientBundle $version $triple $clientDir) {
     Write-Host "[infring install] full mode enabled: client runtime installed at $clientDir"
+  } elseif (Install-ClientBundleFromSourceFallback $clientDir) {
+    Write-Host "[infring install] full mode enabled: client runtime installed from source fallback at $clientDir"
   } else {
-    Write-Host "[infring install] full mode requested but no client runtime bundle was published for this release"
+    throw "Full mode requested but no client runtime bundle is available for $triple ($version), and source fallback runtime copy was unavailable."
   }
 } else {
   Write-Host "[infring install] lazy mode: skipping TS systems/eyes client bundle (use -Full to include)"

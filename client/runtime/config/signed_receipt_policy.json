@@ -1,0 +1,13 @@
+{
+  "schema_id": "signed_receipt_policy",
+  "schema_version": "1.0",
+  "algorithms": [
+    "hmac_sha256"
+  ],
+  "required_env": [
+    "INFRING_RECEIPT_HMAC_KEY"
+  ],
+  "receipt_chain": {
+    "hmac_required_for_regulated_exports": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schema_id": "retention_policy_pack",
+  "schema_version": "1.0",
+  "enabled": true,
+  "runtime_policy_path": "client/runtime/config/runtime_retention_policy.json",
+  "compliance_policy_path": "client/runtime/config/compliance_retention_policy.json"
+}

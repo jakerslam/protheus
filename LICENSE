@@ -1,6 +1,6 @@
 InfRing Dual License Notice
 
-Copyright (c) Protheus Labs
+Copyright (c) InfRing contributors
 
 This repository is dual-licensed.
 
@@ -9,18 +9,18 @@ This repository is dual-licensed.
    Files in the Open Core Scope are licensed under Apache-2.0.
    See `LICENSE-APACHE-2.0` and `LICENSE_SCOPE.md`.
 
-2) Protheus Non-Commercial License v1.0 (Default Scope)
+2) InfRing Non-Commercial License v1.0 (Default Scope)
 
    All files not explicitly in the Open Core Scope are licensed under
-   Protheus Non-Commercial License v1.0.
+   InfRing Non-Commercial License v1.0.
    See `LICENSE-INFRING-NC-1.0` and `LICENSE_SCOPE.md`.
 
 Scope resolution order:
 - If a file has an explicit SPDX license identifier, that identifier applies.
 - Otherwise apply the path-based scope map in `LICENSE_SCOPE.md`.
-- If neither rule applies, default to InfRing-NC-1.0.
+- If neither rule applies, default to LicenseRef-InfRing-NC-1.0.
 
 Commercial licensing and support:
-- Contact Protheus Labs for commercial licensing, support, and enterprise terms.
+- Contact the InfRing maintainers for commercial licensing, support, and enterprise terms.
 
 No trademark rights are granted except for accurate attribution.

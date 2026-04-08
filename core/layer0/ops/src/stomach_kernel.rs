@@ -7,9 +7,7 @@ use protheus_nexus_core_v1::{
     DefaultNexusPolicy, DeliveryAuthorizationInput, LeaseIssueRequest, MainNexusControlPlane,
     NexusFeatureFlags, TrustClass, VerityClass,
 };
-use protheus_stomach_core_v1::burn::{
-    purge_artifact_path, transition_retention, RetentionEvent,
-};
+use protheus_stomach_core_v1::burn::{purge_artifact_path, transition_retention, RetentionEvent};
 use protheus_stomach_core_v1::proposal::{TransformKind, TransformRequest};
 use protheus_stomach_core_v1::state::{rollback_by_receipt, DigestState, DigestStatus};
 use protheus_stomach_core_v1::{run_stomach_cycle, stable_hash, StomachConfig};
@@ -402,7 +400,9 @@ fn purge_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
         DigestStatus::Proposed | DigestStatus::Verified | DigestStatus::Assimilated
     ) && state.retention.explicit_purge_approval_receipt.is_none()
     {
-        return Err("stomach_purge_explicit_approval_required_for_proposed_or_assimilated".to_string());
+        return Err(
+            "stomach_purge_explicit_approval_required_for_proposed_or_assimilated".to_string(),
+        );
     }
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -431,8 +431,7 @@ fn retention_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
         .unwrap_or_else(|| "hold".to_string())
         .to_ascii_lowercase();
     let reason = parse_flag(argv, "reason").unwrap_or_else(|| "manual_hold".to_string());
-    let retained_until = parse_flag(argv, "retained-until")
-        .and_then(|raw| raw.parse::<u64>().ok());
+    let retained_until = parse_flag(argv, "retained-until").and_then(|raw| raw.parse::<u64>().ok());
     let approve_receipt = parse_flag(argv, "approve-receipt");
 
     let state_root = stomach_state_root(root);
@@ -462,7 +461,9 @@ fn retention_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
             },
         )?,
         "release" => transition_retention(&mut state.retention, RetentionEvent::ReleaseHold)?,
-        "eligible" => transition_retention(&mut state.retention, RetentionEvent::MarkEligibleForPurge)?,
+        "eligible" => {
+            transition_retention(&mut state.retention, RetentionEvent::MarkEligibleForPurge)?
+        }
         _ => return Err("stomach_retention_unknown_action".to_string()),
     }
 
@@ -571,8 +572,11 @@ mod tests {
         let root = tempdir().expect("tmp");
         let source = root.path().join("import");
         fs::create_dir_all(&source).expect("mkdir");
-        fs::write(source.join("Cargo.toml"), "[package]\nname=\"x\"\nversion=\"0.1.0\"\n")
-            .expect("write");
+        fs::write(
+            source.join("Cargo.toml"),
+            "[package]\nname=\"x\"\nversion=\"0.1.0\"\n",
+        )
+        .expect("write");
         fs::write(source.join("LICENSE"), "MIT").expect("license");
 
         let run_exit = run(

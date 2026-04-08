@@ -34,10 +34,10 @@ jobs:
       - name: Build image (FIPS contract)
         run: |
           docker build \
-            --build-arg PROTHEUS_FIPS_MODE=1 \
+            --build-arg INFRING_FIPS_MODE=1 \
             --build-arg VCS_REF="${GITHUB_SHA}" \
             --build-arg BUILD_DATE="${{ steps.meta.outputs.created }}" \
-            -t protheus:${{ steps.meta.outputs.tag }} .
+            -t infring:${{ steps.meta.outputs.tag }} .
 
       - name: Install Syft
         run: |
@@ -47,10 +47,10 @@ jobs:
       - name: Generate image SPDX SBOM
         run: |
           mkdir -p client/runtime/local/state/release/sbom
-          syft "docker:protheus:${{ steps.meta.outputs.tag }}" -o spdx-json=client/runtime/local/state/release/sbom/protheus-image.spdx.json
+          syft "docker:infring:${{ steps.meta.outputs.tag }}" -o spdx-json=client/runtime/local/state/release/sbom/infring-image.spdx.json
 
       - name: Upload Docker SBOM
         uses: actions/upload-artifact@v4
         with:
           name: docker-sbom-${{ steps.meta.outputs.tag }}
-          path: client/runtime/local/state/release/sbom/protheus-image.spdx.json
+          path: client/runtime/local/state/release/sbom/infring-image.spdx.json

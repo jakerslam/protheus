@@ -1,5 +1,5 @@
-use crate::schemas::EvidenceCard;
 use crate::now_ms;
+use crate::schemas::EvidenceCard;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -12,6 +12,8 @@ pub enum InvalidationRelationType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EvidenceInvalidationRecord {
+    pub trace_id: String,
+    pub task_id: String,
     pub target_evidence_id: String,
     pub relation_type: InvalidationRelationType,
     pub replacement_evidence_id: Option<String>,
@@ -54,12 +56,16 @@ impl EvidenceStore {
 
     pub fn append_invalidation(
         &mut self,
+        trace_id: &str,
+        task_id: &str,
         target_evidence_id: &str,
         relation_type: InvalidationRelationType,
         replacement_evidence_id: Option<String>,
         lineage: Vec<String>,
     ) -> EvidenceInvalidationRecord {
         let record = EvidenceInvalidationRecord {
+            trace_id: clean_text(trace_id, 160),
+            task_id: clean_text(task_id, 160),
             target_evidence_id: target_evidence_id.to_string(),
             relation_type,
             replacement_evidence_id,
@@ -68,7 +74,8 @@ impl EvidenceStore {
         };
         self.invalidated_ids
             .insert(record.target_evidence_id.to_string());
-        self.records.push(EvidenceRecord::Invalidation(record.clone()));
+        self.records
+            .push(EvidenceRecord::Invalidation(record.clone()));
         record
     }
 
@@ -101,6 +108,10 @@ fn sanitize_lineage(lineage: &[String]) -> Vec<String> {
     out
 }
 
+fn clean_text(raw: &str, max_len: usize) -> String {
+    raw.trim().chars().take(max_len).collect::<String>()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,6 +120,8 @@ mod tests {
     fn card(id: &str, dedupe_hash: &str) -> EvidenceCard {
         EvidenceCard {
             evidence_id: id.to_string(),
+            trace_id: "t1".to_string(),
+            task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),
             source_ref: "https://example.com".to_string(),
             source_location: "results[0]".to_string(),
@@ -131,12 +144,16 @@ mod tests {
         let ids = store.append_evidence(&[card("e1", "d1")]);
         assert_eq!(ids, vec!["e1".to_string()]);
         let invalidation = store.append_invalidation(
+            "trace-1",
+            "task-1",
             "e1",
             InvalidationRelationType::Invalidated,
             None,
             vec!["v".to_string()],
         );
         assert_eq!(invalidation.target_evidence_id, "e1");
+        assert_eq!(invalidation.trace_id, "trace-1");
+        assert_eq!(invalidation.task_id, "task-1");
         assert_eq!(store.records().len(), 2);
         assert!(store.active_evidence().is_empty());
     }

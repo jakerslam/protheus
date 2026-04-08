@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "types": ["node"],
+    "paths": {
+      "@infring/sdk": ["packages/infring-sdk/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/infring-sdk/src/**/*.ts",
+    "examples/apps/reference-task-submit/src/**/*.ts",
+    "examples/apps/reference-receipts-memory/src/**/*.ts",
+    "examples/apps/reference-assimilation-policy/src/**/*.ts"
+  ]
+}

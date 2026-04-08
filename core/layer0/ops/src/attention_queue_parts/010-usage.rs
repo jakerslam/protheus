@@ -3,7 +3,10 @@ use crate::importance::{band_rank, infer_from_event, to_json as importance_to_js
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::Engine;
 use chrono::{TimeZone, Utc};
-use execution_core::{evaluate_importance_json, prioritize_attention_json};
+use execution_core::{
+    evaluate_importance_json, prioritize_attention_json, DEFAULT_FRONT_JUMP_THRESHOLD,
+    INITIATIVE_POLICY_VERSION,
+};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -36,6 +39,7 @@ struct Layer2ImportanceDecision {
     priority: i64,
     front_jump: bool,
     initiative_action: String,
+    initiative_policy_version: String,
     initiative_repeat_after_sec: i64,
     initiative_max_messages: i64,
 }
@@ -340,12 +344,17 @@ fn parse_layer2_importance(raw: &str) -> Option<Layer2ImportanceDecision> {
     let front_jump = parsed
         .get("front_jump")
         .and_then(Value::as_bool)
-        .unwrap_or(score >= 0.70);
+        .unwrap_or(score >= DEFAULT_FRONT_JUMP_THRESHOLD);
     let initiative_action = parsed
         .get("initiative_action")
         .and_then(Value::as_str)
         .map(str::to_string)
         .unwrap_or_else(|| "silent".to_string());
+    let initiative_policy_version = parsed
+        .get("initiative_policy_version")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| INITIATIVE_POLICY_VERSION.to_string());
     let initiative_repeat_after_sec = parsed
         .get("initiative_repeat_after_sec")
         .and_then(Value::as_i64)
@@ -362,6 +371,7 @@ fn parse_layer2_importance(raw: &str) -> Option<Layer2ImportanceDecision> {
         priority,
         front_jump,
         initiative_action,
+        initiative_policy_version,
         initiative_repeat_after_sec,
         initiative_max_messages,
     })
@@ -379,7 +389,7 @@ fn evaluate_importance_via_layer2(
         "confidence": fallback.confidence,
         "core_floor": fallback.core_floor,
         "inherited_score": event.pointer("/importance/score").and_then(Value::as_f64).unwrap_or(fallback.score),
-        "front_jump_threshold": 0.70
+        "front_jump_threshold": DEFAULT_FRONT_JUMP_THRESHOLD
     });
     let encoded = serde_json::to_string(&payload).ok()?;
     let raw = evaluate_importance_json(&encoded).ok()?;
@@ -389,7 +399,7 @@ fn evaluate_importance_via_layer2(
 fn prioritize_rows_via_layer2(rows: &[Value]) -> Option<Vec<Value>> {
     let payload = json!({
         "events": rows,
-        "front_jump_threshold": 0.70
+        "front_jump_threshold": DEFAULT_FRONT_JUMP_THRESHOLD
     });
     let encoded = serde_json::to_string(&payload).ok()?;
     let raw = prioritize_attention_json(&encoded).ok()?;
@@ -451,4 +461,3 @@ fn event_band_rank(row: &Value) -> i64 {
         }
     }
 }
-

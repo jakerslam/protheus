@@ -1,10 +1,6 @@
 # InfRing
 
-[![CI](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml)
 [![License: Dual](https://img.shields.io/badge/license-dual%20(NC%20%2B%20Apache--2.0)-orange.svg)](LICENSE_SCOPE.md)
-[![Release](https://img.shields.io/github/v/release/protheuslabs/InfRing?display_name=tag)](https://github.com/protheuslabs/InfRing/releases)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fprotheuslabs%2Finfring-blue)](https://github.com/protheuslabs/InfRing/pkgs/container/infring)
 [![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
 ![Coverage](docs/client/badges/coverage.svg)
 
@@ -47,7 +43,7 @@ What is true in this repository today:
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
+curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --full
 infring gateway
 ```
 
@@ -57,7 +53,7 @@ infring gateway
 # Use process-scoped bypass so locked-down execution policies do not block install.
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
+irm https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.ps1 -OutFile $tmp
 & $tmp -Repair -Full
 # Remove-Item is silent on success in PowerShell.
 Remove-Item $tmp -Force
@@ -71,7 +67,7 @@ If script execution is still restricted in your environment, use a no-file fallb
 ```powershell
 $env:INFRING_INSTALL_REPAIR = "1"
 $env:INFRING_INSTALL_FULL = "1"
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.ps1 | iex
 infring gateway
 ```
 
@@ -148,13 +144,13 @@ Examples:
 
 ```bash
 # Pure
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --pure
+curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --pure
 
 # Tiny-max
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --tiny-max
+curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --tiny-max
 
 # Repair + full
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --full
+curl -fsSL https://raw.githubusercontent.com/<github-owner>/InfRing/main/install.sh | sh -s -- --repair --full
 
 # In-place update from an existing install
 infring update --repair --full
@@ -206,7 +202,20 @@ When Node.js is unavailable, `infring` exposes a reduced but operational command
 - `research <status|diagnostics|fetch>`
 - `help`, `list`, `version`
 
+Not available in Node-free fallback:
+
+- `assimilate` (experimental runtime lane; requires Node.js 22+ full surface)
+
 Install Node.js 22+ to unlock full JS-assisted command surfaces.
+
+### Experimental Runtime Surface (Node.js 22+ Required)
+
+- `assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]`
+
+Behavior:
+
+- Known targets route to governed core bridge lanes.
+- Unknown targets run local simulation mode and are not treated as production integration.
 
 ### Local Source Workflow
 
@@ -222,7 +231,7 @@ npm run gateway
 
 Latest benchmark source:
 
-- [`local/state/ops/competitive_benchmark_matrix/latest.json`](local/state/ops/competitive_benchmark_matrix/latest.json)
+- [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
 Current measured rows in that artifact:
 
@@ -252,7 +261,7 @@ Current nuance:
 
 ### Competitor Comparison (Latest Matrix)
 
-Source: [`local/state/ops/competitive_benchmark_matrix/latest.json`](local/state/ops/competitive_benchmark_matrix/latest.json)
+Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
@@ -267,6 +276,8 @@ Refresh commands:
 ```bash
 npm run -s ops:benchmark:refresh
 npm run -s ops:benchmark:sanity
+npm run -s ops:benchmark:public-audit
+npm run -s ops:benchmark:repro
 ```
 
 ## What Ships Today
@@ -276,6 +287,22 @@ npm run -s ops:benchmark:sanity
 - Agent/session/memory/rag/research command surfaces
 - Signed policy/config registry surfaces under `client/runtime/config/**`
 - Regression and governance gates in `tests/**` and `verify.sh`
+
+## Public SDK
+
+- TypeScript SDK package: `packages/infring-sdk` (`@infring/sdk`)
+- Stable contract methods:
+  - `submitTask`
+  - `inspectReceipts`
+  - `queryMemory`
+  - `reviewEvidence`
+  - `runAssimilation`
+  - `attachPolicies`
+- Reference app build proof:
+  - `examples/apps/reference-task-submit`
+  - `examples/apps/reference-receipts-memory`
+  - `examples/apps/reference-assimilation-policy`
+  - `npm run -s ops:sdk:surface:build`
 
 ## Repository Map
 
@@ -320,6 +347,7 @@ npm run -s ops:benchmark:sanity
 InfRing uses dual licensing:
 
 - Apache-2.0 for open-core scope: [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
-- InfRing-NC-1.0 for default NC scope: [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0)
+- LicenseRef-InfRing-NC-1.0 for default NC scope: [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0)
 
-See [LICENSE_SCOPE.md](LICENSE_SCOPE.md) for path-level scope resolution.
+Canonical SPDX matrix: [LICENSE_MATRIX.json](LICENSE_MATRIX.json)  
+Human-readable path scope: [LICENSE_SCOPE.md](LICENSE_SCOPE.md)

@@ -17,7 +17,8 @@ const WEIGHT_URGENCY: f64 = 0.25;
 const WEIGHT_IMPACT: f64 = 0.20;
 const WEIGHT_USER_RELEVANCE: f64 = 0.15;
 const WEIGHT_CONFIDENCE: f64 = 0.05;
-const DEFAULT_FRONT_JUMP_THRESHOLD: f64 = 0.70;
+pub const DEFAULT_FRONT_JUMP_THRESHOLD: f64 = 0.70;
+pub const INITIATIVE_POLICY_VERSION: &str = "initiative_policy_v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportanceInput {
@@ -103,7 +104,7 @@ fn score_from_input(input: &ImportanceInput) -> f64 {
     score
 }
 
-fn band_for_score(score: f64) -> &'static str {
+pub fn band_for_score(score: f64) -> &'static str {
     if score >= 0.95 {
         "p0"
     } else if score >= 0.85 {
@@ -117,10 +118,10 @@ fn band_for_score(score: f64) -> &'static str {
     }
 }
 
-fn initiative_for_score(score: f64) -> (&'static str, i64, i64) {
+pub fn initiative_for_score(score: f64) -> (&'static str, i64, i64) {
     if score >= 0.95 {
         ("persistent_until_ack", 60, 999)
-    } else if score > 0.85 {
+    } else if score >= 0.85 {
         ("triple_escalation", 120, 3)
     } else if score >= 0.70 {
         ("double_message", 300, 2)
@@ -129,6 +130,20 @@ fn initiative_for_score(score: f64) -> (&'static str, i64, i64) {
     } else {
         ("silent", 0, 0)
     }
+}
+
+pub fn front_jump_for_score(score: f64, front_jump_threshold: f64) -> bool {
+    clamp01(score) >= clamp01(front_jump_threshold)
+}
+
+fn initiative_thresholds_json() -> Value {
+    json!({
+        "silent_below": 0.4,
+        "single_message_min": 0.4,
+        "double_message_min": 0.7,
+        "triple_escalation_min": 0.85,
+        "persistent_min": 0.95
+    })
 }
 
 /// Compute a deterministic importance decision from normalized input metrics.
@@ -144,7 +159,7 @@ pub fn evaluate_importance(
     let score = score_from_input(input);
     let priority = ((score * 1000.0).round() as i64).clamp(1, 1000);
     let band = band_for_score(score).to_string();
-    let front_jump = score >= clamp01(front_jump_threshold);
+    let front_jump = front_jump_for_score(score, front_jump_threshold);
     let (initiative_action, initiative_repeat_after_sec, initiative_max_messages) =
         initiative_for_score(score);
 
@@ -206,6 +221,7 @@ pub fn evaluate_importance_json(payload: &str) -> Result<String, String> {
     let out = json!({
         "ok": true,
         "type": "layer2_importance_score",
+        "initiative_policy_version": INITIATIVE_POLICY_VERSION,
         "score": decision.score,
         "priority": decision.priority,
         "band": decision.band,
@@ -213,6 +229,7 @@ pub fn evaluate_importance_json(payload: &str) -> Result<String, String> {
         "initiative_action": decision.initiative_action,
         "initiative_repeat_after_sec": decision.initiative_repeat_after_sec,
         "initiative_max_messages": decision.initiative_max_messages,
+        "initiative_thresholds": initiative_thresholds_json(),
         "weights": {
             "criticality": WEIGHT_CRITICALITY,
             "urgency": WEIGHT_URGENCY,
@@ -233,18 +250,13 @@ pub fn evaluate_initiative_json(payload: &str) -> Result<String, String> {
     let out = json!({
         "ok": true,
         "type": "layer2_initiative_decision",
+        "initiative_policy_version": INITIATIVE_POLICY_VERSION,
         "score": score,
         "action": action,
         "repeat_after_sec": repeat_after_sec,
         "max_messages": max_messages,
         "front_jump": score >= DEFAULT_FRONT_JUMP_THRESHOLD,
-        "thresholds": {
-            "silent_below": 0.4,
-            "single_message_min": 0.4,
-            "double_message_min": 0.7,
-            "triple_escalation_min": 0.85,
-            "persistent_min": 0.95
-        }
+        "thresholds": initiative_thresholds_json()
     });
     serde_json::to_string(&out).map_err(|err| format!("encode_failed:{err}"))
 }
@@ -281,6 +293,7 @@ pub fn prioritize_attention_json(payload: &str) -> Result<String, String> {
                     "priority": decision.priority,
                     "band": decision.band,
                     "initiative_action": decision.initiative_action,
+                    "initiative_policy_version": INITIATIVE_POLICY_VERSION,
                     "initiative_repeat_after_sec": decision.initiative_repeat_after_sec,
                     "initiative_max_messages": decision.initiative_max_messages
                 }),
@@ -299,6 +312,7 @@ pub fn prioritize_attention_json(payload: &str) -> Result<String, String> {
     let out = json!({
         "ok": true,
         "type": "layer2_attention_priority",
+        "initiative_policy_version": INITIATIVE_POLICY_VERSION,
         "front_jump_threshold": threshold,
         "queue_depth": ordered.len(),
         "events": ordered
@@ -334,6 +348,9 @@ mod tests {
 
         let mid = evaluate_initiative_json(r#"{"score":0.72}"#).unwrap();
         assert!(mid.contains("\"action\":\"double_message\""));
+
+        let boundary = evaluate_initiative_json(r#"{"score":0.85}"#).unwrap();
+        assert!(boundary.contains("\"action\":\"triple_escalation\""));
 
         let high = evaluate_initiative_json(r#"{"score":0.96}"#).unwrap();
         assert!(high.contains("\"action\":\"persistent_until_ack\""));

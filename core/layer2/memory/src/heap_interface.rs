@@ -4,13 +4,17 @@ use crate::policy::{MemoryPolicyDecision, MemoryPolicyGate, MemoryPolicyRequest,
 use crate::promotion::{is_valid_trust_transition, rollback_head_from_version};
 use crate::record_store::RecordStore;
 use crate::schemas::{
-    CapabilityToken, MemoryObject, MemoryReceipt, MemoryScope, MemoryVersion, OwnerScopeSettings,
+    CanonicalMemoryRecord, CapabilityAction, CapabilityToken, MemoryMutationReplayRow,
+    MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryScope, MemoryVersion, OwnerScopeSettings,
     TrustState,
 };
 use crate::version_ledger::VersionLedger;
 use crate::{deterministic_hash, now_ms, BlobStore, VectorIndex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+
+#[path = "heap_workflows.rs"]
+mod workflows;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NexusRouteContext {
@@ -88,6 +92,59 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
 
     pub fn blob_store(&self) -> &BlobStore {
         &self.blob_store
+    }
+
+    pub fn replay_mutation_rows(&self) -> Vec<MemoryMutationReplayRow> {
+        self.version_ledger.replay_rows()
+    }
+
+    pub fn purge_records(&self) -> &[MemoryPurgeRecord] {
+        self.version_ledger.purge_records()
+    }
+
+    pub fn canonical_head_record(
+        &self,
+        principal_id: &str,
+        capability: &CapabilityToken,
+        object_id: &str,
+    ) -> Result<Option<CanonicalMemoryRecord>, String> {
+        let Some(object) = self.record_store.get_object(object_id).cloned() else {
+            return Ok(None);
+        };
+        let read_decision = self.policy.evaluate(&MemoryPolicyRequest {
+            principal_id: principal_id.to_string(),
+            action: PolicyAction::Read,
+            source_scope: object.scope.clone(),
+            target_scope: None,
+            trust_state: None,
+            capability: Some(capability.clone()),
+            owner_settings: self.config.owner_settings.clone(),
+        });
+        if !read_decision.allow {
+            return Err(format!("canonical_record_denied:{}", read_decision.reason));
+        }
+        let Some(head_version_id) = self.record_store.head_version_id(object_id) else {
+            return Ok(None);
+        };
+        if self.version_ledger.is_purged(head_version_id.as_str()) {
+            return Ok(None);
+        }
+        let Some(head) = self.version_ledger.get(head_version_id.as_str()).cloned() else {
+            return Ok(None);
+        };
+        Ok(Some(CanonicalMemoryRecord {
+            record_id: format!("record:{}:{}", head.object_id, head.version_id),
+            object_id: head.object_id,
+            version_id: head.version_id,
+            scope: head.scope,
+            classification: object.classification,
+            trust_state: head.trust_state,
+            capability_action: CapabilityAction::Read,
+            capability_token_id: capability.token_id.clone(),
+            payload: head.payload,
+            metadata: object.metadata,
+            timestamp_ms: head.timestamp_ms,
+        }))
     }
 
     pub fn write_memory_object(
@@ -196,7 +253,19 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let Some(head_version_id) = self.record_store.head_version_id(object_id) else {
             return Ok(None);
         };
-        Ok(self.version_ledger.get(head_version_id.as_str()).cloned())
+        if !self.version_ledger.is_purged(head_version_id.as_str()) {
+            return Ok(self.version_ledger.get(head_version_id.as_str()).cloned());
+        }
+        let fallback = self
+            .version_ledger
+            .active_versions_for_object(object_id)
+            .into_iter()
+            .max_by(|a, b| {
+                a.timestamp_ms
+                    .cmp(&b.timestamp_ms)
+                    .then_with(|| a.version_id.cmp(&b.version_id))
+            });
+        Ok(fallback)
     }
 
     pub fn promote_version(
@@ -420,9 +489,15 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             let Some(head_version_id) = self.record_store.head_version_id(&object.object_id) else {
                 continue;
             };
+            if self.version_ledger.is_purged(head_version_id.as_str()) {
+                continue;
+            }
             let Some(version) = self.version_ledger.get(head_version_id.as_str()).cloned() else {
                 continue;
             };
+            if version.trust_state.is_poisoned() {
+                continue;
+            }
             visible.push(version);
         }
         let materialized = materialize_context(
@@ -466,9 +541,17 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             .into_iter()
             .filter(|row| row.scope == MemoryScope::Owner)
             .filter_map(|object| {
-                self.record_store
-                    .head_version_id(object.object_id.as_str())
-                    .and_then(|version_id| self.version_ledger.get(version_id.as_str()).cloned())
+                let version_id = self
+                    .record_store
+                    .head_version_id(object.object_id.as_str())?;
+                if self.version_ledger.is_purged(version_id.as_str()) {
+                    return None;
+                }
+                let version = self.version_ledger.get(version_id.as_str()).cloned()?;
+                if version.trust_state.is_poisoned() {
+                    return None;
+                }
+                Some(version)
             })
             .collect::<Vec<_>>();
         if owner_versions.is_empty() {

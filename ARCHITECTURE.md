@@ -1,9 +1,9 @@
-# Protheus Architecture
+# InfRing Architecture
 
-Protheus is built as a Rust-first deterministic core with a narrow conduit to cognition surfaces.
+InfRing is built as a Rust-first deterministic core with a narrow conduit to cognition surfaces.
 
 Canonical architecture contract:
-- `docs/SYSTEM-ARCHITECTURE-SPECS.md` (Protheus / InfRing Layering Specification v1.0)
+- `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
 
 ## InfRing Direction
 
@@ -15,7 +15,7 @@ InfRing is the target operating model: a portable autonomous substrate that runs
 
 ## Three-Plane Metakernel
 
-Protheus is explicitly modeled as a substrate-independent metakernel with three planes:
+InfRing is explicitly modeled as a substrate-independent metakernel with three planes:
 
 1. Safety plane (`planes/safety`, implemented in `core/`): deterministic authority stack with strict upward-only flow:
    - `core/layer_minus_one/` - Exotic Hardware Template (thin substrate adapter contract)
@@ -62,13 +62,13 @@ REQ-27 authority implementation:
 - Cockpit + layer wrapper delta requirements: `docs/client/requirements/REQ-33-cockpit-stream-and-layer-wrappers.md`
 
 Migration note:
-- Strictly follow Protheus / InfRing Layering Specification v1.0 with upward-only flow:
+- Strictly follow InfRing Layering Specification v1.0 with upward-only flow:
   `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
 - Existing `layer0/ops` authority lanes remain active while Layer2 ownership is completed incrementally without runtime regressions.
 
 ## Mech-Suit Cockpit Runtime
 
-- `protheusd` now defaults to `attach` semantics (attach-or-start) for cockpit-first operation.
+- `infringd` now defaults to `attach` semantics (attach-or-start) for cockpit-first operation.
 - Startup origin-integrity checks support degraded timeout mode with deterministic retry scheduling, rather than hard startup deadlocks.
 - Attention queue drain supports wait-based delivery (`--wait-ms`) for long-lived subscription behavior through conduit receipts.
 
@@ -177,7 +177,7 @@ flowchart TB
     L3["Layer 3: OS Personality Template"]
     CONDUIT["Conduit + Scrambler"]
     UI["Cognition Plane (Client Surface)"]
-    CLI["Operator Surface (protheus/protheusctl/protheusd)"]
+    CLI["Operator Surface (infring/infringctl/infringd)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]
 
     SUBSTRATE --> LNEG1
@@ -217,7 +217,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 ## Related Docs
 
 - [Getting Started](docs/client/GETTING_STARTED.md)
-- [Conduit Requirement](docs/client/requirements/REQ-05-protheus-conduit-bridge.md)
+- Conduit Requirement (REQ-05)
 - [Rust Primitive Requirement](docs/client/requirements/REQ-08-rust-core-primitives.md)
 - [Layered Templates Requirement](docs/client/requirements/REQ-31-layered-templates-and-os-personality.md)
 - [Mech-Suit Cockpit Runtime Requirement](docs/client/requirements/REQ-32-mech-suit-cockpit-persistent-push.md)

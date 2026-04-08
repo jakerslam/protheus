@@ -44,6 +44,12 @@ pub enum TrustState {
     Revoked,
 }
 
+impl TrustState {
+    pub fn is_poisoned(&self) -> bool {
+        matches!(self, Self::Contested | Self::Quarantined | Self::Revoked)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum CapabilityAction {
@@ -65,6 +71,21 @@ pub struct CapabilityToken {
     pub expires_at_ms: u64,
     pub verity_class: String,
     pub receipt_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CanonicalMemoryRecord {
+    pub record_id: String,
+    pub object_id: String,
+    pub version_id: String,
+    pub scope: MemoryScope,
+    pub classification: Classification,
+    pub trust_state: TrustState,
+    pub capability_action: CapabilityAction,
+    pub capability_token_id: String,
+    pub payload: Value,
+    pub metadata: Value,
+    pub timestamp_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -110,6 +131,65 @@ pub struct MemoryReceipt {
     pub timestamp_ms: u64,
     pub lineage_refs: Vec<String>,
     pub details: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PurgeRelationType {
+    PurgedByRetention,
+    PurgedByPolicy,
+    PurgedByOperator,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryPurgeRecord {
+    pub purge_id: String,
+    pub target_version_id: String,
+    pub target_object_id: String,
+    pub relation_type: PurgeRelationType,
+    pub reason: String,
+    pub issued_by: String,
+    pub receipt_id: String,
+    pub timestamp_ms: u64,
+    pub lineage_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryRetentionPolicy {
+    pub max_versions_per_object: usize,
+    pub retain_window_ms: Option<u64>,
+    pub protect_trust_states: Vec<TrustState>,
+}
+
+impl Default for MemoryRetentionPolicy {
+    fn default() -> Self {
+        Self {
+            max_versions_per_object: 32,
+            retain_window_ms: None,
+            protect_trust_states: vec![TrustState::Validated, TrustState::Canonical],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RetentionPurgeReport {
+    pub scanned_objects: usize,
+    pub scanned_versions: usize,
+    pub purged_versions: usize,
+    pub skipped_due_to_policy: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryMutationReplayRow {
+    pub object_id: String,
+    pub version_id: String,
+    pub parent_version_id: Option<String>,
+    pub scope: MemoryScope,
+    pub trust_state: TrustState,
+    pub receipt_id: String,
+    pub timestamp_ms: u64,
+    pub payload_hash: String,
+    pub lineage_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

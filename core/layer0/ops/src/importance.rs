@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+use execution_core::{
+    band_for_score as initiative_band_for_score,
+    front_jump_for_score as initiative_front_jump_for_score,
+    initiative_for_score as initiative_contract_for_score, DEFAULT_FRONT_JUMP_THRESHOLD,
+    INITIATIVE_POLICY_VERSION,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
@@ -15,6 +21,7 @@ pub struct ImportanceDecision {
     pub confidence: f64,
     pub core_floor: f64,
     pub initiative_action: String,
+    pub initiative_policy_version: String,
     pub initiative_repeat_after_sec: i64,
     pub initiative_max_messages: i64,
     pub queue_front: bool,
@@ -47,20 +54,6 @@ fn severity_criticality(severity: &str) -> f64 {
 fn text_contains_any(text: &str, needles: &[&str]) -> bool {
     let hay = text.to_ascii_lowercase();
     needles.iter().any(|needle| hay.contains(needle))
-}
-
-fn band_for_score(score: f64) -> &'static str {
-    if score >= 0.95 {
-        "p0"
-    } else if score >= 0.85 {
-        "p1"
-    } else if score >= 0.70 {
-        "p2"
-    } else if score >= 0.40 {
-        "p3"
-    } else {
-        "p4"
-    }
 }
 
 pub fn band_rank(band: &str) -> i64 {
@@ -251,7 +244,7 @@ pub fn infer_from_event(
     }
     score = clamp01(score);
 
-    let band = band_for_score(score).to_string();
+    let band = initiative_band_for_score(score).to_string();
     let severity_priority = *priority_map.get(severity).unwrap_or(&20);
     let derived_priority = ((score * 1000.0).round() as i64).clamp(1, 1000);
     let priority = explicit_priority
@@ -259,19 +252,9 @@ pub fn infer_from_event(
         .max(severity_priority)
         .clamp(1, 1000);
 
-    let (initiative_action, initiative_repeat_after_sec, initiative_max_messages) = if score < 0.40
-    {
-        ("silent".to_string(), 0, 0)
-    } else if score < 0.70 {
-        ("single_message".to_string(), 0, 1)
-    } else if score < 0.85 {
-        ("double_message".to_string(), 300, 2)
-    } else if score < 0.95 {
-        ("triple_escalation".to_string(), 120, 3)
-    } else {
-        ("persistent_until_ack".to_string(), 30, 999)
-    };
-    let queue_front = score >= 0.70;
+    let (initiative_action, initiative_repeat_after_sec, initiative_max_messages) =
+        initiative_contract_for_score(score);
+    let queue_front = initiative_front_jump_for_score(score, DEFAULT_FRONT_JUMP_THRESHOLD);
 
     ImportanceDecision {
         score,
@@ -284,7 +267,8 @@ pub fn infer_from_event(
         user_relevance,
         confidence,
         core_floor,
-        initiative_action,
+        initiative_action: initiative_action.to_string(),
+        initiative_policy_version: INITIATIVE_POLICY_VERSION.to_string(),
         initiative_repeat_after_sec,
         initiative_max_messages,
         queue_front,
@@ -305,6 +289,7 @@ pub fn to_json(decision: &ImportanceDecision) -> Value {
         "core_floor": decision.core_floor,
         "initiative": {
             "action": decision.initiative_action,
+            "policy_version": decision.initiative_policy_version,
             "repeat_after_sec": decision.initiative_repeat_after_sec,
             "max_messages": decision.initiative_max_messages
         },
@@ -332,6 +317,7 @@ mod tests {
         assert_eq!(out.band, "p1");
         assert!(out.priority >= 920);
         assert_eq!(out.initiative_action, "triple_escalation");
+        assert_eq!(out.initiative_policy_version, INITIATIVE_POLICY_VERSION);
     }
 
     #[test]
@@ -347,6 +333,54 @@ mod tests {
         assert_eq!(out.band, "p4");
         assert_eq!(out.initiative_action, "silent");
         assert_eq!(out.initiative_max_messages, 0);
+        assert_eq!(out.initiative_policy_version, INITIATIVE_POLICY_VERSION);
+    }
+
+    #[test]
+    fn layer0_and_layer2_initiative_contract_match_for_same_inputs() {
+        let pm = BTreeMap::new();
+        for score in [0.20, 0.40, 0.70, 0.85, 0.95, 1.0] {
+            let event = json!({
+                "source": "external_eyes",
+                "source_type": "external_item",
+                "severity": "info",
+                "summary": "contract parity",
+                "importance": {
+                    "criticality": score,
+                    "urgency": score,
+                    "impact": score,
+                    "user_relevance": score,
+                    "confidence": score,
+                    "score": score
+                }
+            });
+            let layer0 = infer_from_event(&event, "info", &pm);
+            let layer2 = execution_core::evaluate_importance(
+                &execution_core::ImportanceInput {
+                    criticality: Some(score),
+                    urgency: Some(score),
+                    impact: Some(score),
+                    user_relevance: Some(score),
+                    confidence: Some(score),
+                    core_floor: Some(0.0),
+                    inherited_score: Some(score),
+                },
+                DEFAULT_FRONT_JUMP_THRESHOLD,
+            );
+            assert!((layer0.score - layer2.score).abs() <= f64::EPSILON);
+            assert_eq!(layer0.band, layer2.band);
+            assert_eq!(layer0.initiative_action, layer2.initiative_action);
+            assert_eq!(
+                layer0.initiative_repeat_after_sec,
+                layer2.initiative_repeat_after_sec
+            );
+            assert_eq!(
+                layer0.initiative_max_messages,
+                layer2.initiative_max_messages
+            );
+            assert_eq!(layer0.queue_front, layer2.front_jump);
+            assert_eq!(layer0.initiative_policy_version, INITIATIVE_POLICY_VERSION);
+        }
     }
 
     proptest! {
@@ -385,7 +419,16 @@ mod tests {
             prop_assert!((0.0..=1.0).contains(&out.score));
             prop_assert!((1..=1000).contains(&out.priority));
             prop_assert!(matches!(out.band.as_str(), "p0" | "p1" | "p2" | "p3" | "p4"));
-            prop_assert_eq!(out.queue_front, out.score >= 0.70);
+            let (expected_action, expected_repeat_after_sec, expected_max_messages) =
+                initiative_contract_for_score(out.score);
+            prop_assert_eq!(out.band, initiative_band_for_score(out.score));
+            prop_assert_eq!(out.initiative_action, expected_action);
+            prop_assert_eq!(out.initiative_repeat_after_sec, expected_repeat_after_sec);
+            prop_assert_eq!(out.initiative_max_messages, expected_max_messages);
+            prop_assert_eq!(
+                out.queue_front,
+                initiative_front_jump_for_score(out.score, DEFAULT_FRONT_JUMP_THRESHOLD)
+            );
         }
     }
 }

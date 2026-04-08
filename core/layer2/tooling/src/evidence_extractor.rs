@@ -55,6 +55,8 @@ impl EvidenceExtractor {
         }));
         Some(EvidenceCard {
             evidence_id,
+            trace_id: result.trace_id.clone(),
+            task_id: result.task_id.clone(),
             derived_from_result_id: result.result_id.clone(),
             source_ref,
             source_location,
@@ -194,5 +196,7 @@ mod tests {
         let cards = extractor.extract(&sample_result(), &raw);
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].derived_from_result_id, "r1");
+        assert_eq!(cards[0].trace_id, "t1");
+        assert_eq!(cards[0].task_id, "task");
     }
 }

@@ -146,6 +146,15 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
+        synopsis: "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]",
+        desc: "Experimental runtime assimilation lane. Requires Node.js 22+ full surface; known targets route to governed core bridges, unknown targets remain local simulation mode.",
+        tier: CommandTier::Experimental,
+        handler: CommandHandlerKind::RuntimeScript,
+        script_rel: "client/runtime/systems/tools/assimilate.ts",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
         synopsis: "session <status|register|resume|send|list>",
         desc: "Manage command-center sessions.",
         tier: CommandTier::Experimental,
@@ -622,6 +631,33 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(first.get("synopsis").and_then(Value::as_str), Some("help"));
         assert_eq!(first.get("tier").and_then(Value::as_str), Some("tier1"));
+    }
+
+    #[test]
+    fn command_registry_includes_assimilate_as_experimental_runtime_surface() {
+        let out = commands_json();
+        let rows = out.as_array().cloned().unwrap_or_default();
+        let assimilate = rows.iter().find(|row| {
+            row.get("synopsis").and_then(Value::as_str) == Some(
+                "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]",
+            )
+        });
+        let row = assimilate
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(
+            row.get("tier").and_then(Value::as_str),
+            Some("experimental")
+        );
+        assert_eq!(
+            row.get("handler").and_then(Value::as_str),
+            Some("runtime_script")
+        );
+        assert_eq!(
+            row.get("script_rel").and_then(Value::as_str),
+            Some("client/runtime/systems/tools/assimilate.ts")
+        );
     }
 
     #[test]

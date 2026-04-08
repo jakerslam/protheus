@@ -104,6 +104,12 @@ impl ThinClientDelegator {
         let claim_bundle = self
             .verifier
             .derive_claim_bundle(request.task_id.as_str(), &active_cards);
+        if let Err(err) = self
+            .verifier
+            .validate_claim_evidence_refs(&claim_bundle, &active_cards)
+        {
+            blockers.push(err);
+        }
         let supported_claims = self.verifier.supported_claims_for_synthesis(&claim_bundle);
         if supported_claims.is_empty() && blockers.is_empty() {
             blockers.push("no_supported_claims".to_string());
@@ -272,7 +278,11 @@ mod tests {
         }
     }
 
-    fn request(user_input: &str, web_query: Option<&str>, file_path: Option<&str>) -> ClientAdapterRequest {
+    fn request(
+        user_input: &str,
+        web_query: Option<&str>,
+        file_path: Option<&str>,
+    ) -> ClientAdapterRequest {
         ClientAdapterRequest {
             trace_id: "trace-1".to_string(),
             task_id: "task-1".to_string(),
@@ -287,7 +297,10 @@ mod tests {
     fn typed_worker_output_does_not_include_prose_or_raw_dump_fields() {
         let mut delegator = ThinClientDelegator::default();
         let result = delegator
-            .run(&request("search web benchmarks", Some("benchmarks"), None), &MockBridge)
+            .run(
+                &request("search web benchmarks", Some("benchmarks"), None),
+                &MockBridge,
+            )
             .expect("run");
         let as_json = serde_json::to_value(&result.worker_output).expect("serialize");
         let mut keys = as_json
@@ -305,17 +318,17 @@ mod tests {
             "budget_used",
         ];
         expected.sort();
-        assert_eq!(
-            keys,
-            expected
-        );
+        assert_eq!(keys, expected);
     }
 
     #[test]
     fn end_to_end_web_only_task_produces_claims() {
         let mut delegator = ThinClientDelegator::default();
         let out = delegator
-            .run(&request("search web for results", Some("agent benchmarks"), None), &MockBridge)
+            .run(
+                &request("search web for results", Some("agent benchmarks"), None),
+                &MockBridge,
+            )
             .expect("run");
         assert!(!out.worker_output.produced_evidence_ids.is_empty());
         assert!(!out.claim_bundle.claims.is_empty());
@@ -362,5 +375,41 @@ mod tests {
             delegator.client_direct_tool_call_attempt(),
             Err(BrokerError::DirectToolBypassDenied(_))
         ));
+    }
+
+    #[test]
+    fn claim_bundle_claims_always_reference_existing_evidence() {
+        let mut delegator = ThinClientDelegator::default();
+        let out = delegator
+            .run(
+                &request("search web for results", Some("agent benchmarks"), None),
+                &MockBridge,
+            )
+            .expect("run");
+        let evidence_set = out
+            .worker_output
+            .produced_evidence_ids
+            .iter()
+            .cloned()
+            .collect::<std::collections::HashSet<_>>();
+        assert!(
+            !evidence_set.is_empty(),
+            "expected evidence to be produced for claim validation"
+        );
+        for claim in &out.claim_bundle.claims {
+            assert!(
+                !claim.evidence_ids.is_empty(),
+                "claim {} missing evidence refs",
+                claim.claim_id
+            );
+            for evidence_id in &claim.evidence_ids {
+                assert!(
+                    evidence_set.contains(evidence_id),
+                    "claim {} points to unknown evidence {}",
+                    claim.claim_id,
+                    evidence_id
+                );
+            }
+        }
     }
 }

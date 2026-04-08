@@ -65,6 +65,9 @@ jobs:
       - name: Benchmark Sanity Gate
         run: npm run -s ops:benchmark:sanity
 
+      - name: Benchmark Public Audit Gate
+        run: npm run -s ops:benchmark:public-audit
+
       - name: Flaky Quarantine Audit
         run: npm run -s ops:flaky:quarantine:audit
 
@@ -79,3 +82,41 @@ jobs:
 
       - name: Mobile Benchmark Matrix (Smoke)
         run: node tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: |
+          docker build \
+            --build-arg INFRING_FIPS_MODE=1 \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t infring:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --rm --name infring-smoke -p 4173:4173 infring:ci
+
+      - name: Wait for health and verify dashboard endpoints
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS "http://127.0.0.1:4173/healthz" >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:4173/healthz" | tee /tmp/infring-healthz.json
+          curl -fsS "http://127.0.0.1:4173/dashboard" >/dev/null
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs infring-smoke || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f infring-smoke || true

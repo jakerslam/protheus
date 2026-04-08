@@ -112,6 +112,38 @@ jobs:
             --channel=${{ steps.semver.outputs.release_channel }} \
             --out=client/runtime/local/state/release/CHANGELOG.auto.md
 
+      - name: Generate release licensing manifest
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+
+          const matrixPath = 'LICENSE_MATRIX.json';
+          const outPath = 'client/runtime/local/state/release/licensing/release_licensing_manifest.json';
+          const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+          const expression = String(matrix?.release_metadata?.release_bundle_spdx || '').trim();
+          if (!expression) {
+            throw new Error('release_bundle_spdx missing in LICENSE_MATRIX.json');
+          }
+          const matrixDigest = crypto
+            .createHash('sha256')
+            .update(fs.readFileSync(matrixPath))
+            .digest('hex');
+          const payload = {
+            schema_id: 'infring_release_licensing_manifest',
+            schema_version: '1.0',
+            generated_at: new Date().toISOString(),
+            source_matrix_path: matrixPath,
+            source_matrix_sha256: matrixDigest,
+            license_expression: expression,
+            default_spdx: String(matrix?.default_spdx || '').trim(),
+            precedence: Array.isArray(matrix?.precedence) ? matrix.precedence : [],
+          };
+          fs.mkdirSync('client/runtime/local/state/release/licensing', { recursive: true });
+          fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n');
+          NODE
+
       - name: Release policy + compatibility + migration gate
         if: steps.semver.outputs.release_ready == '1'
         id: policy_gate
@@ -119,6 +151,12 @@ jobs:
           node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_policy_gate.ts \
             --strict=1 \
             --out=core/local/artifacts/release_policy_gate_current.json
+
+      - name: Benchmark public artifact gate
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          npm run -s ops:benchmark:sanity
+          npm run -s ops:benchmark:public-audit
 
       - name: Canary gate with rollback enforcement
         if: steps.semver.outputs.release_ready == '1'
@@ -277,6 +315,7 @@ jobs:
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig \
             client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig \
             client/runtime/local/state/release/signatures/release_public.pem \
+            client/runtime/local/state/release/licensing/release_licensing_manifest.json \
             client/runtime/local/state/release/scorecard/release_scorecard.json; do
             [ -f "$f" ] || continue
             sha256sum "$f" >> "$OUT"
@@ -336,5 +375,9 @@ jobs:
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig
             client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig
             client/runtime/local/state/release/signatures/release_public.pem
+            client/runtime/local/state/release/licensing/release_licensing_manifest.json
             client/runtime/local/state/release/artifacts/SHA256SUMS
             client/runtime/local/state/release/scorecard/release_scorecard.json
+            docs/client/reports/benchmark_matrix_run_latest.json
+            core/local/artifacts/benchmark_sanity_gate_current.json
+            core/local/artifacts/benchmark_public_audit_current.json

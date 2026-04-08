@@ -2,7 +2,7 @@
 # FILE_SIZE_EXCEPTION: reason=Single-file curl installer distribution requires contiguous standalone script; owner=jay; expires=2026-04-12
 set -eu
 
-REPO_OWNER="protheuslabs"
+REPO_OWNER="infring"
 REPO_NAME="InfRing"
 DEFAULT_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_LATEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest"
@@ -11,37 +11,37 @@ DEFAULT_SOURCE_ARCHIVE_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/archi
 DEFAULT_RUSTUP_INIT_URL="https://sh.rustup.rs"
 DEFAULT_BOOTSTRAP_BASE_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/dist/install-bootstrap"
 
-INFRING_HOME="${INFRING_HOME:-${PROTHEUS_HOME:-$HOME/.infring}}"
+INFRING_HOME="${INFRING_HOME:-$HOME/.infring}"
 DEFAULT_INSTALL_DIR="${INFRING_HOME}/bin"
 DEFAULT_WORKSPACE_DIR="${INFRING_HOME}"
-INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}}"
-WORKSPACE_DIR="${INFRING_WORKSPACE_DIR:-${PROTHEUS_WORKSPACE_DIR:-$DEFAULT_WORKSPACE_DIR}}"
-NODE_RUNTIME_VERSION="${INFRING_NODE_RUNTIME_VERSION:-${PROTHEUS_NODE_RUNTIME_VERSION:-22.15.0}}"
+INSTALL_DIR="${INFRING_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
+WORKSPACE_DIR="${INFRING_WORKSPACE_DIR:-$DEFAULT_WORKSPACE_DIR}"
+NODE_RUNTIME_VERSION="${INFRING_NODE_RUNTIME_VERSION:-22.15.0}"
 INSTALL_DIR_EXPLICIT=0
-if [ -n "${INFRING_INSTALL_DIR:-}" ] || [ -n "${PROTHEUS_INSTALL_DIR:-}" ]; then
+if [ -n "${INFRING_INSTALL_DIR:-}" ]; then
   INSTALL_DIR_EXPLICIT=1
 fi
-INSTALL_TMP_DIR="${INFRING_TMP_DIR:-${PROTHEUS_TMP_DIR:-${TMPDIR:-}}}"
-REQUESTED_VERSION="${INFRING_VERSION:-${PROTHEUS_VERSION:-latest}}"
-API_URL="${INFRING_RELEASE_API_URL:-${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}}"
-LATEST_URL="${INFRING_RELEASE_LATEST_URL:-${PROTHEUS_RELEASE_LATEST_URL:-$DEFAULT_LATEST_URL}}"
-BASE_URL="${INFRING_RELEASE_BASE_URL:-${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}}"
-SOURCE_ARCHIVE_BASE="${INFRING_SOURCE_ARCHIVE_BASE_URL:-${PROTHEUS_SOURCE_ARCHIVE_BASE_URL:-$DEFAULT_SOURCE_ARCHIVE_BASE}}"
-RUSTUP_INIT_URL="${INFRING_RUSTUP_INIT_URL:-${PROTHEUS_RUSTUP_INIT_URL:-$DEFAULT_RUSTUP_INIT_URL}}"
-BOOTSTRAP_BASE_URL="${INFRING_BOOTSTRAP_BASE_URL:-${PROTHEUS_BOOTSTRAP_BASE_URL:-$DEFAULT_BOOTSTRAP_BASE_URL}}"
-INSTALL_FULL="${INFRING_INSTALL_FULL:-${PROTHEUS_INSTALL_FULL:-0}}"
-INSTALL_PURE="${INFRING_INSTALL_PURE:-${PROTHEUS_INSTALL_PURE:-0}}"
-INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
-INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-${PROTHEUS_INSTALL_REPAIR:-0}}"
-INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-${PROTHEUS_INSTALL_DEBUG:-0}}"
-INSTALL_NODE="${INFRING_INSTALL_NODE:-${PROTHEUS_INSTALL_NODE:-0}}"
-INSTALL_NODE_AUTO="${INFRING_INSTALL_NODE_AUTO:-${PROTHEUS_INSTALL_NODE_AUTO:-1}}"
-INSTALL_OLLAMA="${INFRING_INSTALL_OLLAMA:-${PROTHEUS_INSTALL_OLLAMA:-0}}"
-INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-${PROTHEUS_INSTALL_OLLAMA_AUTO:-1}}"
-INSTALL_OLLAMA_PULL="${INFRING_INSTALL_OLLAMA_PULL:-${PROTHEUS_INSTALL_OLLAMA_PULL:-1}}"
-INSTALL_REQUIRE_MODEL_READY="${INFRING_INSTALL_REQUIRE_MODEL_READY:-${PROTHEUS_INSTALL_REQUIRE_MODEL_READY:-0}}"
-OLLAMA_STARTER_MODEL="${INFRING_OLLAMA_STARTER_MODEL:-${PROTHEUS_OLLAMA_STARTER_MODEL:-qwen2.5:3b-instruct}}"
-OLLAMA_PULL_TIMEOUT="${INFRING_OLLAMA_PULL_TIMEOUT:-${PROTHEUS_OLLAMA_PULL_TIMEOUT:-900}}"
+INSTALL_TMP_DIR="${INFRING_TMP_DIR:-${TMPDIR:-}}"
+REQUESTED_VERSION="${INFRING_VERSION:-latest}"
+API_URL="${INFRING_RELEASE_API_URL:-$DEFAULT_API}"
+LATEST_URL="${INFRING_RELEASE_LATEST_URL:-$DEFAULT_LATEST_URL}"
+BASE_URL="${INFRING_RELEASE_BASE_URL:-$DEFAULT_BASE}"
+SOURCE_ARCHIVE_BASE="${INFRING_SOURCE_ARCHIVE_BASE_URL:-$DEFAULT_SOURCE_ARCHIVE_BASE}"
+RUSTUP_INIT_URL="${INFRING_RUSTUP_INIT_URL:-$DEFAULT_RUSTUP_INIT_URL}"
+BOOTSTRAP_BASE_URL="${INFRING_BOOTSTRAP_BASE_URL:-$DEFAULT_BOOTSTRAP_BASE_URL}"
+INSTALL_FULL="${INFRING_INSTALL_FULL:-0}"
+INSTALL_PURE="${INFRING_INSTALL_PURE:-0}"
+INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-0}"
+INSTALL_REPAIR="${INFRING_INSTALL_REPAIR:-0}"
+INSTALL_DEBUG="${INFRING_INSTALL_DEBUG:-0}"
+INSTALL_NODE="${INFRING_INSTALL_NODE:-0}"
+INSTALL_NODE_AUTO="${INFRING_INSTALL_NODE_AUTO:-1}"
+INSTALL_OLLAMA="${INFRING_INSTALL_OLLAMA:-0}"
+INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-1}"
+INSTALL_OLLAMA_PULL="${INFRING_INSTALL_OLLAMA_PULL:-1}"
+INSTALL_REQUIRE_MODEL_READY="${INFRING_INSTALL_REQUIRE_MODEL_READY:-0}"
+OLLAMA_STARTER_MODEL="${INFRING_OLLAMA_STARTER_MODEL:-qwen2.5:3b-instruct}"
+OLLAMA_PULL_TIMEOUT="${INFRING_OLLAMA_PULL_TIMEOUT:-900}"
 OLLAMA_INSTALL_CONFIRMED=0
 OLLAMA_LAST_MODEL_COUNT=0
 SOURCE_FALLBACK_DIR=""
@@ -51,15 +51,15 @@ PATH_PERSISTED_FILE=""
 PATH_PERSISTED_KIND=""
 PATH_PERSISTED_MIRRORS=""
 PATH_ACTIVATE_FILE=""
-INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-${PROTHEUS_INSTALL_SUDO_SHIMS:-auto}}"
+INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-auto}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
-INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-${PROTHEUS_INSTALL_VERIFY_ASSETS:-1}}"
-INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
-INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-${PROTHEUS_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}}"
-INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-${PROTHEUS_INSTALL_ASSET_CACHE:-1}}"
-INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-${PROTHEUS_INSTALL_OFFLINE:-0}}"
-INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-${PROTHEUS_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}}"
+INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-1}"
+INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}"
+INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}"
+INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-1}"
+INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-0}"
+INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}"
 CHECKSUM_MANIFEST_PATH=""
 CHECKSUM_MANIFEST_VERSION=""
 CHECKSUM_MANIFEST_TMP_DIR=""
@@ -184,7 +184,7 @@ print_rust_toolchain_recovery_hint() {
 }
 
 resolve_node_binary_path() {
-  preferred="${PROTHEUS_NODE_BINARY:-${INFRING_NODE_BINARY:-}}"
+  preferred="${INFRING_NODE_BINARY:-}"
   if [ -n "$preferred" ]; then
     if [ -x "$preferred" ]; then
       printf '%s\n' "$preferred"
@@ -217,7 +217,7 @@ resolve_node_binary_path() {
 }
 
 resolve_npm_binary_path() {
-  preferred="${PROTHEUS_NPM_BINARY:-${INFRING_NPM_BINARY:-}}"
+  preferred="${INFRING_NPM_BINARY:-}"
   if [ -n "$preferred" ]; then
     if [ -x "$preferred" ]; then
       printf '%s\n' "$preferred"
@@ -334,7 +334,6 @@ install_node_runtime_portable() {
     return 1
   fi
 
-  export PROTHEUS_NODE_BINARY="$node_bin_path"
   export INFRING_NODE_BINARY="$node_bin_path"
   rm -rf "$tmpdir"
   echo "[infring install] portable Node installed: $node_bin_path"
@@ -1600,7 +1599,7 @@ print_shell_activation_snippets() {
 }
 
 write_path_activate_script() {
-  activate_root="${INFRING_ACTIVATE_DIR:-${PROTHEUS_ACTIVATE_DIR:-$INFRING_HOME}}"
+  activate_root="${INFRING_ACTIVATE_DIR:-$INFRING_HOME}"
   [ -n "$activate_root" ] || return 0
   mkdir -p "$activate_root"
   activate_file="$activate_root/env.sh"
@@ -1640,15 +1639,15 @@ write_path_activate_script() {
 
 repair_install_dir() {
   for name in \
-    infring infringctl infringd protheus protheusctl protheusd \
-    protheus-ops protheusd-bin conduit_daemon \
-    protheus-pure-workspace protheus-pure-workspace-tiny-max \
-    protheus-client
+    infring infringctl infringd \
+    infring-ops infringd-bin conduit_daemon \
+    infring-pure-workspace infring-pure-workspace-tiny-max \
+    infring-client
   do
     target="$INSTALL_DIR/$name"
     if [ -e "$target" ]; then
       rm -rf "$target"
-      echo "[infring install] repair removed stale install artifact: $target"
+      echo "[infring install] repair removed stale install artifact"
     fi
   done
 }
@@ -1657,13 +1656,12 @@ resolve_workspace_root_for_repair() {
   for candidate in \
     "${WORKSPACE_DIR:-}" \
     "${INFRING_WORKSPACE_ROOT:-}" \
-    "${PROTHEUS_WORKSPACE_ROOT:-}" \
     "$(pwd)" \
     "$HOME/.infring/workspace" \
     "$HOME/.infring"
   do
     [ -n "$candidate" ] || continue
-    if [ -d "$candidate/client/runtime" ] || [ -d "$candidate/protheus-client/client/runtime" ]; then
+    if [ -d "$candidate/client/runtime" ] || [ -d "$candidate/infring-client/client/runtime" ]; then
       echo "$candidate"
       return 0
     fi
@@ -1774,7 +1772,7 @@ resolve_version() {
     fi
   fi
   if [ -z "$version" ]; then
-    fallback="${INFRING_FALLBACK_VERSION:-${PROTHEUS_FALLBACK_VERSION:-}}"
+    fallback="${INFRING_FALLBACK_VERSION:-}"
     if [ -n "$fallback" ]; then
       version="$(normalize_version "$fallback")"
       echo "[infring install] using fallback version: $version" >&2
@@ -1851,10 +1849,10 @@ download_bootstrap_asset() {
 source_fallback_bin_name() {
   stem_name="$1"
   case "$stem_name" in
-    protheus-ops) echo "protheus-ops" ;;
-    protheusd|protheusd-tiny-max) echo "protheusd" ;;
+    infring-ops) echo "infring-ops" ;;
+    infringd|infringd-tiny-max) echo "infringd" ;;
     conduit_daemon) echo "conduit_daemon" ;;
-    protheus-pure-workspace|protheus-pure-workspace-tiny-max) echo "protheus-pure-workspace" ;;
+    infring-pure-workspace|infring-pure-workspace-tiny-max) echo "infring-pure-workspace" ;;
     *) return 1 ;;
   esac
 }
@@ -2130,14 +2128,14 @@ install_client_bundle() {
   }
 
   for asset in \
-    "protheus-client-runtime-${triple_id}.tar.zst" \
-    "protheus-client-runtime.tar.zst" \
-    "protheus-client-${triple_id}.tar.zst" \
-    "protheus-client.tar.zst" \
-    "protheus-client-runtime-${triple_id}.tar.gz" \
-    "protheus-client-runtime.tar.gz" \
-    "protheus-client-${triple_id}.tar.gz" \
-    "protheus-client.tar.gz"
+    "infring-client-runtime-${triple_id}.tar.zst" \
+    "infring-client-runtime.tar.zst" \
+    "infring-client-${triple_id}.tar.zst" \
+    "infring-client.tar.zst" \
+    "infring-client-runtime-${triple_id}.tar.gz" \
+    "infring-client-runtime.tar.gz" \
+    "infring-client-${triple_id}.tar.gz" \
+    "infring-client.tar.gz"
   do
     if download_asset "$version_tag" "$asset" "$archive"; then
       rm -rf "$extract_dir"
@@ -2222,7 +2220,7 @@ workspace_runtime_root() {
   for candidate in \
     "$base" \
     "$base/workspace" \
-    "$base/protheus-client" \
+    "$base/infring-client" \
     "$base/infring-workspace"
   do
     [ -n "$candidate" ] || continue
@@ -2369,7 +2367,7 @@ ensure_workspace_setup_wizard_compat() {
   workspace="$1"
   [ -n "$workspace" ] || return 0
   ops_dir="$workspace/client/runtime/systems/ops"
-  shim_path="$ops_dir/protheus_setup_wizard.js"
+  shim_path="$ops_dir/infring_setup_wizard.js"
   [ -d "$ops_dir" ] || mkdir -p "$ops_dir"
   if [ -f "$shim_path" ]; then
     return 0
@@ -2382,8 +2380,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const TS_ENTRY = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
-const TS_TARGET = path.join(__dirname, 'protheus_setup_wizard.ts');
-const STATE_PATH = path.join(ROOT, 'local', 'state', 'ops', 'protheus_setup_wizard', 'latest.json');
+const TS_TARGET = path.join(__dirname, 'infring_setup_wizard.ts');
+const STATE_PATH = path.join(ROOT, 'local', 'state', 'ops', 'infring_setup_wizard', 'latest.json');
 
 if (fs.existsSync(TS_ENTRY) && fs.existsSync(TS_TARGET)) {
   const out = spawnSync(process.execPath, [TS_ENTRY, TS_TARGET, ...process.argv.slice(2)], { stdio: 'inherit', cwd: ROOT });
@@ -2391,7 +2389,7 @@ if (fs.existsSync(TS_ENTRY) && fs.existsSync(TS_TARGET)) {
 }
 
 const payload = {
-  type: 'protheus_setup_wizard_state',
+  type: 'infring_setup_wizard_state',
   completed: true,
   completed_at: new Date().toISOString(),
   completion_mode: 'install_shim_fallback',
@@ -2408,7 +2406,7 @@ const jsonMode = process.argv.slice(2).some((arg) => {
   return token === '--json' || token === '--json=1';
 });
 if (jsonMode) {
-  process.stdout.write(`${JSON.stringify({ ok: true, type: 'protheus_setup_wizard_fallback', mode: 'install_shim_fallback', state_path: STATE_PATH, state: payload })}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: true, type: 'infring_setup_wizard_fallback', mode: 'install_shim_fallback', state_path: STATE_PATH, state: payload })}\n`);
 } else {
   process.stdout.write('[infring setup] compatibility fallback completed\n');
 }
@@ -2551,7 +2549,7 @@ ensure_runtime_node_module_closure() {
   # the resolved installer node binary.
   if ! (
     cd "$workspace" >/dev/null 2>&1 && \
-    INFRING_NODE_BINARY="$node_bin_path" PROTHEUS_NODE_BINARY="$node_bin_path" \
+    INFRING_NODE_BINARY="$node_bin_path" \
     PATH="$node_cmd_dir:$npm_cmd_dir:$PATH" "$npm_bin_path" install --silent --no-audit --no-fund --no-save $missing_modules
   ); then
     echo "[infring install] node module closure install failed" >&2
@@ -2768,9 +2766,7 @@ run_post_install_smoke_tests() {
   [ -x "$install_dir/infringctl" ] || return 1
   smoke_dir="$(mktemp -d)"
   export INFRING_WORKSPACE_ROOT="$workspace"
-  export PROTHEUS_WORKSPACE_ROOT="$workspace"
   export INFRING_WRAPPER_CD_WORKSPACE=1
-  export PROTHEUS_WRAPPER_CD_WORKSPACE=1
   INSTALL_DASHBOARD_SMOKE_PASSED=0
   failures=0
   run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
@@ -2854,10 +2850,6 @@ write_wrapper() {
   printf '%s\n' "    printf '%s\n' \"\${INFRING_WORKSPACE_ROOT}\"" >> "$wrapper_path"
   printf '%s\n' "    return 0" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
-  printf '%s\n' "  if [ -n \"\${PROTHEUS_WORKSPACE_ROOT:-}\" ] && infring_workspace_valid \"\${PROTHEUS_WORKSPACE_ROOT}\"; then" >> "$wrapper_path"
-  printf '%s\n' "    printf '%s\n' \"\${PROTHEUS_WORKSPACE_ROOT}\"" >> "$wrapper_path"
-  printf '%s\n' "    return 0" >> "$wrapper_path"
-  printf '%s\n' "  fi" >> "$wrapper_path"
   printf '%s\n' "  probe=\"\${PWD:-.}\"" >> "$wrapper_path"
   printf '%s\n' "  while [ -n \"\$probe\" ]; do" >> "$wrapper_path"
   printf '%s\n' "    if infring_workspace_valid \"\$probe\"; then" >> "$wrapper_path"
@@ -2873,7 +2865,7 @@ write_wrapper() {
   printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "    probe=\"\$parent\"" >> "$wrapper_path"
   printf '%s\n' "  done" >> "$wrapper_path"
-  printf '%s\n' "  for candidate in \"__WORKSPACE_DIR__\" \"__INFRING_HOME__/workspace\" \"__INFRING_HOME__\" \"__INSTALL_DIR__/protheus-client\"; do" >> "$wrapper_path"
+  printf '%s\n' "  for candidate in \"__WORKSPACE_DIR__\" \"__INFRING_HOME__/workspace\" \"__INFRING_HOME__\" \"__INSTALL_DIR__/infring-client\"; do" >> "$wrapper_path"
   printf '%s\n' "    [ -n \"\$candidate\" ] || continue" >> "$wrapper_path"
   printf '%s\n' "    if infring_workspace_valid \"\$candidate\"; then" >> "$wrapper_path"
   printf '%s\n' "      printf '%s\n' \"\$candidate\"" >> "$wrapper_path"
@@ -2884,22 +2876,18 @@ write_wrapper() {
   printf '%s\n' "}" >> "$wrapper_path"
   printf '%s\n' "if workspace_root=\"\$(resolve_workspace_root 2>/dev/null)\"; then" >> "$wrapper_path"
   printf '%s\n' "  export INFRING_HOME=\"__INFRING_HOME__\"" >> "$wrapper_path"
-  printf '%s\n' "  export PROTHEUS_HOME=\"__INFRING_HOME__\"" >> "$wrapper_path"
   printf '%s\n' "  export INFRING_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
-  printf '%s\n' "  export PROTHEUS_WORKSPACE_ROOT=\"\$workspace_root\"" >> "$wrapper_path"
-  printf '%s\n' "  if [ -z \"\${PROTHEUS_NODE_BINARY:-}\" ]; then" >> "$wrapper_path"
+  printf '%s\n' "  if [ -z \"\${INFRING_NODE_BINARY:-}\" ]; then" >> "$wrapper_path"
   printf '%s\n' "    if [ -x \"__INFRING_HOME__/node-runtime/bin/node\" ]; then" >> "$wrapper_path"
-  printf '%s\n' "      export PROTHEUS_NODE_BINARY=\"__INFRING_HOME__/node-runtime/bin/node\"" >> "$wrapper_path"
   printf '%s\n' "      export INFRING_NODE_BINARY=\"__INFRING_HOME__/node-runtime/bin/node\"" >> "$wrapper_path"
   printf '%s\n' "    elif [ -d \"__INFRING_HOME__/node-runtime\" ]; then" >> "$wrapper_path"
   printf '%s\n' "      node_candidate=\"\$(find \"__INFRING_HOME__/node-runtime\" -maxdepth 4 -type f -name node 2>/dev/null | sort | head -n 1 || true)\"" >> "$wrapper_path"
   printf '%s\n' "      if [ -n \"\$node_candidate\" ] && [ -x \"\$node_candidate\" ]; then" >> "$wrapper_path"
-  printf '%s\n' "        export PROTHEUS_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
   printf '%s\n' "        export INFRING_NODE_BINARY=\"\$node_candidate\"" >> "$wrapper_path"
   printf '%s\n' "      fi" >> "$wrapper_path"
   printf '%s\n' "    fi" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
-  printf '%s\n' "  cd_workspace_mode=\"\${INFRING_WRAPPER_CD_WORKSPACE:-\${PROTHEUS_WRAPPER_CD_WORKSPACE:-1}}\"" >> "$wrapper_path"
+  printf '%s\n' "  cd_workspace_mode=\"\${INFRING_WRAPPER_CD_WORKSPACE:-1}\"" >> "$wrapper_path"
   printf '%s\n' "  if [ \"\$cd_workspace_mode\" != \"0\" ]; then" >> "$wrapper_path"
   printf '%s\n' "    cd \"\$workspace_root\" 2>/dev/null || true" >> "$wrapper_path"
   printf '%s\n' "  fi" >> "$wrapper_path"
@@ -2990,7 +2978,7 @@ infring_gateway_launchd_domain() {
 }
 
 infring_gateway_launchd_label() {
-  printf '%s\n' "com.protheuslabs.infring.dashboard.shelltest2"
+  printf '%s\n' "com.infring.infring.dashboard.shelltest2"
 }
 
 infring_gateway_launchd_plist() {
@@ -3018,9 +3006,9 @@ infring_gateway_launchd_write_plist() {
   plist="$(infring_gateway_launchd_plist "$host" "$port")"
   launch_dir="$(dirname "$plist")"
   mkdir -p "$launch_dir" >/dev/null 2>&1 || return 1
-  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/protheus-ops}"
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infring-ops}"
   [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
-  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
   [ -x "$dashboard_bin" ] || return 1
   label_xml="$(infring_gateway_xml_escape "$label")"
   launch_cmd="cd $root && exec $dashboard_bin gateway start --dashboard-host=$host --dashboard-port=$port --dashboard-open=0"
@@ -3223,7 +3211,7 @@ infring_gateway_stop_dashboard_managed() {
         for row in $stale_listeners; do
           cmd="$(ps -p "$row" -o command= 2>/dev/null || true)"
           case "$cmd" in
-            *infring*|*protheus*|*dashboard-ui*|*infring_dashboard*)
+            *infring*|*dashboard-ui*|*infring_dashboard*)
               kill "$row" >/dev/null 2>&1 || true
               sleep 1
               kill -9 "$row" >/dev/null 2>&1 || true
@@ -3369,17 +3357,17 @@ infring_gateway_start_dashboard_fallback() {
     return 0
   fi
   root=""
-  for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PROTHEUS_WORKSPACE_ROOT:-}" "${PWD:-.}" "__WORKSPACE_DIR__" "__INSTALL_DIR__/protheus-client"; do
+  for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PWD:-.}" "__WORKSPACE_DIR__" "__INSTALL_DIR__/infring-client"; do
     [ -n "$candidate" ] || continue
-    if [ -d "$candidate/client/runtime" ] || [ -d "$candidate/protheus-client/client/runtime" ]; then
+    if [ -d "$candidate/client/runtime" ] || [ -d "$candidate/infring-client/client/runtime" ]; then
       root="$candidate"
       break
     fi
   done
   [ -n "$root" ] || return 1
-  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/protheus-ops}"
+  dashboard_bin="${INFRING_DASHBOARD_BIN:-__INSTALL_DIR__/infring-ops}"
   [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
-  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/protheusctl"
+  [ -x "$dashboard_bin" ] || dashboard_bin="__INSTALL_DIR__/infringctl"
   [ -x "$dashboard_bin" ] || return 1
   if infring_gateway_launchd_mode_enabled; then
     if infring_gateway_launchd_start "$host" "$port" "$root" >/dev/null 2>&1; then
@@ -3451,7 +3439,7 @@ __INFRING_UPDATE_HELP__
 }
 
 infring_update_run() {
-  update_url="${INFRING_INSTALLER_URL:-https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh}"
+  update_url="${INFRING_INSTALLER_URL:-https://raw.githubusercontent.com/infring/InfRing/main/install.sh}"
   update_mode="full"
   update_repair=0
   update_version=""
@@ -3552,11 +3540,11 @@ infring_update_run() {
   fi
   if [ -n "$update_version" ]; then
     echo "[infring update] target version: $update_version"
-    INFRING_HOME="__INFRING_HOME__" PROTHEUS_HOME="__INFRING_HOME__" \
-      INFRING_VERSION="$update_version" PROTHEUS_VERSION="$update_version" \
+    INFRING_HOME="__INFRING_HOME__" \
+      INFRING_VERSION="$update_version" \
       sh "$installer_tmp" $update_flags
   else
-    INFRING_HOME="__INFRING_HOME__" PROTHEUS_HOME="__INFRING_HOME__" \
+    INFRING_HOME="__INFRING_HOME__" \
       sh "$installer_tmp" $update_flags
   fi
   update_status=$?
@@ -3657,7 +3645,7 @@ if [ "${1:-}" = "gateway" ]; then
     echo "[infring gateway] ${gateway_action} failed" >&2
     exit "$gateway_status"
   fi
-  if [ "${INFRING_GATEWAY_RAW:-0}" = "1" ] || [ "${PROTHEUS_GATEWAY_RAW:-0}" = "1" ]; then
+  if [ "${INFRING_GATEWAY_RAW:-0}" = "1" ]; then
     if [ -n "$gateway_output" ]; then
       printf '%s\n' "$gateway_output"
     fi
@@ -3686,7 +3674,7 @@ if [ "${1:-}" = "gateway" ]; then
   if [ "$dashboard_watchdog_interval" -gt 60 ]; then
     dashboard_watchdog_interval=60
   fi
-  if [ "${INFRING_NO_BROWSER:-0}" = "1" ] || [ "${PROTHEUS_NO_BROWSER:-0}" = "1" ]; then
+  if [ "${INFRING_NO_BROWSER:-0}" = "1" ]; then
     dashboard_open="0"
   fi
   for token in "$@"; do
@@ -3726,7 +3714,7 @@ if [ "${1:-}" = "gateway" ]; then
     if infring_gateway_wait_dashboard "$dashboard_host" "$dashboard_port" 20; then
       dashboard_ready="1"
     else
-      if [ "$legacy_supervisor_mode" = "1" ] && [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ] && [ "${PROTHEUS_DASHBOARD_FALLBACK:-1}" != "0" ]; then
+      if [ "$legacy_supervisor_mode" = "1" ] && [ "${INFRING_DASHBOARD_FALLBACK:-1}" != "0" ]; then
         infring_gateway_start_dashboard_fallback "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
       fi
       if [ "$dashboard_ready" != "1" ]; then
@@ -3857,26 +3845,26 @@ main() {
     echo "[infring install] mode: offline (network disabled; using cached artifacts only)"
   fi
 
-  ops_bin="$INSTALL_DIR/protheus-ops"
-  pure_bin="$INSTALL_DIR/protheus-pure-workspace"
-  protheusd_bin="$INSTALL_DIR/protheusd-bin"
+  ops_bin="$INSTALL_DIR/infring-ops"
+  pure_bin="$INSTALL_DIR/infring-pure-workspace"
+  infringd_bin="$INSTALL_DIR/infringd-bin"
   daemon_bin="$INSTALL_DIR/conduit_daemon"
   daemon_wrapper_body=""
-  prefer_musl_protheusd=0
+  prefer_musl_infringd=0
 
   if [ "$(norm_os)" = "linux" ] && [ "$(norm_arch)" = "x86_64" ]; then
-    prefer_musl_protheusd=1
+    prefer_musl_infringd=1
   fi
 
   if is_truthy "$INSTALL_PURE"; then
     if is_truthy "$INSTALL_TINY_MAX"; then
-      if ! install_binary "$version" "$triple" "protheus-pure-workspace-tiny-max" "$pure_bin"; then
-        if ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
+      if ! install_binary "$version" "$triple" "infring-pure-workspace-tiny-max" "$pure_bin"; then
+        if ! install_binary "$version" "$triple" "infring-pure-workspace" "$pure_bin"; then
           echo "[infring install] failed to fetch pure workspace runtime for $triple ($version)" >&2
           exit 1
         fi
       fi
-    elif ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
+    elif ! install_binary "$version" "$triple" "infring-pure-workspace" "$pure_bin"; then
       echo "[infring install] failed to fetch pure workspace runtime for $triple ($version)" >&2
       exit 1
     fi
@@ -3886,7 +3874,7 @@ main() {
       echo "[infring install] pure mode selected: Rust-only client installed"
     fi
   else
-    if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
+    if ! install_binary "$version" "$triple" "infring-ops" "$ops_bin"; then
       echo "[infring install] failed to fetch core ops runtime for $triple ($version)" >&2
       exit 1
     fi
@@ -3895,28 +3883,28 @@ main() {
     fi
   fi
 
-  if [ "$prefer_musl_protheusd" = "1" ]; then
+  if [ "$prefer_musl_infringd" = "1" ]; then
     if is_truthy "$INSTALL_TINY_MAX"; then
-      if install_binary "$version" "x86_64-unknown-linux-musl" "protheusd-tiny-max" "$protheusd_bin"; then
-        daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+      if install_binary "$version" "x86_64-unknown-linux-musl" "infringd-tiny-max" "$infringd_bin"; then
+        daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
         echo "[infring install] using static musl tiny-max daemon runtime"
       fi
     fi
-    if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "x86_64-unknown-linux-musl" "protheusd" "$protheusd_bin"; then
-      daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+    if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "x86_64-unknown-linux-musl" "infringd" "$infringd_bin"; then
+      daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
       echo "[infring install] using static musl daemon runtime (embedded-minimal-core)"
     fi
   fi
 
   if [ -z "$daemon_wrapper_body" ] && is_truthy "$INSTALL_TINY_MAX"; then
-    if install_binary "$version" "$triple" "protheusd-tiny-max" "$protheusd_bin"; then
-      daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+    if install_binary "$version" "$triple" "infringd-tiny-max" "$infringd_bin"; then
+      daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
       echo "[infring install] using native tiny-max daemon runtime"
     fi
   fi
 
-  if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "$triple" "protheusd" "$protheusd_bin"; then
-    daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+  if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "$triple" "infringd" "$infringd_bin"; then
+    daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
     echo "[infring install] using native daemon runtime"
   fi
 

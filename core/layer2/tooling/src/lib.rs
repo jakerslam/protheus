@@ -14,8 +14,10 @@ pub use evidence_store::{
     EvidenceInvalidationRecord, EvidenceRecord, EvidenceStore, InvalidationRelationType,
 };
 pub use schemas::{
-    Claim, ClaimBundle, ClaimStatus, ConfidenceVector, NormalizedToolMetrics, NormalizedToolResult,
-    NormalizedToolStatus, WorkerBudgetUsed, WorkerOutput, WorkerTaskStatus,
+    published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard,
+    NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus, WorkerBudgetUsed,
+    WorkerOutput, WorkerTaskStatus, CLAIM_BUNDLE_FIELDS, CLAIM_FIELDS, EVIDENCE_CARD_FIELDS,
+    NORMALIZED_TOOL_RESULT_FIELDS, WORKER_OUTPUT_FIELDS,
 };
 pub use tool_broker::{
     BrokerCaller, BrokerError, ToolBroker, ToolBrokerExecution, ToolCallRequest,

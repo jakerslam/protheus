@@ -15,7 +15,17 @@ Deterministic benchmark entrypoint for competitive parity claims.
 ./benchmarks/competitive_matrix/run_matrix.sh
 ```
 
-The runner writes a receipt-backed snapshot to:
+The runner writes runtime receipts into the local runtime state directory (not committed), and
+publishes the canonical public snapshot as a repo-tracked artifact:
 
-- `client/runtime/local/state/ops/competitive_benchmark_matrix/latest.json`
-- `client/runtime/local/state/ops/competitive_benchmark_matrix/snapshots.jsonl`
+- `docs/client/reports/benchmark_matrix_run_latest.json`
+
+For externally auditable publication (tracked artifact refresh + sanity):
+
+```bash
+npm run -s ops:benchmark:refresh
+npm run -s ops:benchmark:sanity
+npm run -s ops:benchmark:public-audit
+# one-shot reproducibility lane:
+npm run -s ops:benchmark:repro
+```

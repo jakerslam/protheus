@@ -177,6 +177,33 @@ jobs:
           fs.writeFileSync(outPath, JSON.stringify(summary, null, 2) + '\n');
           NODE
 
+      - name: Generate release licensing manifest
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+
+          const matrixPath = 'LICENSE_MATRIX.json';
+          const outPath = 'state/release/provenance_bundle/release_licensing_manifest.json';
+          const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+          const expression = String(matrix?.release_metadata?.release_bundle_spdx || '').trim();
+          if (!expression) {
+            throw new Error('release_bundle_spdx missing in LICENSE_MATRIX.json');
+          }
+          const payload = {
+            schema_id: 'infring_release_licensing_manifest',
+            schema_version: '1.0',
+            generated_at: new Date().toISOString(),
+            source_matrix_path: matrixPath,
+            source_matrix_sha256: crypto.createHash('sha256').update(fs.readFileSync(matrixPath)).digest('hex'),
+            license_expression: expression,
+            default_spdx: String(matrix?.default_spdx || '').trim(),
+            precedence: Array.isArray(matrix?.precedence) ? matrix.precedence : [],
+          };
+          fs.mkdirSync('state/release/provenance_bundle', { recursive: true });
+          fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n');
+          NODE
+
       - name: Generate release provenance bundle
         run: |
           node <<'NODE'
@@ -225,6 +252,7 @@ jobs:
             generated_at: generatedAt,
             artifacts,
             vulnerability_summary_path: 'state/release/provenance_bundle/dependency_vulnerability_summary.json',
+            licensing_manifest_path: 'state/release/provenance_bundle/release_licensing_manifest.json',
             reproducibility_path: 'state/release/provenance_bundle/reproducible_build_equivalence.json',
             rollback: {
               last_known_good_tag: process.env.LAST_KNOWN_GOOD_TAG || 'v0.0.0',
@@ -254,6 +282,7 @@ jobs:
             state/release/provenance/signatures/conduit_daemon.sig \
             state/release/provenance/signing/release_public.pem \
             state/release/provenance_bundle/dependency_vulnerability_summary.json \
+            state/release/provenance_bundle/release_licensing_manifest.json \
             state/release/provenance_bundle/latest.json \
             state/release/provenance_bundle/reproducible_build_equivalence.json \
             release-notes-${GITHUB_REF_NAME}.md; do
@@ -311,6 +340,7 @@ jobs:
             state/release/provenance/signatures/conduit_daemon.sig
             state/release/provenance/signing/release_public.pem
             state/release/provenance_bundle/dependency_vulnerability_summary.json
+            state/release/provenance_bundle/release_licensing_manifest.json
             state/release/provenance_bundle/latest.json
             state/release/provenance_bundle/reproducible_build_equivalence.json
             release-notes-${{ github.ref_name }}.md

@@ -24,9 +24,11 @@ pub use promotion::{is_valid_trust_transition, rollback_head_from_version};
 pub use record_store::RecordStore;
 pub use schemas::{
     memory_scope_authority_matrix, owner_export_redaction_matrix, task_fabric_lease_cas_rules,
-    trust_state_transition_matrix, CapabilityAction, CapabilityToken, Classification,
-    ContextManifest, ContextManifestEntryRef, MemoryObject, MemoryReceipt, MemoryScope,
-    MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings, TrustState,
+    trust_state_transition_matrix, CanonicalMemoryRecord, CapabilityAction, CapabilityToken,
+    Classification, ContextManifest, ContextManifestEntryRef, MemoryMutationReplayRow,
+    MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryRetentionPolicy, MemoryScope,
+    MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType,
+    RetentionPurgeReport, TrustState,
 };
 pub use vector_index::VectorIndex;
 pub use version_ledger::VersionLedger;

@@ -25,4 +25,10 @@ Layer flow contract:
 
 `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
 
+## Product Identity Contract
+
+- Filesystem root: `~/.infring` (single canonical runtime root).
+- Binary namespace: `infring*` (`infring`, `infringctl`, `infringd`, `infring-top`).
+- Service naming: `infring` (docker service/container/image prefixes use `infring`).
+
 See `ARCHITECTURE.md` for the authoritative filesystem mapping and root-hygiene rationale.

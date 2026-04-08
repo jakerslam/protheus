@@ -1,35 +1,43 @@
-# InfRing Dual-License Scope Map
+# InfRing Licensing Scope (Canonical)
 
-This repository uses dual licensing.
+This repository is dual-licensed and uses SPDX-first scope resolution.
 
-- `Apache-2.0` for the Open Core Scope (commercial use allowed)
-- `InfRing-NC-1.0` (Protheus Non-Commercial License v1.0) for default scope
+- `Apache-2.0` for the open-core scope (commercial use allowed)
+- `LicenseRef-InfRing-NC-1.0` for the default scope
 
-## Scope Resolution
+## Canonical Matrix
 
-1. If a file contains an explicit SPDX identifier, that identifier is authoritative.
-2. Otherwise, apply the path-based scope below.
-3. If no rule matches, default to `InfRing-NC-1.0`.
+The authoritative licensing matrix is machine-readable at:
 
-## Apache-2.0 Open Core Scope
+- `LICENSE_MATRIX.json`
 
-- `core/layer_minus_one/**`
-- `core/layer0/**`
-- `core/layer1/**`
-- `core/layer2/**`
-- `adapters/protocol/**`
-- `proofs/layer0/**`
+Human-readable resolution in this file is a mirror of that matrix.
 
-## InfRing-NC-1.0 Default Scope
+## Resolution Precedence
 
-Everything else in this repository, including but not limited to:
+1. File-level SPDX header (`SPDX-License-Identifier`) is authoritative.
+2. Otherwise, apply the longest matching `path_prefix` rule in `LICENSE_MATRIX.json`.
+3. If no path rule matches, default to `LicenseRef-InfRing-NC-1.0`.
 
-- `client/**`
-- `apps/**`
-- `docs/**`
-- `adapters/**` paths not listed in the Apache scope
-- top-level operational scripts/config not explicitly marked Apache
+## Path Scope Table
+
+| Path Prefix | Effective SPDX |
+| --- | --- |
+| `core/layer_minus_one/` | `Apache-2.0` |
+| `core/layer0/` | `Apache-2.0` |
+| `core/layer1/` | `Apache-2.0` |
+| `core/layer2/` | `Apache-2.0` |
+| `adapters/protocol/` | `Apache-2.0` |
+| `proofs/layer0/` | `Apache-2.0` |
+| `LICENSE-APACHE-2.0` | `Apache-2.0` |
+| all other tracked paths | `LicenseRef-InfRing-NC-1.0` |
+
+## Release Artifact Labeling
+
+Release and container metadata use:
+
+- `Apache-2.0 AND LicenseRef-InfRing-NC-1.0`
 
 ## Commercial Licensing and Support
 
-For commercial licensing of non-Apache paths and enterprise support terms, contact Protheus Labs.
+For commercial licensing of non-Apache paths and enterprise support terms, contact the InfRing maintainers.

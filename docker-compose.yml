@@ -1,11 +1,21 @@
 services:
-  protheus:
-    image: protheus:local
+  infring:
+    image: infring:local
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: protheus
-    command: ["node", "client/runtime/systems/spine/spine.ts", "daily"]
+    container_name: infring
+    command:
+      [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "client/runtime/systems/ui/infring_dashboard.ts",
+        "serve",
+        "--host=0.0.0.0",
+        "--port=4173",
+        "--team=ops",
+        "--refresh-ms=2000"
+      ]
     environment:
       CLEARANCE: "3"
       NODE_ENV: "production"

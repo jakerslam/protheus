@@ -244,8 +244,17 @@ fn run_payload(
     } else {
         payload
     };
+    let assimilation_execution = if profile.is_none() {
+        execute_assimilation_protocol_for_system(
+            root, system_id, command, &payload, args, apply, strict,
+        )?
+    } else {
+        None
+    };
     let contract_execution = if let Some(profile) = profile {
         execute_contract_profile(root, profile, &payload, apply, strict)?
+    } else if let Some(execution) = assimilation_execution.clone() {
+        execution
     } else {
         ContractExecution {
             summary: json!({}),
@@ -307,6 +316,10 @@ fn run_payload(
             }),
             mutation_receipt_claim(system_id, command, apply, strict),
         ];
+        claims.extend(contract_execution.claims);
+        out["claim_evidence"] = Value::Array(claims);
+    } else if !contract_execution.claims.is_empty() {
+        let mut claims = vec![mutation_receipt_claim(system_id, command, apply, strict)];
         claims.extend(contract_execution.claims);
         out["claim_evidence"] = Value::Array(claims);
     }
