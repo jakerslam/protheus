@@ -258,6 +258,7 @@ pub mod venom_containment_layer;
 pub mod verity_plane;
 pub mod vertical_plane;
 pub mod web_conduit;
+pub mod web_conduit_provider_runtime;
 pub mod workflow_chain_bridge;
 pub mod workflow_controller;
 pub mod workflow_executor;

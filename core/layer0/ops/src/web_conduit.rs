@@ -13,6 +13,10 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use crate::parse_args;
+use crate::web_conduit_provider_runtime::{
+    load_search_cache, provider_chain_from_request, provider_circuit_open_until,
+    provider_health_snapshot, record_provider_attempt, search_cache_key, store_search_cache,
+};
 
 const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
 const RECEIPTS_REL: &str = "client/runtime/local/state/web_conduit/receipts.jsonl";
@@ -168,7 +172,13 @@ fn default_policy() -> Value {
                 "chase.com",
                 "bankofamerica.com"
             ],
-            "require_human_for_sensitive": true
+            "require_human_for_sensitive": true,
+            "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
+            "provider_circuit_breaker": {
+                "enabled": true,
+                "failure_threshold": 3,
+                "open_for_secs": 300
+            }
         }
     })
 }
@@ -547,7 +557,11 @@ fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
         })
 }
 
-fn scoped_search_query(query: &str, allowed_domains: &[String], exclude_subdomains: bool) -> String {
+fn scoped_search_query(
+    query: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+) -> String {
     let cleaned = clean_text(query, 600);
     if cleaned.is_empty() || allowed_domains.is_empty() {
         return cleaned;
@@ -629,11 +643,15 @@ fn render_serper_payload(
     let mut domains = Vec::<String>::new();
     for row in &organic {
         let link = clean_text(row.get("link").and_then(Value::as_str).unwrap_or(""), 2200);
-        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains) {
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
+        {
             continue;
         }
         let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 220);
-        let snippet = clean_text(row.get("snippet").and_then(Value::as_str).unwrap_or(""), 420);
+        let snippet = clean_text(
+            row.get("snippet").and_then(Value::as_str).unwrap_or(""),
+            420,
+        );
         let rendered = if title.is_empty() && snippet.is_empty() {
             clean_text(&link, 1200)
         } else if snippet.is_empty() {
@@ -720,7 +738,8 @@ fn render_bing_rss_payload(
         raw_count += 1;
         let item = captures.get(1).map(|m| m.as_str()).unwrap_or("");
         let link = clean_text(&extract_xml_tag_value(item, "link"), 2_200);
-        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains) {
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
+        {
             continue;
         }
         let title = clean_text(&extract_xml_tag_value(item, "title"), 220);
@@ -787,8 +806,14 @@ fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
 }
 
 fn payload_looks_like_search_challenge(payload: &Value) -> bool {
-    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
-    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        2_400,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        4_000,
+    );
     looks_like_search_challenge_payload(&summary, &content)
 }
 
@@ -819,8 +844,14 @@ fn looks_like_low_signal_search_payload(summary: &str, content: &str) -> bool {
 }
 
 fn payload_looks_low_signal_search(payload: &Value) -> bool {
-    let summary = clean_text(payload.get("summary").and_then(Value::as_str).unwrap_or(""), 2_400);
-    let content = clean_text(payload.get("content").and_then(Value::as_str).unwrap_or(""), 4_000);
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        2_400,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        4_000,
+    );
     looks_like_low_signal_search_payload(&summary, &content)
 }
 
@@ -969,7 +1000,8 @@ fn is_retryable_fetch_result(row: &Value) -> bool {
     if matches!(status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
         return true;
     }
-    let error = clean_text(row.get("stderr").and_then(Value::as_str).unwrap_or(""), 220).to_ascii_lowercase();
+    let error = clean_text(row.get("stderr").and_then(Value::as_str).unwrap_or(""), 220)
+        .to_ascii_lowercase();
     error.contains("timed out")
         || error.contains("timeout")
         || error.contains("econnreset")
@@ -1058,14 +1090,8 @@ fn fetch_serper_with_retry(
             .get(idx % DEFAULT_WEB_USER_AGENTS.len())
             .copied()
             .unwrap_or(DEFAULT_WEB_USER_AGENTS[0]);
-        let current = fetch_serper_with_curl(
-            api_key,
-            query,
-            timeout_ms,
-            max_response_bytes,
-            ua,
-            top_k,
-        );
+        let current =
+            fetch_serper_with_curl(api_key, query, timeout_ms, max_response_bytes, ua, top_k);
         let current_ok = current.get("ok").and_then(Value::as_bool).unwrap_or(false);
         best = current;
         if current_ok {
@@ -1253,13 +1279,21 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
         .and_then(Value::as_u64)
         .unwrap_or(2)
         .clamp(1, 4) as usize;
-    let fetched = fetch_with_curl_retry(&requested_url, timeout_ms, max_response_bytes, retry_attempts);
+    let fetched = fetch_with_curl_retry(
+        &requested_url,
+        timeout_ms,
+        max_response_bytes,
+        retry_attempts,
+    );
     let status_code = fetched
         .get("status_code")
         .and_then(Value::as_i64)
         .unwrap_or(0);
     let content_type = clean_text(
-        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        fetched
+            .get("content_type")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         180,
     );
     let fetched_body = fetched.get("body").and_then(Value::as_str).unwrap_or("");
@@ -1272,7 +1306,14 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
     let summary = if content_is_textual {
         summarize_text(&content, 900)
     } else if requested_url.is_empty() {
-        format!("Fetched non-text content ({}).", if content_type.is_empty() { "binary/unknown" } else { content_type.as_str() })
+        format!(
+            "Fetched non-text content ({}).",
+            if content_type.is_empty() {
+                "binary/unknown"
+            } else {
+                content_type.as_str()
+            }
+        )
     } else {
         format!(
             "Fetched non-text content from {} ({}).",
@@ -1464,7 +1505,10 @@ fn api_search_serper(
         .and_then(Value::as_i64)
         .unwrap_or(0);
     let content_type = clean_text(
-        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        fetched
+            .get("content_type")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         180,
     );
     let parsed = render_serper_payload(
@@ -1474,8 +1518,14 @@ fn api_search_serper(
         top_k,
         max_response_bytes,
     );
-    let content = clean_text(parsed.get("content").and_then(Value::as_str).unwrap_or(""), max_response_bytes);
-    let summary = clean_text(parsed.get("summary").and_then(Value::as_str).unwrap_or(""), 900);
+    let content = clean_text(
+        parsed.get("content").and_then(Value::as_str).unwrap_or(""),
+        max_response_bytes,
+    );
+    let summary = clean_text(
+        parsed.get("summary").and_then(Value::as_str).unwrap_or(""),
+        900,
+    );
     let response_hash = if content.is_empty() {
         String::new()
     } else {
@@ -1495,7 +1545,10 @@ fn api_search_serper(
         320,
     );
     if error_value.is_empty() {
-        error_value = clean_text(parsed.get("error").and_then(Value::as_str).unwrap_or(""), 220);
+        error_value = clean_text(
+            parsed.get("error").and_then(Value::as_str).unwrap_or(""),
+            220,
+        );
     }
     let receipt = build_receipt(
         &requested_url,
@@ -1565,7 +1618,10 @@ fn api_search_bing_rss(
         .and_then(Value::as_i64)
         .unwrap_or(0);
     let content_type = clean_text(
-        fetched.get("content_type").and_then(Value::as_str).unwrap_or(""),
+        fetched
+            .get("content_type")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         180,
     );
     let parsed = render_bing_rss_payload(
@@ -1579,7 +1635,10 @@ fn api_search_bing_rss(
         parsed.get("content").and_then(Value::as_str).unwrap_or(""),
         max_response_bytes,
     );
-    let summary = clean_text(parsed.get("summary").and_then(Value::as_str).unwrap_or(""), 900);
+    let summary = clean_text(
+        parsed.get("summary").and_then(Value::as_str).unwrap_or(""),
+        900,
+    );
     let fetch_ok = fetched.get("ok").and_then(Value::as_bool).unwrap_or(false)
         && parsed.get("ok").and_then(Value::as_bool).unwrap_or(false)
         && !summary.is_empty();
@@ -1588,7 +1647,10 @@ fn api_search_bing_rss(
         320,
     );
     if error_value.is_empty() {
-        error_value = clean_text(parsed.get("error").and_then(Value::as_str).unwrap_or(""), 220);
+        error_value = clean_text(
+            parsed.get("error").and_then(Value::as_str).unwrap_or(""),
+            220,
+        );
     }
     json!({
         "ok": fetch_ok,
@@ -1613,6 +1675,45 @@ fn api_search_bing_rss(
             Value::String(error_value)
         }
     })
+}
+
+fn search_payload_usable(payload: &Value) -> bool {
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return false;
+    }
+    if payload_looks_like_search_challenge(payload) || payload_looks_low_signal_search(payload) {
+        return false;
+    }
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        1_200,
+    );
+    if summary.is_empty() {
+        return false;
+    }
+    !summary
+        .to_ascii_lowercase()
+        .contains("no relevant results found for that request yet")
+}
+
+fn search_payload_error(payload: &Value) -> String {
+    let explicit = clean_text(
+        payload.get("error").and_then(Value::as_str).unwrap_or(""),
+        220,
+    );
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    if payload_looks_like_search_challenge(payload) {
+        return "anti_bot_challenge".to_string();
+    }
+    if payload_looks_low_signal_search(payload) {
+        return "low_signal_search_payload".to_string();
+    }
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return "search_provider_failed".to_string();
+    }
+    "no_usable_summary".to_string()
 }
 
 pub fn api_search(root: &Path, request: &Value) -> Value {
@@ -1641,9 +1742,9 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "receipt": receipt
         });
     }
-    let allowed_domains = normalize_allowed_domains(
-        request.get("allowed_domains").unwrap_or(&Value::Null),
-    );
+    let (policy, _policy_path_value) = load_policy(root);
+    let allowed_domains =
+        normalize_allowed_domains(request.get("allowed_domains").unwrap_or(&Value::Null));
     let exclude_subdomains = request
         .get("exclude_subdomains")
         .or_else(|| request.get("exact_domain_only"))
@@ -1667,8 +1768,6 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .unwrap_or(8)
         .clamp(1, 12) as usize;
     let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
-    let primary_url = web_search_url(&scoped_query);
-    let fallback_url = web_search_lite_url(&scoped_query);
     let summary_only = request
         .get("summary_only")
         .or_else(|| request.get("summary"))
@@ -1682,37 +1781,85 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .get("approval_id")
         .and_then(Value::as_str)
         .unwrap_or("");
-    let force_duckduckgo = provider_hint == "duckduckgo" || provider_hint == "ddg";
-    let force_bing = provider_hint == "bing" || provider_hint == "bing_rss";
-    let mut used_serper = false;
-    let mut serper_error = String::new();
-    let mut out = if force_bing {
-        api_search_bing_rss(
-            &scoped_query,
-            summary_only,
-            &allowed_domains,
-            exclude_subdomains,
-            top_k,
-        )
-    } else if !force_duckduckgo {
-        let candidate = api_search_serper(
-            root,
-            &scoped_query,
-            summary_only,
-            human_approved,
-            &allowed_domains,
-            exclude_subdomains,
-            top_k,
-        );
-        if candidate.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            used_serper = true;
-            candidate
-        } else {
-            serper_error = clean_text(
-                candidate.get("error").and_then(Value::as_str).unwrap_or(""),
-                220,
+    let provider_chain = provider_chain_from_request(&provider_hint, request, &policy);
+    let cache_key = search_cache_key(
+        &query,
+        &scoped_query,
+        &allowed_domains,
+        exclude_subdomains,
+        top_k,
+        summary_only,
+        &provider_chain,
+    );
+    if let Some(mut cached) = load_search_cache(root, &cache_key) {
+        if let Some(obj) = cached.as_object_mut() {
+            obj.insert(
+                "type".to_string(),
+                Value::String("web_conduit_search".to_string()),
             );
-            api_fetch(
+            obj.insert("query".to_string(), Value::String(query.clone()));
+            obj.insert(
+                "effective_query".to_string(),
+                Value::String(scoped_query.clone()),
+            );
+            obj.insert("allowed_domains".to_string(), json!(allowed_domains));
+            obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
+            obj.insert("top_k".to_string(), json!(top_k));
+            obj.insert(
+                "provider_hint".to_string(),
+                Value::String(provider_hint.clone()),
+            );
+            obj.insert("provider_chain".to_string(), json!(provider_chain));
+            obj.insert("cache_status".to_string(), json!("hit"));
+        }
+        return cached;
+    }
+    let primary_url = web_search_url(&scoped_query);
+    let lite_url = web_search_lite_url(&scoped_query);
+    let mut selected_provider = String::new();
+    let mut selected = Value::Null;
+    let mut attempted = Vec::<String>::new();
+    let mut skipped = Vec::<Value>::new();
+    let mut provider_errors = Vec::<Value>::new();
+    let mut last_payload = None::<Value>;
+
+    for provider in &provider_chain {
+        if let Some(open_until) = provider_circuit_open_until(root, provider, &policy) {
+            skipped.push(json!({
+                "provider": provider,
+                "reason": "circuit_open",
+                "open_until": open_until
+            }));
+            continue;
+        }
+        attempted.push(provider.clone());
+        let candidate = match provider.as_str() {
+            "serperdev" => api_search_serper(
+                root,
+                &scoped_query,
+                summary_only,
+                human_approved,
+                &allowed_domains,
+                exclude_subdomains,
+                top_k,
+            ),
+            "duckduckgo_lite" => api_fetch(
+                root,
+                &json!({
+                    "url": lite_url,
+                    "summary_only": summary_only,
+                    "human_approved": human_approved,
+                    "approval_id": approval_id
+                }),
+            ),
+            "bing_rss" => api_search_bing_rss(
+                &scoped_query,
+                summary_only,
+                &allowed_domains,
+                exclude_subdomains,
+                top_k,
+            ),
+            _ => api_fetch(
                 root,
                 &json!({
                     "url": primary_url,
@@ -1720,112 +1867,121 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                     "human_approved": human_approved,
                     "approval_id": approval_id
                 }),
-            )
+            ),
+        };
+        if search_payload_usable(&candidate) {
+            record_provider_attempt(root, provider, true, "", &policy);
+            selected_provider = provider.clone();
+            selected = candidate;
+            break;
         }
+        let reason = search_payload_error(&candidate);
+        record_provider_attempt(root, provider, false, &reason, &policy);
+        provider_errors.push(json!({
+            "provider": provider,
+            "error": reason,
+            "challenge": payload_looks_like_search_challenge(&candidate),
+            "low_signal": payload_looks_low_signal_search(&candidate),
+            "status_code": candidate.get("status_code").and_then(Value::as_i64).unwrap_or(0)
+        }));
+        last_payload = Some(candidate);
+    }
+
+    let mut out = if !selected.is_null() {
+        selected
     } else {
-        api_fetch(
-            root,
-            &json!({
-                "url": primary_url,
-                "summary_only": summary_only,
-                "human_approved": human_approved,
-                "approval_id": approval_id
-            }),
-        )
+        last_payload.unwrap_or_else(|| {
+            json!({
+                "ok": false,
+                "error": "search_providers_exhausted",
+                "summary": "Search providers returned no usable findings. Retry with narrower query or explicit source URLs.",
+                "content": ""
+            })
+        })
     };
-    let mut used_lite_fallback = false;
-    let mut used_bing_fallback = force_bing;
-    let mut bing_error = String::new();
-    if !used_serper && out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        if payload_looks_like_search_challenge(&out) {
-            let lite_out = api_fetch(
-                root,
-                &json!({
-                    "url": fallback_url,
-                    "summary_only": summary_only,
-                    "human_approved": human_approved,
-                    "approval_id": approval_id
-                }),
+    if out
+        .get("provider")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .is_empty()
+    {
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert(
+                "provider".to_string(),
+                if selected_provider.is_empty() {
+                    Value::String("none".to_string())
+                } else {
+                    Value::String(selected_provider.clone())
+                },
             );
-            if lite_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                out = lite_out;
-                used_lite_fallback = true;
-                if payload_looks_like_search_challenge(&out) {
-                    used_lite_fallback = false;
-                }
-            } else if let Some(obj) = out.as_object_mut() {
+        }
+    }
+    if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        if let Some(obj) = out.as_object_mut() {
+            if obj
+                .get("summary")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
                 obj.insert(
-                    "search_lite_fallback_error".to_string(),
-                    clean_text(
-                        lite_out.get("error").and_then(Value::as_str).unwrap_or(""),
-                        220,
-                    )
-                    .into(),
+                    "summary".to_string(),
+                    Value::String(
+                        "Search providers returned no usable findings. Retry with narrower query or explicit source URLs.".to_string(),
+                    ),
+                );
+            }
+            if obj.get("error").is_none() {
+                obj.insert(
+                    "error".to_string(),
+                    Value::String("search_providers_exhausted".to_string()),
                 );
             }
         }
     }
-    let challenge_after_fallback = payload_looks_like_search_challenge(&out);
-    let low_signal_after_fallback = payload_looks_low_signal_search(&out);
-    let fallback_to_bing = !force_bing
-        && !used_serper
-        && (!out.get("ok").and_then(Value::as_bool).unwrap_or(false)
-            || challenge_after_fallback
-            || low_signal_after_fallback);
-    if fallback_to_bing {
-        let bing_out = api_search_bing_rss(
-            &scoped_query,
-            summary_only,
-            &allowed_domains,
-            exclude_subdomains,
-            top_k,
-        );
-        if bing_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            out = bing_out;
-            used_bing_fallback = true;
-            used_lite_fallback = false;
-        } else {
-            bing_error = clean_text(
-                bing_out.get("error").and_then(Value::as_str).unwrap_or(""),
-                220,
-            );
-            if let Some(obj) = out.as_object_mut() {
-                obj.insert("search_bing_fallback_error".to_string(), json!(bing_error.clone()));
-            }
-        }
-    }
+    let used_lite_fallback = selected_provider == "duckduckgo_lite";
+    let used_bing_fallback = selected_provider == "bing_rss";
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
             Value::String("web_conduit_search".to_string()),
         );
         obj.insert("query".to_string(), Value::String(query.clone()));
-        obj.insert("effective_query".to_string(), Value::String(scoped_query));
-        obj.insert("allowed_domains".to_string(), json!(allowed_domains));
+        obj.insert(
+            "effective_query".to_string(),
+            Value::String(scoped_query.clone()),
+        );
+        obj.insert(
+            "allowed_domains".to_string(),
+            json!(allowed_domains.clone()),
+        );
         obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
         obj.insert("top_k".to_string(), json!(top_k));
+        obj.insert("provider_chain".to_string(), json!(provider_chain.clone()));
+        obj.insert("providers_attempted".to_string(), json!(attempted));
+        obj.insert("providers_skipped".to_string(), json!(skipped));
+        obj.insert("provider_errors".to_string(), json!(provider_errors));
         obj.insert(
-            "provider".to_string(),
-            Value::String(if used_serper {
-                "serperdev".to_string()
-            } else if used_bing_fallback {
-                "bing_rss".to_string()
-            } else if used_lite_fallback {
-                "duckduckgo_lite".to_string()
-            } else {
-                "duckduckgo".to_string()
-            }),
+            "provider_health".to_string(),
+            provider_health_snapshot(root, &provider_chain),
         );
-        obj.insert("search_lite_fallback".to_string(), json!(used_lite_fallback));
-        obj.insert("search_bing_fallback".to_string(), json!(used_bing_fallback));
+        obj.insert(
+            "search_lite_fallback".to_string(),
+            json!(used_lite_fallback),
+        );
+        obj.insert(
+            "search_bing_fallback".to_string(),
+            json!(used_bing_fallback),
+        );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
-        if !serper_error.is_empty() {
-            obj.insert("serper_error".to_string(), Value::String(serper_error));
-        }
-        if !bing_error.is_empty() {
-            obj.insert("bing_error".to_string(), Value::String(bing_error));
-        }
+        obj.insert("cache_status".to_string(), json!("miss"));
     }
+    let cache_status = if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        "ok"
+    } else {
+        "no_results"
+    };
+    store_search_cache(root, &cache_key, &out, cache_status);
     out
 }
 
@@ -2115,10 +2271,19 @@ mod tests {
             out.get("type").and_then(Value::as_str),
             Some("web_conduit_search")
         );
-        assert_eq!(
-            out.get("provider").and_then(Value::as_str),
-            Some("duckduckgo")
+        assert!(
+            matches!(
+                out.get("provider").and_then(Value::as_str),
+                Some("duckduckgo")
+                    | Some("duckduckgo_lite")
+                    | Some("bing_rss")
+                    | Some("serperdev")
+                    | Some("none")
+            ),
+            "unexpected provider: {:?}",
+            out.get("provider")
         );
+        assert!(out.get("provider_chain").is_some());
     }
 
     #[test]
@@ -2163,19 +2328,24 @@ mod tests {
             "github.com",
             "not a domain"
         ]));
-        assert_eq!(domains, vec!["github.com".to_string(), "docs.rs".to_string()]);
+        assert_eq!(
+            domains,
+            vec!["github.com".to_string(), "docs.rs".to_string()]
+        );
     }
 
     #[test]
     fn scoped_search_query_supports_exact_domain_mode() {
-        let scoped = scoped_search_query("agent reliability", &vec!["example.com".to_string()], true);
+        let scoped =
+            scoped_search_query("agent reliability", &vec!["example.com".to_string()], true);
         assert!(scoped.contains("site:example.com"));
         assert!(scoped.contains("-site:*.example.com"));
     }
 
     #[test]
     fn normalize_allowed_domains_supports_comma_string() {
-        let domains = normalize_allowed_domains(&json!("https://www.github.com, docs.rs *.example.com"));
+        let domains =
+            normalize_allowed_domains(&json!("https://www.github.com, docs.rs *.example.com"));
         assert_eq!(
             domains,
             vec![
@@ -2232,9 +2402,7 @@ mod tests {
             render_serper_payload(&body, &vec!["example.com".to_string()], true, 8, 12_000);
         assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            rendered
-                .get("provider_raw_count")
-                .and_then(Value::as_u64),
+            rendered.get("provider_raw_count").and_then(Value::as_u64),
             Some(3)
         );
         assert_eq!(
@@ -2278,12 +2446,11 @@ mod tests {
           </item>
         </channel></rss>
         "#;
-        let rendered = render_bing_rss_payload(body, &vec!["example.com".to_string()], true, 8, 12_000);
+        let rendered =
+            render_bing_rss_payload(body, &vec!["example.com".to_string()], true, 8, 12_000);
         assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            rendered
-                .get("provider_raw_count")
-                .and_then(Value::as_u64),
+            rendered.get("provider_raw_count").and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
@@ -2326,5 +2493,63 @@ mod tests {
             "content": ""
         });
         assert!(payload_looks_low_signal_search(&payload));
+    }
+
+    #[test]
+    fn search_uses_cached_response_when_available() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let request = json!({
+            "query": "agent reliability benchmark",
+            "summary_only": true
+        });
+        let query = clean_text(
+            request
+                .get("query")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            600,
+        );
+        let allowed_domains =
+            normalize_allowed_domains(request.get("allowed_domains").unwrap_or(&Value::Null));
+        let exclude_subdomains = request
+            .get("exclude_subdomains")
+            .or_else(|| request.get("exact_domain_only"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let top_k = 8usize;
+        let summary_only = true;
+        let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
+        let (policy, _) = load_policy(tmp.path());
+        let provider_chain = crate::web_conduit_provider_runtime::provider_chain_from_request(
+            "auto", &request, &policy,
+        );
+        let key = crate::web_conduit_provider_runtime::search_cache_key(
+            &query,
+            &scoped_query,
+            &allowed_domains,
+            exclude_subdomains,
+            top_k,
+            summary_only,
+            &provider_chain,
+        );
+        crate::web_conduit_provider_runtime::store_search_cache(
+            tmp.path(),
+            &key,
+            &json!({
+                "ok": true,
+                "summary": "cached search summary",
+                "content": "",
+                "provider": "duckduckgo"
+            }),
+            "ok",
+        );
+
+        let out = api_search(tmp.path(), &request);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("summary").and_then(Value::as_str),
+            Some("cached search summary")
+        );
+        assert_eq!(out.get("cache_status").and_then(Value::as_str), Some("hit"));
     }
 }

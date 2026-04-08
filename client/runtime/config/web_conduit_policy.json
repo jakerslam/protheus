@@ -13,6 +13,17 @@
     "max_response_bytes": 350000,
     "rate_limit_per_minute": 30,
     "require_human_for_sensitive": true,
+    "search_provider_order": [
+      "serperdev",
+      "duckduckgo",
+      "duckduckgo_lite",
+      "bing_rss"
+    ],
+    "provider_circuit_breaker": {
+      "enabled": true,
+      "failure_threshold": 3,
+      "open_for_secs": 300
+    },
     "sensitive_domains": [
       "accounts.google.com",
       "api.stripe.com",
