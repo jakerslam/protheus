@@ -111,6 +111,18 @@ mod tests {
     }
 
     #[test]
+    fn extract_jsonl_supports_tool_alias_content_types_and_ids() {
+        let jsonl = r#"{"type":"assistant","message":{"content":[{"type":"tool_call","toolUseId":"toolu_alias","name":"bash","args":{"command":"ls -la"}}]}}
+{"type":"user","message":{"content":[{"type":"toolresult","toolUseId":"toolu_alias","content":[{"type":"output_text","text":"file-a\nfile-b"}],"isError":true}]}}"#;
+        let rows = extract_commands_from_jsonl("s1", jsonl);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].command, "ls -la");
+        assert!(rows[0].is_error);
+        let preview = rows[0].output_preview.clone().unwrap_or_default();
+        assert!(preview.contains("file-a"));
+    }
+
+    #[test]
     fn adoption_report_counts_supported_and_prefixed() {
         let payload = json!({
           "session_id":"s1",

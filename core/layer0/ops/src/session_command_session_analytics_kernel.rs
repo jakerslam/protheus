@@ -197,6 +197,80 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
     })
 }
 
+fn normalize_tool_content_type(value: Option<&str>) -> String {
+    value.unwrap_or("").trim().to_ascii_lowercase()
+}
+
+fn is_tool_call_content_type(value: &str) -> bool {
+    matches!(value, "toolcall" | "tool_call" | "tooluse" | "tool_use")
+}
+
+fn is_tool_result_content_type(value: &str) -> bool {
+    matches!(value, "toolresult" | "tool_result")
+}
+
+fn resolve_tool_use_id(block: &Value) -> Option<String> {
+    for key in ["id", "tool_use_id", "toolUseId"] {
+        let Some(raw) = block.get(key).and_then(Value::as_str) else {
+            continue;
+        };
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    None
+}
+
+fn resolve_tool_call_command(block: &Value) -> Option<String> {
+    [
+        block.pointer("/input/command").and_then(Value::as_str),
+        block.pointer("/args/command").and_then(Value::as_str),
+        block.pointer("/arguments/command").and_then(Value::as_str),
+        block.get("command").and_then(Value::as_str),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|raw| clean_text(raw, 2000))
+    .find(|value| !value.is_empty())
+}
+
+fn resolve_tool_result_text(block: &Value) -> String {
+    if let Some(text) = block.get("content").and_then(Value::as_str) {
+        return clean_text(text, 1000);
+    }
+    if let Some(items) = block.get("content").and_then(Value::as_array) {
+        let mut parts = Vec::<String>::new();
+        for item in items {
+            let text = item
+                .as_str()
+                .or_else(|| item.get("text").and_then(Value::as_str))
+                .or_else(|| item.get("content").and_then(Value::as_str));
+            if let Some(raw) = text {
+                let cleaned = clean_text(raw, 400);
+                if !cleaned.is_empty() {
+                    parts.push(cleaned);
+                }
+            }
+        }
+        if !parts.is_empty() {
+            return clean_text(&parts.join(" "), 1000);
+        }
+    }
+    String::new()
+}
+
+fn jsonl_line_might_include_tool_blocks(line: &str) -> bool {
+    let lowered = line.to_ascii_lowercase();
+    lowered.contains("\"bash\"")
+        || lowered.contains("\"tool_use\"")
+        || lowered.contains("\"tooluse\"")
+        || lowered.contains("\"tool_call\"")
+        || lowered.contains("\"toolcall\"")
+        || lowered.contains("\"tool_result\"")
+        || lowered.contains("\"toolresult\"")
+}
+
 fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCommand> {
     let mut pending_tool_uses = Vec::<(String, String, usize)>::new();
     let mut tool_results = HashMap::<String, (usize, String, bool)>::new();
@@ -207,7 +281,7 @@ fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCo
         if trimmed.is_empty() {
             continue;
         }
-        if !trimmed.contains("\"Bash\"") && !trimmed.contains("\"tool_result\"") {
+        if !jsonl_line_might_include_tool_blocks(trimmed) {
             continue;
         }
         let parsed = match serde_json::from_str::<Value>(trimmed) {
@@ -226,24 +300,26 @@ fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCo
                     continue;
                 };
                 for block in content {
-                    if block.get("type").and_then(Value::as_str) != Some("tool_use") {
+                    let content_type =
+                        normalize_tool_content_type(block.get("type").and_then(Value::as_str));
+                    if !is_tool_call_content_type(&content_type) {
                         continue;
                     }
-                    if block.get("name").and_then(Value::as_str) != Some("Bash") {
+                    let is_bash = block
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .map(|value| value.trim().eq_ignore_ascii_case("bash"))
+                        .unwrap_or(false);
+                    if !is_bash {
                         continue;
                     }
-                    let Some(tool_id) = block.get("id").and_then(Value::as_str) else {
+                    let Some(tool_id) = resolve_tool_use_id(block) else {
                         continue;
                     };
-                    let Some(command) = block.pointer("/input/command").and_then(Value::as_str)
-                    else {
+                    let Some(normalized) = resolve_tool_call_command(block) else {
                         continue;
                     };
-                    let normalized = clean_text(command, 2000);
-                    if normalized.is_empty() {
-                        continue;
-                    }
-                    pending_tool_uses.push((tool_id.to_string(), normalized, sequence_counter));
+                    pending_tool_uses.push((tool_id, normalized, sequence_counter));
                     sequence_counter += 1;
                 }
             }
@@ -253,21 +329,21 @@ fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCo
                     continue;
                 };
                 for block in content {
-                    if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                    let content_type =
+                        normalize_tool_content_type(block.get("type").and_then(Value::as_str));
+                    if !is_tool_result_content_type(&content_type) {
                         continue;
                     }
-                    let Some(tool_id) = block.get("tool_use_id").and_then(Value::as_str) else {
+                    let Some(tool_id) = resolve_tool_use_id(block) else {
                         continue;
                     };
-                    let text = clean_text(
-                        block.get("content").and_then(Value::as_str).unwrap_or(""),
-                        1000,
-                    );
+                    let text = resolve_tool_result_text(block);
                     let is_error = block
                         .get("is_error")
                         .and_then(Value::as_bool)
+                        .or_else(|| block.get("isError").and_then(Value::as_bool))
                         .unwrap_or(false);
-                    tool_results.insert(tool_id.to_string(), (text.len(), text, is_error));
+                    tool_results.insert(tool_id, (text.len(), text, is_error));
                 }
             }
             _ => {}

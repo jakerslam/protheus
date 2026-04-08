@@ -432,19 +432,19 @@ fn split_command_chain(cmd: &str) -> Vec<String> {
 }
 
 fn strip_absolute_path(cmd: &str) -> String {
-    let mut parts = cmd.splitn(2, char::is_whitespace);
-    let first = parts.next().unwrap_or("");
-    let rest = parts.next().unwrap_or("");
+    let Some((first, rest)) = parse_first_token_with_rest(cmd) else {
+        return cmd.to_string();
+    };
     if first.starts_with('/') && first.contains('/') {
         if let Some(last) = first.rsplit('/').next() {
             if last
                 .chars()
                 .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
             {
-                if rest.trim().is_empty() {
+                if rest.is_empty() {
                     return last.to_string();
                 }
-                return format!("{last} {}", rest.trim());
+                return format!("{last} {rest}");
             }
         }
     }
@@ -464,18 +464,37 @@ fn strip_git_global_opts(cmd: &str) -> String {
     }
 }
 
-fn extract_base_command(cmd: &str) -> String {
-    let parts = cmd.split_whitespace().collect::<Vec<_>>();
-    if parts.is_empty() {
-        return String::new();
+fn parse_first_token_with_rest(command: &str) -> Option<(String, String)> {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return None;
     }
-    if parts.len() >= 2 {
-        let second = parts[1];
+    let first = trimmed.chars().next()?;
+    if first == '"' || first == '\'' {
+        if let Some(end) = trimmed[1..].find(first) {
+            let token = trimmed[1..1 + end].to_string();
+            let rest = trimmed[1 + end + 1..].trim().to_string();
+            return Some((token, rest));
+        }
+        return Some((trimmed[1..].to_string(), String::new()));
+    }
+    let split_at = trimmed.find(char::is_whitespace).unwrap_or(trimmed.len());
+    let token = trimmed[..split_at].to_string();
+    let rest = trimmed[split_at..].trim().to_string();
+    Some((token, rest))
+}
+
+fn extract_base_command(cmd: &str) -> String {
+    let normalized = strip_absolute_path(cmd);
+    let Some((first, rest)) = parse_first_token_with_rest(&normalized) else {
+        return String::new();
+    };
+    if let Some((second, _)) = parse_first_token_with_rest(&rest) {
         if !second.starts_with('-') && !second.contains('/') && !second.contains('.') {
-            return format!("{} {}", parts[0], second);
+            return format!("{first} {second}");
         }
     }
-    parts[0].to_string()
+    first
 }
 
 fn classify_command(raw: &str) -> Classification {

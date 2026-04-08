@@ -161,6 +161,20 @@ mod tests {
     }
 
     #[test]
+    fn classify_handles_quoted_absolute_executable() {
+        let classified = classify_command("\"/usr/bin/git\" status");
+        assert!(matches!(classified, Classification::Supported { .. }));
+    }
+
+    #[test]
+    fn extract_base_command_keeps_second_token_for_quoted_executable() {
+        assert_eq!(
+            extract_base_command("\"/usr/local/bin/cargo\" test --workspace"),
+            "cargo test"
+        );
+    }
+
+    #[test]
     fn split_chain_keeps_quoted_operators_inside_segment() {
         let rows = split_command_chain("echo \"a && b\" && git status; cargo test");
         assert_eq!(

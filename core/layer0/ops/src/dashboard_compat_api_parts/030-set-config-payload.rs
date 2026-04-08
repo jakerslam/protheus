@@ -7421,12 +7421,10 @@ fn execute_inline_tool_calls(
         let user_requested_swarm = swarm_intent_requested(user_message)
             || user_message.to_ascii_lowercase().contains("multi-agent")
             || user_message.to_ascii_lowercase().contains("multi agent");
-        if user_requested_swarm
-            && matches!(
-                normalized_name.as_str(),
-                "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn"
-            )
-        {
+        if matches!(
+            normalized_name.as_str(),
+            "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn"
+        ) {
             if !input_for_call.is_object() {
                 input_for_call = json!({
                     "objective": clean_text(user_message, 800)
@@ -7443,8 +7441,11 @@ fn execute_inline_tool_calls(
                 200,
             );
             if approval_note.is_empty() {
-                input_for_call["approval_note"] =
-                    Value::String("user requested explicit swarm execution".to_string());
+                input_for_call["approval_note"] = Value::String(if user_requested_swarm {
+                    "user requested explicit swarm execution".to_string()
+                } else {
+                    "autonomous decomposition spawn".to_string()
+                });
             }
         }
         let payload = execute_tool_call_with_recovery(

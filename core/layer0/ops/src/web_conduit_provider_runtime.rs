@@ -72,6 +72,33 @@ fn normalize_provider_token(raw: &str) -> Option<String> {
     }
 }
 
+fn provider_env_keys(provider: &str) -> &'static [&'static str] {
+    match provider {
+        "serperdev" => &[
+            "INFRING_SERPERDEV_API_KEY",
+            "SERPERDEV_API_KEY",
+            "INFRING_SERPER_API_KEY",
+            "SERPER_API_KEY",
+        ],
+        _ => &[],
+    }
+}
+
+fn provider_has_runtime_credential_with<F>(provider: &str, resolve_env: F) -> bool
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let keys = provider_env_keys(provider);
+    if keys.is_empty() {
+        return true;
+    }
+    keys.iter().any(|key| {
+        resolve_env(key)
+            .map(|raw| !clean_text(&raw, 600).is_empty())
+            .unwrap_or(false)
+    })
+}
+
 fn parse_provider_list(raw: &Value) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
@@ -102,16 +129,21 @@ fn dedupe_preserve(rows: Vec<String>) -> Vec<String> {
     })
 }
 
-pub(crate) fn provider_chain_from_request(
+fn provider_chain_from_request_with_env<F>(
     provider_hint: &str,
     request: &Value,
     policy: &Value,
-) -> Vec<String> {
+    resolve_env: F,
+) -> Vec<String>
+where
+    F: Fn(&str) -> Option<String> + Copy,
+{
     let hint = clean_text(provider_hint, 60).to_ascii_lowercase();
     let request_chain = request
         .get("provider_chain")
         .map(parse_provider_list)
         .unwrap_or_default();
+    let request_chain_explicit = !request_chain.is_empty();
     let policy_chain = policy
         .pointer("/web_conduit/search_provider_order")
         .or_else(|| policy.get("search_provider_order"))
@@ -152,7 +184,35 @@ pub(crate) fn provider_chain_from_request(
             .map(|row| row.to_string())
             .collect::<Vec<_>>(),
     );
-    dedupe_preserve(merged)
+    let deduped = dedupe_preserve(merged);
+    let hint_explicit = matches!(
+        hint.as_str(),
+        "bing" | "bing_rss" | "duckduckgo" | "ddg" | "serper" | "serperdev"
+    );
+    if hint_explicit || request_chain_explicit {
+        return deduped;
+    }
+    let mut credential_ready = Vec::<String>::new();
+    let mut missing_credential = Vec::<String>::new();
+    for provider in deduped {
+        if provider_has_runtime_credential_with(&provider, resolve_env) {
+            credential_ready.push(provider);
+        } else {
+            missing_credential.push(provider);
+        }
+    }
+    credential_ready.extend(missing_credential);
+    credential_ready
+}
+
+pub(crate) fn provider_chain_from_request(
+    provider_hint: &str,
+    request: &Value,
+    policy: &Value,
+) -> Vec<String> {
+    provider_chain_from_request_with_env(provider_hint, request, policy, |key| {
+        std::env::var(key).ok()
+    })
 }
 
 pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
@@ -452,6 +512,44 @@ mod tests {
                 "duckduckgo_lite".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn provider_chain_auto_reorders_missing_credential_providers_to_tail() {
+        let request = json!({});
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["serperdev", "duckduckgo", "bing_rss"]
+            }
+        });
+        let chain = provider_chain_from_request_with_env("", &request, &policy, |_key| None);
+        assert_eq!(
+            chain,
+            vec![
+                "duckduckgo".to_string(),
+                "bing_rss".to_string(),
+                "duckduckgo_lite".to_string(),
+                "serperdev".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn provider_chain_auto_keeps_credentialed_provider_first_when_key_present() {
+        let request = json!({});
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["serperdev", "duckduckgo", "bing_rss"]
+            }
+        });
+        let chain = provider_chain_from_request_with_env("", &request, &policy, |key| {
+            if key == "SERPER_API_KEY" {
+                Some("test-key".to_string())
+            } else {
+                None
+            }
+        });
+        assert_eq!(chain.first().map(String::as_str), Some("serperdev"));
     }
 
     #[test]

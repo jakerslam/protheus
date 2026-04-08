@@ -46,6 +46,175 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .to_string()
 }
 
+fn parse_first_token_with_rest(command: &str) -> Option<(String, String)> {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let first = trimmed.chars().next()?;
+    if first == '"' || first == '\'' {
+        if let Some(end) = trimmed[1..].find(first) {
+            let token = trimmed[1..1 + end].to_string();
+            let rest = trimmed[1 + end + 1..].trim().to_string();
+            return Some((token, rest));
+        }
+        return Some((trimmed[1..].to_string(), String::new()));
+    }
+    let split_at = trimmed.find(char::is_whitespace).unwrap_or(trimmed.len());
+    let token = trimmed[..split_at].to_string();
+    let rest = trimmed[split_at..].trim().to_string();
+    Some((token, rest))
+}
+
+fn is_env_assignment(token: &str) -> bool {
+    let mut chars = token.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+    let mut saw_eq = false;
+    for ch in chars {
+        if ch == '=' {
+            saw_eq = true;
+            break;
+        }
+        if !(ch.is_ascii_alphanumeric() || ch == '_') {
+            return false;
+        }
+    }
+    saw_eq
+}
+
+fn strip_env_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    let options_with_value = [
+        "-u",
+        "--unset",
+        "-c",
+        "--chdir",
+        "-s",
+        "--split-string",
+        "--default-signal",
+        "--ignore-signal",
+        "--block-signal",
+    ];
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" || token == "-" {
+            return rest;
+        }
+        if is_env_assignment(&token) {
+            current = rest;
+            continue;
+        }
+        if token.starts_with('-') {
+            if options_with_value.contains(&token.as_str()) {
+                let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                    return String::new();
+                };
+                current = rest_after_value;
+                continue;
+            }
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
+fn strip_timeout_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    let options_with_value = ["-k", "--kill-after", "-s", "--signal"];
+    let mut skipped_duration = false;
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" {
+            return rest;
+        }
+        if token.starts_with('-') {
+            if options_with_value.contains(&token.as_str()) {
+                let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                    return String::new();
+                };
+                current = rest_after_value;
+                continue;
+            }
+            current = rest;
+            continue;
+        }
+        if !skipped_duration {
+            skipped_duration = true;
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
+fn strip_nice_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    let options_with_value = ["-n", "--adjustment", "--priority"];
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" {
+            return rest;
+        }
+        if token.starts_with('-') {
+            if token
+                .strip_prefix('-')
+                .map(|row| row.chars().all(|ch| ch.is_ascii_digit()))
+                .unwrap_or(false)
+            {
+                current = rest;
+                continue;
+            }
+            if options_with_value.contains(&token.as_str()) {
+                let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                    return String::new();
+                };
+                current = rest_after_value;
+                continue;
+            }
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
+fn normalize_segment_for_permission(segment: &str) -> String {
+    let mut current = clean_text(segment, 2000);
+    if current.is_empty() {
+        return current;
+    }
+    for _ in 0..4 {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            break;
+        };
+        let lowered = token.to_ascii_lowercase();
+        let next = match lowered.as_str() {
+            "sudo" | "command" | "nohup" | "setsid" => rest,
+            "env" => strip_env_prefix(&rest),
+            "timeout" | "gtimeout" => strip_timeout_prefix(&rest),
+            "nice" => strip_nice_prefix(&rest),
+            _ => break,
+        };
+        if next.trim().is_empty() || next == current {
+            break;
+        }
+        current = clean_text(&next, 2000);
+    }
+    current
+}
+
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -214,26 +383,39 @@ fn evaluate_with_rules(
     let mut matched = Vec::<Value>::new();
     let mut saw_ask = false;
     for segment in split_command_chain_for_kernel(command) {
-        let segment = clean_text(&segment, 600);
-        if segment.is_empty() {
+        let segment_raw = clean_text(&segment, 600);
+        if segment_raw.is_empty() {
             continue;
         }
+        let segment_normalized = clean_text(&normalize_segment_for_permission(&segment_raw), 600);
         for pattern in deny_rules {
-            if command_matches_pattern(segment.as_str(), pattern.as_str()) {
+            let direct_match = command_matches_pattern(segment_raw.as_str(), pattern.as_str());
+            let normalized_match = !segment_normalized.is_empty()
+                && segment_normalized != segment_raw
+                && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
+            if direct_match || normalized_match {
                 matched.push(json!({
-                  "segment": segment,
+                  "segment": segment_raw,
+                  "normalized_segment": segment_normalized,
                   "pattern": pattern,
+                  "matched_via": if normalized_match { "normalized" } else { "direct" },
                   "verdict": "deny"
                 }));
                 return (PermissionVerdict::Deny, matched);
             }
         }
         for pattern in ask_rules {
-            if command_matches_pattern(segment.as_str(), pattern.as_str()) {
+            let direct_match = command_matches_pattern(segment_raw.as_str(), pattern.as_str());
+            let normalized_match = !segment_normalized.is_empty()
+                && segment_normalized != segment_raw
+                && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
+            if direct_match || normalized_match {
                 saw_ask = true;
                 matched.push(json!({
-                  "segment": segment,
+                  "segment": segment_raw,
+                  "normalized_segment": segment_normalized,
                   "pattern": pattern,
+                  "matched_via": if normalized_match { "normalized" } else { "direct" },
                   "verdict": "ask"
                 }));
                 break;
@@ -383,5 +565,32 @@ mod tests {
         })));
         assert_eq!(deny, vec!["git reset --hard*".to_string()]);
         assert_eq!(ask, vec!["curl *".to_string()]);
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_env_prefixed_commands_to_match() {
+        let (verdict, matched) = evaluate_with_rules(
+            "env FOO=bar cargo test --workspace",
+            &vec![],
+            &vec!["cargo *".to_string()],
+        );
+        assert_eq!(verdict, PermissionVerdict::Ask);
+        assert_eq!(
+            matched
+                .first()
+                .and_then(|row| row.get("matched_via"))
+                .and_then(Value::as_str),
+            Some("normalized")
+        );
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_sudo_prefixed_commands_to_match() {
+        let (verdict, _) = evaluate_with_rules(
+            "sudo git push origin main",
+            &vec!["git push*".to_string()],
+            &vec![],
+        );
+        assert_eq!(verdict, PermissionVerdict::Deny);
     }
 }

@@ -411,7 +411,7 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
 }
 
 #[test]
-fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
+fn inline_spawn_tool_calls_autoconfirm_without_user_swarm_phrase() {
     let root = tempfile::tempdir().expect("tempdir");
     let snapshot = json!({"ok": true});
     let response =
@@ -422,7 +422,7 @@ fn inline_tool_calls_hide_signoff_error_codes_from_chat_text() {
         "agent-inline",
         None,
         response,
-        "parallelize this with a swarm",
+        "continue with execution plan",
         true,
     );
     assert!(!suppressed);
