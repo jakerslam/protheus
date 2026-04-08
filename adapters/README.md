@@ -13,3 +13,9 @@ Examples:
 - wrappers around third-party SaaS APIs
 - bridges to legacy CLIs or desktop apps
 - compatibility layers for external workflows not designed for InfRing
+
+First-party governed workflow adapters:
+- `adapters/protocol/langgraph_frontend_bridge.ts`
+- `adapters/protocol/openai_agents_frontend_bridge.ts`
+- `adapters/protocol/crewai_tool_bridge.ts`
+- `adapters/protocol/mastra_mcp_bridge.ts`

@@ -115,6 +115,7 @@ pub mod flow_plane;
 pub mod fluxlattice_program;
 pub mod focus_trigger_store_kernel;
 pub mod foundation_contract_gate;
+pub mod framework_adapter_contract;
 pub mod gateway_supervisor;
 pub mod github_repo_collector_kernel;
 pub mod github_repo_collector_kernel_support;

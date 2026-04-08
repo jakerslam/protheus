@@ -26,6 +26,7 @@ fn usage() {
     println!("  protheus-ops workflow_graph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  protheus-ops workflow_graph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops workflow_graph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops workflow_graph-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
@@ -84,6 +85,7 @@ fn default_state() -> Value {
         "inspections": {},
         "interrupts": {},
         "subgraphs": {},
+        "governed_workflows": {},
         "traces": [],
         "streams": [],
         "last_receipt": null,
@@ -101,6 +103,7 @@ fn ensure_state_shape(value: &mut Value) {
         "inspections",
         "interrupts",
         "subgraphs",
+        "governed_workflows",
     ] {
         if !value.get(key).map(Value::is_object).unwrap_or(false) {
             value[key] = json!({});
@@ -184,6 +187,9 @@ fn semantic_claim(id: &str) -> &'static str {
         }
         "V6-WORKFLOW-002.7" => {
             "workflow_graph_interrupt_and_resume_lifecycle_stays_receipted_and_fail_closed"
+        }
+        "V6-WORKFLOW-002.8" => {
+            "workflow_graph_frontend_adapter_execution_routes_through_tooling_claims_and_unified_memory_authority"
         }
         _ => "workflow_graph_bridge_claim",
     }
@@ -813,6 +819,20 @@ fn stream_graph(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
     }))
 }
 
+fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let governed =
+        crate::framework_adapter_contract::execute_governed_workflow("langgraph", payload)?;
+    let workflow_id = governed.workflow_id.clone();
+    as_object_mut(state, "governed_workflows")
+        .insert(workflow_id.clone(), governed.payload.clone());
+    Ok(json!({
+        "ok": true,
+        "workflow_id": workflow_id,
+        "governed_workflow": governed.payload,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-002.8", semantic_claim("V6-WORKFLOW-002.8")),
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() {
         usage();
@@ -844,6 +864,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "inspections": state.get("inspections").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "interrupts": state.get("interrupts").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "subgraphs": state.get("subgraphs").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
+                "governed_workflows": state.get("governed_workflows").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "traces": state.get("traces").and_then(Value::as_array).map(|row| row.len()).unwrap_or(0),
                 "streams": state.get("streams").and_then(Value::as_array).map(|row| row.len()).unwrap_or(0),
                 "state_path": rel(root, &state_path),
@@ -864,6 +885,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "coordinate-subgraph" => coordinate_subgraph(&mut state, &swarm_path, payload),
         "record-trace" => record_trace(root, &mut state, &native_trace_path, payload),
         "stream-graph" => stream_graph(&mut state, payload),
+        "run-governed-workflow" => run_governed_workflow(&mut state, payload),
         "help" | "--help" | "-h" => {
             usage();
             return 0;

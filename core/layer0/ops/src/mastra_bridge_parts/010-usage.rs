@@ -35,6 +35,7 @@ fn usage() {
         "  protheus-ops mastra-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
     );
     println!("  protheus-ops mastra-bridge scaffold-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops mastra-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -172,6 +173,7 @@ fn default_state() -> Value {
         "deployments": {},
         "runtime_bridges": {},
         "intakes": {},
+        "governed_workflows": {},
         "last_receipt": null,
     })
 }
@@ -193,6 +195,7 @@ fn ensure_state_shape(value: &mut Value) {
         "deployments",
         "runtime_bridges",
         "intakes",
+        "governed_workflows",
     ] {
         if !value.get(key).map(Value::is_object).unwrap_or(false) {
             value[key] = json!({});
@@ -377,6 +380,7 @@ fn mastra_claim(id: &str) -> &'static str {
         "V6-WORKFLOW-011.7" => "mastra_multi_provider_model_routing_remains_adapter_owned_receipted_and_profile_safe",
         "V6-WORKFLOW-011.8" => "mastra_studio_and_full_stack_shells_remain_non_authoritative_and_delegate_back_to_core_receipts",
         "V6-WORKFLOW-011.9" => "mastra_ts_first_intake_scaffolds_thin_templates_without_forcing_node_dependency_into_sovereign_profiles",
+        "V6-WORKFLOW-011.10" => "mastra_frontend_adapter_execution_routes_through_tooling_claims_and_unified_memory_authority",
         _ => "mastra_bridge_claim",
     }
 }
@@ -454,4 +458,3 @@ fn approval_is_approved(queue_path: &Path, action_id: &str) -> bool {
 fn allowed_language(language: &str) -> bool {
     matches!(language, "python" | "ts" | "go" | "java" | "rust")
 }
-

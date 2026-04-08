@@ -16,7 +16,16 @@ function streamGraph(payload = {}) {
   return bridge.streamGraph(payload);
 }
 
+function runGovernedWorkflow(payload = {}) {
+  return bridge.runGovernedWorkflow({
+    bridge_path: 'adapters/protocol/workflow_graph_trace_bridge.ts',
+    framework: 'langgraph',
+    ...payload,
+  });
+}
+
 module.exports = {
   recordTrace,
   streamGraph,
+  runGovernedWorkflow,
 };

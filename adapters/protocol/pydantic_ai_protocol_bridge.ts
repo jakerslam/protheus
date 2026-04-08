@@ -27,9 +27,18 @@ function streamModel(payload = {}) {
   return bridge.streamModel(payload);
 }
 
+function runGovernedWorkflow(payload = {}) {
+  return bridge.runGovernedWorkflow({
+    bridge_path: 'adapters/protocol/pydantic_ai_protocol_bridge.ts',
+    framework: 'openai_agents',
+    ...payload,
+  });
+}
+
 module.exports = {
   registerToolContext,
   invokeToolContext,
   bridgeProtocol,
   streamModel,
+  runGovernedWorkflow,
 };

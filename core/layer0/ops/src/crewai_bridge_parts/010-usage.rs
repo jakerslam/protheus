@@ -34,6 +34,7 @@ fn usage() {
     println!(
         "  protheus-ops crewai-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
     );
+    println!("  protheus-ops crewai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
@@ -113,6 +114,7 @@ fn default_state() -> Value {
         "traces": [],
         "benchmarks": {},
         "model_routes": {},
+        "governed_workflows": {},
         "last_receipt": null,
     })
 }
@@ -132,6 +134,7 @@ fn ensure_state_shape(value: &mut Value) {
         "reviews",
         "benchmarks",
         "model_routes",
+        "governed_workflows",
     ] {
         if !value.get(key).map(Value::is_object).unwrap_or(false) {
             value[key] = json!({});
@@ -246,6 +249,7 @@ fn semantic_claim(id: &str) -> &'static str {
         "V6-WORKFLOW-004.8" => "crewai_amp_style_tracing_and_control_plane_events_fold_into_native_observability",
         "V6-WORKFLOW-004.9" => "crewai_runtime_parity_claims_route_through_governed_benchmark_receipts",
         "V6-WORKFLOW-004.10" => "crewai_multimodal_and_local_model_routing_remains_adapter_owned_and_fail_closed",
+        "V6-WORKFLOW-004.11" => "crewai_frontend_adapter_execution_routes_through_tooling_claims_and_unified_memory_authority",
         _ => "crewai_bridge_claim",
     }
 }
@@ -403,4 +407,3 @@ fn register_crew(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-004.1", semantic_claim("V6-WORKFLOW-004.1")),
     }))
 }
-

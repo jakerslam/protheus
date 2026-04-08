@@ -34,6 +34,19 @@ fn deploy_shell(
     }))
 }
 
+fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let governed = crate::framework_adapter_contract::execute_governed_workflow("mastra", payload)?;
+    let workflow_id = governed.workflow_id.clone();
+    as_object_mut(state, "governed_workflows")
+        .insert(workflow_id.clone(), governed.payload.clone());
+    Ok(json!({
+        "ok": true,
+        "workflow_id": workflow_id,
+        "governed_workflow": governed.payload,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-011.10", mastra_claim("V6-WORKFLOW-011.10")),
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() || matches!(argv[0].as_str(), "help" | "--help" | "-h") {
         usage();
@@ -68,6 +81,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "deployments": as_object_mut(&mut state, "deployments").len(),
             "runtime_bridges": as_object_mut(&mut state, "runtime_bridges").len(),
             "intakes": as_object_mut(&mut state, "intakes").len(),
+            "governed_workflows": as_object_mut(&mut state, "governed_workflows").len(),
             "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
         })),
         "register-graph" => register_graph(&mut state, input),
@@ -83,6 +97,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "route-model" => route_model(&state, input),
         "deploy-shell" => deploy_shell(root, &mut state, input),
         "scaffold-intake" => scaffold_intake(root, &mut state, input),
+        "run-governed-workflow" => run_governed_workflow(&mut state, input),
         "run-llm-agent" => run_llm_agent(root, argv, &mut state, input),
         "register-tool-manifest" => register_tool_manifest(root, &mut state, input),
         "invoke-tool-manifest" => invoke_tool_manifest(root, argv, &mut state, input),
@@ -144,4 +159,3 @@ mod tests {
         assert_eq!(out["route"]["degraded"].as_bool(), Some(true));
     }
 }
-

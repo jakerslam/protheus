@@ -28,11 +28,23 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-WEB-008 | done | Web provider-chain runtime (policy-configured order + circuit breaker + local query cache) | Web synthesis reliability remained fragile under provider outages/anti-bot responses because provider fallback order, provider health state, and cache behavior were not first-class runtime contracts. | Added Rust-core provider runtime substrate in [`core/layer0/ops/src/web_conduit_provider_runtime.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime.rs) with policy-driven provider chain parsing, provider failure tracking, circuit-open suppression, and local search cache; rewired [`core/layer0/ops/src/web_conduit.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit.rs) search path to execute providers through that runtime (skip unhealthy providers, classify low-signal/challenge responses as non-usable, and persist cache/provider health snapshots); surfaced policy defaults in [`client/runtime/config/web_conduit_policy.json`](/Users/jay/.openclaw/workspace/client/runtime/config/web_conduit_policy.json). Regression proof: `cargo test --manifest-path core/layer0/ops/Cargo.toml web_conduit_provider_runtime::tests:: -- --nocapture` and `cargo test --manifest-path core/layer0/ops/Cargo.toml web_conduit::tests:: -- --nocapture`. | 10 | 0/1/2 |
 
+## Assimilation Authority Runtime Intake (2026-04-08)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-ASSIM-001 | done | Canonical Rust runtime-systems assimilation protocol chain (IntentSpec → ReconIndex → CandidateSet/CandidateClosure → ProvisionalGapReport → AdmissionVerdict → AdmittedAssimilationPlan → ProtocolStepReceipt) | Assimilation lanes were still partially represented as wrapper-era surfaces, leaving drift risk between documented admission intent and runtime authority behavior. | Unretired wrappers route via runtime-systems authority lanes in [`client/runtime/systems/assimilation/source_attestation_extension.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/assimilation/source_attestation_extension.ts) and [`client/runtime/systems/assimilation/trajectory_skill_distiller.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/assimilation/trajectory_skill_distiller.ts); Rust-core canonical chain is enforced in [`core/layer0/ops/src/runtime_systems_parts/095-execute-assimilation-protocol-contract.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/runtime_systems_parts/095-execute-assimilation-protocol-contract.rs) and wired via [`core/layer0/ops/src/runtime_systems_parts/110-merge-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/runtime_systems_parts/110-merge-payload.rs), with hard-selector fail-closed closure gates, mandatory gap/admission evaluation, and append-only `protocol_state.json` + `protocol_history.jsonl` + `protocol_step_receipts.jsonl` artifacts; regression coverage in [`core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs). Regression proof: `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib runtime_systems::tests::assimilation_lane_emits_protocol_summary_and_artifacts -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib runtime_systems::tests::assimilation_lane_hard_selector_cannot_bypass_closure -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib runtime_systems::tests::assimilation_lane_strict_rejects_unknown_operation -- --nocapture`, and sovereignty/security validation `cargo test --manifest-path core/layer1/security/Cargo.toml capability_switchboard_emits_grant_revoke_hash_chain -- --nocapture`. | 9 | 0/1/2 |
+
 ## Tool Broker & Evidence Pipeline Intake (2026-04-07)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-TOOL-005 | done | Canonical Tool Broker + Evidence Extractor/Store + Structured Verifier + Thin Client Delegation substrate | Tool execution and synthesis quality were still fragile because normalization, evidence extraction, claim derivation, and client orchestration were mixed across ad-hoc paths, allowing raw/low-signal drift and weak replayability. | Added Rust-authoritative substrate crate [`core/layer2/tooling/src/lib.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/lib.rs) with explicit schemas in [`core/layer2/tooling/src/schemas.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/schemas.rs), single-entry broker in [`core/layer2/tooling/src/tool_broker.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/tool_broker.rs), immutable extraction in [`core/layer2/tooling/src/evidence_extractor.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/evidence_extractor.rs), append-only store + invalidation records in [`core/layer2/tooling/src/evidence_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/evidence_store.rs), verifier-owned claim derivation in [`core/layer2/tooling/src/verifier.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/verifier.rs), and thin delegator in [`core/layer2/tooling/src/client_adapter.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/client_adapter.rs). Live web/file endpoint paths and the main agent tool execution lane (`execute_tool_call_with_recovery`) now attach broker/evidence/claim pipeline receipts, and tool summaries prefer claim-bundle findings when present via [`core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs). Regression proof: `cargo test --manifest-path core/layer2/tooling/Cargo.toml` and targeted ops-core tests in [`core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs). | 10 | 0/1/2 |
+| V6-TOOL-005 | done | Canonical Tool Broker + Evidence Extractor/Store + Structured Verifier + Thin Client Delegation substrate | Tool execution and synthesis quality were still fragile because normalization, evidence extraction, claim derivation, and client orchestration were mixed across ad-hoc paths, allowing raw/low-signal drift and weak replayability. | Added Rust-authoritative substrate crate [`core/layer2/tooling/src/lib.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/lib.rs) with explicit schemas in [`core/layer2/tooling/src/schemas.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/schemas.rs), single-entry broker in [`core/layer2/tooling/src/tool_broker.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/tool_broker.rs), immutable extraction in [`core/layer2/tooling/src/evidence_extractor.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/evidence_extractor.rs), append-only store + invalidation records in [`core/layer2/tooling/src/evidence_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/evidence_store.rs), verifier-owned claim derivation in [`core/layer2/tooling/src/verifier.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/verifier.rs), and thin delegator in [`core/layer2/tooling/src/client_adapter.rs`](/Users/jay/.openclaw/workspace/core/layer2/tooling/src/client_adapter.rs). V1 schema fields are now frozen/published via `published_schema_contract_v1`, evidence records carry `trace_id` + `task_id`, direct tool bypass is denied for all callers, and claim bundles are validated so each claim references existing evidence. Live web/file endpoint paths and the main agent tool execution lane (`execute_tool_call_with_recovery`) now attach broker/evidence/claim pipeline receipts, and tool summaries prefer claim-bundle findings when present via [`core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs). Regression proof: `cargo test --manifest-path core/layer2/tooling/Cargo.toml` and targeted ops-core tests in [`core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs). | 10 | 0/1/2 |
+
+## Receipt Lineage Replay Intake (2026-04-08)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-RECEIPTS-001 | done | Queryable/replayable receipt lineage API + operator command surface (`task -> tool_call -> evidence -> claim -> memory_mutation -> assimilation_step`) | Operators could not reliably reconstruct full decision lineage for a completed task from one governed query surface, weakening auditability and troubleshooting speed. | Added governed dashboard endpoints `GET/POST /api/receipts/lineage` in [`core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs) wired to Rust authority `query_task_lineage` in [`core/layer0/ops/src/action_receipts_kernel.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/action_receipts_kernel.rs), plus CLI usage surfacing in [`core/layer0/ops/src/ops_main_usage.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/ops_main_usage.rs). Added regression coverage for end-to-end lineage reconstruction and required `task_id` guard in [`core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/120-receipts-lineage-route.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/120-receipts-lineage-route.rs). | 10 | 0/1/2 |
 
 ## Unified Memory Heap Intake (2026-04-07)
 
@@ -120,6 +132,12 @@ ID normalization:
 | V11-WEB-013 | done | Search-result locator hygiene (prefer provider result links over search-engine request URL) | `batch_query` relevance/scoring could be poisoned by using the search-engine request URL (`bing.com/search?...query...`) as evidence locator, causing false overlap and noisy synthesis. | `candidate_from_search_payload` now prefers provider-returned result links (`payload.links[]`) and only falls back to `requested_url` when no result link is available; relevance gating and emitted evidence locators now reflect actual sources instead of search-engine query endpoints. Regression coverage added for locator selection precedence (`search_payload_prefers_result_link_locator_over_search_engine_request_url`) and existing batch-query suite remains green. Evidence: [`core/layer0/ops/src/batch_query_primitive_parts/010-core.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/010-core.rs), [`core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs). | 10 | 0/1/2 |
 | V11-WEB-014 | done | Multi-stage web retrieval orchestrator + fixture-deterministic failover + synthesis quality floor | Agents still produced occasional low-signal web synthesis when a single provider result passed loosely, and test lanes could become nondeterministic by falling through to live network during fixture runs. | `batch_query` retrieval now uses a Rust-core staged orchestrator (`primary` search -> link-fetch fallback -> `bing_rss` -> `duckduckgo_instant`) that only admits synthesis-eligible candidates (non-search-engine domains, relevance gate, benchmark quality checks), applies a minimum synthesis score floor, and treats low-relevance/no-summary drops as benign so user-facing status remains `ok` when good evidence exists. Fixture mode now fails closed (`fixture_missing`) instead of silently making live network calls for missing stage keys, preserving deterministic regressions. Added tests for benchmark fallback to Bing, low-signal link-fetch recovery, and search-engine-domain fail-closed behavior. Evidence: [`core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs), [`core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs), validation `RUSTFLAGS='-Awarnings' CARGO_TARGET_DIR=/tmp/infring-target-bq-4 cargo test --manifest-path core/layer0/ops/Cargo.toml batch_query_primitive::tests::search_payload_prefers_result_link_locator_over_search_engine_request_url -- --nocapture`. | 10 | 0/1/2 |
 
+## Container Runtime Reliability Intake (2026-04-08)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-CONTAINER-001 | done | Deterministic container boot path + dashboard healthz smoke in CI | Docker runtime references had drifted to stale paths and did not guarantee clean-checkout startup or endpoint reachability proof in CI. | Container image now builds Rust runtime binaries during Docker build and starts through the stable dashboard wrapper command (`node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ui/infring_dashboard.ts serve`) rather than stale `client/systems/*` path assumptions; Docker healthcheck probes dashboard `/healthz`; Compose uses the same wrapper command; CI `container-smoke` job builds image, boots container, verifies `/healthz`, and verifies dashboard route reachability. Evidence: [`Dockerfile`](/Users/jay/.openclaw/workspace/Dockerfile), [`docker-compose.yml`](/Users/jay/.openclaw/workspace/docker-compose.yml), [`.github/workflows/ci.yml`](/Users/jay/.openclaw/workspace/.github/workflows/ci.yml), [`.github/workflows/docker-supply-chain.yml`](/Users/jay/.openclaw/workspace/.github/workflows/docker-supply-chain.yml). | 10 | 0/1/2 |
+
 ## File Read Reliability Intake (2026-04-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
@@ -161,6 +179,7 @@ ID normalization:
 | V11-TSRUST-002 | done | TS wrapper ingress compaction: redirect authoritative wrapper scripts to Rust core domains + complete high-authority TS migration ledger classification | Many high-authority TS files were already thin wrappers around Rust lanes, but dispatch still invoked Node entrypoints first and left ownership ambiguous. | Added wrapper redirect resolver in [`core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs) and hooked it into dispatch in [`core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs) so compatibility scripts now execute via Rust domains (`protheus-control-plane`, `daemon-control`, `backlog-registry`, `backlog-github-sync`, `rust50-migration-program`, `rust-enterprise-productivity-program`, `rust-hotpath-inventory-kernel`, `benchmark-autonomy-gate`, `coverage-badge-kernel`, `local-runtime-partitioner`, `security-layer-inventory-gate-kernel`, `top50-roi-sweep-kernel`, `readiness-bridge-pack-kernel`, `system-health-audit-runner-kernel`, `continuity-runtime`, `runtime-systems`, `unknown-command`) without Node ownership. High-authority TS ledger/checklist were completed with explicit outcomes (`migrated_to_core` vs `kept_ts_*`) at [`local/state/ops/ts-migration/ledger-2026-04-07.tsv`](/Users/jay/.openclaw/workspace/local/state/ops/ts-migration/ledger-2026-04-07.tsv) and [`local/state/ops/ts-migration/high-authority-checklist-2026-04-07.md`](/Users/jay/.openclaw/workspace/local/state/ops/ts-migration/high-authority-checklist-2026-04-07.md) (high queue now `pending=0`). Regression proof: `cargo test -p protheus-ops-core --lib wrapper_redirects -- --nocapture`, `cargo check -p protheus-ops-core`. | 10 | 0/1/2 |
 | V11-TSRUST-003 | done | Full tracked TypeScript ledger closure (`*.ts`/`*.tsx`) with explicit Rust-authority vs justified-TS outcomes | Migration work had a complete ledger, but unresolved `pending` rows still prevented auditable completion of TS->Rust authority triage. | Full tracked TS ledger at [`local/state/ops/ts-migration/ledger-2026-04-07.tsv`](/Users/jay/.openclaw/workspace/local/state/ops/ts-migration/ledger-2026-04-07.tsv) now reconciles exactly with `git ls-files '*.ts' '*.tsx'` (`1846/1846`) and has no `pending` rows; remaining unresolved groups were closed to explicit states: `migrated_to_core` for thin wrappers with Rust-owned authority, `kept_ts_tooling` for adapter/app tooling lanes, and `kept_ts_required` for runtime host/bootstrap wrappers. Auditable checklist + verification commands are recorded in [`local/state/ops/ts-migration/full-ledger-checklist-2026-04-07.md`](/Users/jay/.openclaw/workspace/local/state/ops/ts-migration/full-ledger-checklist-2026-04-07.md). Regression proof: `cargo check -p protheus-ops-core`, `cargo test -p protheus-ops-core --lib wrapper_redirects -- --nocapture`, `git ls-files '*.ts' '*.tsx' | wc -l`, `awk -F'\t' 'NR>1{print $1}' local/state/ops/ts-migration/ledger-2026-04-07.tsv | wc -l`, `awk -F'\t' 'NR>1{c[$5]++} END{for (k in c) print c[k],k}' local/state/ops/ts-migration/ledger-2026-04-07.tsv | sort -nr`. | 9 | 0/1/2 |
 | V11-TSRUST-004 | done | Rust guardrails for TS retention: authority-prefix wrapper-or-exception enforcement | TS migration can regress silently unless Rust-authority prefixes are fail-closed against ad hoc TS logic. | Added Rust integration guard [`core/layer0/ops/tests/ts_migration_ledger_guard.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/tests/ts_migration_ledger_guard.rs) enforcing that tracked TS files under `client/runtime/systems/{security,ops,memory,sensory,autonomy,assimilation}/` are either wrapper-token surfaces or explicit entries in [`client/runtime/config/rust_ts_exceptions.json`](/Users/jay/.openclaw/workspace/client/runtime/config/rust_ts_exceptions.json) with non-trivial reasons; guard also validates exception manifest paths are tracked + authority-scoped and bounds TS growth in these prefixes. Wrapper-token baseline expanded (`run_protheus_ops.ts`, `createOpsLaneBridge`, `createManifestLaneBridge`), and TS authority was reduced further by converting [`client/runtime/systems/ops/protheus_completion.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ops/protheus_completion.ts) + [`client/runtime/systems/ops/protheus_version_cli.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ops/protheus_version_cli.ts) to thin wrappers over Rust domains. Regression proof: `cargo test -p protheus-ops-core --test ts_migration_ledger_guard -- --nocapture`, `cargo test -p protheus-ops-core --lib wrapper_redirects -- --nocapture`, `cargo check -p protheus-ops-core`. | 9 | 0/1/2 |
+| V11-TSRUST-005 | done | Release semver contract authority migrated from TypeScript into Rust core domain (`release-semver-contract`) | `client/runtime/systems/ops/release_semver_contract.ts` still contained substantial release-control logic (version bump classification, git scan, package/package-lock/runtime-version mutation), violating thin-client goals and creating duplicate control-plane authority in TS. | Added Rust-core release semver domain in [`core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs) and dispatch hook in [`core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs), including conventional-commit bump classification, release-channel normalization, package/package-lock/runtime_version mutation in `--write` mode, and JSON plan/status emission. Converted [`client/runtime/systems/ops/release_semver_contract.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ops/release_semver_contract.ts) and [`client/runtime/systems/ops/protheus_debug_diagnostics.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ops/protheus_debug_diagnostics.ts) to thin wrappers over Rust domains, and removed `release_semver_contract.ts` from TS authority exceptions in [`client/runtime/config/rust_ts_exceptions.json`](/Users/jay/.openclaw/workspace/client/runtime/config/rust_ts_exceptions.json). Current-pass temporary ledger refreshed at [`local/state/ops/ts-migration/tmp-ledger-2026-04-08.tsv`](/Users/jay/.openclaw/workspace/local/state/ops/ts-migration/tmp-ledger-2026-04-08.tsv). Regression proof: `cargo test -p protheus-ops-core --lib cli_domain_wrapper_redirect_tests::release_semver_wrapper_redirects_to_core_domain -- --nocapture`, `cargo test -p protheus-ops-core --test ts_migration_ledger_guard -- --nocapture`, `node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/release_semver_contract.test.ts`, and sovereignty check `cargo test --manifest-path core/layer1/security/Cargo.toml capability_switchboard_emits_grant_revoke_hash_chain -- --nocapture`. | 10 | 0/1/2 |
 
 ## Installer Reliability v1.0 Intake (2026-04-03)
 
@@ -14280,3 +14299,116 @@ Source summary:
 
 ### Non-Feature Carry-Over (do not block Wave 1)
 - V11-TODO-001, V11-TODO-002, V11-TODO-003, V11-TODO-005.
+
+## Licensing Cohesion Addendum (2026-04-08)
+
+### V11-LICENSE-001 — Canonical SPDX Matrix + Ambiguity Gate
+
+- Intent:
+  - Establish one canonical licensing matrix and eliminate contradictory license statements across repo-wide product/legal surfaces and release metadata.
+- Acceptance criteria:
+  - `LICENSE_MATRIX.json` is the sole canonical machine-readable matrix for SPDX scope resolution.
+  - `LICENSE_SCOPE.md`, `README.md`, `SECURITY.md`, Docker labels, and release metadata generation all align to the same SPDX expressions.
+  - CI fails when any tracked path lacks a deterministic SPDX resolution or when canonical surfaces drift out of sync.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/license_spdx_story_gate.ts`
+  - `.github/workflows/license-spdx-story-gate.yml`
+  - `verify.sh` invocation of `npm run -s ops:license:spdx-story:gate`
+  - release licensing manifests in:
+    - `client/runtime/local/state/release/licensing/release_licensing_manifest.json`
+    - `state/release/provenance_bundle/release_licensing_manifest.json`
+
+## Benchmark Auditability Addendum (2026-04-08)
+
+### V11-BENCH-002 — Public Benchmark Evidence Contract + No-404 Gate
+
+- Intent:
+  - Ensure every published benchmark claim points to a retrievable artifact and a reproducible command path, with CI/release enforcement against stale or non-public links.
+- Acceptance criteria:
+  - README and benchmark docs link to canonical tracked artifact `docs/client/reports/benchmark_matrix_run_latest.json`.
+  - Public benchmark docs include a reproducible command lane (`npm run -s ops:benchmark:repro` or equivalent refresh+sanity+audit sequence).
+  - CI and `verify.sh` execute `ops:benchmark:public-audit` as a hard gate.
+  - Release workflow includes the canonical benchmark snapshot and benchmark audit receipts as publishable assets.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/benchmark_public_audit.ts`
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/release.yml`
+  - `verify.sh`
+  - `benchmarks/competitive_matrix/README.md`
+  - `docs/client/PUBLIC_BENCHMARKS.md`
+  - `README.md`
+
+## Public SDK Surface Addendum (2026-04-08)
+
+### V11-SDK-001 — Stable TypeScript SDK Contract + Reference App Build Proof
+
+- Intent:
+  - Stabilize a boring, public TypeScript SDK surface that is safe for external adoption without importing internal repo paths.
+- Acceptance criteria:
+  - Public SDK package exists at `packages/infring-sdk` with stable methods:
+    - `submitTask`
+    - `inspectReceipts`
+    - `queryMemory`
+    - `reviewEvidence`
+    - `runAssimilation`
+    - `attachPolicies`
+  - SDK exposes typed request/response envelopes and a transport boundary; packages remain non-authoritative wrappers.
+  - Three reference apps compile against `@infring/sdk` with no `client/**` or `core/**` import hacks:
+    - `examples/apps/reference-task-submit`
+    - `examples/apps/reference-receipts-memory`
+    - `examples/apps/reference-assimilation-policy`
+  - CI guard fails on missing SDK import usage or forbidden internal imports in reference apps.
+- Regression evidence pointers:
+  - `packages/infring-sdk/src/index.ts`
+  - `tests/tooling/scripts/ci/public_sdk_surface_guard.ts`
+  - `tsconfig.sdk.references.json`
+  - `npm run -s ops:sdk:surface:build`
+
+## Unified Memory Authority Addendum (2026-04-08)
+
+### V11-MEMORY-002 — Unified Memory as System of Record (Rust Authority)
+
+- Intent:
+  - Promote `core/layer2/memory` to the canonical system of record with replayable receipts, append-only retention/purge metadata, deterministic context reconstruction, and anti-poisoning protections.
+- Acceptance criteria:
+  - Canonical record schema includes scope, classification, trust_state, and capability (`CanonicalMemoryRecord`).
+  - Version history remains append-only; purge uses append-only `MemoryPurgeRecord` tombstoning (no in-place history mutation).
+  - Context Stacks remain derived views; deterministic reconstruction is available from replay rows + policy-filtered materialization.
+  - Promotion/materialization workflows emit receipts and support deterministic replay paths.
+  - Retention/purge/rollback/export-redaction rules are enforceable in Rust authority paths.
+  - Anti-poisoning excludes contested/quarantined/revoked versions from reconstructed/materialized context views.
+- Regression evidence pointers:
+  - `core/layer2/memory/src/schemas.rs`
+  - `core/layer2/memory/src/version_ledger.rs`
+  - `core/layer2/memory/src/heap_interface.rs`
+  - `core/layer2/memory/src/tests.rs`
+  - `cargo test --manifest-path core/layer2/memory/Cargo.toml`
+
+## Framework Adapter Governance Addendum (2026-04-08)
+
+### V11-ADAPTER-001 — External Framework Frontends Routed Through Governed Core Workflow Contract
+
+- Intent:
+  - Provide first-party adapter entrypoints for LangGraph/OpenAI Agents (then CrewAI/Mastra) while preserving InfRing authority over tool execution, evidence, claims, receipts, and governed memory.
+- Acceptance criteria:
+  - `workflow_graph-bridge`, `pydantic-ai-bridge`, `crewai-bridge`, and `mastra-bridge` expose `run-governed-workflow`.
+  - All four commands execute via one Rust authority contract (`framework_adapter_contract`) that emits:
+    - normalized tool result
+    - evidence cards + append-only evidence records
+    - typed worker output
+    - claim bundle + synthesis inputs
+    - unified-memory mutation receipts + replay rows
+  - External adapter files remain thin wrappers with no policy/tool/memory authority:
+    - `adapters/protocol/langgraph_frontend_bridge.ts`
+    - `adapters/protocol/openai_agents_frontend_bridge.ts`
+    - `adapters/protocol/crewai_tool_bridge.ts`
+    - `adapters/protocol/mastra_mcp_bridge.ts`
+  - Unsupported tool names are rejected fail-closed (`unauthorized_tool_request`) through the Tool Broker.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/framework_adapter_contract.rs`
+  - `core/layer0/ops/src/workflow_graph_bridge.rs`
+  - `core/layer0/ops/src/pydantic_ai_bridge_parts/050-invoke-tool-context.rs`
+  - `core/layer0/ops/src/crewai_bridge_parts/030-review-crew.rs`
+  - `core/layer0/ops/src/mastra_bridge_parts/050-run.rs`
+  - `cargo test -p protheus-ops-core --lib framework_adapter_contract::tests::governed_workflow_emits_claims_evidence_and_memory_lineage`
+  - `cargo test -p protheus-ops-core --lib framework_adapter_contract::tests::governed_workflow_rejects_unauthorized_tool_name`

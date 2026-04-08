@@ -57,6 +57,7 @@ const recordEval = (payload) => invoke('record-eval', payload);
 const assimilateIntake = (payload) => invoke('assimilate-intake', payload);
 const registerRuntimeBridge = (payload) => invoke('register-runtime-bridge', payload);
 const routeModel = (payload) => invoke('route-model', payload);
+const runGovernedWorkflow = (payload) => invoke('run-governed-workflow', payload);
 
 module.exports = {
   status,
@@ -74,4 +75,5 @@ module.exports = {
   assimilateIntake,
   registerRuntimeBridge,
   routeModel,
+  runGovernedWorkflow,
 };

@@ -26,8 +26,17 @@ function routeModel(payload = {}) {
   });
 }
 
+function runGovernedWorkflow(payload = {}) {
+  return bridge.runGovernedWorkflow({
+    bridge_path: 'adapters/protocol/crewai_tool_bridge.ts',
+    framework: 'crewai',
+    ...payload,
+  });
+}
+
 module.exports = {
   ingestConfig,
   routeDelegation,
   routeModel,
+  runGovernedWorkflow,
 };

@@ -51,6 +51,7 @@ const resumeRun = (payload) => invoke('resume-run', payload);
 const coordinateSubgraph = (payload) => invoke('coordinate-subgraph', payload);
 const recordTrace = (payload) => invoke('record-trace', payload);
 const streamGraph = (payload) => invoke('stream-graph', payload);
+const runGovernedWorkflow = (payload) => invoke('run-governed-workflow', payload);
 
 module.exports = {
   status,
@@ -62,4 +63,5 @@ module.exports = {
   coordinateSubgraph,
   recordTrace,
   streamGraph,
+  runGovernedWorkflow,
 };

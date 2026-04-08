@@ -58,7 +58,7 @@ pub(super) fn print_usage() {
     println!("  infring-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
     println!("  infring-ops directive-kernel <status|dashboard|prime-sign|derive|supersede|compliance-check|bridge-rsi|migrate> [flags]");
     println!("  infring-ops action-envelope-kernel <create|classify|auto-classify|requires-approval|detect-irreversible|generate-id> [--payload-base64=<base64_json>]");
-    println!("  infring-ops action-receipts-kernel <now-iso|append-jsonl|with-receipt-contract|write-contract-receipt> [--payload-base64=<base64_json>]");
+    println!("  infring-ops action-receipts-kernel <now-iso|append-jsonl|with-receipt-contract|write-contract-receipt|replay-task-lineage|query-task-lineage> [--payload-base64=<base64_json>] [--task-id=<id>] [--trace-id=<id>] [--limit=<n>] [--scan-root=<path>] [--sources=<csv_paths>]");
     println!("  infring-ops conversation-eye-synthesizer-kernel <synthesize-envelope> [--payload-base64=<base64_json>]");
     println!("  infring-ops conversation-eye-collector-kernel <begin-collection|preflight|load-source-rows|normalize-topics|load-index|apply-node|process-nodes|append-memory-row|append-memory-rows|save-index> [--payload-base64=<base64_json>]");
     println!("  infring-ops trainability-matrix-kernel <default-policy|normalize-policy|load-policy|evaluate> [--payload-base64=<base64_json>]");
@@ -68,16 +68,16 @@ pub(super) fn print_usage() {
     println!("  infring-ops semantic-kernel-bridge <status|register-service|register-plugin|invoke-plugin|collaborate|plan|register-vector-connector|retrieve|register-llm-connector|route-llm|validate-structured-output|emit-enterprise-event|register-dotnet-bridge|invoke-dotnet-bridge> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  infring-ops google-adk-bridge <status|register-a2a-agent|send-a2a-message|run-llm-agent|register-tool-manifest|invoke-tool-manifest|coordinate-hierarchy|approval-checkpoint|rewind-session|record-evaluation|sandbox-execute|deploy-shell|register-runtime-bridge|route-model> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  infring-ops haystack-bridge <status|register-pipeline|run-pipeline|run-agent-toolset|register-template|render-template|register-document-store|retrieve-documents|route-and-rank|record-multimodal-eval|trace-run|import-connector|assimilate-intake> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  infring-ops workflow_graph-bridge <status|register-graph|checkpoint-run|inspect-state|interrupt-run|resume-run|coordinate-subgraph|record-trace|stream-graph> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>] [--trace-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge <status|register-graph|checkpoint-run|inspect-state|interrupt-run|resume-run|coordinate-subgraph|record-trace|stream-graph|run-governed-workflow> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>] [--trace-path=<path>]");
     println!("  infring-ops workflow_chain-bridge <status|register-chain|execute-chain|register-middleware|run-deep-agent|register-memory-bridge|recall-memory|import-integration|route-prompt|parse-structured-output|record-trace|checkpoint-run|assimilate-intake> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  infring-ops crewai-bridge <status|register-crew|run-process|run-flow|memory-bridge|ingest-config|route-delegation|review-crew|record-amp-trace|benchmark-parity|route-model> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>] [--approval-queue-path=<path>] [--trace-path=<path>]");
+    println!("  infring-ops crewai-bridge <status|register-crew|run-process|run-flow|memory-bridge|ingest-config|route-delegation|review-crew|record-amp-trace|benchmark-parity|route-model|run-governed-workflow> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>] [--approval-queue-path=<path>] [--trace-path=<path>]");
     println!("  infring-ops shannon-bridge <status|register-pattern|guard-budget|memory-bridge|replay-run|approval-checkpoint|sandbox-execute|record-observability|gateway-route|register-tooling|schedule-run|desktop-shell|p2p-reliability|assimilate-intake> [--payload-base64=<base64_json>] [--state-path=<path>] [--history-path=<path>] [--approval-queue-path=<path>] [--replay-dir=<path>] [--observability-trace-path=<path>] [--observability-metrics-path=<path>] [--desktop-history-path=<path>]");
     println!("  infring-ops instinct-bridge <status|cold-start-model|activate|refine> [--payload-base64=<base64_json>] [--state-path=<path>] [--history-path=<path>] [--lineage-path=<path>]");
     println!("  infring-ops baremetal-substrate <status|boot-kernel|schedule|memory-manager|fs-driver|network-stack|security-model> [--payload-base64=<base64_json>] [--state-path=<path>] [--history-path=<path>] [--ledger-path=<path>]");
     println!("  infring-ops phone-runtime-bridge <status|battery-schedule|sensor-intake|interaction-mode|background-daemon|phone-profile> [--payload-base64=<base64_json>] [--state-path=<path>] [--history-path=<path>] [--background-state-path=<path>] [--sensor-state-path=<path>]");
-    println!("  infring-ops pydantic-ai-bridge <status|register-agent|validate-output|register-tool-context|invoke-tool-context|bridge-protocol|durable-run|approval-checkpoint|record-logfire|execute-graph|stream-model|record-eval|assimilate-intake|register-runtime-bridge|route-model> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge <status|register-agent|validate-output|register-tool-context|invoke-tool-context|bridge-protocol|durable-run|approval-checkpoint|record-logfire|execute-graph|stream-model|record-eval|assimilate-intake|register-runtime-bridge|route-model|run-governed-workflow> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  infring-ops dspy-bridge <status|register-signature|compile-program|optimize-program|assert-program|import-integration|execute-multihop|record-benchmark|record-optimization-trace|assimilate-intake> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  infring-ops mastra-bridge <status|register-graph|execute-graph|run-agent-loop|memory-recall|suspend-run|resume-run|register-mcp-bridge|invoke-mcp-bridge|record-eval-trace|deploy-shell|register-runtime-bridge|route-model|scaffold-intake> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops mastra-bridge <status|register-graph|execute-graph|run-agent-loop|memory-recall|suspend-run|resume-run|register-mcp-bridge|invoke-mcp-bridge|record-eval-trace|deploy-shell|register-runtime-bridge|route-model|scaffold-intake|run-governed-workflow> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  infring-ops llamaindex-bridge <status|register-index|query|run-agent-workflow|ingest-multimodal|record-memory-eval|run-conditional-workflow|emit-trace|register-connector|connector-query> [--payload-base64=<base64_json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!("  infring-ops integrity-hash-utility-kernel <stable-stringify|sha256-hex|hash-file-sha256> [--payload-base64=<base64_json>]");
     println!("  infring-ops redaction-classification-kernel <load-policy|classify-text|redact-text|classify-and-redact> [--payload-base64=<base64_json>]");
@@ -107,7 +107,9 @@ pub(super) fn print_usage() {
     println!("  infring-ops upgrade-lane-kernel <status|record> [--payload-base64=<base64_json>]");
     println!("  infring-ops mech-suit-mode-kernel <load-policy|approx-token-count|classify-severity|should-emit-console|update-status|append-attention-event> [--payload-base64=<base64_json>]");
     println!("  infring-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
-    println!("  infring-ops continuity-runtime <resurrection-protocol|session-continuity-vault> [flags]");
+    println!(
+        "  infring-ops continuity-runtime <resurrection-protocol|session-continuity-vault> [flags]"
+    );
     println!("  infring-ops memory-plane <causal-temporal-graph|memory-federation-plane> [flags]");
     println!("  infring-ops memory-policy-kernel <status|parse-cli|command-name|validate|validate-ranking|validate-lensmap|severity-rank|guard-failure> [--payload-base64=<base64_json>]");
     println!("  infring-ops memory-session-isolation-kernel <load-state|save-state|validate|failure-result> [--payload-base64=<base64_json>]");
@@ -197,9 +199,7 @@ pub(super) fn print_usage() {
     println!("  infring-ops spine <mode> [date] [flags]");
     println!("  infring-ops attention-queue <enqueue|status> [flags]");
     println!("  infring-ops memory-ambient <run|status> [flags]");
-    println!(
-        "  infring-ops duality-seed <status|invoke> [--payload=<json>|--payload-file=<path>]"
-    );
+    println!("  infring-ops duality-seed <status|invoke> [--payload=<json>|--payload-file=<path>]");
     println!("  infring-ops persona-ambient <apply|status> [flags]");
     println!("  infring-ops dopamine-ambient <closeout|status|evaluate> [flags]");
     println!("  infring-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");

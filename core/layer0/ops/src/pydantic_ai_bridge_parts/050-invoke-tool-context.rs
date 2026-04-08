@@ -295,6 +295,20 @@ fn assimilate_intake(
     deploy_shell(root, state, &normalized)
 }
 
+fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let governed =
+        crate::framework_adapter_contract::execute_governed_workflow("openai_agents", payload)?;
+    let workflow_id = governed.workflow_id.clone();
+    as_object_mut(state, "governed_workflows")
+        .insert(workflow_id.clone(), governed.payload.clone());
+    Ok(json!({
+        "ok": true,
+        "workflow_id": workflow_id,
+        "governed_workflow": governed.payload,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-015.11", pydantic_claim("V6-WORKFLOW-015.11")),
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() || matches!(argv[0].as_str(), "help" | "--help" | "-h") {
         usage();
@@ -328,6 +342,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "graph_runs": as_object_mut(&mut state, "graph_runs").len(),
             "model_streams": as_object_mut(&mut state, "model_streams").len(),
             "evaluations": as_object_mut(&mut state, "evaluations").len(),
+            "governed_workflows": as_object_mut(&mut state, "governed_workflows").len(),
             "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
         })),
         "register-agent" => register_agent(root, &mut state, input),
@@ -350,6 +365,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "stream-model" => stream_model(&mut state, input),
         "record-eval" => record_eval(root, &mut state, input),
         "assimilate-intake" => assimilate_intake(root, &mut state, input),
+        "run-governed-workflow" => run_governed_workflow(&mut state, input),
         "rewind-session" => rewind_session(root, argv, &mut state, input),
         "record-evaluation" => record_evaluation(root, &mut state, input),
         "sandbox-execute" => sandbox_execute(root, &mut state, input),
@@ -409,4 +425,3 @@ mod tests {
         assert_eq!(out["route"]["degraded"].as_bool(), Some(true));
     }
 }
-

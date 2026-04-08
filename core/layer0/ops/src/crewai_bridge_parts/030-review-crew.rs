@@ -203,6 +203,19 @@ fn route_model(
     }))
 }
 
+fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let governed = crate::framework_adapter_contract::execute_governed_workflow("crewai", payload)?;
+    let workflow_id = governed.workflow_id.clone();
+    as_object_mut(state, "governed_workflows")
+        .insert(workflow_id.clone(), governed.payload.clone());
+    Ok(json!({
+        "ok": true,
+        "workflow_id": workflow_id,
+        "governed_workflow": governed.payload,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-004.11", semantic_claim("V6-WORKFLOW-004.11")),
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() {
         usage();
@@ -240,6 +253,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "traces": state.get("traces").and_then(Value::as_array).map(|row| row.len()).unwrap_or(0),
                 "benchmarks": state.get("benchmarks").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "model_routes": state.get("model_routes").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
+                "governed_workflows": state.get("governed_workflows").and_then(Value::as_object).map(|row| row.len()).unwrap_or(0),
                 "state_path": rel(root, &state_path),
                 "history_path": rel(root, &history_path),
             }),
@@ -260,6 +274,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "record-amp-trace" => record_amp_trace(root, &mut state, &trace_path, payload),
         "benchmark-parity" => benchmark_parity(&mut state, payload),
         "route-model" => route_model(root, &mut state, payload),
+        "run-governed-workflow" => run_governed_workflow(&mut state, payload),
         "help" | "--help" | "-h" => {
             usage();
             return 0;
@@ -294,4 +309,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     print_json_line(&receipt);
     0
 }
-

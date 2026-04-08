@@ -30,6 +30,7 @@ fn usage() {
     println!("  protheus-ops pydantic-ai-bridge stream-model [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops pydantic-ai-bridge record-eval [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops pydantic-ai-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops pydantic-ai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -173,6 +174,7 @@ fn default_state() -> Value {
         "sandbox_runs": {},
         "deployments": {},
         "runtime_bridges": {},
+        "governed_workflows": {},
         "last_receipt": null,
     })
 }
@@ -200,6 +202,7 @@ fn ensure_state_shape(value: &mut Value) {
         "sandbox_runs",
         "deployments",
         "runtime_bridges",
+        "governed_workflows",
     ] {
         if !value.get(key).map(Value::is_object).unwrap_or(false) {
             value[key] = json!({});
@@ -403,6 +406,9 @@ fn pydantic_claim(id: &str) -> &'static str {
         "V6-WORKFLOW-015.10" => {
             "pydantic_ai_eval_artifacts_remain_replayable_provenance_linked_and_native"
         }
+        "V6-WORKFLOW-015.11" => {
+            "pydantic_ai_frontend_adapter_execution_routes_through_tooling_claims_and_unified_memory_authority"
+        }
         _ => "pydantic_ai_bridge_claim",
     }
 }
@@ -450,4 +456,3 @@ fn read_yaml_value(path: &Path) -> Value {
     }
     serde_yaml::from_str::<Value>(&raw).unwrap_or_else(|_| json!({}))
 }
-

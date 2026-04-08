@@ -56,6 +56,7 @@ const deployShell = (payload) => invoke('deploy-shell', payload);
 const registerRuntimeBridge = (payload) => invoke('register-runtime-bridge', payload);
 const routeModel = (payload) => invoke('route-model', payload);
 const scaffoldIntake = (payload) => invoke('scaffold-intake', payload);
+const runGovernedWorkflow = (payload) => invoke('run-governed-workflow', payload);
 
 module.exports = {
   status,
@@ -72,4 +73,5 @@ module.exports = {
   registerRuntimeBridge,
   routeModel,
   scaffoldIntake,
+  runGovernedWorkflow,
 };

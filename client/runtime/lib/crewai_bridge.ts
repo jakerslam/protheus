@@ -54,6 +54,7 @@ const reviewCrew = (payload) => invoke('review-crew', payload);
 const recordAmpTrace = (payload) => invoke('record-amp-trace', payload);
 const benchmarkParity = (payload) => invoke('benchmark-parity', payload);
 const routeModel = (payload) => invoke('route-model', payload);
+const runGovernedWorkflow = (payload) => invoke('run-governed-workflow', payload);
 
 module.exports = {
   status,
@@ -67,4 +68,5 @@ module.exports = {
   recordAmpTrace,
   benchmarkParity,
   routeModel,
+  runGovernedWorkflow,
 };

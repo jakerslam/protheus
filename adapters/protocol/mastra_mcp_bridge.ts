@@ -16,7 +16,16 @@ function invokeBridge(payload = {}) {
   return bridge.invokeMcpBridge(payload);
 }
 
+function runGovernedWorkflow(payload = {}) {
+  return bridge.runGovernedWorkflow({
+    bridge_path: 'adapters/protocol/mastra_mcp_bridge.ts',
+    framework: 'mastra',
+    ...payload,
+  });
+}
+
 module.exports = {
   registerBridge,
   invokeBridge,
+  runGovernedWorkflow,
 };
