@@ -404,7 +404,7 @@
         var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/message', httpBody);
         this.applyContextTelemetry(res);
         var httpRoute = this.applyAutoRouteTelemetry(res);
-        this.messages = this.messages.filter(function(m) { return !m.thinking; });
+        typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking; }));
         var httpMeta = (res.input_tokens || 0) + ' in / ' + (res.output_tokens || 0) + ' out';
         if (res.cost_usd != null) httpMeta += ' | $' + res.cost_usd.toFixed(4);
         if (res.iterations) httpMeta += ' | ' + res.iterations + ' iter';
@@ -482,7 +482,7 @@
         }
         this.scheduleConversationPersist();
       } catch(e) {
-        this.messages = this.messages.filter(function(m) { return !m.thinking; });
+        typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking; }));
         this._clearPendingWsRequest(targetAgentId);
         this._pendingAutoModelSwitchBaseline = '';
         this.sending = false;

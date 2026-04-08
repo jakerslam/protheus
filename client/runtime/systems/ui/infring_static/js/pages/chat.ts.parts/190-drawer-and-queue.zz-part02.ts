@@ -216,6 +216,42 @@
       return '';
     },
 
+    hasRunningActionableTools: function(msg) {
+      if (!msg || !Array.isArray(msg.tools) || !msg.tools.length) return false;
+      return msg.tools.some(function(tool) { return !!(tool && !this.isThoughtTool(tool) && tool.running); }, this);
+    },
+    clearTransientThinkingRows: function(options) {
+      var opts = options && typeof options === 'object' ? options : {}, force = opts.force === true;
+      var preserveRunningTools = !force && opts.preserve_running_tools !== false;
+      var pendingAgentId = !force && opts.preserve_pending_ws !== false && this._pendingWsRequest && this._pendingWsRequest.agent_id ? String(this._pendingWsRequest.agent_id || '').trim() : '';
+      var rows = Array.isArray(this.messages) ? this.messages : []; if (!rows.length) return 0;
+      var kept = [], now = Date.now(), keptPending = false;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row || (!row.thinking && !row.streaming)) { kept.push(row); continue; }
+        var rowAgentId = String(row.agent_id || '').trim();
+        var keep = (preserveRunningTools && this.hasRunningActionableTools(row)) || (!!pendingAgentId && (!rowAgentId || rowAgentId === pendingAgentId));
+        if (!keep) continue;
+        if (pendingAgentId && (!rowAgentId || rowAgentId === pendingAgentId)) keptPending = true;
+        row.thinking = true; row.streaming = true; row._stream_updated_at = now;
+        if (!Number.isFinite(Number(row._stream_started_at))) row._stream_started_at = now;
+        if (!String(row.thinking_status || '').trim()) {
+          var label = typeof this.currentToolDialogLabel === 'function' ? String(this.currentToolDialogLabel(row) || '').trim() : '';
+          if (label) row.thinking_status = label;
+        }
+        kept.push(row);
+      }
+      this.messages = kept;
+      if (!force && pendingAgentId && !keptPending && typeof this.ensureLiveThinkingRow === 'function') {
+        var restored = this.ensureLiveThinkingRow({ agent_id: pendingAgentId, agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '' });
+        if (restored) {
+          restored.thinking = true; restored.streaming = true; restored._stream_updated_at = now;
+          if (!Number.isFinite(Number(restored._stream_started_at))) restored._stream_started_at = now;
+        }
+      }
+      return Math.max(0, rows.length - this.messages.length);
+    },
+
     thoughtToolDurationSeconds: function(tool) {
       if (!tool || typeof tool !== 'object') return 0;
       var ms = Number(tool.duration_ms || tool.durationMs || tool.elapsed_ms || 0);

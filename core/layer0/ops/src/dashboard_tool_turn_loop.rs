@@ -13,7 +13,6 @@ use protheus_nexus_core_v1::{
 
 const TERMINAL_PERMISSION_POLICY_REL: &str =
     "client/runtime/config/terminal_command_permission_policy.json";
-const TOOL_NO_FINDINGS_COPY: &str = "No relevant results found for that request yet.";
 const CLIENT_INGRESS_SUB_NEXUS: &str = "client_ingress";
 const CLIENT_INGRESS_BRIDGE_SUB_NEXUS: &str = "client_ingress_bridge";
 const NEXUS_INGRESS_ISSUER: &str = "dashboard_tool_turn_loop";
@@ -457,7 +456,7 @@ fn rewrite_text_for_post_filter(value: &str) -> Option<(String, String)> {
     }
     if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
         return Some((
-            TOOL_NO_FINDINGS_COPY.to_string(),
+            crate::tool_output_match_filter::no_findings_user_copy().to_string(),
             "ack_placeholder_suppressed".to_string(),
         ));
     }

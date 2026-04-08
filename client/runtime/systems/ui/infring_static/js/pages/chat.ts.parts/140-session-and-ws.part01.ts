@@ -321,7 +321,7 @@
 
       this._clearTypingTimeout();
       this._clearPendingWsRequest(targetId);
-      this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+      typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
@@ -394,7 +394,7 @@
 
       this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
       this._clearTypingTimeout();
-      this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+      typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
       this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', ts: Date.now() });
       this.sending = false;
       this._responseStartedAt = 0;

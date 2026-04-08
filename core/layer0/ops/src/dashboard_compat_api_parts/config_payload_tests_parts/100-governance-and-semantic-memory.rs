@@ -372,6 +372,13 @@ fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
 }
 
 #[test]
+fn explicit_tool_command_rejects_malformed_shape_before_routing() {
+    let (tool, input) = direct_tool_intent_from_user_message("tool::web_search::latest").expect("router reply");
+    assert_eq!(tool, "tool_command_router");
+    assert_eq!(input.get("error").and_then(Value::as_str).unwrap_or(""), "tool_command_name_invalid");
+}
+
+#[test]
 fn explicit_tool_command_maps_memory_store_to_kv_set() {
     let (tool, input) =
         direct_tool_intent_from_user_message("tool::memory_store:::deploy.mode=staged")
@@ -980,10 +987,7 @@ fn finalize_user_facing_response_blocks_internal_payload_json_without_response()
     .to_string();
     let finalized = finalize_user_facing_response(raw, None);
     let lowered = finalized.to_ascii_lowercase();
-    assert!(
-        lowered.contains("no synthesized response")
-            || lowered.contains("no relevant results found for that request yet")
-    );
+    assert!(lowered.contains("no synthesized response") || lowered.contains("couldn't produce source-backed findings in this turn"));
     assert!(!lowered.contains("agent_id"));
     assert!(!finalized.starts_with('{'));
 }
@@ -1024,10 +1028,7 @@ fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
     let lowered = finalized.to_ascii_lowercase();
     assert!(!finalized.trim_start().starts_with('{'));
     assert!(!lowered.contains("agent_id"));
-    assert!(
-        lowered.contains("benchmark summary")
-            || lowered.contains("no relevant results found for that request yet")
-    );
+    assert!(lowered.contains("benchmark summary") || lowered.contains("couldn't produce source-backed findings in this turn"));
     assert_eq!(
         report.get("completion_state").and_then(Value::as_str),
         Some("reported_no_findings")
@@ -1045,12 +1046,11 @@ fn tool_completion_contract_rewrites_ack_to_findings_from_tool_cards() {
         "is_error": false,
         "result": "Web search findings for \"runtime reliability\": https://example.com/reliability-overview"
     })];
-    let (finalized, report) =
-        enforce_tool_completion_contract("Web search completed.".to_string(), &cards);
+    let (finalized, report) = enforce_tool_completion_contract("Web search completed.".to_string(), &cards);
     let lowered = finalized.to_ascii_lowercase();
     assert!(lowered.contains("here's what i found"));
     assert!(!lowered.contains("web search completed"));
-    assert!(!lowered.contains("no relevant results found for that request yet"));
+    assert!(!lowered.contains("couldn't produce source-backed findings in this turn"));
     assert_eq!(
         report.get("completion_state").and_then(Value::as_str),
         Some("reported_findings")
@@ -1070,7 +1070,7 @@ fn tool_completion_contract_rewrites_ack_to_explicit_no_findings_when_results_ar
     })];
     let (finalized, report) =
         enforce_tool_completion_contract("Web search completed.".to_string(), &cards);
-    assert_eq!(finalized, "No relevant results found for that request yet.");
+    assert_eq!(finalized, no_findings_user_facing_response());
     assert_eq!(
         report.get("completion_state").and_then(Value::as_str),
         Some("reported_no_findings")

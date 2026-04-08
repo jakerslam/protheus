@@ -43,6 +43,9 @@ const RAW_PAYLOAD_KEY_MARKERS: &[&str] = &[
     "\"error_tools\"",
 ];
 
+const NO_FINDINGS_USER_COPY: &str =
+    "I couldn't produce source-backed findings in this turn. Ask me to retry with a narrower query or a specific source URL.";
+
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "from web retrieval:",
     "web benchmark synthesis:",
@@ -63,6 +66,7 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "duckduckgo duckduckgo",
     "the search response came from",
     "no relevant results found for that request yet",
+    "couldn't produce source-backed findings in this turn",
 ];
 
 const ANALYSIS_MARKERS: &[&str] = &[
@@ -173,6 +177,10 @@ pub fn matches_raw_payload_dump(raw: &str) -> bool {
         .filter(|marker| lowered.contains(**marker))
         .count();
     hit_count >= 4 || (hit_count >= 2 && looks_like_json_payload_envelope(&lowered))
+}
+
+pub fn no_findings_user_copy() -> &'static str {
+    NO_FINDINGS_USER_COPY
 }
 
 pub fn rewrite_raw_payload_dump(raw: &str) -> Option<(String, String)> {

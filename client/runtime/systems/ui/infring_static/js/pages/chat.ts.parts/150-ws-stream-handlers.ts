@@ -92,6 +92,7 @@
           this.scrollToBottom();
           break;
         case 'tool_start':
+          var toolStartAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolStartAgentId) this.setAgentLiveActivity(toolStartAgentId, 'working');
           var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!lastMsg || !(lastMsg.thinking || lastMsg.streaming)) {
             lastMsg = {
@@ -115,15 +116,14 @@
           lastMsg.streaming = true;
           this.ensureStreamingToolCard(lastMsg, data.tool, data.input || '', { running: true });
           lastMsg._stream_updated_at = Date.now();
-          if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now();
-          var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
-          if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel);
-          var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
+          if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now(); var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
+          if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel); var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
           if (startLabel && lastMsg.thinking_status !== startLabel) lastMsg.thinking_status = startLabel;
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
         case 'tool_end':
+          var toolEndAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolEndAgentId) this.setAgentLiveActivity(toolEndAgentId, 'working');
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
             var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', {
@@ -137,7 +137,7 @@
             if (activeToolLabel && lastMsg2.thinking_status !== activeToolLabel) {
               lastMsg2.thinking_status = activeToolLabel;
             } else if (!activeToolLabel) {
-              lastMsg2.thinking_status = '';
+              lastMsg2.thinking_status = 'Thinking';
             }
             lastMsg2._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
@@ -146,6 +146,7 @@
           this.scrollToBottom();
           break;
         case 'tool_result':
+          var toolResultAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolResultAgentId) this.setAgentLiveActivity(toolResultAgentId, 'working');
           var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg3) {
             var resultTool = this.ensureStreamingToolCard(lastMsg3, data.tool, data.input || '', { running: true });
@@ -177,7 +178,7 @@
             if (nextActiveToolLabel && lastMsg3.thinking_status !== nextActiveToolLabel) {
               lastMsg3.thinking_status = nextActiveToolLabel;
             } else if (!nextActiveToolLabel) {
-              lastMsg3.thinking_status = '';
+              lastMsg3.thinking_status = 'Thinking';
             }
           }
           this._resetTypingTimeout();
@@ -222,7 +223,7 @@
               t.is_error = true;
             }
           });
-          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           var meta = (data.input_tokens || 0) + ' in / ' + (data.output_tokens || 0) + ' out';
           if (data.cost_usd != null) meta += ' | $' + data.cost_usd.toFixed(4);
           if (data.iterations) meta += ' | ' + data.iterations + ' iter';
@@ -319,7 +320,6 @@
             });
           }
           break;
-
         case 'silent_complete':
           // Agent intentionally chose not to reply (NO_REPLY)
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
@@ -345,7 +345,7 @@
             break;
           }
           if (hasRecentSubstantiveAgentReply) {
-            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
             this.sending = false;
             this._responseStartedAt = 0;
             this.tokenCount = 0;
@@ -360,7 +360,7 @@
           if (silentThought) {
             silentTools.unshift(this.makeThoughtToolCard(silentThought, Number(data && data.duration_ms ? data.duration_ms : 0)));
           }
-          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           this.messages.push({
             id: ++msgId,
             role: 'agent',
@@ -380,7 +380,6 @@
           this.$nextTick(function() { selfSilent._processQueue(); });
           this.refreshPromptSuggestions(true, 'post-silent');
           break;
-
         case 'error':
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
@@ -394,7 +393,7 @@
             lowerError.indexOf('this operation was aborted') >= 0 ||
             lowerError.indexOf('operation was aborted') >= 0
           ) {
-            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
             this.sending = false;
             this._responseStartedAt = 0;
             this.tokenCount = 0;
@@ -405,7 +404,7 @@
           if (lowerError.indexOf('backend_http_404') >= 0) {
             // Soft-ignore noisy command-surface 404s so they do not get injected
             // into the conversation stream after a successful agent response.
-            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ preserve_running_tools: true, preserve_pending_ws: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
             this.sending = false;
             this._responseStartedAt = 0;
             this.tokenCount = 0;
@@ -436,7 +435,7 @@
             break;
           }
           if (lowerError.indexOf('agent not found') !== -1 || lowerError.indexOf('agent_not_found') !== -1) {
-            this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+            typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ preserve_running_tools: true, preserve_pending_ws: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
             this.sending = false;
             this._responseStartedAt = 0;
             this.tokenCount = 0;
@@ -496,7 +495,7 @@
               .catch(function() {});
             break;
           }
-          this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+          typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ preserve_running_tools: true, preserve_pending_ws: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;

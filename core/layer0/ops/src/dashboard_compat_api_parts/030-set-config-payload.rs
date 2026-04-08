@@ -3486,7 +3486,7 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
 }
 
 fn no_findings_user_facing_response() -> String {
-    "No relevant results found for that request yet.".to_string()
+    crate::tool_output_match_filter::no_findings_user_copy().to_string()
 }
 
 fn response_is_no_findings_placeholder(text: &str) -> bool {
@@ -3495,6 +3495,7 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
         return true;
     }
     lowered.contains("no relevant results found for that request yet")
+        || lowered.contains("couldn't produce source-backed findings in this turn")
         || lowered.contains("couldn't extract usable findings")
         || lowered.contains("could not extract usable findings")
         || lowered.contains("couldn't extract reliable findings")
@@ -7696,19 +7697,11 @@ fn levenshtein_distance(left: &str, right: &str) -> usize {
     costs[right_chars.len()]
 }
 
+const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &["web_search", "web_fetch", "spawn_subagents", "manage_agent", "batch_query", "memory_store", "memory_retrieve", "workspace_analyze"];
+
 fn closest_supported_tool_command(command: &str) -> Option<&'static str> {
-    let supported = [
-        "web_search",
-        "web_fetch",
-        "spawn_subagents",
-        "manage_agent",
-        "batch_query",
-        "memory_store",
-        "memory_retrieve",
-        "workspace_analyze",
-    ];
     let mut best = None::<(&'static str, usize)>;
-    for candidate in supported {
+    for candidate in EXPLICIT_SUPPORTED_TOOL_COMMANDS {
         let distance = levenshtein_distance(command, candidate);
         if best.map(|(_, current)| distance < current).unwrap_or(true) {
             best = Some((candidate, distance));
@@ -7734,16 +7727,7 @@ fn explicit_tool_command_error(
         "command": clean_text(command, 120),
         "message": clean_text(message, 320),
         "suggestion": suggestion.unwrap_or(""),
-        "supported_commands": [
-            "web_search",
-            "web_fetch",
-            "spawn_subagents",
-            "manage_agent",
-            "batch_query",
-            "memory_store",
-            "memory_retrieve",
-            "workspace_analyze"
-        ]
+        "supported_commands": EXPLICIT_SUPPORTED_TOOL_COMMANDS
     })
 }
 
@@ -7756,11 +7740,19 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
     if !lowered.starts_with("tool::") {
         return None;
     }
+    let malformed = || Some(Err(explicit_tool_command_error("", "tool_command_name_invalid", "Malformed command. Use `tool::<command>` or `tool::<command>:::<params>`.", None)));
     let command_payload = &trimmed["tool::".len()..];
     let (raw_command, raw_params) = if let Some((name, params)) = command_payload.split_once(":::")
     {
-        (name.trim(), params.trim())
+        let name = name.trim();
+        if name.is_empty() || name.contains(':') {
+            return malformed();
+        }
+        (name, params.trim())
     } else {
+        if command_payload.contains("::") {
+            return malformed();
+        }
         (command_payload.trim(), "")
     };
     let command = clean_text(raw_command, 80)
@@ -7774,24 +7766,21 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
             None,
         )));
     }
-    let mapped = match command.as_str() {
-        "web_search" | "batch_query" | "web_fetch" | "spawn_subagents" | "manage_agent"
-        | "memory_store" | "memory_retrieve" | "workspace_analyze" => command.as_str(),
-        _ => {
-            let suggestion = closest_supported_tool_command(&command);
-            let hint = if let Some(value) = suggestion {
-                format!("Unsupported `tool::{command}`. Try `tool::{value}`.")
-            } else {
-                format!("Unsupported `tool::{command}` command.")
-            };
-            return Some(Err(explicit_tool_command_error(
-                &command,
-                "unsupported_tool_command",
-                &hint,
-                suggestion,
-            )));
-        }
-    };
+    if !EXPLICIT_SUPPORTED_TOOL_COMMANDS.iter().any(|value| *value == command.as_str()) {
+        let suggestion = closest_supported_tool_command(&command);
+        let hint = if let Some(value) = suggestion {
+            format!("Unsupported `tool::{command}`. Try `tool::{value}`.")
+        } else {
+            format!("Unsupported `tool::{command}` command.")
+        };
+        return Some(Err(explicit_tool_command_error(
+            &command,
+            "unsupported_tool_command",
+            &hint,
+            suggestion,
+        )));
+    }
+    let mapped = command.as_str();
     let parsed_params = if raw_params.is_empty() {
         None
     } else {

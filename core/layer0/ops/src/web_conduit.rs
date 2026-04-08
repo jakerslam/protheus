@@ -681,7 +681,7 @@ fn render_serper_payload(
         "summary": if ok {
             summarize_text(&content, 900)
         } else {
-            "No relevant results found for that request yet.".to_string()
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
         },
         "content": content,
         "links": links,
@@ -773,7 +773,7 @@ fn render_bing_rss_payload(
         "summary": if ok {
             summarize_text(&content, 900)
         } else {
-            "No relevant results found for that request yet.".to_string()
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
         },
         "content": content,
         "links": links,
@@ -1691,9 +1691,9 @@ fn search_payload_usable(payload: &Value) -> bool {
     if summary.is_empty() {
         return false;
     }
-    !summary
-        .to_ascii_lowercase()
-        .contains("no relevant results found for that request yet")
+    let lowered = summary.to_ascii_lowercase();
+    !lowered.contains("no relevant results found for that request yet")
+        && !lowered.contains("couldn't produce source-backed findings in this turn")
 }
 
 fn search_payload_error(payload: &Value) -> String {

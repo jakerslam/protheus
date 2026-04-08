@@ -63,7 +63,7 @@
         }
         // Transport timeout: do not fabricate assistant content.
         self._clearStreamingTypewriters();
-        self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+        typeof self.clearTransientThinkingRows === 'function' ? self.clearTransientThinkingRows({ force: true }) : (self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
         self.pushSystemMessage({
           text: 'Response timed out before delivery. Please retry.',
           meta: '',
@@ -458,7 +458,7 @@
         return;
       }
       if (!resolved && stillActiveAgent) {
-        this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
+        typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
         this.pushSystemMessage({
           text: 'Connection dropped before the agent reply was delivered. Please retry.',
           meta: '',
