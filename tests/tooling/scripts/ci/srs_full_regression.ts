@@ -10,6 +10,39 @@ const TODO_PATH = 'docs/workspace/TODO.md';
 const OUT_JSON = 'core/local/artifacts/srs_full_regression_current.json';
 const OUT_MD = 'local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md';
 
+function parseBoolFlag(value, defaultValue = false) {
+  if (value == null || value === '') return defaultValue;
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function parseCliFlags(argv = process.argv.slice(2)) {
+  let strict = false;
+  let failOnWarn = false;
+  for (const raw of argv) {
+    const arg = String(raw ?? '').trim();
+    if (!arg) continue;
+    if (arg === '--strict') {
+      strict = true;
+      continue;
+    }
+    if (arg.startsWith('--strict=')) {
+      strict = parseBoolFlag(arg.slice('--strict='.length), strict);
+      continue;
+    }
+    if (arg === '--fail-on-warn') {
+      failOnWarn = true;
+      continue;
+    }
+    if (arg.startsWith('--fail-on-warn=')) {
+      failOnWarn = parseBoolFlag(arg.slice('--fail-on-warn='.length), failOnWarn);
+    }
+  }
+  return { strict, failOnWarn };
+}
+
 function read(path) {
   return readFileSync(resolve(path), 'utf8');
 }
@@ -419,6 +452,7 @@ function writeArtifacts(payload) {
 }
 
 function main() {
+  const flags = parseCliFlags();
   const first = buildRegressionPayload();
   let payload = first;
   let retry = null;
@@ -458,20 +492,31 @@ function main() {
   }
   payload.summary.retry = retry;
   writeArtifacts(payload);
+  const summary = payload.summary;
+  const shouldFail =
+    flags.strict && (summary.regression.fail > 0 || (flags.failOnWarn && summary.regression.warn > 0));
 
   console.log(
     JSON.stringify(
       {
-        ok: true,
+        ok: !shouldFail,
         type: 'srs_full_regression',
         out_json: OUT_JSON,
         out_markdown: OUT_MD,
-        summary: payload.summary,
+        summary,
       },
       null,
       2,
     ),
   );
+  if (shouldFail) {
+    const failReason =
+      summary.regression.fail > 0
+        ? `fail_rows=${summary.regression.fail}`
+        : `warn_rows=${summary.regression.warn} (fail-on-warn enabled)`;
+    console.error(`[srs_full_regression] strict gate failed: ${failReason}`);
+    process.exit(1);
+  }
 }
 
 main();

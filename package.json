@@ -33,6 +33,7 @@
     "ops:backlog:actionable-gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/backlog_actionable_report.ts --fail-on-actionable",
     "ops:srs:top200:regression": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_top200_regression.ts",
     "ops:srs:full:regression": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_full_regression.ts",
+    "ops:srs:full:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_full_regression.ts --strict=1",
     "ops:srs:contracts:20260312": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_contract_receipts_20260312.ts",
     "ops:srs:reconcile-done": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_reconcile_done_without_code.ts",
     "ops:srs:execute-strict": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_execute_strict.ts",

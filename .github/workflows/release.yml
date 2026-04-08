@@ -67,6 +67,9 @@ jobs:
       - name: Release Runtime Contract Gate
         run: npm run -s ops:release-contract:gate
 
+      - name: SRS Full Regression Gate (Strict)
+        run: npm run -s ops:srs:full:gate
+
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |

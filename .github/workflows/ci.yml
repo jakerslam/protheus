@@ -56,6 +56,9 @@ jobs:
       - name: Release Contract Gate
         run: npm run -s ops:release-contract:gate
 
+      - name: SRS Full Regression Gate (Strict)
+        run: npm run -s ops:srs:full:gate
+
       - name: Source Runtime Classifier
         run: npm run ops:source-runtime:check
 
@@ -120,3 +123,30 @@ jobs:
       - name: Stop container
         if: always()
         run: docker rm -f infring-smoke || true
+
+  windows-installer-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run install.ps1 full repair smoke
+        shell: pwsh
+        env:
+          INFRING_INSTALL_DIR: ${{ runner.temp }}\\infring\\bin
+          INFRING_TMP_DIR: ${{ runner.temp }}\\infring-tmp
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          New-Item -ItemType Directory -Force -Path $env:INFRING_INSTALL_DIR | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:INFRING_TMP_DIR | Out-Null
+
+          & "$PWD\\install.ps1" -Repair -Full -InstallDir $env:INFRING_INSTALL_DIR -TmpDir $env:INFRING_TMP_DIR
+
+          $runtimeConfig = Join-Path $env:INFRING_INSTALL_DIR "infring-client\\client\\runtime\\config"
+          if (-not (Test-Path $runtimeConfig)) {
+            throw "Windows full install smoke failed: runtime bundle missing ($runtimeConfig)"
+          }
+
+          & (Join-Path $env:INFRING_INSTALL_DIR "infring.cmd") gateway status --auto-heal=0 --dashboard-open=0 | Out-Null

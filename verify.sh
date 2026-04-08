@@ -154,6 +154,7 @@ run_protheus_ops_defer() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_surface_disposition.ts --out="$CLIENT_SURFACE_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_target_contract_audit.ts --strict=1 --scope="$CLIENT_SCOPE_OUT" --boundary="$CLIENT_LAYER_AUDIT_OUT" --disposition="$CLIENT_SURFACE_OUT" --out="$CLIENT_TARGET_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:v8:runtime-proof:gate
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:srs:full:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dod:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s test:ops:srs-contract-runtime-evidence
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:churn:guard
