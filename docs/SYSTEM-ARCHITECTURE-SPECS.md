@@ -1,4 +1,4 @@
-# Protheus / InfRing Layering Specification
+# InfRing Layering Specification
 Version 1.0 — March 2026  
 Status: Locked architecture contract (authoritative for layering, flow direction, and invariants)
 

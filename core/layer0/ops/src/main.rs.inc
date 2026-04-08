@@ -39,7 +39,7 @@ fn cli_error_receipt(
     let ts = protheus_ops_core::now_iso();
     let mut out = json!({
         "ok": false,
-        "type": "protheus_ops_cli_error",
+        "type": "infring_ops_cli_error",
         "ts": ts,
         "date": ts[..10].to_string(),
         "error": error,
@@ -73,8 +73,9 @@ fn cli_error_receipt(
 
 fn main() {
     configure_low_memory_allocator_env();
-    if std::env::var("PROTHEUS_OPS_TRACE_BOOT")
+    if std::env::var("INFRING_OPS_TRACE_BOOT")
         .ok()
+        .or_else(|| std::env::var("PROTHEUS_OPS_TRACE_BOOT").ok())
         .map(|v| {
             matches!(
                 v.trim().to_ascii_lowercase().as_str(),
@@ -83,11 +84,12 @@ fn main() {
         })
         .unwrap_or(false)
     {
-        eprintln!("protheus_ops_boot:main_enter");
+        eprintln!("infring_ops_boot:main_enter");
     }
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    if std::env::var("PROTHEUS_OPS_TRACE_BOOT")
+    if std::env::var("INFRING_OPS_TRACE_BOOT")
         .ok()
+        .or_else(|| std::env::var("PROTHEUS_OPS_TRACE_BOOT").ok())
         .map(|v| {
             matches!(
                 v.trim().to_ascii_lowercase().as_str(),
@@ -96,7 +98,7 @@ fn main() {
         })
         .unwrap_or(false)
     {
-        eprintln!("protheus_ops_boot:cwd={}", cwd.display());
+        eprintln!("infring_ops_boot:cwd={}", cwd.display());
     }
     let args = parse_os_args(env::args_os().skip(1));
     if args.is_empty() {
@@ -953,12 +955,12 @@ fn main() {
             let exit = protheus_ops_core::persona_schema_contract::run(&cwd, &rest);
             std::process::exit(exit);
         }
-        "protheusctl" => {
+        "protheusctl" | "infringctl" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::protheusctl::run(&cwd, &rest);
             std::process::exit(exit);
         }
-        "protheusd-launcher-kernel" => {
+        "protheusd-launcher-kernel" | "infringd-launcher-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::protheusd_launcher_kernel::run(&cwd, &rest);
             std::process::exit(exit);
@@ -1028,7 +1030,7 @@ fn main() {
             let exit = protheus_ops_core::orchestration::run(&cwd, &rest);
             std::process::exit(exit);
         }
-        "protheus-control-plane" => {
+        "protheus-control-plane" | "infring-control-plane" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::protheus_control_plane::run(&cwd, &rest);
             std::process::exit(exit);

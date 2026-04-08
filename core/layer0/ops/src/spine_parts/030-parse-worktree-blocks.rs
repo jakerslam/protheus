@@ -44,8 +44,12 @@ fn execute_sleep_cleanup_with_mode(
         .and_then(|v| v.get("last_run_ms").and_then(Value::as_i64))
         .unwrap_or(0);
     let elapsed_minutes = ((now_ms - last_run_ms).max(0)) / (1000 * 60);
+    let (available_before_bytes, total_before_bytes, free_before_percent, disk_mount_point) =
+        disk_free_snapshot(root).unwrap_or((0, 0, 0.0, "".to_string()));
+    let hard_floor_breach = total_before_bytes > 0
+        && free_before_percent <= policy.hard_free_floor_percent;
 
-    if mode != SleepCleanupMode::Purge && !policy.enabled && !force {
+    if mode != SleepCleanupMode::Purge && !policy.enabled && !force && !hard_floor_breach {
         let payload = json!({
             "ok": true,
             "type": "spine_sleep_cleanup",
@@ -64,6 +68,7 @@ fn execute_sleep_cleanup_with_mode(
 
     if mode != SleepCleanupMode::Purge
         && !force
+        && !hard_floor_breach
         && last_run_ms > 0
         && elapsed_minutes < policy.min_interval_minutes
     {
@@ -81,12 +86,11 @@ fn execute_sleep_cleanup_with_mode(
         return (0, payload);
     }
 
-    let (available_before_bytes, total_before_bytes, free_before_percent, disk_mount_point) =
-        disk_free_snapshot(root).unwrap_or((0, 0, 0.0, "".to_string()));
     let pressure_mode = if mode == SleepCleanupMode::Purge {
         true
     } else {
-        total_before_bytes > 0 && free_before_percent <= policy.disk_free_floor_percent
+        total_before_bytes > 0
+            && (free_before_percent <= policy.disk_free_floor_percent || hard_floor_breach)
     };
     let pressure_target_free_percent = if mode == SleepCleanupMode::Purge {
         99.0
@@ -159,14 +163,34 @@ fn execute_sleep_cleanup_with_mode(
 
     let mut target_candidate = false;
     let mut target_candidate_bytes = 0u64;
+    let mut target_candidate_reason = "none".to_string();
     if policy.target_root.exists() {
         if mode == SleepCleanupMode::Purge {
             target_candidate = true;
             target_candidate_bytes = path_size_bytes(&policy.target_root);
+            target_candidate_reason = "purge_mode".to_string();
+        } else if hard_floor_breach {
+            target_candidate = true;
+            target_candidate_bytes = path_size_bytes(&policy.target_root);
+            target_candidate_reason = "hard_floor_breach".to_string();
         } else if let Some(mtime_ms) = path_mtime_ms(&policy.target_root) {
             if age_hours(now_ms, mtime_ms) >= policy.target_max_age_hours {
                 target_candidate = true;
                 target_candidate_bytes = path_size_bytes(&policy.target_root);
+                target_candidate_reason = "target_age_exceeded".to_string();
+            }
+        }
+        if pressure_mode
+            && !target_candidate
+            && pressure_reclaim_needed_bytes > 0
+            && policy.target_root.exists()
+        {
+            let non_target_reclaim_estimate =
+                pressure_candidate_estimated_bytes.saturating_add(archive_candidate_bytes);
+            if non_target_reclaim_estimate < pressure_reclaim_needed_bytes {
+                target_candidate = true;
+                target_candidate_bytes = path_size_bytes(&policy.target_root);
+                target_candidate_reason = "pressure_reclaim_deficit".to_string();
             }
         }
     }
@@ -338,6 +362,7 @@ fn execute_sleep_cleanup_with_mode(
             "target_max_age_hours": policy.target_max_age_hours,
             "detached_worktree_max_age_hours": policy.detached_worktree_max_age_hours,
             "disk_free_floor_percent": policy.disk_free_floor_percent,
+            "hard_free_floor_percent": policy.hard_free_floor_percent,
             "pressure_target_free_percent": pressure_target_free_percent,
             "pressure_jsonl_cap_bytes": policy.pressure_jsonl_cap_bytes,
             "pressure_log_cap_bytes": policy.pressure_log_cap_bytes,
@@ -355,6 +380,7 @@ fn execute_sleep_cleanup_with_mode(
         },
         "pressure_mode": {
             "active": pressure_mode,
+            "hard_floor_breach": hard_floor_breach,
             "target_available_bytes": pressure_target_available_bytes,
             "reclaim_needed_bytes": pressure_reclaim_needed_bytes
         },
@@ -363,6 +389,7 @@ fn execute_sleep_cleanup_with_mode(
             "archive_bytes": archive_candidate_bytes,
             "target_path": target_candidate,
             "target_bytes": target_candidate_bytes,
+            "target_reason": target_candidate_reason,
             "detached_worktrees": detached_candidates.len(),
             "pressure_paths": pressure_candidates.len(),
             "pressure_estimated_bytes": pressure_candidate_estimated_bytes
@@ -405,7 +432,12 @@ fn execute_sleep_cleanup_with_mode(
     (if ok { 0 } else { 1 }, payload)
 }
 
-fn execute_sleep_cleanup(root: &Path, apply: bool, force: bool, origin: &str) -> (i32, Value) {
+pub(crate) fn execute_sleep_cleanup(
+    root: &Path,
+    apply: bool,
+    force: bool,
+    origin: &str,
+) -> (i32, Value) {
     execute_sleep_cleanup_with_mode(root, apply, force, origin, SleepCleanupMode::Normal)
 }
 
@@ -417,4 +449,3 @@ fn execute_sleep_cleanup_purge(
 ) -> (i32, Value) {
     execute_sleep_cleanup_with_mode(root, apply, force, origin, SleepCleanupMode::Purge)
 }
-

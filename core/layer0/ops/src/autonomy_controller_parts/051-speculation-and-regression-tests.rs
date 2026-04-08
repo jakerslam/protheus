@@ -420,6 +420,76 @@ mod regression_tests {
     }
 
     #[test]
+    fn proactive_daemon_triggers_dream_and_cleanup_when_inactive() {
+        let root = tempdir().expect("tmp");
+        assert_eq!(
+            run_hand_new(
+                root.path(),
+                &["hand-new".to_string(), "--hand-id=h-dream".to_string()],
+            ),
+            0
+        );
+        let hand_path = hand_path(root.path(), "h-dream");
+        let mut hand = read_json(&hand_path).expect("hand");
+        hand["updated_at"] = json!("2000-01-01T00:00:00Z");
+        write_json(&hand_path, &hand).expect("write hand");
+
+        let target_file = root.path().join("target/debug/stale.bin");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::write(&target_file, "stale").expect("target write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
+
+        assert_eq!(
+            run_proactive_daemon_daemon(
+                root.path(),
+                &[
+                    "proactive_daemon".to_string(),
+                    "cycle".to_string(),
+                    "--auto=1".to_string(),
+                    "--force=1".to_string(),
+                    "--max-proactive=8".to_string(),
+                    "--block-budget-ms=40000".to_string(),
+                    "--dream-idle-ms=60000".to_string(),
+                    "--dream-max-without-ms=60000".to_string(),
+                ],
+            ),
+            0
+        );
+
+        let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
+        assert!(
+            state
+                .pointer("/dream/last_dream_at_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            state
+                .pointer("/dream/last_dream_reason")
+                .and_then(Value::as_str),
+            Some("inactivity")
+        );
+        let executed = state
+            .pointer("/last_executed_intents")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(executed.iter().any(|row| {
+            row.pointer("/intent/task").and_then(Value::as_str) == Some("dream_consolidation")
+        }));
+        assert!(
+            !root.path().join("target").exists(),
+            "sleep cleanup should run as part of dream execution"
+        );
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+    }
+
+    #[test]
     fn autoreason_run_persists_state_and_iterations() {
         let root = tempdir().expect("tmp");
         assert_eq!(

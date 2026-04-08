@@ -379,6 +379,20 @@ fn collect_pressure_candidates(
 }
 
 fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
+    let disk_free_floor_percent = parse_f64_env(
+        "SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT",
+        20.0,
+        1.0,
+        95.0,
+    );
+    let hard_free_floor_percent = parse_f64_env(
+        "SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT",
+        5.0,
+        1.0,
+        50.0,
+    )
+    .min(disk_free_floor_percent);
+
     SleepCleanupPolicy {
         enabled: bool_from_env("SPINE_SLEEP_CLEANUP_ENABLED").unwrap_or(true),
         min_interval_minutes: parse_i64_env(
@@ -408,12 +422,8 @@ fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
             0,
             365 * 24,
         ),
-        disk_free_floor_percent: parse_f64_env(
-            "SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT",
-            20.0,
-            1.0,
-            95.0,
-        ),
+        disk_free_floor_percent,
+        hard_free_floor_percent,
         pressure_target_free_percent: parse_f64_env(
             "SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT",
             30.0,
@@ -445,4 +455,3 @@ fn load_sleep_cleanup_policy(root: &Path) -> SleepCleanupPolicy {
         history_path: root.join("client/runtime/local/state/ops/sleep_cleanup/history.jsonl"),
     }
 }
-

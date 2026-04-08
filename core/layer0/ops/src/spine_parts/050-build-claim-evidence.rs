@@ -240,18 +240,17 @@ fn emit_terminal_with_closeout(
     failure_reason: Option<&str>,
 ) -> i32 {
     append_self_documentation_closeout(root, ledger, &context.cli.mode, &context.cli.date);
-    if context.cli.mode == "daily" {
-        let (_code, payload) = execute_sleep_cleanup(root, true, false, "spine_daily");
-        ledger.append(json!({
-            "type": "spine_step_non_blocking",
-            "mode": context.cli.mode,
-            "date": context.cli.date,
-            "step": "sleep_cleanup_cycle",
-            "ok": payload.get("ok").and_then(Value::as_bool).unwrap_or(false),
-            "non_blocking": true,
-            "payload": payload
-        }));
-    }
+    let cleanup_origin = format!("spine_{}", context.cli.mode);
+    let (_code, payload) = execute_sleep_cleanup(root, true, false, cleanup_origin.as_str());
+    ledger.append(json!({
+        "type": "spine_step_non_blocking",
+        "mode": context.cli.mode,
+        "date": context.cli.date,
+        "step": "sleep_cleanup_cycle",
+        "ok": payload.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        "non_blocking": true,
+        "payload": payload
+    }));
     emit_terminal_receipt(ledger, context, ok, failure_reason)
 }
 
@@ -266,4 +265,3 @@ fn clean_reason(stderr: &str, stdout: &str) -> String {
         merged[..180].to_string()
     }
 }
-

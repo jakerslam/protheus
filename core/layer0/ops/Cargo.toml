@@ -39,11 +39,19 @@ name = "protheus-ops"
 path = "src/main.rs"
 
 [[bin]]
+name = "infring-ops"
+path = "src/main.rs"
+
+[[bin]]
 name = "personas_core"
 path = "src/personas_core.rs"
 
 [[bin]]
 name = "protheusd"
+path = "src/protheusd.rs"
+
+[[bin]]
+name = "infringd"
 path = "src/protheusd.rs"
 
 [dependencies]

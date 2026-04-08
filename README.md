@@ -78,7 +78,7 @@ infring gateway
 If command resolution has not propagated yet in the same session, run directly:
 
 ```powershell
-$HOME\.protheus\bin\infring.cmd gateway
+$HOME\.infring\bin\infring.cmd gateway
 ```
 
 If a release does not publish Windows prebuilt binaries for your architecture, the installer now attempts source fallback automatically. On fresh Windows machines, install prerequisites first if needed:

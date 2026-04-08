@@ -387,6 +387,89 @@ mod tests {
     }
 
     #[test]
+    fn sleep_cleanup_hard_floor_bypasses_interval_and_prunes_target() {
+        let root = tempdir().expect("tempdir");
+        let target_file = root.path().join("target/debug/fresh.bin");
+        let state_path = root
+            .path()
+            .join("client/runtime/local/state/ops/sleep_cleanup/latest.json");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::create_dir_all(state_path.parent().expect("state parent")).expect("state dir");
+        fs::write(&target_file, "fresh_target").expect("target write");
+        fs::write(
+            &state_path,
+            json!({
+                "last_run_ms": now_epoch_ms()
+            })
+            .to_string(),
+        )
+        .expect("state write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "100000");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT", "100");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT", "100");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "99999");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT", "100");
+
+        let (code, out) = execute_sleep_cleanup(root.path(), true, false, "hard_floor_test");
+        assert_eq!(code, 0);
+        assert_eq!(
+            out.pointer("/pressure_mode/hard_floor_breach")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/candidates/target_reason")
+                .and_then(Value::as_str),
+            Some("hard_floor_breach")
+        );
+        assert_eq!(
+            out.pointer("/removed/target_path").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!root.path().join("target").exists());
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT");
+    }
+
+    #[test]
+    fn sleep_cleanup_pressure_deficit_includes_fresh_target_when_needed() {
+        let root = tempdir().expect("tempdir");
+        let target_file = root.path().join("target/debug/fresh.bin");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::write(&target_file, "fresh_target").expect("target write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT", "100");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT", "1");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "99999");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT", "100");
+
+        let (code, out) = execute_sleep_cleanup(root.path(), true, true, "pressure_deficit_test");
+        assert_eq!(code, 0);
+        assert_eq!(
+            out.pointer("/candidates/target_reason")
+                .and_then(Value::as_str),
+            Some("pressure_reclaim_deficit")
+        );
+        assert_eq!(
+            out.pointer("/removed/target_path").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!root.path().join("target").exists());
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT");
+    }
+
+    #[test]
     fn sleep_cleanup_purge_removes_fresh_target_and_trims_history() {
         let root = tempdir().expect("tempdir");
         let target_file = root.path().join("target/debug/fresh.bin");
@@ -488,5 +571,74 @@ mod tests {
         std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
         std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
     }
-}
 
+    #[test]
+    fn non_daily_closeout_still_runs_sleep_cleanup_cycle() {
+        let root = tempdir().expect("tempdir");
+        let target_file = root.path().join("target/debug/stale.bin");
+        fs::create_dir_all(target_file.parent().expect("target parent")).expect("target dir");
+        fs::write(&target_file, "stale").expect("target write");
+
+        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
+        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+
+        let cli = CliArgs {
+            command: "run".to_string(),
+            mode: "eyes".to_string(),
+            date: "2026-04-08".to_string(),
+            max_eyes: Some(1),
+        };
+        let run_id = "spine_eyes_auto_cleanup";
+        let policy = MechSuitPolicy {
+            enabled: true,
+            heartbeat_hours: 4,
+            manual_triggers_allowed: true,
+            quiet_non_critical: false,
+            silent_subprocess_output: true,
+            push_attention_queue: true,
+            attention_queue_path: "local/state/attention/queue.jsonl".to_string(),
+            attention_receipts_path: "local/state/attention/receipts.jsonl".to_string(),
+            attention_latest_path: "local/state/attention/latest.json".to_string(),
+            attention_max_queue_depth: 2048,
+            attention_ttl_hours: 48,
+            attention_dedupe_window_hours: 24,
+            attention_backpressure_drop_below: "critical".to_string(),
+            attention_escalate_levels: vec!["critical".to_string()],
+            ambient_stance: true,
+            dopamine_threshold_breach_only: true,
+            status_path: root
+                .path()
+                .join("local/state/ops/mech_suit_mode/latest.json"),
+            history_path: root
+                .path()
+                .join("local/state/ops/mech_suit_mode/history.jsonl"),
+            policy_path: root
+                .path()
+                .join("client/runtime/config/mech_suit_mode_policy.json"),
+        };
+        let constitution_hash = Some("abc123".to_string());
+        let evidence_plan = default_evidence_plan();
+        let mut ledger = LedgerWriter::new(root.path(), &cli.date, run_id);
+        let ctx = TerminalReceiptContext {
+            run_id,
+            cli: &cli,
+            policy: &policy,
+            constitution_hash: &constitution_hash,
+            constitution_ok: true,
+            evidence_plan: &evidence_plan,
+            evidence_ok: 0,
+            started_ms: 0,
+        };
+
+        let code = emit_terminal_with_closeout(root.path(), &mut ledger, &ctx, true, None);
+        assert_eq!(code, 0);
+        assert!(!root.path().join("target").exists());
+        assert!(root
+            .path()
+            .join("client/runtime/local/state/ops/sleep_cleanup/latest.json")
+            .exists());
+
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+    }
+}

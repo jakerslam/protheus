@@ -2,23 +2,4 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-
-if [[ -x "$SCRIPT_DIR/protheusctl" ]]; then
-  exec "$SCRIPT_DIR/protheusctl" top "$@"
-fi
-
-if [[ -x "$ROOT/target/release/protheus-ops" ]]; then
-  exec "$ROOT/target/release/protheus-ops" protheusctl top "$@"
-fi
-
-if [[ -x "$ROOT/target/debug/protheus-ops" ]]; then
-  exec "$ROOT/target/debug/protheus-ops" protheusctl top "$@"
-fi
-
-if command -v cargo >/dev/null 2>&1; then
-  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin protheus-ops -- protheusctl top "$@"
-fi
-
-echo "protheus-top launcher failed: missing protheusctl/protheus-ops and cargo." >&2
-exit 1
+exec "$SCRIPT_DIR/infring-top" "$@"

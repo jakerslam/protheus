@@ -78,6 +78,7 @@ struct SleepCleanupPolicy {
     target_max_age_hours: i64,
     detached_worktree_max_age_hours: i64,
     disk_free_floor_percent: f64,
+    hard_free_floor_percent: f64,
     pressure_target_free_percent: f64,
     pressure_jsonl_cap_bytes: u64,
     pressure_log_cap_bytes: u64,
@@ -398,18 +399,18 @@ fn parse_cli(argv: &[String]) -> Option<CliArgs> {
 
 fn usage() {
     eprintln!("Usage:");
-    eprintln!("  protheus-ops spine eyes [YYYY-MM-DD] [--max-eyes=N]");
-    eprintln!("  protheus-ops spine daily [YYYY-MM-DD] [--max-eyes=N]");
-    eprintln!("  protheus-ops spine run [eyes|daily] [YYYY-MM-DD] [--max-eyes=N]");
-    eprintln!("  protheus-ops spine status [--mode=eyes|daily] [--date=YYYY-MM-DD]");
+    eprintln!("  infring-ops spine eyes [YYYY-MM-DD] [--max-eyes=N]");
+    eprintln!("  infring-ops spine daily [YYYY-MM-DD] [--max-eyes=N]");
+    eprintln!("  infring-ops spine run [eyes|daily] [YYYY-MM-DD] [--max-eyes=N]");
+    eprintln!("  infring-ops spine status [--mode=eyes|daily] [--date=YYYY-MM-DD]");
     eprintln!(
-        "  protheus-ops spine sleep-cleanup <run|plan|status|purge> [--apply=1|0] [--force=1|0]"
+        "  infring-ops spine sleep-cleanup <run|plan|status|purge> [--apply=1|0] [--force=1|0]"
     );
     eprintln!(
-        "  protheus-ops spine background-hands-scheduler <configure|schedule|status> [flags]"
+        "  infring-ops spine background-hands-scheduler <configure|schedule|status> [flags]"
     );
-    eprintln!("  protheus-ops spine rsi-idle-hands-scheduler <run|status> [flags]");
-    eprintln!("  protheus-ops spine evidence-run-plan [--configured-runs=N] [--budget-pressure=none|soft|hard] [--projected-pressure=none|soft|hard]");
+    eprintln!("  infring-ops spine rsi-idle-hands-scheduler <run|status> [flags]");
+    eprintln!("  infring-ops spine evidence-run-plan [--configured-runs=N] [--budget-pressure=none|soft|hard] [--projected-pressure=none|soft|hard]");
 }
 
 fn print_json_line(value: &Value) {
@@ -492,7 +493,7 @@ fn run_ops_domain_json(
     run_context: Option<&str>,
 ) -> StepResult {
     let root_buf = root.to_path_buf();
-    let (command, mut command_args) = resolve_protheus_ops_command(&root_buf, domain);
+    let (command, mut command_args) = resolve_infring_ops_command(&root_buf, domain);
     command_args.extend(args.iter().cloned());
 
     let mut cmd = Command::new(command);
@@ -534,25 +535,42 @@ fn run_ops_domain_json(
     }
 }
 
-fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
-    if let Some(bin) = std::env::var("PROTHEUS_OPS_BIN").ok() {
+fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
+    if let Some(bin) = std::env::var("INFRING_OPS_BIN")
+        .ok()
+        .or_else(|| std::env::var("PROTHEUS_OPS_BIN").ok())
+    {
         let trimmed = bin.trim();
         if !trimmed.is_empty() {
             return (trimmed.to_string(), vec![domain.to_string()]);
         }
     }
 
-    let release = root.join("target").join("release").join("protheus-ops");
+    let release = root.join("target").join("release").join("infring-ops");
     if release.exists() {
         return (
             release.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let debug = root.join("target").join("debug").join("protheus-ops");
+    let release_legacy = root.join("target").join("release").join("protheus-ops");
+    if release_legacy.exists() {
+        return (
+            release_legacy.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
+    }
+    let debug = root.join("target").join("debug").join("infring-ops");
     if debug.exists() {
         return (
             debug.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
+    }
+    let debug_legacy = root.join("target").join("debug").join("protheus-ops");
+    if debug_legacy.exists() {
+        return (
+            debug_legacy.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
@@ -565,7 +583,7 @@ fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<Strin
             "--manifest-path".to_string(),
             "core/layer0/ops/Cargo.toml".to_string(),
             "--bin".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "--".to_string(),
             domain.to_string(),
         ],
@@ -585,7 +603,7 @@ fn enqueue_spine_attention(root: &Path, source_type: &str, severity: &str, summa
     event["receipt_hash"] = Value::String(receipt_hash(&event));
     let encoded =
         BASE64_STANDARD.encode(serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string()));
-    let (command, mut args) = resolve_protheus_ops_command(root, "attention-queue");
+    let (command, mut args) = resolve_infring_ops_command(root, "attention-queue");
     args.push("enqueue".to_string());
     args.push(format!("--event-json-base64={encoded}"));
     args.push("--run-context=spine".to_string());

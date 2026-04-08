@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "autonomy_controller";
-const REPLACEMENT: &str = "protheus-ops autonomy-controller";
+const REPLACEMENT: &str = "infring-ops autonomy-controller";
 const STATE_DIR: &str = "local/state/ops/autonomy_controller";
 const STATE_ENV: &str = "AUTONOMY_CONTROLLER_STATE_ROOT";
 const STATE_SCOPE: &str = "autonomy_controller";
@@ -27,37 +27,37 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops autonomy-controller status");
-    println!("  protheus-ops autonomy-controller run [--max-actions=<n>] [--objective=<id>]");
-    println!("  protheus-ops autonomy-controller hand-new [--hand-id=<id>] [--template=<id>] [--schedule=<cron>] [--provider=<id>] [--fallback=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller hand-cycle --hand-id=<id> [--goal=<text>] [--provider=<id>] [--fallback=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller hand-status [--hand-id=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller hand-memory-page --hand-id=<id> [--op=page-in|page-out|status] [--tier=core|archival|external] [--key=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller hand-wasm-task --hand-id=<id> [--task=<id>] [--fuel=<n>] [--epoch-ms=<n>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller compact [<snip|micro|full|reactive>] [--hand-id=<id>] [--auto-compact-pct=<0..100>] [--pressure-ratio=<0..1>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller dream [--hand-id=<id>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller proactive_daemon [status|cycle|pause|resume] [--auto=1|0] [--force=1|0] [--tick-ms=<n>] [--jitter-ms=<n>] [--window-sec=<n>] [--max-proactive=<n>] [--block-budget-ms=<n>] [--brief=1|0] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller speculate [run|status|merge|reject] [--spec-id=<id>] [--verify=1|0] [--input-json=<json>|--input-base64=<base64_json>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller autoreason [run|status] [--task=<text>] [--run-id=<id>] [--convergence=<n>] [--max-iters=<n>] [--judges=<n>] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller ephemeral-run [--goal=<text>] [--domain=<id>] [--ui-leaf=1|0] [--strict=1|0]");
-    println!("  protheus-ops autonomy-controller trunk-status [--strict=1|0]");
+    println!("  infring-ops autonomy-controller status");
+    println!("  infring-ops autonomy-controller run [--max-actions=<n>] [--objective=<id>]");
+    println!("  infring-ops autonomy-controller hand-new [--hand-id=<id>] [--template=<id>] [--schedule=<cron>] [--provider=<id>] [--fallback=<id>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller hand-cycle --hand-id=<id> [--goal=<text>] [--provider=<id>] [--fallback=<id>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller hand-status [--hand-id=<id>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller hand-memory-page --hand-id=<id> [--op=page-in|page-out|status] [--tier=core|archival|external] [--key=<id>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller hand-wasm-task --hand-id=<id> [--task=<id>] [--fuel=<n>] [--epoch-ms=<n>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller compact [<snip|micro|full|reactive>] [--hand-id=<id>] [--auto-compact-pct=<0..100>] [--pressure-ratio=<0..1>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller dream [--hand-id=<id>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller proactive_daemon [status|cycle|pause|resume] [--auto=1|0] [--force=1|0] [--tick-ms=<n>] [--jitter-ms=<n>] [--window-sec=<n>] [--max-proactive=<n>] [--block-budget-ms=<n>] [--dream-idle-ms=<n>] [--dream-max-without-ms=<n>] [--brief=1|0] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller speculate [run|status|merge|reject] [--spec-id=<id>] [--verify=1|0] [--input-json=<json>|--input-base64=<base64_json>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller autoreason [run|status] [--task=<text>] [--run-id=<id>] [--convergence=<n>] [--max-iters=<n>] [--judges=<n>] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller ephemeral-run [--goal=<text>] [--domain=<id>] [--ui-leaf=1|0] [--strict=1|0]");
+    println!("  infring-ops autonomy-controller trunk-status [--strict=1|0]");
     println!(
-        "  protheus-ops autonomy-controller pain-signal [--action=<status|emit|focus-start|focus-stop|focus-status>] [--source=<id>] [--code=<id>] [--severity=<low|medium|high|critical>] [--risk=<low|medium|high>]"
+        "  infring-ops autonomy-controller pain-signal [--action=<status|emit|focus-start|focus-stop|focus-status>] [--source=<id>] [--code=<id>] [--severity=<low|medium|high|critical>] [--risk=<low|medium|high>]"
     );
     println!(
-        "  protheus-ops autonomy-controller multi-agent-debate <run|status> [--input-base64=<base64_json>|--input-json=<json>] [--policy=<path>] [--date=<YYYY-MM-DD>] [--persist=1|0]"
+        "  infring-ops autonomy-controller multi-agent-debate <run|status> [--input-base64=<base64_json>|--input-json=<json>] [--policy=<path>] [--date=<YYYY-MM-DD>] [--persist=1|0]"
     );
     println!(
-        "  protheus-ops autonomy-controller ethical-reasoning <run|status> [--input-base64=<base64_json>|--policy=<path>] [--state-dir=<path>] [--persist=1|0]"
+        "  infring-ops autonomy-controller ethical-reasoning <run|status> [--input-base64=<base64_json>|--policy=<path>] [--state-dir=<path>] [--persist=1|0]"
     );
     println!(
-        "  protheus-ops autonomy-controller autonomy-simulation-harness <run|status> [YYYY-MM-DD] [--days=N] [--write=1|0] [--strict=1|0]"
+        "  infring-ops autonomy-controller autonomy-simulation-harness <run|status> [YYYY-MM-DD] [--days=N] [--write=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops autonomy-controller runtime-stability-soak [--action=<start|check-now|status|report>] [flags]"
+        "  infring-ops autonomy-controller runtime-stability-soak [--action=<start|check-now|status|report>] [flags]"
     );
     println!(
-        "  protheus-ops autonomy-controller self-documentation-closeout [--action=<run|status>] [flags]"
+        "  infring-ops autonomy-controller self-documentation-closeout [--action=<run|status>] [flags]"
     );
 }
 

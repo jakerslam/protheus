@@ -25,7 +25,7 @@ $InstallDir = if ($InstallDir) {
 } elseif ($env:PROTHEUS_INSTALL_DIR) {
   $env:PROTHEUS_INSTALL_DIR
 } else {
-  Join-Path $HOME ".protheus\bin"
+  Join-Path $HOME ".infring\bin"
 }
 $TmpDir = if ($TmpDir) {
   $TmpDir
@@ -676,34 +676,34 @@ if ($InstallPure) {
   if ($RequestedVersion -eq "latest") {
     $compatibleOps = Resolve-AssetCompatibleVersionForTriple $triple @("protheus-ops")
     if ($compatibleOps -and ($compatibleOps -ne $version)) {
-      Write-Host "[infring install] latest release $version does not publish protheus-ops prebuilt assets for $triple; using compatible release $compatibleOps"
+      Write-Host "[infring install] latest release $version does not publish core ops runtime prebuilt assets for $triple; using compatible release $compatibleOps"
       $version = $compatibleOps
     }
   }
   if (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
-    throw "Failed to install protheus-ops for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+    throw "Failed to install core ops runtime for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
   }
 }
 
 $daemonMode = "spine"
 if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "protheusd-tiny-max" $protheusdBin)) {
   $daemonMode = "protheusd"
-  Write-Host "[infring install] using tiny-max protheusd"
+  Write-Host "[infring install] using tiny-max daemon runtime"
 } elseif (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
   $daemonMode = "protheusd"
   if ($preferredDaemonTriple -eq "x86_64-unknown-linux-musl") {
-    Write-Host "[infring install] using static musl protheusd (embedded-minimal-core)"
+    Write-Host "[infring install] using static musl daemon runtime (embedded-minimal-core)"
   } else {
-    Write-Host "[infring install] using protheusd"
+    Write-Host "[infring install] using daemon runtime"
   }
 } elseif ($preferredDaemonTriple -ne $triple -and (Install-Binary $version $triple "protheusd" $protheusdBin)) {
   $daemonMode = "protheusd"
-  Write-Host "[infring install] using native protheusd fallback"
+  Write-Host "[infring install] using native daemon runtime fallback"
 } elseif (Install-Binary $version $triple "conduit_daemon" $daemonBin) {
   $daemonMode = "conduit"
   Write-Host "[infring install] using conduit_daemon compatibility fallback"
 } else {
-  Write-Host "[infring install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
+  Write-Host "[infring install] no dedicated daemon binary found; falling back to spine mode via core ops runtime"
 }
 
 $wrapperPrelude = @'
@@ -898,8 +898,8 @@ if ($InstallPure) {
   }
   Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-pure-workspace.exe"' -EntryArgs 'conduit' -Gateway
 } else {
-  Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'protheusctl' -Gateway
-  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'protheusctl' -Gateway
+  Write-CmdWrapper -Path $infringCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'infringctl' -Gateway
+  Write-CmdWrapper -Path $infringctlCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'infringctl' -Gateway
 }
 
 if ($daemonMode -eq "protheusd") {
@@ -913,28 +913,13 @@ if ($daemonMode -eq "protheusd") {
   Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0protheus-ops.exe"' -EntryArgs 'spine'
 }
 
-$protheusCmd = Join-Path $InstallDir "protheus.cmd"
-Set-Content -Path $protheusCmd -Value "@echo off`r`necho [deprecation] 'protheus' is deprecated; use 'infring'. 1>&2`r`ncall `"%~dp0infring.cmd`" %*"
-
-$protheusctlCmd = Join-Path $InstallDir "protheusctl.cmd"
-Set-Content -Path $protheusctlCmd -Value "@echo off`r`ncall `"%~dp0infringctl.cmd`" %*"
-
-$protheusdCmd = Join-Path $InstallDir "protheusd.cmd"
-Set-Content -Path $protheusdCmd -Value "@echo off`r`necho [deprecation] 'protheusd' is deprecated; use 'infringd'. 1>&2`r`ncall `"%~dp0infringd.cmd`" %*"
-
 $infringPs1 = Join-Path $InstallDir "infring.ps1"
 $infringctlPs1 = Join-Path $InstallDir "infringctl.ps1"
 $infringdPs1 = Join-Path $InstallDir "infringd.ps1"
-$protheusPs1 = Join-Path $InstallDir "protheus.ps1"
-$protheusctlPs1 = Join-Path $InstallDir "protheusctl.ps1"
-$protheusdPs1 = Join-Path $InstallDir "protheusd.ps1"
 
 Write-PowerShellShim -Path $infringPs1 -TargetCmd "infring.cmd"
 Write-PowerShellShim -Path $infringctlPs1 -TargetCmd "infringctl.cmd"
 Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd"
-Write-PowerShellShim -Path $protheusPs1 -TargetCmd "infring.cmd" -DeprecationMessage "'protheus' is deprecated; use 'infring'."
-Write-PowerShellShim -Path $protheusctlPs1 -TargetCmd "infringctl.cmd"
-Write-PowerShellShim -Path $protheusdPs1 -TargetCmd "infringd.cmd" -DeprecationMessage "'protheusd' is deprecated; use 'infringd'."
 
 if ($InstallPure) {
   Write-Host "[infring install] pure mode: skipping Infring client bundle"
@@ -988,7 +973,6 @@ if ($gatewaySmokeOk) {
 }
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"
-Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"
 Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
 Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"
 Write-Host "[infring install] run in this shell: infring --help"

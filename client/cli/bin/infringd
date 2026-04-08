@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+if [[ -x "$ROOT/target/release/protheusd" ]]; then
+  exec "$ROOT/target/release/protheusd" "$@"
+fi
+
+if [[ -x "$ROOT/target/debug/protheusd" ]]; then
+  exec "$ROOT/target/debug/protheusd" "$@"
+fi
+
+if command -v cargo >/dev/null 2>&1; then
+  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin protheusd -- "$@"
+fi
+
+echo "infringd launcher failed: missing daemon binary and cargo." >&2
+echo "Build with cargo or install Rust/Cargo." >&2
+exit 1

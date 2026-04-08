@@ -1,6 +1,6 @@
 # Three-Plane Metakernel
 
-Protheus is structured as a substrate-independent metakernel with three explicit planes.
+InfRing is structured as a substrate-independent metakernel with three explicit planes.
 
 ## Plane Contracts
 
