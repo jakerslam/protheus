@@ -1,0 +1,284 @@
+fn handle_global_post_delete_routes(
+    root: &Path,
+    method: &str,
+    _path: &str,
+    path_only: &str,
+    body: &[u8],
+    snapshot: &Value,
+) -> Option<CompatApiResponse> {
+    if method == "POST" {
+        if path_only == "/api/update/apply" {
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_release_update::apply_update(root),
+            });
+        }
+        if path_only == "/api/config/set" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = set_config_payload(root, snapshot, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/receipts/lineage" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let task_id = clean_text(
+                request
+                    .get("task_id")
+                    .or_else(|| request.get("taskId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            );
+            if task_id.is_empty() {
+                return Some(CompatApiResponse {
+                    status: 400,
+                    payload: json!({
+                        "ok": false,
+                        "error": "task_id_required"
+                    }),
+                });
+            }
+            let trace_id = clean_text(
+                request
+                    .get("trace_id")
+                    .or_else(|| request.get("traceId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            );
+            let trace_opt = if trace_id.is_empty() {
+                None
+            } else {
+                Some(trace_id.as_str())
+            };
+            let limit = request
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map(|value| value as usize)
+                .unwrap_or(4000)
+                .clamp(1, 50_000);
+            let scan_root = clean_text(
+                request
+                    .get("scan_root")
+                    .or_else(|| request.get("scanRoot"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                500,
+            );
+            let scan_root_path = if scan_root.is_empty() {
+                None
+            } else {
+                let candidate = PathBuf::from(scan_root);
+                Some(if candidate.is_absolute() {
+                    candidate
+                } else {
+                    root.join(candidate)
+                })
+            };
+            let payload = match crate::action_receipts_kernel::query_task_lineage(
+                root,
+                &task_id,
+                trace_opt,
+                limit,
+                scan_root_path.as_deref(),
+            ) {
+                Ok(out) => out,
+                Err(err) => {
+                    return Some(CompatApiResponse {
+                        status: 400,
+                        payload: json!({
+                            "ok": false,
+                            "error": clean_text(&err, 240)
+                        }),
+                    })
+                }
+            };
+            return Some(CompatApiResponse {
+                status: 200,
+                payload,
+            });
+        }
+        if path_only == "/api/web/fetch" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let nexus_connection =
+                match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                    "web_fetch",
+                ) {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 403,
+                            payload: json!({
+                                "ok": false,
+                                "error": "web_fetch_nexus_delivery_denied",
+                                "message": "Web fetch blocked by hierarchical nexus ingress policy.",
+                                "nexus_error": clean_text(&err, 240)
+                            }),
+                        })
+                    }
+                };
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "web_fetch",
+                "request": request,
+                "route": "api_web_fetch_post"
+            }));
+            let task_id = format!(
+                "tool-web-fetch-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "web_fetch",
+                &request,
+                |normalized_args| Ok(crate::web_conduit::api_fetch(root, normalized_args)),
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
+            if let Some(meta) = nexus_connection {
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("nexus_connection".to_string(), meta);
+                }
+            }
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/web/search" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let nexus_connection =
+                match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                    "web_search",
+                ) {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 403,
+                            payload: json!({
+                                "ok": false,
+                                "error": "web_search_nexus_delivery_denied",
+                                "message": "Web search blocked by hierarchical nexus ingress policy.",
+                                "nexus_error": clean_text(&err, 240)
+                            }),
+                        })
+                    }
+                };
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "web_search",
+                "request": request,
+                "route": "api_web_search_post"
+            }));
+            let task_id = format!(
+                "tool-web-search-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "web_search",
+                &request,
+                |normalized_args| Ok(crate::web_conduit::api_search(root, normalized_args)),
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
+            if let Some(meta) = nexus_connection {
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("nexus_connection".to_string(), meta);
+                }
+            }
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/batch-query" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let trace_id = crate::deterministic_receipt_hash(&json!({
+                "tool": "batch_query",
+                "request": request,
+                "route": "api_batch_query_post"
+            }));
+            let task_id = format!(
+                "tool-batch-query-{}",
+                trace_id.chars().take(12).collect::<String>()
+            );
+            let pipeline = tooling_pipeline_execute(
+                &trace_id,
+                &task_id,
+                "batch_query",
+                &request,
+                |normalized_args| {
+                    Ok(crate::batch_query_primitive::api_batch_query(
+                        root,
+                        normalized_args,
+                    ))
+                },
+            );
+            let mut payload = pipeline
+                .get("raw_payload")
+                .cloned()
+                .unwrap_or_else(|| json!({"status":"blocked","error":"tool_pipeline_failed"}));
+            if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                attach_tool_pipeline(&mut payload, &pipeline);
+            }
+            return Some(CompatApiResponse {
+                status: if payload.get("status").and_then(Value::as_str) == Some("blocked") {
+                    400
+                } else {
+                    200
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/route/auto" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_model_catalog::route_decision_payload(
+                    root, snapshot, &request,
+                ),
+            });
+        }
+        if path_only == "/api/route/decision" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: crate::dashboard_model_catalog::route_decision_payload(
+                    root, snapshot, &request,
+                ),
+            });
+        }
+        return None;
+    }
+
+    if method == "DELETE" {
+        return None;
+    }
+
+    None
+}
