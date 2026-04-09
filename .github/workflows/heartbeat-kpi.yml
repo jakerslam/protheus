@@ -1,0 +1,28 @@
+name: Heartbeat KPI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 15 * * *'
+
+jobs:
+  heartbeat-kpi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate heartbeat KPI report
+        run: npm run -s metrics:heartbeat-kpi
+
+      - name: Upload heartbeat KPI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: heartbeat-kpi
+          path: artifacts/heartbeat/*
+          if-no-files-found: warn

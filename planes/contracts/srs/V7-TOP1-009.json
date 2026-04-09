@@ -1,0 +1,46 @@
+{
+  "id": "V7-TOP1-009",
+  "upgrade": "Independent third-party verification publication lane",
+  "section": "Personal #1 Ranking Criteria Source Coverage Intake (Doc `1giphwvzmz8cPaw3Ltu1A2s9x8UE-WclPPkwhz_Q12ug`, 2026-03-11)",
+  "impact": 10,
+  "layer_map": "0/1/2",
+  "conduit_only_boundary": false,
+  "todo_bucket": "blocked_external_prepared",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V7-TOP1-009/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V7-TOP1-009.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V7-TOP1-009/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    },
+    {
+      "type": "external_packet",
+      "path": "docs/external/evidence/V7-TOP1-009/external_execution_packet_2026-03-12.md"
+    },
+    {
+      "type": "external_manifest",
+      "path": "docs/external/evidence/V7-TOP1-009/packet_manifest.json"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-TOP1-009",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V7-TOP1-009",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "audit_gap_repair",
+    "generated_at": "2026-03-19T00:00:00.000Z"
+  }
+}

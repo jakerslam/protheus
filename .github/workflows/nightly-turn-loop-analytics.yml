@@ -1,0 +1,41 @@
+name: Nightly Turn Loop Analytics
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly-turn-loop-analytics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run nightly turn loop analytics
+        run: npm run -s ops:nightly:turn-loop-analytics
+
+      - name: Upload analytics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-turn-loop-analytics-artifacts
+          path: |
+            artifacts/nightly_turn_loop_analytics_report_*.json
+            artifacts/nightly_turn_loop_analytics_report_latest.json
+            local/state/ops/session_command_tracking/nightly_tuning.json
+            local/state/ops/session_command_tracking/nightly_adoption_report.json
+          if-no-files-found: warn

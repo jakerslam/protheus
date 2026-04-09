@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "advisory_mode": true,
+  "codex": {
+    "codex_path": "codex.helix",
+    "key_env": "HELIX_CODEX_KEY",
+    "constitution_path": "docs/workspace/AGENT-CONSTITUTION.md",
+    "soul_token_state_path": "local/state/security/soul_token_guard.json",
+    "soul_biometric_state_path": "local/state/security/soul_biometric/latest.json",
+    "bootstrap_truths": [
+      "preserve_constitutional_root",
+      "preserve_user_sovereignty",
+      "deny_unauthorized_self_rewrite",
+      "fail_secure_before_actuation"
+    ]
+  },
+  "strands": {
+    "roots": [
+      "systems",
+      "lib",
+      "config"
+    ],
+    "include_ext": [
+      ".ts",
+      ".js",
+      ".json"
+    ],
+    "exclude_paths": [
+      "local/state/**",
+      "dist/**",
+      "node_modules/**",
+      "tmp/**",
+      "agent-holo-viz/**"
+    ]
+  },
+  "sentinel": {
+    "enabled": true,
+    "force_confirmed_malice": false,
+    "max_manifest_age_minutes": 1440,
+    "thresholds": {
+      "stasis_mismatch_count": 1,
+      "malice_mismatch_count": 8,
+      "confirmed_malice_score": 3
+    }
+  },
+  "outputs": {
+    "emit_events": true,
+    "emit_obsidian_projection": true
+  },
+  "integration": {
+    "eye_gate_mode": "shadow_advisory"
+  },
+  "reweave": {
+    "snapshot_path": "local/state/helix/reweave_snapshot.json",
+    "receipts_path": "local/state/helix/reweave_receipts.jsonl",
+    "quarantine_dir": "local/state/helix/reweave_quarantine",
+    "require_approval_note": true,
+    "snapshot_on_clear_attest": true
+  }
+}

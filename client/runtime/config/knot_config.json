@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "profile": "crown_jewel_only",
+  "modules": [
+    "security",
+    "memory",
+    "fractal",
+    "soul",
+    "economy"
+  ],
+  "excluded_modules": [
+    "platform",
+    "habits",
+    "skills",
+    "public"
+  ],
+  "runtime_capability_token_required": true
+}

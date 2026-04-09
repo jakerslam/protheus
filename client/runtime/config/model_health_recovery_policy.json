@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "providers": [
+    "ollama"
+  ],
+  "max_retries_per_provider": 3,
+  "retry_backoff_ms": [
+    100,
+    500,
+    2000
+  ],
+  "fallback_model": "ollama/kimi-k2.5:cloud",
+  "fallback_for_models": [
+    "llama3.2:latest",
+    "llama3.2:3b"
+  ],
+  "ban_ttl_minutes": 120,
+  "warmup_on_failure": true,
+  "warmup_max_probes": 2,
+  "failover_route": {
+    "enabled": true,
+    "risk": "low",
+    "complexity": "low",
+    "intent_template": "model_health_auto_recovery_{provider}",
+    "task_template": "provider_{provider}_unavailable"
+  }
+}

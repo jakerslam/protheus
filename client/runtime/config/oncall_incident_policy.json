@@ -1,0 +1,17 @@
+{
+  "schema_id": "oncall_incident_policy",
+  "schema_version": "1.0",
+  "severity_matrix": {
+    "sev0": {"mtta_minutes": 5, "mttr_minutes": 30},
+    "sev1": {"mtta_minutes": 10, "mttr_minutes": 60},
+    "sev2": {"mtta_minutes": 30, "mttr_minutes": 180}
+  },
+  "rotation": {
+    "primary": "platform-oncall",
+    "secondary": "security-oncall"
+  },
+  "paging": {
+    "provider": "pagerduty",
+    "escalation_delay_minutes": 10
+  }
+}

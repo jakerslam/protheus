@@ -1,0 +1,14 @@
+[package]
+name = "fluxlattice"
+version = "0.1.0"
+edition = "2021"
+license = "SEE LICENSE IN LICENSE"
+description = "FluxLattice settle/morph/status primitives"
+
+[lib]
+name = "fluxlattice"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fluxlattice"
+path = "src/main.rs"

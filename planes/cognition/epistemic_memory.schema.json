@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protheus.ai/schemas/epistemic_memory.schema.json",
+  "title": "EpistemicMemoryObject",
+  "type": "object",
+  "required": [
+    "memory_id",
+    "value",
+    "confidence",
+    "provenance",
+    "policy_label",
+    "allowed_effects",
+    "created_at"
+  ],
+  "properties": {
+    "memory_id": { "type": "string", "minLength": 1 },
+    "value": {},
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "receipt_hash"],
+      "properties": {
+        "source": { "type": "string" },
+        "receipt_hash": { "type": "string" },
+        "lineage": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "expires_at": { "type": ["string", "null"], "format": "date-time" },
+    "policy_label": { "type": "string", "minLength": 1 },
+    "allowed_effects": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write",
+          "actuate",
+          "invoke_model",
+          "exfiltrate",
+          "measure_quantum",
+          "stimulate_neural"
+        ]
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": true
+}

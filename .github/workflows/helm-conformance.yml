@@ -1,0 +1,34 @@
+name: Helm Conformance
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  helm-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Helm lint
+        run: helm lint ./client/runtime/deploy/helm/infring
+
+      - name: Helm conformance render
+        run: |
+          helm template infring ./client/runtime/deploy/helm/infring > /tmp/infring-manifest.yaml
+          test -s /tmp/infring-manifest.yaml
+          grep -q "kind: Deployment" /tmp/infring-manifest.yaml
+          grep -Eq "helm\\.sh/hook\"?: test" /tmp/infring-manifest.yaml
+          grep -q "INFRING_SSO_ENABLED" /tmp/infring-manifest.yaml
+          grep -q "INFRING_SECRETS_VAULT_ENABLED" /tmp/infring-manifest.yaml
+          grep -q "INFRING_NVIDIA_ENABLED" /tmp/infring-manifest.yaml

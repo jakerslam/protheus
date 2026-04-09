@@ -1,0 +1,11 @@
+{
+  "schema_id": "release_channel_policy",
+  "schema_version": "1.0",
+  "default_channel": "alpha",
+  "channels": ["alpha", "beta", "stable"],
+  "promotion_rules": [
+    { "from": "alpha", "to": "beta" },
+    { "from": "beta", "to": "stable" },
+    { "from": "alpha", "to": "stable" }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema_id": "adaptive_runtime_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "cadence_hours": 4,
+  "max_reflex_updates_per_tick": 24,
+  "max_strategy_updates_per_tick": 12,
+  "max_habit_updates_per_tick": 16,
+  "state_path": "core/local/state/adaptive_runtime/latest.json",
+  "receipts_path": "core/local/state/adaptive_runtime/receipts.jsonl"
+}

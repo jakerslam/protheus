@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "max_nodes_per_tag": 1000,
+  "top_nodes_per_tag": 64,
+  "dream_window_days": 21,
+  "recency_half_life_days": 21,
+  "score_precision": 4,
+  "weights": {
+    "level": 0.56,
+    "recency": 0.29,
+    "dream": 0.15
+  },
+  "level_weights": {
+    "node": 1.0,
+    "tag": 0.67,
+    "jot": 0.34
+  }
+}

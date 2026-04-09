@@ -1,0 +1,33 @@
+name: Backlog Consistency
+
+on:
+  push:
+    paths:
+      - "SRS.md"
+      - "client/runtime/config/backlog_registry.json"
+      - "client/runtime/config/backlog_registry_policy.json"
+      - "docs/client/backlog_views/**"
+      - "core/layer0/ops/src/backlog_registry.rs"
+      - ".github/workflows/backlog-consistency.yml"
+  pull_request:
+    paths:
+      - "SRS.md"
+      - "client/runtime/config/backlog_registry.json"
+      - "client/runtime/config/backlog_registry_policy.json"
+      - "docs/client/backlog_views/**"
+      - "core/layer0/ops/src/backlog_registry.rs"
+      - ".github/workflows/backlog-consistency.yml"
+
+jobs:
+  backlog-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Strict Backlog Consistency Check
+        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- backlog-registry check --strict=1

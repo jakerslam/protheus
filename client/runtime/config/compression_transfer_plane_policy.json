@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": false,
+  "apply_default": false,
+  "embodiment_policy_path": "client/runtime/config/embodiment_layer_policy.json",
+  "bundle_dir": "local/state/hardware/compression_transfer_plane/bundles",
+  "latest_path": "local/state/hardware/compression_transfer_plane/latest.json",
+  "receipts_path": "local/state/hardware/compression_transfer_plane/receipts.jsonl",
+  "include_paths": [
+    "local/state/runtime/scheduler_mode/latest.json",
+    "local/state/hardware/embodiment/latest.json",
+    "local/state/hardware/surface_budget/latest.json",
+    "local/state/ops/phone_seed_profile/status.json"
+  ]
+}

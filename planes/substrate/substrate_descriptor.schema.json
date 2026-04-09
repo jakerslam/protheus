@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protheus.ai/schemas/substrate_descriptor.schema.json",
+  "title": "SubstrateDescriptor",
+  "type": "object",
+  "required": [
+    "node_id",
+    "plane",
+    "value_domain",
+    "determinism_class",
+    "latency_class",
+    "energy_envelope",
+    "isolation",
+    "observability",
+    "privacy_locality",
+    "degradation"
+  ],
+  "properties": {
+    "node_id": { "type": "string", "minLength": 1 },
+    "plane": { "const": "substrate" },
+    "value_domain": {
+      "type": "string",
+      "enum": ["binary", "ternary", "probabilistic", "vector", "quantum"]
+    },
+    "determinism_class": {
+      "type": "string",
+      "enum": ["strict", "bounded", "best_effort"]
+    },
+    "latency_class": {
+      "type": "string",
+      "enum": ["realtime", "interactive", "batch", "deferred"]
+    },
+    "energy_envelope": {
+      "type": "object",
+      "required": ["tier"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["micro", "edge", "server", "cloud"] },
+        "max_watts": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "isolation": {
+      "type": "string",
+      "enum": ["mpu", "mmu", "vm", "container", "process", "capability_hw", "sandbox"]
+    },
+    "observability": {
+      "type": "object",
+      "required": ["receipts", "metrics"],
+      "properties": {
+        "receipts": { "type": "boolean" },
+        "metrics": { "type": "boolean" },
+        "trace_level": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "privacy_locality": {
+      "type": "string",
+      "enum": ["device_local", "edge_local", "region_bound", "global"]
+    },
+    "degradation": {
+      "$ref": "./degradation_contract.schema.json"
+    }
+  },
+  "additionalProperties": true
+}

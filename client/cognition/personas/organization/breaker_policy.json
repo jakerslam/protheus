@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "enabled": true,
+  "thresholds": {
+    "intent_drift_max": 0.55,
+    "sovereignty_violation": "fail_closed",
+    "budget_overrun_max": 0.0,
+    "runtime_overrun_max": 0.0,
+    "escalation_rate_max": 0.5
+  },
+  "recovery": {
+    "low": "auto_rollback",
+    "medium": "pause_and_escalate",
+    "high": "pause_and_escalate",
+    "sovereignty": "fail_closed"
+  },
+  "monarch_override": {
+    "enabled": true,
+    "actor": "jay_haslam",
+    "token_path": "personas/jay_haslam/soul_token.md",
+    "allow_without_token": false,
+    "drift_multiplier": 1.4,
+    "budget_multiplier": 1.2,
+    "runtime_multiplier": 1.2,
+    "escalation_multiplier": 1.2
+  }
+}

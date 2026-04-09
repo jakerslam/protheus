@@ -1,0 +1,24 @@
+{
+  "schema_id": "scale_load_model_contract",
+  "schema_version": "1.0",
+  "stage_gates": [
+    "1k",
+    "10k",
+    "100k",
+    "1M"
+  ],
+  "current_stage": "1k",
+  "profile": {
+    "dau": 1000,
+    "peak_concurrency": 140,
+    "rps": 280,
+    "write_ratio": 0.18,
+    "read_ratio": 0.82
+  },
+  "slo": {
+    "availability": 99.95,
+    "p95_latency_ms": 250,
+    "p99_latency_ms": 450,
+    "error_budget_pct": 0.01
+  }
+}

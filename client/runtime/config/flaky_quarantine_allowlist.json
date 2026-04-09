@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "scan_root": "tests/vitest",
+  "allowed_skip_files": []
+}

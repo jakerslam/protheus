@@ -1,0 +1,9 @@
+{
+  "schema_id": "nursery_permissions",
+  "ts": "2026-03-04T20:33:28.300Z",
+  "version": "1.0",
+  "max_ram_mb": 2048,
+  "max_train_minutes": 30,
+  "cpu_only": true,
+  "allow_external_network_for_downloads": true
+}

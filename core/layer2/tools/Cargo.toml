@@ -1,0 +1,8 @@
+[package]
+name = "infring-layer2-tools"
+version = "0.1.0"
+edition = "2021"
+license = "SEE LICENSE IN LICENSE"
+
+[dependencies]
+infring-task-fabric-core-v1 = { path = "task_fabric" }

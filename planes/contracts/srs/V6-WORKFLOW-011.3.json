@@ -1,0 +1,39 @@
+{
+  "id": "V6-WORKFLOW-011.3",
+  "upgrade": "Memory, Semantic Recall, and RAG Bridge Contract",
+  "section": "Mastra Lightweight TypeScript Agent Assimilation (REQ-41, 2026-03-17)",
+  "impact": 10,
+  "layer_map": "0/1/2/client/adapter",
+  "conduit_only_boundary": false,
+  "todo_bucket": "todo",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-011.3/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-WORKFLOW-011.3.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-011.3/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-WORKFLOW-011.3",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-WORKFLOW-011.3",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-18T04:35:00Z",
+    "notes": "Route Mastra-style conversation memory, semantic recall, and retrieval requests through existing memory/runtime contracts with explicit degraded-mode receipts when sovereign profiles cannot hydrate full recall."
+  }
+}

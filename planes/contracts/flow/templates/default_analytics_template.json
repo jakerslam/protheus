@@ -1,0 +1,32 @@
+{
+  "version": "v1",
+  "kind": "flow_canvas_graph",
+  "nodes": [
+    {
+      "id": "source",
+      "type": "source"
+    },
+    {
+      "id": "transform",
+      "type": "transform"
+    },
+    {
+      "id": "sink",
+      "type": "sink"
+    }
+  ],
+  "edges": [
+    {
+      "from": "source",
+      "to": "transform"
+    },
+    {
+      "from": "transform",
+      "to": "sink"
+    }
+  ],
+  "meta": {
+    "name": "default_analytics_template",
+    "description": "Baseline flow template for source-transform-sink analytics."
+  }
+}

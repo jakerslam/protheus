@@ -1,0 +1,103 @@
+{{- if .Values.daemon.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "protheus.fullname" . }}-daemon
+  labels:
+    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: daemon
+spec:
+  replicas: {{ .Values.daemon.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "protheus.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: daemon
+  strategy:
+{{ toYaml .Values.daemon.strategy | indent 4 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "protheus.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: daemon
+    spec:
+      serviceAccountName: {{ include "protheus.serviceAccountName" . }}
+{{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.image.pullSecrets | indent 8 }}
+{{- end }}
+{{- if and .Values.nvidia.enabled .Values.nvidia.runtimeClassName }}
+      runtimeClassName: {{ .Values.nvidia.runtimeClassName | quote }}
+{{- end }}
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+{{- with .Values.scheduling.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.scheduling.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.scheduling.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+      containers:
+        - name: protheusd
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+{{- range .Values.daemon.command }}
+            - {{ . | quote }}
+{{- end }}
+{{- if .Values.daemon.args }}
+          args:
+{{- range .Values.daemon.args }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "protheus.fullname" . }}-runtime
+{{- if or .Values.secrets.create .Values.secrets.existingSecretName }}
+            - secretRef:
+                name: {{ include "protheus.secretName" . }}
+                optional: {{ .Values.secrets.optional }}
+{{- end }}
+          env:
+            - name: PROTHEUS_SSO_CLIENT_ID
+              value: {{ .Values.sso.clientId | quote }}
+            - name: PROTHEUS_SSO_CLIENT_SECRET_REF
+              value: {{ .Values.sso.clientSecretRef | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          volumeMounts:
+            - name: state
+              mountPath: /app/state
+            - name: logs
+              mountPath: /app/logs
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: state
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.state.sizeLimit | quote }}
+        - name: logs
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.logs.sizeLimit | quote }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.tmp.sizeLimit | quote }}
+{{- end }}

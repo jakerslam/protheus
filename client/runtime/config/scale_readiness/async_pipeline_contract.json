@@ -1,0 +1,15 @@
+{
+  "schema_id": "durable_async_pipeline_contract",
+  "schema_version": "1.0",
+  "queue_backend": "durable_journal_queue",
+  "idempotency_keys_required": true,
+  "retry_policy": {
+    "max_attempts": 5,
+    "backoff": "exponential_jitter"
+  },
+  "dead_letter_enabled": true,
+  "backpressure": {
+    "max_inflight": 20000,
+    "shed_mode": "defer_noncritical"
+  }
+}

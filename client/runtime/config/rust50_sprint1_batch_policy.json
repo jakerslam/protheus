@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "lane_id": "V6-RUST50-CONF-003",
+  "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
+  "crates": [
+    { "id": "execution", "manifest": "core/layer2/execution/Cargo.toml" },
+    { "id": "pinnacle", "manifest": "core/layer0/pinnacle/Cargo.toml" },
+    { "id": "vault", "manifest": "core/layer0/vault/Cargo.toml" },
+    { "id": "red_legion", "manifest": "core/layer0/red_legion/Cargo.toml" }
+  ],
+  "regression_tests": [
+    ["node", "tests/client-memory-tools/execution_phase2_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/pinnacle_phase2_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/vault_phase3_rust_parity.test.ts"],
+    ["node", "tests/client-memory-tools/red_legion_phase2_rust_parity.test.ts"]
+  ],
+  "sovereignty_tests": [
+    ["node", "tests/client-memory-tools/execution_security_gate_integration.test.ts"],
+    ["node", "tests/client-memory-tools/vault_sovereignty_fail_closed.test.ts"]
+  ],
+  "mobile_status_cmd": [
+    "node",
+    "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
+    "status",
+    "--strict=0",
+    "--apply=0"
+  ],
+  "battery_max_pct_24h": 5,
+  "rust_share_min_pct": null,
+  "outputs": {
+    "latest_path": "local/state/ops/rust50_sprint1_batch/latest.json",
+    "history_path": "local/state/ops/rust50_sprint1_batch/history.jsonl",
+    "artifacts_dir": "local/state/ops/rust50_sprint1_batch/artifacts"
+  }
+}

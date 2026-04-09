@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "required": [
+    "version",
+    "enabled",
+    "thresholds",
+    "recovery"
+  ],
+  "properties": {
+    "version": { "type": "string" },
+    "enabled": { "type": "boolean" },
+    "thresholds": {
+      "type": "object",
+      "required": [
+        "intent_drift_max",
+        "sovereignty_violation",
+        "budget_overrun_max",
+        "runtime_overrun_max",
+        "escalation_rate_max"
+      ],
+      "properties": {
+        "intent_drift_max": { "type": "number" },
+        "sovereignty_violation": { "type": "string" },
+        "budget_overrun_max": { "type": "number" },
+        "runtime_overrun_max": { "type": "number" },
+        "escalation_rate_max": { "type": "number" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "required": ["low", "medium", "high", "sovereignty"],
+      "properties": {
+        "low": { "type": "string" },
+        "medium": { "type": "string" },
+        "high": { "type": "string" },
+        "sovereignty": { "type": "string" }
+      }
+    },
+    "monarch_override": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "actor": { "type": "string" },
+        "token_path": { "type": "string" },
+        "allow_without_token": { "type": "boolean" },
+        "drift_multiplier": { "type": "number" },
+        "budget_multiplier": { "type": "number" },
+        "runtime_multiplier": { "type": "number" },
+        "escalation_multiplier": { "type": "number" }
+      }
+    }
+  }
+}
