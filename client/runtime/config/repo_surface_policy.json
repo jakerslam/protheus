@@ -2,6 +2,7 @@
   "version": "2026-03-10",
   "code_roots": [
     "core",
+    "surface",
     "client",
     "packages",
     "apps",
@@ -20,6 +21,18 @@
         "sh"
       ],
       "notes": "Rust-first. C/C++ only for low-level or hardware-adjacent modules. Shell allowed only for tightly-scoped build/install/packaging helpers."
+    },
+    "surface": {
+      "target_extensions": [
+        "ts",
+        "tsx"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh"
+      ],
+      "notes": "Surface is orchestration-only. It may shape requests and sequence work, but it must remain non-authoritative and route durable truth through core contracts."
     },
     "client": {
       "target_extensions": [
